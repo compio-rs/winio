@@ -8,11 +8,10 @@ use windows_sys::{
         Graphics::Gdi::MapWindowPoints,
         System::LibraryLoader::GetModuleHandleW,
         UI::WindowsAndMessaging::{
-            CloseWindow, CreateWindowExW, DestroyWindow, GetParent, GetWindowRect,
-            GetWindowTextLengthW, GetWindowTextW, LoadCursorW, RegisterClassExW, SetWindowPos,
-            SetWindowTextW, ShowWindow, CW_USEDEFAULT, HWND_DESKTOP, IDC_ARROW, SWP_NOMOVE,
-            SWP_NOSIZE, SWP_NOZORDER, SW_SHOWNORMAL, WM_CLOSE, WM_CREATE, WM_DESTROY, WNDCLASSEXW,
-            WS_OVERLAPPEDWINDOW,
+            CloseWindow, CreateWindowExW, GetParent, GetWindowRect, GetWindowTextLengthW,
+            GetWindowTextW, LoadCursorW, RegisterClassExW, SetWindowPos, SetWindowTextW,
+            ShowWindow, CW_USEDEFAULT, HWND_DESKTOP, IDC_ARROW, SWP_NOMOVE, SWP_NOSIZE,
+            SWP_NOZORDER, SW_SHOWNORMAL, WM_CLOSE, WM_CREATE, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
         },
     },
 };
@@ -35,6 +34,12 @@ pub trait FromRawWindow {
     /// # Safety
     /// Caller should ensure the handle being valid.
     unsafe fn from_raw_window(handle: HWND) -> Self;
+}
+
+impl<T: AsRawWindow> AsRawWindow for &'_ T {
+    fn as_raw_window(&self) -> HWND {
+        (**self).as_raw_window()
+    }
 }
 
 pub struct OwnedWindow(HWND);
@@ -282,15 +287,8 @@ impl Window {
         self.handle.set_text(s)
     }
 
-    pub async fn close(&self) {
+    pub async fn wait_close(&self) {
         unsafe { wait(self.as_raw_window(), WM_CLOSE) }.await;
-    }
-
-    pub async fn destory(&self) -> io::Result<()> {
-        let fut = unsafe { wait(self.as_raw_window(), WM_DESTROY) };
-        syscall_bool(unsafe { DestroyWindow(self.as_raw_window()) })?;
-        fut.await;
-        Ok(())
     }
 }
 

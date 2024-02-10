@@ -1,6 +1,6 @@
 use std::{
     cell::{LazyCell, RefCell},
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     future::{ready, Future},
     io,
     mem::MaybeUninit,
@@ -36,11 +36,27 @@ impl Default for FutureState {
     }
 }
 
+struct RegisteredFuture {
+    state: FutureState,
+    handle: HWND,
+    msg: u32,
+}
+
+impl RegisteredFuture {
+    pub fn new(handle: HWND, msg: u32) -> Self {
+        Self {
+            state: FutureState::Active(None),
+            handle,
+            msg,
+        }
+    }
+}
+
 pub struct Runtime {
     runnables: Arc<SegQueue<Runnable>>,
     current_msg: RefCell<MSG>,
-    registry: RefCell<HashMap<(HWND, u32), Vec<usize>>>,
-    futures: RefCell<Slab<FutureState>>,
+    registry: RefCell<HashMap<(HWND, u32), HashSet<usize>>>,
+    futures: RefCell<Slab<RegisteredFuture>>,
 }
 
 impl Runtime {
@@ -109,7 +125,7 @@ impl Runtime {
             let mut futures = self.futures.borrow_mut();
             for id in completes {
                 let state = futures.get_mut(id).expect("cannot find registered future");
-                let state = std::mem::replace(state, FutureState::Completed);
+                let state = std::mem::replace(&mut state.state, FutureState::Completed);
                 if let FutureState::Active(Some(w)) = state {
                     w.wake();
                 }
@@ -128,12 +144,15 @@ impl Runtime {
             debug!("ready");
             None
         } else {
-            let id = self.futures.borrow_mut().insert(FutureState::Active(None));
+            let id = self
+                .futures
+                .borrow_mut()
+                .insert(RegisteredFuture::new(handle, msg));
             self.registry
                 .borrow_mut()
                 .entry((handle, msg))
                 .or_default()
-                .push(id);
+                .insert(id);
             debug!("register: {}", id);
             Some(MsgFuture { id })
         }
@@ -142,11 +161,22 @@ impl Runtime {
     fn replace_waker(&self, id: usize, waker: &Waker) -> bool {
         let mut futures = self.futures.borrow_mut();
         let state = futures.get_mut(id).expect("cannot find future");
-        if let FutureState::Completed = state {
+        if let FutureState::Completed = state.state {
             true
         } else {
-            *state = FutureState::Active(Some(waker.clone()));
+            state.state = FutureState::Active(Some(waker.clone()));
             false
+        }
+    }
+
+    fn deregister(&self, id: usize) {
+        let state = self.futures.borrow_mut().remove(id);
+        if let Some(futures) = self
+            .registry
+            .borrow_mut()
+            .get_mut(&(state.handle, state.msg))
+        {
+            futures.remove(&id);
         }
     }
 }
@@ -230,5 +260,11 @@ impl Future for MsgFuture {
             debug!("pending...");
             Poll::Pending
         }
+    }
+}
+
+impl Drop for MsgFuture {
+    fn drop(&mut self) {
+        RUNTIME.deregister(self.id);
     }
 }
