@@ -139,23 +139,17 @@ impl Runtime {
     // Safety: the caller should ensure the handle valid.
     unsafe fn register_message(&self, handle: HWND, msg: u32) -> Option<MsgFuture> {
         instrument!(Level::DEBUG, "register_message", ?handle, ?msg);
-        let curr_msg = self.current_msg.borrow();
-        if curr_msg.hwnd == handle && curr_msg.message == msg {
-            debug!("ready");
-            None
-        } else {
-            let id = self
-                .futures
-                .borrow_mut()
-                .insert(RegisteredFuture::new(handle, msg));
-            self.registry
-                .borrow_mut()
-                .entry((handle, msg))
-                .or_default()
-                .insert(id);
-            debug!("register: {}", id);
-            Some(MsgFuture { id })
-        }
+        let id = self
+            .futures
+            .borrow_mut()
+            .insert(RegisteredFuture::new(handle, msg));
+        self.registry
+            .borrow_mut()
+            .entry((handle, msg))
+            .or_default()
+            .insert(id);
+        debug!("register: {}", id);
+        Some(MsgFuture { id })
     }
 
     fn replace_waker(&self, id: usize, waker: &Waker) -> bool {

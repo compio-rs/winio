@@ -10,8 +10,9 @@ use windows_sys::{
         UI::WindowsAndMessaging::{
             CloseWindow, CreateWindowExW, GetParent, GetWindowRect, GetWindowTextLengthW,
             GetWindowTextW, LoadCursorW, RegisterClassExW, SetWindowPos, SetWindowTextW,
-            ShowWindow, CW_USEDEFAULT, HWND_DESKTOP, IDC_ARROW, SWP_NOMOVE, SWP_NOSIZE,
-            SWP_NOZORDER, SW_SHOWNORMAL, WM_CLOSE, WM_CREATE, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
+            ShowWindow, CW_USEDEFAULT, HWND_DESKTOP, IDC_ARROW, MSG, SWP_NOMOVE, SWP_NOSIZE,
+            SWP_NOZORDER, SW_SHOWNORMAL, WM_CLOSE, WM_MOVE, WM_SIZE, WNDCLASSEXW,
+            WS_OVERLAPPEDWINDOW,
         },
     },
 };
@@ -98,6 +99,10 @@ impl Widget {
         } else {
             Err(io::Error::last_os_error())
         }
+    }
+
+    pub async fn wait(&self, msg: u32) -> MSG {
+        unsafe { wait(self.as_raw_window(), msg) }.await
     }
 
     pub fn dpi(&self) -> u32 {
@@ -253,12 +258,11 @@ pub struct Window {
 }
 
 impl Window {
-    pub async fn new() -> io::Result<Self> {
+    pub fn new() -> io::Result<Self> {
         register_once()?;
         let this = Self {
             handle: Widget::new(WINDOW_CLASS_NAME, WS_OVERLAPPEDWINDOW, 0, 0)?,
         };
-        unsafe { wait(this.as_raw_window(), WM_CREATE) }.await;
         unsafe { ShowWindow(this.as_raw_window(), SW_SHOWNORMAL) };
         Ok(this)
     }
@@ -287,8 +291,16 @@ impl Window {
         self.handle.set_text(s)
     }
 
+    pub async fn wait_size(&self) {
+        self.handle.wait(WM_SIZE).await;
+    }
+
+    pub async fn wait_move(&self) {
+        self.handle.wait(WM_MOVE).await;
+    }
+
     pub async fn wait_close(&self) {
-        unsafe { wait(self.as_raw_window(), WM_CLOSE) }.await;
+        self.handle.wait(WM_CLOSE).await;
     }
 }
 
