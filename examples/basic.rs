@@ -1,10 +1,7 @@
-use windows_sys::{
-    w,
-    Win32::UI::WindowsAndMessaging::{MessageBoxW, IDYES, MB_YESNO},
-};
 use winio::{
     block_on,
-    window::{AsRawWindow, Window},
+    msgbox::{Button, MessageBox, Response},
+    window::Window,
 };
 
 fn main() {
@@ -16,14 +13,13 @@ fn main() {
         let window = Window::new().await.unwrap();
         loop {
             window.close().await;
-            if unsafe {
-                MessageBoxW(
-                    window.as_raw_window(),
-                    w!("Close window?"),
-                    w!("Basic example"),
-                    MB_YESNO,
-                )
-            } == IDYES
+            if MessageBox::new(Some(&window))
+                .title("Basic example")
+                .message("Close window?")
+                .buttons(Button::Yes | Button::No)
+                .show()
+                .unwrap()
+                == Response::Yes
             {
                 window.destory().await.unwrap();
                 break;
