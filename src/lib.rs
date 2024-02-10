@@ -1,6 +1,8 @@
 #![feature(thread_local)]
 #![feature(once_cell_try, lazy_cell)]
 
+mod dpi;
+pub mod drawing;
 pub mod msgbox;
 mod runtime;
 pub mod window;
@@ -11,9 +13,9 @@ pub(crate) use runtime::window_proc;
 pub use runtime::{block_on, spawn, wait};
 use windows_sys::Win32::Foundation::BOOL;
 
-pub(crate) fn syscall_bool(res: BOOL) -> io::Result<()> {
+pub(crate) fn syscall_bool(res: BOOL) -> io::Result<BOOL> {
     if res != 0 {
-        Ok(())
+        Ok(res)
     } else {
         Err(io::Error::last_os_error())
     }

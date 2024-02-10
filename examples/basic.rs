@@ -1,5 +1,6 @@
 use winio::{
     block_on,
+    drawing::Size,
     msgbox::{Button, MessageBox, Response},
     window::Window,
 };
@@ -12,6 +13,7 @@ fn main() {
     block_on(async {
         let window = Window::new().await.unwrap();
         window.set_text("Basic example").unwrap();
+        window.set_size(Size::new(800.0, 600.0)).unwrap();
         loop {
             window.close().await;
             if MessageBox::new(Some(&window))

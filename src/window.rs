@@ -1,20 +1,27 @@
-use std::{io, ptr::null, sync::OnceLock};
+use std::{io, mem::MaybeUninit, ptr::null, sync::OnceLock};
 
 use widestring::U16CString;
 use windows_sys::{
     w,
     Win32::{
-        Foundation::HWND,
+        Foundation::{HWND, POINT},
+        Graphics::Gdi::MapWindowPoints,
         System::LibraryLoader::GetModuleHandleW,
         UI::WindowsAndMessaging::{
-            CloseWindow, CreateWindowExW, DestroyWindow, GetWindowTextLengthW, GetWindowTextW,
-            LoadCursorW, RegisterClassExW, SetWindowTextW, ShowWindow, CW_USEDEFAULT, IDC_ARROW,
-            SW_SHOWNORMAL, WM_CLOSE, WM_CREATE, WM_DESTROY, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
+            CloseWindow, CreateWindowExW, DestroyWindow, GetParent, GetWindowRect,
+            GetWindowTextLengthW, GetWindowTextW, LoadCursorW, RegisterClassExW, SetWindowPos,
+            SetWindowTextW, ShowWindow, CW_USEDEFAULT, HWND_DESKTOP, IDC_ARROW, SWP_NOMOVE,
+            SWP_NOSIZE, SWP_NOZORDER, SW_SHOWNORMAL, WM_CLOSE, WM_CREATE, WM_DESTROY, WNDCLASSEXW,
+            WS_OVERLAPPEDWINDOW,
         },
     },
 };
 
-use crate::{syscall_bool, wait};
+use crate::{
+    dpi::{get_dpi_for_window, DpiAware},
+    drawing::{Point, Size},
+    syscall_bool, wait,
+};
 
 pub trait AsRawWindow {
     fn as_raw_window(&self) -> HWND;
@@ -88,6 +95,96 @@ impl Widget {
         }
     }
 
+    pub fn dpi(&self) -> u32 {
+        unsafe { get_dpi_for_window(self.as_raw_window()) }
+    }
+
+    pub fn size_d2l(&self, s: (i32, i32)) -> Size {
+        let dpi = self.dpi();
+        Size::new(s.0 as f64, s.1 as f64).to_logical(dpi)
+    }
+
+    pub fn size_l2d(&self, s: Size) -> (i32, i32) {
+        let dpi = self.dpi();
+        let s = s.to_device(dpi);
+        (s.width as i32, s.height as i32)
+    }
+
+    pub fn point_d2l(&self, p: (i32, i32)) -> Point {
+        let dpi = self.dpi();
+        Point::new(p.0 as f64, p.1 as f64).to_logical(dpi)
+    }
+
+    pub fn point_l2d(&self, p: Point) -> (i32, i32) {
+        let dpi = self.dpi();
+        let p = p.to_device(dpi);
+        (p.x as i32, p.y as i32)
+    }
+
+    fn sized(&self) -> io::Result<(i32, i32)> {
+        let handle = self.as_raw_window();
+        let mut rect = MaybeUninit::uninit();
+        syscall_bool(unsafe { GetWindowRect(handle, rect.as_mut_ptr()) })?;
+        let rect = unsafe { rect.assume_init() };
+        Ok((rect.right - rect.left, rect.bottom - rect.top))
+    }
+
+    fn set_sized(&self, v: (i32, i32)) -> io::Result<()> {
+        let handle = self.as_raw_window();
+        if v != self.sized()? {
+            syscall_bool(unsafe {
+                SetWindowPos(handle, 0, 0, 0, v.0, v.1, SWP_NOMOVE | SWP_NOZORDER)
+            })?;
+        }
+        Ok(())
+    }
+
+    pub fn size(&self) -> io::Result<Size> {
+        Ok(self.size_d2l(self.sized()?))
+    }
+
+    pub fn set_size(&self, v: Size) -> io::Result<()> {
+        self.set_sized(self.size_l2d(v))
+    }
+
+    fn locd(&self) -> io::Result<(i32, i32)> {
+        let handle = self.as_raw_window();
+        unsafe {
+            let mut rect = MaybeUninit::uninit();
+            syscall_bool(GetWindowRect(handle, rect.as_mut_ptr()))?;
+            let rect = rect.assume_init();
+            let mut point = POINT {
+                x: rect.left,
+                y: rect.top,
+            };
+            syscall_bool(MapWindowPoints(
+                HWND_DESKTOP,
+                GetParent(handle),
+                &mut point,
+                2,
+            ))?;
+            Ok((point.x, point.y))
+        }
+    }
+
+    fn set_locd(&self, p: (i32, i32)) -> io::Result<()> {
+        let handle = self.as_raw_window();
+        if p != self.locd()? {
+            syscall_bool(unsafe {
+                SetWindowPos(handle, 0, p.0, p.1, 0, 0, SWP_NOSIZE | SWP_NOZORDER)
+            })?;
+        }
+        Ok(())
+    }
+
+    pub fn loc(&self) -> io::Result<Point> {
+        Ok(self.point_d2l(self.locd()?))
+    }
+
+    pub fn set_loc(&self, p: Point) -> io::Result<()> {
+        self.set_locd(self.point_l2d(p))
+    }
+
     pub fn text(&self) -> io::Result<String> {
         let handle = self.as_raw_window();
         let len = unsafe { GetWindowTextLengthW(handle) };
@@ -159,6 +256,22 @@ impl Window {
         unsafe { wait(this.as_raw_window(), WM_CREATE) }.await;
         unsafe { ShowWindow(this.as_raw_window(), SW_SHOWNORMAL) };
         Ok(this)
+    }
+
+    pub fn loc(&self) -> io::Result<Point> {
+        self.handle.loc()
+    }
+
+    pub fn set_loc(&self, p: Point) -> io::Result<()> {
+        self.handle.set_loc(p)
+    }
+
+    pub fn size(&self) -> io::Result<Size> {
+        self.handle.size()
+    }
+
+    pub fn set_size(&self, v: Size) -> io::Result<()> {
+        self.handle.set_size(v)
     }
 
     pub fn text(&self) -> io::Result<String> {
