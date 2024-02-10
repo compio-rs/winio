@@ -1,14 +1,15 @@
 use std::{io, ptr::null, sync::OnceLock};
 
+use widestring::U16CString;
 use windows_sys::{
     w,
     Win32::{
         Foundation::HWND,
         System::LibraryLoader::GetModuleHandleW,
         UI::WindowsAndMessaging::{
-            CloseWindow, CreateWindowExW, DestroyWindow, LoadCursorW, RegisterClassExW, ShowWindow,
-            CW_USEDEFAULT, IDC_ARROW, SW_SHOWNORMAL, WM_CLOSE, WM_CREATE, WM_DESTROY, WNDCLASSEXW,
-            WS_OVERLAPPEDWINDOW,
+            CloseWindow, CreateWindowExW, DestroyWindow, GetWindowTextLengthW, GetWindowTextW,
+            LoadCursorW, RegisterClassExW, SetWindowTextW, ShowWindow, CW_USEDEFAULT, IDC_ARROW,
+            SW_SHOWNORMAL, WM_CLOSE, WM_CREATE, WM_DESTROY, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
         },
     },
 };
@@ -86,6 +87,25 @@ impl Widget {
             Err(io::Error::last_os_error())
         }
     }
+
+    pub fn text(&self) -> io::Result<String> {
+        let handle = self.as_raw_window();
+        let len = unsafe { GetWindowTextLengthW(handle) };
+        if len == 0 {
+            return Ok(String::new());
+        };
+        let mut res: Vec<u16> = Vec::with_capacity(len as usize + 1);
+        syscall_bool(unsafe { GetWindowTextW(handle, res.as_mut_ptr(), res.capacity() as _) })?;
+        unsafe { res.set_len(len as usize + 1) };
+        Ok(unsafe { U16CString::from_vec_unchecked(res) }.to_string_lossy())
+    }
+
+    pub fn set_text(&self, s: impl AsRef<str>) -> io::Result<()> {
+        let handle = self.as_raw_window();
+        let s = U16CString::from_str_truncate(s);
+        syscall_bool(unsafe { SetWindowTextW(handle, s.as_ptr()) })?;
+        Ok(())
+    }
 }
 
 impl AsRawWindow for Widget {
@@ -139,6 +159,14 @@ impl Window {
         unsafe { wait(this.as_raw_window(), WM_CREATE) }.await;
         unsafe { ShowWindow(this.as_raw_window(), SW_SHOWNORMAL) };
         Ok(this)
+    }
+
+    pub fn text(&self) -> io::Result<String> {
+        self.handle.text()
+    }
+
+    pub fn set_text(&self, s: impl AsRef<str>) -> io::Result<()> {
+        self.handle.set_text(s)
     }
 
     pub async fn close(&self) {

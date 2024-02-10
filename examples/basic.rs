@@ -11,6 +11,7 @@ fn main() {
 
     block_on(async {
         let window = Window::new().await.unwrap();
+        window.set_text("Basic example").unwrap();
         loop {
             window.close().await;
             if MessageBox::new(Some(&window))
