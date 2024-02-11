@@ -105,6 +105,10 @@ impl Widget {
         unsafe { wait(self.as_raw_window(), msg) }.await
     }
 
+    pub async fn wait_parent(&self, msg: u32) -> MSG {
+        unsafe { wait(GetParent(self.as_raw_window()), msg) }.await
+    }
+
     pub fn dpi(&self) -> u32 {
         unsafe { get_dpi_for_window(self.as_raw_window()) }
     }

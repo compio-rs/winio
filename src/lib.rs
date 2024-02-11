@@ -1,6 +1,7 @@
 #![feature(thread_local)]
 #![feature(once_cell_try, lazy_cell)]
 
+pub mod canvas;
 mod dpi;
 pub mod drawing;
 pub mod msgbox;

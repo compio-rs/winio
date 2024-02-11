@@ -1,4 +1,5 @@
 use euclid::*;
+use rgb::RGBA8;
 
 pub struct ScreenSpace;
 
@@ -17,3 +18,5 @@ pub type RelativeVector = Vector2D<f64, RelativeSpace>;
 pub type RelativeSize = Size2D<f64, RelativeSpace>;
 
 pub type RelativeToScreen = Transform2D<f64, RelativeSpace, ScreenSpace>;
+
+pub type Color = RGBA8;
