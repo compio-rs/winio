@@ -1,3 +1,7 @@
+#![feature(let_chains)]
+
+use std::rc::Rc;
+
 use futures_util::FutureExt;
 use winio::{
     block_on, spawn,
@@ -19,10 +23,12 @@ fn main() {
 
         let canvas = Canvas::new(&window).unwrap();
         spawn({
-            let window = window.clone();
-            let canvas = canvas.clone();
+            let window = Rc::downgrade(&window);
+            let canvas = Rc::downgrade(&canvas);
             async move {
-                loop {
+                while let Some(window) = window.upgrade()
+                    && let Some(canvas) = canvas.upgrade()
+                {
                     let csize = window.client_size().unwrap();
                     canvas.set_size(csize / 2.0).unwrap();
                     canvas
@@ -37,29 +43,32 @@ fn main() {
             }
         })
         .detach();
-        spawn(async move {
-            loop {
-                canvas.wait_redraw().await;
-                let ctx = canvas.context().unwrap();
-                let size = canvas.size().unwrap();
-                let brush = SolidColorBrush::new(Color::new(0, 0, 0, 255));
-                ctx.draw_ellipse(
-                    &BrushPen::new(brush.clone(), 1.0),
-                    Rect::new(Point::new(size.width / 4.0, size.height / 4.0), size / 2.0),
-                )
-                .unwrap();
-                ctx.draw_str(
-                    &brush,
-                    DrawingFontBuilder::new()
-                        .halign(HAlign::Center)
-                        .valign(VAlign::Center)
-                        .family("Segoe UI")
-                        .size(12.0)
-                        .build(),
-                    Point::new(size.width / 2.0, size.height / 2.0),
-                    "Hello world!",
-                )
-                .unwrap();
+        spawn({
+            let canvas = Rc::downgrade(&canvas);
+            async move {
+                while let Some(canvas) = canvas.upgrade() {
+                    canvas.wait_redraw().await;
+                    let ctx = canvas.context().unwrap();
+                    let size = canvas.size().unwrap();
+                    let brush = SolidColorBrush::new(Color::new(0, 0, 0, 255));
+                    ctx.draw_ellipse(
+                        &BrushPen::new(brush.clone(), 1.0),
+                        Rect::new(Point::new(size.width / 4.0, size.height / 4.0), size / 2.0),
+                    )
+                    .unwrap();
+                    ctx.draw_str(
+                        &brush,
+                        DrawingFontBuilder::new()
+                            .halign(HAlign::Center)
+                            .valign(VAlign::Center)
+                            .family("Segoe UI")
+                            .size(12.0)
+                            .build(),
+                        Point::new(size.width / 2.0, size.height / 2.0),
+                        "Hello world!",
+                    )
+                    .unwrap();
+                }
             }
         })
         .detach();

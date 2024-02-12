@@ -48,6 +48,12 @@ impl<T: AsRawWindow> AsRawWindow for &'_ T {
     }
 }
 
+impl<T: AsRawWindow> AsRawWindow for Rc<T> {
+    fn as_raw_window(&self) -> HWND {
+        self.as_ref().as_raw_window()
+    }
+}
+
 #[derive(Debug)]
 pub struct OwnedWindow(HWND);
 
@@ -264,21 +270,21 @@ fn register_once() -> io::Result<()> {
     Ok(())
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Window {
-    handle: Rc<Widget>,
+    handle: Widget,
 }
 
 impl Window {
-    pub fn new() -> io::Result<Self> {
+    pub fn new() -> io::Result<Rc<Self>> {
         register_once()?;
         let handle = Widget::new(WINDOW_CLASS_NAME, WS_OVERLAPPEDWINDOW, 0, 0)?;
-        let handle = Rc::<Widget>::new_cyclic(|weak_this| {
+        let this = Rc::<Self>::new_cyclic(|weak_this| {
             crate::spawn({
                 let weak_this = weak_this.clone();
                 async move {
                     while let Some(this) = weak_this.upgrade() {
-                        let msg = this.wait(WM_ERASEBKGND).await;
+                        let msg = this.handle.wait(WM_ERASEBKGND).await;
                         unsafe {
                             let hdc = msg.wParam as HDC;
                             let brush = GetStockObject(WHITE_BRUSH);
@@ -297,7 +303,7 @@ impl Window {
                 let weak_this = weak_this.clone();
                 async move {
                     while let Some(this) = weak_this.upgrade() {
-                        let msg = this.wait(WM_DPICHANGED).await;
+                        let msg = this.handle.wait(WM_DPICHANGED).await;
                         unsafe {
                             let new_rect = msg.lParam as *const RECT;
                             if let Some(new_rect) = new_rect.as_ref() {
@@ -316,9 +322,8 @@ impl Window {
                 }
             })
             .detach();
-            handle
+            Self { handle }
         });
-        let this = Self { handle };
         unsafe { ShowWindow(this.as_raw_window(), SW_SHOWNORMAL) };
         Ok(this)
     }

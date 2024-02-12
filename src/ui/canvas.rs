@@ -48,16 +48,16 @@ use crate::{
     },
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Canvas {
-    handle: Rc<Widget>,
+    handle: Widget,
     d2d: ID2D1Factory,
     dwrite: IDWriteFactory,
     target: ID2D1HwndRenderTarget,
 }
 
 impl Canvas {
-    pub fn new(parent: &impl AsRawWindow) -> io::Result<Self> {
+    pub fn new(parent: &impl AsRawWindow) -> io::Result<Rc<Self>> {
         let handle = Widget::new(
             WC_STATICW,
             WS_CHILD | WS_VISIBLE | SS_OWNERDRAW,
@@ -87,12 +87,12 @@ impl Canvas {
                 },
             )?
         };
-        Ok(Self {
-            handle: Rc::new(handle),
+        Ok(Rc::new(Self {
+            handle,
             d2d,
             dwrite,
             target,
-        })
+        }))
     }
 
     pub fn loc(&self) -> io::Result<Point> {
