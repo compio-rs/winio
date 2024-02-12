@@ -1,18 +1,20 @@
-use std::{io, mem::MaybeUninit, ptr::null, sync::OnceLock};
+use std::{io, mem::MaybeUninit, ptr::null, rc::Rc, sync::OnceLock};
 
 use widestring::U16CString;
 use windows_sys::{
     w,
     Win32::{
-        Foundation::{HWND, POINT},
-        Graphics::Gdi::MapWindowPoints,
+        Foundation::{HWND, POINT, RECT},
+        Graphics::Gdi::{
+            GetStockObject, MapWindowPoints, Rectangle, SelectObject, HDC, WHITE_BRUSH,
+        },
         System::LibraryLoader::GetModuleHandleW,
         UI::WindowsAndMessaging::{
-            CloseWindow, CreateWindowExW, GetParent, GetWindowRect, GetWindowTextLengthW,
-            GetWindowTextW, LoadCursorW, RegisterClassExW, SetWindowPos, SetWindowTextW,
-            ShowWindow, CW_USEDEFAULT, HWND_DESKTOP, IDC_ARROW, MSG, SWP_NOMOVE, SWP_NOSIZE,
-            SWP_NOZORDER, SW_SHOWNORMAL, WM_CLOSE, WM_MOVE, WM_SIZE, WNDCLASSEXW,
-            WS_OVERLAPPEDWINDOW,
+            CloseWindow, CreateWindowExW, GetClientRect, GetParent, GetWindowRect,
+            GetWindowTextLengthW, GetWindowTextW, LoadCursorW, RegisterClassExW, SetWindowPos,
+            SetWindowTextW, ShowWindow, CW_USEDEFAULT, HWND_DESKTOP, IDC_ARROW, MSG,
+            SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SW_SHOWNORMAL, WM_CLOSE,
+            WM_DPICHANGED, WM_ERASEBKGND, WM_MOVE, WM_SIZE, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
         },
     },
 };
@@ -43,6 +45,7 @@ impl<T: AsRawWindow> AsRawWindow for &'_ T {
     }
 }
 
+#[derive(Debug)]
 pub struct OwnedWindow(HWND);
 
 impl Drop for OwnedWindow {
@@ -69,6 +72,7 @@ impl FromRawWindow for OwnedWindow {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct Widget(OwnedWindow);
 
 impl Widget {
@@ -257,16 +261,61 @@ fn register_once() -> io::Result<()> {
     Ok(())
 }
 
+#[derive(Debug, Clone)]
 pub struct Window {
-    handle: Widget,
+    handle: Rc<Widget>,
 }
 
 impl Window {
     pub fn new() -> io::Result<Self> {
         register_once()?;
-        let this = Self {
-            handle: Widget::new(WINDOW_CLASS_NAME, WS_OVERLAPPEDWINDOW, 0, 0)?,
-        };
+        let handle = Widget::new(WINDOW_CLASS_NAME, WS_OVERLAPPEDWINDOW, 0, 0)?;
+        let handle = Rc::<Widget>::new_cyclic(|weak_this| {
+            crate::spawn({
+                let weak_this = weak_this.clone();
+                async move {
+                    while let Some(this) = weak_this.upgrade() {
+                        let msg = this.wait(WM_ERASEBKGND).await;
+                        unsafe {
+                            let hdc = msg.wParam as HDC;
+                            let brush = GetStockObject(WHITE_BRUSH);
+                            let old_brush = SelectObject(hdc, brush);
+                            let mut r = MaybeUninit::uninit();
+                            GetClientRect(this.as_raw_window(), r.as_mut_ptr());
+                            let r = r.assume_init();
+                            Rectangle(hdc, r.left - 1, r.top - 1, r.right + 1, r.bottom + 1);
+                            SelectObject(hdc, old_brush);
+                        }
+                    }
+                }
+            })
+            .detach();
+            crate::spawn({
+                let weak_this = weak_this.clone();
+                async move {
+                    while let Some(this) = weak_this.upgrade() {
+                        let msg = this.wait(WM_DPICHANGED).await;
+                        unsafe {
+                            let new_rect = msg.lParam as *const RECT;
+                            if let Some(new_rect) = new_rect.as_ref() {
+                                SetWindowPos(
+                                    this.as_raw_window(),
+                                    0,
+                                    new_rect.left,
+                                    new_rect.top,
+                                    new_rect.right - new_rect.left,
+                                    new_rect.bottom - new_rect.top,
+                                    SWP_NOZORDER | SWP_NOACTIVATE,
+                                );
+                            }
+                        }
+                    }
+                }
+            })
+            .detach();
+            handle
+        });
+        let this = Self { handle };
         unsafe { ShowWindow(this.as_raw_window(), SW_SHOWNORMAL) };
         Ok(this)
     }
@@ -285,6 +334,16 @@ impl Window {
 
     pub fn set_size(&self, v: Size) -> io::Result<()> {
         self.handle.set_size(v)
+    }
+
+    pub fn client_size(&self) -> io::Result<Size> {
+        let handle = self.as_raw_window();
+        let mut rect = MaybeUninit::uninit();
+        syscall_bool(unsafe { GetClientRect(handle, rect.as_mut_ptr()) })?;
+        let rect = unsafe { rect.assume_init() };
+        Ok(self
+            .handle
+            .size_d2l((rect.right - rect.left, rect.bottom - rect.top)))
     }
 
     pub fn text(&self) -> io::Result<String> {

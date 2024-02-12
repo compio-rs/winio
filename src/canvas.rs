@@ -1,4 +1,4 @@
-use std::{io, ptr::null};
+use std::{io, ptr::null, rc::Rc};
 
 use windows::{
     core::ComInterface,
@@ -31,8 +31,9 @@ use crate::{
     window::{AsRawWindow, Widget},
 };
 
+#[derive(Debug, Clone)]
 pub struct Canvas {
-    handle: Widget,
+    handle: Rc<Widget>,
     d2d: ID2D1Factory,
     dwrite: IDWriteFactory,
     target: ID2D1HwndRenderTarget,
@@ -70,7 +71,7 @@ impl Canvas {
             )?
         };
         Ok(Self {
-            handle,
+            handle: Rc::new(handle),
             d2d,
             dwrite,
             target,
