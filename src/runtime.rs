@@ -83,8 +83,8 @@ impl Runtime {
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
         let mut result = None;
         unsafe { self.spawn_unchecked(async { result = Some(future.await) }) }.detach();
-        self.run_tasks();
         loop {
+            self.run_tasks();
             if let Some(result) = result.take() {
                 return result;
             }
@@ -179,6 +179,7 @@ impl Runtime {
 static RUNTIME: LazyCell<Runtime> = LazyCell::new(Runtime::new);
 
 fn poll_thread() -> io::Result<()> {
+    trace!("MWMO start");
     let res = unsafe {
         MsgWaitForMultipleObjectsEx(
             0,
@@ -191,6 +192,7 @@ fn poll_thread() -> io::Result<()> {
     if res == WAIT_FAILED {
         return Err(io::Error::last_os_error());
     }
+    trace!("MWMO wake up");
     let mut msg = MaybeUninit::uninit();
     let res = unsafe { PeekMessageW(msg.as_mut_ptr(), 0, 0, 0, PM_REMOVE) };
     if res != 0 {

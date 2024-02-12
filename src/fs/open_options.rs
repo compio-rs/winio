@@ -52,52 +52,63 @@ impl OpenOptions {
         }
     }
 
-    pub fn read(&mut self, read: bool) {
+    pub fn read(mut self, read: bool) -> Self {
         self.read = read;
+        self
     }
 
-    pub fn write(&mut self, write: bool) {
+    pub fn write(mut self, write: bool) -> Self {
         self.write = write;
+        self
     }
 
-    pub fn truncate(&mut self, truncate: bool) {
+    pub fn truncate(mut self, truncate: bool) -> Self {
         self.truncate = truncate;
+        self
     }
 
-    pub fn create(&mut self, create: bool) {
+    pub fn create(mut self, create: bool) -> Self {
         self.create = create;
+        self
     }
 
-    pub fn create_new(&mut self, create_new: bool) {
+    pub fn create_new(mut self, create_new: bool) -> Self {
         self.create_new = create_new;
+        self
     }
 
-    pub fn custom_flags(&mut self, flags: u32) {
+    pub fn custom_flags(mut self, flags: u32) -> Self {
         self.custom_flags = flags;
+        self
     }
 
-    pub fn access_mode(&mut self, access_mode: u32) {
+    pub fn access_mode(mut self, access_mode: u32) -> Self {
         self.access_mode = Some(access_mode);
+        self
     }
 
-    pub fn share_mode(&mut self, share_mode: u32) {
+    pub fn share_mode(mut self, share_mode: u32) -> Self {
         self.share_mode = share_mode;
+        self
     }
 
-    pub fn attributes(&mut self, attrs: u32) {
+    pub fn attributes(mut self, attrs: u32) -> Self {
         self.attributes = attrs;
+        self
     }
 
     /// # Safety
-    pub unsafe fn security_attributes(&mut self, attrs: *const SECURITY_ATTRIBUTES) {
+    pub unsafe fn security_attributes(mut self, attrs: *const SECURITY_ATTRIBUTES) -> Self {
         self.security_attributes = attrs;
+        self
     }
 
-    pub fn security_qos_flags(&mut self, flags: u32) {
+    pub fn security_qos_flags(mut self, flags: u32) -> Self {
         // We have to set `SECURITY_SQOS_PRESENT` here, because one of the valid flags
         // we can receive is `SECURITY_ANONYMOUS = 0x0`, which we can't check
         // for later on.
         self.security_qos_flags = flags | SECURITY_SQOS_PRESENT;
+        self
     }
 
     fn get_access_mode(&self) -> io::Result<u32> {

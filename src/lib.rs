@@ -2,11 +2,13 @@
 #![feature(once_cell_try, lazy_cell)]
 
 pub mod fs;
+mod ioext;
 mod runtime;
 pub mod ui;
 
 use std::io;
 
+pub(crate) use ioext::*;
 pub(crate) use runtime::window_proc;
 pub use runtime::{block_on, spawn, wait};
 use windows_sys::Win32::Foundation::{BOOL, HANDLE, INVALID_HANDLE_VALUE};
