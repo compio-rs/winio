@@ -5,6 +5,8 @@ edition = "2021"
 
 [dependencies]
 async-task = "4"
+compio-buf = { version = "0.2.0-beta.1", features = ["nightly"] }
+compio-io = { version = "0.1.0-beta.2", features = ["nightly"] }
 compio-log = "0.1.0-beta.1"
 crossbeam-queue = "0.3"
 euclid = "0.22"
@@ -14,6 +16,8 @@ widestring = "1.0.2"
 windows-sys = { version = "0.48", features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
     "Win32_System_LibraryLoader",
     "Win32_System_SystemServices",
     "Win32_System_Threading",
