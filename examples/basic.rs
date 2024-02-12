@@ -1,8 +1,8 @@
 use futures_util::FutureExt;
 use winio::{
     block_on,
-    canvas::Canvas,
-    drawing::{Point, Size},
+    canvas::{BrushPen, Canvas, SolidColorBrush},
+    drawing::{Color, DrawingFontBuilder, HAlign, Point, Rect, Size, VAlign},
     msgbox::{Button, MessageBox, Response},
     spawn,
     window::Window,
@@ -19,19 +19,21 @@ fn main() {
         window.set_size(Size::new(800.0, 600.0)).unwrap();
 
         let canvas = Canvas::new(&window).unwrap();
-        canvas.set_size(Size::new(400.0, 300.0)).unwrap();
-        canvas.set_loc(Point::new(200.0, 150.0)).unwrap();
         spawn({
             let window = window.clone();
             let canvas = canvas.clone();
             async move {
                 loop {
+                    let csize = window.client_size().unwrap();
+                    canvas.set_size(csize / 2.0).unwrap();
+                    canvas
+                        .set_loc(Point::new(csize.width / 4.0, csize.height / 4.0))
+                        .unwrap();
+                    canvas.redraw().unwrap();
                     futures_util::select! {
                         _ = window.wait_size().fuse() => {}
                         _ = window.wait_move().fuse() => {}
                     }
-                    canvas.set_size(window.client_size().unwrap()).unwrap();
-                    canvas.redraw().unwrap();
                 }
             }
         })
@@ -39,7 +41,26 @@ fn main() {
         spawn(async move {
             loop {
                 canvas.wait_redraw().await;
-                let _ctx = canvas.context().unwrap();
+                let ctx = canvas.context().unwrap();
+                let size = canvas.size().unwrap();
+                let brush = SolidColorBrush::new(Color::new(0, 0, 0, 255));
+                ctx.draw_ellipse(
+                    &BrushPen::new(brush.clone(), 1.0),
+                    Rect::new(Point::new(size.width / 4.0, size.height / 4.0), size / 2.0),
+                )
+                .unwrap();
+                ctx.draw_str(
+                    &brush,
+                    DrawingFontBuilder::new()
+                        .halign(HAlign::Center)
+                        .valign(VAlign::Center)
+                        .family("Segoe UI")
+                        .size(12.0)
+                        .build(),
+                    Point::new(size.width / 2.0, size.height / 2.0),
+                    "Hello world!",
+                )
+                .unwrap();
             }
         })
         .detach();
