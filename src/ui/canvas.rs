@@ -38,11 +38,14 @@ use windows_sys::Win32::{
 };
 
 use crate::{
-    drawing::{
-        Color, DrawingFont, HAlign, Point, Rect, RectBox, RelativeToScreen, Rotation, Size, VAlign,
-    },
     syscall_bool,
-    window::{AsRawWindow, Widget},
+    ui::{
+        drawing::{
+            Color, DrawingFont, HAlign, Point, Rect, RectBox, RelativeToScreen, Rotation, Size,
+            VAlign,
+        },
+        window::{AsRawWindow, Widget},
+    },
 };
 
 #[derive(Debug, Clone)]

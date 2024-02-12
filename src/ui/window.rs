@@ -20,9 +20,12 @@ use windows_sys::{
 };
 
 use crate::{
-    dpi::{get_dpi_for_window, DpiAware},
-    drawing::{Point, Size},
-    syscall_bool, wait,
+    syscall_bool,
+    ui::{
+        dpi::{get_dpi_for_window, DpiAware},
+        drawing::{Point, Size},
+    },
+    wait,
 };
 
 pub trait AsRawWindow {

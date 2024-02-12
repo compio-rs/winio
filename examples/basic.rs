@@ -1,11 +1,10 @@
 use futures_util::FutureExt;
 use winio::{
-    block_on,
-    canvas::{BrushPen, Canvas, SolidColorBrush},
-    drawing::{Color, DrawingFontBuilder, HAlign, Point, Rect, Size, VAlign},
-    msgbox::{Button, MessageBox, Response},
-    spawn,
-    window::Window,
+    block_on, spawn,
+    ui::{
+        BrushPen, Canvas, Color, DrawingFontBuilder, HAlign, MessageBox, MessageBoxButton,
+        MessageBoxResponse, Point, Rect, Size, SolidColorBrush, VAlign, Window,
+    },
 };
 
 fn main() {
@@ -69,10 +68,10 @@ fn main() {
             if MessageBox::new(Some(&window))
                 .title("Basic example")
                 .message("Close window?")
-                .buttons(Button::Yes | Button::No)
+                .buttons(MessageBoxButton::Yes | MessageBoxButton::No)
                 .show()
                 .unwrap()
-                == Response::Yes
+                == MessageBoxResponse::Yes
             {
                 break;
             }

@@ -20,10 +20,10 @@ use windows_sys::Win32::{
     },
 };
 
-use crate::window::AsRawWindow;
+use crate::ui::window::AsRawWindow;
 
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
-pub enum Style {
+pub enum MessageBoxStyle {
     #[default]
     None,
     Info,
@@ -34,7 +34,7 @@ pub enum Style {
 
 #[repr(i32)]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
-pub enum Button {
+pub enum MessageBoxButton {
     #[default]
     Ok     = TDCBF_OK_BUTTON,
     Yes    = TDCBF_YES_BUTTON,
@@ -44,15 +44,15 @@ pub enum Button {
     Close  = TDCBF_CLOSE_BUTTON,
 }
 
-impl BitOr for Button {
-    type Output = Button;
+impl BitOr for MessageBoxButton {
+    type Output = MessageBoxButton;
 
     fn bitor(self, rhs: Self) -> Self::Output {
         unsafe { std::mem::transmute(self as i32 | rhs as i32) }
     }
 }
 
-impl BitOrAssign for Button {
+impl BitOrAssign for MessageBoxButton {
     fn bitor_assign(&mut self, rhs: Self) {
         *self = *self | rhs;
     }
@@ -60,7 +60,7 @@ impl BitOrAssign for Button {
 
 #[repr(i32)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum Response {
+pub enum MessageBoxResponse {
     Cancel = IDCANCEL,
     No     = IDNO,
     Ok     = IDOK,
@@ -89,10 +89,10 @@ pub fn msgbox_custom(
     msg: &U16CStr,
     title: &U16CStr,
     instr: &U16CStr,
-    style: Style,
-    btns: Button,
+    style: MessageBoxStyle,
+    btns: MessageBoxButton,
     default: i32,
-) -> io::Result<Response> {
+) -> io::Result<MessageBoxResponse> {
     let config = TASKDIALOGCONFIG {
         cbSize: std::mem::size_of::<TASKDIALOGCONFIG>() as _,
         hwndParent: parent.map(|p| p.as_raw_window()).unwrap_or_default(),
@@ -102,11 +102,11 @@ pub fn msgbox_custom(
         pszWindowTitle: title.as_ptr(),
         Anonymous1: TASKDIALOGCONFIG_0 {
             pszMainIcon: match style {
-                Style::None => null_mut(),
-                Style::Info => TD_INFORMATION_ICON,
-                Style::Warning => TD_WARNING_ICON,
-                Style::Error => TD_ERROR_ICON,
-                Style::Shield => TD_SHIELD_ICON,
+                MessageBoxStyle::None => null_mut(),
+                MessageBoxStyle::Info => TD_INFORMATION_ICON,
+                MessageBoxStyle::Warning => TD_WARNING_ICON,
+                MessageBoxStyle::Error => TD_ERROR_ICON,
+                MessageBoxStyle::Shield => TD_SHIELD_ICON,
             },
         },
         pszMainInstruction: instr.as_ptr(),
@@ -143,8 +143,8 @@ pub struct MessageBox<'a, W> {
     msg: U16CString,
     title: U16CString,
     instr: U16CString,
-    style: Style,
-    btns: Button,
+    style: MessageBoxStyle,
+    btns: MessageBoxButton,
     def: i32,
 }
 
@@ -155,13 +155,13 @@ impl<'a, W: AsRawWindow> MessageBox<'a, W> {
             msg: U16CString::new(),
             title: U16CString::new(),
             instr: U16CString::new(),
-            style: Style::None,
-            btns: Button::Ok,
+            style: MessageBoxStyle::None,
+            btns: MessageBoxButton::Ok,
             def: 0,
         }
     }
 
-    pub fn show(&self) -> io::Result<Response> {
+    pub fn show(&self) -> io::Result<MessageBoxResponse> {
         msgbox_custom(
             self.parent,
             &self.msg,
@@ -188,12 +188,12 @@ impl<'a, W: AsRawWindow> MessageBox<'a, W> {
         self
     }
 
-    pub fn style(&mut self, style: Style) -> &mut Self {
+    pub fn style(&mut self, style: MessageBoxStyle) -> &mut Self {
         self.style = style;
         self
     }
 
-    pub fn buttons(&mut self, btns: Button) -> &mut Self {
+    pub fn buttons(&mut self, btns: MessageBoxButton) -> &mut Self {
         self.btns = btns;
         self
     }
