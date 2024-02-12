@@ -32,7 +32,7 @@ impl File {
 
 impl AsyncReadAt for File {
     async fn read_at<T: IoBufMut>(&self, mut buf: T, pos: u64) -> BufResult<usize, T> {
-        instrument!(Level::DEBUG, "read_at", ?pos);
+        debug!("read_at {}", pos);
         let res = with_overlapped(|optr, callback| {
             optr.Anonymous.Anonymous.Offset = (pos & 0xFFFFFFFF) as _;
             optr.Anonymous.Anonymous.OffsetHigh = (pos >> 32) as _;
@@ -56,6 +56,7 @@ impl AsyncReadAt for File {
 
 impl AsyncWriteAt for File {
     async fn write_at<T: IoBuf>(&mut self, buf: T, pos: u64) -> BufResult<usize, T> {
+        debug!("write_at {}", pos);
         let res = with_overlapped(|optr, callback| {
             optr.Anonymous.Anonymous.Offset = (pos & 0xFFFFFFFF) as _;
             optr.Anonymous.Anonymous.OffsetHigh = (pos >> 32) as _;
