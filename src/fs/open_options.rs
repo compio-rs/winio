@@ -2,17 +2,19 @@ use std::{io, os::windows::io::FromRawHandle, path::Path, ptr::null};
 
 use widestring::U16CString;
 use windows_sys::Win32::{
-    Foundation::{ERROR_INVALID_PARAMETER, GENERIC_READ, GENERIC_WRITE},
+    Foundation::{
+        GetLastError, ERROR_ALREADY_EXISTS, ERROR_INVALID_PARAMETER, GENERIC_READ, GENERIC_WRITE,
+    },
     Security::SECURITY_ATTRIBUTES,
     Storage::FileSystem::{
-        CreateFileW, CREATE_ALWAYS, CREATE_NEW, FILE_FLAGS_AND_ATTRIBUTES,
-        FILE_FLAG_OPEN_REPARSE_POINT, FILE_FLAG_OVERLAPPED, FILE_SHARE_DELETE, FILE_SHARE_MODE,
-        FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_ALWAYS, OPEN_EXISTING, SECURITY_SQOS_PRESENT,
-        TRUNCATE_EXISTING,
+        CreateFileW, FileAllocationInfo, SetFileInformationByHandle, CREATE_NEW,
+        FILE_ALLOCATION_INFO, FILE_FLAGS_AND_ATTRIBUTES, FILE_FLAG_OPEN_REPARSE_POINT,
+        FILE_FLAG_OVERLAPPED, FILE_SHARE_DELETE, FILE_SHARE_MODE, FILE_SHARE_READ,
+        FILE_SHARE_WRITE, OPEN_ALWAYS, OPEN_EXISTING, SECURITY_SQOS_PRESENT, TRUNCATE_EXISTING,
     },
 };
 
-use crate::{fs::File, syscall_handle};
+use crate::{fs::File, syscall_bool, syscall_handle};
 
 #[derive(Clone, Debug)]
 pub struct OpenOptions {
@@ -130,7 +132,8 @@ impl OpenOptions {
             (false, false, false) => OPEN_EXISTING,
             (true, false, false) => OPEN_ALWAYS,
             (false, true, false) => TRUNCATE_EXISTING,
-            (true, true, false) => CREATE_ALWAYS,
+            // https://github.com/rust-lang/rust/issues/115745
+            (true, true, false) => OPEN_ALWAYS,
             (_, _, true) => CREATE_NEW,
         })
     }
@@ -154,17 +157,30 @@ impl OpenOptions {
                 "file name contained an unexpected NUL byte",
             )
         })?;
-        let handle = syscall_handle(unsafe {
-            CreateFileW(
+        let creation_mode = self.get_creation_mode()?;
+        unsafe {
+            let handle = syscall_handle(CreateFileW(
                 p.as_ptr(),
                 self.get_access_mode()?,
                 self.share_mode,
                 self.security_attributes,
-                self.get_creation_mode()?,
+                creation_mode,
                 self.get_flags_and_attributes(),
                 0,
-            )
-        })?;
-        Ok(unsafe { File::from_raw_handle(handle as _) })
+            ))?;
+            if self.truncate
+                && creation_mode == OPEN_ALWAYS
+                && GetLastError() == ERROR_ALREADY_EXISTS
+            {
+                let alloc = FILE_ALLOCATION_INFO { AllocationSize: 0 };
+                syscall_bool(SetFileInformationByHandle(
+                    handle,
+                    FileAllocationInfo,
+                    std::ptr::addr_of!(alloc).cast(),
+                    std::mem::size_of::<FILE_ALLOCATION_INFO>() as _,
+                ))?;
+            }
+            Ok(File::from_raw_handle(handle as _))
+        }
     }
 }
