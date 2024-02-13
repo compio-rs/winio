@@ -84,8 +84,8 @@ impl CustomButton {
     }
 }
 
-pub fn msgbox_custom(
-    parent: Option<&impl AsRawWindow>,
+fn msgbox_custom(
+    parent: Option<impl AsRawWindow>,
     msg: &U16CStr,
     title: &U16CStr,
     instr: &U16CStr,

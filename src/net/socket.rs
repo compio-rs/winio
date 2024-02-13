@@ -57,7 +57,7 @@ impl Socket {
         loop {
             let wait = unsafe { wait(handle, WM_SOCKET) };
             if guard.is_none() {
-                guard = Some(WSASelectGuard::new(parent, &self.socket, FD_CONNECT)?);
+                guard = Some(WSASelectGuard::new(&parent, &self.socket, FD_CONNECT)?);
             }
             match self.socket.connect(addr) {
                 Ok(()) => return Ok(()),
@@ -86,7 +86,7 @@ impl Socket {
         loop {
             let wait = unsafe { wait(handle, WM_SOCKET) };
             if guard.is_none() {
-                guard = Some(WSASelectGuard::new(parent, &self.socket, FD_ACCEPT)?);
+                guard = Some(WSASelectGuard::new(&parent, &self.socket, FD_ACCEPT)?);
             }
             let msg = wait.await;
             if msg.wParam == self.socket.as_raw_socket() as _
@@ -95,7 +95,7 @@ impl Socket {
                 match self.socket.accept() {
                     Ok((socket, addr)) => {
                         // Deregister it on drop and make it blocking.
-                        let _ = WSASelectGuard::new(parent, &socket, 0)?;
+                        let _ = WSASelectGuard::new(&parent, &socket, 0)?;
                         return Ok((Self::from_socket2(socket), addr));
                     }
                     Err(e) if e.kind() == io::ErrorKind::WouldBlock => continue,

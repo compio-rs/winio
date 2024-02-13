@@ -1,13 +1,14 @@
 #![feature(let_chains)]
 
-use std::rc::Rc;
+use std::{cell::Cell, rc::Rc, time::Duration};
 
 use futures_util::FutureExt;
 use winio::{
     block_on, spawn,
+    time::interval,
     ui::{
         BrushPen, Canvas, Color, DrawingFontBuilder, HAlign, MessageBox, MessageBoxButton,
-        MessageBoxResponse, Point, Rect, Size, SolidColorBrush, VAlign, Window,
+        MessageBoxResponse, MessageBoxStyle, Point, Rect, Size, SolidColorBrush, VAlign, Window,
     },
 };
 
@@ -43,6 +44,26 @@ fn main() {
             }
         })
         .detach();
+
+        let counter = Rc::new(Cell::new(0usize));
+        spawn({
+            let window = window.clone();
+            let canvas = Rc::downgrade(&canvas);
+            let counter = counter.clone();
+            async move {
+                let mut interval = interval(Duration::from_secs(1), window);
+                loop {
+                    interval.tick().await;
+                    counter.set(counter.get() + 1);
+                    if let Some(canvas) = canvas.upgrade() {
+                        canvas.redraw().unwrap();
+                    } else {
+                        break;
+                    }
+                }
+            }
+        })
+        .detach();
         spawn({
             let canvas = Rc::downgrade(&canvas);
             async move {
@@ -65,7 +86,7 @@ fn main() {
                             .size(12.0)
                             .build(),
                         Point::new(size.width / 2.0, size.height / 2.0),
-                        "Hello world!",
+                        format!("Hello world!\nRunning: {}s", counter.get()),
                     )
                     .unwrap();
                 }
@@ -77,6 +98,7 @@ fn main() {
             if MessageBox::new(Some(&window))
                 .title("Basic example")
                 .message("Close window?")
+                .style(MessageBoxStyle::Info)
                 .buttons(MessageBoxButton::Yes | MessageBoxButton::No)
                 .show()
                 .unwrap()

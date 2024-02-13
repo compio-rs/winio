@@ -57,7 +57,7 @@ pub struct Canvas {
 }
 
 impl Canvas {
-    pub fn new(parent: &impl AsRawWindow) -> io::Result<Rc<Self>> {
+    pub fn new(parent: impl AsRawWindow) -> io::Result<Rc<Self>> {
         let handle = Widget::new(
             WC_STATICW,
             WS_CHILD | WS_VISIBLE | SS_OWNERDRAW,
@@ -216,12 +216,12 @@ fn ellipse(rect: Rect) -> D2D1_ELLIPSE {
 
 impl DrawingContext {
     #[inline]
-    fn get_brush(&self, brush: &impl Brush, rect: Rect) -> io::Result<ID2D1Brush> {
+    fn get_brush(&self, brush: impl Brush, rect: Rect) -> io::Result<ID2D1Brush> {
         brush.create(&self.target, to_trans(rect))
     }
 
     #[inline]
-    fn get_pen(&self, pen: &impl Pen, rect: Rect) -> io::Result<(ID2D1Brush, f32)> {
+    fn get_pen(&self, pen: impl Pen, rect: Rect) -> io::Result<(ID2D1Brush, f32)> {
         pen.create(&self.target, to_trans(rect))
     }
 
@@ -320,7 +320,7 @@ impl DrawingContext {
         }
     }
 
-    pub fn draw_arc(&self, pen: &impl Pen, rect: Rect, start: f64, end: f64) -> io::Result<()> {
+    pub fn draw_arc(&self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> io::Result<()> {
         let geo = self.get_arc_geo(rect, start, end, false)?;
         let (b, width) = self.get_pen(pen, rect)?;
         unsafe {
@@ -329,7 +329,7 @@ impl DrawingContext {
         Ok(())
     }
 
-    pub fn fill_pie(&self, brush: &impl Brush, rect: Rect, start: f64, end: f64) -> io::Result<()> {
+    pub fn fill_pie(&self, brush: impl Brush, rect: Rect, start: f64, end: f64) -> io::Result<()> {
         let geo = self.get_arc_geo(rect, start, end, true)?;
         let b = self.get_brush(brush, rect)?;
         unsafe {
@@ -338,7 +338,7 @@ impl DrawingContext {
         Ok(())
     }
 
-    pub fn draw_ellipse(&self, pen: &impl Pen, rect: Rect) -> io::Result<()> {
+    pub fn draw_ellipse(&self, pen: impl Pen, rect: Rect) -> io::Result<()> {
         let e = ellipse(rect);
         let (b, width) = self.get_pen(pen, rect)?;
         unsafe {
@@ -347,7 +347,7 @@ impl DrawingContext {
         Ok(())
     }
 
-    pub fn fill_ellipse(&self, brush: &impl Brush, rect: Rect) -> io::Result<()> {
+    pub fn fill_ellipse(&self, brush: impl Brush, rect: Rect) -> io::Result<()> {
         let e = ellipse(rect);
         let b = self.get_brush(brush, rect)?;
         unsafe {
@@ -356,7 +356,7 @@ impl DrawingContext {
         Ok(())
     }
 
-    pub fn draw_line(&self, pen: &impl Pen, start: Point, end: Point) -> io::Result<()> {
+    pub fn draw_line(&self, pen: impl Pen, start: Point, end: Point) -> io::Result<()> {
         let rect = RectBox::new(
             Point::new(start.x.min(end.x), start.y.min(end.y)),
             Point::new(start.x.max(end.x), start.y.max(end.y)),
@@ -370,7 +370,7 @@ impl DrawingContext {
         Ok(())
     }
 
-    pub fn draw_rect(&self, pen: &impl Pen, rect: Rect) -> io::Result<()> {
+    pub fn draw_rect(&self, pen: impl Pen, rect: Rect) -> io::Result<()> {
         let (b, width) = self.get_pen(pen, rect)?;
         unsafe {
             self.target.DrawRectangle(&rect_f(rect), &b, width, None);
@@ -378,7 +378,7 @@ impl DrawingContext {
         Ok(())
     }
 
-    pub fn fill_rect(&self, brush: &impl Brush, rect: Rect) -> io::Result<()> {
+    pub fn fill_rect(&self, brush: impl Brush, rect: Rect) -> io::Result<()> {
         let b = self.get_brush(brush, rect)?;
         unsafe {
             self.target.FillRectangle(&rect_f(rect), &b);
@@ -386,7 +386,7 @@ impl DrawingContext {
         Ok(())
     }
 
-    pub fn draw_round_rect(&self, pen: &impl Pen, rect: Rect, round: Size) -> io::Result<()> {
+    pub fn draw_round_rect(&self, pen: impl Pen, rect: Rect, round: Size) -> io::Result<()> {
         let (b, width) = self.get_pen(pen, rect)?;
         unsafe {
             self.target.DrawRoundedRectangle(
@@ -403,7 +403,7 @@ impl DrawingContext {
         Ok(())
     }
 
-    pub fn fill_round_rect(&self, brush: &impl Brush, rect: Rect, round: Size) -> io::Result<()> {
+    pub fn fill_round_rect(&self, brush: impl Brush, rect: Rect, round: Size) -> io::Result<()> {
         let b = self.get_brush(brush, rect)?;
         unsafe {
             self.target.FillRoundedRectangle(
@@ -420,7 +420,7 @@ impl DrawingContext {
 
     pub fn draw_str(
         &self,
-        brush: &impl Brush,
+        brush: impl Brush,
         font: DrawingFont,
         pos: Point,
         text: impl AsRef<str>,
@@ -464,6 +464,16 @@ pub trait Brush {
     -> io::Result<ID2D1Brush>;
 }
 
+impl<B: Brush> Brush for &'_ B {
+    fn create(
+        &self,
+        target: &ID2D1RenderTarget,
+        trans: RelativeToScreen,
+    ) -> io::Result<ID2D1Brush> {
+        (**self).create(target, trans)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SolidColorBrush {
     color: Color,
@@ -494,6 +504,16 @@ pub trait Pen {
         target: &ID2D1RenderTarget,
         trans: RelativeToScreen,
     ) -> io::Result<(ID2D1Brush, f32)>;
+}
+
+impl<P: Pen> Pen for &'_ P {
+    fn create(
+        &self,
+        target: &ID2D1RenderTarget,
+        trans: RelativeToScreen,
+    ) -> io::Result<(ID2D1Brush, f32)> {
+        (**self).create(target, trans)
+    }
 }
 
 #[derive(Debug, Clone)]

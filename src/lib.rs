@@ -5,6 +5,7 @@ pub mod fs;
 mod ioext;
 pub mod net;
 mod runtime;
+pub mod time;
 pub mod ui;
 
 use std::io;
