@@ -3,7 +3,8 @@
 use std::rc::Rc;
 
 use compio_io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
-use futures_util::FutureExt;
+use compio_tls::{native_tls, TlsConnector};
+use futures_util::{lock::Mutex, FutureExt};
 use winio::{
     block_on,
     net::TcpStream,
@@ -43,14 +44,22 @@ fn main() {
             }
         })
         .detach();
+
+        let text = Rc::new(Mutex::new("Loading...".to_string()));
+
         spawn({
-            let canvas = Rc::downgrade(&canvas);
             let window = Rc::downgrade(&window);
+            let canvas = Rc::downgrade(&canvas);
+            let text = text.clone();
             async move {
-                let buffer = if let Some(window) = window.upgrade() {
-                    let mut stream = TcpStream::connect("www.example.com:80", &window)
+                if let Some(window) = window.upgrade() {
+                    let connector = TlsConnector::from(native_tls::TlsConnector::new().unwrap());
+
+                    let stream = TcpStream::connect("www.example.com:443", &window)
                         .await
                         .unwrap();
+                    let mut stream = connector.connect("www.example.com", stream).await.unwrap();
+
                     stream
                         .write_all(
                             "GET / HTTP/1.1\r\nHost:www.example.com\r\nConnection: close\r\n\r\n",
@@ -60,16 +69,18 @@ fn main() {
                     stream.flush().await.unwrap();
 
                     let (_, buffer) = stream.read_to_end(vec![]).await.unwrap();
-                    buffer
-                } else {
-                    b"Failed to perform async connect".to_vec()
-                };
-                let text = std::str::from_utf8(&buffer).unwrap();
-
-                if let Some(canvas) = canvas.upgrade() {
-                    canvas.redraw().unwrap();
+                    *text.lock().await = String::from_utf8_lossy(&buffer).into_owned();
+                    if let Some(canvas) = canvas.upgrade() {
+                        canvas.redraw().unwrap();
+                    }
                 }
+            }
+        })
+        .detach();
 
+        spawn({
+            let canvas = Rc::downgrade(&canvas);
+            async move {
                 while let Some(canvas) = canvas.upgrade() {
                     canvas.wait_redraw().await;
                     let ctx = canvas.context().unwrap();
@@ -83,7 +94,7 @@ fn main() {
                             .size(12.0)
                             .build(),
                         Point::new(0.0, 0.0),
-                        text,
+                        text.lock().await.as_str(),
                     )
                     .unwrap();
                 }

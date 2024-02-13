@@ -120,6 +120,7 @@ impl Socket {
     }
 
     pub async fn recv<B: IoBufMut>(&self, buffer: B) -> BufResult<usize, B> {
+        debug!("recv");
         with_wsa_overlapped(
             |optr, callback, buffer| unsafe {
                 let slice = buffer.as_io_slice_mut();
@@ -143,6 +144,7 @@ impl Socket {
     }
 
     pub async fn recv_vectored<V: IoVectoredBufMut>(&self, buffer: V) -> BufResult<usize, V> {
+        debug!("recv_vectored");
         with_wsa_overlapped(
             |optr, callback, buffer| unsafe {
                 let buffers = buffer.as_io_slices_mut();
@@ -166,6 +168,7 @@ impl Socket {
     }
 
     pub async fn send<T: IoBuf>(&self, buffer: T) -> BufResult<usize, T> {
+        debug!("send");
         with_wsa_overlapped(
             |optr, callback, buffer| unsafe {
                 let slice = buffer.as_io_slice();
@@ -187,6 +190,7 @@ impl Socket {
     }
 
     pub async fn send_vectored<T: IoVectoredBuf>(&self, buffer: T) -> BufResult<usize, T> {
+        debug!("send_vectored");
         with_wsa_overlapped(
             |optr, callback, buffer| unsafe {
                 let buffers = buffer.as_io_slices();
