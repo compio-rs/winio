@@ -1,7 +1,7 @@
 use std::{
     cell::{LazyCell, RefCell},
     collections::{HashMap, HashSet},
-    future::{ready, Future},
+    future::Future,
     io,
     mem::MaybeUninit,
     pin::Pin,
@@ -13,10 +13,10 @@ use std::{
 use async_task::{Runnable, Task};
 use compio_log::*;
 use crossbeam_queue::SegQueue;
-use futures_util::future::Either;
 use slab::Slab;
 use windows_sys::Win32::{
     Foundation::{HWND, LPARAM, LRESULT, POINT, WAIT_FAILED, WPARAM},
+    Networking::WinSock::{WSACleanup, WSAStartup, WSADATA},
     System::Threading::INFINITE,
     UI::WindowsAndMessaging::{
         DefWindowProcW, DispatchMessageW, GetMessagePos, GetMessageTime,
@@ -25,9 +25,11 @@ use windows_sys::Win32::{
     },
 };
 
+use crate::syscall_socket;
+
 pub(crate) enum FutureState {
     Active(Option<Waker>),
-    Completed,
+    Completed(MSG),
 }
 
 impl Default for FutureState {
@@ -54,16 +56,17 @@ impl RegisteredFuture {
 
 pub struct Runtime {
     runnables: Arc<SegQueue<Runnable>>,
-    current_msg: RefCell<MSG>,
     registry: RefCell<HashMap<(HWND, u32), HashSet<usize>>>,
     futures: RefCell<Slab<RegisteredFuture>>,
 }
 
 impl Runtime {
     pub fn new() -> Self {
+        let mut data: WSADATA = unsafe { std::mem::zeroed() };
+        syscall_socket(unsafe { WSAStartup(0x202, &mut data) }).unwrap();
+
         Self {
             runnables: Arc::new(SegQueue::new()),
-            current_msg: unsafe { std::mem::zeroed() },
             registry: RefCell::new(HashMap::new()),
             futures: RefCell::new(Slab::new()),
         }
@@ -111,7 +114,7 @@ impl Runtime {
         let pos = unsafe { GetMessagePos() };
         let x = (pos & 0xFFFF) as _;
         let y = (pos >> 16) as _;
-        *self.current_msg.borrow_mut() = MSG {
+        let msg = MSG {
             hwnd: handle,
             message: msg,
             wParam: wparam,
@@ -119,13 +122,13 @@ impl Runtime {
             time: unsafe { GetMessageTime() as _ },
             pt: POINT { x, y },
         };
-        let completes = self.registry.borrow_mut().remove(&(handle, msg));
+        let completes = self.registry.borrow_mut().remove(&(handle, msg.message));
         if let Some(completes) = completes {
             let dealt = !completes.is_empty();
             let mut futures = self.futures.borrow_mut();
             for id in completes {
                 let state = futures.get_mut(id).expect("cannot find registered future");
-                let state = std::mem::replace(&mut state.state, FutureState::Completed);
+                let state = std::mem::replace(&mut state.state, FutureState::Completed(msg));
                 if let FutureState::Active(Some(w)) = state {
                     w.wake();
                 }
@@ -137,7 +140,7 @@ impl Runtime {
     }
 
     // Safety: the caller should ensure the handle valid.
-    unsafe fn register_message(&self, handle: HWND, msg: u32) -> Option<MsgFuture> {
+    unsafe fn register_message(&self, handle: HWND, msg: u32) -> MsgFuture {
         instrument!(Level::DEBUG, "register_message", ?handle, ?msg);
         let id = self
             .futures
@@ -149,17 +152,17 @@ impl Runtime {
             .or_default()
             .insert(id);
         debug!("register: {}", id);
-        Some(MsgFuture { id })
+        MsgFuture { id }
     }
 
-    fn replace_waker(&self, id: usize, waker: &Waker) -> bool {
+    fn replace_waker(&self, id: usize, waker: &Waker) -> Option<MSG> {
         let mut futures = self.futures.borrow_mut();
         let state = futures.get_mut(id).expect("cannot find future");
-        if let FutureState::Completed = state.state {
-            true
+        if let FutureState::Completed(msg) = state.state {
+            Some(msg)
         } else {
             state.state = FutureState::Active(Some(waker.clone()));
-            false
+            None
         }
     }
 
@@ -172,6 +175,12 @@ impl Runtime {
         {
             futures.remove(&id);
         }
+    }
+}
+
+impl Drop for Runtime {
+    fn drop(&mut self) {
+        syscall_socket(unsafe { WSACleanup() }).unwrap();
     }
 }
 
@@ -217,11 +226,7 @@ pub fn spawn<F: Future + 'static>(future: F) -> Task<F::Output> {
 /// # Safety
 /// The caller should ensure the handle valid.
 pub unsafe fn wait(handle: HWND, msg: u32) -> impl Future<Output = MSG> {
-    if let Some(future) = RUNTIME.register_message(handle, msg) {
-        Either::Left(future)
-    } else {
-        Either::Right(ready(*RUNTIME.current_msg.borrow()))
-    }
+    RUNTIME.register_message(handle, msg)
 }
 
 pub(crate) unsafe extern "system" fn window_proc(
@@ -249,9 +254,9 @@ impl Future for MsgFuture {
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         instrument!(Level::DEBUG, "MsgFuture", ?self.id);
-        if RUNTIME.replace_waker(self.id, cx.waker()) {
+        if let Some(msg) = RUNTIME.replace_waker(self.id, cx.waker()) {
             debug!("ready!");
-            Poll::Ready(*RUNTIME.current_msg.borrow())
+            Poll::Ready(msg)
         } else {
             debug!("pending...");
             Poll::Pending

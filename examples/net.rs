@@ -2,23 +2,23 @@
 
 use std::rc::Rc;
 
-use compio_io::AsyncReadAtExt;
+use compio_io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use futures_util::FutureExt;
 use winio::{
     block_on,
-    fs::File,
+    net::TcpStream,
     spawn,
     ui::{Canvas, Color, DrawingFontBuilder, HAlign, Point, Size, SolidColorBrush, VAlign, Window},
 };
 
 fn main() {
     tracing_subscriber::fmt()
-        .with_max_level(compio_log::Level::DEBUG)
+        .with_max_level(compio_log::Level::TRACE)
         .init();
 
     block_on(async {
         let window = Window::new().unwrap();
-        window.set_text("File IO example").unwrap();
+        window.set_text("Networking example").unwrap();
         window.set_size(Size::new(800.0, 600.0)).unwrap();
 
         let canvas = Canvas::new(&window).unwrap();
@@ -45,9 +45,25 @@ fn main() {
         .detach();
         spawn({
             let canvas = Rc::downgrade(&canvas);
+            let window = Rc::downgrade(&window);
             async move {
-                let file = File::open("Cargo.toml").unwrap();
-                let (_, buffer) = file.read_to_end_at(vec![], 0).await.unwrap();
+                let buffer = if let Some(window) = window.upgrade() {
+                    let mut stream = TcpStream::connect("www.example.com:80", &window)
+                        .await
+                        .unwrap();
+                    stream
+                        .write_all(
+                            "GET / HTTP/1.1\r\nHost:www.example.com\r\nConnection: close\r\n\r\n",
+                        )
+                        .await
+                        .unwrap();
+                    stream.flush().await.unwrap();
+
+                    let (_, buffer) = stream.read_to_end(vec![]).await.unwrap();
+                    buffer
+                } else {
+                    b"Failed to perform async connect".to_vec()
+                };
                 let text = std::str::from_utf8(&buffer).unwrap();
 
                 if let Some(canvas) = canvas.upgrade() {

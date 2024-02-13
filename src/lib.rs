@@ -3,6 +3,7 @@
 
 pub mod fs;
 mod ioext;
+pub mod net;
 mod runtime;
 pub mod ui;
 
@@ -15,6 +16,14 @@ use windows_sys::Win32::Foundation::{BOOL, HANDLE, INVALID_HANDLE_VALUE};
 
 pub(crate) fn syscall_bool(res: BOOL) -> io::Result<BOOL> {
     if res != 0 {
+        Ok(res)
+    } else {
+        Err(io::Error::last_os_error())
+    }
+}
+
+pub(crate) fn syscall_socket(res: BOOL) -> io::Result<BOOL> {
+    if res == 0 {
         Ok(res)
     } else {
         Err(io::Error::last_os_error())

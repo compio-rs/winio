@@ -2,6 +2,7 @@ use std::{
     future::Future,
     io,
     mem::ManuallyDrop,
+    ops::DerefMut,
     pin::Pin,
     task::{Context, Poll, Waker},
 };
@@ -17,15 +18,22 @@ use windows_sys::Win32::{
     System::IO::{LPOVERLAPPED_COMPLETION_ROUTINE, OVERLAPPED},
 };
 
-async fn with_overlapped_impl<C>(
-    f: impl FnOnce(&mut OVERLAPPED, Option<C>) -> Poll<io::Result<usize>>,
+async fn with_overlapped_impl<C, B>(
+    f: impl FnOnce(&mut OVERLAPPED, Option<C>, &mut B) -> Poll<io::Result<usize>>,
     callback: C,
-) -> io::Result<usize> {
-    let mut fut = OverlappedFuture::new();
-    match f(&mut fut.inner.base, Some(callback)) {
+    buffer: B,
+) -> BufResult<usize, B> {
+    let mut fut = OverlappedFuture::new(buffer);
+    let inner = &mut fut.inner;
+    let inner = inner.deref_mut();
+    match f(
+        &mut inner.base,
+        Some(callback),
+        inner.buffer.as_mut().unwrap(),
+    ) {
         Poll::Ready(res) => {
             debug!("operation ready: {:?}", res);
-            res
+            BufResult(res, inner.buffer.take().unwrap())
         }
         Poll::Pending => {
             debug!("operation pending...");
@@ -34,16 +42,22 @@ async fn with_overlapped_impl<C>(
     }
 }
 
-pub(crate) async fn with_overlapped(
-    f: impl FnOnce(&mut OVERLAPPED, LPOVERLAPPED_COMPLETION_ROUTINE) -> Poll<io::Result<usize>>,
-) -> io::Result<usize> {
-    with_overlapped_impl(f, overlapped_callback).await
+pub(crate) async fn with_overlapped<B>(
+    f: impl FnOnce(&mut OVERLAPPED, LPOVERLAPPED_COMPLETION_ROUTINE, &mut B) -> Poll<io::Result<usize>>,
+    buffer: B,
+) -> BufResult<usize, B> {
+    with_overlapped_impl(f, overlapped_callback, buffer).await
 }
 
-pub(crate) async fn with_wsa_overlapped(
-    f: impl FnOnce(&mut OVERLAPPED, LPWSAOVERLAPPED_COMPLETION_ROUTINE) -> Poll<io::Result<usize>>,
-) -> io::Result<usize> {
-    with_overlapped_impl(f, overlapped_wsa_callback).await
+pub(crate) async fn with_wsa_overlapped<B>(
+    f: impl FnOnce(
+        &mut OVERLAPPED,
+        LPWSAOVERLAPPED_COMPLETION_ROUTINE,
+        &mut B,
+    ) -> Poll<io::Result<usize>>,
+    buffer: B,
+) -> BufResult<usize, B> {
+    with_overlapped_impl(f, overlapped_wsa_callback, buffer).await
 }
 
 enum OverlappedFutureState {
@@ -53,34 +67,36 @@ enum OverlappedFutureState {
 }
 
 #[repr(C)]
-struct OverlappedInner {
+struct OverlappedInner<B> {
     base: OVERLAPPED,
     state: OverlappedFutureState,
+    buffer: Option<B>,
 }
 
-impl OverlappedInner {
-    pub fn new() -> Self {
+impl<B> OverlappedInner<B> {
+    pub fn new(buffer: B) -> Self {
         Self {
             base: unsafe { std::mem::zeroed() },
             state: OverlappedFutureState::Active(None),
+            buffer: Some(buffer),
         }
     }
 }
 
-struct OverlappedFuture {
-    inner: ManuallyDrop<Box<OverlappedInner>>,
+struct OverlappedFuture<B> {
+    inner: ManuallyDrop<Box<OverlappedInner<B>>>,
 }
 
-impl OverlappedFuture {
-    pub fn new() -> Self {
+impl<B> OverlappedFuture<B> {
+    pub fn new(buffer: B) -> Self {
         Self {
-            inner: ManuallyDrop::new(Box::new(OverlappedInner::new())),
+            inner: ManuallyDrop::new(Box::new(OverlappedInner::new(buffer))),
         }
     }
 }
 
-impl Future for OverlappedFuture {
-    type Output = io::Result<usize>;
+impl<B> Future for OverlappedFuture<B> {
+    type Output = BufResult<usize, B>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let state = std::mem::replace(&mut self.inner.state, OverlappedFutureState::Fused);
@@ -89,13 +105,15 @@ impl Future for OverlappedFuture {
                 self.inner.state = OverlappedFutureState::Active(Some(cx.waker().clone()));
                 Poll::Pending
             }
-            OverlappedFutureState::Completed(res) => Poll::Ready(res),
+            OverlappedFutureState::Completed(res) => {
+                Poll::Ready(BufResult(res, self.inner.buffer.take().unwrap()))
+            }
             OverlappedFutureState::Fused => unreachable!(),
         }
     }
 }
 
-impl Drop for OverlappedFuture {
+impl<B> Drop for OverlappedFuture<B> {
     fn drop(&mut self) {
         if matches!(
             self.inner.state,
@@ -111,7 +129,7 @@ unsafe extern "system" fn overlapped_callback(
     dwnumberofbytestransfered: u32,
     lpoverlapped: *mut OVERLAPPED,
 ) {
-    let ptr = lpoverlapped.cast::<OverlappedInner>();
+    let ptr = lpoverlapped.cast::<OverlappedInner<()>>();
     if let Some(fut) = ptr.as_mut() {
         let res = if dwerrorcode != 0 {
             if matches!(
