@@ -14,7 +14,7 @@ use windows_sys::Win32::{
         GetLastError, ERROR_HANDLE_EOF, ERROR_IO_INCOMPLETE, ERROR_IO_PENDING, ERROR_NO_DATA,
         ERROR_PIPE_CONNECTED,
     },
-    Networking::WinSock::LPWSAOVERLAPPED_COMPLETION_ROUTINE,
+    Networking::WinSock::{LPLOOKUPSERVICE_COMPLETION_ROUTINE, LPWSAOVERLAPPED_COMPLETION_ROUTINE},
     System::IO::{LPOVERLAPPED_COMPLETION_ROUTINE, OVERLAPPED},
 };
 
@@ -58,6 +58,17 @@ pub(crate) async fn with_wsa_overlapped<B>(
     buffer: B,
 ) -> BufResult<usize, B> {
     with_overlapped_impl(f, overlapped_wsa_callback, buffer).await
+}
+
+pub(crate) async fn with_gai<B>(
+    f: impl FnOnce(
+        &mut OVERLAPPED,
+        LPLOOKUPSERVICE_COMPLETION_ROUTINE,
+        &mut B,
+    ) -> Poll<io::Result<usize>>,
+    buffer: B,
+) -> BufResult<usize, B> {
+    with_overlapped_impl(f, overlapped_gai_callback, buffer).await
 }
 
 enum OverlappedFutureState {
@@ -157,6 +168,14 @@ unsafe extern "system" fn overlapped_wsa_callback(
     _dwflags: u32,
 ) {
     overlapped_callback(dwerror, cbtransferred, lpoverlapped);
+}
+
+unsafe extern "system" fn overlapped_gai_callback(
+    dwerror: u32,
+    dwbytes: u32,
+    lpoverlapped: *const OVERLAPPED,
+) {
+    overlapped_callback(dwerror, dwbytes, lpoverlapped.cast_mut())
 }
 
 /// Trait to update the buffer length inside the [`BufResult`].

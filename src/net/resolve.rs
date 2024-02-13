@@ -9,15 +9,11 @@ use compio_buf::BufResult;
 use either::Either;
 use socket2::SockAddr;
 use widestring::U16CString;
-use windows_sys::Win32::{
-    Foundation::HANDLE,
-    Networking::WinSock::{
-        FreeAddrInfoExW, GetAddrInfoExCancel, GetAddrInfoExW, ADDRINFOEXW, AF_UNSPEC, IPPROTO_TCP,
-        NS_ALL, SOCK_STREAM,
-    },
+use windows_sys::Win32::Networking::WinSock::{
+    FreeAddrInfoExW, GetAddrInfoExW, ADDRINFOEXW, AF_UNSPEC, IPPROTO_TCP, NS_ALL, SOCK_STREAM,
 };
 
-use crate::{syscall_socket, winsock_result, with_overlapped};
+use crate::{winsock_result, with_gai};
 
 #[allow(async_fn_in_trait)]
 pub trait ToSocketAddrsAsync {
@@ -144,20 +140,14 @@ pub(crate) async fn each_addr<T, F: Future<Output = io::Result<T>>>(
 async fn resolve_sock_addrs(host: &str, port: u16) -> io::Result<std::vec::IntoIter<SocketAddr>> {
     struct InfoGuard {
         result: *mut ADDRINFOEXW,
-        handle: HANDLE,
     }
 
     impl InfoGuard {
         pub fn new() -> Self {
-            Self {
-                result: null_mut(),
-                handle: 0,
-            }
+            Self { result: null_mut() }
         }
 
-        pub unsafe fn addrs(&mut self, port: u16) -> io::Result<std::vec::IntoIter<SocketAddr>> {
-            self.handle = 0;
-
+        pub unsafe fn addrs(&self, port: u16) -> io::Result<std::vec::IntoIter<SocketAddr>> {
             let mut addrs = vec![];
             let mut result = self.result;
             while let Some(info) = unsafe { result.as_ref() } {
@@ -187,9 +177,6 @@ async fn resolve_sock_addrs(host: &str, port: u16) -> io::Result<std::vec::IntoI
 
     impl Drop for InfoGuard {
         fn drop(&mut self) {
-            if self.handle != 0 {
-                syscall_socket(unsafe { GetAddrInfoExCancel(&self.handle) }).ok();
-            }
             if !self.result.is_null() {
                 unsafe { FreeAddrInfoExW(self.result) }
             }
@@ -199,7 +186,7 @@ async fn resolve_sock_addrs(host: &str, port: u16) -> io::Result<std::vec::IntoI
     let name = U16CString::from_str(host)
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid host name"))?;
 
-    let BufResult(res, mut info) = with_overlapped(
+    let BufResult(res, info) = with_gai(
         |optr, callback, info| {
             let mut hints: ADDRINFOEXW = unsafe { std::mem::zeroed() };
             hints.ai_family = AF_UNSPEC as _;
@@ -216,8 +203,8 @@ async fn resolve_sock_addrs(host: &str, port: u16) -> io::Result<std::vec::IntoI
                     &mut info.result,
                     null(),
                     optr,
-                    std::mem::transmute(callback),
-                    &mut info.handle,
+                    callback,
+                    null_mut(),
                 )
             };
             winsock_result(res)
