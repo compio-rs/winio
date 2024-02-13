@@ -8,8 +8,7 @@ use compio_buf::{BufResult, IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut};
 use compio_log::debug;
 use socket2::{Domain, Protocol, SockAddr, Socket as Socket2, Type};
 use windows_sys::Win32::{
-    Foundation::HWND,
-    Networking::WinSock::{WSAAsyncSelect, WSARecv, WSASend, FD_ACCEPT, FD_CONNECT, SOCKET},
+    Networking::WinSock::{WSAAsyncSelect, WSARecv, WSASend, FD_ACCEPT, FD_CONNECT},
     UI::WindowsAndMessaging::WM_USER,
 };
 
@@ -58,11 +57,7 @@ impl Socket {
         loop {
             let wait = unsafe { wait(handle, WM_SOCKET) };
             if guard.is_none() {
-                guard = Some(WSASelectGuard::new(
-                    handle,
-                    self.as_raw_socket() as _,
-                    FD_CONNECT,
-                )?);
+                guard = Some(WSASelectGuard::new(parent, &self.socket, FD_CONNECT)?);
             }
             match self.socket.connect(addr) {
                 Ok(()) => return Ok(()),
@@ -91,11 +86,7 @@ impl Socket {
         loop {
             let wait = unsafe { wait(handle, WM_SOCKET) };
             if guard.is_none() {
-                guard = Some(WSASelectGuard::new(
-                    handle,
-                    self.as_raw_socket() as _,
-                    FD_ACCEPT,
-                )?);
+                guard = Some(WSASelectGuard::new(parent, &self.socket, FD_ACCEPT)?);
             }
             let msg = wait.await;
             if msg.wParam == self.socket.as_raw_socket() as _
@@ -103,9 +94,8 @@ impl Socket {
             {
                 match self.socket.accept() {
                     Ok((socket, addr)) => {
-                        syscall_socket(unsafe {
-                            WSAAsyncSelect(socket.as_raw_socket() as _, handle, 0, 0)
-                        })?;
+                        // Deregister it on drop and make it blocking.
+                        let _ = WSASelectGuard::new(parent, &socket, 0)?;
                         return Ok((Self::from_socket2(socket), addr));
                     }
                     Err(e) if e.kind() == io::ErrorKind::WouldBlock => continue,
@@ -232,20 +222,36 @@ impl FromRawSocket for Socket {
     }
 }
 
-struct WSASelectGuard {
-    handle: HWND,
-    socket: SOCKET,
+struct WSASelectGuard<'a, W: AsRawWindow> {
+    handle: &'a W,
+    socket: &'a Socket2,
 }
 
-impl WSASelectGuard {
-    pub fn new(handle: HWND, socket: SOCKET, event: u32) -> io::Result<Self> {
-        syscall_socket(unsafe { WSAAsyncSelect(socket, handle, WM_SOCKET, event as _) })?;
+impl<'a, W: AsRawWindow> WSASelectGuard<'a, W> {
+    pub fn new(handle: &'a W, socket: &'a Socket2, event: u32) -> io::Result<Self> {
+        syscall_socket(unsafe {
+            WSAAsyncSelect(
+                socket.as_raw_socket() as _,
+                handle.as_raw_window(),
+                WM_SOCKET,
+                event as _,
+            )
+        })?;
         Ok(Self { handle, socket })
     }
 }
 
-impl Drop for WSASelectGuard {
+impl<'a, W: AsRawWindow> Drop for WSASelectGuard<'a, W> {
     fn drop(&mut self) {
-        syscall_socket(unsafe { WSAAsyncSelect(self.socket, self.handle, 0, 0) }).unwrap();
+        syscall_socket(unsafe {
+            WSAAsyncSelect(
+                self.socket.as_raw_socket() as _,
+                self.handle.as_raw_window(),
+                0,
+                0,
+            )
+        })
+        .unwrap();
+        self.socket.set_nonblocking(false).unwrap();
     }
 }
