@@ -4,18 +4,19 @@ use widestring::U16CString;
 use windows_sys::{
     w,
     Win32::{
-        Foundation::{SetLastError, HWND, POINT, RECT},
+        Foundation::{SetLastError, BOOL, HWND, LPARAM, POINT, RECT},
         Graphics::Gdi::{
             GetStockObject, MapWindowPoints, Rectangle, SelectObject, HDC, WHITE_BRUSH,
         },
         System::LibraryLoader::GetModuleHandleW,
         UI::WindowsAndMessaging::{
-            CloseWindow, CreateWindowExW, GetClientRect, GetParent, GetWindowLongPtrW,
-            GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW, LoadCursorW,
-            RegisterClassExW, SetWindowLongPtrW, SetWindowLongW, SetWindowPos, SetWindowTextW,
-            ShowWindow, CW_USEDEFAULT, GWL_STYLE, HWND_DESKTOP, IDC_ARROW, MSG, SWP_NOACTIVATE,
-            SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SW_SHOWNORMAL, WM_CLOSE, WM_DPICHANGED,
-            WM_ERASEBKGND, WM_MOVE, WM_SIZE, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
+            CloseWindow, CreateWindowExW, EnumChildWindows, GetClientRect, GetParent,
+            GetWindowLongPtrW, GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
+            LoadCursorW, RegisterClassExW, SendMessageW, SetWindowLongPtrW, SetWindowLongW,
+            SetWindowPos, SetWindowTextW, ShowWindow, CW_USEDEFAULT, GWL_STYLE, HWND_DESKTOP,
+            IDC_ARROW, MSG, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SW_SHOWNORMAL,
+            WM_CLOSE, WM_DPICHANGED, WM_ERASEBKGND, WM_MOVE, WM_SETFONT, WM_SIZE, WNDCLASSEXW,
+            WS_OVERLAPPEDWINDOW,
         },
     },
 };
@@ -25,6 +26,7 @@ use crate::{
     ui::{
         dpi::{get_dpi_for_window, DpiAware},
         drawing::{Point, Size},
+        font::default_font,
     },
     wait,
 };
@@ -108,7 +110,9 @@ impl Widget {
                 null(),
             )
         })?;
-        Ok(Self(unsafe { OwnedWindow::from_raw_window(handle) }))
+        let this = Self(unsafe { OwnedWindow::from_raw_window(handle) });
+        this.refresh_font();
+        Ok(this)
     }
 
     pub async fn wait(&self, msg: u32) -> MSG {
@@ -121,6 +125,20 @@ impl Widget {
 
     pub fn dpi(&self) -> u32 {
         unsafe { get_dpi_for_window(self.as_raw_window()) }
+    }
+
+    fn refresh_font(&self) {
+        let font = default_font(self.dpi());
+
+        unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
+            SendMessageW(hwnd, WM_SETFONT, lparam as _, 1);
+            EnumChildWindows(hwnd, Some(enum_callback), lparam);
+            1
+        }
+
+        unsafe {
+            enum_callback(self.as_raw_window(), font as _);
+        }
     }
 
     pub fn size_d2l(&self, s: (i32, i32)) -> Size {
@@ -338,6 +356,7 @@ impl Window {
                                 );
                             }
                         }
+                        this.handle.refresh_font();
                     }
                 }
             })

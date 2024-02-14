@@ -2,6 +2,7 @@ mod canvas;
 pub use canvas::*;
 
 mod dpi;
+mod font;
 
 mod drawing;
 pub use drawing::*;
