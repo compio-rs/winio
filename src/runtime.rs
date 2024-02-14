@@ -112,15 +112,18 @@ impl Runtime {
 
     fn set_current_msg(&self, handle: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> bool {
         let pos = unsafe { GetMessagePos() };
-        let x = (pos & 0xFFFF) as _;
-        let y = (pos >> 16) as _;
+        let x = pos as u16;
+        let y = (pos >> 16) as u16;
         let msg = MSG {
             hwnd: handle,
             message: msg,
             wParam: wparam,
             lParam: lparam,
             time: unsafe { GetMessageTime() as _ },
-            pt: POINT { x, y },
+            pt: POINT {
+                x: x as _,
+                y: y as _,
+            },
         };
         let completes = self.registry.borrow_mut().remove(&(handle, msg.message));
         if let Some(completes) = completes {
