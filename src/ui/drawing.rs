@@ -31,7 +31,6 @@ pub enum HAlign {
     Left,
     Center,
     Right,
-    Stretch,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -39,7 +38,6 @@ pub enum VAlign {
     Top,
     Center,
     Bottom,
-    Stretch,
 }
 
 pub type Color = RGBA8;

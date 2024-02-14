@@ -5,13 +5,13 @@ use windows_sys::Win32::{
     UI::{
         Controls::WC_EDITW,
         WindowsAndMessaging::{
-            EN_UPDATE, ES_AUTOHSCROLL, ES_LEFT, WM_COMMAND, WS_CHILD, WS_EX_CLIENTEDGE, WS_TABSTOP,
-            WS_VISIBLE,
+            EN_UPDATE, ES_AUTOHSCROLL, ES_CENTER, ES_LEFT, ES_RIGHT, WM_COMMAND, WS_CHILD,
+            WS_EX_CLIENTEDGE, WS_TABSTOP, WS_VISIBLE,
         },
     },
 };
 
-use crate::ui::{AsRawWindow, Point, Size, Widget};
+use crate::ui::{AsRawWindow, HAlign, Point, Size, Widget};
 
 #[derive(Debug)]
 pub struct TextBox {
@@ -52,6 +52,28 @@ impl TextBox {
 
     pub fn set_text(&self, s: impl AsRef<str>) -> io::Result<()> {
         self.handle.set_text(s)
+    }
+
+    pub fn halign(&self) -> io::Result<HAlign> {
+        let style = self.handle.style()? as i32;
+        if (style & ES_RIGHT) == ES_RIGHT {
+            Ok(HAlign::Right)
+        } else if (style & ES_CENTER) == ES_CENTER {
+            Ok(HAlign::Center)
+        } else {
+            Ok(HAlign::Left)
+        }
+    }
+
+    pub fn set_halign(&self, align: HAlign) -> io::Result<()> {
+        let mut style = self.handle.style()?;
+        style &= !(ES_RIGHT as u32);
+        match align {
+            HAlign::Left => style |= ES_LEFT as u32,
+            HAlign::Center => style |= ES_CENTER as u32,
+            HAlign::Right => style |= ES_RIGHT as u32,
+        }
+        self.handle.set_style(style)
     }
 
     pub async fn wait_change(&self) {
