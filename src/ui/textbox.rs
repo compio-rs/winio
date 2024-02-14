@@ -3,9 +3,10 @@ use std::{io, rc::Rc};
 use windows_sys::Win32::{
     Foundation::HWND,
     UI::{
-        Controls::WC_BUTTONW,
+        Controls::WC_EDITW,
         WindowsAndMessaging::{
-            BN_CLICKED, BS_PUSHBUTTON, WM_COMMAND, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
+            EN_UPDATE, ES_AUTOHSCROLL, ES_LEFT, WM_COMMAND, WS_CHILD, WS_EX_CLIENTEDGE, WS_TABSTOP,
+            WS_VISIBLE,
         },
     },
 };
@@ -13,19 +14,19 @@ use windows_sys::Win32::{
 use crate::ui::{AsRawWindow, Point, Size, Widget};
 
 #[derive(Debug)]
-pub struct Button {
+pub struct TextBox {
     handle: Widget,
 }
 
-impl Button {
+impl TextBox {
     pub fn new(parent: impl AsRawWindow) -> io::Result<Rc<Self>> {
         let handle = Widget::new(
-            WC_BUTTONW,
-            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON as u32,
-            0,
+            WC_EDITW,
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_LEFT as u32 | ES_AUTOHSCROLL as u32,
+            WS_EX_CLIENTEDGE,
             parent.as_raw_window(),
         )?;
-        handle.set_size(handle.size_d2l((50, 14))).unwrap();
+        handle.set_size(handle.size_d2l((100, 50))).unwrap();
         Ok(Rc::new(Self { handle }))
     }
 
@@ -53,17 +54,17 @@ impl Button {
         self.handle.set_text(s)
     }
 
-    pub async fn wait_click(&self) {
+    pub async fn wait_change(&self) {
         loop {
             let msg = self.handle.wait_parent(WM_COMMAND).await;
-            if msg.lParam == self.as_raw_window() && ((msg.wParam as u32 >> 16) == BN_CLICKED) {
+            if msg.lParam == self.as_raw_window() && ((msg.wParam as u32 >> 16) == EN_UPDATE) {
                 break;
             }
         }
     }
 }
 
-impl AsRawWindow for Button {
+impl AsRawWindow for TextBox {
     fn as_raw_window(&self) -> HWND {
         self.handle.as_raw_window()
     }

@@ -22,12 +22,10 @@ impl<W: AsRawWindow> Interval<W> {
         static ID_EVENT: AtomicUsize = AtomicUsize::new(1);
 
         let id = ID_EVENT.fetch_add(1, Ordering::AcqRel);
-        let res = unsafe { SetTimer(wnd.as_raw_window(), id, interval.as_millis() as _, None) };
-        if res != 0 {
-            Ok(Self { wnd, id })
-        } else {
-            Err(io::Error::last_os_error())
-        }
+        syscall_bool(unsafe {
+            SetTimer(wnd.as_raw_window(), id, interval.as_millis() as _, None)
+        })?;
+        Ok(Self { wnd, id })
     }
 
     pub async fn tick(&mut self) {

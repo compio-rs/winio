@@ -13,18 +13,18 @@ use std::io;
 pub(crate) use ioext::*;
 pub(crate) use runtime::window_proc;
 pub use runtime::{block_on, spawn, wait};
-use windows_sys::Win32::Foundation::{BOOL, HANDLE, INVALID_HANDLE_VALUE};
+use windows_sys::Win32::Foundation::{HANDLE, INVALID_HANDLE_VALUE};
 
-pub(crate) fn syscall_bool(res: BOOL) -> io::Result<BOOL> {
-    if res != 0 {
+pub(crate) fn syscall_bool<T: Default + Eq>(res: T) -> io::Result<T> {
+    if res != T::default() {
         Ok(res)
     } else {
         Err(io::Error::last_os_error())
     }
 }
 
-pub(crate) fn syscall_socket(res: BOOL) -> io::Result<BOOL> {
-    if res == 0 {
+pub(crate) fn syscall_socket<T: Default + Eq>(res: T) -> io::Result<T> {
+    if res == T::default() {
         Ok(res)
     } else {
         Err(io::Error::last_os_error())

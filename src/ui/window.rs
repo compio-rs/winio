@@ -4,17 +4,18 @@ use widestring::U16CString;
 use windows_sys::{
     w,
     Win32::{
-        Foundation::{HWND, POINT, RECT},
+        Foundation::{SetLastError, HWND, POINT, RECT},
         Graphics::Gdi::{
             GetStockObject, MapWindowPoints, Rectangle, SelectObject, HDC, WHITE_BRUSH,
         },
         System::LibraryLoader::GetModuleHandleW,
         UI::WindowsAndMessaging::{
-            CloseWindow, CreateWindowExW, GetClientRect, GetParent, GetWindowRect,
-            GetWindowTextLengthW, GetWindowTextW, LoadCursorW, RegisterClassExW, SetWindowPos,
-            SetWindowTextW, ShowWindow, CW_USEDEFAULT, HWND_DESKTOP, IDC_ARROW, MSG,
-            SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SW_SHOWNORMAL, WM_CLOSE,
-            WM_DPICHANGED, WM_ERASEBKGND, WM_MOVE, WM_SIZE, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
+            CloseWindow, CreateWindowExW, GetClientRect, GetParent, GetWindowLongPtrW,
+            GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW, LoadCursorW,
+            RegisterClassExW, SetWindowLongPtrW, SetWindowLongW, SetWindowPos, SetWindowTextW,
+            ShowWindow, CW_USEDEFAULT, GWL_STYLE, HWND_DESKTOP, IDC_ARROW, MSG, SWP_NOACTIVATE,
+            SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SW_SHOWNORMAL, WM_CLOSE, WM_DPICHANGED,
+            WM_ERASEBKGND, WM_MOVE, WM_SIZE, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
         },
     },
 };
@@ -91,7 +92,7 @@ impl Widget {
         ex_style: u32,
         parent: HWND,
     ) -> io::Result<Self> {
-        let handle = unsafe {
+        let handle = syscall_bool(unsafe {
             CreateWindowExW(
                 ex_style,
                 class_name,
@@ -106,12 +107,8 @@ impl Widget {
                 GetModuleHandleW(null()),
                 null(),
             )
-        };
-        if handle != 0 {
-            Ok(Self(unsafe { OwnedWindow::from_raw_window(handle) }))
-        } else {
-            Err(io::Error::last_os_error())
-        }
+        })?;
+        Ok(Self(unsafe { OwnedWindow::from_raw_window(handle) }))
     }
 
     pub async fn wait(&self, msg: u32) -> MSG {
@@ -230,6 +227,33 @@ impl Widget {
         syscall_bool(unsafe { SetWindowTextW(handle, s.as_ptr()) })?;
         Ok(())
     }
+
+    pub fn style(&self) -> io::Result<u32> {
+        let res = syscall_bool(unsafe {
+            if cfg!(target_pointer_width = "64") {
+                GetWindowLongPtrW(self.as_raw_window(), GWL_STYLE) as u32
+            } else {
+                GetWindowLongW(self.as_raw_window(), GWL_STYLE) as u32
+            }
+        })?;
+        Ok(res)
+    }
+
+    pub fn set_style(&self, style: u32) -> io::Result<()> {
+        unsafe { SetLastError(0) };
+        let res = syscall_bool(unsafe {
+            if cfg!(target_pointer_width = "64") {
+                SetWindowLongPtrW(self.as_raw_window(), GWL_STYLE, style as _) as i32
+            } else {
+                SetWindowLongW(self.as_raw_window(), GWL_STYLE, style as _)
+            }
+        });
+        match res {
+            Ok(_) => Ok(()),
+            Err(e) if e.raw_os_error() == Some(0) => Ok(()),
+            Err(e) => Err(e),
+        }
+    }
 }
 
 impl AsRawWindow for Widget {
@@ -255,12 +279,8 @@ fn register() -> io::Result<()> {
         lpszClassName: WINDOW_CLASS_NAME,
         hIconSm: 0,
     };
-    let res = unsafe { RegisterClassExW(&cls) };
-    if res != 0 {
-        Ok(())
-    } else {
-        Err(io::Error::last_os_error())
-    }
+    syscall_bool(unsafe { RegisterClassExW(&cls) })?;
+    Ok(())
 }
 
 static REGISTER: OnceLock<()> = OnceLock::new();
