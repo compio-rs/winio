@@ -13,6 +13,7 @@ use winio::{
 };
 
 fn main() {
+    #[cfg(feature = "enable_log")]
     tracing_subscriber::fmt()
         .with_max_level(compio_log::Level::DEBUG)
         .init();

@@ -8,13 +8,20 @@ async-task = "4"
 compio-buf = { version = "0.2.0-beta.1", features = ["nightly"] }
 compio-io = { version = "0.1.0-beta.2", features = ["nightly"] }
 compio-log = "0.1.0-beta.1"
+compio-tls = { version = "0.1.0-beta.3", features = ["nightly"] }
 crossbeam-queue = "0.3"
 either = "1"
 euclid = "0.22"
 futures-util = "0.3"
+http-body-util = "0.1"
+hyper = "1"
+hyper-util = { version = "0.1", features = ["client-legacy", "http1"] }
+pin-project = "1"
 rgb = "0.8"
+send_wrapper = { version = "0.6", features = ["futures"] }
 slab = "0.4"
 socket2 = { version = "0.5", features = ["all"] }
+tower-service = "0.3"
 widestring = "1"
 windows-sys = { version = "0.48", features = [
     "Win32_Foundation",
@@ -41,7 +48,6 @@ windows = { version = "0.48", features = [
 ] }
 
 [dev-dependencies]
-compio-tls = { version = "0.1.0-beta.3", features = ["nightly"] }
 tracing-subscriber = "0.3"
 
 [build-dependencies]

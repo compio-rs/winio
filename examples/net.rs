@@ -1,14 +1,15 @@
 #![feature(let_chains)]
 
-use std::rc::Rc;
+use std::{rc::Rc, time::Duration};
 
-use compio_io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
-use compio_tls::{native_tls, TlsConnector};
 use futures_util::{lock::Mutex, FutureExt};
+use http_body_util::{BodyExt, Empty};
+use hyper::{body::Bytes, Request};
 use winio::{
     block_on,
-    net::TcpStream,
+    http::{Connector, WinioExecutor},
     spawn,
+    time::timeout,
     ui::{
         Button, Canvas, Color, DrawingFontBuilder, HAlign, Point, Size, SolidColorBrush, TextBox,
         VAlign, Window,
@@ -16,6 +17,7 @@ use winio::{
 };
 
 fn main() {
+    #[cfg(feature = "enable_log")]
     tracing_subscriber::fmt()
         .with_max_level(compio_log::Level::TRACE)
         .init();
@@ -29,7 +31,7 @@ fn main() {
         let button = Button::new(&window).unwrap();
         button.set_text("Go").unwrap();
         let entry = TextBox::new(&window).unwrap();
-        entry.set_text("www.example.com").unwrap();
+        entry.set_text("https://www.example.com/").unwrap();
         spawn({
             let window = Rc::downgrade(&window);
             let canvas = Rc::downgrade(&canvas);
@@ -72,6 +74,9 @@ fn main() {
         .detach();
 
         let text = Rc::new(Mutex::new(None));
+        let client = hyper_util::client::legacy::Builder::new(WinioExecutor)
+            .set_host(true)
+            .build(Connector::new(window.clone()));
 
         spawn({
             let window = Rc::downgrade(&window);
@@ -94,26 +99,22 @@ fn main() {
                     if let Some(window) = window.upgrade()
                         && let Some(entry) = entry.upgrade()
                     {
-                        let connector =
-                            TlsConnector::from(native_tls::TlsConnector::new().unwrap());
-                        let host = entry.text().unwrap();
+                        let url = entry.text().unwrap();
 
-                        let stream = TcpStream::connect((host.as_str(), 443), &window)
-                            .await
+                        let request = Request::builder()
+                            .uri(url)
+                            .body(Empty::<Bytes>::new())
                             .unwrap();
-                        let mut stream = connector.connect(&host, stream).await.unwrap();
+                        let bytes = if let Ok(res) =
+                            timeout(Duration::from_secs(8), &window, client.request(request)).await
+                        {
+                            let response = res.unwrap();
+                            response.into_body().collect().await.unwrap().to_bytes()
+                        } else {
+                            "Timed out.".into()
+                        };
 
-                        stream
-                            .write_all(format!(
-                                "GET / HTTP/1.1\r\nHost:{}\r\nConnection: close\r\n\r\n",
-                                host,
-                            ))
-                            .await
-                            .unwrap();
-                        stream.flush().await.unwrap();
-
-                        let (_, buffer) = stream.read_to_end(vec![]).await.unwrap();
-                        *text.lock().await = Some(String::from_utf8_lossy(&buffer).into_owned());
+                        *text.lock().await = Some(String::from_utf8_lossy(&bytes).into_owned());
                         if let Some(canvas) = canvas.upgrade() {
                             canvas.redraw().unwrap();
                         } else {

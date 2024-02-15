@@ -1,7 +1,9 @@
 #![feature(thread_local)]
 #![feature(once_cell_try, lazy_cell)]
+#![feature(read_buf, core_io_borrowed_buf)]
 
 pub mod fs;
+pub mod http;
 mod ioext;
 pub mod net;
 mod runtime;
