@@ -150,15 +150,13 @@ async fn fetch(
             }
         }
 
-        if let Some(button) = button.upgrade() {
+        if let Some(button) = button.upgrade()
+            && let Some(canvas) = canvas.upgrade()
+        {
             button.wait_click().await;
-            if let Some(canvas) = canvas.upgrade() {
-                let mut text = text.lock().await;
-                *text = FetchStatus::Loading;
-                canvas.redraw().unwrap();
-            } else {
-                break;
-            }
+            let mut text = text.lock().await;
+            *text = FetchStatus::Loading;
+            canvas.redraw().unwrap();
         } else {
             break;
         }

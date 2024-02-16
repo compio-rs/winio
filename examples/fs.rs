@@ -1,14 +1,21 @@
 #![feature(let_chains)]
 
-use std::rc::{Rc, Weak};
+use std::{
+    io,
+    path::{Path, PathBuf},
+    rc::{Rc, Weak},
+};
 
 use compio_io::AsyncReadAtExt;
-use futures_util::FutureExt;
+use futures_util::{lock::Mutex, FutureExt};
 use winio::{
     block_on,
     fs::File,
     spawn,
-    ui::{Canvas, Color, DrawingFontBuilder, HAlign, Point, Size, SolidColorBrush, VAlign, Window},
+    ui::{
+        Button, Canvas, Color, DrawingFontBuilder, FileBox, HAlign, Point, Size, SolidColorBrush,
+        VAlign, Window,
+    },
 };
 
 fn main() {
@@ -23,22 +30,46 @@ fn main() {
         window.set_size(Size::new(800.0, 600.0)).unwrap();
 
         let canvas = Canvas::new(&window).unwrap();
-        spawn(render(Rc::downgrade(&window), Rc::downgrade(&canvas))).detach();
-        spawn(redraw(Rc::downgrade(&canvas))).detach();
+        let button = Button::new(&window).unwrap();
+        button.set_text("Choose file...").unwrap();
+        spawn(render(
+            Rc::downgrade(&window),
+            Rc::downgrade(&canvas),
+            Rc::downgrade(&button),
+        ))
+        .detach();
+
+        let text = Rc::new(Mutex::new(FetchStatus::Loading));
+        spawn(fetch(
+            Rc::downgrade(&window),
+            Rc::downgrade(&canvas),
+            Rc::downgrade(&button),
+            text.clone(),
+        ))
+        .detach();
+        spawn(redraw(Rc::downgrade(&canvas), text)).detach();
         window.wait_close().await;
     })
 }
 
-async fn render(window: Weak<Window>, canvas: Weak<Canvas>) {
+async fn render(window: Weak<Window>, canvas: Weak<Canvas>, button: Weak<Button>) {
     while let Some(window) = window.upgrade()
         && let Some(canvas) = canvas.upgrade()
+        && let Some(button) = button.upgrade()
     {
+        const BHEIGHT: f64 = 30.0;
+
         let csize = window.client_size().unwrap();
-        canvas.set_size(csize * 0.9).unwrap();
+
+        button.set_loc(Point::new(0.0, 0.0)).unwrap();
+        button.set_size(Size::new(csize.width, BHEIGHT)).unwrap();
+
         canvas
-            .set_loc(Point::new(csize.width * 0.05, csize.height * 0.05))
+            .set_size(Size::new(csize.width, csize.height - BHEIGHT))
             .unwrap();
+        canvas.set_loc(Point::new(0.0, BHEIGHT)).unwrap();
         canvas.redraw().unwrap();
+
         futures_util::select! {
             _ = window.wait_size().fuse() => {}
             _ = window.wait_move().fuse() => {}
@@ -46,15 +77,54 @@ async fn render(window: Weak<Window>, canvas: Weak<Canvas>) {
     }
 }
 
-async fn redraw(canvas: Weak<Canvas>) {
-    let file = File::open("Cargo.toml").unwrap();
-    let (_, buffer) = file.read_to_end_at(vec![], 0).await.unwrap();
-    let text = std::str::from_utf8(&buffer).unwrap();
+enum FetchStatus {
+    Loading,
+    Complete(String),
+    Error(String),
+}
 
-    if let Some(canvas) = canvas.upgrade() {
-        canvas.redraw().unwrap();
+async fn read_file(path: impl AsRef<Path>) -> io::Result<String> {
+    let file = File::open(path)?;
+    let (_, buffer) = file.read_to_end_at(vec![], 0).await?;
+    String::from_utf8(buffer).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+}
+
+async fn fetch(
+    window: Weak<Window>,
+    canvas: Weak<Canvas>,
+    button: Weak<Button>,
+    text: Rc<Mutex<FetchStatus>>,
+) {
+    let mut path = PathBuf::from("Cargo.toml");
+    loop {
+        *text.lock().await = match read_file(&path).await {
+            Ok(text) => FetchStatus::Complete(text),
+            Err(e) => FetchStatus::Error(format!("{:?}", e)),
+        };
+
+        if let Some(canvas) = canvas.upgrade() {
+            canvas.redraw().unwrap();
+        } else {
+            break;
+        }
+
+        if let Some(window) = window.upgrade()
+            && let Some(button) = button.upgrade()
+            && let Some(canvas) = canvas.upgrade()
+        {
+            button.wait_click().await;
+            path = FileBox::new()
+                .title("Open file")
+                .add_filter(("All files", "*.*"))
+                .open(Some(&window))
+                .unwrap();
+            *text.lock().await = FetchStatus::Loading;
+            canvas.redraw().unwrap();
+        }
     }
+}
 
+async fn redraw(canvas: Weak<Canvas>, text: Rc<Mutex<FetchStatus>>) {
     while let Some(canvas) = canvas.upgrade() {
         canvas.wait_redraw().await;
         let ctx = canvas.context().unwrap();
@@ -68,7 +138,11 @@ async fn redraw(canvas: Weak<Canvas>) {
                 .size(12.0)
                 .build(),
             Point::new(0.0, 0.0),
-            text,
+            match &*text.lock().await {
+                FetchStatus::Loading => "Loading...",
+                FetchStatus::Complete(s) => s.as_str(),
+                FetchStatus::Error(e) => e.as_str(),
+            },
         )
         .unwrap();
     }

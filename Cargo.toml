@@ -29,6 +29,7 @@ windows-sys = { version = "0.48", features = [
     "Win32_Networking_WinSock",
     "Win32_Security",
     "Win32_Storage_FileSystem",
+    "Win32_System_Com",
     "Win32_System_IO",
     "Win32_System_LibraryLoader",
     "Win32_System_SystemServices",
@@ -45,6 +46,9 @@ windows = { version = "0.48", features = [
     "Win32_Graphics_Direct2D_Common",
     "Win32_Graphics_DirectWrite",
     "Win32_Graphics_Dxgi_Common",
+    "Win32_System_Com",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
 ] }
 
 [dev-dependencies]

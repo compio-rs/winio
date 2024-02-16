@@ -101,12 +101,12 @@ async fn redraw(canvas: Weak<Canvas>, counter: Rc<Cell<usize>>) {
 async fn wait_close(window: Rc<Window>) {
     loop {
         window.wait_close().await;
-        if MessageBox::new(Some(&window))
+        if MessageBox::new()
             .title("Basic example")
             .message("Close window?")
             .style(MessageBoxStyle::Info)
             .buttons(MessageBoxButton::Yes | MessageBoxButton::No)
-            .show()
+            .show(Some(&window))
             .unwrap()
             == MessageBoxResponse::Yes
         {

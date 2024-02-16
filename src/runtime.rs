@@ -17,7 +17,10 @@ use slab::Slab;
 use windows_sys::Win32::{
     Foundation::{HWND, LPARAM, LRESULT, POINT, WAIT_FAILED, WPARAM},
     Networking::WinSock::{WSACleanup, WSAStartup, WSADATA},
-    System::Threading::INFINITE,
+    System::{
+        Com::{CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED},
+        Threading::INFINITE,
+    },
     UI::WindowsAndMessaging::{
         DefWindowProcW, DispatchMessageW, GetMessagePos, GetMessageTime,
         MsgWaitForMultipleObjectsEx, PeekMessageW, TranslateMessage, MSG, MWMO_ALERTABLE,
@@ -25,7 +28,7 @@ use windows_sys::Win32::{
     },
 };
 
-use crate::syscall_socket;
+use crate::{syscall_hresult, syscall_socket};
 
 pub(crate) enum FutureState {
     Active(Option<Waker>),
@@ -64,6 +67,8 @@ impl Runtime {
     pub fn new() -> Self {
         let mut data: WSADATA = unsafe { std::mem::zeroed() };
         syscall_socket(unsafe { WSAStartup(0x202, &mut data) }).unwrap();
+
+        syscall_hresult(unsafe { CoInitializeEx(null(), COINIT_APARTMENTTHREADED) }).unwrap();
 
         Self {
             runnables: Arc::new(SegQueue::new()),
@@ -183,6 +188,8 @@ impl Runtime {
 
 impl Drop for Runtime {
     fn drop(&mut self) {
+        unsafe { CoUninitialize() };
+
         syscall_socket(unsafe { WSACleanup() }).unwrap();
     }
 }

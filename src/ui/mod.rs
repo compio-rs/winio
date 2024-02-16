@@ -10,6 +10,9 @@ pub use drawing::*;
 mod msgbox;
 pub use msgbox::*;
 
+mod filebox;
+pub use filebox::*;
+
 mod window;
 pub use window::*;
 

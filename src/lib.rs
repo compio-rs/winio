@@ -15,7 +15,10 @@ use std::io;
 pub(crate) use ioext::*;
 pub(crate) use runtime::window_proc;
 pub use runtime::{block_on, spawn, wait};
-use windows_sys::Win32::Foundation::{HANDLE, INVALID_HANDLE_VALUE};
+use windows_sys::{
+    core::HRESULT,
+    Win32::Foundation::{HANDLE, INVALID_HANDLE_VALUE},
+};
 
 pub(crate) fn syscall_bool<T: Default + Eq>(res: T) -> io::Result<T> {
     if res != T::default() {
@@ -38,5 +41,13 @@ pub(crate) fn syscall_handle(res: HANDLE) -> io::Result<HANDLE> {
         Ok(res)
     } else {
         Err(io::Error::last_os_error())
+    }
+}
+
+pub(crate) fn syscall_hresult(res: HRESULT) -> io::Result<()> {
+    if res >= 0 {
+        Ok(())
+    } else {
+        Err(io::Error::from_raw_os_error(res))
     }
 }

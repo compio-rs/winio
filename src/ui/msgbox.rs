@@ -20,7 +20,7 @@ use windows_sys::Win32::{
     },
 };
 
-use crate::ui::window::AsRawWindow;
+use crate::ui::{AsRawWindow, Window};
 
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub enum MessageBoxStyle {
@@ -85,7 +85,7 @@ impl CustomButton {
 }
 
 fn msgbox_custom(
-    parent: Option<impl AsRawWindow>,
+    parent: Option<&Window>,
     msg: &U16CStr,
     title: &U16CStr,
     instr: &U16CStr,
@@ -138,8 +138,7 @@ fn msgbox_custom(
     }
 }
 
-pub struct MessageBox<'a, W> {
-    parent: Option<&'a W>,
+pub struct MessageBox {
     msg: U16CString,
     title: U16CString,
     instr: U16CString,
@@ -148,10 +147,15 @@ pub struct MessageBox<'a, W> {
     def: i32,
 }
 
-impl<'a, W: AsRawWindow> MessageBox<'a, W> {
-    pub fn new(parent: Option<&'a W>) -> Self {
+impl Default for MessageBox {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl MessageBox {
+    pub fn new() -> Self {
         Self {
-            parent,
             msg: U16CString::new(),
             title: U16CString::new(),
             instr: U16CString::new(),
@@ -161,9 +165,9 @@ impl<'a, W: AsRawWindow> MessageBox<'a, W> {
         }
     }
 
-    pub fn show(&self) -> io::Result<MessageBoxResponse> {
+    pub fn show(&self, parent: Option<&Window>) -> io::Result<MessageBoxResponse> {
         msgbox_custom(
-            self.parent,
+            parent,
             &self.msg,
             &self.title,
             &self.instr,
