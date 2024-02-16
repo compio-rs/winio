@@ -19,5 +19,5 @@ pub use window::*;
 mod button;
 pub use button::*;
 
-mod textbox;
-pub use textbox::*;
+mod edit;
+pub use edit::*;

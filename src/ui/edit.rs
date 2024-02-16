@@ -14,11 +14,11 @@ use windows_sys::Win32::{
 use crate::ui::{AsRawWindow, HAlign, Point, Size, Widget};
 
 #[derive(Debug)]
-pub struct TextBox {
+pub struct Edit {
     handle: Widget,
 }
 
-impl TextBox {
+impl Edit {
     pub fn new(parent: impl AsRawWindow) -> io::Result<Rc<Self>> {
         let handle = Widget::new(
             WC_EDITW,
@@ -86,7 +86,7 @@ impl TextBox {
     }
 }
 
-impl AsRawWindow for TextBox {
+impl AsRawWindow for Edit {
     fn as_raw_window(&self) -> HWND {
         self.handle.as_raw_window()
     }

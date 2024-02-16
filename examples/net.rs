@@ -14,7 +14,7 @@ use winio::{
     spawn,
     time::timeout,
     ui::{
-        Button, Canvas, Color, DrawingFontBuilder, HAlign, Point, Size, SolidColorBrush, TextBox,
+        Button, Canvas, Color, DrawingFontBuilder, Edit, HAlign, Point, Size, SolidColorBrush,
         VAlign, Window,
     },
 };
@@ -33,7 +33,7 @@ fn main() {
         let canvas = Canvas::new(&window).unwrap();
         let button = Button::new(&window).unwrap();
         button.set_text("Go").unwrap();
-        let entry = TextBox::new(&window).unwrap();
+        let entry = Edit::new(&window).unwrap();
         entry.set_text("https://www.example.com/").unwrap();
         spawn(render(
             Rc::downgrade(&window),
@@ -66,7 +66,7 @@ async fn render(
     window: Weak<Window>,
     canvas: Weak<Canvas>,
     button: Weak<Button>,
-    entry: Weak<TextBox>,
+    entry: Weak<Edit>,
 ) {
     while let Some(window) = window.upgrade()
         && let Some(canvas) = canvas.upgrade()
@@ -112,7 +112,7 @@ async fn fetch(
     window: Weak<Window>,
     canvas: Weak<Canvas>,
     button: Weak<Button>,
-    entry: Weak<TextBox>,
+    entry: Weak<Edit>,
     client: hyper_util::client::legacy::Client<Connector<Rc<Window>>, Empty<Bytes>>,
     text: Rc<Mutex<FetchStatus>>,
 ) {
