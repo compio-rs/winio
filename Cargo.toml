@@ -8,6 +8,7 @@ compio = { version = "0.9.0-beta.4", features = ["nightly", "native-tls"] }
 compio-log = "0.1.0-beta.1"
 euclid = "0.22"
 futures-util = "0.3"
+once_cell = "1"
 rgb = "0.8"
 slab = "0.4"
 widestring = "1"
@@ -49,6 +50,10 @@ embed-resource = "2"
 [features]
 default = []
 enable_log = ["compio/enable_log", "compio-log/enable_log"]
+
+once_cell_try = ["compio/once_cell_try"]
+lazy_cell = ["compio/lazy_cell"]
+nightly = ["compio/nightly", "cyper/nightly", "once_cell_try", "lazy_cell"]
 
 [patch.'crates-io']
 compio = { git = "https://github.com/Berrysoft/compio.git", branch = "dev/runtime-hook" }

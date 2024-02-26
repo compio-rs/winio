@@ -1,5 +1,5 @@
 use std::{
-    cell::{LazyCell, RefCell},
+    cell::RefCell,
     collections::{HashMap, HashSet},
     future::Future,
     mem::MaybeUninit,
@@ -196,17 +196,18 @@ impl Drop for Runtime {
     }
 }
 
-#[thread_local]
-static RUNTIME: LazyCell<Runtime> = LazyCell::new(Runtime::new);
+thread_local! {
+    static RUNTIME: Runtime = Runtime::new();
+}
 
 pub fn block_on<F: Future>(future: F) -> F::Output {
-    RUNTIME.block_on(future)
+    RUNTIME.with(|runtime| runtime.block_on(future))
 }
 
 /// # Safety
 /// The caller should ensure the handle valid.
 pub unsafe fn wait(handle: HWND, msg: u32) -> impl Future<Output = MSG> {
-    RUNTIME.register_message(handle, msg)
+    RUNTIME.with(|runtime| runtime.register_message(handle, msg))
 }
 
 pub(crate) unsafe extern "system" fn window_proc(
@@ -216,8 +217,11 @@ pub(crate) unsafe extern "system" fn window_proc(
     lparam: LPARAM,
 ) -> LRESULT {
     trace!("window_proc: {}, {}, {}, {}", handle, msg, wparam, lparam);
-    let res = RUNTIME.set_current_msg(handle, msg, wparam, lparam);
-    RUNTIME.runtime.run();
+    let res = RUNTIME.with(|runtime| {
+        let res = runtime.set_current_msg(handle, msg, wparam, lparam);
+        runtime.runtime.run();
+        res
+    });
     if res {
         0
     } else {
@@ -234,7 +238,7 @@ impl Future for MsgFuture {
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         instrument!(Level::DEBUG, "MsgFuture", ?self.id);
-        if let Some(msg) = RUNTIME.replace_waker(self.id, cx.waker()) {
+        if let Some(msg) = RUNTIME.with(|runtime| runtime.replace_waker(self.id, cx.waker())) {
             debug!("ready!");
             Poll::Ready(msg)
         } else {
@@ -246,6 +250,6 @@ impl Future for MsgFuture {
 
 impl Drop for MsgFuture {
     fn drop(&mut self) {
-        RUNTIME.deregister(self.id);
+        RUNTIME.with(|runtime| runtime.deregister(self.id));
     }
 }

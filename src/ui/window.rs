@@ -1,6 +1,10 @@
-use std::{io, mem::MaybeUninit, ptr::null, rc::Rc, sync::OnceLock};
+#[cfg(feature = "once_cell_try")]
+use std::sync::OnceLock;
+use std::{io, mem::MaybeUninit, ptr::null, rc::Rc};
 
 use compio::driver::syscall;
+#[cfg(not(feature = "once_cell_try"))]
+use once_cell::sync::OnceCell as OnceLock;
 use widestring::U16CString;
 use windows_sys::{
     w,
