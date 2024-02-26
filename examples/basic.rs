@@ -9,11 +9,8 @@ use std::{
 use compio::{runtime::spawn, time::interval};
 use futures_util::FutureExt;
 use winio::{
-    block_on,
-    ui::{
-        BrushPen, Canvas, Color, DrawingFontBuilder, HAlign, MessageBox, MessageBoxButton,
-        MessageBoxResponse, MessageBoxStyle, Point, Rect, Size, SolidColorBrush, VAlign, Window,
-    },
+    block_on, BrushPen, Canvas, Color, DrawingFontBuilder, HAlign, MessageBox, MessageBoxButton,
+    MessageBoxResponse, MessageBoxStyle, Point, Rect, Size, SolidColorBrush, VAlign, Window,
 };
 
 fn main() {

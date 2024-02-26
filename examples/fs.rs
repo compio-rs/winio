@@ -9,11 +9,8 @@ use std::{
 use compio::{fs::File, io::AsyncReadAtExt, runtime::spawn};
 use futures_util::{lock::Mutex, FutureExt};
 use winio::{
-    block_on,
-    ui::{
-        Button, Canvas, Color, DrawingFontBuilder, FileBox, HAlign, Point, Size, SolidColorBrush,
-        VAlign, Window,
-    },
+    block_on, Button, Canvas, Color, DrawingFontBuilder, FileBox, HAlign, Point, Size,
+    SolidColorBrush, VAlign, Window,
 };
 
 fn main() {

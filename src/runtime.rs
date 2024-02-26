@@ -83,49 +83,39 @@ impl Runtime {
             if let Some(result) = result.take() {
                 break result;
             }
-            self.runtime.poll_with(|driver, timeout, entries| {
-                match driver.poll(Some(Duration::ZERO), entries) {
-                    Ok(()) => {
-                        if !entries.is_empty() {
-                            return Ok(());
-                        }
-                    }
-                    Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {}
-                    Err(e) => return Err(e),
-                }
 
-                let timeout = match timeout {
-                    Some(timeout) => timeout.as_millis() as u32,
-                    None => INFINITE,
-                };
-                let handle = driver.as_raw_fd() as HANDLE;
-                trace!("MWMO start");
-                let res = unsafe {
-                    MsgWaitForMultipleObjectsEx(
-                        1,
-                        &handle,
-                        timeout,
-                        QS_ALLINPUT,
-                        MWMO_ALERTABLE | MWMO_INPUTAVAILABLE,
-                    )
-                };
-                trace!("MWMO wake up");
-                if res == WAIT_FAILED {
-                    return Err(std::io::Error::last_os_error());
-                }
+            self.runtime.poll_with(Some(Duration::ZERO));
 
-                let mut msg = MaybeUninit::uninit();
-                let res = unsafe { PeekMessageW(msg.as_mut_ptr(), 0, 0, 0, PM_REMOVE) };
-                if res != 0 {
-                    let msg = unsafe { msg.assume_init() };
-                    unsafe {
-                        TranslateMessage(&msg);
-                        DispatchMessageW(&msg);
-                    }
-                }
+            let timeout = self.runtime.current_timeout();
+            let timeout = match timeout {
+                Some(timeout) => timeout.as_millis() as u32,
+                None => INFINITE,
+            };
+            let handle = self.runtime.as_raw_fd() as HANDLE;
+            trace!("MWMO start");
+            let res = unsafe {
+                MsgWaitForMultipleObjectsEx(
+                    1,
+                    &handle,
+                    timeout,
+                    QS_ALLINPUT,
+                    MWMO_ALERTABLE | MWMO_INPUTAVAILABLE,
+                )
+            };
+            trace!("MWMO wake up");
+            if res == WAIT_FAILED {
+                panic!("{:?}", std::io::Error::last_os_error());
+            }
 
-                Ok(())
-            });
+            let mut msg = MaybeUninit::uninit();
+            let res = unsafe { PeekMessageW(msg.as_mut_ptr(), 0, 0, 0, PM_REMOVE) };
+            if res != 0 {
+                let msg = unsafe { msg.assume_init() };
+                unsafe {
+                    TranslateMessage(&msg);
+                    DispatchMessageW(&msg);
+                }
+            }
         }
     }
 

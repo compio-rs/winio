@@ -3,7 +3,8 @@
 #![feature(read_buf, core_io_borrowed_buf)]
 
 mod runtime;
-pub mod ui;
+mod ui;
 
 pub(crate) use runtime::window_proc;
 pub use runtime::{block_on, wait};
+pub use ui::*;

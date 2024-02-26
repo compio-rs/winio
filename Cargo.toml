@@ -4,22 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-async-task = "4"
 compio = { version = "0.9.0-beta.4", features = ["nightly", "native-tls"] }
 compio-log = "0.1.0-beta.1"
-crossbeam-queue = "0.3"
-either = "1"
 euclid = "0.22"
 futures-util = "0.3"
-http-body-util = "0.1"
-hyper = "1"
-hyper-util = { version = "0.1", features = ["client-legacy", "http1"] }
-pin-project = "1"
 rgb = "0.8"
-send_wrapper = { version = "0.6", features = ["futures"] }
 slab = "0.4"
-socket2 = { version = "0.5", features = ["all"] }
-tower-service = "0.3"
 widestring = "1"
 windows-sys = { version = "0.52", features = [
     "Win32_Foundation",
@@ -50,7 +40,7 @@ windows = { version = "0.53", features = [
 
 [dev-dependencies]
 compio = { version = "0.9.0-beta.4", features = ["time"] }
-cyper-core = { version = "0.1.0-beta.1", features = ["client"] }
+cyper = { version = "0.1.0-beta.1", features = ["nightly"] }
 tracing-subscriber = "0.3"
 
 [build-dependencies]
@@ -63,4 +53,4 @@ enable_log = ["compio/enable_log", "compio-log/enable_log"]
 [patch.'crates-io']
 compio = { git = "https://github.com/Berrysoft/compio.git", branch = "dev/runtime-hook" }
 compio-log = { git = "https://github.com/Berrysoft/compio.git", branch = "dev/runtime-hook" }
-cyper-core = { git = "https://github.com/Berrysoft/cyper.git", branch = "update-hyper-with-util" }
+cyper = { git = "https://github.com/Berrysoft/cyper.git", branch = "update-hyper-with-util" }

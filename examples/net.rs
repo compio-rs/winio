@@ -6,16 +6,11 @@ use std::{
 };
 
 use compio::{runtime::spawn, time::timeout};
-use cyper_core::{CompioExecutor, Connector, TlsBackend};
+use cyper::Client;
 use futures_util::{lock::Mutex, FutureExt};
-use http_body_util::{BodyExt, Empty};
-use hyper::{body::Bytes, Request};
 use winio::{
-    block_on,
-    ui::{
-        Button, Canvas, Color, DrawingFontBuilder, Edit, HAlign, Point, Size, SolidColorBrush,
-        VAlign, Window,
-    },
+    block_on, Button, Canvas, Color, DrawingFontBuilder, Edit, HAlign, Point, Size,
+    SolidColorBrush, VAlign, Window,
 };
 
 fn main() {
@@ -43,9 +38,7 @@ fn main() {
         .detach();
 
         let text = Rc::new(Mutex::new(FetchStatus::Loading));
-        let client = hyper_util::client::legacy::Builder::new(CompioExecutor)
-            .set_host(true)
-            .build(Connector::new(TlsBackend::NativeTls));
+        let client = Client::builder().use_native_tls().build();
 
         spawn(fetch(
             Rc::downgrade(&canvas),
@@ -110,26 +103,17 @@ async fn fetch(
     canvas: Weak<Canvas>,
     button: Weak<Button>,
     entry: Weak<Edit>,
-    client: hyper_util::client::legacy::Client<Connector, Empty<Bytes>>,
+    client: Client,
     text: Rc<Mutex<FetchStatus>>,
 ) {
     loop {
         if let Some(entry) = entry.upgrade() {
             let url = entry.text().unwrap();
 
-            let request = Request::builder()
-                .uri(url)
-                .body(Empty::<Bytes>::new())
-                .unwrap();
             let status =
-                if let Ok(res) = timeout(Duration::from_secs(8), client.request(request)).await {
+                if let Ok(res) = timeout(Duration::from_secs(8), client.get(url).send()).await {
                     match res {
-                        Ok(response) => FetchStatus::Complete(
-                            String::from_utf8_lossy(
-                                &response.into_body().collect().await.unwrap().to_bytes(),
-                            )
-                            .into_owned(),
-                        ),
+                        Ok(response) => FetchStatus::Complete(response.text().await.unwrap()),
                         Err(e) => FetchStatus::Error(format!("{:?}", e)),
                     }
                 } else {
