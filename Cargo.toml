@@ -5,10 +5,8 @@ edition = "2021"
 
 [dependencies]
 async-task = "4"
-compio-buf = { version = "0.2.0-beta.1", features = ["nightly"] }
-compio-io = { version = "0.1.0-beta.2", features = ["nightly"] }
+compio = { version = "0.9.0-beta.4", features = ["nightly", "native-tls"] }
 compio-log = "0.1.0-beta.1"
-compio-tls = { version = "0.1.0-beta.3", features = ["nightly"] }
 crossbeam-queue = "0.3"
 either = "1"
 euclid = "0.22"
@@ -23,13 +21,12 @@ slab = "0.4"
 socket2 = { version = "0.5", features = ["all"] }
 tower-service = "0.3"
 widestring = "1"
-windows-sys = { version = "0.48", features = [
+windows-sys = { version = "0.52", features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
     "Win32_Networking_WinSock",
     "Win32_Security",
     "Win32_Storage_FileSystem",
-    "Win32_System_Com",
     "Win32_System_IO",
     "Win32_System_LibraryLoader",
     "Win32_System_SystemServices",
@@ -39,7 +36,7 @@ windows-sys = { version = "0.48", features = [
     "Win32_UI_HiDpi",
     "Win32_UI_WindowsAndMessaging",
 ] }
-windows = { version = "0.48", features = [
+windows = { version = "0.53", features = [
     "Foundation_Numerics",
     "Win32_Foundation",
     "Win32_Graphics_Direct2D",
@@ -52,6 +49,8 @@ windows = { version = "0.48", features = [
 ] }
 
 [dev-dependencies]
+compio = { version = "0.9.0-beta.4", features = ["time"] }
+cyper-core = { version = "0.1.0-beta.1", features = ["client"] }
 tracing-subscriber = "0.3"
 
 [build-dependencies]
@@ -59,4 +58,9 @@ embed-resource = "2"
 
 [features]
 default = []
-enable_log = ["compio-log/enable_log"]
+enable_log = ["compio/enable_log", "compio-log/enable_log"]
+
+[patch.'crates-io']
+compio = { git = "https://github.com/Berrysoft/compio.git", branch = "dev/runtime-hook" }
+compio-log = { git = "https://github.com/Berrysoft/compio.git", branch = "dev/runtime-hook" }
+cyper-core = { git = "https://github.com/Berrysoft/cyper.git", branch = "update-hyper-with-util" }

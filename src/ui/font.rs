@@ -4,6 +4,7 @@ use std::{
     sync::{LazyLock, Mutex},
 };
 
+use compio::driver::syscall;
 use windows_sys::Win32::{
     Graphics::Gdi::{CreateFontIndirectW, DeleteObject, HFONT, LOGFONTW},
     UI::{
@@ -14,18 +15,21 @@ use windows_sys::Win32::{
     },
 };
 
-use crate::{syscall_bool, ui::dpi::DpiAware};
+use crate::ui::dpi::DpiAware;
 
 unsafe fn system_default_font() -> io::Result<LOGFONTW> {
     let mut ncm: NONCLIENTMETRICSW = unsafe { std::mem::zeroed() };
     ncm.cbSize = std::mem::size_of::<NONCLIENTMETRICSW>() as u32;
-    syscall_bool(SystemParametersInfoForDpi(
-        SPI_GETNONCLIENTMETRICS,
-        ncm.cbSize,
-        &mut ncm as *mut _ as _,
-        0,
-        USER_DEFAULT_SCREEN_DPI as _,
-    ))?;
+    syscall!(
+        BOOL,
+        SystemParametersInfoForDpi(
+            SPI_GETNONCLIENTMETRICS,
+            ncm.cbSize,
+            &mut ncm as *mut _ as _,
+            0,
+            USER_DEFAULT_SCREEN_DPI as _,
+        )
+    )?;
     Ok(ncm.lfMessageFont)
 }
 

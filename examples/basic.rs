@@ -6,10 +6,10 @@ use std::{
     time::Duration,
 };
 
+use compio::{runtime::spawn, time::interval};
 use futures_util::FutureExt;
 use winio::{
-    block_on, spawn,
-    time::interval,
+    block_on,
     ui::{
         BrushPen, Canvas, Color, DrawingFontBuilder, HAlign, MessageBox, MessageBoxButton,
         MessageBoxResponse, MessageBoxStyle, Point, Rect, Size, SolidColorBrush, VAlign, Window,
@@ -31,12 +31,7 @@ fn main() {
         let counter = Rc::new(Cell::new(0usize));
 
         spawn(render(Rc::downgrade(&window), Rc::downgrade(&canvas))).detach();
-        spawn(tick(
-            window.clone(),
-            Rc::downgrade(&canvas),
-            counter.clone(),
-        ))
-        .detach();
+        spawn(tick(Rc::downgrade(&canvas), counter.clone())).detach();
         spawn(redraw(Rc::downgrade(&canvas), counter)).detach();
         wait_close(window).await;
     })
@@ -59,8 +54,8 @@ async fn render(window: Weak<Window>, canvas: Weak<Canvas>) {
     }
 }
 
-async fn tick(window: Rc<Window>, canvas: Weak<Canvas>, counter: Rc<Cell<usize>>) {
-    let mut interval = interval(Duration::from_secs(1), window);
+async fn tick(canvas: Weak<Canvas>, counter: Rc<Cell<usize>>) {
+    let mut interval = interval(Duration::from_secs(1));
     loop {
         interval.tick().await;
         counter.set(counter.get() + 1);

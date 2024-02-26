@@ -2,17 +2,16 @@ use std::{io, path::PathBuf};
 
 use widestring::{U16CStr, U16CString};
 use windows::{
-    core::{ComInterface, PCWSTR},
+    core::{Interface, PCWSTR},
     Win32::{
         Foundation::HWND,
-        System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER},
+        System::Com::{CoCreateInstance, CoTaskMemFree, CLSCTX_INPROC_SERVER},
         UI::Shell::{
             Common::COMDLG_FILTERSPEC, FileOpenDialog, FileSaveDialog, IFileDialog,
             IFileOpenDialog, FOS_ALLOWMULTISELECT, SIGDN_FILESYSPATH,
         },
     },
 };
-use windows_sys::Win32::System::Com::CoTaskMemFree;
 
 use crate::ui::{AsRawWindow, Window};
 
@@ -194,6 +193,6 @@ struct CoTaskMemPtr<T>(*mut T);
 
 impl<T> Drop for CoTaskMemPtr<T> {
     fn drop(&mut self) {
-        unsafe { CoTaskMemFree(self.0.cast()) }
+        unsafe { CoTaskMemFree(Some(self.0.cast())) }
     }
 }

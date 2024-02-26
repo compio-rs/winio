@@ -5,14 +5,13 @@ use std::{
     time::Duration,
 };
 
+use compio::{runtime::spawn, time::timeout};
+use cyper_core::{CompioExecutor, Connector, TlsBackend};
 use futures_util::{lock::Mutex, FutureExt};
 use http_body_util::{BodyExt, Empty};
 use hyper::{body::Bytes, Request};
 use winio::{
     block_on,
-    http::{Connector, WinioExecutor},
-    spawn,
-    time::timeout,
     ui::{
         Button, Canvas, Color, DrawingFontBuilder, Edit, HAlign, Point, Size, SolidColorBrush,
         VAlign, Window,
@@ -44,12 +43,11 @@ fn main() {
         .detach();
 
         let text = Rc::new(Mutex::new(FetchStatus::Loading));
-        let client = hyper_util::client::legacy::Builder::new(WinioExecutor)
+        let client = hyper_util::client::legacy::Builder::new(CompioExecutor)
             .set_host(true)
-            .build(Connector::new(window.clone()));
+            .build(Connector::new(TlsBackend::NativeTls));
 
         spawn(fetch(
-            Rc::downgrade(&window),
             Rc::downgrade(&canvas),
             Rc::downgrade(&button),
             Rc::downgrade(&entry),
@@ -109,38 +107,34 @@ enum FetchStatus {
 }
 
 async fn fetch(
-    window: Weak<Window>,
     canvas: Weak<Canvas>,
     button: Weak<Button>,
     entry: Weak<Edit>,
-    client: hyper_util::client::legacy::Client<Connector<Rc<Window>>, Empty<Bytes>>,
+    client: hyper_util::client::legacy::Client<Connector, Empty<Bytes>>,
     text: Rc<Mutex<FetchStatus>>,
 ) {
     loop {
-        if let Some(window) = window.upgrade()
-            && let Some(entry) = entry.upgrade()
-        {
+        if let Some(entry) = entry.upgrade() {
             let url = entry.text().unwrap();
 
             let request = Request::builder()
                 .uri(url)
                 .body(Empty::<Bytes>::new())
                 .unwrap();
-            let status = if let Ok(res) =
-                timeout(Duration::from_secs(8), &window, client.request(request)).await
-            {
-                match res {
-                    Ok(response) => FetchStatus::Complete(
-                        String::from_utf8_lossy(
-                            &response.into_body().collect().await.unwrap().to_bytes(),
-                        )
-                        .into_owned(),
-                    ),
-                    Err(e) => FetchStatus::Error(format!("{:?}", e)),
-                }
-            } else {
-                FetchStatus::Timedout
-            };
+            let status =
+                if let Ok(res) = timeout(Duration::from_secs(8), client.request(request)).await {
+                    match res {
+                        Ok(response) => FetchStatus::Complete(
+                            String::from_utf8_lossy(
+                                &response.into_body().collect().await.unwrap().to_bytes(),
+                            )
+                            .into_owned(),
+                        ),
+                        Err(e) => FetchStatus::Error(format!("{:?}", e)),
+                    }
+                } else {
+                    FetchStatus::Timedout
+                };
 
             *text.lock().await = status;
             if let Some(canvas) = canvas.upgrade() {

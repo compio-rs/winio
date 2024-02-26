@@ -1,8 +1,9 @@
 use std::{io, mem::MaybeUninit, ptr::null, rc::Rc};
 
+use compio::driver::syscall;
 use widestring::U16CString;
 use windows::{
-    core::ComInterface,
+    core::Interface,
     Foundation::Numerics::Matrix3x2,
     Win32::Graphics::{
         Direct2D::{
@@ -37,15 +38,11 @@ use windows_sys::Win32::{
     },
 };
 
-use crate::{
-    syscall_bool,
-    ui::{
-        drawing::{
-            Color, DrawingFont, HAlign, Point, Rect, RectBox, RelativeToScreen, Rotation, Size,
-            VAlign,
-        },
-        window::{AsRawWindow, Widget},
+use crate::ui::{
+    drawing::{
+        Color, DrawingFont, HAlign, Point, Rect, RectBox, RelativeToScreen, Rotation, Size, VAlign,
     },
+    window::{AsRawWindow, Widget},
 };
 
 #[derive(Debug)]
@@ -112,7 +109,9 @@ impl Canvas {
     }
 
     pub fn redraw(&self) -> io::Result<()> {
-        syscall_bool(unsafe { InvalidateRect(self.as_raw_window(), null(), 0) })?;
+        syscall!(BOOL, unsafe {
+            InvalidateRect(self.as_raw_window(), null(), 0)
+        })?;
         Ok(())
     }
 
@@ -283,7 +282,7 @@ impl DrawingContext {
                 },
                 DWRITE_FONT_STRETCH_NORMAL,
                 font.size as f32,
-                windows::w!(""),
+                windows::core::w!(""),
             )?;
             let size = self.target.GetSize();
             let mut rect = Rect::new(pos, pos.to_vector().to_size());

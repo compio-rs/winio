@@ -1,5 +1,6 @@
 use std::{io, mem::MaybeUninit, ptr::null, rc::Rc, sync::OnceLock};
 
+use compio::driver::syscall;
 use widestring::U16CString;
 use windows_sys::{
     w,
@@ -22,7 +23,6 @@ use windows_sys::{
 };
 
 use crate::{
-    syscall_bool,
     ui::{
         dpi::{get_dpi_for_window, DpiAware},
         drawing::{Point, Size},
@@ -94,7 +94,7 @@ impl Widget {
         ex_style: u32,
         parent: HWND,
     ) -> io::Result<Self> {
-        let handle = syscall_bool(unsafe {
+        let handle = syscall!(BOOL, unsafe {
             CreateWindowExW(
                 ex_style,
                 class_name,
@@ -166,7 +166,7 @@ impl Widget {
     fn sized(&self) -> io::Result<(i32, i32)> {
         let handle = self.as_raw_window();
         let mut rect = MaybeUninit::uninit();
-        syscall_bool(unsafe { GetWindowRect(handle, rect.as_mut_ptr()) })?;
+        syscall!(BOOL, unsafe { GetWindowRect(handle, rect.as_mut_ptr()) })?;
         let rect = unsafe { rect.assume_init() };
         Ok((rect.right - rect.left, rect.bottom - rect.top))
     }
@@ -174,7 +174,7 @@ impl Widget {
     fn set_sized(&self, v: (i32, i32)) -> io::Result<()> {
         let handle = self.as_raw_window();
         if v != self.sized()? {
-            syscall_bool(unsafe {
+            syscall!(BOOL, unsafe {
                 SetWindowPos(handle, 0, 0, 0, v.0, v.1, SWP_NOMOVE | SWP_NOZORDER)
             })?;
         }
@@ -193,18 +193,16 @@ impl Widget {
         let handle = self.as_raw_window();
         unsafe {
             let mut rect = MaybeUninit::uninit();
-            syscall_bool(GetWindowRect(handle, rect.as_mut_ptr()))?;
+            syscall!(BOOL, GetWindowRect(handle, rect.as_mut_ptr()))?;
             let rect = rect.assume_init();
             let mut point = POINT {
                 x: rect.left,
                 y: rect.top,
             };
-            syscall_bool(MapWindowPoints(
-                HWND_DESKTOP,
-                GetParent(handle),
-                &mut point,
-                2,
-            ))?;
+            syscall!(
+                BOOL,
+                MapWindowPoints(HWND_DESKTOP, GetParent(handle), &mut point, 2,)
+            )?;
             Ok((point.x, point.y))
         }
     }
@@ -212,7 +210,7 @@ impl Widget {
     fn set_locd(&self, p: (i32, i32)) -> io::Result<()> {
         let handle = self.as_raw_window();
         if p != self.locd()? {
-            syscall_bool(unsafe {
+            syscall!(BOOL, unsafe {
                 SetWindowPos(handle, 0, p.0, p.1, 0, 0, SWP_NOSIZE | SWP_NOZORDER)
             })?;
         }
@@ -234,7 +232,9 @@ impl Widget {
             return Ok(String::new());
         };
         let mut res: Vec<u16> = Vec::with_capacity(len as usize + 1);
-        syscall_bool(unsafe { GetWindowTextW(handle, res.as_mut_ptr(), res.capacity() as _) })?;
+        syscall!(BOOL, unsafe {
+            GetWindowTextW(handle, res.as_mut_ptr(), res.capacity() as _)
+        })?;
         unsafe { res.set_len(len as usize + 1) };
         Ok(unsafe { U16CString::from_vec_unchecked(res) }.to_string_lossy())
     }
@@ -242,12 +242,12 @@ impl Widget {
     pub fn set_text(&self, s: impl AsRef<str>) -> io::Result<()> {
         let handle = self.as_raw_window();
         let s = U16CString::from_str_truncate(s);
-        syscall_bool(unsafe { SetWindowTextW(handle, s.as_ptr()) })?;
+        syscall!(BOOL, unsafe { SetWindowTextW(handle, s.as_ptr()) })?;
         Ok(())
     }
 
     pub fn style(&self) -> io::Result<u32> {
-        let res = syscall_bool(unsafe {
+        let res = syscall!(BOOL, unsafe {
             if cfg!(target_pointer_width = "64") {
                 GetWindowLongPtrW(self.as_raw_window(), GWL_STYLE) as u32
             } else {
@@ -259,7 +259,7 @@ impl Widget {
 
     pub fn set_style(&self, style: u32) -> io::Result<()> {
         unsafe { SetLastError(0) };
-        let res = syscall_bool(unsafe {
+        let res = syscall!(BOOL, unsafe {
             if cfg!(target_pointer_width = "64") {
                 SetWindowLongPtrW(self.as_raw_window(), GWL_STYLE, style as _) as i32
             } else {
@@ -297,7 +297,7 @@ fn register() -> io::Result<()> {
         lpszClassName: WINDOW_CLASS_NAME,
         hIconSm: 0,
     };
-    syscall_bool(unsafe { RegisterClassExW(&cls) })?;
+    syscall!(BOOL, unsafe { RegisterClassExW(&cls) })?;
     Ok(())
 }
 
@@ -318,7 +318,7 @@ impl Window {
         register_once()?;
         let handle = Widget::new(WINDOW_CLASS_NAME, WS_OVERLAPPEDWINDOW, 0, 0)?;
         let this = Rc::<Self>::new_cyclic(|weak_this| {
-            crate::spawn({
+            compio::runtime::spawn({
                 let weak_this = weak_this.clone();
                 async move {
                     while let Some(this) = weak_this.upgrade() {
@@ -337,7 +337,7 @@ impl Window {
                 }
             })
             .detach();
-            crate::spawn({
+            compio::runtime::spawn({
                 let weak_this = weak_this.clone();
                 async move {
                     while let Some(this) = weak_this.upgrade() {
@@ -386,7 +386,7 @@ impl Window {
     pub fn client_size(&self) -> io::Result<Size> {
         let handle = self.as_raw_window();
         let mut rect = MaybeUninit::uninit();
-        syscall_bool(unsafe { GetClientRect(handle, rect.as_mut_ptr()) })?;
+        syscall!(BOOL, unsafe { GetClientRect(handle, rect.as_mut_ptr()) })?;
         let rect = unsafe { rect.assume_init() };
         Ok(self
             .handle

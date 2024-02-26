@@ -2,33 +2,25 @@ use std::{
     cell::{LazyCell, RefCell},
     collections::{HashMap, HashSet},
     future::Future,
-    io,
     mem::MaybeUninit,
     pin::Pin,
-    ptr::null,
-    sync::Arc,
     task::{Context, Poll, Waker},
+    time::Duration,
 };
 
-use async_task::{Runnable, Task};
+use compio::driver::AsRawFd;
 use compio_log::*;
-use crossbeam_queue::SegQueue;
 use slab::Slab;
+use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED};
 use windows_sys::Win32::{
-    Foundation::{HWND, LPARAM, LRESULT, POINT, WAIT_FAILED, WPARAM},
-    Networking::WinSock::{WSACleanup, WSAStartup, WSADATA},
-    System::{
-        Com::{CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED},
-        Threading::INFINITE,
-    },
+    Foundation::{HANDLE, HWND, LPARAM, LRESULT, POINT, WAIT_FAILED, WPARAM},
+    System::Threading::INFINITE,
     UI::WindowsAndMessaging::{
         DefWindowProcW, DispatchMessageW, GetMessagePos, GetMessageTime,
         MsgWaitForMultipleObjectsEx, PeekMessageW, TranslateMessage, MSG, MWMO_ALERTABLE,
         MWMO_INPUTAVAILABLE, PM_REMOVE, QS_ALLINPUT,
     },
 };
-
-use crate::{syscall_hresult, syscall_socket};
 
 pub(crate) enum FutureState {
     Active(Option<Waker>),
@@ -58,60 +50,82 @@ impl RegisteredFuture {
 }
 
 pub struct Runtime {
-    runnables: Arc<SegQueue<Runnable>>,
+    runtime: compio::runtime::Runtime,
     registry: RefCell<HashMap<(HWND, u32), HashSet<usize>>>,
     futures: RefCell<Slab<RegisteredFuture>>,
 }
 
 impl Runtime {
     pub fn new() -> Self {
-        let mut data: WSADATA = unsafe { std::mem::zeroed() };
-        syscall_socket(unsafe { WSAStartup(0x202, &mut data) }).unwrap();
+        unsafe {
+            CoInitializeEx(None, COINIT_APARTMENTTHREADED).unwrap();
+        }
 
-        syscall_hresult(unsafe { CoInitializeEx(null(), COINIT_APARTMENTTHREADED) }).unwrap();
+        let runtime = compio::runtime::Runtime::new().unwrap();
 
         Self {
-            runnables: Arc::new(SegQueue::new()),
+            runtime,
             registry: RefCell::new(HashMap::new()),
             futures: RefCell::new(Slab::new()),
         }
     }
 
-    // Safety: the caller ensures lifetimes.
-    unsafe fn spawn_unchecked<F: Future>(&self, future: F) -> Task<F::Output> {
-        let runnables = self.runnables.clone();
-        let schedule = move |runnable| {
-            runnables.push(runnable);
-        };
-        let (runnable, task) = async_task::spawn_unchecked(future, schedule);
-        runnable.schedule();
-        task
-    }
-
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
+        let _guard = self.runtime.enter();
         let mut result = None;
-        unsafe { self.spawn_unchecked(async { result = Some(future.await) }) }.detach();
-        loop {
-            self.run_tasks();
-            if let Some(result) = result.take() {
-                return result;
-            }
-            poll_thread().expect("failed to poll message queue");
+        unsafe {
+            self.runtime
+                .spawn_unchecked(async { result = Some(future.await) })
         }
-    }
-
-    pub fn spawn<F: Future + 'static>(&self, future: F) -> Task<F::Output> {
-        unsafe { self.spawn_unchecked(future) }
-    }
-
-    fn run_tasks(&self) {
+        .detach();
         loop {
-            let next_task = self.runnables.pop();
-            if let Some(task) = next_task {
-                task.run();
-            } else {
-                break;
+            self.runtime.run();
+            if let Some(result) = result.take() {
+                break result;
             }
+            self.runtime.poll_with(|driver, timeout, entries| {
+                match driver.poll(Some(Duration::ZERO), entries) {
+                    Ok(()) => {
+                        if !entries.is_empty() {
+                            return Ok(());
+                        }
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {}
+                    Err(e) => return Err(e),
+                }
+
+                let timeout = match timeout {
+                    Some(timeout) => timeout.as_millis() as u32,
+                    None => INFINITE,
+                };
+                let handle = driver.as_raw_fd() as HANDLE;
+                trace!("MWMO start");
+                let res = unsafe {
+                    MsgWaitForMultipleObjectsEx(
+                        1,
+                        &handle,
+                        timeout,
+                        QS_ALLINPUT,
+                        MWMO_ALERTABLE | MWMO_INPUTAVAILABLE,
+                    )
+                };
+                trace!("MWMO wake up");
+                if res == WAIT_FAILED {
+                    return Err(std::io::Error::last_os_error());
+                }
+
+                let mut msg = MaybeUninit::uninit();
+                let res = unsafe { PeekMessageW(msg.as_mut_ptr(), 0, 0, 0, PM_REMOVE) };
+                if res != 0 {
+                    let msg = unsafe { msg.assume_init() };
+                    unsafe {
+                        TranslateMessage(&msg);
+                        DispatchMessageW(&msg);
+                    }
+                }
+
+                Ok(())
+            });
         }
     }
 
@@ -189,48 +203,14 @@ impl Runtime {
 impl Drop for Runtime {
     fn drop(&mut self) {
         unsafe { CoUninitialize() };
-
-        syscall_socket(unsafe { WSACleanup() }).unwrap();
     }
 }
 
 #[thread_local]
 static RUNTIME: LazyCell<Runtime> = LazyCell::new(Runtime::new);
 
-fn poll_thread() -> io::Result<()> {
-    trace!("MWMO start");
-    let res = unsafe {
-        MsgWaitForMultipleObjectsEx(
-            0,
-            null(),
-            INFINITE,
-            QS_ALLINPUT,
-            MWMO_INPUTAVAILABLE | MWMO_ALERTABLE,
-        )
-    };
-    if res == WAIT_FAILED {
-        return Err(io::Error::last_os_error());
-    }
-    trace!("MWMO wake up");
-    let mut msg = MaybeUninit::uninit();
-    let res = unsafe { PeekMessageW(msg.as_mut_ptr(), 0, 0, 0, PM_REMOVE) };
-    if res != 0 {
-        // Safety: message arrives
-        let msg = unsafe { msg.assume_init() };
-        unsafe {
-            TranslateMessage(&msg);
-            DispatchMessageW(&msg);
-        }
-    }
-    Ok(())
-}
-
 pub fn block_on<F: Future>(future: F) -> F::Output {
     RUNTIME.block_on(future)
-}
-
-pub fn spawn<F: Future + 'static>(future: F) -> Task<F::Output> {
-    RUNTIME.spawn(future)
 }
 
 /// # Safety
@@ -247,7 +227,7 @@ pub(crate) unsafe extern "system" fn window_proc(
 ) -> LRESULT {
     trace!("window_proc: {}, {}, {}, {}", handle, msg, wparam, lparam);
     let res = RUNTIME.set_current_msg(handle, msg, wparam, lparam);
-    RUNTIME.run_tasks();
+    RUNTIME.runtime.run();
     if res {
         0
     } else {
