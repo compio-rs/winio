@@ -11,7 +11,7 @@ use std::{
 use compio::driver::AsRawFd;
 use compio_log::*;
 use slab::Slab;
-use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED};
+use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_MULTITHREADED};
 use windows_sys::Win32::{
     Foundation::{HANDLE, HWND, LPARAM, LRESULT, POINT, WAIT_FAILED, WPARAM},
     System::Threading::INFINITE,
@@ -58,7 +58,7 @@ pub struct Runtime {
 impl Runtime {
     pub fn new() -> Self {
         unsafe {
-            CoInitializeEx(None, COINIT_APARTMENTTHREADED).unwrap();
+            CoInitializeEx(None, COINIT_MULTITHREADED).unwrap();
         }
 
         let runtime = compio::runtime::Runtime::new().unwrap();

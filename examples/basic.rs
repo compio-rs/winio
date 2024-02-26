@@ -99,6 +99,7 @@ async fn wait_close(window: Rc<Window>) {
             .style(MessageBoxStyle::Info)
             .buttons(MessageBoxButton::Yes | MessageBoxButton::No)
             .show(Some(&window))
+            .await
             .unwrap()
             == MessageBoxResponse::Yes
         {

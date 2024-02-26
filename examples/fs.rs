@@ -108,13 +108,17 @@ async fn fetch(
             && let Some(canvas) = canvas.upgrade()
         {
             button.wait_click().await;
-            path = FileBox::new()
+            if let Some(p) = FileBox::new()
                 .title("Open file")
                 .add_filter(("All files", "*.*"))
                 .open(Some(&window))
-                .unwrap();
-            *text.lock().await = FetchStatus::Loading;
-            canvas.redraw().unwrap();
+                .await
+                .unwrap()
+            {
+                path = p;
+                *text.lock().await = FetchStatus::Loading;
+                canvas.redraw().unwrap();
+            }
         }
     }
 }

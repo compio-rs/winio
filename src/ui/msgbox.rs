@@ -5,7 +5,7 @@ use std::{
     ptr::{null, null_mut},
 };
 
-use widestring::{U16CStr, U16CString};
+use widestring::U16CString;
 use windows_sys::Win32::{
     Foundation::{E_INVALIDARG, E_OUTOFMEMORY, S_OK},
     UI::{
@@ -84,52 +84,58 @@ impl CustomButton {
     }
 }
 
-fn msgbox_custom(
+async fn msgbox_custom(
     parent: Option<&Window>,
-    msg: &U16CStr,
-    title: &U16CStr,
-    instr: &U16CStr,
+    msg: U16CString,
+    title: U16CString,
+    instr: U16CString,
     style: MessageBoxStyle,
     btns: MessageBoxButton,
     default: i32,
 ) -> io::Result<MessageBoxResponse> {
-    let config = TASKDIALOGCONFIG {
-        cbSize: std::mem::size_of::<TASKDIALOGCONFIG>() as _,
-        hwndParent: parent.map(|p| p.as_raw_window()).unwrap_or_default(),
-        hInstance: 0,
-        dwFlags: TDF_ALLOW_DIALOG_CANCELLATION | TDF_SIZE_TO_CONTENT,
-        dwCommonButtons: btns as _,
-        pszWindowTitle: title.as_ptr(),
-        Anonymous1: TASKDIALOGCONFIG_0 {
-            pszMainIcon: match style {
-                MessageBoxStyle::None => null_mut(),
-                MessageBoxStyle::Info => TD_INFORMATION_ICON,
-                MessageBoxStyle::Warning => TD_WARNING_ICON,
-                MessageBoxStyle::Error => TD_ERROR_ICON,
-                MessageBoxStyle::Shield => TD_SHIELD_ICON,
+    let parent_handle = parent.map(|p| p.as_raw_window()).unwrap_or_default();
+    let (res, result) = compio::runtime::spawn_blocking(move || {
+        let config = TASKDIALOGCONFIG {
+            cbSize: std::mem::size_of::<TASKDIALOGCONFIG>() as _,
+            hwndParent: parent_handle,
+            hInstance: 0,
+            dwFlags: TDF_ALLOW_DIALOG_CANCELLATION | TDF_SIZE_TO_CONTENT,
+            dwCommonButtons: btns as _,
+            pszWindowTitle: title.as_ptr(),
+            Anonymous1: TASKDIALOGCONFIG_0 {
+                pszMainIcon: match style {
+                    MessageBoxStyle::None => null_mut(),
+                    MessageBoxStyle::Info => TD_INFORMATION_ICON,
+                    MessageBoxStyle::Warning => TD_WARNING_ICON,
+                    MessageBoxStyle::Error => TD_ERROR_ICON,
+                    MessageBoxStyle::Shield => TD_SHIELD_ICON,
+                },
             },
-        },
-        pszMainInstruction: instr.as_ptr(),
-        pszContent: msg.as_ptr(),
-        cButtons: 0,
-        pButtons: null(),
-        nDefaultButton: default,
-        cRadioButtons: 0,
-        pRadioButtons: null(),
-        nDefaultRadioButton: 0,
-        pszVerificationText: null(),
-        pszExpandedInformation: null(),
-        pszExpandedControlText: null(),
-        pszCollapsedControlText: null(),
-        Anonymous2: TASKDIALOGCONFIG_1 { hFooterIcon: 0 },
-        pszFooter: null(),
-        pfCallback: None,
-        lpCallbackData: 0,
-        cxWidth: 0,
-    };
+            pszMainInstruction: instr.as_ptr(),
+            pszContent: msg.as_ptr(),
+            cButtons: 0,
+            pButtons: null(),
+            nDefaultButton: default,
+            cRadioButtons: 0,
+            pRadioButtons: null(),
+            nDefaultRadioButton: 0,
+            pszVerificationText: null(),
+            pszExpandedInformation: null(),
+            pszExpandedControlText: null(),
+            pszCollapsedControlText: null(),
+            Anonymous2: TASKDIALOGCONFIG_1 { hFooterIcon: 0 },
+            pszFooter: null(),
+            pfCallback: None,
+            lpCallbackData: 0,
+            cxWidth: 0,
+        };
 
-    let mut result = 0;
-    let res = unsafe { TaskDialogIndirect(&config, &mut result, null_mut(), null_mut()) };
+        let mut result = 0;
+        let res = unsafe { TaskDialogIndirect(&config, &mut result, null_mut(), null_mut()) };
+        (res, result)
+    })
+    .await;
+
     match res {
         S_OK => Ok(unsafe { std::mem::transmute(result) }),
         E_OUTOFMEMORY => Err(io::ErrorKind::OutOfMemory.into()),
@@ -138,6 +144,7 @@ fn msgbox_custom(
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct MessageBox {
     msg: U16CString,
     title: U16CString,
@@ -165,44 +172,39 @@ impl MessageBox {
         }
     }
 
-    pub fn show(&self, parent: Option<&Window>) -> io::Result<MessageBoxResponse> {
+    pub async fn show(self, parent: Option<&Window>) -> io::Result<MessageBoxResponse> {
         msgbox_custom(
-            parent,
-            &self.msg,
-            &self.title,
-            &self.instr,
-            self.style,
-            self.btns,
-            self.def,
+            parent, self.msg, self.title, self.instr, self.style, self.btns, self.def,
         )
+        .await
     }
 
-    pub fn message(&mut self, msg: impl AsRef<str>) -> &mut Self {
+    pub fn message(mut self, msg: impl AsRef<str>) -> Self {
         self.msg = U16CString::from_str_truncate(msg.as_ref());
         self
     }
 
-    pub fn title(&mut self, title: impl AsRef<str>) -> &mut Self {
+    pub fn title(mut self, title: impl AsRef<str>) -> Self {
         self.title = U16CString::from_str_truncate(title.as_ref());
         self
     }
 
-    pub fn instruction(&mut self, instr: impl AsRef<str>) -> &mut Self {
+    pub fn instruction(mut self, instr: impl AsRef<str>) -> Self {
         self.instr = U16CString::from_str_truncate(instr);
         self
     }
 
-    pub fn style(&mut self, style: MessageBoxStyle) -> &mut Self {
+    pub fn style(mut self, style: MessageBoxStyle) -> Self {
         self.style = style;
         self
     }
 
-    pub fn buttons(&mut self, btns: MessageBoxButton) -> &mut Self {
+    pub fn buttons(mut self, btns: MessageBoxButton) -> Self {
         self.btns = btns;
         self
     }
 
-    pub fn default_button(&mut self, def: i32) -> &mut Self {
+    pub fn default_button(mut self, def: i32) -> Self {
         self.def = def;
         self
     }

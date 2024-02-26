@@ -2,9 +2,9 @@ use std::{io, path::PathBuf};
 
 use widestring::{U16CStr, U16CString};
 use windows::{
-    core::{Interface, PCWSTR},
+    core::{Interface, HRESULT, PCWSTR},
     Win32::{
-        Foundation::HWND,
+        Foundation::{ERROR_CANCELLED, HWND},
         System::Com::{CoCreateInstance, CoTaskMemFree, CLSCTX_INPROC_SERVER},
         UI::Shell::{
             Common::COMDLG_FILTERSPEC, FileOpenDialog, FileSaveDialog, IFileDialog,
@@ -56,74 +56,64 @@ impl FileBox {
         Self::default()
     }
 
-    pub fn title(&mut self, title: impl AsRef<str>) -> &mut Self {
+    pub fn title(mut self, title: impl AsRef<str>) -> Self {
         self.title = U16CString::from_str_truncate(title);
         self
     }
 
-    pub fn filename(&mut self, filename: impl AsRef<str>) -> &mut Self {
+    pub fn filename(mut self, filename: impl AsRef<str>) -> Self {
         self.filename = U16CString::from_str_truncate(filename);
         self
     }
 
-    pub fn filters(&mut self, filters: impl IntoIterator<Item = FileFilter>) -> &mut Self {
+    pub fn filters(mut self, filters: impl IntoIterator<Item = FileFilter>) -> Self {
         self.filters = filters.into_iter().collect();
         self
     }
 
-    pub fn add_filter(&mut self, filter: impl Into<FileFilter>) -> &mut Self {
+    pub fn add_filter(mut self, filter: impl Into<FileFilter>) -> Self {
         self.filters.push(filter.into());
         self
     }
 
-    pub fn open(&self, parent: Option<&Window>) -> io::Result<PathBuf> {
-        unsafe {
-            filebox(
-                parent,
-                &self.title,
-                &self.filename,
-                &self.filters,
-                true,
-                false,
-            )?
-            .result()
-        }
+    pub async fn open(self, parent: Option<&Window>) -> io::Result<Option<PathBuf>> {
+        let parent = HWND(parent.map(|p| p.as_raw_window()).unwrap_or_default());
+        compio::runtime::spawn_blocking(move || unsafe {
+            filebox(parent, self.title, self.filename, self.filters, true, false)?.result()
+        })
+        .await
     }
 
-    pub fn open_multiple(&self, parent: Option<&Window>) -> io::Result<Vec<PathBuf>> {
-        unsafe {
-            filebox(
-                parent,
-                &self.title,
-                &self.filename,
-                &self.filters,
-                true,
-                true,
-            )?
-            .results()
-        }
+    pub async fn open_multiple(self, parent: Option<&Window>) -> io::Result<Vec<PathBuf>> {
+        let parent = HWND(parent.map(|p| p.as_raw_window()).unwrap_or_default());
+        compio::runtime::spawn_blocking(move || unsafe {
+            filebox(parent, self.title, self.filename, self.filters, true, true)?.results()
+        })
+        .await
     }
 
-    pub fn save(&self, parent: Option<&Window>) -> io::Result<PathBuf> {
-        unsafe {
+    pub async fn save(self, parent: Option<&Window>) -> io::Result<Option<PathBuf>> {
+        let parent = HWND(parent.map(|p| p.as_raw_window()).unwrap_or_default());
+        compio::runtime::spawn_blocking(move || unsafe {
             filebox(
                 parent,
-                &self.title,
-                &self.filename,
-                &self.filters,
+                self.title,
+                self.filename,
+                self.filters,
                 false,
                 false,
             )?
             .result()
-        }
+        })
+        .await
     }
 }
 
 unsafe fn filebox(
-    parent: Option<&Window>,
-    title: &U16CStr,
-    filename: &U16CString,
-    filters: &[FileFilter],
+    parent: HWND,
+    title: U16CString,
+    filename: U16CString,
+    filters: Vec<FileFilter>,
     open: bool,
     multiple: bool,
 ) -> io::Result<FileBoxInner> {
@@ -157,35 +147,47 @@ unsafe fn filebox(
         handle.SetOptions(opts)?;
     }
 
-    handle.Show(HWND(parent.map(|w| w.as_raw_window()).unwrap_or_default()))?;
+    let handle = match handle.Show(parent) {
+        Ok(()) => Some(handle),
+        Err(e) if e.code() == HRESULT::from(ERROR_CANCELLED) => None,
+        Err(e) => return Err(e.into()),
+    };
 
     Ok(FileBoxInner(handle))
 }
 
-struct FileBoxInner(IFileDialog);
+struct FileBoxInner(Option<IFileDialog>);
 
 impl FileBoxInner {
-    pub unsafe fn result(&self) -> io::Result<PathBuf> {
-        let item = self.0.GetResult()?;
-        let name_ptr = item.GetDisplayName(SIGDN_FILESYSPATH)?;
-        let name_ptr = CoTaskMemPtr(name_ptr.0);
-        let name = U16CStr::from_ptr_str(name_ptr.0).to_os_string();
-        Ok(PathBuf::from(name))
-    }
-
-    pub unsafe fn results(&self) -> io::Result<Vec<PathBuf>> {
-        let handle: IFileOpenDialog = self.0.cast()?;
-        let results = handle.GetResults()?;
-        let count = results.GetCount()?;
-        let mut names = vec![];
-        for i in 0..count {
-            let item = results.GetItemAt(i)?;
+    pub unsafe fn result(self) -> io::Result<Option<PathBuf>> {
+        if let Some(dialog) = self.0 {
+            let item = dialog.GetResult()?;
             let name_ptr = item.GetDisplayName(SIGDN_FILESYSPATH)?;
             let name_ptr = CoTaskMemPtr(name_ptr.0);
             let name = U16CStr::from_ptr_str(name_ptr.0).to_os_string();
-            names.push(PathBuf::from(name));
+            Ok(Some(PathBuf::from(name)))
+        } else {
+            Ok(None)
         }
-        Ok(names)
+    }
+
+    pub unsafe fn results(self) -> io::Result<Vec<PathBuf>> {
+        if let Some(dialog) = self.0 {
+            let handle: IFileOpenDialog = dialog.cast()?;
+            let results = handle.GetResults()?;
+            let count = results.GetCount()?;
+            let mut names = vec![];
+            for i in 0..count {
+                let item = results.GetItemAt(i)?;
+                let name_ptr = item.GetDisplayName(SIGDN_FILESYSPATH)?;
+                let name_ptr = CoTaskMemPtr(name_ptr.0);
+                let name = U16CStr::from_ptr_str(name_ptr.0).to_os_string();
+                names.push(PathBuf::from(name));
+            }
+            Ok(names)
+        } else {
+            Ok(vec![])
+        }
     }
 }
 
