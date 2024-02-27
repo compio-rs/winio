@@ -9,7 +9,7 @@ use icrate::{
         ClassType, DeclaredClass,
     },
     AppKit::{
-        NSBackingStoreBuffered, NSScreen, NSView, NSWindow, NSWindowDelegate,
+        NSBackingStoreBuffered, NSControl, NSScreen, NSView, NSWindow, NSWindowDelegate,
         NSWindowStyleMaskClosable, NSWindowStyleMaskMiniaturizable, NSWindowStyleMaskResizable,
         NSWindowStyleMaskTitled,
     },
@@ -209,10 +209,13 @@ impl Widget {
     pub fn from_nsview(parent: Id<NSView>, view: Id<NSView>) -> Self {
         unsafe {
             parent.addSubview(&view);
-        }
-        Self {
-            parent: WeakId::from_id(&parent),
-            view,
+            if view.is_kind_of::<NSControl>() {
+                Id::cast::<NSControl>(view.clone()).sizeToFit();
+            }
+            Self {
+                parent: WeakId::from_id(&parent),
+                view,
+            }
         }
     }
 

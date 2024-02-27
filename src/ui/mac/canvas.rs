@@ -277,7 +277,7 @@ fn measure_str(
     }
     match font.valign {
         VAlign::Center => y -= size.height / 2.0,
-        VAlign::Top => y -= size.height,
+        VAlign::Bottom => y -= size.height,
         _ => {}
     }
     Ok((astr, Rect::new(Point::new(x, y), size)))

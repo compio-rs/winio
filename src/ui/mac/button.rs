@@ -65,6 +65,7 @@ impl Button {
     pub fn set_text(&self, s: impl AsRef<str>) -> io::Result<()> {
         unsafe {
             self.view.setTitle(&NSString::from_str(s.as_ref()));
+            self.view.sizeToFit();
         }
         Ok(())
     }
