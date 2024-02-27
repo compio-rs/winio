@@ -15,7 +15,7 @@ use windows_sys::Win32::{
     },
 };
 
-use crate::ui::dpi::DpiAware;
+use super::dpi::DpiAware;
 
 unsafe fn system_default_font() -> io::Result<LOGFONTW> {
     let mut ncm: NONCLIENTMETRICSW = unsafe { std::mem::zeroed() };

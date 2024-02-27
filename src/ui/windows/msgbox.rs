@@ -1,7 +1,5 @@
 use std::{
-    borrow::Cow,
     io,
-    ops::{BitOr, BitOrAssign},
     ptr::{null, null_mut},
 };
 
@@ -11,16 +9,14 @@ use windows_sys::Win32::{
     UI::{
         Controls::{
             TaskDialogIndirect, TASKDIALOGCONFIG, TASKDIALOGCONFIG_0, TASKDIALOGCONFIG_1,
-            TDCBF_CANCEL_BUTTON, TDCBF_CLOSE_BUTTON, TDCBF_NO_BUTTON, TDCBF_OK_BUTTON,
-            TDCBF_RETRY_BUTTON, TDCBF_YES_BUTTON, TDF_ALLOW_DIALOG_CANCELLATION,
-            TDF_SIZE_TO_CONTENT, TD_ERROR_ICON, TD_INFORMATION_ICON, TD_SHIELD_ICON,
+            TDF_ALLOW_DIALOG_CANCELLATION, TDF_SIZE_TO_CONTENT, TD_ERROR_ICON, TD_INFORMATION_ICON,
             TD_WARNING_ICON,
         },
         WindowsAndMessaging::{IDCANCEL, IDCLOSE, IDNO, IDOK, IDRETRY, IDYES},
     },
 };
 
-use crate::ui::{AsRawWindow, Window};
+use crate::{AsRawWindow, MessageBoxButton, MessageBoxResponse, MessageBoxStyle, Window};
 
 async fn msgbox_custom(
     parent: Option<&Window>,
@@ -29,7 +25,6 @@ async fn msgbox_custom(
     instr: U16CString,
     style: MessageBoxStyle,
     btns: MessageBoxButton,
-    default: i32,
 ) -> io::Result<MessageBoxResponse> {
     let parent_handle = parent.map(|p| p.as_raw_window()).unwrap_or_default();
     let (res, result) = compio::runtime::spawn_blocking(move || {
@@ -46,14 +41,13 @@ async fn msgbox_custom(
                     MessageBoxStyle::Info => TD_INFORMATION_ICON,
                     MessageBoxStyle::Warning => TD_WARNING_ICON,
                     MessageBoxStyle::Error => TD_ERROR_ICON,
-                    MessageBoxStyle::Shield => TD_SHIELD_ICON,
                 },
             },
             pszMainInstruction: instr.as_ptr(),
             pszContent: msg.as_ptr(),
             cButtons: 0,
             pButtons: null(),
-            nDefaultButton: default,
+            nDefaultButton: 0,
             cRadioButtons: 0,
             pRadioButtons: null(),
             nDefaultRadioButton: 0,
@@ -75,7 +69,15 @@ async fn msgbox_custom(
     .await;
 
     match res {
-        S_OK => Ok(unsafe { std::mem::transmute(result) }),
+        S_OK => Ok(match result {
+            IDCANCEL => MessageBoxResponse::Cancel,
+            IDNO => MessageBoxResponse::No,
+            IDOK => MessageBoxResponse::Ok,
+            IDRETRY => MessageBoxResponse::Retry,
+            IDYES => MessageBoxResponse::Yes,
+            IDCLOSE => MessageBoxResponse::Close,
+            _ => unreachable!(),
+        }),
         E_OUTOFMEMORY => Err(io::ErrorKind::OutOfMemory.into()),
         E_INVALIDARG => Err(io::ErrorKind::InvalidInput.into()),
         _ => Err(io::Error::from_raw_os_error(res)),
@@ -89,7 +91,6 @@ pub struct MessageBox {
     instr: U16CString,
     style: MessageBoxStyle,
     btns: MessageBoxButton,
-    def: i32,
 }
 
 impl Default for MessageBox {
@@ -106,13 +107,12 @@ impl MessageBox {
             instr: U16CString::new(),
             style: MessageBoxStyle::None,
             btns: MessageBoxButton::Ok,
-            def: 0,
         }
     }
 
     pub async fn show(self, parent: Option<&Window>) -> io::Result<MessageBoxResponse> {
         msgbox_custom(
-            parent, self.msg, self.title, self.instr, self.style, self.btns, self.def,
+            parent, self.msg, self.title, self.instr, self.style, self.btns,
         )
         .await
     }
@@ -139,11 +139,6 @@ impl MessageBox {
 
     pub fn buttons(mut self, btns: MessageBoxButton) -> Self {
         self.btns = btns;
-        self
-    }
-
-    pub fn default_button(mut self, def: i32) -> Self {
-        self.def = def;
         self
     }
 }

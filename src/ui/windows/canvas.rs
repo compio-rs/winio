@@ -38,11 +38,9 @@ use windows_sys::Win32::{
     },
 };
 
-use crate::ui::{
-    drawing::{
-        Color, DrawingFont, HAlign, Point, Rect, RectBox, RelativeToScreen, Rotation, Size, VAlign,
-    },
-    window::{AsRawWindow, Widget},
+use crate::{
+    AsRawWindow, BrushPen, Color, DrawingFont, HAlign, Point, Rect, RectBox, RelativeToScreen,
+    Rotation, Size, SolidColorBrush, VAlign, Widget,
 };
 
 #[derive(Debug)]
@@ -267,8 +265,9 @@ impl DrawingContext {
         s: &str,
     ) -> io::Result<(Rect, IDWriteTextLayout)> {
         unsafe {
+            let font_family = U16CString::from_str_truncate(font.family);
             let format = self.dwrite.CreateTextFormat(
-                windows::core::PCWSTR::from_raw(font.family.as_ptr()),
+                windows::core::PCWSTR::from_raw(font_family.as_ptr()),
                 None,
                 if font.bold {
                     DWRITE_FONT_WEIGHT_BOLD
