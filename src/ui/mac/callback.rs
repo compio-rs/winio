@@ -43,7 +43,10 @@ impl Callback {
     pub fn register(&self, waker: &Waker) -> Poll<()> {
         let mut state = self.0.borrow_mut();
         match &*state {
-            WakerState::Signaled => Poll::Ready(()),
+            WakerState::Signaled => {
+                *state = WakerState::Inactive;
+                Poll::Ready(())
+            }
             _ => {
                 *state = WakerState::Active(waker.clone());
                 Poll::Pending
