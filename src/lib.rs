@@ -4,6 +4,7 @@
 mod runtime;
 mod ui;
 
-pub(crate) use runtime::window_proc;
-pub use runtime::{block_on, wait};
+pub use runtime::block_on;
+#[cfg(windows)]
+pub(crate) use runtime::{wait, window_proc};
 pub use ui::*;

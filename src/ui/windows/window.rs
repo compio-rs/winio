@@ -26,14 +26,11 @@ use windows_sys::{
     },
 };
 
-use crate::{
-    ui::{
-        dpi::{get_dpi_for_window, DpiAware},
-        drawing::{Point, Size},
-        font::default_font,
-    },
-    wait,
+use super::{
+    dpi::{get_dpi_for_window, DpiAware},
+    font::default_font,
 };
+use crate::{wait, Point, Size};
 
 pub trait AsRawWindow {
     fn as_raw_window(&self) -> HWND;

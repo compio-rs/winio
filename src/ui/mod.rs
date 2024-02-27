@@ -1,8 +1,12 @@
-mod canvas;
-pub use canvas::*;
-
-mod dpi;
-mod font;
+cfg_if::cfg_if! {
+    if #[cfg(windows)] {
+        mod windows;
+        pub use windows::*;
+    } else if #[cfg(target_os = "macos")] {
+        mod mac;
+        pub use mac::*;
+    }
+}
 
 mod drawing;
 pub use drawing::*;
@@ -10,14 +14,5 @@ pub use drawing::*;
 mod msgbox;
 pub use msgbox::*;
 
-mod filebox;
-pub use filebox::*;
-
-mod window;
-pub use window::*;
-
-mod button;
-pub use button::*;
-
-mod edit;
-pub use edit::*;
+mod canvas;
+pub use canvas::*;

@@ -22,6 +22,8 @@ use windows_sys::Win32::{
     },
 };
 
+use super::RUNTIME;
+
 pub(crate) enum FutureState {
     Active(Option<Waker>),
     Completed(MSG),
@@ -194,14 +196,6 @@ impl Drop for Runtime {
     fn drop(&mut self) {
         unsafe { CoUninitialize() };
     }
-}
-
-thread_local! {
-    static RUNTIME: Runtime = Runtime::new();
-}
-
-pub fn block_on<F: Future>(future: F) -> F::Output {
-    RUNTIME.with(|runtime| runtime.block_on(future))
 }
 
 /// # Safety
