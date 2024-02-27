@@ -69,7 +69,7 @@ async fn redraw(canvas: Weak<Canvas>, counter: Rc<Cell<usize>>) {
         canvas.wait_redraw().await;
         let ctx = canvas.context().unwrap();
         let size = canvas.size().unwrap();
-        let brush = SolidColorBrush::new(Color::new(0, 0, 0, 255));
+        let brush = SolidColorBrush::new(Color::new(127, 127, 127, 255));
         ctx.draw_ellipse(
             &BrushPen::new(brush.clone(), 1.0),
             Rect::new(Point::new(size.width / 4.0, size.height / 4.0), size / 2.0),
