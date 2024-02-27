@@ -162,6 +162,7 @@ async unsafe fn filebox(
                 .collect::<Vec<_>>(),
         );
         if !ns_filters.is_empty() {
+            #[allow(deprecated)]
             handle.setAllowedFileTypes(Some(&ns_filters));
         }
     }

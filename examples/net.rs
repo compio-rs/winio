@@ -151,7 +151,7 @@ async fn redraw(canvas: Weak<Canvas>, text: Rc<Mutex<FetchStatus>>) {
             DrawingFontBuilder::new()
                 .halign(HAlign::Left)
                 .valign(VAlign::Top)
-                .family("Consolas")
+                .family("Courier New")
                 .size(12.0)
                 .build(),
             Point::new(0.0, 0.0),

@@ -61,6 +61,7 @@ icrate = { version = "0.1", features = [
     "AppKit_NSOpenPanel",
     "AppKit_NSSavePanel",
     "AppKit_NSScreen",
+    "AppKit_NSTextField",
     "AppKit_NSView",
     "AppKit_NSWindow",
     "Foundation",
