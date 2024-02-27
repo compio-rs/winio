@@ -7,6 +7,9 @@ pub use window::*;
 mod msgbox;
 pub use msgbox::*;
 
+mod button;
+pub use button::*;
+
 mod callback;
 
 use icrate::Foundation::{CGPoint, CGRect, CGSize};

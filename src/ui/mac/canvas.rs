@@ -7,7 +7,6 @@ use icrate::{
         class, declare_class, msg_send, msg_send_id,
         mutability::MainThreadOnly,
         rc::{Allocated, Id},
-        runtime::AnyObject,
         ClassType, DeclaredClass, Encode, Encoding,
     },
     AppKit::{
