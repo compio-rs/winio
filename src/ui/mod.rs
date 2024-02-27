@@ -7,3 +7,6 @@ cfg_if::cfg_if! {
         pub use mac::*;
     }
 }
+
+mod drawing;
+pub use drawing::*;

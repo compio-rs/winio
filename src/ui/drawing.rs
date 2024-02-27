@@ -1,6 +1,5 @@
 use euclid::*;
 use rgb::RGBA8;
-use widestring::U16CString;
 
 pub struct ScreenSpace;
 
@@ -44,7 +43,7 @@ pub type Color = RGBA8;
 
 #[derive(Debug, Clone)]
 pub struct DrawingFont {
-    pub family: U16CString,
+    pub family: String,
     pub size: f64,
     pub italic: bool,
     pub bold: bool,
@@ -60,7 +59,7 @@ impl Default for DrawingFontBuilder {
     fn default() -> Self {
         Self {
             value: DrawingFont {
-                family: U16CString::default(),
+                family: String::new(),
                 size: 0.0,
                 italic: false,
                 bold: false,
@@ -77,7 +76,7 @@ impl DrawingFontBuilder {
     }
 
     pub fn family(&mut self, s: impl AsRef<str>) -> &mut Self {
-        self.value.family = U16CString::from_str_truncate(s.as_ref());
+        self.value.family = s.as_ref().to_string();
         self
     }
 

@@ -15,6 +15,12 @@ enum WakerState {
 #[derive(Debug, Clone)]
 pub struct Callback(Rc<RefCell<WakerState>>);
 
+impl Default for Callback {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Callback {
     pub fn new() -> Self {
         Self(Rc::new(RefCell::new(WakerState::Inactive)))

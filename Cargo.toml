@@ -48,10 +48,13 @@ icrate = { version = "0.1", features = [
     "AppKit",
     "AppKit_NSApplication",
     "AppKit_NSEvent",
+    "AppKit_NSScreen",
+    "AppKit_NSView",
     "AppKit_NSWindow",
     "Foundation",
     "Foundation_NSDate",
     "Foundation_NSNotification",
+    "Foundation_NSString",
     "Foundation_NSThread",
 ] }
 
