@@ -33,6 +33,8 @@ impl Callback {
             WakerState::Active(waker) => {
                 waker.wake_by_ref();
                 *state = WakerState::Signaled;
+                drop(state);
+                crate::runtime::RUNTIME.with(|runtime| runtime.run());
                 false
             }
         }

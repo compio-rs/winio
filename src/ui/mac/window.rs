@@ -26,6 +26,18 @@ pub trait AsNSView {
     fn as_nsview(&self) -> Id<NSView>;
 }
 
+impl<T: AsNSView> AsNSView for &'_ T {
+    fn as_nsview(&self) -> Id<NSView> {
+        (**self).as_nsview()
+    }
+}
+
+impl<T: AsNSView> AsNSView for Rc<T> {
+    fn as_nsview(&self) -> Id<NSView> {
+        (**self).as_nsview()
+    }
+}
+
 pub struct Window {
     wnd: Id<NSWindow>,
     delegate: Id<WindowDelegate>,

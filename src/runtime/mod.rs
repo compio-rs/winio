@@ -11,7 +11,7 @@ cfg_if::cfg_if! {
 }
 
 thread_local! {
-    static RUNTIME: Runtime = Runtime::new();
+    pub(crate) static RUNTIME: Runtime = Runtime::new();
 }
 
 pub fn block_on<F: Future>(future: F) -> F::Output {

@@ -44,18 +44,28 @@ windows = { version = "0.53", features = [
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.9"
+core-graphics = "0.23"
+foreign-types-shared = "0.3"
 futures-channel = "0.3"
 icrate = { version = "0.1", features = [
     "AppKit",
     "AppKit_NSAlert",
     "AppKit_NSApplication",
+    "AppKit_NSBezierPath",
     "AppKit_NSButton",
+    "AppKit_NSColor",
     "AppKit_NSEvent",
+    "AppKit_NSFont",
+    "AppKit_NSFontDescriptor",
+    "AppKit_NSGraphicsContext",
     "AppKit_NSScreen",
     "AppKit_NSView",
     "AppKit_NSWindow",
     "Foundation",
+    "Foundation_NSAffineTransform",
+    "Foundation_NSAttributedString",
     "Foundation_NSDate",
+    "Foundation_NSDictionary",
     "Foundation_NSNotification",
     "Foundation_NSString",
     "Foundation_NSThread",

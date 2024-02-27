@@ -80,7 +80,7 @@ async fn redraw(canvas: Weak<Canvas>, counter: Rc<Cell<usize>>) {
             DrawingFontBuilder::new()
                 .halign(HAlign::Center)
                 .valign(VAlign::Center)
-                .family("Segoe UI")
+                .family("Arial")
                 .size(12.0)
                 .build(),
             Point::new(size.width / 2.0, size.height / 2.0),

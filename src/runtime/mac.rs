@@ -44,6 +44,10 @@ impl Runtime {
         }
     }
 
+    pub fn run(&self) {
+        self.runtime.run();
+    }
+
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
         let _guard = self.runtime.enter();
         let mut result = None;

@@ -2,7 +2,7 @@ use crate::{Brush, Color};
 
 #[derive(Debug, Clone)]
 pub struct SolidColorBrush {
-    color: Color,
+    pub(crate) color: Color,
 }
 
 impl SolidColorBrush {
@@ -13,8 +13,8 @@ impl SolidColorBrush {
 
 #[derive(Debug, Clone)]
 pub struct BrushPen<B: Brush> {
-    brush: B,
-    width: f64,
+    pub(crate) brush: B,
+    pub(crate) width: f64,
 }
 
 impl<B: Brush> BrushPen<B> {
