@@ -58,6 +58,8 @@ icrate = { version = "0.1", features = [
     "AppKit_NSFont",
     "AppKit_NSFontDescriptor",
     "AppKit_NSGraphicsContext",
+    "AppKit_NSOpenPanel",
+    "AppKit_NSSavePanel",
     "AppKit_NSScreen",
     "AppKit_NSView",
     "AppKit_NSWindow",
@@ -69,6 +71,7 @@ icrate = { version = "0.1", features = [
     "Foundation_NSNotification",
     "Foundation_NSString",
     "Foundation_NSThread",
+    "Foundation_NSURL",
 ] }
 
 [dev-dependencies]

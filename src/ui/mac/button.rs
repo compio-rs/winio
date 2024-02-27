@@ -1,4 +1,4 @@
-use std::{ffi::CStr, io, rc::Rc};
+use std::{io, rc::Rc};
 
 use icrate::{
     objc2::{
@@ -11,7 +11,7 @@ use icrate::{
     Foundation::{MainThreadMarker, NSObject, NSString},
 };
 
-use super::callback::Callback;
+use super::{callback::Callback, from_nsstring};
 use crate::{AsNSView, Point, Size, Widget};
 
 #[derive(Debug)]
@@ -59,9 +59,7 @@ impl Button {
     }
 
     pub fn text(&self) -> io::Result<String> {
-        Ok(unsafe { CStr::from_ptr(self.view.title().UTF8String()) }
-            .to_string_lossy()
-            .into_owned())
+        unsafe { Ok(from_nsstring(&self.view.title())) }
     }
 
     pub fn set_text(&self, s: impl AsRef<str>) -> io::Result<()> {

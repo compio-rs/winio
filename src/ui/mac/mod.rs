@@ -7,12 +7,15 @@ pub use window::*;
 mod msgbox;
 pub use msgbox::*;
 
+mod filebox;
+pub use filebox::*;
+
 mod button;
 pub use button::*;
 
 mod callback;
 
-use icrate::Foundation::{CGPoint, CGRect, CGSize};
+use icrate::Foundation::{CGPoint, CGRect, CGSize, NSString};
 
 use crate::{Point, Rect, Size};
 
@@ -44,4 +47,9 @@ fn to_cgpoint(p: Point) -> CGPoint {
 #[inline]
 fn to_cgrect(rect: Rect) -> CGRect {
     CGRect::new(to_cgpoint(rect.origin), to_cgsize(rect.size))
+}
+
+fn from_nsstring(s: &NSString) -> String {
+    String::from_utf8_lossy(unsafe { std::ffi::CStr::from_ptr(s.UTF8String()) }.to_bytes())
+        .into_owned()
 }

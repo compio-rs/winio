@@ -1,4 +1,4 @@
-use std::{ffi::CStr, io, rc::Rc};
+use std::{io, rc::Rc};
 
 use icrate::{
     objc2::{
@@ -19,7 +19,7 @@ use icrate::{
     },
 };
 
-use super::{callback::Callback, from_cgsize, to_cgsize};
+use super::{callback::Callback, from_cgsize, from_nsstring, to_cgsize};
 use crate::{Point, Size};
 
 pub trait AsNSView {
@@ -115,9 +115,7 @@ impl Window {
     }
 
     pub fn text(&self) -> io::Result<String> {
-        Ok(unsafe { CStr::from_ptr(self.wnd.title().UTF8String()) }
-            .to_string_lossy()
-            .into_owned())
+        Ok(from_nsstring(&self.wnd.title()))
     }
 
     pub fn set_text(&self, s: impl AsRef<str>) -> io::Result<()> {
