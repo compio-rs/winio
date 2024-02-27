@@ -1,3 +1,6 @@
+mod canvas;
+pub use canvas::*;
+
 mod window;
 pub use window::*;
 

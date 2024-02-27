@@ -4,7 +4,7 @@ use icrate::{
     objc2::{
         declare_class, msg_send_id,
         mutability::MainThreadOnly,
-        rc::{Allocated, Id},
+        rc::{Allocated, Id, WeakId},
         runtime::ProtocolObject,
         ClassType, DeclaredClass,
     },
@@ -186,5 +186,68 @@ declare_class! {
 impl WindowDelegate {
     pub fn new(mtm: MainThreadMarker) -> Id<Self> {
         unsafe { msg_send_id![mtm.alloc::<Self>(), init] }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct Widget {
+    parent: WeakId<NSView>,
+    view: Id<NSView>,
+}
+
+impl Widget {
+    pub fn from_nsview(parent: Id<NSView>, view: Id<NSView>) -> Self {
+        unsafe {
+            parent.addSubview(&view);
+        }
+        Self {
+            parent: WeakId::from_id(&parent),
+            view,
+        }
+    }
+
+    pub fn parent(&self) -> io::Result<Id<NSView>> {
+        self.parent
+            .load()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "cannot find parent view"))
+    }
+
+    pub fn loc(&self) -> io::Result<Point> {
+        let frame = self.view.frame();
+        let screen_frame = self.parent()?.frame();
+        Ok(Point::new(
+            frame.origin.x,
+            screen_frame.size.height - frame.size.height - frame.origin.y,
+        ))
+    }
+
+    pub fn set_loc(&self, p: Point) -> io::Result<()> {
+        let mut frame = self.view.frame();
+        let screen_frame = self.parent()?.frame();
+        frame.origin.x = p.x;
+        frame.origin.y = screen_frame.size.height - frame.size.height - p.y;
+        unsafe {
+            self.view.setFrame(frame);
+        }
+        Ok(())
+    }
+
+    pub fn size(&self) -> io::Result<Size> {
+        Ok(from_cgsize(self.view.frame().size))
+    }
+
+    pub fn set_size(&self, v: Size) -> io::Result<()> {
+        let mut frame = self.view.frame();
+        frame.size = to_cgsize(v);
+        unsafe {
+            self.view.setFrame(frame);
+        }
+        Ok(())
+    }
+}
+
+impl AsNSView for Widget {
+    fn as_nsview(&self) -> Id<NSView> {
+        self.view.clone()
     }
 }

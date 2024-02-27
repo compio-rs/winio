@@ -13,3 +13,6 @@ pub use drawing::*;
 
 mod msgbox;
 pub use msgbox::*;
+
+mod canvas;
+pub use canvas::*;

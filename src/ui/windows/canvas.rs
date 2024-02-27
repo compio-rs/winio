@@ -473,17 +473,6 @@ impl<B: Brush> Brush for &'_ B {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct SolidColorBrush {
-    color: Color,
-}
-
-impl SolidColorBrush {
-    pub fn new(color: Color) -> Self {
-        Self { color }
-    }
-}
-
 impl Brush for SolidColorBrush {
     fn create(
         &self,
@@ -512,18 +501,6 @@ impl<P: Pen> Pen for &'_ P {
         trans: RelativeToScreen,
     ) -> io::Result<(ID2D1Brush, f32)> {
         (**self).create(target, trans)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct BrushPen<B: Brush> {
-    brush: B,
-    width: f64,
-}
-
-impl<B: Brush> BrushPen<B> {
-    pub fn new(brush: B, width: f64) -> Self {
-        Self { brush, width }
     }
 }
 
