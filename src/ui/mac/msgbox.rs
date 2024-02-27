@@ -44,19 +44,24 @@ async fn msgbox_custom(
         if btns.contains(MessageBoxButton::Ok) {
             alert.addButtonWithTitle(&NSString::from_str("Ok"));
             responses.push(MessageBoxResponse::Ok);
-        } else if btns.contains(MessageBoxButton::Yes) {
+        }
+        if btns.contains(MessageBoxButton::Yes) {
             alert.addButtonWithTitle(&NSString::from_str("Yes"));
             responses.push(MessageBoxResponse::Yes);
-        } else if btns.contains(MessageBoxButton::No) {
+        }
+        if btns.contains(MessageBoxButton::No) {
             alert.addButtonWithTitle(&NSString::from_str("No"));
             responses.push(MessageBoxResponse::No);
-        } else if btns.contains(MessageBoxButton::Cancel) {
+        }
+        if btns.contains(MessageBoxButton::Cancel) {
             alert.addButtonWithTitle(&NSString::from_str("Cancel"));
             responses.push(MessageBoxResponse::Cancel);
-        } else if btns.contains(MessageBoxButton::Retry) {
+        }
+        if btns.contains(MessageBoxButton::Retry) {
             alert.addButtonWithTitle(&NSString::from_str("Try again"));
             responses.push(MessageBoxResponse::Retry);
-        } else if btns.contains(MessageBoxButton::Close) {
+        }
+        if btns.contains(MessageBoxButton::Close) {
             alert.addButtonWithTitle(&NSString::from_str("Close"));
             responses.push(MessageBoxResponse::Close);
         }
