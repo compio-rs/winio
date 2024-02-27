@@ -1,10 +1,14 @@
 mod window;
-use icrate::Foundation::{CGPoint, CGRect, CGSize};
 pub use window::*;
 
-use crate::{Point, Rect, Size};
+mod msgbox;
+pub use msgbox::*;
 
 mod callback;
+
+use icrate::Foundation::{CGPoint, CGRect, CGSize};
+
+use crate::{Point, Rect, Size};
 
 #[inline]
 fn from_cgsize(size: CGSize) -> Size {

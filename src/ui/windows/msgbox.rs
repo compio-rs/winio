@@ -22,68 +22,6 @@ use windows_sys::Win32::{
 
 use crate::ui::{AsRawWindow, Window};
 
-#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
-pub enum MessageBoxStyle {
-    #[default]
-    None,
-    Info,
-    Warning,
-    Error,
-    Shield,
-}
-
-#[repr(i32)]
-#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
-pub enum MessageBoxButton {
-    #[default]
-    Ok     = TDCBF_OK_BUTTON,
-    Yes    = TDCBF_YES_BUTTON,
-    No     = TDCBF_NO_BUTTON,
-    Cancel = TDCBF_CANCEL_BUTTON,
-    Retry  = TDCBF_RETRY_BUTTON,
-    Close  = TDCBF_CLOSE_BUTTON,
-}
-
-impl BitOr for MessageBoxButton {
-    type Output = MessageBoxButton;
-
-    fn bitor(self, rhs: Self) -> Self::Output {
-        unsafe { std::mem::transmute(self as i32 | rhs as i32) }
-    }
-}
-
-impl BitOrAssign for MessageBoxButton {
-    fn bitor_assign(&mut self, rhs: Self) {
-        *self = *self | rhs;
-    }
-}
-
-#[repr(i32)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum MessageBoxResponse {
-    Cancel = IDCANCEL,
-    No     = IDNO,
-    Ok     = IDOK,
-    Retry  = IDRETRY,
-    Yes    = IDYES,
-    Close  = IDCLOSE,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct CustomButton {
-    pub result: i32,
-    pub text: Cow<'static, str>,
-}
-
-impl CustomButton {
-    pub fn new<S: Into<Cow<'static, str>>>(result: i32, text: S) -> Self {
-        Self {
-            result,
-            text: text.into(),
-        }
-    }
-}
-
 async fn msgbox_custom(
     parent: Option<&Window>,
     msg: U16CString,

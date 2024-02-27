@@ -23,7 +23,7 @@ use super::{callback::Callback, from_cgsize, to_cgsize};
 use crate::{Point, Size};
 
 pub trait AsNSView {
-    fn as_view(&self) -> Id<NSView>;
+    fn as_nsview(&self) -> Id<NSView>;
 }
 
 pub struct Window {
@@ -57,6 +57,10 @@ impl Window {
             wnd.setIsVisible(true);
             Ok(Rc::new(Self { wnd, delegate }))
         }
+    }
+
+    pub fn as_nswindow(&self) -> Id<NSWindow> {
+        self.wnd.clone()
     }
 
     fn screen(&self) -> io::Result<Id<NSScreen>> {
@@ -95,7 +99,7 @@ impl Window {
     }
 
     pub fn client_size(&self) -> io::Result<Size> {
-        Ok(from_cgsize(self.as_view().frame().size))
+        Ok(from_cgsize(self.as_nsview().frame().size))
     }
 
     pub fn text(&self) -> io::Result<String> {
@@ -123,7 +127,7 @@ impl Window {
 }
 
 impl AsNSView for Window {
-    fn as_view(&self) -> Id<NSView> {
+    fn as_nsview(&self) -> Id<NSView> {
         self.wnd
             .contentView()
             .expect("a window should contain a view")

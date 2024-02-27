@@ -44,9 +44,12 @@ windows = { version = "0.53", features = [
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.9"
+futures-channel = "0.3"
 icrate = { version = "0.1", features = [
     "AppKit",
+    "AppKit_NSAlert",
     "AppKit_NSApplication",
+    "AppKit_NSButton",
     "AppKit_NSEvent",
     "AppKit_NSScreen",
     "AppKit_NSView",
