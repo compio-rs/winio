@@ -59,6 +59,10 @@ impl Window {
         }))
     }
 
+    pub(crate) fn as_window(&self) -> &gtk4::Window {
+        &self.window
+    }
+
     pub fn loc(&self) -> io::Result<Point> {
         Ok(Point::zero())
     }

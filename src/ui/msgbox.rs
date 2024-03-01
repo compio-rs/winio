@@ -14,6 +14,7 @@ pub enum MessageBoxStyle {
 
 #[repr(i32)]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
+#[non_exhaustive]
 pub enum MessageBoxButton {
     #[default]
     Ok     = 1 << 0,
@@ -58,6 +59,7 @@ impl BitAndAssign for MessageBoxButton {
     }
 }
 
+#[repr(u16)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum MessageBoxResponse {
     Cancel,
