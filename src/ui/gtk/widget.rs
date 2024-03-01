@@ -39,6 +39,18 @@ pub trait AsContainer {
     fn as_container(&self) -> Container;
 }
 
+impl<T: AsContainer> AsContainer for &'_ T {
+    fn as_container(&self) -> Container {
+        (**self).as_container()
+    }
+}
+
+impl<T: AsContainer> AsContainer for Rc<T> {
+    fn as_container(&self) -> Container {
+        (**self).as_container()
+    }
+}
+
 pub struct Widget {
     parent: Container,
     widget: gtk4::Widget,

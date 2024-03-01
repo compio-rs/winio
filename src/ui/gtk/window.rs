@@ -12,8 +12,8 @@ use crate::{AsContainer, Container, Point, Size};
 pub struct Window {
     window: gtk4::Window,
     fixed: gtk4::Fixed,
-    on_size: Callback,
-    on_close: Callback,
+    on_size: Callback<()>,
+    on_close: Callback<()>,
 }
 
 impl Window {
@@ -26,7 +26,7 @@ impl Window {
                 let this = this.clone();
                 move |_| {
                     if let Some(this) = this.upgrade() {
-                        this.on_size.signal();
+                        this.on_size.signal(());
                     }
                 }
             });
@@ -34,7 +34,7 @@ impl Window {
                 let this = this.clone();
                 move |_| {
                     if let Some(this) = this.upgrade() {
-                        this.on_size.signal();
+                        this.on_size.signal(());
                     }
                 }
             });
@@ -42,7 +42,7 @@ impl Window {
                 let this = this.clone();
                 move |_| {
                     if let Some(this) = this.upgrade() {
-                        if this.on_close.signal() {
+                        if !this.on_close.signal(()) {
                             return Propagation::Stop;
                         }
                     }

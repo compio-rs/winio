@@ -62,11 +62,8 @@ impl Canvas {
         Ok(())
     }
 
-    pub async fn wait_redraw(&self) {
-        self.view.ivars().draw_rect.wait().await
-    }
-
-    pub fn context(&self) -> io::Result<DrawingContext> {
+    pub async fn wait_redraw(&self) -> io::Result<DrawingContext> {
+        self.view.ivars().draw_rect.wait().await;
         Ok(DrawingContext::new(self.size()?))
     }
 }
