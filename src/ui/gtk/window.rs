@@ -38,6 +38,14 @@ impl Window {
                     }
                 }
             });
+            window.connect_state_flags_changed({
+                let this = this.clone();
+                move |_, _| {
+                    if let Some(this) = this.upgrade() {
+                        this.on_size.signal(());
+                    }
+                }
+            });
             window.connect_close_request({
                 let this = this.clone();
                 move |_| {
@@ -79,7 +87,10 @@ impl Window {
         let (_, height, ..) = self
             .window
             .measure(gtk4::Orientation::Vertical, size.height());
-        Ok(Size::new(width as f64, height as f64))
+        Ok(Size::new(
+            self.window.width().max(width) as f64,
+            self.window.height().max(height) as f64,
+        ))
     }
 
     pub fn set_size(&self, _s: Size) -> io::Result<()> {
