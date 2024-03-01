@@ -7,6 +7,9 @@ cfg_if::cfg_if! {
     } else if #[cfg(target_os = "macos")] {
         mod mac;
         pub use mac::*;
+    } else {
+        mod gtk;
+        pub use gtk::*;
     }
 }
 
