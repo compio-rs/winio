@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-compio = { version = "0.9.0-beta.4", features = ["nightly", "native-tls"] }
+compio = "0.9.0-beta.4"
 compio-log = "0.1.0-beta.1"
 
 cfg-if = "1"
@@ -30,7 +30,7 @@ windows-sys = { version = "0.52", features = [
     "Win32_UI_HiDpi",
     "Win32_UI_WindowsAndMessaging",
 ] }
-windows = { version = "0.53", features = [
+windows = { version = "0.54", features = [
     "Foundation_Numerics",
     "Win32_Foundation",
     "Win32_Graphics_Direct2D",
@@ -76,7 +76,11 @@ icrate = { version = "0.1", features = [
 ] }
 
 [dev-dependencies]
-compio = { version = "0.9.0-beta.4", features = ["time"] }
+compio = { version = "0.9.0-beta.4", features = [
+    "nightly",
+    "time",
+    "native-tls",
+] }
 cyper = { version = "0.1.0-beta.1", features = ["nightly"] }
 
 futures-util = "0.3"
