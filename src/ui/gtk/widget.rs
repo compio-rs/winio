@@ -1,6 +1,8 @@
-use std::rc::{Rc, Weak};
+use std::{
+    cell::Cell,
+    rc::{Rc, Weak},
+};
 
-use atomic::{Atomic, Ordering};
 use gtk4::prelude::{FixedExt, WidgetExt};
 
 use crate::{Point, Size};
@@ -54,7 +56,7 @@ impl<T: AsContainer> AsContainer for Rc<T> {
 pub struct Widget {
     parent: Container,
     widget: gtk4::Widget,
-    loc: Atomic<Point>,
+    loc: Cell<Point>,
 }
 
 impl Widget {
@@ -64,16 +66,16 @@ impl Widget {
         Rc::new(Self {
             parent,
             widget,
-            loc: Atomic::new(Point::zero()),
+            loc: Cell::new(Point::zero()),
         })
     }
 
     pub fn loc(&self) -> Point {
-        self.loc.load(Ordering::Acquire)
+        self.loc.get()
     }
 
     pub fn set_loc(&self, p: Point) {
-        self.loc.store(p, Ordering::Release);
+        self.loc.set(p);
         self.parent.move_widget(&self.widget, self.loc());
     }
 
