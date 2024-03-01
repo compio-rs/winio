@@ -6,10 +6,11 @@ use std::{
 
 use glib::object::Cast;
 use gtk4::{
-    cairo::{Context, FontSlant, FontWeight},
+    cairo::Context,
     prelude::{DrawingAreaExtManual, WidgetExt},
     DrawingArea,
 };
+use pangocairo::functions::show_layout;
 
 use super::callback::Callback;
 use crate::{
@@ -69,7 +70,10 @@ impl Canvas {
 
     pub async fn wait_redraw(&self) -> io::Result<DrawingContext> {
         let ctx = self.on_redraw.wait().await;
-        Ok(DrawingContext { ctx })
+        Ok(DrawingContext {
+            ctx,
+            widget: self.widget.clone(),
+        })
     }
 }
 
@@ -81,6 +85,7 @@ impl AsContainer for Canvas {
 
 pub struct DrawingContext {
     ctx: Context,
+    widget: gtk4::DrawingArea,
 }
 
 #[inline]
@@ -235,57 +240,38 @@ impl DrawingContext {
         pos: Point,
         text: impl AsRef<str>,
     ) -> io::Result<()> {
-        let text = text.as_ref();
-        let rect = self.measure_str(font, pos, text)?;
-        self.ctx
-            .move_to(rect.origin.x, rect.origin.y + rect.size.height);
-        self.set_brush(brush, rect);
-        self.ctx
-            .show_text(text)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-        Ok(())
-    }
+        let layout = self.widget.create_pango_layout(Some(text.as_ref()));
+        let mut desp = pango::FontDescription::from_string(&font.family);
+        desp.set_size(font.size as i32 * pango::SCALE);
+        if font.italic {
+            desp.set_style(pango::Style::Italic);
+        }
+        if font.bold {
+            desp.set_weight(pango::Weight::Bold);
+        }
+        layout.set_font_description(Some(&desp));
 
-    fn measure_str(
-        &self,
-        font: DrawingFont,
-        pos: Point,
-        text: impl AsRef<str>,
-    ) -> io::Result<Rect> {
-        self.ctx.select_font_face(
-            &font.family,
-            if font.italic {
-                FontSlant::Italic
-            } else {
-                FontSlant::Normal
-            },
-            if font.bold {
-                FontWeight::Bold
-            } else {
-                FontWeight::Normal
-            },
-        );
-        self.ctx.set_font_size(font.size);
-        let ex = self
-            .ctx
-            .text_extents(text.as_ref())
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let (width, height) = layout.pixel_size();
+        let (width, height) = (width as f64, height as f64);
+
         let mut x = pos.x;
         let mut y = pos.y;
         match font.halign {
-            HAlign::Center => x -= ex.width() / 2.0,
-            HAlign::Right => x -= ex.width(),
+            HAlign::Center => x -= width / 2.0,
+            HAlign::Right => x -= width,
             _ => {}
         }
         match font.valign {
-            VAlign::Center => y += ex.height() / 2.0,
-            VAlign::Top => y += ex.height(),
+            VAlign::Center => y -= height / 2.0,
+            VAlign::Bottom => y -= height,
             _ => {}
         }
-        Ok(Rect::new(
-            Point::new(x, y - ex.height()),
-            Size::new(ex.width(), ex.height()),
-        ))
+        let rect = Rect::new(Point::new(x, y), Size::new(width, height));
+
+        self.ctx.move_to(rect.origin.x, rect.origin.y);
+        self.set_brush(brush, rect);
+        show_layout(&self.ctx, &layout);
+        Ok(())
     }
 }
 
