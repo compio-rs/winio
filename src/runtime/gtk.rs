@@ -12,12 +12,17 @@ impl Runtime {
     pub fn new() -> Self {
         let runtime = compio::runtime::Runtime::new().unwrap();
         let ctx = MainContext::default();
+        gtk4::init().unwrap();
 
         unix_fd_add_local(runtime.as_raw_fd(), IOCondition::IN, |_fd, _cond| {
             ControlFlow::Continue
         });
 
         Self { runtime, ctx }
+    }
+
+    pub fn run(&self) {
+        self.runtime.run();
     }
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
