@@ -3,8 +3,7 @@ use std::{
     rc::{Rc, Weak},
 };
 
-use glib::Propagation;
-use gtk4::prelude::*;
+use gtk4::{glib::Propagation, prelude::*};
 
 use super::callback::Callback;
 use crate::{AsContainer, Container, Point, Size};

@@ -1,7 +1,9 @@
 use std::{future::Future, time::Duration};
 
 use compio::driver::AsRawFd;
-use glib::{timeout_add_local_once, unix_fd_add_local, ControlFlow, IOCondition, MainContext};
+use gtk4::glib::{
+    timeout_add_local_once, unix_fd_add_local, ControlFlow, IOCondition, MainContext,
+};
 
 pub struct Runtime {
     runtime: compio::runtime::Runtime,

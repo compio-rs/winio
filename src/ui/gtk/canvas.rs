@@ -4,9 +4,10 @@ use std::{
     rc::{Rc, Weak},
 };
 
-use glib::object::Cast;
 use gtk4::{
     cairo::Context,
+    glib::object::Cast,
+    pango::{FontDescription, Style, Weight, SCALE as PANGO_SCALE},
     prelude::{DrawingAreaExtManual, WidgetExt},
     DrawingArea,
 };
@@ -241,13 +242,13 @@ impl DrawingContext {
         text: impl AsRef<str>,
     ) -> io::Result<()> {
         let layout = self.widget.create_pango_layout(Some(text.as_ref()));
-        let mut desp = pango::FontDescription::from_string(&font.family);
-        desp.set_size(font.size as i32 * pango::SCALE);
+        let mut desp = FontDescription::from_string(&font.family);
+        desp.set_size(font.size as i32 * PANGO_SCALE);
         if font.italic {
-            desp.set_style(pango::Style::Italic);
+            desp.set_style(Style::Italic);
         }
         if font.bold {
-            desp.set_weight(pango::Weight::Bold);
+            desp.set_weight(Weight::Bold);
         }
         layout.set_font_description(Some(&desp));
 
