@@ -75,6 +75,11 @@ icrate = { version = "0.1", features = [
     "Foundation_NSURL",
 ] }
 
+[target.'cfg(not(any(windows, target_os = "macos")))'.dependencies]
+gtk4 = { version = "0.8", features = ["v4_10"] }
+pangocairo = "0.19"
+futures-channel = "0.3"
+
 [dev-dependencies]
 compio = { version = "0.9.0-beta.4", features = [
     "nightly",

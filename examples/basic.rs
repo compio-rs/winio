@@ -66,8 +66,7 @@ async fn tick(canvas: Weak<Canvas>, counter: Rc<Cell<usize>>) {
 
 async fn redraw(canvas: Weak<Canvas>, counter: Rc<Cell<usize>>) {
     while let Some(canvas) = canvas.upgrade() {
-        canvas.wait_redraw().await;
-        let ctx = canvas.context().unwrap();
+        let ctx = canvas.wait_redraw().await.unwrap();
         let size = canvas.size().unwrap();
         let brush = SolidColorBrush::new(Color::new(127, 127, 127, 255));
         ctx.draw_ellipse(

@@ -113,7 +113,7 @@ impl Canvas {
         Ok(())
     }
 
-    pub async fn wait_redraw(&self) {
+    pub async fn wait_redraw(&self) -> io::Result<DrawingContext> {
         loop {
             let msg = self.handle.wait_parent(WM_DRAWITEM).await;
             let ds = unsafe { &mut *(msg.lParam as *mut DRAWITEMSTRUCT) };
@@ -121,9 +121,10 @@ impl Canvas {
                 break;
             }
         }
+        self.context()
     }
 
-    pub fn context(&self) -> io::Result<DrawingContext> {
+    fn context(&self) -> io::Result<DrawingContext> {
         unsafe {
             let dpi = self.handle.dpi();
             let size = self.handle.size_l2d(self.handle.size()?);
