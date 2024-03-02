@@ -64,25 +64,30 @@ async fn render(
         && let Some(button) = button.upgrade()
         && let Some(entry) = entry.upgrade()
     {
-        const BWIDTH: f64 = 50.0;
-        const EHEIGHT: f64 = 20.0;
+        const BSIZE: Size = Size::new(60.0, 20.0);
+        const CMARGIN: f64 = 10.0;
 
         let csize = window.client_size().unwrap();
 
         entry.set_loc(Point::new(0.0, 0.0)).unwrap();
         entry
-            .set_size(Size::new(csize.width - BWIDTH, EHEIGHT))
+            .set_size(Size::new(csize.width - BSIZE.width, BSIZE.height))
             .unwrap();
 
         button
-            .set_loc(Point::new(csize.width - BWIDTH, 0.0))
+            .set_loc(Point::new(csize.width - BSIZE.width, 0.0))
             .unwrap();
-        button.set_size(Size::new(BWIDTH, EHEIGHT)).unwrap();
+        button.set_size(BSIZE).unwrap();
 
         canvas
-            .set_size(Size::new(csize.width, csize.height - EHEIGHT))
+            .set_size(Size::new(
+                csize.width,
+                csize.height - BSIZE.height - CMARGIN,
+            ))
             .unwrap();
-        canvas.set_loc(Point::new(0.0, EHEIGHT)).unwrap();
+        canvas
+            .set_loc(Point::new(0.0, BSIZE.height + CMARGIN))
+            .unwrap();
         canvas.redraw().unwrap();
 
         futures_util::select! {
@@ -143,8 +148,7 @@ async fn fetch(
 
 async fn redraw(canvas: Weak<Canvas>, text: Rc<Mutex<FetchStatus>>) {
     while let Some(canvas) = canvas.upgrade() {
-        canvas.wait_redraw().await;
-        let ctx = canvas.context().unwrap();
+        let ctx = canvas.wait_redraw().await.unwrap();
         let brush = SolidColorBrush::new(Color::new(127, 127, 127, 255));
         ctx.draw_str(
             &brush,
