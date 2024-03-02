@@ -92,7 +92,8 @@ impl Window {
         ))
     }
 
-    pub fn set_size(&self, _s: Size) -> io::Result<()> {
+    pub fn set_size(&self, s: Size) -> io::Result<()> {
+        self.window.set_default_size(s.width as _, s.height as _);
         Ok(())
     }
 
