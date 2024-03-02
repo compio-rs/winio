@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use std::{cell::RefCell, io};
 
 use gtk4::prelude::{DialogExt, GtkWindowExt, WidgetExt};
@@ -86,7 +88,7 @@ async fn msgbox_custom(
             }
         }
     });
-    dialog.show();
+    dialog.set_visible(true);
     let res = rx
         .await
         .map_err(|e| io::Error::new(io::ErrorKind::ConnectionAborted, e))?;

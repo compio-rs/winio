@@ -56,7 +56,7 @@ impl Window {
                     Propagation::Proceed
                 }
             });
-            window.show();
+            window.set_visible(true);
             Self {
                 window,
                 fixed,
