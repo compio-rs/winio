@@ -1,7 +1,4 @@
-use std::{
-    cell::Cell,
-    rc::{Rc, Weak},
-};
+use std::rc::{Rc, Weak};
 
 use gtk4::prelude::{FixedExt, WidgetExt};
 
@@ -35,6 +32,22 @@ impl Container {
             }
         }
     }
+
+    pub fn query_widget(&self, widget: &gtk4::Widget) -> Point {
+        match self {
+            Self::Fixed(fixed) => {
+                let (x, y) = fixed.child_position(widget);
+                Point::new(x, y)
+            }
+            Self::Parent(this) => {
+                if let Some(this) = this.upgrade() {
+                    this.parent.query_widget(widget) - this.loc().to_vector()
+                } else {
+                    Point::zero()
+                }
+            }
+        }
+    }
 }
 
 pub trait AsContainer {
@@ -56,27 +69,21 @@ impl<T: AsContainer> AsContainer for Rc<T> {
 pub struct Widget {
     parent: Container,
     widget: gtk4::Widget,
-    loc: Cell<Point>,
 }
 
 impl Widget {
     pub fn new(parent: impl AsContainer, widget: gtk4::Widget) -> Rc<Self> {
         let parent = parent.as_container();
         parent.add_widget(&widget);
-        Rc::new(Self {
-            parent,
-            widget,
-            loc: Cell::new(Point::zero()),
-        })
+        Rc::new(Self { parent, widget })
     }
 
     pub fn loc(&self) -> Point {
-        self.loc.get()
+        self.parent.query_widget(&self.widget)
     }
 
     pub fn set_loc(&self, p: Point) {
-        self.loc.set(p);
-        self.parent.move_widget(&self.widget, self.loc());
+        self.parent.move_widget(&self.widget, p);
     }
 
     pub fn size(&self) -> Size {

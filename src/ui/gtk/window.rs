@@ -97,7 +97,9 @@ impl Window {
     }
 
     pub fn client_size(&self) -> io::Result<Size> {
-        self.size()
+        let width = self.fixed.width();
+        let height = self.fixed.height();
+        Ok(Size::new(width as _, height as _))
     }
 
     pub fn text(&self) -> io::Result<String> {

@@ -165,17 +165,15 @@ impl DrawingContext {
     pub fn draw_arc(&self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> io::Result<()> {
         self.path_arc(rect, start, end);
         self.set_pen(pen, rect);
-        self.ctx
-            .stroke()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+        self.ctx.stroke().ok();
+        Ok(())
     }
 
     pub fn fill_pie(&self, brush: impl Brush, rect: Rect, start: f64, end: f64) -> io::Result<()> {
         self.path_arc(rect, start, end);
         self.set_brush(brush, rect);
-        self.ctx
-            .fill()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+        self.ctx.fill().ok();
+        Ok(())
     }
 
     pub fn draw_ellipse(&self, pen: impl Pen, rect: Rect) -> io::Result<()> {
@@ -196,41 +194,36 @@ impl DrawingContext {
         self.ctx.move_to(start.x, start.y);
         self.ctx.line_to(end.x, end.y);
         self.set_pen(pen, rect);
-        self.ctx
-            .stroke()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+        self.ctx.stroke().ok();
+        Ok(())
     }
 
     pub fn draw_rect(&self, pen: impl Pen, rect: Rect) -> io::Result<()> {
         self.path_rect(rect);
         self.set_pen(pen, rect);
-        self.ctx
-            .stroke()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+        self.ctx.stroke().ok();
+        Ok(())
     }
 
     pub fn fill_rect(&self, brush: impl Brush, rect: Rect) -> io::Result<()> {
         self.path_rect(rect);
         self.set_brush(brush, rect);
-        self.ctx
-            .fill()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+        self.ctx.fill().ok();
+        Ok(())
     }
 
     pub fn draw_round_rect(&self, pen: impl Pen, rect: Rect, round: Size) -> io::Result<()> {
         self.path_round_rect(rect, round);
         self.set_pen(pen, rect);
-        self.ctx
-            .stroke()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+        self.ctx.stroke().ok();
+        Ok(())
     }
 
     pub fn fill_round_rect(&self, brush: impl Brush, rect: Rect, round: Size) -> io::Result<()> {
         self.path_round_rect(rect, round);
         self.set_brush(brush, rect);
-        self.ctx
-            .fill()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+        self.ctx.fill().ok();
+        Ok(())
     }
 
     pub fn draw_str(
