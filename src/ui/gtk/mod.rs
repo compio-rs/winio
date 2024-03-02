@@ -13,4 +13,7 @@ pub use msgbox::*;
 mod filebox;
 pub use filebox::*;
 
+mod button;
+pub use button::*;
+
 mod callback;

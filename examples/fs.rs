@@ -125,8 +125,7 @@ async fn fetch(
 
 async fn redraw(canvas: Weak<Canvas>, text: Rc<Mutex<FetchStatus>>) {
     while let Some(canvas) = canvas.upgrade() {
-        canvas.wait_redraw().await;
-        let ctx = canvas.context().unwrap();
+        let ctx = canvas.wait_redraw().await.unwrap();
         let brush = SolidColorBrush::new(Color::new(127, 127, 127, 255));
         ctx.draw_str(
             &brush,

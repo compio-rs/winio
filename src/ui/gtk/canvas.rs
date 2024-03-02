@@ -9,7 +9,6 @@ use gtk4::{
     glib::object::Cast,
     pango::{FontDescription, Style, Weight, SCALE as PANGO_SCALE},
     prelude::{DrawingAreaExtManual, WidgetExt},
-    DrawingArea,
 };
 use pangocairo::functions::show_layout;
 
@@ -20,16 +19,16 @@ use crate::{
 };
 
 pub struct Canvas {
-    widget: DrawingArea,
+    widget: gtk4::DrawingArea,
     handle: Rc<Widget>,
     on_redraw: Callback<Context>,
 }
 
 impl Canvas {
     pub fn new(parent: impl AsContainer) -> io::Result<Rc<Self>> {
-        let widget = DrawingArea::new();
+        let widget = gtk4::DrawingArea::new();
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
-        Ok(Rc::new_cyclic(|this: &Weak<Canvas>| {
+        Ok(Rc::new_cyclic(|this: &Weak<Self>| {
             widget.set_draw_func({
                 let this = this.clone();
                 move |_, ctx, _, _| {
