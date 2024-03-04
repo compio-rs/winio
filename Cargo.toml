@@ -103,6 +103,6 @@ lazy_cell = ["compio/lazy_cell"]
 nightly = ["compio/nightly", "cyper/nightly", "once_cell_try", "lazy_cell"]
 
 [patch.'crates-io']
-compio = { git = "https://github.com/Berrysoft/compio.git", branch = "dev/runtime-hook" }
-compio-log = { git = "https://github.com/Berrysoft/compio.git", branch = "dev/runtime-hook" }
+compio = { git = "https://github.com/compio-rs/compio.git" }
+compio-log = { git = "https://github.com/compio-rs/compio.git" }
 cyper = { git = "https://github.com/Berrysoft/cyper.git", branch = "update-hyper-with-util" }
