@@ -115,15 +115,16 @@ async fn fetch(
         if let Some(entry) = entry.upgrade() {
             let url = entry.text().unwrap();
 
-            let status =
-                if let Ok(res) = timeout(Duration::from_secs(8), client.get(url).send()).await {
-                    match res {
-                        Ok(response) => FetchStatus::Complete(response.text().await.unwrap()),
-                        Err(e) => FetchStatus::Error(format!("{:?}", e)),
-                    }
-                } else {
-                    FetchStatus::Timedout
-                };
+            let status = if let Ok(res) =
+                timeout(Duration::from_secs(8), client.get(url).unwrap().send()).await
+            {
+                match res {
+                    Ok(response) => FetchStatus::Complete(response.text().await.unwrap()),
+                    Err(e) => FetchStatus::Error(format!("{:?}", e)),
+                }
+            } else {
+                FetchStatus::Timedout
+            };
 
             *text.lock().await = status;
             if let Some(canvas) = canvas.upgrade() {
