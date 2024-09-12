@@ -1,15 +1,13 @@
 use std::{io, rc::Rc};
 
-use icrate::{
-    objc2::{
-        declare_class, msg_send_id,
-        mutability::MainThreadOnly,
-        rc::{Allocated, Id},
-        sel, ClassType, DeclaredClass,
-    },
-    AppKit::{NSBezelStyleFlexiblePush, NSButton},
-    Foundation::{MainThreadMarker, NSObject, NSString},
+use objc2::{
+    declare_class, msg_send_id,
+    mutability::MainThreadOnly,
+    rc::{Allocated, Id},
+    sel, ClassType, DeclaredClass,
 };
+use objc2_app_kit::{NSBezelStyle, NSButton};
+use objc2_foundation::{MainThreadMarker, NSObject, NSString};
 
 use super::{callback::Callback, from_nsstring};
 use crate::{AsNSView, Point, Size, Widget};
@@ -33,7 +31,7 @@ impl Button {
             view.setTarget(Some(&delegate));
             view.setAction(Some(sel!(onAction)));
 
-            view.setBezelStyle(NSBezelStyleFlexiblePush);
+            view.setBezelStyle(NSBezelStyle::FlexiblePush);
             Ok(Rc::new(Self {
                 handle,
                 view,

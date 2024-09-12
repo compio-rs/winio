@@ -18,7 +18,7 @@ pub use edit::*;
 
 mod callback;
 
-use icrate::Foundation::{CGSize, NSString};
+use objc2_foundation::{CGSize, NSString};
 
 use crate::Size;
 
