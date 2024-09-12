@@ -4,6 +4,7 @@ use std::{
     future::Future,
     mem::MaybeUninit,
     pin::Pin,
+    ptr::null_mut,
     task::{Context, Poll, Waker},
     time::Duration,
 };
@@ -73,52 +74,53 @@ impl Runtime {
     }
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        let _guard = self.runtime.enter();
-        let mut result = None;
-        unsafe {
-            self.runtime
-                .spawn_unchecked(async { result = Some(future.await) })
-        }
-        .detach();
-        loop {
-            self.runtime.run();
-            if let Some(result) = result.take() {
-                break result;
+        self.runtime.enter(|| {
+            let mut result = None;
+            unsafe {
+                self.runtime
+                    .spawn_unchecked(async { result = Some(future.await) })
             }
+            .detach();
+            loop {
+                self.runtime.run();
+                if let Some(result) = result.take() {
+                    break result;
+                }
 
-            self.runtime.poll_with(Some(Duration::ZERO));
+                self.runtime.poll_with(Some(Duration::ZERO));
 
-            let timeout = self.runtime.current_timeout();
-            let timeout = match timeout {
-                Some(timeout) => timeout.as_millis() as u32,
-                None => INFINITE,
-            };
-            let handle = self.runtime.as_raw_fd() as HANDLE;
-            trace!("MWMO start");
-            let res = unsafe {
-                MsgWaitForMultipleObjectsEx(
-                    1,
-                    &handle,
-                    timeout,
-                    QS_ALLINPUT,
-                    MWMO_ALERTABLE | MWMO_INPUTAVAILABLE,
-                )
-            };
-            trace!("MWMO wake up");
-            if res == WAIT_FAILED {
-                panic!("{:?}", std::io::Error::last_os_error());
-            }
+                let timeout = self.runtime.current_timeout();
+                let timeout = match timeout {
+                    Some(timeout) => timeout.as_millis() as u32,
+                    None => INFINITE,
+                };
+                let handle = self.runtime.as_raw_fd() as HANDLE;
+                trace!("MWMO start");
+                let res = unsafe {
+                    MsgWaitForMultipleObjectsEx(
+                        1,
+                        &handle,
+                        timeout,
+                        QS_ALLINPUT,
+                        MWMO_ALERTABLE | MWMO_INPUTAVAILABLE,
+                    )
+                };
+                trace!("MWMO wake up");
+                if res == WAIT_FAILED {
+                    panic!("{:?}", std::io::Error::last_os_error());
+                }
 
-            let mut msg = MaybeUninit::uninit();
-            let res = unsafe { PeekMessageW(msg.as_mut_ptr(), 0, 0, 0, PM_REMOVE) };
-            if res != 0 {
-                let msg = unsafe { msg.assume_init() };
-                unsafe {
-                    TranslateMessage(&msg);
-                    DispatchMessageW(&msg);
+                let mut msg = MaybeUninit::uninit();
+                let res = unsafe { PeekMessageW(msg.as_mut_ptr(), null_mut(), 0, 0, PM_REMOVE) };
+                if res != 0 {
+                    let msg = unsafe { msg.assume_init() };
+                    unsafe {
+                        TranslateMessage(&msg);
+                        DispatchMessageW(&msg);
+                    }
                 }
             }
-        }
+        })
     }
 
     fn set_current_msg(&self, handle: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> bool {

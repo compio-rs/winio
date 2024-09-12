@@ -11,7 +11,7 @@ use crate::ui::drawing::*;
 
 #[inline]
 pub unsafe fn get_dpi_for_window(h_wnd: HWND) -> u32 {
-    if h_wnd != 0 {
+    if !h_wnd.is_null() {
         GetDpiForWindow(h_wnd)
     } else {
         GetDpiForSystem()

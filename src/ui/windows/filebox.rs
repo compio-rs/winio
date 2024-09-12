@@ -1,4 +1,4 @@
-use std::{io, path::PathBuf};
+use std::{io, panic::resume_unwind, path::PathBuf};
 
 use widestring::{U16CStr, U16CString};
 use windows::{
@@ -77,24 +77,35 @@ impl FileBox {
     }
 
     pub async fn open(self, parent: Option<&Window>) -> io::Result<Option<PathBuf>> {
-        let parent = HWND(parent.map(|p| p.as_raw_window()).unwrap_or_default());
+        let parent = parent
+            .map(|p| p.as_raw_window() as isize)
+            .unwrap_or_default();
         compio::runtime::spawn_blocking(move || unsafe {
+            let parent = HWND(parent as _);
             filebox(parent, self.title, self.filename, self.filters, true, false)?.result()
         })
         .await
+        .unwrap_or_else(|e| resume_unwind(e))
     }
 
     pub async fn open_multiple(self, parent: Option<&Window>) -> io::Result<Vec<PathBuf>> {
-        let parent = HWND(parent.map(|p| p.as_raw_window()).unwrap_or_default());
+        let parent = parent
+            .map(|p| p.as_raw_window() as isize)
+            .unwrap_or_default();
         compio::runtime::spawn_blocking(move || unsafe {
+            let parent = HWND(parent as _);
             filebox(parent, self.title, self.filename, self.filters, true, true)?.results()
         })
         .await
+        .unwrap_or_else(|e| resume_unwind(e))
     }
 
     pub async fn save(self, parent: Option<&Window>) -> io::Result<Option<PathBuf>> {
-        let parent = HWND(parent.map(|p| p.as_raw_window()).unwrap_or_default());
+        let parent = parent
+            .map(|p| p.as_raw_window() as isize)
+            .unwrap_or_default();
         compio::runtime::spawn_blocking(move || unsafe {
+            let parent = HWND(parent as _);
             filebox(
                 parent,
                 self.title,
@@ -106,6 +117,7 @@ impl FileBox {
             .result()
         })
         .await
+        .unwrap_or_else(|e| resume_unwind(e))
     }
 }
 

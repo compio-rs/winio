@@ -41,6 +41,9 @@ impl Drop for WinFont {
     }
 }
 
+unsafe impl Send for WinFont {}
+unsafe impl Sync for WinFont {}
+
 static DEFAULT_FONT: LazyLock<LOGFONTW> =
     LazyLock::new(|| unsafe { system_default_font() }.unwrap());
 static DPI_FONTS: Mutex<BTreeMap<u32, WinFont>> = Mutex::new(BTreeMap::new());

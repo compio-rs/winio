@@ -79,7 +79,8 @@ impl Edit {
     pub async fn wait_change(&self) {
         loop {
             let msg = self.handle.wait_parent(WM_COMMAND).await;
-            if msg.lParam == self.as_raw_window() && ((msg.wParam as u32 >> 16) == EN_UPDATE) {
+            if msg.lParam == (self.as_raw_window() as _) && ((msg.wParam as u32 >> 16) == EN_UPDATE)
+            {
                 break;
             }
         }

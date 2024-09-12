@@ -1,5 +1,6 @@
 use std::{
     io,
+    panic::resume_unwind,
     ptr::{null, null_mut},
 };
 
@@ -26,12 +27,14 @@ async fn msgbox_custom(
     style: MessageBoxStyle,
     btns: MessageBoxButton,
 ) -> io::Result<MessageBoxResponse> {
-    let parent_handle = parent.map(|p| p.as_raw_window()).unwrap_or_default();
+    let parent_handle = parent
+        .map(|p| p.as_raw_window() as isize)
+        .unwrap_or_default();
     let (res, result) = compio::runtime::spawn_blocking(move || {
         let config = TASKDIALOGCONFIG {
             cbSize: std::mem::size_of::<TASKDIALOGCONFIG>() as _,
-            hwndParent: parent_handle,
-            hInstance: 0,
+            hwndParent: parent_handle as _,
+            hInstance: null_mut(),
             dwFlags: TDF_ALLOW_DIALOG_CANCELLATION | TDF_SIZE_TO_CONTENT,
             dwCommonButtons: btns as _,
             pszWindowTitle: title.as_ptr(),
@@ -55,7 +58,9 @@ async fn msgbox_custom(
             pszExpandedInformation: null(),
             pszExpandedControlText: null(),
             pszCollapsedControlText: null(),
-            Anonymous2: TASKDIALOGCONFIG_1 { hFooterIcon: 0 },
+            Anonymous2: TASKDIALOGCONFIG_1 {
+                hFooterIcon: null_mut(),
+            },
             pszFooter: null(),
             pfCallback: None,
             lpCallbackData: 0,
@@ -66,7 +71,8 @@ async fn msgbox_custom(
         let res = unsafe { TaskDialogIndirect(&config, &mut result, null_mut(), null_mut()) };
         (res, result)
     })
-    .await;
+    .await
+    .unwrap_or_else(|e| resume_unwind(e));
 
     match res {
         S_OK => Ok(match result {

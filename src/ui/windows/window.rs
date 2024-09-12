@@ -1,6 +1,11 @@
 #[cfg(feature = "once_cell_try")]
 use std::sync::OnceLock;
-use std::{io, mem::MaybeUninit, ptr::null, rc::Rc};
+use std::{
+    io,
+    mem::MaybeUninit,
+    ptr::{null, null_mut},
+    rc::Rc,
+};
 
 use compio::driver::syscall;
 #[cfg(not(feature = "once_cell_try"))]
@@ -95,7 +100,7 @@ impl Widget {
         ex_style: u32,
         parent: HWND,
     ) -> io::Result<Self> {
-        let handle = syscall!(BOOL, unsafe {
+        let handle = unsafe {
             CreateWindowExW(
                 ex_style,
                 class_name,
@@ -106,11 +111,14 @@ impl Widget {
                 CW_USEDEFAULT,
                 CW_USEDEFAULT,
                 parent,
-                0,
+                null_mut(),
                 GetModuleHandleW(null()),
                 null(),
             )
-        })?;
+        };
+        if handle.is_null() {
+            return Err(io::Error::last_os_error());
+        }
         let this = Self(unsafe { OwnedWindow::from_raw_window(handle) });
         this.refresh_font();
         Ok(this)
@@ -176,7 +184,15 @@ impl Widget {
         let handle = self.as_raw_window();
         if v != self.sized()? {
             syscall!(BOOL, unsafe {
-                SetWindowPos(handle, 0, 0, 0, v.0, v.1, SWP_NOMOVE | SWP_NOZORDER)
+                SetWindowPos(
+                    handle,
+                    null_mut(),
+                    0,
+                    0,
+                    v.0,
+                    v.1,
+                    SWP_NOMOVE | SWP_NOZORDER,
+                )
             })?;
         }
         Ok(())
@@ -212,7 +228,15 @@ impl Widget {
         let handle = self.as_raw_window();
         if p != self.locd()? {
             syscall!(BOOL, unsafe {
-                SetWindowPos(handle, 0, p.0, p.1, 0, 0, SWP_NOSIZE | SWP_NOZORDER)
+                SetWindowPos(
+                    handle,
+                    null_mut(),
+                    p.0,
+                    p.1,
+                    0,
+                    0,
+                    SWP_NOSIZE | SWP_NOZORDER,
+                )
             })?;
         }
         Ok(())
@@ -291,12 +315,12 @@ fn register() -> io::Result<()> {
         cbClsExtra: 0,
         cbWndExtra: 0,
         hInstance: unsafe { GetModuleHandleW(null()) },
-        hIcon: 0,
-        hCursor: unsafe { LoadCursorW(0, IDC_ARROW) },
-        hbrBackground: 0,
+        hIcon: null_mut(),
+        hCursor: unsafe { LoadCursorW(null_mut(), IDC_ARROW) },
+        hbrBackground: null_mut(),
         lpszMenuName: null(),
         lpszClassName: WINDOW_CLASS_NAME,
-        hIconSm: 0,
+        hIconSm: null_mut(),
     };
     syscall!(BOOL, unsafe { RegisterClassExW(&cls) })?;
     Ok(())
@@ -317,7 +341,7 @@ pub struct Window {
 impl Window {
     pub fn new() -> io::Result<Rc<Self>> {
         register_once()?;
-        let handle = Widget::new(WINDOW_CLASS_NAME, WS_OVERLAPPEDWINDOW, 0, 0)?;
+        let handle = Widget::new(WINDOW_CLASS_NAME, WS_OVERLAPPEDWINDOW, 0, null_mut())?;
         let this = Rc::<Self>::new_cyclic(|weak_this| {
             compio::runtime::spawn({
                 let weak_this = weak_this.clone();
@@ -348,7 +372,7 @@ impl Window {
                             if let Some(new_rect) = new_rect.as_ref() {
                                 SetWindowPos(
                                     this.as_raw_window(),
-                                    0,
+                                    null_mut(),
                                     new_rect.left,
                                     new_rect.top,
                                     new_rect.right - new_rect.left,

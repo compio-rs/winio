@@ -49,42 +49,43 @@ impl Runtime {
     }
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        let _guard = self.runtime.enter();
-        let mut result = None;
-        unsafe {
-            self.runtime
-                .spawn_unchecked(async { result = Some(future.await) })
-        }
-        .detach();
-        loop {
-            self.runtime.run();
-            if let Some(result) = result.take() {
-                break result;
-            }
-
-            self.runtime.poll_with(Some(Duration::ZERO));
-            self.fd_source
-                .enable_callbacks(kCFFileDescriptorReadCallBack);
-            CFRunLoop::run_in_mode(
-                unsafe { kCFRunLoopDefaultMode },
-                self.runtime.current_timeout().unwrap_or(Duration::MAX),
-                true,
-            );
+        self.runtime.enter(|| {
+            let mut result = None;
             unsafe {
-                loop {
-                    let event = self.ns_app.nextEventMatchingMask_untilDate_inMode_dequeue(
-                        NSEventMaskAny,
-                        Some(&NSDate::distantPast()),
-                        NSDefaultRunLoopMode,
-                        true,
-                    );
-                    if let Some(event) = event {
-                        self.ns_app.sendEvent(&event);
-                    } else {
-                        break;
+                self.runtime
+                    .spawn_unchecked(async { result = Some(future.await) })
+            }
+            .detach();
+            loop {
+                self.runtime.run();
+                if let Some(result) = result.take() {
+                    break result;
+                }
+
+                self.runtime.poll_with(Some(Duration::ZERO));
+                self.fd_source
+                    .enable_callbacks(kCFFileDescriptorReadCallBack);
+                CFRunLoop::run_in_mode(
+                    unsafe { kCFRunLoopDefaultMode },
+                    self.runtime.current_timeout().unwrap_or(Duration::MAX),
+                    true,
+                );
+                unsafe {
+                    loop {
+                        let event = self.ns_app.nextEventMatchingMask_untilDate_inMode_dequeue(
+                            NSEventMaskAny,
+                            Some(&NSDate::distantPast()),
+                            NSDefaultRunLoopMode,
+                            true,
+                        );
+                        if let Some(event) = event {
+                            self.ns_app.sendEvent(&event);
+                        } else {
+                            break;
+                        }
                     }
                 }
             }
-        }
+        })
     }
 }

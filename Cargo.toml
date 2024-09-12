@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-compio = "0.9.0"
+compio = "0.11.0"
 compio-log = "0.1.0"
 
 cfg-if = "1"
@@ -15,7 +15,7 @@ slab = "0.4"
 
 [target.'cfg(windows)'.dependencies]
 widestring = "1"
-windows-sys = { version = "0.52", features = [
+windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
     "Win32_Networking_WinSock",
@@ -30,7 +30,7 @@ windows-sys = { version = "0.52", features = [
     "Win32_UI_HiDpi",
     "Win32_UI_WindowsAndMessaging",
 ] }
-windows = { version = "0.54", features = [
+windows = { version = "0.58", features = [
     "Foundation_Numerics",
     "Win32_Foundation",
     "Win32_Graphics_Direct2D",
@@ -43,8 +43,8 @@ windows = { version = "0.54", features = [
 ] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-core-foundation = "0.9"
-core-graphics = "0.23"
+core-foundation = "0.10"
+core-graphics = "0.24"
 foreign-types-shared = "0.3"
 futures-channel = "0.3"
 icrate = { version = "0.1", features = [
@@ -76,17 +76,13 @@ icrate = { version = "0.1", features = [
 ] }
 
 [target.'cfg(not(any(windows, target_os = "macos")))'.dependencies]
-gtk4 = { version = "0.8", features = ["v4_10"] }
-pangocairo = "0.19"
+gtk4 = { version = "0.9", features = ["v4_10"] }
+pangocairo = "0.20"
 futures-channel = "0.3"
 
 [dev-dependencies]
-compio = { version = "0.9.0", features = [
-    "nightly",
-    "time",
-    "native-tls",
-] }
-cyper = { version = "0.1.0-beta.2", features = ["nightly"] }
+compio = { version = "0.11.0", features = ["nightly", "time", "native-tls"] }
+cyper = { version = "0.1.0-beta.4", features = ["nightly"] }
 
 futures-util = "0.3"
 tracing-subscriber = "0.3"
