@@ -1,14 +1,9 @@
-use std::{cell::RefCell, io};
+use std::{cell::RefCell, io, rc::Rc};
 
+use block2::StackBlock;
 use compio::buf::arrayvec::ArrayVec;
-use icrate::{
-    block2::ConcreteBlock,
-    AppKit::{
-        NSAlert, NSAlertFirstButtonReturn, NSAlertStyleCritical, NSAlertStyleInformational,
-        NSAlertStyleWarning,
-    },
-    Foundation::{MainThreadMarker, NSString},
-};
+use objc2_app_kit::{NSAlert, NSAlertFirstButtonReturn, NSAlertStyle};
+use objc2_foundation::{MainThreadMarker, NSString};
 
 use crate::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle, Window};
 
@@ -26,9 +21,9 @@ async fn msgbox_custom(
             alert.window().setParentWindow(Some(&parent.as_nswindow()));
         }
         alert.setAlertStyle(match style {
-            MessageBoxStyle::Info => NSAlertStyleInformational,
-            MessageBoxStyle::Warning | MessageBoxStyle::Error => NSAlertStyleCritical,
-            _ => NSAlertStyleWarning,
+            MessageBoxStyle::Info => NSAlertStyle::Informational,
+            MessageBoxStyle::Warning | MessageBoxStyle::Error => NSAlertStyle::Critical,
+            _ => NSAlertStyle::Warning,
         });
 
         alert.window().setTitle(&NSString::from_str(&title));
@@ -68,8 +63,8 @@ async fn msgbox_custom(
 
         if let Some(parent) = parent {
             let (tx, rx) = futures_channel::oneshot::channel();
-            let tx = RefCell::new(Some(tx));
-            let block = ConcreteBlock::new(|res| {
+            let tx = Rc::new(RefCell::new(Some(tx)));
+            let block = StackBlock::new(move |res| {
                 tx.borrow_mut()
                     .take()
                     .expect("the handler should only be called once")

@@ -1,11 +1,9 @@
-use std::{cell::RefCell, io, path::PathBuf};
+use std::{cell::RefCell, io, path::PathBuf, rc::Rc};
 
-use icrate::{
-    block2::ConcreteBlock,
-    objc2::rc::Id,
-    AppKit::{NSModalResponseOK, NSOpenPanel, NSSavePanel},
-    Foundation::{MainThreadMarker, NSArray, NSString},
-};
+use block2::StackBlock;
+use objc2::rc::Id;
+use objc2_app_kit::{NSModalResponseOK, NSOpenPanel, NSSavePanel};
+use objc2_foundation::{MainThreadMarker, NSArray, NSString};
 
 use super::from_nsstring;
 use crate::Window;
@@ -169,8 +167,8 @@ async unsafe fn filebox(
 
     let res = if let Some(parent) = parent {
         let (tx, rx) = futures_channel::oneshot::channel();
-        let tx = RefCell::new(Some(tx));
-        let block = ConcreteBlock::new(|res| {
+        let tx = Rc::new(RefCell::new(Some(tx)));
+        let block = StackBlock::new(move |res| {
             tx.borrow_mut()
                 .take()
                 .expect("the handler should only be called once")
@@ -208,7 +206,7 @@ impl FileBoxInner {
             let dialog: Id<NSOpenPanel> = Id::cast(dialog);
             Ok(dialog
                 .URLs()
-                .into_iter()
+                .iter()
                 .filter_map(|url| url.path().map(|s| PathBuf::from(from_nsstring(&s))))
                 .collect())
         } else {

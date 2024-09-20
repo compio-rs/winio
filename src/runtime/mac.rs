@@ -5,11 +5,9 @@ use core_foundation::{
     filedescriptor::{kCFFileDescriptorReadCallBack, CFFileDescriptor, CFFileDescriptorRef},
     runloop::{kCFRunLoopDefaultMode, CFRunLoop},
 };
-use icrate::{
-    objc2::rc::Id,
-    AppKit::{NSApplication, NSApplicationActivationPolicyRegular, NSEventMaskAny},
-    Foundation::{MainThreadMarker, NSDate, NSDefaultRunLoopMode},
-};
+use objc2::rc::Id;
+use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy, NSEventMask};
+use objc2_foundation::{MainThreadMarker, NSDate, NSDefaultRunLoopMode};
 
 pub struct Runtime {
     runtime: compio::runtime::Runtime,
@@ -34,7 +32,7 @@ impl Runtime {
         CFRunLoop::get_current().add_source(&source, unsafe { kCFRunLoopDefaultMode });
 
         let ns_app = NSApplication::sharedApplication(MainThreadMarker::new().unwrap());
-        ns_app.setActivationPolicy(NSApplicationActivationPolicyRegular);
+        ns_app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
         #[allow(deprecated)]
         ns_app.activateIgnoringOtherApps(true);
         Self {
@@ -73,7 +71,7 @@ impl Runtime {
                 unsafe {
                     loop {
                         let event = self.ns_app.nextEventMatchingMask_untilDate_inMode_dequeue(
-                            NSEventMaskAny,
+                            NSEventMask::Any,
                             Some(&NSDate::distantPast()),
                             NSDefaultRunLoopMode,
                             true,

@@ -1,16 +1,14 @@
 use std::{io, rc::Rc};
 
-use icrate::{
-    objc2::{
-        declare_class, msg_send_id,
-        mutability::MainThreadOnly,
-        rc::{Allocated, Id},
-        runtime::ProtocolObject,
-        ClassType, DeclaredClass,
-    },
-    AppKit::{NSControlTextEditingDelegate, NSTextField, NSTextFieldDelegate, NSView},
-    Foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString},
+use objc2::{
+    declare_class, msg_send_id,
+    mutability::MainThreadOnly,
+    rc::{Allocated, Id},
+    runtime::ProtocolObject,
+    ClassType, DeclaredClass,
 };
+use objc2_app_kit::{NSControlTextEditingDelegate, NSTextField, NSTextFieldDelegate, NSView};
+use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString};
 
 use super::{callback::Callback, from_nsstring};
 use crate::{AsNSView, Point, Size, Widget};

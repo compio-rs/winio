@@ -2,22 +2,20 @@ use std::{f64::consts::PI, io, rc::Rc};
 
 use core_graphics::{color_space::CGColorSpace, context::CGContext, geometry};
 use foreign_types_shared::ForeignType;
-use icrate::{
-    objc2::{
-        class, declare_class, msg_send, msg_send_id,
-        mutability::MainThreadOnly,
-        rc::{Allocated, Id},
-        ClassType, DeclaredClass, Encode, Encoding,
-    },
-    AppKit::{
-        NSBezierPath, NSColor, NSFont, NSFontAttributeName, NSFontDescriptor,
-        NSFontDescriptorSymbolicTraits, NSFontDescriptorTraitBold, NSFontDescriptorTraitItalic,
-        NSForegroundColorAttributeName, NSGraphicsContext, NSView,
-    },
-    Foundation::{
-        CGPoint, CGRect, MainThreadMarker, NSAffineTransform, NSAttributedString, NSDictionary,
-        NSRect, NSString,
-    },
+use objc2::{
+    class, declare_class, msg_send, msg_send_id,
+    mutability::MainThreadOnly,
+    rc::{Allocated, Id},
+    ClassType, DeclaredClass, Encode, Encoding,
+};
+use objc2_app_kit::{
+    NSAttributedStringNSStringDrawing, NSBezierPath, NSColor, NSFont, NSFontAttributeName,
+    NSFontDescriptor, NSFontDescriptorSymbolicTraits, NSForegroundColorAttributeName,
+    NSGraphicsContext, NSView,
+};
+use objc2_foundation::{
+    CGPoint, CGRect, MainThreadMarker, NSAffineTransform, NSAttributedString, NSDictionary, NSRect,
+    NSString,
 };
 
 use super::{callback::Callback, from_cgsize, to_cgsize};
@@ -349,14 +347,14 @@ fn create_attr_str(font: &DrawingFont, text: &str) -> io::Result<Id<NSAttributed
             font.size,
         );
 
-        let mut traits: NSFontDescriptorSymbolicTraits = 0;
+        let mut traits = NSFontDescriptorSymbolicTraits::empty();
         if font.italic {
-            traits |= NSFontDescriptorTraitItalic;
+            traits |= NSFontDescriptorSymbolicTraits::NSFontDescriptorTraitItalic;
         }
         if font.bold {
-            traits |= NSFontDescriptorTraitBold;
+            traits |= NSFontDescriptorSymbolicTraits::NSFontDescriptorTraitBold;
         }
-        if traits != 0 {
+        if !traits.is_empty() {
             fontdes = fontdes.fontDescriptorWithSymbolicTraits(traits);
         }
 

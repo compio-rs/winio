@@ -1,22 +1,17 @@
 use std::{io, rc::Rc};
 
-use icrate::{
-    objc2::{
-        declare_class, msg_send_id,
-        mutability::MainThreadOnly,
-        rc::{Allocated, Id, WeakId},
-        runtime::ProtocolObject,
-        ClassType, DeclaredClass,
-    },
-    AppKit::{
-        NSBackingStoreBuffered, NSControl, NSScreen, NSView, NSWindow, NSWindowDelegate,
-        NSWindowStyleMaskClosable, NSWindowStyleMaskMiniaturizable, NSWindowStyleMaskResizable,
-        NSWindowStyleMaskTitled,
-    },
-    Foundation::{
-        CGPoint, CGSize, MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSRect,
-        NSString,
-    },
+use objc2::{
+    declare_class, msg_send_id,
+    mutability::MainThreadOnly,
+    rc::{Allocated, Id, WeakId},
+    runtime::ProtocolObject,
+    ClassType, DeclaredClass,
+};
+use objc2_app_kit::{
+    NSBackingStoreType, NSControl, NSScreen, NSView, NSWindow, NSWindowDelegate, NSWindowStyleMask,
+};
+use objc2_foundation::{
+    CGPoint, CGSize, MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSRect, NSString,
 };
 
 use super::{callback::Callback, from_cgsize, from_nsstring, to_cgsize};
@@ -53,11 +48,11 @@ impl Window {
                 NSWindow::initWithContentRect_styleMask_backing_defer(
                     mtm.alloc(),
                     frame,
-                    NSWindowStyleMaskTitled
-                        | NSWindowStyleMaskClosable
-                        | NSWindowStyleMaskResizable
-                        | NSWindowStyleMaskMiniaturizable,
-                    NSBackingStoreBuffered,
+                    NSWindowStyleMask::Titled
+                        | NSWindowStyleMask::Closable
+                        | NSWindowStyleMask::Resizable
+                        | NSWindowStyleMask::Miniaturizable,
+                    NSBackingStoreType::NSBackingStoreBuffered,
                     false,
                 )
             };

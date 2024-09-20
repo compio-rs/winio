@@ -99,7 +99,9 @@ async fn msgbox_custom(
         gtk4::ResponseType::Close => MessageBoxResponse::Close,
         gtk4::ResponseType::Yes => MessageBoxResponse::Yes,
         gtk4::ResponseType::No => MessageBoxResponse::No,
-        gtk4::ResponseType::Other(res) => unsafe { std::mem::transmute(res) },
+        gtk4::ResponseType::Other(res) => unsafe {
+            std::mem::transmute::<u16, MessageBoxResponse>(res)
+        },
         gtk4::ResponseType::DeleteEvent | gtk4::ResponseType::Reject => MessageBoxResponse::Cancel,
         _ => {
             return Err(io::Error::new(
