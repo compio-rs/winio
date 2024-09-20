@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-compio = "0.11.0"
+compio = "0.12.0"
 compio-log = "0.1.0"
 
 cfg-if = "1"
@@ -81,8 +81,8 @@ pangocairo = "0.20"
 futures-channel = "0.3"
 
 [dev-dependencies]
-compio = { version = "0.11.0", features = ["nightly", "time", "native-tls"] }
-cyper = { version = "0.1.0-beta.4", features = ["nightly"] }
+compio = { version = "0.12.0", features = ["nightly", "time", "native-tls"] }
+cyper = { version = "0.1.0-beta.5", features = ["nightly"] }
 
 futures-util = "0.3"
 tracing-subscriber = "0.3"
