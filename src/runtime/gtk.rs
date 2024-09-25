@@ -36,14 +36,18 @@ impl Runtime {
             }
             .detach();
             loop {
-                self.runtime.run();
+                let remaining_tasks = self.runtime.run();
                 if let Some(result) = result.take() {
                     break result;
                 }
 
                 self.runtime.poll_with(Some(Duration::ZERO));
 
-                let timeout = self.runtime.current_timeout();
+                let timeout = if remaining_tasks {
+                    Some(Duration::ZERO)
+                } else {
+                    self.runtime.current_timeout()
+                };
                 let source_id = timeout.map(|timeout| timeout_add_local_once(timeout, || {}));
 
                 self.ctx.iteration(true);

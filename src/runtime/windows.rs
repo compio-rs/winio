@@ -82,14 +82,18 @@ impl Runtime {
             }
             .detach();
             loop {
-                self.runtime.run();
+                let remaining_tasks = self.runtime.run();
                 if let Some(result) = result.take() {
                     break result;
                 }
 
                 self.runtime.poll_with(Some(Duration::ZERO));
 
-                let timeout = self.runtime.current_timeout();
+                let timeout = if remaining_tasks {
+                    Some(Duration::ZERO)
+                } else {
+                    self.runtime.current_timeout()
+                };
                 let timeout = match timeout {
                     Some(timeout) => timeout.as_millis() as u32,
                     None => INFINITE,
