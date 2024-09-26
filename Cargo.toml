@@ -2,6 +2,13 @@
 name = "winio"
 version = "0.1.0"
 edition = "2021"
+description = "Single-threaded async GUI runtime based on compio."
+license = "MIT"
+authors = ["Berrysoft <Strawberry_Str@hotmail.com>"]
+readme = "README.md"
+repository = "https://github.com/compio-rs/winio"
+categories = ["asynchronous", "gui"]
+keywords = ["async", "gui"]
 
 [dependencies]
 compio = "0.12.0"
