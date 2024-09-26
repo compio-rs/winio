@@ -1,10 +1,10 @@
-#[cfg(feature = "lazy_cell")]
-use std::sync::LazyLock;
-use std::{collections::BTreeMap, io, sync::Mutex};
+use std::{
+    collections::BTreeMap,
+    io,
+    sync::{LazyLock, Mutex},
+};
 
 use compio::driver::syscall;
-#[cfg(not(feature = "lazy_cell"))]
-use once_cell::sync::Lazy as LazyLock;
 use windows_sys::Win32::{
     Graphics::Gdi::{CreateFontIndirectW, DeleteObject, HFONT, LOGFONTW},
     UI::{

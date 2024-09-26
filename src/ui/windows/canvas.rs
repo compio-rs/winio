@@ -460,7 +460,7 @@ const BRUSH_PROPERTIES_DEFAULT: D2D1_BRUSH_PROPERTIES = D2D1_BRUSH_PROPERTIES {
 
 pub trait Brush {
     fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToScreen)
-    -> io::Result<ID2D1Brush>;
+        -> io::Result<ID2D1Brush>;
 }
 
 impl<B: Brush> Brush for &'_ B {

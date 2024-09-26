@@ -38,7 +38,7 @@ fn main() {
         .detach();
 
         let text = Rc::new(Mutex::new(FetchStatus::Loading));
-        let client = Client::builder().use_native_tls().build();
+        let client = Client::builder().build();
 
         spawn(fetch(
             Rc::downgrade(&canvas),
