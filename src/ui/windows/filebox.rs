@@ -2,15 +2,15 @@ use std::{io, panic::resume_unwind, path::PathBuf};
 
 use widestring::{U16CStr, U16CString};
 use windows::{
-    core::{Interface, HRESULT, PCWSTR},
     Win32::{
         Foundation::{ERROR_CANCELLED, HWND},
-        System::Com::{CoCreateInstance, CoTaskMemFree, CLSCTX_INPROC_SERVER},
+        System::Com::{CLSCTX_INPROC_SERVER, CoCreateInstance, CoTaskMemFree},
         UI::Shell::{
-            Common::COMDLG_FILTERSPEC, FileOpenDialog, FileSaveDialog, IFileDialog,
-            IFileOpenDialog, FOS_ALLOWMULTISELECT, SIGDN_FILESYSPATH,
+            Common::COMDLG_FILTERSPEC, FOS_ALLOWMULTISELECT, FileOpenDialog, FileSaveDialog,
+            IFileDialog, IFileOpenDialog, SIGDN_FILESYSPATH,
         },
     },
+    core::{HRESULT, Interface, PCWSTR},
 };
 
 use crate::ui::{AsRawWindow, Window};

@@ -2,7 +2,7 @@ use std::{io, path::PathBuf};
 
 use gtk4::{
     gio::prelude::FileExt,
-    glib::{object::Cast, GString},
+    glib::{GString, object::Cast},
 };
 
 use crate::Window;

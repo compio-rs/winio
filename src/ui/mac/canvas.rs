@@ -3,10 +3,9 @@ use std::{f64::consts::PI, io, rc::Rc};
 use core_graphics::{color_space::CGColorSpace, context::CGContext, geometry};
 use foreign_types_shared::ForeignType;
 use objc2::{
-    class, declare_class, msg_send, msg_send_id,
+    ClassType, DeclaredClass, Encode, Encoding, class, declare_class, msg_send, msg_send_id,
     mutability::MainThreadOnly,
     rc::{Allocated, Id},
-    ClassType, DeclaredClass, Encode, Encoding,
 };
 use objc2_app_kit::{
     NSAttributedStringNSStringDrawing, NSBezierPath, NSColor, NSFont, NSFontAttributeName,

@@ -7,7 +7,7 @@ use std::{
 use gtk4::{
     cairo::Context,
     glib::object::Cast,
-    pango::{FontDescription, Style, Weight, SCALE as PANGO_SCALE},
+    pango::{FontDescription, SCALE as PANGO_SCALE, Style, Weight},
     prelude::{DrawingAreaExtManual, WidgetExt},
 };
 use pangocairo::functions::show_layout;

@@ -1,10 +1,10 @@
 use std::{io, rc::Rc};
 
 use objc2::{
-    declare_class, msg_send_id,
+    ClassType, DeclaredClass, declare_class, msg_send_id,
     mutability::MainThreadOnly,
     rc::{Allocated, Id},
-    sel, ClassType, DeclaredClass,
+    sel,
 };
 use objc2_app_kit::{NSBezelStyle, NSButton};
 use objc2_foundation::{MainThreadMarker, NSObject, NSString};

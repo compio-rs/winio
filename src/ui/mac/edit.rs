@@ -1,11 +1,10 @@
 use std::{io, rc::Rc};
 
 use objc2::{
-    declare_class, msg_send_id,
+    ClassType, DeclaredClass, declare_class, msg_send_id,
     mutability::MainThreadOnly,
     rc::{Allocated, Id},
     runtime::ProtocolObject,
-    ClassType, DeclaredClass,
 };
 use objc2_app_kit::{NSControlTextEditingDelegate, NSTextField, NSTextFieldDelegate, NSView};
 use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString};

@@ -2,8 +2,8 @@ use std::{future::Future, os::raw::c_void, time::Duration};
 
 use compio::driver::AsRawFd;
 use core_foundation::{
-    filedescriptor::{kCFFileDescriptorReadCallBack, CFFileDescriptor, CFFileDescriptorRef},
-    runloop::{kCFRunLoopDefaultMode, CFRunLoop},
+    filedescriptor::{CFFileDescriptor, CFFileDescriptorRef, kCFFileDescriptorReadCallBack},
+    runloop::{CFRunLoop, kCFRunLoopDefaultMode},
 };
 use objc2::rc::Id;
 use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy, NSEventMask};

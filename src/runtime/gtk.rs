@@ -2,7 +2,7 @@ use std::{future::Future, time::Duration};
 
 use compio::driver::AsRawFd;
 use gtk4::glib::{
-    timeout_add_local_once, unix_fd_add_local, ControlFlow, IOCondition, MainContext,
+    ControlFlow, IOCondition, MainContext, timeout_add_local_once, unix_fd_add_local,
 };
 
 pub struct Runtime {

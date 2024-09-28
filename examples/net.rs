@@ -7,10 +7,10 @@ use std::{
 
 use compio::{runtime::spawn, time::timeout};
 use cyper::Client;
-use futures_util::{lock::Mutex, FutureExt};
+use futures_util::{FutureExt, lock::Mutex};
 use winio::{
-    block_on, Button, Canvas, Color, DrawingFontBuilder, Edit, HAlign, Point, Size,
-    SolidColorBrush, VAlign, Window,
+    Button, Canvas, Color, DrawingFontBuilder, Edit, HAlign, Point, Size, SolidColorBrush, VAlign,
+    Window, block_on,
 };
 
 fn main() {

@@ -12,30 +12,30 @@ use compio::driver::syscall;
 use once_cell::sync::OnceCell as OnceLock;
 use widestring::U16CString;
 use windows_sys::{
-    w,
     Win32::{
-        Foundation::{SetLastError, BOOL, HWND, LPARAM, POINT, RECT},
+        Foundation::{BOOL, HWND, LPARAM, POINT, RECT, SetLastError},
         Graphics::Gdi::{
-            GetStockObject, MapWindowPoints, Rectangle, SelectObject, HDC, WHITE_BRUSH,
+            GetStockObject, HDC, MapWindowPoints, Rectangle, SelectObject, WHITE_BRUSH,
         },
         System::LibraryLoader::GetModuleHandleW,
         UI::WindowsAndMessaging::{
-            CloseWindow, CreateWindowExW, EnumChildWindows, GetClientRect, GetParent,
-            GetWindowLongPtrW, GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
-            LoadCursorW, RegisterClassExW, SendMessageW, SetWindowLongPtrW, SetWindowLongW,
-            SetWindowPos, SetWindowTextW, ShowWindow, CW_USEDEFAULT, GWL_STYLE, HWND_DESKTOP,
-            IDC_ARROW, MSG, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SW_SHOWNORMAL,
-            WM_CLOSE, WM_DPICHANGED, WM_ERASEBKGND, WM_MOVE, WM_SETFONT, WM_SIZE, WNDCLASSEXW,
-            WS_OVERLAPPEDWINDOW,
+            CW_USEDEFAULT, CloseWindow, CreateWindowExW, EnumChildWindows, GWL_STYLE,
+            GetClientRect, GetParent, GetWindowLongPtrW, GetWindowLongW, GetWindowRect,
+            GetWindowTextLengthW, GetWindowTextW, HWND_DESKTOP, IDC_ARROW, LoadCursorW, MSG,
+            RegisterClassExW, SW_SHOWNORMAL, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
+            SendMessageW, SetWindowLongPtrW, SetWindowLongW, SetWindowPos, SetWindowTextW,
+            ShowWindow, WM_CLOSE, WM_DPICHANGED, WM_ERASEBKGND, WM_MOVE, WM_SETFONT, WM_SIZE,
+            WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
         },
     },
+    w,
 };
 
 use super::{
-    dpi::{get_dpi_for_window, DpiAware},
+    dpi::{DpiAware, get_dpi_for_window},
     font::default_font,
 };
-use crate::{wait, Point, Size};
+use crate::{Point, Size, wait};
 
 pub trait AsRawWindow {
     fn as_raw_window(&self) -> HWND;

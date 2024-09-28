@@ -7,10 +7,10 @@ use std::{
 };
 
 use compio::{fs::File, io::AsyncReadAtExt, runtime::spawn};
-use futures_util::{lock::Mutex, FutureExt};
+use futures_util::{FutureExt, lock::Mutex};
 use winio::{
-    block_on, Button, Canvas, Color, DrawingFontBuilder, FileBox, HAlign, Point, Size,
-    SolidColorBrush, VAlign, Window,
+    Button, Canvas, Color, DrawingFontBuilder, FileBox, HAlign, Point, Size, SolidColorBrush,
+    VAlign, Window, block_on,
 };
 
 fn main() {

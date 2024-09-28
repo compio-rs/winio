@@ -12,14 +12,14 @@ use std::{
 use compio::driver::AsRawFd;
 use compio_log::*;
 use slab::Slab;
-use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_MULTITHREADED};
+use windows::Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx, CoUninitialize};
 use windows_sys::Win32::{
     Foundation::{HANDLE, HWND, LPARAM, LRESULT, POINT, WAIT_FAILED, WPARAM},
     System::Threading::INFINITE,
     UI::WindowsAndMessaging::{
-        DefWindowProcW, DispatchMessageW, GetMessagePos, GetMessageTime,
-        MsgWaitForMultipleObjectsEx, PeekMessageW, TranslateMessage, MSG, MWMO_ALERTABLE,
-        MWMO_INPUTAVAILABLE, PM_REMOVE, QS_ALLINPUT,
+        DefWindowProcW, DispatchMessageW, GetMessagePos, GetMessageTime, MSG, MWMO_ALERTABLE,
+        MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW, QS_ALLINPUT,
+        TranslateMessage,
     },
 };
 

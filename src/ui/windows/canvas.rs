@@ -3,30 +3,30 @@ use std::{io, mem::MaybeUninit, ptr::null, rc::Rc};
 use compio::driver::syscall;
 use widestring::U16CString;
 use windows::{
-    core::Interface,
     Foundation::Numerics::Matrix3x2,
     Win32::Graphics::{
         Direct2D::{
             Common::{
-                D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_COLOR_F, D2D1_FIGURE_BEGIN_HOLLOW,
-                D2D1_FIGURE_END_CLOSED, D2D1_FIGURE_END_OPEN, D2D1_PIXEL_FORMAT, D2D_POINT_2F,
-                D2D_RECT_F, D2D_SIZE_F, D2D_SIZE_U,
+                D2D_POINT_2F, D2D_RECT_F, D2D_SIZE_F, D2D_SIZE_U, D2D1_ALPHA_MODE_PREMULTIPLIED,
+                D2D1_COLOR_F, D2D1_FIGURE_BEGIN_HOLLOW, D2D1_FIGURE_END_CLOSED,
+                D2D1_FIGURE_END_OPEN, D2D1_PIXEL_FORMAT,
             },
-            D2D1CreateFactory, ID2D1Brush, ID2D1Factory, ID2D1Geometry, ID2D1HwndRenderTarget,
-            ID2D1RenderTarget, D2D1_ARC_SEGMENT, D2D1_ARC_SIZE_LARGE, D2D1_ARC_SIZE_SMALL,
-            D2D1_BRUSH_PROPERTIES, D2D1_DRAW_TEXT_OPTIONS_NONE, D2D1_ELLIPSE,
-            D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1_FEATURE_LEVEL_DEFAULT,
-            D2D1_HWND_RENDER_TARGET_PROPERTIES, D2D1_PRESENT_OPTIONS_NONE,
-            D2D1_RENDER_TARGET_PROPERTIES, D2D1_RENDER_TARGET_TYPE_DEFAULT,
-            D2D1_RENDER_TARGET_USAGE_NONE, D2D1_ROUNDED_RECT, D2D1_SWEEP_DIRECTION_CLOCKWISE,
+            D2D1_ARC_SEGMENT, D2D1_ARC_SIZE_LARGE, D2D1_ARC_SIZE_SMALL, D2D1_BRUSH_PROPERTIES,
+            D2D1_DRAW_TEXT_OPTIONS_NONE, D2D1_ELLIPSE, D2D1_FACTORY_TYPE_SINGLE_THREADED,
+            D2D1_FEATURE_LEVEL_DEFAULT, D2D1_HWND_RENDER_TARGET_PROPERTIES,
+            D2D1_PRESENT_OPTIONS_NONE, D2D1_RENDER_TARGET_PROPERTIES,
+            D2D1_RENDER_TARGET_TYPE_DEFAULT, D2D1_RENDER_TARGET_USAGE_NONE, D2D1_ROUNDED_RECT,
+            D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1CreateFactory, ID2D1Brush, ID2D1Factory,
+            ID2D1Geometry, ID2D1HwndRenderTarget, ID2D1RenderTarget,
         },
         DirectWrite::{
-            DWriteCreateFactory, IDWriteFactory, IDWriteTextLayout, DWRITE_FACTORY_TYPE_SHARED,
-            DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STYLE_NORMAL,
-            DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_WEIGHT_NORMAL,
+            DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC,
+            DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_WEIGHT_NORMAL,
+            DWriteCreateFactory, IDWriteFactory, IDWriteTextLayout,
         },
         Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM,
     },
+    core::Interface,
 };
 use windows_sys::Win32::{
     Foundation::HWND,
@@ -460,7 +460,7 @@ const BRUSH_PROPERTIES_DEFAULT: D2D1_BRUSH_PROPERTIES = D2D1_BRUSH_PROPERTIES {
 
 pub trait Brush {
     fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToScreen)
-        -> io::Result<ID2D1Brush>;
+    -> io::Result<ID2D1Brush>;
 }
 
 impl<B: Brush> Brush for &'_ B {
