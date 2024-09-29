@@ -29,10 +29,21 @@ fn main() {
         let counter = Rc::new(Cell::new(0usize));
 
         spawn(render(Rc::downgrade(&window), Rc::downgrade(&canvas))).detach();
+        spawn(track(Rc::downgrade(&canvas))).detach();
         spawn(tick(Rc::downgrade(&canvas), counter.clone())).detach();
         spawn(redraw(Rc::downgrade(&canvas), counter)).detach();
         wait_close(window).await;
     })
+}
+
+async fn track(canvas: Weak<Canvas>) {
+    while let Some(canvas) = canvas.upgrade() {
+        futures_util::select! {
+            m = canvas.wait_mouse_down().fuse() => println!("{:?}", m),
+            m = canvas.wait_mouse_up().fuse() => println!("{:?}", m),
+            p = canvas.wait_mouse_move().fuse() => println!("{:?}", p),
+        }
+    }
 }
 
 async fn render(window: Weak<Window>, canvas: Weak<Canvas>) {

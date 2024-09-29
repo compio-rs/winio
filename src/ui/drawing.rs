@@ -109,3 +109,11 @@ impl DrawingFontBuilder {
         self.value.clone()
     }
 }
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum MouseButton {
+    Left,
+    Right,
+    Middle,
+    Other,
+}

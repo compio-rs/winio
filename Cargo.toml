@@ -21,6 +21,7 @@ rgb = "0.8"
 slab = "0.4"
 
 [target.'cfg(windows)'.dependencies]
+futures-util = "0.3"
 widestring = "1"
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",

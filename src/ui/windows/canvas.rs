@@ -1,6 +1,7 @@
 use std::{io, mem::MaybeUninit, ptr::null, rc::Rc};
 
 use compio::driver::syscall;
+use futures_util::FutureExt;
 use widestring::U16CString;
 use windows::{
     Foundation::Numerics::Matrix3x2,
@@ -34,13 +35,16 @@ use windows_sys::Win32::{
     System::SystemServices::SS_OWNERDRAW,
     UI::{
         Controls::{DRAWITEMSTRUCT, WC_STATICW},
-        WindowsAndMessaging::{WM_DRAWITEM, WS_CHILD, WS_VISIBLE},
+        WindowsAndMessaging::{
+            WM_DRAWITEM, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE,
+            WM_RBUTTONDOWN, WM_RBUTTONUP, WS_CHILD, WS_VISIBLE,
+        },
     },
 };
 
 use crate::{
-    AsRawWindow, BrushPen, Color, DrawingFont, HAlign, Point, Rect, RectBox, RelativeToScreen,
-    Rotation, Size, SolidColorBrush, VAlign, Widget,
+    AsRawWindow, BrushPen, Color, DrawingFont, HAlign, MouseButton, Point, Rect, RectBox,
+    RelativeToScreen, Rotation, Size, SolidColorBrush, VAlign, Widget,
 };
 
 #[derive(Debug)]
@@ -143,6 +147,28 @@ impl Canvas {
             };
             Ok(ctx)
         }
+    }
+
+    pub async fn wait_mouse_down(&self) -> MouseButton {
+        futures_util::select! {
+            _ = self.handle.wait_parent(WM_LBUTTONDOWN).fuse() => MouseButton::Left,
+            _ = self.handle.wait_parent(WM_RBUTTONDOWN).fuse() => MouseButton::Right,
+            _ = self.handle.wait_parent(WM_MBUTTONDOWN).fuse() => MouseButton::Middle,
+        }
+    }
+
+    pub async fn wait_mouse_up(&self) -> MouseButton {
+        futures_util::select! {
+            _ = self.handle.wait_parent(WM_LBUTTONUP).fuse() => MouseButton::Left,
+            _ = self.handle.wait_parent(WM_RBUTTONUP).fuse() => MouseButton::Right,
+            _ = self.handle.wait_parent(WM_MBUTTONUP).fuse() => MouseButton::Middle,
+        }
+    }
+
+    pub async fn wait_mouse_move(&self) -> Point {
+        let msg = self.handle.wait_parent(WM_MOUSEMOVE).await;
+        let (x, y) = ((msg.lParam & 0xFFFF) as i32, (msg.lParam >> 16) as i32);
+        self.handle.point_d2l((x, y))
     }
 }
 
