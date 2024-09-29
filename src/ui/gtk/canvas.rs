@@ -13,10 +13,9 @@ use gtk4::{
 };
 use pangocairo::functions::show_layout;
 
-use super::callback::Callback;
 use crate::{
-    AsContainer, BrushPen, Container, DrawingFont, HAlign, MouseButton, Point, Rect, RectBox,
-    RelativeToScreen, Size, SolidColorBrush, VAlign, Widget,
+    AsContainer, BrushPen, Callback, Container, DrawingFont, HAlign, MouseButton, Point, Rect,
+    RectBox, RelativeToScreen, Size, SolidColorBrush, VAlign, Widget,
 };
 
 pub struct Canvas {

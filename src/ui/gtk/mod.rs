@@ -18,5 +18,3 @@ pub use button::*;
 
 mod edit;
 pub use edit::*;
-
-mod callback;
