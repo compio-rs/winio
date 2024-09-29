@@ -13,8 +13,8 @@ use objc2_foundation::{
     CGPoint, CGSize, MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSRect, NSString,
 };
 
-use super::{callback::Callback, from_cgsize, from_nsstring, to_cgsize};
-use crate::{Point, Size};
+use super::{from_cgsize, from_nsstring, to_cgsize};
+use crate::{Callback, Point, Size};
 
 pub trait AsNSView {
     fn as_nsview(&self) -> Id<NSView>;
@@ -172,17 +172,17 @@ declare_class! {
     unsafe impl NSWindowDelegate for WindowDelegate {
         #[method(windowDidResize:)]
         unsafe fn windowDidResize(&self, _notification: &NSNotification) {
-            self.ivars().did_resize.signal();
+            self.ivars().did_resize.signal(());
         }
 
         #[method(windowDidMove:)]
         unsafe fn windowDidMove(&self, _notification: &NSNotification) {
-            self.ivars().did_move.signal();
+            self.ivars().did_move.signal(());
         }
 
         #[method(windowShouldClose:)]
         unsafe fn windowShouldClose(&self, _sender: &NSWindow) -> bool {
-            self.ivars().should_close.signal()
+            self.ivars().should_close.signal(())
         }
     }
 }

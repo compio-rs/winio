@@ -133,8 +133,8 @@ impl Canvas {
         self.on_released.wait().await
     }
 
-    pub async fn wait_mouse_move(&self) -> Point {
-        self.on_motion.wait().await
+    pub async fn wait_mouse_move(&self) -> io::Result<Point> {
+        Ok(self.on_motion.wait().await)
     }
 }
 

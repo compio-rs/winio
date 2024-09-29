@@ -1,4 +1,4 @@
-use std::{f64::consts::PI, io, rc::Rc};
+use std::{cell::RefCell, f64::consts::PI, io, rc::Rc};
 
 use core_graphics::{color_space::CGColorSpace, context::CGContext, geometry};
 use foreign_types_shared::ForeignType;
@@ -8,19 +8,20 @@ use objc2::{
     rc::{Allocated, Id},
 };
 use objc2_app_kit::{
-    NSAttributedStringNSStringDrawing, NSBezierPath, NSColor, NSFont, NSFontAttributeName,
-    NSFontDescriptor, NSFontDescriptorSymbolicTraits, NSForegroundColorAttributeName,
-    NSGraphicsContext, NSView,
+    NSAttributedStringNSStringDrawing, NSBezierPath, NSColor, NSEvent, NSEventType, NSFont,
+    NSFontAttributeName, NSFontDescriptor, NSFontDescriptorSymbolicTraits,
+    NSForegroundColorAttributeName, NSGraphicsContext, NSTrackingArea, NSTrackingAreaOptions,
+    NSView,
 };
 use objc2_foundation::{
     CGPoint, CGRect, MainThreadMarker, NSAffineTransform, NSAttributedString, NSDictionary, NSRect,
     NSString,
 };
 
-use super::{callback::Callback, from_cgsize, to_cgsize};
+use super::{from_cgsize, to_cgsize};
 use crate::{
-    AsNSView, BrushPen, Color, DrawingFont, HAlign, Margin, Point, Rect, RectBox, Size,
-    SolidColorBrush, VAlign, Widget,
+    AsNSView, BrushPen, Callback, Color, DrawingFont, HAlign, Margin, MouseButton, Point, Rect,
+    RectBox, Size, SolidColorBrush, VAlign, Widget,
 };
 
 #[derive(Debug)]
@@ -63,6 +64,27 @@ impl Canvas {
         self.view.ivars().draw_rect.wait().await;
         Ok(DrawingContext::new(self.size()?))
     }
+
+    pub async fn wait_mouse_down(&self) -> MouseButton {
+        self.view.ivars().mouse_down.wait().await
+    }
+
+    pub async fn wait_mouse_up(&self) -> MouseButton {
+        self.view.ivars().mouse_up.wait().await
+    }
+
+    pub async fn wait_mouse_move(&self) -> io::Result<Point> {
+        self.view.ivars().mouse_move.wait().await;
+        self.view
+            .window()
+            .map(|w| {
+                let p = unsafe { w.mouseLocationOutsideOfEventStream() };
+                Point::new(p.x, p.y)
+            })
+            .ok_or_else(|| {
+                io::Error::new(io::ErrorKind::Other, "the view should have parent window")
+            })
+    }
 }
 
 impl AsNSView for Canvas {
@@ -74,6 +96,10 @@ impl AsNSView for Canvas {
 #[derive(Default, Clone)]
 struct CanvasViewIvars {
     draw_rect: Callback,
+    mouse_down: Callback<MouseButton>,
+    mouse_up: Callback<MouseButton>,
+    mouse_move: Callback,
+    area: Rc<RefCell<Option<Id<NSTrackingArea>>>>,
 }
 
 declare_class! {
@@ -98,9 +124,50 @@ declare_class! {
             unsafe { msg_send_id![super(this), init] }
         }
 
+        #[method(updateTrackingAreas)]
+        unsafe fn updateTrackingAreas(&self) {
+            let this = self.ivars();
+            {
+                let mut area = this.area.borrow_mut();
+                if let Some(area) = area.take() {
+                    self.removeTrackingArea(&area);
+                }
+                let new_area = NSTrackingArea::initWithRect_options_owner_userInfo(
+                    NSTrackingArea::alloc(),
+                    self.bounds(),
+                    NSTrackingAreaOptions::NSTrackingMouseMoved | NSTrackingAreaOptions::NSTrackingActiveAlways,
+                    Some(self),
+                    None
+                );
+                self.addTrackingArea(&new_area);
+                *area = Some(new_area);
+            }
+            msg_send![super(self), updateTrackingAreas]
+        }
+
         #[method(drawRect:)]
         unsafe fn drawRect(&self, _dirty_rect: NSRect) {
-            self.ivars().draw_rect.signal();
+            self.ivars().draw_rect.signal(());
+        }
+
+        #[method(mouseDown:)]
+        unsafe fn mouseDown(&self, event: &NSEvent) {
+            self.ivars().mouse_down.signal(mouse_button(event));
+        }
+
+        #[method(mouseUp:)]
+        unsafe fn mouseUp(&self, event: &NSEvent) {
+            self.ivars().mouse_up.signal(mouse_button(event));
+        }
+
+        #[method(mouseDragged:)]
+        unsafe fn mouseDragged(&self, _event: &NSEvent) {
+            self.ivars().mouse_move.signal(());
+        }
+
+        #[method(mouseMoved:)]
+        unsafe fn mouseMoved(&self, _event: &NSEvent) {
+            self.ivars().mouse_move.signal(());
         }
     }
 }
@@ -108,6 +175,14 @@ declare_class! {
 impl CanvasView {
     pub fn new(mtm: MainThreadMarker) -> Id<Self> {
         unsafe { msg_send_id![mtm.alloc::<Self>(), init] }
+    }
+}
+
+unsafe fn mouse_button(event: &NSEvent) -> MouseButton {
+    match event.r#type() {
+        NSEventType::LeftMouseDown | NSEventType::LeftMouseUp => MouseButton::Left,
+        NSEventType::RightMouseDown | NSEventType::RightMouseUp => MouseButton::Right,
+        _ => MouseButton::Other,
     }
 }
 

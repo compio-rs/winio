@@ -9,8 +9,8 @@ use objc2::{
 use objc2_app_kit::{NSBezelStyle, NSButton};
 use objc2_foundation::{MainThreadMarker, NSObject, NSString};
 
-use super::{callback::Callback, from_nsstring};
-use crate::{AsNSView, Point, Size, Widget};
+use super::from_nsstring;
+use crate::{AsNSView, Callback, Point, Size, Widget};
 
 #[derive(Debug)]
 pub struct Button {
@@ -102,7 +102,7 @@ declare_class! {
 
         #[method(onAction)]
         unsafe fn onAction(&self) {
-            self.ivars().action.signal();
+            self.ivars().action.signal(());
         }
     }
 }
