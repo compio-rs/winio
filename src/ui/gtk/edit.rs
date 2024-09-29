@@ -5,8 +5,7 @@ use std::{
 
 use gtk4::{glib::object::Cast, prelude::EditableExt};
 
-use super::callback::Callback;
-use crate::{AsContainer, Point, Size, Widget};
+use crate::{AsContainer, Callback, Point, Size, Widget};
 
 pub struct Edit {
     widget: gtk4::Entry,

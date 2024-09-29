@@ -9,8 +9,8 @@ use objc2::{
 use objc2_app_kit::{NSControlTextEditingDelegate, NSTextField, NSTextFieldDelegate, NSView};
 use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString};
 
-use super::{callback::Callback, from_nsstring};
-use crate::{AsNSView, Point, Size, Widget};
+use super::from_nsstring;
+use crate::{AsNSView, Callback, Point, Size, Widget};
 
 #[derive(Debug)]
 pub struct Edit {
@@ -116,7 +116,7 @@ declare_class! {
     unsafe impl NSControlTextEditingDelegate for EditDelegate {
         #[method(controlTextDidChange:)]
         fn controlTextDidChange(&self, _notification: &NSNotification) {
-            self.ivars().changed.signal();
+            self.ivars().changed.signal(());
         }
     }
 

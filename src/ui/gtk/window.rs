@@ -5,8 +5,7 @@ use std::{
 
 use gtk4::{glib::Propagation, prelude::*};
 
-use super::callback::Callback;
-use crate::{AsContainer, Container, Point, Size};
+use crate::{AsContainer, Callback, Container, Point, Size};
 
 pub struct Window {
     window: gtk4::Window,

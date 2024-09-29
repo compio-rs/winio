@@ -5,23 +5,26 @@ use std::{
 };
 
 use gtk4::{
+    EventControllerMotion, GestureClick,
     cairo::Context,
     glib::object::Cast,
     pango::{FontDescription, SCALE as PANGO_SCALE, Style, Weight},
-    prelude::{DrawingAreaExtManual, WidgetExt},
+    prelude::{DrawingAreaExtManual, GestureSingleExt, WidgetExt},
 };
 use pangocairo::functions::show_layout;
 
-use super::callback::Callback;
 use crate::{
-    AsContainer, BrushPen, Container, DrawingFont, HAlign, Point, Rect, RectBox, RelativeToScreen,
-    Size, SolidColorBrush, VAlign, Widget,
+    AsContainer, BrushPen, Callback, Container, DrawingFont, HAlign, MouseButton, Point, Rect,
+    RectBox, RelativeToScreen, Size, SolidColorBrush, VAlign, Widget,
 };
 
 pub struct Canvas {
     widget: gtk4::DrawingArea,
     handle: Rc<Widget>,
     on_redraw: Callback<Context>,
+    on_motion: Callback<Point>,
+    on_pressed: Callback<MouseButton>,
+    on_released: Callback<MouseButton>,
 }
 
 impl Canvas {
@@ -37,10 +40,55 @@ impl Canvas {
                     }
                 }
             });
+
+            let controller = EventControllerMotion::new();
+            controller.connect_motion({
+                let this = this.clone();
+                move |_, x, y| {
+                    if let Some(this) = this.upgrade() {
+                        this.on_motion.signal(Point::new(x, y));
+                    }
+                }
+            });
+            widget.add_controller(controller);
+
+            const fn gtk_current_button(b: u32) -> MouseButton {
+                match b {
+                    1 => MouseButton::Left,
+                    2 => MouseButton::Middle,
+                    3 => MouseButton::Right,
+                    _ => MouseButton::Other,
+                }
+            }
+
+            let controller = GestureClick::new();
+            controller.connect_pressed({
+                let this = this.clone();
+                move |controller, _, _, _| {
+                    if let Some(this) = this.upgrade() {
+                        this.on_pressed
+                            .signal(gtk_current_button(controller.current_button()));
+                    }
+                }
+            });
+            controller.connect_released({
+                let this = this.clone();
+                move |controller, _, _, _| {
+                    if let Some(this) = this.upgrade() {
+                        this.on_released
+                            .signal(gtk_current_button(controller.current_button()));
+                    }
+                }
+            });
+            widget.add_controller(controller);
+
             Self {
                 widget,
                 handle,
                 on_redraw: Callback::new(),
+                on_motion: Callback::new(),
+                on_pressed: Callback::new(),
+                on_released: Callback::new(),
             }
         }))
     }
@@ -74,6 +122,18 @@ impl Canvas {
             ctx,
             widget: self.widget.clone(),
         })
+    }
+
+    pub async fn wait_mouse_down(&self) -> MouseButton {
+        self.on_pressed.wait().await
+    }
+
+    pub async fn wait_mouse_up(&self) -> MouseButton {
+        self.on_released.wait().await
+    }
+
+    pub async fn wait_mouse_move(&self) -> io::Result<Point> {
+        Ok(self.on_motion.wait().await)
     }
 }
 

@@ -15,9 +15,6 @@ pub use button::*;
 
 mod edit;
 pub use edit::*;
-
-mod callback;
-
 use objc2_foundation::{CGSize, NSString};
 
 use crate::Size;

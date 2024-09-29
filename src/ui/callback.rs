@@ -14,7 +14,7 @@ enum WakerState<T> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Callback<T>(Rc<RefCell<WakerState<T>>>);
+pub struct Callback<T = ()>(Rc<RefCell<WakerState<T>>>);
 
 impl<T> Default for Callback<T> {
     fn default() -> Self {
