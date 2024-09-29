@@ -41,7 +41,7 @@ async fn track(canvas: Weak<Canvas>) {
         futures_util::select! {
             m = canvas.wait_mouse_down().fuse() => println!("{:?}", m),
             m = canvas.wait_mouse_up().fuse() => println!("{:?}", m),
-            p = canvas.wait_mouse_move().fuse() => println!("{:?}", p),
+            p = canvas.wait_mouse_move().fuse() => println!("{:?}", p.unwrap()),
         }
     }
 }

@@ -165,10 +165,17 @@ impl Canvas {
         }
     }
 
-    pub async fn wait_mouse_move(&self) -> Point {
-        let msg = self.handle.wait_parent(WM_MOUSEMOVE).await;
-        let (x, y) = ((msg.lParam & 0xFFFF) as i32, (msg.lParam >> 16) as i32);
-        self.handle.point_d2l((x, y))
+    pub async fn wait_mouse_move(&self) -> io::Result<Point> {
+        loop {
+            let msg = self.handle.wait_parent(WM_MOUSEMOVE).await;
+            let (x, y) = ((msg.lParam & 0xFFFF) as i32, (msg.lParam >> 16) as i32);
+            let p = self.handle.point_d2l((x, y));
+            let loc = self.loc()?;
+            let size = self.size()?;
+            if Rect::new(loc, size).contains(p) {
+                break Ok((p - loc).to_point());
+            }
+        }
     }
 }
 
