@@ -14,6 +14,7 @@ async fn msgbox_custom(
     instr: String,
     style: MessageBoxStyle,
     btns: MessageBoxButton,
+    cbtns: Vec<CustomButton>,
 ) -> io::Result<MessageBoxResponse> {
     unsafe {
         let alert = NSAlert::new(MainThreadMarker::new().unwrap());
@@ -61,6 +62,11 @@ async fn msgbox_custom(
             responses.push(MessageBoxResponse::Close);
         }
 
+        for b in cbtns {
+            alert.addButtonWithTitle(&NSString::from_str(&b.text));
+            responses.push(MessageBoxResponse::Custom(b.result));
+        }
+
         if let Some(parent) = parent {
             let (tx, rx) = futures_channel::oneshot::channel();
             let tx = Rc::new(RefCell::new(Some(tx)));
@@ -87,6 +93,7 @@ pub struct MessageBox {
     instr: String,
     style: MessageBoxStyle,
     btns: MessageBoxButton,
+    cbtns: Vec<CustomButton>,
 }
 
 impl Default for MessageBox {
@@ -103,12 +110,13 @@ impl MessageBox {
             instr: String::new(),
             style: MessageBoxStyle::None,
             btns: MessageBoxButton::Ok,
+            cbtns: vec![],
         }
     }
 
     pub async fn show(self, parent: Option<&Window>) -> io::Result<MessageBoxResponse> {
         msgbox_custom(
-            parent, self.msg, self.title, self.instr, self.style, self.btns,
+            parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )
         .await
     }
@@ -136,5 +144,30 @@ impl MessageBox {
     pub fn buttons(mut self, btns: MessageBoxButton) -> Self {
         self.btns = btns;
         self
+    }
+
+    pub fn custom_button(mut self, btn: CustomButton) -> Self {
+        self.cbtns.push(btn);
+        self
+    }
+
+    pub fn custom_buttons(mut self, btn: impl IntoIterator<Item = CustomButton>) -> Self {
+        self.cbtns.extend(btn);
+        self
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct CustomButton {
+    pub result: u16,
+    pub text: String,
+}
+
+impl CustomButton {
+    pub fn new(result: u16, text: impl AsRef<str>) -> Self {
+        Self {
+            result,
+            text: text.as_ref().to_string(),
+        }
     }
 }
