@@ -5,7 +5,7 @@ use std::{
 
 use gtk4::{glib::Propagation, prelude::*};
 
-use crate::{AsContainer, Callback, Container, Point, Size};
+use crate::{AsContainer, Callback, ColorTheme, Container, Point, Size};
 
 pub struct Window {
     window: gtk4::Window,
@@ -67,6 +67,16 @@ impl Window {
 
     pub(crate) fn as_window(&self) -> &gtk4::Window {
         &self.window
+    }
+
+    pub fn color_theme(&self) -> ColorTheme {
+        let color = self.window.color();
+        let brightness = color.red() * 0.299 + color.green() * 0.587 + color.blue() * 0.114;
+        if brightness > 0.5 {
+            ColorTheme::Dark
+        } else {
+            ColorTheme::Light
+        }
     }
 
     pub fn loc(&self) -> io::Result<Point> {
