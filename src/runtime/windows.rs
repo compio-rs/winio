@@ -5,6 +5,7 @@ use std::{
     mem::MaybeUninit,
     pin::Pin,
     ptr::null_mut,
+    sync::LazyLock,
     task::{Context, Poll, Waker},
     time::Duration,
 };
@@ -12,18 +13,26 @@ use std::{
 use compio::driver::AsRawFd;
 use compio_log::*;
 use slab::Slab;
-use windows::Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx, CoUninitialize};
+use windows::Win32::{
+    Foundation::COLORREF,
+    System::Com::{COINIT_MULTITHREADED, CoInitializeEx, CoUninitialize},
+};
 use windows_sys::Win32::{
     Foundation::{HANDLE, HWND, LPARAM, LRESULT, POINT, WAIT_FAILED, WPARAM},
+    Graphics::Gdi::{
+        BLACK_BRUSH, CreateSolidBrush, DeleteObject, GetStockObject, HDC, HGDIOBJ, ScreenToClient,
+        SetBkColor, SetBkMode, SetTextColor, TRANSPARENT, WHITE_BRUSH,
+    },
     System::Threading::INFINITE,
     UI::WindowsAndMessaging::{
-        DefWindowProcW, DispatchMessageW, GetMessagePos, GetMessageTime, MSG, MWMO_ALERTABLE,
-        MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW, QS_ALLINPUT,
-        TranslateMessage,
+        ChildWindowFromPoint, DefWindowProcW, DispatchMessageW, GetCursorPos, GetMessagePos,
+        GetMessageTime, MSG, MWMO_ALERTABLE, MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx,
+        PM_REMOVE, PeekMessageW, QS_ALLINPUT, TranslateMessage, WM_CTLCOLOREDIT, WM_CTLCOLORSTATIC,
     },
 };
 
 use super::RUNTIME;
+use crate::darkmode::is_dark_mode_allowed_for_app;
 
 pub(crate) enum FutureState {
     Active(Option<Waker>),
@@ -225,9 +234,62 @@ pub(crate) unsafe extern "system" fn window_proc(
     if res {
         0
     } else {
+        // These messages need special return values.
+        match msg {
+            WM_CTLCOLORSTATIC => {
+                let dark = is_dark_mode_allowed_for_app();
+                let hdc = wparam as HDC;
+                SetBkMode(hdc, TRANSPARENT as _);
+                if dark {
+                    SetTextColor(hdc, WHITE.0);
+                    SetBkColor(hdc, BLACK.0);
+                }
+                return if dark {
+                    GetStockObject(BLACK_BRUSH)
+                } else {
+                    GetStockObject(WHITE_BRUSH)
+                } as _;
+            }
+            WM_CTLCOLOREDIT => {
+                if is_dark_mode_allowed_for_app() {
+                    let hdc = wparam as HDC;
+                    let hedit = lparam as HWND;
+                    SetTextColor(hdc, WHITE.0);
+                    SetBkColor(hdc, BLACK.0);
+                    let mut p = MaybeUninit::uninit();
+                    GetCursorPos(p.as_mut_ptr());
+                    let mut p = p.assume_init();
+                    ScreenToClient(hedit, &mut p);
+                    let is_hover = hedit == ChildWindowFromPoint(handle, p);
+                    return if is_hover {
+                        GetStockObject(BLACK_BRUSH)
+                    } else {
+                        EDIT_NORMAL_BACK.0
+                    } as _;
+                }
+            }
+            _ => {}
+        }
         DefWindowProcW(handle, msg, wparam, lparam)
     }
 }
+
+const WHITE: COLORREF = COLORREF(0x00FFFFFF);
+const BLACK: COLORREF = COLORREF(0x00000000);
+
+struct WinBrush(HGDIOBJ);
+
+impl Drop for WinBrush {
+    fn drop(&mut self) {
+        unsafe { DeleteObject(self.0) };
+    }
+}
+
+unsafe impl Send for WinBrush {}
+unsafe impl Sync for WinBrush {}
+
+static EDIT_NORMAL_BACK: LazyLock<WinBrush> =
+    LazyLock::new(|| WinBrush(unsafe { CreateSolidBrush(0x00212121) }));
 
 struct MsgFuture {
     id: usize,

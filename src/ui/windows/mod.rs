@@ -1,7 +1,7 @@
 mod canvas;
 pub use canvas::*;
 
-mod darkmode;
+pub(crate) mod darkmode;
 mod dpi;
 mod font;
 

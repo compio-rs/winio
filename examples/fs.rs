@@ -9,8 +9,8 @@ use std::{
 use compio::{fs::File, io::AsyncReadAtExt, runtime::spawn};
 use futures_util::{FutureExt, lock::Mutex};
 use winio::{
-    Button, Canvas, Color, DrawingFontBuilder, FileBox, HAlign, Point, Size, SolidColorBrush,
-    VAlign, Window, block_on,
+    Button, Canvas, Color, ColorTheme, DrawingFontBuilder, FileBox, HAlign, Point, Size,
+    SolidColorBrush, VAlign, Window, block_on,
 };
 
 fn main() {
@@ -23,6 +23,8 @@ fn main() {
         let window = Window::new().unwrap();
         window.set_text("File IO example").unwrap();
         window.set_size(Size::new(800.0, 600.0)).unwrap();
+
+        let is_dark = window.color_theme() == ColorTheme::Dark;
 
         let canvas = Canvas::new(&window).unwrap();
         let button = Button::new(&window).unwrap();
@@ -42,7 +44,7 @@ fn main() {
             text.clone(),
         ))
         .detach();
-        spawn(redraw(Rc::downgrade(&canvas), text)).detach();
+        spawn(redraw(is_dark, Rc::downgrade(&canvas), text)).detach();
         window.wait_close().await;
     })
 }
@@ -123,10 +125,14 @@ async fn fetch(
     }
 }
 
-async fn redraw(canvas: Weak<Canvas>, text: Rc<Mutex<FetchStatus>>) {
+async fn redraw(is_dark: bool, canvas: Weak<Canvas>, text: Rc<Mutex<FetchStatus>>) {
     while let Some(canvas) = canvas.upgrade() {
         let ctx = canvas.wait_redraw().await.unwrap();
-        let brush = SolidColorBrush::new(Color::new(127, 127, 127, 255));
+        let brush = SolidColorBrush::new(if is_dark {
+            Color::new(255, 255, 255, 255)
+        } else {
+            Color::new(0, 0, 0, 255)
+        });
         ctx.draw_str(
             &brush,
             DrawingFontBuilder::new()

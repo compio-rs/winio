@@ -42,6 +42,7 @@ use windows_sys::Win32::{
     },
 };
 
+use super::darkmode::is_dark_mode_allowed_for_app;
 use crate::{
     AsRawWindow, BrushPen, Color, DrawingFont, HAlign, MouseButton, Point, Rect, RectBox,
     RelativeToScreen, Rotation, Size, SolidColorBrush, VAlign, Widget,
@@ -138,7 +139,11 @@ impl Canvas {
             })?;
             self.target.BeginDraw();
             self.target
-                .Clear(Some(&color_f(Color::new(255, 255, 255, 255))));
+                .Clear(Some(&color_f(if is_dark_mode_allowed_for_app() {
+                    Color::new(0, 0, 0, 255)
+                } else {
+                    Color::new(255, 255, 255, 255)
+                })));
             self.target.SetDpi(dpi as f32, dpi as f32);
             let ctx = DrawingContext {
                 target: self.target.clone().cast()?,

@@ -20,6 +20,13 @@ pub type RelativeSize = Size2D<f64, RelativeSpace>;
 pub type RelativeToScreen = Transform2D<f64, RelativeSpace, ScreenSpace>;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[non_exhaustive]
+pub enum ColorTheme {
+    Light,
+    Dark,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Orient {
     Horizontal,
     Vertical,

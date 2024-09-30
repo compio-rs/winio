@@ -15,7 +15,7 @@ use windows_sys::{
     Win32::{
         Foundation::{BOOL, HWND, LPARAM, POINT, RECT, SetLastError},
         Graphics::Gdi::{
-            GetStockObject, HDC, MapWindowPoints, Rectangle, SelectObject, WHITE_BRUSH,
+            BLACK_BRUSH, GetStockObject, HDC, MapWindowPoints, Rectangle, SelectObject, WHITE_BRUSH,
         },
         System::LibraryLoader::GetModuleHandleW,
         UI::WindowsAndMessaging::{
@@ -34,12 +34,13 @@ use windows_sys::{
 
 use super::{
     darkmode::{
-        PreferredAppMode, control_use_dark_mode, set_preferred_app_mode, window_use_dark_mode,
+        PreferredAppMode, control_use_dark_mode, is_dark_mode_allowed_for_app,
+        set_preferred_app_mode, window_use_dark_mode,
     },
     dpi::{DpiAware, get_dpi_for_window},
     font::default_font,
 };
-use crate::{Point, Size, wait};
+use crate::{ColorTheme, Point, Size, wait};
 
 pub trait AsRawWindow {
     fn as_raw_window(&self) -> HWND;
@@ -364,7 +365,11 @@ impl Window {
                         let msg = this.handle.wait(WM_ERASEBKGND).await;
                         unsafe {
                             let hdc = msg.wParam as HDC;
-                            let brush = GetStockObject(WHITE_BRUSH);
+                            let brush = if is_dark_mode_allowed_for_app() {
+                                GetStockObject(BLACK_BRUSH)
+                            } else {
+                                GetStockObject(WHITE_BRUSH)
+                            };
                             let old_brush = SelectObject(hdc, brush);
                             let mut r = MaybeUninit::uninit();
                             GetClientRect(this.as_raw_window(), r.as_mut_ptr());
@@ -405,6 +410,16 @@ impl Window {
         unsafe { ShowWindow(this.as_raw_window(), SW_SHOWNORMAL) };
         unsafe { window_use_dark_mode(this.as_raw_window()) };
         Ok(this)
+    }
+
+    pub fn color_theme(&self) -> ColorTheme {
+        unsafe {
+            if is_dark_mode_allowed_for_app() {
+                ColorTheme::Dark
+            } else {
+                ColorTheme::Light
+            }
+        }
     }
 
     pub fn loc(&self) -> io::Result<Point> {
