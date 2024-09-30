@@ -115,7 +115,7 @@ async fn wait_close(window: Rc<Window>) {
             .message("Close window?")
             .style(MessageBoxStyle::Info)
             .buttons(MessageBoxButton::Yes | MessageBoxButton::No)
-            .custom_button(CustomButton::new(114514, "114514"))
+            .custom_button(CustomButton::new(114, "114"))
             .show(Some(&window))
             .await
             .unwrap()

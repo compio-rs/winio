@@ -64,5 +64,5 @@ pub enum MessageBoxResponse {
     Retry,
     Yes,
     Close,
-    Custom(i32),
+    Custom(u16),
 }

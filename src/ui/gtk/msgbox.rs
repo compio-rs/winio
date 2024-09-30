@@ -6,6 +6,13 @@ use gtk4::prelude::{DialogExt, GtkWindowExt, WidgetExt};
 
 use crate::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle, Window};
 
+const CUSTOM_CANCEL: u16 = 0;
+const CUSTOM_NO: u16 = 1;
+const CUSTOM_OK: u16 = 2;
+const CUSTOM_RETRY: u16 = 3;
+const CUSTOM_YES: u16 = 4;
+const CUSTOM_CLOSE: u16 = 5;
+
 async fn msgbox_custom(
     parent: Option<&Window>,
     msg: String,
@@ -13,6 +20,7 @@ async fn msgbox_custom(
     instr: String,
     style: MessageBoxStyle,
     btns: MessageBoxButton,
+    cbtns: Vec<CustomButton>,
 ) -> io::Result<MessageBoxResponse> {
     let default_btns = match btns as i32 {
         // Ok
@@ -46,35 +54,26 @@ async fn msgbox_custom(
 
     if default_btns == gtk4::ButtonsType::None {
         if btns.contains(MessageBoxButton::Ok) {
-            dialog.add_button("Ok", gtk4::ResponseType::Other(MessageBoxResponse::Ok as _));
+            dialog.add_button("Ok", gtk4::ResponseType::Other(CUSTOM_OK));
         }
         if btns.contains(MessageBoxButton::Yes) {
-            dialog.add_button(
-                "Yes",
-                gtk4::ResponseType::Other(MessageBoxResponse::Yes as _),
-            );
+            dialog.add_button("Yes", gtk4::ResponseType::Other(CUSTOM_YES));
         }
         if btns.contains(MessageBoxButton::No) {
-            dialog.add_button("No", gtk4::ResponseType::Other(MessageBoxResponse::No as _));
+            dialog.add_button("No", gtk4::ResponseType::Other(CUSTOM_NO));
         }
         if btns.contains(MessageBoxButton::Cancel) {
-            dialog.add_button(
-                "Cancel",
-                gtk4::ResponseType::Other(MessageBoxResponse::Cancel as _),
-            );
+            dialog.add_button("Cancel", gtk4::ResponseType::Other(CUSTOM_CANCEL));
         }
         if btns.contains(MessageBoxButton::Retry) {
-            dialog.add_button(
-                "Retry",
-                gtk4::ResponseType::Other(MessageBoxResponse::Retry as _),
-            );
+            dialog.add_button("Retry", gtk4::ResponseType::Other(CUSTOM_RETRY));
         }
         if btns.contains(MessageBoxButton::Close) {
-            dialog.add_button(
-                "Close",
-                gtk4::ResponseType::Other(MessageBoxResponse::Close as _),
-            );
+            dialog.add_button("Close", gtk4::ResponseType::Other(CUSTOM_CLOSE));
         }
+    }
+    for b in cbtns {
+        dialog.add_button(&b.text, gtk4::ResponseType::Other(b.result));
     }
 
     let (tx, rx) = futures_channel::oneshot::channel();
@@ -99,8 +98,14 @@ async fn msgbox_custom(
         gtk4::ResponseType::Close => MessageBoxResponse::Close,
         gtk4::ResponseType::Yes => MessageBoxResponse::Yes,
         gtk4::ResponseType::No => MessageBoxResponse::No,
-        gtk4::ResponseType::Other(res) => unsafe {
-            std::mem::transmute::<u16, MessageBoxResponse>(res)
+        gtk4::ResponseType::Other(res) => match res {
+            CUSTOM_CANCEL => MessageBoxResponse::Cancel,
+            CUSTOM_NO => MessageBoxResponse::No,
+            CUSTOM_OK => MessageBoxResponse::Ok,
+            CUSTOM_RETRY => MessageBoxResponse::Retry,
+            CUSTOM_YES => MessageBoxResponse::Yes,
+            CUSTOM_CLOSE => MessageBoxResponse::Close,
+            _ => MessageBoxResponse::Custom(res),
         },
         gtk4::ResponseType::DeleteEvent | gtk4::ResponseType::Reject => MessageBoxResponse::Cancel,
         _ => {
@@ -120,6 +125,7 @@ pub struct MessageBox {
     instr: String,
     style: MessageBoxStyle,
     btns: MessageBoxButton,
+    cbtns: Vec<CustomButton>,
 }
 
 impl Default for MessageBox {
@@ -136,12 +142,13 @@ impl MessageBox {
             instr: String::new(),
             style: MessageBoxStyle::None,
             btns: MessageBoxButton::Ok,
+            cbtns: vec![],
         }
     }
 
     pub async fn show(self, parent: Option<&Window>) -> io::Result<MessageBoxResponse> {
         msgbox_custom(
-            parent, self.msg, self.title, self.instr, self.style, self.btns,
+            parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )
         .await
     }
@@ -169,5 +176,30 @@ impl MessageBox {
     pub fn buttons(mut self, btns: MessageBoxButton) -> Self {
         self.btns = btns;
         self
+    }
+
+    pub fn custom_button(mut self, btn: CustomButton) -> Self {
+        self.cbtns.push(btn);
+        self
+    }
+
+    pub fn custom_buttons(mut self, btn: impl IntoIterator<Item = CustomButton>) -> Self {
+        self.cbtns.extend(btn);
+        self
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct CustomButton {
+    pub result: u16,
+    pub text: String,
+}
+
+impl CustomButton {
+    pub fn new(result: u16, text: impl AsRef<str>) -> Self {
+        Self {
+            result,
+            text: text.as_ref().to_string(),
+        }
     }
 }
