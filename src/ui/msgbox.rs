@@ -1,7 +1,4 @@
-use std::{
-    borrow::Cow,
-    ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign},
-};
+use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub enum MessageBoxStyle {
@@ -59,7 +56,6 @@ impl BitAndAssign for MessageBoxButton {
     }
 }
 
-#[repr(u16)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum MessageBoxResponse {
     Cancel,
@@ -68,19 +64,5 @@ pub enum MessageBoxResponse {
     Retry,
     Yes,
     Close,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct CustomButton {
-    pub result: i32,
-    pub text: Cow<'static, str>,
-}
-
-impl CustomButton {
-    pub fn new<S: Into<Cow<'static, str>>>(result: i32, text: S) -> Self {
-        Self {
-            result,
-            text: text.into(),
-        }
-    }
+    Custom(i32),
 }

@@ -9,8 +9,8 @@ use windows_sys::Win32::{
     Foundation::{E_INVALIDARG, E_OUTOFMEMORY, S_OK},
     UI::{
         Controls::{
-            TASKDIALOGCONFIG, TASKDIALOGCONFIG_0, TASKDIALOGCONFIG_1, TD_ERROR_ICON,
-            TD_INFORMATION_ICON, TD_WARNING_ICON, TDF_ALLOW_DIALOG_CANCELLATION,
+            TASKDIALOG_BUTTON, TASKDIALOGCONFIG, TASKDIALOGCONFIG_0, TASKDIALOGCONFIG_1,
+            TD_ERROR_ICON, TD_INFORMATION_ICON, TD_WARNING_ICON, TDF_ALLOW_DIALOG_CANCELLATION,
             TDF_SIZE_TO_CONTENT, TaskDialogIndirect,
         },
         WindowsAndMessaging::{IDCANCEL, IDCLOSE, IDNO, IDOK, IDRETRY, IDYES},
@@ -26,11 +26,19 @@ async fn msgbox_custom(
     instr: U16CString,
     style: MessageBoxStyle,
     btns: MessageBoxButton,
+    cbtns: Vec<CustomButton>,
 ) -> io::Result<MessageBoxResponse> {
     let parent_handle = parent
         .map(|p| p.as_raw_window() as isize)
         .unwrap_or_default();
     let (res, result) = compio::runtime::spawn_blocking(move || {
+        let cbtn_ptrs = cbtns
+            .iter()
+            .map(|b| TASKDIALOG_BUTTON {
+                nButtonID: b.result,
+                pszButtonText: b.text.as_ptr(),
+            })
+            .collect::<Vec<_>>();
         let config = TASKDIALOGCONFIG {
             cbSize: std::mem::size_of::<TASKDIALOGCONFIG>() as _,
             hwndParent: parent_handle as _,
@@ -48,8 +56,12 @@ async fn msgbox_custom(
             },
             pszMainInstruction: instr.as_ptr(),
             pszContent: msg.as_ptr(),
-            cButtons: 0,
-            pButtons: null(),
+            cButtons: cbtn_ptrs.len() as _,
+            pButtons: if cbtn_ptrs.is_empty() {
+                null()
+            } else {
+                cbtn_ptrs.as_ptr()
+            },
             nDefaultButton: 0,
             cRadioButtons: 0,
             pRadioButtons: null(),
@@ -82,7 +94,7 @@ async fn msgbox_custom(
             IDRETRY => MessageBoxResponse::Retry,
             IDYES => MessageBoxResponse::Yes,
             IDCLOSE => MessageBoxResponse::Close,
-            _ => unreachable!(),
+            _ => MessageBoxResponse::Custom(result),
         }),
         E_OUTOFMEMORY => Err(io::ErrorKind::OutOfMemory.into()),
         E_INVALIDARG => Err(io::ErrorKind::InvalidInput.into()),
@@ -97,6 +109,7 @@ pub struct MessageBox {
     instr: U16CString,
     style: MessageBoxStyle,
     btns: MessageBoxButton,
+    cbtns: Vec<CustomButton>,
 }
 
 impl Default for MessageBox {
@@ -113,12 +126,13 @@ impl MessageBox {
             instr: U16CString::new(),
             style: MessageBoxStyle::None,
             btns: MessageBoxButton::Ok,
+            cbtns: vec![],
         }
     }
 
     pub async fn show(self, parent: Option<&Window>) -> io::Result<MessageBoxResponse> {
         msgbox_custom(
-            parent, self.msg, self.title, self.instr, self.style, self.btns,
+            parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )
         .await
     }
@@ -146,5 +160,30 @@ impl MessageBox {
     pub fn buttons(mut self, btns: MessageBoxButton) -> Self {
         self.btns = btns;
         self
+    }
+
+    pub fn custom_button(mut self, btn: CustomButton) -> Self {
+        self.cbtns.push(btn);
+        self
+    }
+
+    pub fn custom_buttons(mut self, btn: impl IntoIterator<Item = CustomButton>) -> Self {
+        self.cbtns.extend(btn);
+        self
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct CustomButton {
+    pub result: i32,
+    pub text: U16CString,
+}
+
+impl CustomButton {
+    pub fn new(result: i32, text: impl AsRef<str>) -> Self {
+        Self {
+            result,
+            text: U16CString::from_str_truncate(text),
+        }
     }
 }
