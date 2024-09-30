@@ -10,11 +10,12 @@ use objc2_app_kit::{
     NSBackingStoreType, NSControl, NSScreen, NSView, NSWindow, NSWindowDelegate, NSWindowStyleMask,
 };
 use objc2_foundation::{
-    CGPoint, CGSize, MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSRect, NSString,
+    CGPoint, CGSize, MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSRect,
+    NSString, NSUserDefaults,
 };
 
 use super::{from_cgsize, from_nsstring, to_cgsize};
-use crate::{Callback, Point, Size};
+use crate::{Callback, ColorTheme, Point, Size};
 
 pub trait AsNSView {
     fn as_nsview(&self) -> Id<NSView>;
@@ -73,6 +74,21 @@ impl Window {
         self.wnd
             .screen()
             .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "cannot get screen of the window"))
+    }
+
+    pub fn color_theme(&self) -> ColorTheme {
+        unsafe {
+            let osx_mode = NSUserDefaults::standardUserDefaults()
+                .stringForKey(&NSString::from_str("AppleInterfaceStyle"));
+            let is_dark = osx_mode
+                .map(|mode| mode.isEqualToString(&NSString::from_str("Dark")))
+                .unwrap_or_default();
+            if is_dark {
+                ColorTheme::Dark
+            } else {
+                ColorTheme::Light
+            }
+        }
     }
 
     pub fn loc(&self) -> io::Result<Point> {
