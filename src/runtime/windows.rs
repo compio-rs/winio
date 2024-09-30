@@ -82,12 +82,12 @@ impl Runtime {
             }
             .detach();
             loop {
+                self.runtime.poll_with(Some(Duration::ZERO));
+
                 let remaining_tasks = self.runtime.run();
                 if let Some(result) = result.take() {
                     break result;
                 }
-
-                self.runtime.poll_with(Some(Duration::ZERO));
 
                 let timeout = if remaining_tasks {
                     Some(Duration::ZERO)
