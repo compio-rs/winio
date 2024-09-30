@@ -35,7 +35,7 @@ async fn msgbox_custom(
         let cbtn_ptrs = cbtns
             .iter()
             .map(|b| TASKDIALOG_BUTTON {
-                nButtonID: b.result,
+                nButtonID: b.result as _,
                 pszButtonText: b.text.as_ptr(),
             })
             .collect::<Vec<_>>();
@@ -94,7 +94,7 @@ async fn msgbox_custom(
             IDRETRY => MessageBoxResponse::Retry,
             IDYES => MessageBoxResponse::Yes,
             IDCLOSE => MessageBoxResponse::Close,
-            _ => MessageBoxResponse::Custom(result),
+            _ => MessageBoxResponse::Custom(result as _),
         }),
         E_OUTOFMEMORY => Err(io::ErrorKind::OutOfMemory.into()),
         E_INVALIDARG => Err(io::ErrorKind::InvalidInput.into()),
@@ -175,12 +175,12 @@ impl MessageBox {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CustomButton {
-    pub result: i32,
+    pub result: u16,
     pub text: U16CString,
 }
 
 impl CustomButton {
-    pub fn new(result: i32, text: impl AsRef<str>) -> Self {
+    pub fn new(result: u16, text: impl AsRef<str>) -> Self {
         Self {
             result,
             text: U16CString::from_str_truncate(text),
