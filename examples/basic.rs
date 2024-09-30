@@ -9,9 +9,9 @@ use std::{
 use compio::{runtime::spawn, time::interval};
 use futures_util::FutureExt;
 use winio::{
-    BrushPen, Canvas, Color, ColorTheme, DrawingFontBuilder, HAlign, MessageBox, MessageBoxButton,
-    MessageBoxResponse, MessageBoxStyle, Point, Rect, Size, SolidColorBrush, VAlign, Window,
-    block_on,
+    BrushPen, Canvas, Color, ColorTheme, CustomButton, DrawingFontBuilder, HAlign, MessageBox,
+    MessageBoxButton, MessageBoxResponse, MessageBoxStyle, Point, Rect, Size, SolidColorBrush,
+    VAlign, Window, block_on,
 };
 
 fn main() {
@@ -110,17 +110,18 @@ async fn redraw(is_dark: bool, canvas: Weak<Canvas>, counter: Rc<Cell<usize>>) {
 async fn wait_close(window: Rc<Window>) {
     loop {
         window.wait_close().await;
-        if MessageBox::new()
+        match MessageBox::new()
             .title("Basic example")
             .message("Close window?")
             .style(MessageBoxStyle::Info)
             .buttons(MessageBoxButton::Yes | MessageBoxButton::No)
+            .custom_button(CustomButton::new(114, "114"))
             .show(Some(&window))
             .await
             .unwrap()
-            == MessageBoxResponse::Yes
         {
-            break;
+            MessageBoxResponse::Yes | MessageBoxResponse::Custom(114) => break,
+            _ => {}
         }
     }
 }
