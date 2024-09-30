@@ -19,13 +19,14 @@ use windows_sys::{
         },
         System::LibraryLoader::GetModuleHandleW,
         UI::WindowsAndMessaging::{
-            CW_USEDEFAULT, CloseWindow, CreateWindowExW, EnumChildWindows, GWL_STYLE,
+            CW_USEDEFAULT, CloseWindow, CreateWindowExW, DestroyIcon, EnumChildWindows, GWL_STYLE,
             GetClientRect, GetParent, GetWindowLongPtrW, GetWindowLongW, GetWindowRect,
-            GetWindowTextLengthW, GetWindowTextW, HWND_DESKTOP, IDC_ARROW, LoadCursorW, MSG,
+            GetWindowTextLengthW, GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW,
+            IMAGE_ICON, LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LoadCursorW, LoadImageW, MSG,
             RegisterClassExW, SW_SHOWNORMAL, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
             SendMessageW, SetWindowLongPtrW, SetWindowLongW, SetWindowPos, SetWindowTextW,
-            ShowWindow, WM_CLOSE, WM_DPICHANGED, WM_ERASEBKGND, WM_MOVE, WM_SETFONT, WM_SIZE,
-            WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
+            ShowWindow, WM_CLOSE, WM_DPICHANGED, WM_ERASEBKGND, WM_MOVE, WM_SETFONT, WM_SETICON,
+            WM_SIZE, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
         },
     },
     w,
@@ -297,6 +298,12 @@ impl Widget {
             Err(e) => Err(e),
         }
     }
+
+    pub fn set_icon(&self, icon: HICON) {
+        unsafe {
+            SendMessageW(self.as_raw_window(), WM_SETICON, ICON_BIG as _, icon as _);
+        }
+    }
 }
 
 impl AsRawWindow for Widget {
@@ -424,6 +431,25 @@ impl Window {
 
     pub fn set_text(&self, s: impl AsRef<str>) -> io::Result<()> {
         self.handle.set_text(s)
+    }
+
+    pub fn set_icon_by_id(&self, id: u16) -> io::Result<()> {
+        let icon = unsafe {
+            LoadImageW(
+                GetModuleHandleW(null()),
+                id as _,
+                IMAGE_ICON,
+                0,
+                0,
+                LR_DEFAULTCOLOR | LR_DEFAULTSIZE,
+            )
+        };
+        if icon.is_null() {
+            return Err(io::Error::last_os_error());
+        }
+        self.handle.set_icon(icon);
+        syscall!(BOOL, DestroyIcon(icon))?;
+        Ok(())
     }
 
     pub async fn wait_size(&self) {
