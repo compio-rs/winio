@@ -5,7 +5,7 @@ use gtk4::prelude::{FixedExt, WidgetExt};
 use crate::{Point, Size};
 
 pub enum Container {
-    Fixed(gtk4::Fixed),
+    Fixed(super::Fixed),
     Parent(Weak<Widget>),
 }
 

@@ -9,7 +9,7 @@ use crate::{AsContainer, Callback, ColorTheme, Container, Point, Size};
 
 pub struct Window {
     window: gtk4::Window,
-    fixed: gtk4::Fixed,
+    fixed: super::Fixed,
     on_size: Callback<()>,
     on_close: Callback<()>,
 }
@@ -17,7 +17,7 @@ pub struct Window {
 impl Window {
     pub fn new() -> io::Result<Rc<Self>> {
         let window = gtk4::Window::new();
-        let fixed = gtk4::Fixed::new();
+        let fixed = super::Fixed::new();
         window.set_child(Some(&fixed));
         Ok(Rc::new_cyclic(|this: &Weak<Self>| {
             window.connect_default_width_notify({

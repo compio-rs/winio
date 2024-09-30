@@ -18,3 +18,6 @@ pub use button::*;
 
 mod edit;
 pub use edit::*;
+
+mod fixed;
+use fixed::*;
