@@ -109,7 +109,7 @@ impl MessageBox {
             title: String::new(),
             instr: String::new(),
             style: MessageBoxStyle::None,
-            btns: MessageBoxButton::Ok,
+            btns: MessageBoxButton::None,
             cbtns: vec![],
         }
     }
