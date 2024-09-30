@@ -33,6 +33,9 @@ use windows_sys::{
 };
 
 use super::{
+    darkmode::{
+        PreferredAppMode, control_use_dark_mode, set_preferred_app_mode, window_use_dark_mode,
+    },
     dpi::{DpiAware, get_dpi_for_window},
     font::default_font,
 };
@@ -120,6 +123,7 @@ impl Widget {
         if handle.is_null() {
             return Err(io::Error::last_os_error());
         }
+        unsafe { control_use_dark_mode(handle) };
         let this = Self(unsafe { OwnedWindow::from_raw_window(handle) });
         this.refresh_font();
         Ok(this)
@@ -315,6 +319,9 @@ impl AsRawWindow for Widget {
 pub const WINDOW_CLASS_NAME: *const u16 = w!("XamlWindow");
 
 fn register() -> io::Result<()> {
+    unsafe {
+        set_preferred_app_mode(PreferredAppMode::AllowDark);
+    }
     let cls = WNDCLASSEXW {
         cbSize: std::mem::size_of::<WNDCLASSEXW>() as _,
         style: 0,
@@ -396,6 +403,7 @@ impl Window {
             Self { handle }
         });
         unsafe { ShowWindow(this.as_raw_window(), SW_SHOWNORMAL) };
+        unsafe { window_use_dark_mode(this.as_raw_window()) };
         Ok(this)
     }
 

@@ -1,6 +1,7 @@
 mod canvas;
 pub use canvas::*;
 
+mod darkmode;
 mod dpi;
 mod font;
 
