@@ -125,7 +125,7 @@ impl MessageBox {
             title: U16CString::new(),
             instr: U16CString::new(),
             style: MessageBoxStyle::None,
-            btns: MessageBoxButton::Ok,
+            btns: MessageBoxButton::None,
             cbtns: vec![],
         }
     }
