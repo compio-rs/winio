@@ -70,12 +70,13 @@ async fn msgbox_custom(
         results.push(MessageBoxResponse::Custom(b.result))
     }
 
-    let dialog = gtk4::AlertDialog::builder()
-        .modal(true)
-        .message(msg)
-        .detail(instr)
-        .buttons(buttons)
-        .build();
+    let mut builder = gtk4::AlertDialog::builder().modal(true).buttons(buttons);
+    if instr.is_empty() {
+        builder = builder.message(msg);
+    } else {
+        builder = builder.message(instr).detail(msg)
+    }
+    let dialog = builder.build();
 
     let res = dialog
         .choose_future(parent.map(|w| w.as_window()))
