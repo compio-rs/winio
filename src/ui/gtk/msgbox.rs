@@ -1,121 +1,90 @@
-#![allow(deprecated)]
+use std::{io, sync::LazyLock};
 
-use std::{cell::RefCell, io};
-
-use gtk4::prelude::{DialogExt, GtkWindowExt, WidgetExt};
+use gtk4::glib::{GString, dgettext};
 
 use crate::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle, Window};
 
-const CUSTOM_CANCEL: u16 = 0;
-const CUSTOM_NO: u16 = 1;
-const CUSTOM_OK: u16 = 2;
-const CUSTOM_RETRY: u16 = 3;
-const CUSTOM_YES: u16 = 4;
-const CUSTOM_CLOSE: u16 = 5;
+struct PredefButtons {
+    ok: GString,
+    yes: GString,
+    no: GString,
+    cancel: GString,
+    retry: GString,
+    close: GString,
+}
+
+impl PredefButtons {
+    pub fn new() -> Self {
+        const DOMAIN: Option<&str> = Some("gtk40");
+        Self {
+            ok: dgettext(DOMAIN, "_Ok"),
+            yes: dgettext(DOMAIN, "_Yes"),
+            no: dgettext(DOMAIN, "_No"),
+            cancel: dgettext(DOMAIN, "_Cancel"),
+            retry: dgettext(DOMAIN, "_Retry"),
+            close: dgettext(DOMAIN, "_Close"),
+        }
+    }
+}
+
+static PREDEF_BUTTONS: LazyLock<PredefButtons> = LazyLock::new(PredefButtons::new);
 
 async fn msgbox_custom(
     parent: Option<&Window>,
     msg: String,
-    title: String,
+    _title: String,
     instr: String,
-    style: MessageBoxStyle,
+    _style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
 ) -> io::Result<MessageBoxResponse> {
-    let default_btns = match btns as i32 {
-        // Ok
-        1 => gtk4::ButtonsType::Ok,
-        // Close
-        32 => gtk4::ButtonsType::Close,
-        // Cancel
-        8 => gtk4::ButtonsType::Cancel,
-        // Yes | No
-        6 => gtk4::ButtonsType::YesNo,
-        // Ok | Cancel
-        9 => gtk4::ButtonsType::OkCancel,
-        // others
-        _ => gtk4::ButtonsType::None,
-    };
-
-    let dialog = gtk4::MessageDialog::new(
-        parent.map(|w| w.as_window()),
-        gtk4::DialogFlags::DESTROY_WITH_PARENT | gtk4::DialogFlags::MODAL,
-        match style {
-            MessageBoxStyle::Info => gtk4::MessageType::Info,
-            MessageBoxStyle::Warning => gtk4::MessageType::Warning,
-            MessageBoxStyle::Error => gtk4::MessageType::Error,
-            _ => gtk4::MessageType::Other,
-        },
-        default_btns,
-        if instr.is_empty() { &msg } else { &instr },
-    );
-    dialog.set_title(Some(&title));
-    dialog.set_secondary_text(if instr.is_empty() { None } else { Some(&msg) });
-
-    if default_btns == gtk4::ButtonsType::None {
-        if btns.contains(MessageBoxButton::Ok) {
-            dialog.add_button("Ok", gtk4::ResponseType::Other(CUSTOM_OK));
-        }
-        if btns.contains(MessageBoxButton::Yes) {
-            dialog.add_button("Yes", gtk4::ResponseType::Other(CUSTOM_YES));
-        }
-        if btns.contains(MessageBoxButton::No) {
-            dialog.add_button("No", gtk4::ResponseType::Other(CUSTOM_NO));
-        }
-        if btns.contains(MessageBoxButton::Cancel) {
-            dialog.add_button("Cancel", gtk4::ResponseType::Other(CUSTOM_CANCEL));
-        }
-        if btns.contains(MessageBoxButton::Retry) {
-            dialog.add_button("Retry", gtk4::ResponseType::Other(CUSTOM_RETRY));
-        }
-        if btns.contains(MessageBoxButton::Close) {
-            dialog.add_button("Close", gtk4::ResponseType::Other(CUSTOM_CLOSE));
-        }
+    let predef = &*PREDEF_BUTTONS;
+    let mut buttons = Vec::<&str>::new();
+    let mut results = vec![];
+    if btns.contains(MessageBoxButton::Ok) {
+        buttons.push(&predef.ok);
+        results.push(MessageBoxResponse::Ok);
     }
-    for b in cbtns {
-        dialog.add_button(&b.text, gtk4::ResponseType::Other(b.result));
+    if btns.contains(MessageBoxButton::Yes) {
+        buttons.push(&predef.yes);
+        results.push(MessageBoxResponse::Yes);
+    }
+    if btns.contains(MessageBoxButton::No) {
+        buttons.push(&predef.no);
+        results.push(MessageBoxResponse::No);
+    }
+    if btns.contains(MessageBoxButton::Cancel) {
+        buttons.push(&predef.cancel);
+        results.push(MessageBoxResponse::Cancel);
+    }
+    if btns.contains(MessageBoxButton::Retry) {
+        buttons.push(&predef.retry);
+        results.push(MessageBoxResponse::Retry);
+    }
+    if btns.contains(MessageBoxButton::Close) {
+        buttons.push(&predef.close);
+        results.push(MessageBoxResponse::Close);
+    }
+    for b in &cbtns {
+        buttons.push(&b.text);
+        results.push(MessageBoxResponse::Custom(b.result))
     }
 
-    let (tx, rx) = futures_channel::oneshot::channel();
-    dialog.connect_response({
-        let tx = RefCell::new(Some(tx));
-        move |dialog, res| {
-            let tx = tx.borrow_mut().take();
-            if let Some(tx) = tx {
-                tx.send(res).ok();
-                dialog.close();
-            }
-        }
-    });
-    dialog.set_visible(true);
-    let res = rx
+    let dialog = gtk4::AlertDialog::builder()
+        .modal(true)
+        .message(msg)
+        .detail(instr)
+        .buttons(buttons)
+        .build();
+
+    let res = dialog
+        .choose_future(parent.map(|w| w.as_window()))
         .await
-        .map_err(|e| io::Error::new(io::ErrorKind::ConnectionAborted, e))?;
+        .ok();
 
-    let res = match res {
-        gtk4::ResponseType::Ok => MessageBoxResponse::Ok,
-        gtk4::ResponseType::Cancel => MessageBoxResponse::Cancel,
-        gtk4::ResponseType::Close => MessageBoxResponse::Close,
-        gtk4::ResponseType::Yes => MessageBoxResponse::Yes,
-        gtk4::ResponseType::No => MessageBoxResponse::No,
-        gtk4::ResponseType::Other(res) => match res {
-            CUSTOM_CANCEL => MessageBoxResponse::Cancel,
-            CUSTOM_NO => MessageBoxResponse::No,
-            CUSTOM_OK => MessageBoxResponse::Ok,
-            CUSTOM_RETRY => MessageBoxResponse::Retry,
-            CUSTOM_YES => MessageBoxResponse::Yes,
-            CUSTOM_CLOSE => MessageBoxResponse::Close,
-            _ => MessageBoxResponse::Custom(res),
-        },
-        gtk4::ResponseType::DeleteEvent | gtk4::ResponseType::Reject => MessageBoxResponse::Cancel,
-        _ => {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("unrecognized response: {:?}", res),
-            ));
-        }
-    };
-    Ok(res)
+    Ok(res
+        .map(|res| results[res as usize])
+        .unwrap_or(MessageBoxResponse::Cancel))
 }
 
 #[derive(Debug, Clone)]

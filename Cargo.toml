@@ -104,9 +104,8 @@ objc2-app-kit = { version = "0.2", features = [
 ] }
 
 [target.'cfg(not(any(windows, target_os = "macos")))'.dependencies]
-gtk4 = { version = "0.9", features = ["v4_10"] }
+gtk4 = { version = "0.9", features = ["v4_14"] }
 pangocairo = "0.20"
-futures-channel = "0.3"
 
 [dev-dependencies]
 compio = { version = "0.12.0", features = ["time", "native-tls"] }
