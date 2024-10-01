@@ -1,9 +1,10 @@
 use std::{cell::RefCell, io, path::PathBuf, rc::Rc};
 
 use block2::StackBlock;
-use objc2::rc::Id;
+use objc2::{msg_send, rc::Id};
 use objc2_app_kit::{NSModalResponseOK, NSOpenPanel, NSSavePanel};
 use objc2_foundation::{MainThreadMarker, NSArray, NSString};
+use objc2_uniform_type_identifiers::UTType;
 
 use super::from_nsstring;
 use crate::Window;
@@ -152,7 +153,7 @@ async unsafe fn filebox(
                     if pattern == "*.*" || pattern == "*" {
                         None
                     } else {
-                        Some(NSString::from_str(
+                        UTType::typeWithFilenameExtension(&NSString::from_str(
                             pattern.strip_prefix("*.").unwrap_or(&pattern),
                         ))
                     }
@@ -160,8 +161,8 @@ async unsafe fn filebox(
                 .collect::<Vec<_>>(),
         );
         if !ns_filters.is_empty() {
-            #[allow(deprecated)]
-            handle.setAllowedFileTypes(Some(&ns_filters));
+            // TODO: use objc2 bindings
+            let () = msg_send![&handle, setAllowedContentTypes:&*ns_filters];
         }
     }
 

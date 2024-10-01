@@ -33,8 +33,7 @@ impl Runtime {
 
         let ns_app = NSApplication::sharedApplication(MainThreadMarker::new().unwrap());
         ns_app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
-        #[allow(deprecated)]
-        ns_app.activateIgnoringOtherApps(true);
+        unsafe { ns_app.activate() };
         Self {
             runtime,
             fd_source,
