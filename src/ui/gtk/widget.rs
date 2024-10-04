@@ -87,8 +87,17 @@ impl Widget {
     }
 
     pub fn size(&self) -> Size {
-        let (width, height) = self.widget.size_request();
-        Size::new(width as _, height as _)
+        let (_, size) = self.widget.preferred_size();
+        let (_, width, ..) = self
+            .widget
+            .measure(gtk4::Orientation::Horizontal, size.width());
+        let (_, height, ..) = self
+            .widget
+            .measure(gtk4::Orientation::Vertical, size.height());
+        Size::new(
+            self.widget.width().max(width) as f64,
+            self.widget.height().max(height) as f64,
+        )
     }
 
     pub fn set_size(&self, s: Size) {

@@ -54,17 +54,18 @@ async fn render(window: Weak<Window>, canvas: Weak<Canvas>, button: Weak<Button>
         && let Some(canvas) = canvas.upgrade()
         && let Some(button) = button.upgrade()
     {
-        const BHEIGHT: f64 = 30.0;
+        const BHEIGHT: f64 = 20.0;
 
         let csize = window.client_size().unwrap();
 
         button.set_loc(Point::new(0.0, 0.0)).unwrap();
         button.set_size(Size::new(csize.width, BHEIGHT)).unwrap();
+        let bheight = button.size().unwrap().height;
 
         canvas
-            .set_size(Size::new(csize.width, csize.height - BHEIGHT))
+            .set_size(Size::new(csize.width, csize.height - bheight))
             .unwrap();
-        canvas.set_loc(Point::new(0.0, BHEIGHT)).unwrap();
+        canvas.set_loc(Point::new(0.0, bheight)).unwrap();
         canvas.redraw().unwrap();
 
         futures_util::select! {

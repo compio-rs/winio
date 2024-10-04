@@ -67,7 +67,6 @@ async fn render(
         && let Some(entry) = entry.upgrade()
     {
         const BSIZE: Size = Size::new(60.0, 20.0);
-        const CMARGIN: f64 = 10.0;
 
         let csize = window.client_size().unwrap();
 
@@ -75,21 +74,17 @@ async fn render(
         entry
             .set_size(Size::new(csize.width - BSIZE.width, BSIZE.height))
             .unwrap();
+        let bheight = entry.size().unwrap().height;
 
         button
             .set_loc(Point::new(csize.width - BSIZE.width, 0.0))
             .unwrap();
-        button.set_size(BSIZE).unwrap();
+        button.set_size(Size::new(BSIZE.width, bheight)).unwrap();
 
         canvas
-            .set_size(Size::new(
-                csize.width,
-                csize.height - BSIZE.height - CMARGIN,
-            ))
+            .set_size(Size::new(csize.width, csize.height - bheight))
             .unwrap();
-        canvas
-            .set_loc(Point::new(0.0, BSIZE.height + CMARGIN))
-            .unwrap();
+        canvas.set_loc(Point::new(0.0, bheight)).unwrap();
         canvas.redraw().unwrap();
 
         futures_util::select! {
