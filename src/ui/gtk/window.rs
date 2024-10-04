@@ -9,7 +9,8 @@ use crate::{AsContainer, Callback, ColorTheme, Container, Point, Size};
 
 pub struct Window {
     window: gtk4::Window,
-    fixed: super::Fixed,
+    swindow: gtk4::ScrolledWindow,
+    fixed: gtk4::Fixed,
     on_size: Callback<()>,
     on_close: Callback<()>,
 }
@@ -17,8 +18,10 @@ pub struct Window {
 impl Window {
     pub fn new() -> io::Result<Rc<Self>> {
         let window = gtk4::Window::new();
-        let fixed = super::Fixed::new();
-        window.set_child(Some(&fixed));
+        let swindow = gtk4::ScrolledWindow::new();
+        let fixed = gtk4::Fixed::new();
+        window.set_child(Some(&swindow));
+        swindow.set_child(Some(&fixed));
         Ok(Rc::new_cyclic(|this: &Weak<Self>| {
             window.connect_default_width_notify({
                 let this = this.clone();
@@ -58,6 +61,7 @@ impl Window {
             window.set_visible(true);
             Self {
                 window,
+                swindow,
                 fixed,
                 on_size: Callback::new(),
                 on_close: Callback::new(),
@@ -107,8 +111,8 @@ impl Window {
     }
 
     pub fn client_size(&self) -> io::Result<Size> {
-        let width = self.fixed.width();
-        let height = self.fixed.height();
+        let width = self.swindow.width();
+        let height = self.swindow.height();
         Ok(Size::new(width as _, height as _))
     }
 
