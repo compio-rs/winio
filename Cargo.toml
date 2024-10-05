@@ -105,8 +105,10 @@ objc2-app-kit = { version = "0.2", features = [
 objc2-uniform-type-identifiers = { version = "0.2", features = ["UTType"] }
 
 [target.'cfg(not(any(windows, target_os = "macos")))'.dependencies]
-gtk4 = { version = "0.9", features = ["v4_14"] }
-pangocairo = "0.20"
+gtk4 = { version = "0.9", optional = true, features = ["v4_14"] }
+pangocairo = { version = "0.20", optional = true }
+
+cxx = { version = "1.0", optional = true, features = ["c++20"] }
 
 [dev-dependencies]
 compio = { version = "0.12.0", features = ["time", "native-tls"] }
@@ -120,11 +122,16 @@ rustls = { version = "0.23", default-features = false, features = ["ring"] }
 futures-util = "0.3"
 tracing-subscriber = "0.3"
 
-[target.'cfg(windows)'.build-dependencies]
+[build-dependencies]
 embed-resource = "2"
 
+cxx-build = { version = "1.0", optional = true }
+qt-build-utils = { version = "0.6", optional = true }
+
 [features]
-default = []
+default = ["qt"]
+gtk = ["dep:gtk4", "dep:pangocairo"]
+qt = ["dep:cxx", "dep:cxx-build", "dep:qt-build-utils"]
 enable_log = ["compio/enable_log", "compio-log/enable_log"]
 
 once_cell_try = ["compio/once_cell_try", "cyper/once_cell_try"]

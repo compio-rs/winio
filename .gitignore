@@ -1,2 +1,5 @@
 /target
 Cargo.lock
+
+.cargo/
+compile_flags.txt
