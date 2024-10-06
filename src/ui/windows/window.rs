@@ -40,7 +40,10 @@ use super::{
     dpi::{DpiAware, get_dpi_for_window},
     font::default_font,
 };
-use crate::{ColorTheme, Point, Size, wait};
+use crate::{
+    ColorTheme, Point, Size,
+    runtime::{wait, window_proc},
+};
 
 pub trait AsRawWindow {
     fn as_raw_window(&self) -> HWND;
@@ -326,7 +329,7 @@ fn register() -> io::Result<()> {
     let cls = WNDCLASSEXW {
         cbSize: std::mem::size_of::<WNDCLASSEXW>() as _,
         style: 0,
-        lpfnWndProc: Some(crate::window_proc),
+        lpfnWndProc: Some(window_proc),
         cbClsExtra: 0,
         cbWndExtra: 0,
         hInstance: unsafe { GetModuleHandleW(null()) },
