@@ -137,3 +137,7 @@ enable_log = ["compio/enable_log", "compio-log/enable_log"]
 
 once_cell_try = ["compio/once_cell_try", "cyper/once_cell_try"]
 nightly = ["compio/nightly", "cyper/nightly", "once_cell_try"]
+
+[profile.release]
+lto = true
+codegen-units = 1

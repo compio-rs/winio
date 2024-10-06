@@ -39,6 +39,9 @@ fn main() {
         build
             .files(sources.map(|s| format!("{}.cpp", s)))
             .includes(inc);
+        if std::env::var("PROFILE").as_deref() == Ok("release") {
+            build.flag("-flto").compiler("clang++");
+        }
         qbuild.cargo_link_libraries(&mut build);
         build.compile("winio");
     }
