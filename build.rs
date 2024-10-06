@@ -20,6 +20,7 @@ fn main() {
             "src/runtime/qt",
             "src/ui/qt/widget",
             "src/ui/qt/msgbox",
+            "src/ui/qt/filebox",
             "src/ui/qt/window",
             "src/ui/qt/button",
             "src/ui/qt/canvas",

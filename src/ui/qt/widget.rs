@@ -1,4 +1,4 @@
-use std::{cell::RefCell, ops::Deref, pin::Pin};
+use std::{cell::RefCell, pin::Pin};
 
 use cxx::{ExternType, UniquePtr, type_id};
 pub(crate) use ffi::*;
