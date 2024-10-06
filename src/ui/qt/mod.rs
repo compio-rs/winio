@@ -5,7 +5,7 @@ mod canvas;
 pub use canvas::*;
 
 mod widget;
-pub(crate) use widget::*;
+pub use widget::*;
 
 mod msgbox;
 pub use msgbox::*;

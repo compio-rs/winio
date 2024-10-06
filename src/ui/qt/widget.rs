@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, pin::Pin};
 
 use cxx::UniquePtr;
 
@@ -9,26 +9,41 @@ mod ffi {
 
         type QWidget;
 
-        fn x(&self) -> i32;
-        fn y(&self) -> i32;
+        fn x(self: &QWidget) -> i32;
+        fn y(self: &QWidget) -> i32;
         #[cxx_name = "move"]
-        fn move_(self: Pin<&mut Self>, x: i32, y: i32);
-        fn width(&self) -> i32;
-        fn height(&self) -> i32;
-        fn resize(self: Pin<&mut Self>, w: i32, h: i32);
+        fn move_(self: Pin<&mut QWidget>, x: i32, y: i32);
+        fn width(self: &QWidget) -> i32;
+        fn height(self: &QWidget) -> i32;
+        fn resize(self: Pin<&mut QWidget>, w: i32, h: i32);
 
         fn new_main_window() -> UniquePtr<QWidget>;
-        unsafe fn main_window_close_event(
-            window: Pin<&mut QWidget>,
+        unsafe fn main_window_register_resize_event(
+            w: Pin<&mut QWidget>,
+            callback: unsafe fn(*const u8, i32, i32),
+            data: *const u8,
+        );
+        unsafe fn main_window_register_move_event(
+            w: Pin<&mut QWidget>,
+            callback: unsafe fn(*const u8, i32, i32),
+            data: *const u8,
+        );
+        unsafe fn main_window_register_close_event(
+            w: Pin<&mut QWidget>,
             callback: unsafe fn(*const u8) -> bool,
             data: *const u8,
         );
 
         fn new_push_button(parent: Pin<&mut QWidget>) -> UniquePtr<QWidget>;
+        unsafe fn push_button_connect_clicked(
+            w: Pin<&mut QWidget>,
+            callback: unsafe fn(*const u8),
+            data: *const u8,
+        );
     }
 }
 
-pub use ffi::*;
+pub(crate) use ffi::*;
 
 use crate::{Point, Size};
 
@@ -41,6 +56,10 @@ impl Widget {
         Self {
             widget: RefCell::new(widget),
         }
+    }
+
+    pub(crate) fn pin_mut<T>(&self, f: impl Fn(Pin<&mut QWidget>) -> T) -> T {
+        f(self.widget.borrow_mut().pin_mut())
     }
 
     pub fn loc(&self) -> Point {
