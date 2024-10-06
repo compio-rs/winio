@@ -17,20 +17,20 @@ pub struct Window {
 
 impl Window {
     pub fn new() -> io::Result<Rc<Self>> {
-        let mut widget = super::new_main_window();
+        let mut widget = ffi::new_main_window();
         let widget = Rc::new_cyclic(move |this: &Weak<Self>| {
             unsafe {
-                super::main_window_register_resize_event(
+                ffi::main_window_register_resize_event(
                     widget.pin_mut(),
                     Self::on_resize,
                     this.clone().into_raw().cast(),
                 );
-                super::main_window_register_move_event(
+                ffi::main_window_register_move_event(
                     widget.pin_mut(),
                     Self::on_move,
                     this.clone().into_raw().cast(),
                 );
-                super::main_window_register_close_event(
+                ffi::main_window_register_close_event(
                     widget.pin_mut(),
                     Self::on_close,
                     this.clone().into_raw().cast(),
@@ -127,5 +127,31 @@ impl Deref for Window {
 
     fn deref(&self) -> &Self::Target {
         &self.widget
+    }
+}
+
+#[cxx::bridge]
+mod ffi {
+    unsafe extern "C++" {
+        include!("winio/src/ui/qt/window.hpp");
+
+        type QWidget = crate::QWidget;
+
+        fn new_main_window() -> UniquePtr<QWidget>;
+        unsafe fn main_window_register_resize_event(
+            w: Pin<&mut QWidget>,
+            callback: unsafe fn(*const u8, i32, i32),
+            data: *const u8,
+        );
+        unsafe fn main_window_register_move_event(
+            w: Pin<&mut QWidget>,
+            callback: unsafe fn(*const u8, i32, i32),
+            data: *const u8,
+        );
+        unsafe fn main_window_register_close_event(
+            w: Pin<&mut QWidget>,
+            callback: unsafe fn(*const u8) -> bool,
+            data: *const u8,
+        );
     }
 }

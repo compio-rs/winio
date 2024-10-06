@@ -16,7 +16,13 @@ fn main() {
         let qt_ver = build.version();
         assert_eq!(qt_ver.major, 6);
 
-        let sources = ["src/runtime/qt", "src/ui/qt/widget", "src/ui/qt/msgbox"];
+        let sources = [
+            "src/runtime/qt",
+            "src/ui/qt/widget",
+            "src/ui/qt/msgbox",
+            "src/ui/qt/window",
+            "src/ui/qt/button",
+        ];
 
         for s in sources {
             println!("cargo:rerun-if-changed={}.rs", s);

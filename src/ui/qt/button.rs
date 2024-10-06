@@ -13,10 +13,10 @@ pub struct Button {
 
 impl Button {
     pub fn new(parent: &Widget) -> io::Result<Rc<Self>> {
-        let mut widget = parent.pin_mut(super::new_push_button);
+        let mut widget = parent.pin_mut(ffi::new_push_button);
         let widget = Rc::new_cyclic(move |this: &Weak<Self>| {
             unsafe {
-                super::push_button_connect_clicked(
+                ffi::push_button_connect_clicked(
                     widget.pin_mut(),
                     Self::on_click,
                     this.clone().into_raw().cast(),
@@ -66,5 +66,21 @@ impl Button {
 
     pub async fn wait_click(&self) {
         self.on_click.wait().await
+    }
+}
+
+#[cxx::bridge]
+mod ffi {
+    unsafe extern "C++" {
+        include!("winio/src/ui/qt/button.hpp");
+
+        type QWidget = crate::QWidget;
+
+        fn new_push_button(parent: Pin<&mut QWidget>) -> UniquePtr<QWidget>;
+        unsafe fn push_button_connect_clicked(
+            w: Pin<&mut QWidget>,
+            callback: unsafe fn(*const u8),
+            data: *const u8,
+        );
     }
 }
