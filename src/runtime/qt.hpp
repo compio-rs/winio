@@ -13,10 +13,9 @@ struct WinioQtEventLoop {
     QSocketNotifier m_notifier;
 
     WinioQtEventLoop(rust::Vec<rust::String> args, int fd);
-    ~WinioQtEventLoop();
 
-    void process() const;
-    void process(int maxtime) const;
+    void process();
+    void process(int maxtime);
 };
 
 std::unique_ptr<WinioQtEventLoop> new_event_loop(rust::Vec<rust::String> args,

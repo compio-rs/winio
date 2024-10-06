@@ -1,4 +1,4 @@
-use std::{future::Future, time::Duration};
+use std::{cell::RefCell, future::Future, time::Duration};
 
 use compio::driver::AsRawFd;
 use cxx::UniquePtr;
@@ -12,22 +12,22 @@ mod ffi {
 
         fn new_event_loop(args: Vec<String>, fd: i32) -> UniquePtr<WinioQtEventLoop>;
 
-        fn process(&self);
+        fn process(self: Pin<&mut Self>);
         #[rust_name = "process_timeout"]
-        fn process(&self, maxtime: i32);
+        fn process(self: Pin<&mut Self>, maxtime: i32);
     }
 }
 
 pub struct Runtime {
     runtime: compio::runtime::Runtime,
-    event_loop: UniquePtr<ffi::WinioQtEventLoop>,
+    event_loop: RefCell<UniquePtr<ffi::WinioQtEventLoop>>,
 }
 
 impl Runtime {
     pub fn new() -> Self {
         let runtime = compio::runtime::Runtime::new().unwrap();
         let args = std::env::args().collect::<Vec<_>>();
-        let event_loop = ffi::new_event_loop(args, runtime.as_raw_fd());
+        let event_loop = RefCell::new(ffi::new_event_loop(args, runtime.as_raw_fd()));
 
         Self {
             runtime,
@@ -62,9 +62,12 @@ impl Runtime {
                 };
 
                 if let Some(timeout) = timeout {
-                    self.event_loop.process_timeout(timeout.as_millis() as _);
+                    self.event_loop
+                        .borrow_mut()
+                        .pin_mut()
+                        .process_timeout(timeout.as_millis() as _);
                 } else {
-                    self.event_loop.process();
+                    self.event_loop.borrow_mut().pin_mut().process();
                 }
             }
         })

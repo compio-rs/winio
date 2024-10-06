@@ -20,17 +20,22 @@ WinioQtEventLoop::WinioQtEventLoop(rust::Vec<rust::String> args, int fd)
       m_argc(m_args.size()), m_app{m_argc, (char **)m_args_ptr.data()},
       m_notifier{fd, QSocketNotifier::Read} {
     QApplication::setQuitOnLastWindowClosed(false);
-    QApplication::eventDispatcher()->registerSocketNotifier(&m_notifier);
+    auto dispatcher = QApplication::eventDispatcher();
+    dispatcher->registerSocketNotifier(&m_notifier);
 }
 
-WinioQtEventLoop::~WinioQtEventLoop() {
-    QApplication::eventDispatcher()->unregisterSocketNotifier(&m_notifier);
+void WinioQtEventLoop::process() {
+    auto dispatcher = QApplication::eventDispatcher();
+    dispatcher->processEvents(QEventLoop::ApplicationExec |
+                              QEventLoop::WaitForMoreEvents |
+                              QEventLoop::EventLoopExec);
 }
 
-void WinioQtEventLoop::process() const {
-    QApplication::processEvents(QEventLoop::AllEvents);
-}
-
-void WinioQtEventLoop::process(int maxtime) const {
-    QApplication::processEvents(QEventLoop::AllEvents, maxtime);
+void WinioQtEventLoop::process(int maxtime) {
+    auto dispatcher = QApplication::eventDispatcher();
+    auto id = dispatcher->registerTimer(maxtime, Qt::CoarseTimer, qApp);
+    dispatcher->processEvents(QEventLoop::ApplicationExec |
+                              QEventLoop::WaitForMoreEvents |
+                              QEventLoop::EventLoopExec);
+    dispatcher->unregisterTimer(id);
 }
