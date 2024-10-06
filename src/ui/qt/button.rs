@@ -50,11 +50,12 @@ impl Button {
     }
 
     pub fn text(&self) -> io::Result<String> {
-        Ok(self.widget.text())
+        Ok(self.widget.as_ref(ffi::push_button_get_text))
     }
 
     pub fn set_text(&self, s: impl AsRef<str>) -> io::Result<()> {
-        self.widget.set_text(s.as_ref());
+        self.widget
+            .pin_mut(|w| ffi::push_button_set_text(w, s.as_ref()));
         Ok(())
     }
 
@@ -83,5 +84,7 @@ mod ffi {
             callback: unsafe fn(*const u8),
             data: *const u8,
         );
+        fn push_button_get_text(w: &QWidget) -> String;
+        fn push_button_set_text(w: Pin<&mut QWidget>, s: &str);
     }
 }

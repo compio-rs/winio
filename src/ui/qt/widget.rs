@@ -1,4 +1,4 @@
-use std::{cell::RefCell, pin::Pin};
+use std::{cell::RefCell, ops::Deref, pin::Pin};
 
 use cxx::{ExternType, UniquePtr, type_id};
 pub(crate) use ffi::*;
@@ -16,7 +16,11 @@ impl Widget {
         }
     }
 
-    pub(crate) fn pin_mut<T>(&self, f: impl Fn(Pin<&mut QWidget>) -> T) -> T {
+    pub(crate) fn as_ref<T>(&self, f: impl FnOnce(&QWidget) -> T) -> T {
+        f(&self.widget.borrow())
+    }
+
+    pub(crate) fn pin_mut<T>(&self, f: impl FnOnce(Pin<&mut QWidget>) -> T) -> T {
         f(self.widget.borrow_mut().pin_mut())
     }
 

@@ -23,6 +23,7 @@ fn main() {
             "src/ui/qt/window",
             "src/ui/qt/button",
             "src/ui/qt/canvas",
+            "src/ui/qt/edit",
         ];
 
         for s in sources {
