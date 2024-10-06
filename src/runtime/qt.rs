@@ -10,9 +10,8 @@ mod ffi {
 
         type WinioQtEventLoop;
 
-        fn new_event_loop() -> UniquePtr<WinioQtEventLoop>;
+        fn new_event_loop(fd: i32) -> UniquePtr<WinioQtEventLoop>;
 
-        fn add_fd(&self, fd: i32);
         fn process(&self);
         #[rust_name = "process_timeout"]
         fn process(&self, maxtime: i32);
@@ -27,9 +26,7 @@ pub struct Runtime {
 impl Runtime {
     pub fn new() -> Self {
         let runtime = compio::runtime::Runtime::new().unwrap();
-        let event_loop = ffi::new_event_loop();
-
-        event_loop.add_fd(runtime.as_raw_fd());
+        let event_loop = ffi::new_event_loop(runtime.as_raw_fd());
 
         Self {
             runtime,

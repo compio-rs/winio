@@ -1,26 +1,26 @@
 #include "qt.hpp"
 
 #include <QAbstractEventDispatcher>
-#include <QSocketNotifier>
 
-std::unique_ptr<WinioQtEventLoop> new_event_loop() {
-    return std::make_unique<WinioQtEventLoop>();
+std::unique_ptr<WinioQtEventLoop> new_event_loop(int fd) {
+    return std::make_unique<WinioQtEventLoop>(fd);
 }
 
-WinioQtEventLoop::WinioQtEventLoop()
-    : m_argc(0), m_argv(nullptr), m_app{m_argc, m_argv} {
-    m_app.setQuitLockEnabled(true);
+WinioQtEventLoop::WinioQtEventLoop(int fd)
+    : m_argc(0), m_argv(nullptr), m_app{m_argc, m_argv},
+      m_notifier{fd, QSocketNotifier::Read} {
+    QApplication::setQuitOnLastWindowClosed(false);
+    QApplication::eventDispatcher()->registerSocketNotifier(&m_notifier);
 }
 
-void WinioQtEventLoop::add_fd(int fd) const {
-    auto notifier = QSocketNotifier{fd, QSocketNotifier::Read};
-    m_app.eventDispatcher()->registerSocketNotifier(&notifier);
+WinioQtEventLoop::~WinioQtEventLoop() {
+    QApplication::eventDispatcher()->unregisterSocketNotifier(&m_notifier);
 }
 
 void WinioQtEventLoop::process() const {
-    m_app.processEvents(QEventLoop::AllEvents);
+    QApplication::processEvents(QEventLoop::AllEvents);
 }
 
 void WinioQtEventLoop::process(int maxtime) const {
-    m_app.processEvents(QEventLoop::AllEvents, maxtime);
+    QApplication::processEvents(QEventLoop::AllEvents, maxtime);
 }

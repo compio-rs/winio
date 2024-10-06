@@ -18,6 +18,7 @@ pub struct Window {
 impl Window {
     pub fn new() -> io::Result<Rc<Self>> {
         let mut widget = super::new_main_window();
+        widget.pin_mut().show();
         let widget = Rc::new_cyclic(move |this: &Weak<Self>| {
             unsafe {
                 ffi::main_window_register_resize_event(
@@ -43,7 +44,6 @@ impl Window {
                 on_close: Callback::new(),
             }
         });
-        widget.widget.show();
         Ok(widget)
     }
 

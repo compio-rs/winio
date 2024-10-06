@@ -2,15 +2,10 @@
 #include <QApplication>
 
 bool is_dark() {
-    if (qApp) {
-        auto back = qApp->palette().color(QPalette::Window);
-        auto brightness =
-            back.redF() * 0.299 + back.greenF() * 0.587 + back.blueF() * 0.114;
-        if (brightness > 0.5) {
-            return true;
-        }
-    }
-    return false;
+    auto back = QApplication::palette().color(QPalette::Window);
+    auto brightness =
+        back.redF() * 0.299 + back.greenF() * 0.587 + back.blueF() * 0.114;
+    return brightness < 0.5;
 }
 
 rust::String widget_get_title(const QWidget &w) {

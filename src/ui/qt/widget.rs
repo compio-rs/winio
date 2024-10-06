@@ -100,7 +100,7 @@ mod ffi {
         fn height(self: &QWidget) -> i32;
         fn resize(self: Pin<&mut QWidget>, w: i32, h: i32);
         fn geometry(self: &QWidget) -> &QRect;
-        fn repaint(self: Pin<&mut QWidget>);
+        fn update(self: Pin<&mut QWidget>);
         fn show(self: Pin<&mut QWidget>);
 
         fn widget_get_title(w: &QWidget) -> String;

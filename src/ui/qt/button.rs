@@ -14,6 +14,7 @@ pub struct Button {
 impl Button {
     pub fn new(parent: &Widget) -> io::Result<Rc<Self>> {
         let mut widget = parent.pin_mut(ffi::new_push_button);
+        widget.pin_mut().show();
         let widget = Rc::new_cyclic(move |this: &Weak<Self>| {
             unsafe {
                 ffi::push_button_connect_clicked(

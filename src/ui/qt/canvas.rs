@@ -25,6 +25,7 @@ pub struct Canvas {
 impl Canvas {
     pub fn new(parent: &Widget) -> io::Result<Rc<Self>> {
         let mut widget = parent.pin_mut(ffi::new_canvas);
+        widget.pin_mut().show();
         let widget = Rc::new_cyclic(|this: &Weak<Self>| {
             unsafe {
                 ffi::canvas_register_paint_event(
@@ -78,7 +79,7 @@ impl Canvas {
     }
 
     pub fn redraw(&self) -> io::Result<()> {
-        self.widget.pin_mut(|w| w.repaint());
+        self.widget.pin_mut(|w| w.update());
         Ok(())
     }
 

@@ -1,7 +1,10 @@
 #include "window.hpp"
 
 WinioMainWindow::WinioMainWindow()
-    : QMainWindow(), m_close_callback(std::nullopt) {}
+    : QMainWindow(), m_resize_callback(std::nullopt),
+      m_move_callback(std::nullopt), m_close_callback(std::nullopt) {
+    setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
+}
 
 void WinioMainWindow::resizeEvent(QResizeEvent *event) {
     if (m_resize_callback) {
@@ -24,12 +27,14 @@ void WinioMainWindow::closeEvent(QCloseEvent *event) {
         auto &[callback, data] = *m_close_callback;
         if (callback(data)) {
             event->ignore();
+            return;
         }
     }
+    event->accept();
 }
 
 std::unique_ptr<QWidget> new_main_window() {
-    return std::make_unique<QMainWindow>();
+    return std::make_unique<WinioMainWindow>();
 }
 
 void main_window_register_resize_event(QWidget &w,
