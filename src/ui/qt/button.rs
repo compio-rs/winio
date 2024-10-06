@@ -30,20 +30,31 @@ impl Button {
         Ok(widget)
     }
 
-    pub fn loc(&self) -> Point {
-        self.widget.loc()
+    pub fn loc(&self) -> io::Result<Point> {
+        Ok(self.widget.loc())
     }
 
-    pub fn set_loc(&self, p: Point) {
+    pub fn set_loc(&self, p: Point) -> io::Result<()> {
         self.widget.set_loc(p);
+        Ok(())
     }
 
-    pub fn size(&self) -> Size {
-        self.widget.size()
+    pub fn size(&self) -> io::Result<Size> {
+        Ok(self.widget.size())
     }
 
-    pub fn set_size(&self, s: Size) {
+    pub fn set_size(&self, s: Size) -> io::Result<()> {
         self.widget.set_size(s);
+        Ok(())
+    }
+
+    pub fn text(&self) -> io::Result<String> {
+        Ok(self.widget.text())
+    }
+
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> io::Result<()> {
+        self.widget.set_text(s.as_ref());
+        Ok(())
     }
 
     fn on_click(this: *const u8) {

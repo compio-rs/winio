@@ -2,13 +2,16 @@
 #include <QMainWindow>
 #include <QMoveEvent>
 #include <QResizeEvent>
+#include <QString>
 #include <QWidget>
 #include <optional>
 #include <rust/cxx.h>
 #include <tuple>
 
-using ::QWidget;
-using c_void = void;
+bool is_dark();
+
+rust::String widget_get_title(QWidget const &w);
+void widget_set_title(QWidget &w, rust::Str s);
 
 template <typename T> struct callback_traits;
 
