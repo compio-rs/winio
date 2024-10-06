@@ -16,17 +16,18 @@ fn main() {
         let qt_ver = build.version();
         assert_eq!(qt_ver.major, 6);
 
-        println!("cargo:rerun-if-changed=src/runtime/qt.rs");
-        println!("cargo:rerun-if-changed=src/runtime/qt.cpp");
-        println!("cargo:rerun-if-changed=src/runtime/qt.hpp");
-        println!("cargo:rerun-if-changed=src/ui/qt/widget.rs");
-        println!("cargo:rerun-if-changed=src/ui/qt/widget.cpp");
-        println!("cargo:rerun-if-changed=src/ui/qt/widget.hpp");
+        let sources = ["src/runtime/qt", "src/ui/qt/widget", "src/ui/qt/msgbox"];
+
+        for s in sources {
+            println!("cargo:rerun-if-changed={}.rs", s);
+            println!("cargo:rerun-if-changed={}.cpp", s);
+            println!("cargo:rerun-if-changed={}.hpp", s);
+        }
 
         let inc = build.include_paths();
 
-        cxx_build::bridges(["src/runtime/qt.rs", "src/ui/qt/widget.rs"])
-            .files(["src/runtime/qt.cpp", "src/ui/qt/widget.cpp"])
+        cxx_build::bridges(sources.map(|s| format!("{}.rs", s)))
+            .files(sources.map(|s| format!("{}.cpp", s)))
             .includes(inc)
             .compile("winio");
     }

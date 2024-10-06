@@ -1,28 +1,17 @@
+#pragma once
+
+#include "callback.hpp"
 #include <QCloseEvent>
 #include <QMainWindow>
 #include <QMoveEvent>
 #include <QResizeEvent>
 #include <QString>
 #include <QWidget>
-#include <optional>
-#include <rust/cxx.h>
-#include <tuple>
 
 bool is_dark();
 
 rust::String widget_get_title(QWidget const &w);
 void widget_set_title(QWidget &w, rust::Str s);
-
-template <typename T> struct callback_traits;
-
-template <typename Ret, typename... Args> struct callback_traits<Ret(Args...)> {
-    using fn_type = rust::Fn<Ret(std::uint8_t const *, Args...)>;
-    using type = std::optional<std::tuple<fn_type, std::uint8_t const *>>;
-};
-
-template <typename T> using callback_t = typename callback_traits<T>::type;
-template <typename T>
-using callback_fn_t = typename callback_traits<T>::fn_type;
 
 struct WinioMainWindow : QMainWindow {
     callback_t<void(int, int)> m_resize_callback;
