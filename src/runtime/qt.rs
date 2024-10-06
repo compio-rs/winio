@@ -12,6 +12,7 @@ mod ffi {
 
         fn new_event_loop(args: Vec<String>, fd: i32) -> UniquePtr<WinioQtEventLoop>;
 
+        #[allow(dead_code)]
         fn process(self: Pin<&mut Self>);
         #[rust_name = "process_timeout"]
         fn process(self: Pin<&mut Self>, maxtime: i32);
@@ -61,14 +62,16 @@ impl Runtime {
                     self.runtime.current_timeout()
                 };
 
-                if let Some(timeout) = timeout {
-                    self.event_loop
-                        .borrow_mut()
-                        .pin_mut()
-                        .process_timeout(timeout.as_millis() as _);
-                } else {
-                    self.event_loop.borrow_mut().pin_mut().process();
-                }
+                // TODO: remove this workaround
+                let max_timeout = Duration::from_millis(100);
+                let timeout = timeout
+                    .map(|timeout| timeout.min(max_timeout))
+                    .unwrap_or(max_timeout);
+
+                self.event_loop
+                    .borrow_mut()
+                    .pin_mut()
+                    .process_timeout(timeout.as_millis() as _);
             }
         })
     }

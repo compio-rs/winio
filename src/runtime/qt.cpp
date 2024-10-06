@@ -20,8 +20,6 @@ WinioQtEventLoop::WinioQtEventLoop(rust::Vec<rust::String> args, int fd)
       m_argc(m_args.size()), m_app{m_argc, (char **)m_args_ptr.data()},
       m_notifier{fd, QSocketNotifier::Read} {
     QApplication::setQuitOnLastWindowClosed(false);
-    auto dispatcher = QApplication::eventDispatcher();
-    dispatcher->registerSocketNotifier(&m_notifier);
 }
 
 void WinioQtEventLoop::process() {
