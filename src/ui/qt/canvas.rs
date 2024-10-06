@@ -148,11 +148,89 @@ fn set_pen(painter: &mut UniquePtr<ffi::QPainter>, pen: impl Pen) {
         .setBrush(&ffi::new_brush(ffi::color_transparent()));
 }
 
+fn drawing_angle(angle: f64) -> i32 {
+    (-angle * 180.0 / std::f64::consts::PI * 16.0).round() as i32
+}
+
 impl DrawingContext {
+    pub fn draw_arc(&self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> io::Result<()> {
+        let mut painter = self.painter.borrow_mut();
+        set_pen(&mut painter, pen);
+        painter.pin_mut().drawArc(
+            &QRectF(rect),
+            drawing_angle(start),
+            drawing_angle(end - start),
+        );
+        Ok(())
+    }
+
+    pub fn fill_pie(&self, brush: impl Brush, rect: Rect, start: f64, end: f64) -> io::Result<()> {
+        let mut painter = self.painter.borrow_mut();
+        set_brush(&mut painter, brush);
+        painter.pin_mut().drawPie(
+            &QRectF(rect),
+            drawing_angle(start),
+            drawing_angle(end - start),
+        );
+        Ok(())
+    }
+
     pub fn draw_ellipse(&self, pen: impl Pen, rect: Rect) -> io::Result<()> {
         let mut painter = self.painter.borrow_mut();
         set_pen(&mut painter, pen);
         painter.pin_mut().drawEllipse(&QRectF(rect));
+        Ok(())
+    }
+
+    pub fn fill_ellipse(&self, brush: impl Brush, rect: Rect) -> io::Result<()> {
+        let mut painter = self.painter.borrow_mut();
+        set_brush(&mut painter, brush);
+        painter.pin_mut().drawEllipse(&QRectF(rect));
+        Ok(())
+    }
+
+    pub fn draw_line(&self, pen: impl Pen, start: Point, end: Point) -> io::Result<()> {
+        let mut painter = self.painter.borrow_mut();
+        set_pen(&mut painter, pen);
+        painter.pin_mut().drawLine(&QPointF(start), &QPointF(end));
+        Ok(())
+    }
+
+    pub fn draw_rect(&self, pen: impl Pen, rect: Rect) -> io::Result<()> {
+        let mut painter = self.painter.borrow_mut();
+        set_pen(&mut painter, pen);
+        painter.pin_mut().drawRect(&QRectF(rect));
+        Ok(())
+    }
+
+    pub fn fill_rect(&self, brush: impl Brush, rect: Rect) -> io::Result<()> {
+        let mut painter = self.painter.borrow_mut();
+        set_brush(&mut painter, brush);
+        painter.pin_mut().drawRect(&QRectF(rect));
+        Ok(())
+    }
+
+    pub fn draw_round_rect(&self, pen: impl Pen, rect: Rect, round: Size) -> io::Result<()> {
+        let mut painter = self.painter.borrow_mut();
+        set_pen(&mut painter, pen);
+        painter.pin_mut().drawRoundedRect(
+            &QRectF(rect),
+            round.width,
+            round.height,
+            QtSizeMode::AbsoluteSize,
+        );
+        Ok(())
+    }
+
+    pub fn fill_round_rect(&self, brush: impl Brush, rect: Rect, round: Size) -> io::Result<()> {
+        let mut painter = self.painter.borrow_mut();
+        set_brush(&mut painter, brush);
+        painter.pin_mut().drawRoundedRect(
+            &QRectF(rect),
+            round.width,
+            round.height,
+            QtSizeMode::AbsoluteSize,
+        );
         Ok(())
     }
 
@@ -251,6 +329,17 @@ unsafe impl ExternType for QtMouseButton {
     type Kind = cxx::kind::Trivial;
 }
 
+#[repr(i32)]
+pub enum QtSizeMode {
+    AbsoluteSize,
+    RelativeSize,
+}
+
+unsafe impl ExternType for QtSizeMode {
+    type Id = type_id!("QtSizeMode");
+    type Kind = cxx::kind::Trivial;
+}
+
 #[derive(PartialEq, Eq, Clone, Copy)]
 #[repr(i32)]
 pub enum Spec {
@@ -327,6 +416,14 @@ unsafe impl ExternType for QRectF {
 }
 
 #[repr(transparent)]
+pub struct QPointF(Point);
+
+unsafe impl ExternType for QPointF {
+    type Id = type_id!("QPointF");
+    type Kind = cxx::kind::Trivial;
+}
+
+#[repr(transparent)]
 pub struct QSizeF(Size);
 
 unsafe impl ExternType for QSizeF {
@@ -367,14 +464,27 @@ mod ffi {
         type QPainter;
         type QColor = super::QColor;
         type QRectF = super::QRectF;
+        type QPointF = super::QPointF;
         type QSizeF = super::QSizeF;
+        type QtSizeMode = super::QtSizeMode;
 
         fn alpha(self: &QColor) -> i32;
         fn red(self: &QColor) -> i32;
         fn green(self: &QColor) -> i32;
         fn blue(self: &QColor) -> i32;
 
+        fn drawArc(self: Pin<&mut QPainter>, rectangle: &QRectF, start: i32, span: i32);
+        fn drawPie(self: Pin<&mut QPainter>, rectangle: &QRectF, start: i32, span: i32);
         fn drawEllipse(self: Pin<&mut QPainter>, rectangle: &QRectF);
+        fn drawLine(self: Pin<&mut QPainter>, p1: &QPointF, p2: &QPointF);
+        fn drawRect(self: Pin<&mut QPainter>, rectangle: &QRectF);
+        fn drawRoundedRect(
+            self: Pin<&mut QPainter>,
+            rectangle: &QRectF,
+            xr: f64,
+            yr: f64,
+            mode: QtSizeMode,
+        );
 
         fn canvas_new_painter(w: Pin<&mut QWidget>) -> UniquePtr<QPainter>;
         fn painter_set_font(

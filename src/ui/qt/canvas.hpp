@@ -8,6 +8,7 @@
 #include <memory>
 
 using QtMouseButton = Qt::MouseButton;
+using QtSizeMode = Qt::SizeMode;
 
 struct WinioCanvas : public QWidget {
     callback_t<void()> m_paint_callback;
