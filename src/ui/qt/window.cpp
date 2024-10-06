@@ -4,24 +4,24 @@ WinioMainWindow::WinioMainWindow()
     : QMainWindow(), m_close_callback(std::nullopt) {}
 
 void WinioMainWindow::resizeEvent(QResizeEvent *event) {
-    if (m_resize_callback.has_value()) {
-        auto &[callback, data] = m_resize_callback.value();
+    if (m_resize_callback) {
+        auto &[callback, data] = *m_resize_callback;
         auto size = event->size();
         callback(data, size.width(), size.height());
     }
 }
 
 void WinioMainWindow::moveEvent(QMoveEvent *event) {
-    if (m_move_callback.has_value()) {
-        auto &[callback, data] = m_move_callback.value();
+    if (m_move_callback) {
+        auto &[callback, data] = *m_move_callback;
         auto pos = event->pos();
         callback(data, pos.x(), pos.y());
     }
 }
 
 void WinioMainWindow::closeEvent(QCloseEvent *event) {
-    if (m_close_callback.has_value()) {
-        auto &[callback, data] = m_close_callback.value();
+    if (m_close_callback) {
+        auto &[callback, data] = *m_close_callback;
         if (callback(data)) {
             event->ignore();
         }

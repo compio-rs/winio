@@ -17,7 +17,7 @@ pub struct Window {
 
 impl Window {
     pub fn new() -> io::Result<Rc<Self>> {
-        let mut widget = ffi::new_main_window();
+        let mut widget = super::new_main_window();
         let widget = Rc::new_cyclic(move |this: &Weak<Self>| {
             unsafe {
                 ffi::main_window_register_resize_event(
@@ -43,6 +43,7 @@ impl Window {
                 on_close: Callback::new(),
             }
         });
+        widget.widget.show();
         Ok(widget)
     }
 
@@ -80,7 +81,7 @@ impl Window {
         Ok(self.widget.text())
     }
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) -> io::Result<()> {
+    pub fn set_text(&self, s: impl AsRef<str>) -> io::Result<()> {
         self.widget.set_text(s.as_ref());
         Ok(())
     }
@@ -137,7 +138,6 @@ mod ffi {
 
         type QWidget = crate::QWidget;
 
-        fn new_main_window() -> UniquePtr<QWidget>;
         unsafe fn main_window_register_resize_event(
             w: Pin<&mut QWidget>,
             callback: unsafe fn(*const u8, i32, i32),

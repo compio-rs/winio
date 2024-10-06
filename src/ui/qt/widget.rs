@@ -20,6 +20,11 @@ impl Widget {
         f(self.widget.borrow_mut().pin_mut())
     }
 
+    pub fn show(&self) {
+        let mut widget = self.widget.borrow_mut();
+        widget.pin_mut().show();
+    }
+
     pub fn loc(&self) -> Point {
         let widget = self.widget.borrow();
         Point::new(widget.x() as _, widget.y() as _)
@@ -85,7 +90,6 @@ mod ffi {
         type QWidget;
         type QRect = super::QRect;
 
-        #[allow(dead_code)]
         fn new_main_window() -> UniquePtr<QWidget>;
 
         fn x(self: &QWidget) -> i32;
@@ -96,6 +100,8 @@ mod ffi {
         fn height(self: &QWidget) -> i32;
         fn resize(self: Pin<&mut QWidget>, w: i32, h: i32);
         fn geometry(self: &QWidget) -> &QRect;
+        fn repaint(self: Pin<&mut QWidget>);
+        fn show(self: Pin<&mut QWidget>);
 
         fn widget_get_title(w: &QWidget) -> String;
         fn widget_set_title(w: Pin<&mut QWidget>, s: &str);

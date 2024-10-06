@@ -10,10 +10,10 @@ fn main() {
 
     #[cfg(feature = "qt")]
     if target_os.as_deref() != Ok("windows") && target_os.as_deref() != Ok("macos") {
-        let build =
+        let qbuild =
             qt_build_utils::QtBuild::new(vec!["Core".into(), "Gui".into(), "Widgets".into()])
                 .unwrap();
-        let qt_ver = build.version();
+        let qt_ver = qbuild.version();
         assert_eq!(qt_ver.major, 6);
 
         let sources = [
@@ -22,6 +22,7 @@ fn main() {
             "src/ui/qt/msgbox",
             "src/ui/qt/window",
             "src/ui/qt/button",
+            "src/ui/qt/canvas",
         ];
 
         for s in sources {
@@ -30,11 +31,13 @@ fn main() {
             println!("cargo:rerun-if-changed={}.hpp", s);
         }
 
-        let inc = build.include_paths();
+        let inc = qbuild.include_paths();
 
-        cxx_build::bridges(sources.map(|s| format!("{}.rs", s)))
+        let mut build = cxx_build::bridges(sources.map(|s| format!("{}.rs", s)));
+        build
             .files(sources.map(|s| format!("{}.cpp", s)))
-            .includes(inc)
-            .compile("winio");
+            .includes(inc);
+        qbuild.cargo_link_libraries(&mut build);
+        build.compile("winio");
     }
 }

@@ -52,7 +52,7 @@ impl Button {
         Ok(self.widget.text())
     }
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) -> io::Result<()> {
+    pub fn set_text(&self, s: impl AsRef<str>) -> io::Result<()> {
         self.widget.set_text(s.as_ref());
         Ok(())
     }

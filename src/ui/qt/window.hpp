@@ -8,7 +8,7 @@
 #include <QWidget>
 #include <memory>
 
-struct WinioMainWindow : QMainWindow {
+struct WinioMainWindow : public QMainWindow {
     callback_t<void(int, int)> m_resize_callback;
     callback_t<void(int, int)> m_move_callback;
     callback_t<bool()> m_close_callback;
