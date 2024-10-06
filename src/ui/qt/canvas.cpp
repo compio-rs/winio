@@ -74,30 +74,31 @@ std::unique_ptr<QPainter> canvas_new_painter(QWidget &w) {
     return std::make_unique<QPainter>(&w);
 }
 
-void painter_set_solid_brush(QPainter &p, QColor c) {
-    auto brush = QBrush{c};
-    p.setPen(Qt::transparent);
-    p.setBrush(brush);
-}
-
-void painter_set_color_pen(QPainter &p, QColor c, double width) {
-    auto pen = QPen{c, width};
-    p.setPen(pen);
-    p.setBrush(Qt::transparent);
-}
-
-QSizeF painter_set_font(QPainter &p, rust::Str family, double size, bool italic,
-                        bool bold, rust::Str text) {
+void painter_set_font(QPainter &p, rust::Str family, double size, bool italic,
+                      bool bold) {
     auto font = QFont{QString::fromUtf8(family.data(), family.size()), -1,
                       bold ? QFont::Bold : QFont::Normal, italic};
     font.setPixelSize((int)size);
     p.setFont(font);
+}
 
-    auto fm = QFontMetricsF{font};
-    return {fm.horizontalAdvance(QString::fromUtf8(text.data(), text.size())),
-            fm.height()};
+QSizeF painter_measure_text(QPainter &p, QRectF rect, rust::Str text) {
+    auto r = p.boundingRect(rect, QString::fromUtf8(text.data(), text.size()));
+    return r.size();
 }
 
 void painter_draw_text(QPainter &p, QRectF rect, rust::Str text) {
-    p.drawText(rect, QString::fromUtf8(text.data(), text.size()));
+    QTextOption option{};
+    // option.setWrapMode(QTextOption::NoWrap);
+    p.drawText(rect, QString::fromUtf8(text.data(), text.size()), option);
+}
+
+QColor color_transparent() { return QColor{Qt::transparent}; }
+
+std::unique_ptr<QBrush> new_brush(QColor c) {
+    return std::make_unique<QBrush>(c);
+}
+
+std::unique_ptr<QPen> new_pen(QBrush const &b, double width) {
+    return std::make_unique<QPen>(b, width);
 }

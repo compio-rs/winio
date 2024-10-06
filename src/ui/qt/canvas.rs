@@ -2,7 +2,6 @@ use std::{
     cell::RefCell,
     io,
     mem::ManuallyDrop,
-    pin::Pin,
     rc::{Rc, Weak},
 };
 
@@ -115,6 +114,7 @@ impl Canvas {
         self.on_paint.wait().await;
         Ok(DrawingContext {
             painter: RefCell::new(self.widget.pin_mut(ffi::canvas_new_painter)),
+            size: self.widget.size(),
         })
     }
 
@@ -133,20 +133,25 @@ impl Canvas {
 
 pub struct DrawingContext {
     painter: RefCell<UniquePtr<ffi::QPainter>>,
+    size: Size,
 }
 
-fn set_brush(painter: Pin<&mut ffi::QPainter>, brush: impl Brush) {
-    brush.set(painter);
+fn set_brush(painter: &mut UniquePtr<ffi::QPainter>, brush: impl Brush) {
+    painter.pin_mut().setBrush(&brush.create());
+    painter.pin_mut().setPen_color(&ffi::color_transparent());
 }
 
-fn set_pen(painter: Pin<&mut ffi::QPainter>, pen: impl Pen) {
-    pen.set(painter);
+fn set_pen(painter: &mut UniquePtr<ffi::QPainter>, pen: impl Pen) {
+    painter.pin_mut().setPen(&pen.create());
+    painter
+        .pin_mut()
+        .setBrush(&ffi::new_brush(ffi::color_transparent()));
 }
 
 impl DrawingContext {
     pub fn draw_ellipse(&self, pen: impl Pen, rect: Rect) -> io::Result<()> {
         let mut painter = self.painter.borrow_mut();
-        set_pen(painter.pin_mut(), pen);
+        set_pen(&mut painter, pen);
         painter.pin_mut().drawEllipse(&QRectF(rect));
         Ok(())
     }
@@ -160,15 +165,15 @@ impl DrawingContext {
     ) -> io::Result<()> {
         let text = text.as_ref();
         let mut painter = self.painter.borrow_mut();
-        let size = ffi::painter_set_font(
+        ffi::painter_set_font(
             painter.pin_mut(),
             &font.family,
             font.size,
             font.italic,
             font.bold,
-            text,
-        )
-        .0;
+        );
+        let rect = Rect::new(Point::zero(), self.size);
+        let size = ffi::painter_measure_text(painter.pin_mut(), QRectF(rect), text).0;
         let mut rect = Rect::new(pos, size);
         match font.halign {
             HAlign::Center => rect.origin.x -= rect.width() / 2.0,
@@ -181,41 +186,42 @@ impl DrawingContext {
             _ => {}
         }
 
-        set_brush(painter.pin_mut(), brush);
+        set_pen(&mut painter, BrushPen::new(brush, 1.0));
         ffi::painter_draw_text(painter.pin_mut(), QRectF(rect), text);
         Ok(())
     }
 }
 
 pub trait Brush {
-    fn set(&self, painter: Pin<&mut ffi::QPainter>);
+    fn create(&self) -> UniquePtr<ffi::QBrush>;
 }
 
 impl<B: Brush> Brush for &'_ B {
-    fn set(&self, painter: Pin<&mut ffi::QPainter>) {
-        (**self).set(painter)
+    fn create(&self) -> UniquePtr<ffi::QBrush> {
+        (**self).create()
     }
 }
 
 impl Brush for SolidColorBrush {
-    fn set(&self, painter: Pin<&mut ffi::QPainter>) {
-        ffi::painter_set_solid_brush(painter, self.color.into());
+    fn create(&self) -> UniquePtr<ffi::QBrush> {
+        ffi::new_brush(self.color.into())
     }
 }
 
 pub trait Pen {
-    fn set(&self, painter: Pin<&mut ffi::QPainter>);
+    fn create(&self) -> UniquePtr<ffi::QPen>;
 }
 
 impl<P: Pen> Pen for &'_ P {
-    fn set(&self, painter: Pin<&mut ffi::QPainter>) {
-        (**self).set(painter)
+    fn create(&self) -> UniquePtr<ffi::QPen> {
+        (**self).create()
     }
 }
 
-impl Pen for BrushPen<SolidColorBrush> {
-    fn set(&self, painter: Pin<&mut ffi::QPainter>) {
-        ffi::painter_set_color_pen(painter, self.brush.color.into(), self.width);
+impl<B: Brush> Pen for BrushPen<B> {
+    fn create(&self) -> UniquePtr<ffi::QPen> {
+        let brush = self.brush.create();
+        ffi::new_pen(&brush, self.width)
     }
 }
 
@@ -371,16 +377,26 @@ mod ffi {
         fn drawEllipse(self: Pin<&mut QPainter>, rectangle: &QRectF);
 
         fn canvas_new_painter(w: Pin<&mut QWidget>) -> UniquePtr<QPainter>;
-        fn painter_set_solid_brush(p: Pin<&mut QPainter>, c: QColor);
-        fn painter_set_color_pen(p: Pin<&mut QPainter>, c: QColor, width: f64);
         fn painter_set_font(
             p: Pin<&mut QPainter>,
             family: &str,
             size: f64,
             italic: bool,
             bold: bool,
-            text: &str,
-        ) -> QSizeF;
+        );
+        fn painter_measure_text(p: Pin<&mut QPainter>, rect: QRectF, text: &str) -> QSizeF;
         fn painter_draw_text(p: Pin<&mut QPainter>, rect: QRectF, text: &str);
+
+        type QBrush;
+        type QPen;
+
+        fn setBrush(self: Pin<&mut QPainter>, brush: &QBrush);
+        fn setPen(self: Pin<&mut QPainter>, pen: &QPen);
+        #[rust_name = "setPen_color"]
+        fn setPen(self: Pin<&mut QPainter>, color: &QColor);
+
+        fn color_transparent() -> QColor;
+        fn new_brush(c: QColor) -> UniquePtr<QBrush>;
+        fn new_pen(b: &QBrush, width: f64) -> UniquePtr<QPen>;
     }
 }

@@ -38,8 +38,11 @@ void canvas_register_release_event(QWidget &w,
                                    std::uint8_t const *data);
 
 std::unique_ptr<QPainter> canvas_new_painter(QWidget &w);
-void painter_set_solid_brush(QPainter &p, QColor c);
-void painter_set_color_pen(QPainter &p, QColor c, double width);
-QSizeF painter_set_font(QPainter &p, rust::Str family, double size, bool italic,
-                        bool bold, rust::Str text);
+void painter_set_font(QPainter &p, rust::Str family, double size, bool italic,
+                      bool bold);
+QSizeF painter_measure_text(QPainter &p, QRectF rect, rust::Str text);
 void painter_draw_text(QPainter &p, QRectF rect, rust::Str text);
+
+QColor color_transparent();
+std::unique_ptr<QBrush> new_brush(QColor c);
+std::unique_ptr<QPen> new_pen(QBrush const &b, double width);
