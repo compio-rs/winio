@@ -4,6 +4,7 @@ use std::{
     ptr::{null, null_mut},
 };
 
+use raw_window_handle::HasWindowHandle;
 use widestring::U16CString;
 use windows_sys::Win32::{
     Foundation::{E_INVALIDARG, E_OUTOFMEMORY, S_OK},
@@ -17,10 +18,10 @@ use windows_sys::Win32::{
     },
 };
 
-use crate::{AsRawWindow, MessageBoxButton, MessageBoxResponse, MessageBoxStyle, Window};
+use crate::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle, ui::unwrap_win32_handle};
 
 async fn msgbox_custom(
-    parent: Option<&Window>,
+    parent: Option<&impl HasWindowHandle>,
     msg: U16CString,
     title: U16CString,
     instr: U16CString,
@@ -29,7 +30,7 @@ async fn msgbox_custom(
     cbtns: Vec<CustomButton>,
 ) -> io::Result<MessageBoxResponse> {
     let parent_handle = parent
-        .map(|p| p.as_raw_window() as isize)
+        .map(|p| unwrap_win32_handle(p.window_handle()) as isize)
         .unwrap_or_default();
     let (res, result) = compio::runtime::spawn_blocking(move || {
         let cbtn_ptrs = cbtns
@@ -130,7 +131,10 @@ impl MessageBox {
         }
     }
 
-    pub async fn show(self, parent: Option<&Window>) -> io::Result<MessageBoxResponse> {
+    pub async fn show(
+        self,
+        parent: Option<&impl HasWindowHandle>,
+    ) -> io::Result<MessageBoxResponse> {
         msgbox_custom(
             parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )

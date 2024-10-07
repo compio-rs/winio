@@ -1,7 +1,8 @@
-use std::{io, mem::MaybeUninit, ptr::null, rc::Rc};
+use std::{io, marker::PhantomData, mem::MaybeUninit, ptr::null};
 
 use compio::driver::syscall;
 use futures_util::FutureExt;
+use raw_window_handle::HasWindowHandle;
 use widestring::U16CString;
 use windows::{
     Foundation::Numerics::Matrix3x2,
@@ -30,7 +31,6 @@ use windows::{
     core::Interface,
 };
 use windows_sys::Win32::{
-    Foundation::HWND,
     Graphics::Gdi::InvalidateRect,
     System::SystemServices::SS_OWNERDRAW,
     UI::{
@@ -44,8 +44,9 @@ use windows_sys::Win32::{
 
 use super::darkmode::is_dark_mode_allowed_for_app;
 use crate::{
-    AsRawWindow, BrushPen, Color, DrawingFont, HAlign, MouseButton, Point, Rect, RectBox,
-    RelativeToScreen, Rotation, Size, SolidColorBrush, VAlign, Widget,
+    BrushPen, Color, DrawingFont, HAlign, MouseButton, Point, Rect, RectBox, RelativeToScreen,
+    Rotation, Size, SolidColorBrush, VAlign,
+    ui::{Widget, unwrap_win32_handle},
 };
 
 #[derive(Debug)]
@@ -57,16 +58,16 @@ pub struct Canvas {
 }
 
 impl Canvas {
-    pub fn new(parent: impl AsRawWindow) -> io::Result<Rc<Self>> {
+    pub fn new(parent: impl HasWindowHandle) -> Self {
         let handle = Widget::new(
             WC_STATICW,
             WS_CHILD | WS_VISIBLE | SS_OWNERDRAW,
             0,
-            parent.as_raw_window(),
-        )?;
+            unwrap_win32_handle(parent.window_handle()),
+        );
         let d2d: ID2D1Factory =
-            unsafe { D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None)? };
-        let dwrite = unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED)? };
+            unsafe { D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None).unwrap() };
+        let dwrite = unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).unwrap() };
         let target = unsafe {
             d2d.CreateHwndRenderTarget(
                 &D2D1_RENDER_TARGET_PROPERTIES {
@@ -85,58 +86,60 @@ impl Canvas {
                     pixelSize: D2D_SIZE_U::default(),
                     presentOptions: D2D1_PRESENT_OPTIONS_NONE,
                 },
-            )?
+            )
+            .unwrap()
         };
-        Ok(Rc::new(Self {
+        Self {
             handle,
             d2d,
             dwrite,
             target,
-        }))
+        }
     }
 
-    pub fn loc(&self) -> io::Result<Point> {
+    pub fn loc(&self) -> Point {
         self.handle.loc()
     }
 
-    pub fn set_loc(&self, p: Point) -> io::Result<()> {
+    pub fn set_loc(&mut self, p: Point) {
         self.handle.set_loc(p)
     }
 
-    pub fn size(&self) -> io::Result<Size> {
+    pub fn size(&self) -> Size {
         self.handle.size()
     }
 
-    pub fn set_size(&self, v: Size) -> io::Result<()> {
+    pub fn set_size(&mut self, v: Size) {
         self.handle.set_size(v)
     }
 
-    pub fn redraw(&self) -> io::Result<()> {
+    pub fn redraw(&self) {
         syscall!(BOOL, unsafe {
-            InvalidateRect(self.as_raw_window(), null(), 0)
-        })?;
-        Ok(())
+            InvalidateRect(self.handle.as_raw_window(), null(), 0)
+        })
+        .unwrap();
     }
 
-    pub async fn wait_redraw(&self) -> io::Result<DrawingContext> {
+    pub async fn wait_redraw(&self) {
         loop {
             let msg = self.handle.wait_parent(WM_DRAWITEM).await;
             let ds = unsafe { &mut *(msg.lParam as *mut DRAWITEMSTRUCT) };
-            if ds.hwndItem == self.as_raw_window() {
+            if ds.hwndItem == self.handle.as_raw_window() {
                 break;
             }
         }
-        self.context()
     }
 
-    fn context(&self) -> io::Result<DrawingContext> {
+    pub fn context(&mut self) -> DrawingContext<'_> {
         unsafe {
             let dpi = self.handle.dpi();
-            let size = self.handle.size_l2d(self.handle.size()?);
-            self.target.Resize(&D2D_SIZE_U {
-                width: size.0 as u32,
-                height: size.1 as u32,
-            })?;
+            let size = self.handle.size_l2d(self.handle.size());
+            self.target
+                .Resize(&D2D_SIZE_U {
+                    width: size.0 as u32,
+                    height: size.1 as u32,
+                })
+                .unwrap();
             self.target.BeginDraw();
             self.target
                 .Clear(Some(&color_f(if is_dark_mode_allowed_for_app() {
@@ -145,12 +148,12 @@ impl Canvas {
                     Color::new(255, 255, 255, 255)
                 })));
             self.target.SetDpi(dpi as f32, dpi as f32);
-            let ctx = DrawingContext {
-                target: self.target.clone().cast()?,
+            DrawingContext {
+                target: self.target.clone().cast().unwrap(),
                 d2d: self.d2d.clone(),
                 dwrite: self.dwrite.clone(),
-            };
-            Ok(ctx)
+                _p: PhantomData,
+            }
         }
     }
 
@@ -170,23 +173,17 @@ impl Canvas {
         }
     }
 
-    pub async fn wait_mouse_move(&self) -> io::Result<Point> {
+    pub async fn wait_mouse_move(&self) -> Point {
         loop {
             let msg = self.handle.wait_parent(WM_MOUSEMOVE).await;
             let (x, y) = ((msg.lParam & 0xFFFF) as i32, (msg.lParam >> 16) as i32);
             let p = self.handle.point_d2l((x, y));
-            let loc = self.loc()?;
-            let size = self.size()?;
+            let loc = self.loc();
+            let size = self.size();
             if Rect::new(loc, size).contains(p) {
-                break Ok((p - loc).to_point());
+                break (p - loc).to_point();
             }
         }
-    }
-}
-
-impl AsRawWindow for Canvas {
-    fn as_raw_window(&self) -> HWND {
-        self.handle.as_raw_window()
     }
 }
 
@@ -222,10 +219,11 @@ fn rect_f(r: Rect) -> D2D_RECT_F {
     }
 }
 
-pub struct DrawingContext {
+pub struct DrawingContext<'a> {
     target: ID2D1RenderTarget,
     d2d: ID2D1Factory,
     dwrite: IDWriteFactory,
+    _p: PhantomData<&'a Canvas>,
 }
 
 #[inline]
@@ -250,7 +248,7 @@ fn ellipse(rect: Rect) -> D2D1_ELLIPSE {
     }
 }
 
-impl DrawingContext {
+impl DrawingContext<'_> {
     #[inline]
     fn get_brush(&self, brush: impl Brush, rect: Rect) -> io::Result<ID2D1Brush> {
         brush.create(&self.target, to_trans(rect))
@@ -476,7 +474,7 @@ impl DrawingContext {
     }
 }
 
-impl Drop for DrawingContext {
+impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
         unsafe { self.target.EndDraw(None, None) }.unwrap();
     }
