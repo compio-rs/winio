@@ -136,6 +136,12 @@ pub struct DrawingContext {
     size: Size,
 }
 
+impl Drop for DrawingContext {
+    fn drop(&mut self) {
+        self.painter.borrow_mut().pin_mut().end();
+    }
+}
+
 fn set_brush(painter: &mut UniquePtr<ffi::QPainter>, brush: impl Brush) {
     painter.pin_mut().setBrush(&brush.create());
     painter.pin_mut().setPen_color(&ffi::color_transparent());
@@ -485,6 +491,8 @@ mod ffi {
             yr: f64,
             mode: QtSizeMode,
         );
+
+        fn end(self: Pin<&mut QPainter>) -> bool;
 
         fn canvas_new_painter(w: Pin<&mut QWidget>) -> UniquePtr<QPainter>;
         fn painter_set_font(
