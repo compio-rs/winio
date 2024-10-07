@@ -295,7 +295,7 @@ impl DrawingContext {
     ) -> io::Result<()> {
         let layout = self.widget.create_pango_layout(Some(text.as_ref()));
         let mut desp = FontDescription::from_string(&font.family);
-        desp.set_size(font.size as i32 * PANGO_SCALE);
+        desp.set_size((font.size / 1.33) as i32 * PANGO_SCALE);
         if font.italic {
             desp.set_style(Style::Italic);
         }

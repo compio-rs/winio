@@ -6,8 +6,18 @@ cfg_if::cfg_if! {
         mod mac;
         pub use mac::*;
     } else {
-        mod gtk;
-        pub use gtk::*;
+        #[cfg(all(not(feature = "gtk"), not(feature = "qt")))]
+        compile_error!("You must choose one of these features: [\"gtk\", \"qt\"]");
+
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "qt")] {
+                mod qt;
+                pub use qt::*;
+            } else {
+                mod gtk;
+                pub use gtk::*;
+            }
+        }
     }
 }
 
