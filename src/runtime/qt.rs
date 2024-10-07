@@ -1,34 +1,34 @@
-use std::{cell::RefCell, future::Future, time::Duration};
+use std::{cell::Cell, future::Future, time::Duration};
 
-use compio::driver::AsRawFd;
 use cxx::UniquePtr;
 
 #[cxx::bridge]
 mod ffi {
+    extern "Rust" {
+        fn poll_runtime() -> bool;
+    }
     unsafe extern "C++" {
         include!("winio/src/runtime/qt.hpp");
 
         type WinioQtEventLoop;
 
-        fn new_event_loop(args: Vec<String>, fd: i32) -> UniquePtr<WinioQtEventLoop>;
+        fn new_event_loop(args: Vec<String>) -> UniquePtr<WinioQtEventLoop>;
 
-        #[allow(dead_code)]
-        fn process(self: Pin<&mut Self>);
-        #[rust_name = "process_timeout"]
-        fn process(self: Pin<&mut Self>, maxtime: i32);
+        fn exec();
     }
 }
 
 pub struct Runtime {
     runtime: compio::runtime::Runtime,
-    event_loop: RefCell<UniquePtr<ffi::WinioQtEventLoop>>,
+    #[allow(dead_code)]
+    event_loop: UniquePtr<ffi::WinioQtEventLoop>,
 }
 
 impl Runtime {
     pub fn new() -> Self {
         let runtime = compio::runtime::Runtime::new().unwrap();
         let args = std::env::args().collect::<Vec<_>>();
-        let event_loop = RefCell::new(ffi::new_event_loop(args, runtime.as_raw_fd()));
+        let event_loop = ffi::new_event_loop(args);
 
         Self {
             runtime,
@@ -42,37 +42,46 @@ impl Runtime {
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
         self.runtime.enter(|| {
-            let mut result = None;
-            unsafe {
-                self.runtime
-                    .spawn_unchecked(async { result = Some(future.await) })
-            }
-            .detach();
-            loop {
-                self.runtime.poll_with(Some(Duration::ZERO));
-
-                let remaining_tasks = self.runtime.run();
-                if let Some(result) = result.take() {
-                    break result;
+            let completed = Cell::new(false);
+            BLOCK_ON_COMPLETED.set(&completed, || {
+                let mut result = None;
+                unsafe {
+                    self.runtime.spawn_unchecked(async {
+                        result = Some(future.await);
+                        completed.set(true);
+                    })
                 }
-
-                let timeout = if remaining_tasks {
-                    Some(Duration::ZERO)
-                } else {
-                    self.runtime.current_timeout()
-                };
-
-                // TODO: remove this workaround
-                let max_timeout = Duration::from_millis(100);
-                let timeout = timeout
-                    .map(|timeout| timeout.min(max_timeout))
-                    .unwrap_or(max_timeout);
-
-                self.event_loop
-                    .borrow_mut()
-                    .pin_mut()
-                    .process_timeout(timeout.as_millis() as _);
-            }
+                .detach();
+                loop {
+                    ffi::exec();
+                    self.runtime.run();
+                    if let Some(result) = result.take() {
+                        break result;
+                    }
+                }
+            })
         })
     }
+}
+
+scoped_tls::scoped_thread_local!(static BLOCK_ON_COMPLETED: Cell<bool>);
+
+fn poll_runtime() -> bool {
+    const MAX_TIMEOUT: Duration = Duration::from_millis(100);
+
+    super::RUNTIME.with(|runtime| {
+        let remaining = runtime.runtime.run();
+        let timeout = if remaining {
+            Duration::ZERO
+        } else {
+            // wait for a short time
+            runtime
+                .runtime
+                .current_timeout()
+                .map(|t| t.min(MAX_TIMEOUT))
+                .unwrap_or(MAX_TIMEOUT)
+        };
+        runtime.runtime.poll_with(Some(timeout));
+        BLOCK_ON_COMPLETED.with(|b| b.get())
+    })
 }
