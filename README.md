@@ -1,7 +1,7 @@
 # Winio
 
 Winio is a single-threaded asynchronous GUI runtime.
-It is based on [`compio`](https://github.com/compio-rs/compio), and the GUI part is powered by Win32, GTK and Cocoa.
+It is based on [`compio`](https://github.com/compio-rs/compio), and the GUI part is powered by Win32, Qt, GTK and Cocoa.
 All IO requests could be issued in the same thread as GUI, without blocking the user interface!
 
 ## Quick start
