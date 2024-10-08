@@ -25,7 +25,7 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event) override;
 };
 
-std::unique_ptr<QWidget> new_canvas(QWidget &parent);
+std::unique_ptr<QWidget> new_canvas(QWidget *parent);
 void canvas_register_paint_event(QWidget &w, callback_fn_t<void()> callback,
                                  std::uint8_t const *data);
 void canvas_register_move_event(QWidget &w,

@@ -1,17 +1,9 @@
 #include "msgbox.hpp"
 
-static std::unique_ptr<QMessageBox> new_message_box_impl(QWidget *parent) {
+std::unique_ptr<QMessageBox> new_message_box(QWidget *parent) {
     auto box = std::make_unique<QMessageBox>(parent);
     box->setWindowModality(Qt::WindowModal);
     return box;
-}
-
-std::unique_ptr<QMessageBox> new_message_box() {
-    return new_message_box_impl(nullptr);
-}
-
-std::unique_ptr<QMessageBox> new_message_box(QWidget &parent) {
-    return new_message_box_impl(&parent);
 }
 
 void message_box_connect_finished(QMessageBox &b,

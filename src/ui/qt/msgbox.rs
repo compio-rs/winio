@@ -1,9 +1,9 @@
-use std::{collections::HashMap, io, mem::ManuallyDrop};
+use std::{collections::HashMap, mem::ManuallyDrop, ptr::null_mut};
 
 use cxx::{ExternType, type_id};
 use futures_channel::oneshot;
 
-use crate::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle, Window};
+use crate::{AsRawWindow, AsWindow, MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
 fn msgbox_finished(data: *const u8, res: i32) {
     if let Some(tx) = unsafe { (data.cast_mut() as *mut Option<oneshot::Sender<i32>>).as_mut() } {
@@ -14,19 +14,18 @@ fn msgbox_finished(data: *const u8, res: i32) {
 }
 
 async fn msgbox_custom(
-    parent: Option<&Window>,
+    parent: Option<&impl AsWindow>,
     msg: String,
     title: String,
     instr: String,
     style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
-) -> io::Result<MessageBoxResponse> {
-    let mut b = if let Some(parent) = parent {
-        parent.pin_mut(ffi::new_message_box_with_parent)
-    } else {
-        ffi::new_message_box()
-    };
+) -> MessageBoxResponse {
+    let parent = parent
+        .map(|p| p.as_window().as_raw_window())
+        .unwrap_or(null_mut());
+    let mut b = unsafe { ffi::new_message_box(parent) };
 
     let mut results = HashMap::<usize, MessageBoxResponse>::new();
     if btns.contains(MessageBoxButton::Ok) {
@@ -78,11 +77,10 @@ async fn msgbox_custom(
         );
     }
     b.pin_mut().open();
-    rx.await
-        .map_err(|_| io::Error::new(io::ErrorKind::Other, "cannot receive result"))?;
+    rx.await.unwrap();
 
     let key = b.clickedButton() as usize;
-    Ok(results[&key])
+    results[&key]
 }
 
 #[derive(Debug, Clone)]
@@ -113,7 +111,7 @@ impl MessageBox {
         }
     }
 
-    pub async fn show(self, parent: Option<&Window>) -> io::Result<MessageBoxResponse> {
+    pub async fn show(self, parent: Option<&impl AsWindow>) -> MessageBoxResponse {
         msgbox_custom(
             parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )
@@ -207,7 +205,7 @@ mod ffi {
         type QMessageBox;
         type QMessageBoxIcon = super::QMessageBoxIcon;
         type QMessageBoxStandardButton = super::QMessageBoxStandardButton;
-        type QWidget = crate::QWidget;
+        type QWidget = crate::ui::QWidget;
         type QPushButton;
         type QAbstractButton;
 
@@ -219,9 +217,7 @@ mod ffi {
         ) -> *mut QPushButton;
         fn clickedButton(self: &QMessageBox) -> *mut QAbstractButton;
 
-        fn new_message_box() -> UniquePtr<QMessageBox>;
-        #[rust_name = "new_message_box_with_parent"]
-        fn new_message_box(parent: Pin<&mut QWidget>) -> UniquePtr<QMessageBox>;
+        unsafe fn new_message_box(parent: *mut QWidget) -> UniquePtr<QMessageBox>;
         unsafe fn message_box_connect_finished(
             b: Pin<&mut QMessageBox>,
             callback: unsafe fn(*const u8, i32),

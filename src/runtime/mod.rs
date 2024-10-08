@@ -21,4 +21,4 @@ cfg_if::cfg_if! {
     }
 }
 
-scoped_tls::scoped_thread_local!(static RUNTIME: Runtime);
+scoped_tls::scoped_thread_local!(pub(crate) static RUNTIME: Runtime);

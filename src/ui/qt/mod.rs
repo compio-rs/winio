@@ -18,3 +18,15 @@ pub use button::*;
 
 mod edit;
 pub use edit::*;
+
+use crate::ColorTheme;
+
+pub fn color_theme() -> ColorTheme {
+    if is_dark() {
+        ColorTheme::Dark
+    } else {
+        ColorTheme::Light
+    }
+}
+
+pub type RawWindow = *mut QWidget;

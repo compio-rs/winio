@@ -39,8 +39,8 @@ void WinioCanvas::mouseReleaseEvent(QMouseEvent *event) {
     }
 }
 
-std::unique_ptr<QWidget> new_canvas(QWidget &parent) {
-    return std::make_unique<WinioCanvas>(&parent);
+std::unique_ptr<QWidget> new_canvas(QWidget *parent) {
+    return std::make_unique<WinioCanvas>(parent);
 }
 
 void canvas_register_paint_event(QWidget &w, callback_fn_t<void()> callback,

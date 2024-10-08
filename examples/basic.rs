@@ -132,7 +132,7 @@ impl Component for MainModel {
         } else {
             Color::new(0, 0, 0, 255)
         });
-        let ctx = self.canvas.context();
+        let mut ctx = self.canvas.context();
         ctx.draw_ellipse(
             BrushPen::new(brush.clone(), 1.0),
             Rect::new(Point::new(size.width / 4.0, size.height / 4.0), size / 2.0),

@@ -1,17 +1,9 @@
 #include "filebox.hpp"
 
-static std::unique_ptr<QFileDialog> new_file_dialog_impl(QWidget *parent) {
+std::unique_ptr<QFileDialog> new_file_dialog(QWidget *parent) {
     auto box = std::make_unique<QFileDialog>(parent);
     box->setWindowModality(Qt::WindowModal);
     return box;
-}
-
-std::unique_ptr<QFileDialog> new_file_dialog() {
-    return new_file_dialog_impl(nullptr);
-}
-
-std::unique_ptr<QFileDialog> new_file_dialog(QWidget &parent) {
-    return new_file_dialog_impl(&parent);
 }
 
 void file_dialog_connect_finished(QFileDialog &b,

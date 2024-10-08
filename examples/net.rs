@@ -153,7 +153,7 @@ impl Component for MainModel {
             .set_size(Size::new(csize.width, csize.height - bheight));
         self.canvas.set_loc(Point::new(0.0, bheight));
 
-        let ctx = self.canvas.context();
+        let mut ctx = self.canvas.context();
         let brush = SolidColorBrush::new(if self.is_dark {
             Color::new(255, 255, 255, 255)
         } else {
