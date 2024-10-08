@@ -313,7 +313,7 @@ pub(crate) unsafe extern "system" fn window_proc(
     }
 }
 
-unsafe fn refresh_font(handle: HWND) {
+pub(crate) unsafe fn refresh_font(handle: HWND) {
     let font = default_font(get_dpi_for_window(handle));
 
     unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {

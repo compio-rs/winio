@@ -99,8 +99,11 @@ impl Widget {
         if handle.is_null() {
             panic!("{:?}", std::io::Error::last_os_error());
         }
-        unsafe { control_use_dark_mode(handle) };
-        Self(unsafe { OwnedWindow::from_raw_window(handle) })
+        unsafe {
+            control_use_dark_mode(handle);
+            crate::runtime::refresh_font(handle);
+            Self(OwnedWindow::from_raw_window(handle))
+        }
     }
 
     pub fn as_raw_window(&self) -> HWND {

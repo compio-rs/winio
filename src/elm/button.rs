@@ -41,21 +41,21 @@ impl Component for Button {
     type Message = ();
     type Root = Window;
 
-    fn init(_counter: Self::Init, root: &Self::Root, _sender: ComponentSender<Self>) -> Self {
+    fn init(_counter: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
         let widget = ui::Button::new(root);
         Self { widget }
     }
 
-    async fn start(&mut self, sender: ComponentSender<Self>) {
+    async fn start(&mut self, sender: &ComponentSender<Self>) {
         loop {
             self.widget.wait_click().await;
-            sender.output(ButtonEvent::Click).await;
+            sender.output(ButtonEvent::Click);
         }
     }
 
-    async fn update(&mut self, _message: Self::Message, _sender: ComponentSender<Self>) -> bool {
+    async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
         false
     }
 
-    fn render(&mut self, _sender: ComponentSender<Self>) {}
+    fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }

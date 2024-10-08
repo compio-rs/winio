@@ -45,45 +45,45 @@ impl Component for Canvas {
     type Message = CanvasMessage;
     type Root = Window;
 
-    fn init(_counter: Self::Init, root: &Self::Root, _sender: ComponentSender<Self>) -> Self {
+    fn init(_counter: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
         let widget = ui::Canvas::new(root);
         Self { widget }
     }
 
-    async fn start(&mut self, sender: ComponentSender<Self>) {
+    async fn start(&mut self, sender: &ComponentSender<Self>) {
         let fut_redraw = async {
             loop {
                 self.widget.wait_redraw().await;
-                sender.output(CanvasEvent::Redraw).await;
+                sender.output(CanvasEvent::Redraw);
             }
         };
         let fut_move = async {
             loop {
                 let p = self.widget.wait_mouse_move().await;
-                sender.output(CanvasEvent::MouseMove(p)).await;
+                sender.output(CanvasEvent::MouseMove(p));
             }
         };
         let fut_down = async {
             loop {
                 let b = self.widget.wait_mouse_down().await;
-                sender.output(CanvasEvent::MouseDown(b)).await;
+                sender.output(CanvasEvent::MouseDown(b));
             }
         };
         let fut_up = async {
             loop {
                 let b = self.widget.wait_mouse_up().await;
-                sender.output(CanvasEvent::MouseUp(b)).await;
+                sender.output(CanvasEvent::MouseUp(b));
             }
         };
         futures_util::future::join4(fut_redraw, fut_move, fut_down, fut_up).await;
     }
 
-    async fn update(&mut self, message: Self::Message, _sender: ComponentSender<Self>) -> bool {
+    async fn update(&mut self, message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
         match message {
             CanvasMessage::Redraw => self.widget.redraw(),
         }
         false
     }
 
-    fn render(&mut self, _sender: ComponentSender<Self>) {}
+    fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }

@@ -60,37 +60,37 @@ impl Component for Window {
     type Message = ();
     type Root = ();
 
-    fn init(_counter: Self::Init, _root: &(), _sender: ComponentSender<Self>) -> Self {
+    fn init(_counter: Self::Init, _root: &(), _sender: &ComponentSender<Self>) -> Self {
         Self {
             widget: ui::Window::new(),
         }
     }
 
-    async fn start(&mut self, sender: ComponentSender<Self>) {
+    async fn start(&mut self, sender: &ComponentSender<Self>) {
         let fut_close = async {
             loop {
                 self.widget.wait_close().await;
-                sender.output(WindowEvent::Close).await;
+                sender.output(WindowEvent::Close);
             }
         };
         let fut_move = async {
             loop {
                 self.widget.wait_move().await;
-                sender.output(WindowEvent::Move).await;
+                sender.output(WindowEvent::Move);
             }
         };
         let fut_resize = async {
             loop {
                 self.widget.wait_size().await;
-                sender.output(WindowEvent::Resize).await;
+                sender.output(WindowEvent::Resize);
             }
         };
         futures_util::future::join3(fut_close, fut_move, fut_resize).await;
     }
 
-    async fn update(&mut self, _message: Self::Message, _sender: ComponentSender<Self>) -> bool {
+    async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
         false
     }
 
-    fn render(&mut self, _sender: ComponentSender<Self>) {}
+    fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
