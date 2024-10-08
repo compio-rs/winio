@@ -136,8 +136,7 @@ gtk = ["dep:gtk4", "dep:pangocairo"]
 qt = ["dep:cxx", "dep:cxx-build", "dep:qt-build-utils"]
 enable_log = ["compio/enable_log", "compio-log/enable_log"]
 
-once_cell_try = ["compio/once_cell_try", "cyper/once_cell_try"]
-nightly = ["compio/nightly", "cyper/nightly", "once_cell_try"]
+nightly = ["compio/nightly", "cyper/nightly"]
 
 [profile.release]
 lto = true
