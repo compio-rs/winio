@@ -109,7 +109,10 @@ impl App {
                 futures_util::select! {
                     _ = fut_start.fuse() => unreachable!(),
                     msg = fut_recv.fuse() => {
-                        let need_render = model.update(msg, &sender).await;
+                        let mut need_render = model.update(msg, &sender).await;
+                        while let Some(msg) = receiver.try_recv() {
+                            need_render |= model.update(msg, &sender).await;
+                        }
                         if need_render {
                             model.render(&sender);
                         }
