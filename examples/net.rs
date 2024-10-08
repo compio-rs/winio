@@ -174,8 +174,7 @@ impl Component for MainModel {
                 FetchStatus::Error(e) => e.as_str(),
                 FetchStatus::Timedout => "Timed out.",
             },
-        )
-        .unwrap();
+        );
     }
 }
 

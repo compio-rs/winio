@@ -96,7 +96,6 @@ impl Component for MainModel {
                     .custom_button(CustomButton::new(114, "114"))
                     .show(Some(&*self.window))
                     .await
-                    .unwrap()
                 {
                     MessageBoxResponse::Yes | MessageBoxResponse::Custom(114) => {
                         sender.output(());
@@ -137,8 +136,7 @@ impl Component for MainModel {
         ctx.draw_ellipse(
             BrushPen::new(brush.clone(), 1.0),
             Rect::new(Point::new(size.width / 4.0, size.height / 4.0), size / 2.0),
-        )
-        .unwrap();
+        );
         ctx.draw_str(
             &brush,
             DrawingFontBuilder::new()
@@ -149,7 +147,6 @@ impl Component for MainModel {
                 .build(),
             Point::new(size.width / 2.0, size.height / 2.0),
             format!("Hello world!\nRunning: {}s", self.counter),
-        )
-        .unwrap();
+        );
     }
 }

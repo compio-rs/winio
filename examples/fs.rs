@@ -113,7 +113,6 @@ impl Component for MainModel {
                     .add_filter(("All files", "*.*"))
                     .open(Some(&*self.window))
                     .await
-                    .unwrap()
                 {
                     spawn(fetch(p, sender.clone())).detach();
                 }
@@ -159,8 +158,7 @@ impl Component for MainModel {
                 FetchStatus::Complete(s) => s.as_str(),
                 FetchStatus::Error(e) => e.as_str(),
             },
-        )
-        .unwrap();
+        );
     }
 }
 

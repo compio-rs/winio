@@ -1,4 +1,4 @@
-use std::{io, marker::PhantomData, mem::MaybeUninit, ptr::null};
+use std::{marker::PhantomData, mem::MaybeUninit, ptr::null};
 
 use compio::driver::syscall;
 use futures_util::FutureExt;
@@ -250,25 +250,19 @@ fn ellipse(rect: Rect) -> D2D1_ELLIPSE {
 
 impl DrawingContext<'_> {
     #[inline]
-    fn get_brush(&self, brush: impl Brush, rect: Rect) -> io::Result<ID2D1Brush> {
+    fn get_brush(&self, brush: impl Brush, rect: Rect) -> ID2D1Brush {
         brush.create(&self.target, to_trans(rect))
     }
 
     #[inline]
-    fn get_pen(&self, pen: impl Pen, rect: Rect) -> io::Result<(ID2D1Brush, f32)> {
+    fn get_pen(&self, pen: impl Pen, rect: Rect) -> (ID2D1Brush, f32) {
         pen.create(&self.target, to_trans(rect))
     }
 
-    fn get_arc_geo(
-        &self,
-        rect: Rect,
-        start: f64,
-        end: f64,
-        close: bool,
-    ) -> io::Result<ID2D1Geometry> {
+    fn get_arc_geo(&self, rect: Rect, start: f64, end: f64, close: bool) -> ID2D1Geometry {
         unsafe {
-            let geo = self.d2d.CreatePathGeometry()?;
-            let sink = geo.Open()?;
+            let geo = self.d2d.CreatePathGeometry().unwrap();
+            let sink = geo.Open().unwrap();
             let (radius, centerp, startp, endp) = get_arc(rect, start, end);
             sink.BeginFigure(point_2f(startp), D2D1_FIGURE_BEGIN_HOLLOW);
             sink.AddArc(&D2D1_ARC_SEGMENT {
@@ -290,47 +284,43 @@ impl DrawingContext<'_> {
             } else {
                 D2D1_FIGURE_END_OPEN
             });
-            sink.Close()?;
-            Ok(geo.cast()?)
+            sink.Close().unwrap();
+            geo.cast().unwrap()
         }
     }
 
-    fn get_str_layout(
-        &self,
-        font: DrawingFont,
-        pos: Point,
-        s: &str,
-    ) -> io::Result<(Rect, IDWriteTextLayout)> {
+    fn get_str_layout(&self, font: DrawingFont, pos: Point, s: &str) -> (Rect, IDWriteTextLayout) {
         unsafe {
             let font_family = U16CString::from_str_truncate(font.family);
-            let format = self.dwrite.CreateTextFormat(
-                windows::core::PCWSTR::from_raw(font_family.as_ptr()),
-                None,
-                if font.bold {
-                    DWRITE_FONT_WEIGHT_BOLD
-                } else {
-                    DWRITE_FONT_WEIGHT_NORMAL
-                },
-                if font.italic {
-                    DWRITE_FONT_STYLE_ITALIC
-                } else {
-                    DWRITE_FONT_STYLE_NORMAL
-                },
-                DWRITE_FONT_STRETCH_NORMAL,
-                font.size as f32,
-                windows::core::w!(""),
-            )?;
+            let format = self
+                .dwrite
+                .CreateTextFormat(
+                    windows::core::PCWSTR::from_raw(font_family.as_ptr()),
+                    None,
+                    if font.bold {
+                        DWRITE_FONT_WEIGHT_BOLD
+                    } else {
+                        DWRITE_FONT_WEIGHT_NORMAL
+                    },
+                    if font.italic {
+                        DWRITE_FONT_STYLE_ITALIC
+                    } else {
+                        DWRITE_FONT_STYLE_NORMAL
+                    },
+                    DWRITE_FONT_STRETCH_NORMAL,
+                    font.size as f32,
+                    windows::core::w!(""),
+                )
+                .unwrap();
             let size = self.target.GetSize();
             let mut rect = Rect::new(pos, pos.to_vector().to_size());
             let s = U16CString::from_str_truncate(s);
-            let layout = self.dwrite.CreateTextLayout(
-                s.as_slice_with_nul(),
-                &format,
-                size.width,
-                size.height,
-            )?;
+            let layout = self
+                .dwrite
+                .CreateTextLayout(s.as_slice_with_nul(), &format, size.width, size.height)
+                .unwrap();
             let mut metrics = MaybeUninit::uninit();
-            layout.GetMetrics(metrics.as_mut_ptr())?;
+            layout.GetMetrics(metrics.as_mut_ptr()).unwrap();
             let metrics = metrics.assume_init();
             match font.halign {
                 HAlign::Center => {
@@ -351,78 +341,71 @@ impl DrawingContext<'_> {
                 _ => {}
             }
             rect.size = Size::new(metrics.width as f64, metrics.height as f64);
-            Ok((rect, layout))
+            (rect, layout)
         }
     }
 
-    pub fn draw_arc(&self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> io::Result<()> {
-        let geo = self.get_arc_geo(rect, start, end, false)?;
-        let (b, width) = self.get_pen(pen, rect)?;
+    pub fn draw_arc(&self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
+        let geo = self.get_arc_geo(rect, start, end, false);
+        let (b, width) = self.get_pen(pen, rect);
         unsafe {
             self.target.DrawGeometry(&geo, &b, width, None);
         }
-        Ok(())
     }
 
-    pub fn fill_pie(&self, brush: impl Brush, rect: Rect, start: f64, end: f64) -> io::Result<()> {
-        let geo = self.get_arc_geo(rect, start, end, true)?;
-        let b = self.get_brush(brush, rect)?;
+    pub fn fill_pie(&self, brush: impl Brush, rect: Rect, start: f64, end: f64) {
+        let geo = self.get_arc_geo(rect, start, end, true);
+        let b = self.get_brush(brush, rect);
         unsafe {
             self.target.FillGeometry(&geo, &b, None);
         }
-        Ok(())
     }
 
-    pub fn draw_ellipse(&self, pen: impl Pen, rect: Rect) -> io::Result<()> {
+    pub fn draw_ellipse(&self, pen: impl Pen, rect: Rect) {
         let e = ellipse(rect);
-        let (b, width) = self.get_pen(pen, rect)?;
+        let (b, width) = self.get_pen(pen, rect);
         unsafe {
             self.target.DrawEllipse(&e, &b, width, None);
         }
-        Ok(())
     }
 
-    pub fn fill_ellipse(&self, brush: impl Brush, rect: Rect) -> io::Result<()> {
+    pub fn fill_ellipse(&self, brush: impl Brush, rect: Rect) {
         let e = ellipse(rect);
-        let b = self.get_brush(brush, rect)?;
+        let b = self.get_brush(brush, rect);
         unsafe {
             self.target.FillEllipse(&e, &b);
         }
-        Ok(())
     }
 
-    pub fn draw_line(&self, pen: impl Pen, start: Point, end: Point) -> io::Result<()> {
+    pub fn draw_line(&self, pen: impl Pen, start: Point, end: Point) {
         let rect = RectBox::new(
             Point::new(start.x.min(end.x), start.y.min(end.y)),
             Point::new(start.x.max(end.x), start.y.max(end.y)),
         )
         .to_rect();
-        let (b, width) = self.get_pen(pen, rect)?;
+        let (b, width) = self.get_pen(pen, rect);
         unsafe {
             self.target
                 .DrawLine(point_2f(start), point_2f(end), &b, width, None);
         }
-        Ok(())
     }
 
-    pub fn draw_rect(&self, pen: impl Pen, rect: Rect) -> io::Result<()> {
-        let (b, width) = self.get_pen(pen, rect)?;
+    pub fn draw_rect(&self, pen: impl Pen, rect: Rect) {
+        let (b, width) = self.get_pen(pen, rect);
         unsafe {
             self.target.DrawRectangle(&rect_f(rect), &b, width, None);
         }
-        Ok(())
     }
 
-    pub fn fill_rect(&self, brush: impl Brush, rect: Rect) -> io::Result<()> {
-        let b = self.get_brush(brush, rect)?;
+    pub fn fill_rect(&self, brush: impl Brush, rect: Rect) {
+        let b = self.get_brush(brush, rect);
         unsafe {
             self.target.FillRectangle(&rect_f(rect), &b);
         }
-        Ok(())
     }
 
-    pub fn draw_round_rect(&self, pen: impl Pen, rect: Rect, round: Size) -> io::Result<()> {
-        let (b, width) = self.get_pen(pen, rect)?;
+    pub fn draw_round_rect(&self, pen: impl Pen, rect: Rect, round: Size) {
+        let (b, width) = self.get_pen(pen, rect);
         unsafe {
             self.target.DrawRoundedRectangle(
                 &D2D1_ROUNDED_RECT {
@@ -435,11 +418,10 @@ impl DrawingContext<'_> {
                 None,
             );
         }
-        Ok(())
     }
 
-    pub fn fill_round_rect(&self, brush: impl Brush, rect: Rect, round: Size) -> io::Result<()> {
-        let b = self.get_brush(brush, rect)?;
+    pub fn fill_round_rect(&self, brush: impl Brush, rect: Rect, round: Size) {
+        let b = self.get_brush(brush, rect);
         unsafe {
             self.target.FillRoundedRectangle(
                 &D2D1_ROUNDED_RECT {
@@ -450,7 +432,6 @@ impl DrawingContext<'_> {
                 &b,
             );
         }
-        Ok(())
     }
 
     pub fn draw_str(
@@ -459,9 +440,9 @@ impl DrawingContext<'_> {
         font: DrawingFont,
         pos: Point,
         text: impl AsRef<str>,
-    ) -> io::Result<()> {
-        let (rect, layout) = self.get_str_layout(font, pos, text.as_ref())?;
-        let b = self.get_brush(brush, rect)?;
+    ) {
+        let (rect, layout) = self.get_str_layout(font, pos, text.as_ref());
+        let b = self.get_brush(brush, rect);
         unsafe {
             self.target.DrawTextLayout(
                 point_2f(rect.origin),
@@ -470,7 +451,6 @@ impl DrawingContext<'_> {
                 D2D1_DRAW_TEXT_OPTIONS_NONE,
             );
         }
-        Ok(())
     }
 }
 
@@ -495,58 +475,40 @@ const BRUSH_PROPERTIES_DEFAULT: D2D1_BRUSH_PROPERTIES = D2D1_BRUSH_PROPERTIES {
 };
 
 pub trait Brush {
-    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToScreen)
-    -> io::Result<ID2D1Brush>;
+    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToScreen) -> ID2D1Brush;
 }
 
 impl<B: Brush> Brush for &'_ B {
-    fn create(
-        &self,
-        target: &ID2D1RenderTarget,
-        trans: RelativeToScreen,
-    ) -> io::Result<ID2D1Brush> {
+    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToScreen) -> ID2D1Brush {
         (**self).create(target, trans)
     }
 }
 
 impl Brush for SolidColorBrush {
-    fn create(
-        &self,
-        target: &ID2D1RenderTarget,
-        _trans: RelativeToScreen,
-    ) -> io::Result<ID2D1Brush> {
-        Ok(unsafe {
-            target.CreateSolidColorBrush(&color_f(self.color), Some(&BRUSH_PROPERTIES_DEFAULT))?
+    fn create(&self, target: &ID2D1RenderTarget, _trans: RelativeToScreen) -> ID2D1Brush {
+        unsafe {
+            target
+                .CreateSolidColorBrush(&color_f(self.color), Some(&BRUSH_PROPERTIES_DEFAULT))
+                .unwrap()
         }
-        .cast()?)
+        .cast()
+        .unwrap()
     }
 }
 
 pub trait Pen {
-    fn create(
-        &self,
-        target: &ID2D1RenderTarget,
-        trans: RelativeToScreen,
-    ) -> io::Result<(ID2D1Brush, f32)>;
+    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToScreen) -> (ID2D1Brush, f32);
 }
 
 impl<P: Pen> Pen for &'_ P {
-    fn create(
-        &self,
-        target: &ID2D1RenderTarget,
-        trans: RelativeToScreen,
-    ) -> io::Result<(ID2D1Brush, f32)> {
+    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToScreen) -> (ID2D1Brush, f32) {
         (**self).create(target, trans)
     }
 }
 
 impl<B: Brush> Pen for BrushPen<B> {
-    fn create(
-        &self,
-        target: &ID2D1RenderTarget,
-        trans: RelativeToScreen,
-    ) -> io::Result<(ID2D1Brush, f32)> {
-        let brush = self.brush.create(target, trans)?;
-        Ok((brush, self.width as _))
+    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToScreen) -> (ID2D1Brush, f32) {
+        let brush = self.brush.create(target, trans);
+        (brush, self.width as _)
     }
 }
