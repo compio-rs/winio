@@ -29,12 +29,17 @@ mod msgbox;
 
 mod canvas;
 
+mod window_handle;
+
 pub mod export {
     pub use super::{
         canvas::*,
         drawing::*,
         msgbox::*,
-        sys::{Brush, CustomButton, DrawingContext, FileBox, FileFilter, MessageBox, Pen},
+        sys::{
+            Brush, CustomButton, DrawingContext, FileBox, FileFilter, MessageBox, Pen, RawWindow,
+        },
+        window_handle::*,
     };
 }
 

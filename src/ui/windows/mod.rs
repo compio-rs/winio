@@ -31,3 +31,5 @@ pub fn color_theme() -> ColorTheme {
         }
     }
 }
+
+pub type RawWindow = windows_sys::Win32::Foundation::HWND;

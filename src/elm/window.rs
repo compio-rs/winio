@@ -1,6 +1,4 @@
-use raw_window_handle::{HandleError, HasWindowHandle, WindowHandle};
-
-use crate::{Component, ComponentSender, Point, Size, ui};
+use crate::{AsRawWindow, Component, ComponentSender, Point, RawWindow, Size, ui};
 
 pub struct Window {
     widget: ui::Window,
@@ -41,9 +39,9 @@ impl Window {
     }
 }
 
-impl HasWindowHandle for Window {
-    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
-        self.widget.window_handle()
+impl AsRawWindow for Window {
+    fn as_raw_window(&self) -> RawWindow {
+        self.widget.as_raw_window()
     }
 }
 

@@ -1,4 +1,3 @@
-use raw_window_handle::HasWindowHandle;
 use windows_sys::Win32::UI::{
     Controls::WC_BUTTONW,
     WindowsAndMessaging::{
@@ -6,10 +5,7 @@ use windows_sys::Win32::UI::{
     },
 };
 
-use crate::{
-    Point, Size,
-    ui::{Widget, unwrap_win32_handle},
-};
+use crate::{AsRawWindow, AsWindow, Point, Size, ui::Widget};
 
 #[derive(Debug)]
 pub struct Button {
@@ -17,12 +13,12 @@ pub struct Button {
 }
 
 impl Button {
-    pub fn new(parent: impl HasWindowHandle) -> Self {
+    pub fn new(parent: impl AsWindow) -> Self {
         let handle = Widget::new(
             WC_BUTTONW,
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON as u32,
             0,
-            unwrap_win32_handle(parent.window_handle()),
+            parent.as_window().as_raw_window(),
         );
         handle.set_size(handle.size_d2l((50, 14)));
         Self { handle }

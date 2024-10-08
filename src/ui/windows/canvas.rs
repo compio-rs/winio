@@ -2,7 +2,6 @@ use std::{marker::PhantomData, mem::MaybeUninit, ptr::null};
 
 use compio::driver::syscall;
 use futures_util::FutureExt;
-use raw_window_handle::HasWindowHandle;
 use widestring::U16CString;
 use windows::{
     Foundation::Numerics::Matrix3x2,
@@ -42,11 +41,10 @@ use windows_sys::Win32::{
     },
 };
 
-use super::darkmode::is_dark_mode_allowed_for_app;
 use crate::{
-    BrushPen, Color, DrawingFont, HAlign, MouseButton, Point, Rect, RectBox, RelativeToScreen,
-    Rotation, Size, SolidColorBrush, VAlign,
-    ui::{Widget, unwrap_win32_handle},
+    AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, HAlign, MouseButton, Point, Rect, RectBox,
+    RelativeToScreen, Rotation, Size, SolidColorBrush, VAlign,
+    ui::{Widget, darkmode::is_dark_mode_allowed_for_app},
 };
 
 #[derive(Debug)]
@@ -58,12 +56,12 @@ pub struct Canvas {
 }
 
 impl Canvas {
-    pub fn new(parent: impl HasWindowHandle) -> Self {
+    pub fn new(parent: impl AsWindow) -> Self {
         let handle = Widget::new(
             WC_STATICW,
             WS_CHILD | WS_VISIBLE | SS_OWNERDRAW,
             0,
-            unwrap_win32_handle(parent.window_handle()),
+            parent.as_window().as_raw_window(),
         );
         let d2d: ID2D1Factory =
             unsafe { D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None).unwrap() };

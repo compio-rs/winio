@@ -1,14 +1,10 @@
 use std::{
     mem::MaybeUninit,
-    num::NonZero,
     ptr::{null, null_mut},
     sync::OnceLock,
 };
 
 use compio::driver::syscall;
-use raw_window_handle::{
-    HandleError, HasWindowHandle, RawWindowHandle, Win32WindowHandle, WindowHandle,
-};
 use widestring::U16CString;
 use windows_sys::{
     Win32::{
@@ -28,23 +24,17 @@ use windows_sys::{
     w,
 };
 
-use super::{
-    darkmode::{
-        PreferredAppMode, control_use_dark_mode, set_preferred_app_mode, window_use_dark_mode,
-    },
-    dpi::{DpiAware, get_dpi_for_window},
-};
 use crate::{
-    Point, Size,
+    AsRawWindow, Point, Size,
     runtime::{wait, window_proc},
+    ui::{
+        RawWindow,
+        darkmode::{
+            PreferredAppMode, control_use_dark_mode, set_preferred_app_mode, window_use_dark_mode,
+        },
+        dpi::{DpiAware, get_dpi_for_window},
+    },
 };
-
-pub fn unwrap_win32_handle(handle: Result<WindowHandle<'_>, HandleError>) -> HWND {
-    match handle.unwrap().as_raw() {
-        RawWindowHandle::Win32(h) => h.hwnd.get() as _,
-        _ => unreachable!(),
-    }
-}
 
 #[derive(Debug)]
 pub struct OwnedWindow(HWND);
@@ -65,13 +55,9 @@ impl Drop for OwnedWindow {
     }
 }
 
-impl HasWindowHandle for OwnedWindow {
-    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
-        Ok(unsafe {
-            WindowHandle::borrow_raw(RawWindowHandle::Win32(Win32WindowHandle::new(
-                NonZero::new(self.0 as _).unwrap(),
-            )))
-        })
+impl AsRawWindow for OwnedWindow {
+    fn as_raw_window(&self) -> RawWindow {
+        self.0
     }
 }
 
@@ -282,9 +268,9 @@ impl Widget {
     }
 }
 
-impl HasWindowHandle for Widget {
-    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
-        self.0.window_handle()
+impl AsRawWindow for Widget {
+    fn as_raw_window(&self) -> RawWindow {
+        self.0.as_raw_window()
     }
 }
 
@@ -400,8 +386,8 @@ impl Window {
     }
 }
 
-impl HasWindowHandle for Window {
-    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
-        self.handle.window_handle()
+impl AsRawWindow for Window {
+    fn as_raw_window(&self) -> RawWindow {
+        self.handle.as_raw_window()
     }
 }

@@ -1,4 +1,3 @@
-use raw_window_handle::HasWindowHandle;
 use windows_sys::Win32::UI::{
     Controls::WC_EDITW,
     WindowsAndMessaging::{
@@ -7,10 +6,7 @@ use windows_sys::Win32::UI::{
     },
 };
 
-use crate::{
-    HAlign, Point, Size,
-    ui::{Widget, unwrap_win32_handle},
-};
+use crate::{AsRawWindow, AsWindow, HAlign, Point, Size, ui::Widget};
 
 #[derive(Debug)]
 pub struct Edit {
@@ -18,12 +14,12 @@ pub struct Edit {
 }
 
 impl Edit {
-    pub fn new(parent: impl HasWindowHandle) -> Self {
+    pub fn new(parent: impl AsWindow) -> Self {
         let handle = Widget::new(
             WC_EDITW,
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_LEFT as u32 | ES_AUTOHSCROLL as u32,
             WS_EX_CLIENTEDGE,
-            unwrap_win32_handle(parent.window_handle()),
+            parent.as_window().as_raw_window(),
         );
         handle.set_size(handle.size_d2l((100, 50)));
         Self { handle }

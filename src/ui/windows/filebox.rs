@@ -1,6 +1,5 @@
 use std::{panic::resume_unwind, path::PathBuf};
 
-use raw_window_handle::HasWindowHandle;
 use widestring::{U16CStr, U16CString};
 use windows::{
     Win32::{
@@ -14,7 +13,7 @@ use windows::{
     core::{HRESULT, Interface, PCWSTR},
 };
 
-use crate::ui::unwrap_win32_handle;
+use crate::{AsRawWindow, AsWindow};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileFilter {
@@ -77,9 +76,9 @@ impl FileBox {
         self
     }
 
-    pub async fn open(self, parent: Option<&impl HasWindowHandle>) -> Option<PathBuf> {
+    pub async fn open(self, parent: Option<&impl AsWindow>) -> Option<PathBuf> {
         let parent = parent
-            .map(|p| unwrap_win32_handle(p.window_handle()) as isize)
+            .map(|p| p.as_window().as_raw_window() as isize)
             .unwrap_or_default();
         compio::runtime::spawn_blocking(move || unsafe {
             let parent = HWND(parent as _);
@@ -89,9 +88,9 @@ impl FileBox {
         .unwrap_or_else(|e| resume_unwind(e))
     }
 
-    pub async fn open_multiple(self, parent: Option<&impl HasWindowHandle>) -> Vec<PathBuf> {
+    pub async fn open_multiple(self, parent: Option<&impl AsWindow>) -> Vec<PathBuf> {
         let parent = parent
-            .map(|p| unwrap_win32_handle(p.window_handle()) as isize)
+            .map(|p| p.as_window().as_raw_window() as isize)
             .unwrap_or_default();
         compio::runtime::spawn_blocking(move || unsafe {
             let parent = HWND(parent as _);
@@ -101,9 +100,9 @@ impl FileBox {
         .unwrap_or_else(|e| resume_unwind(e))
     }
 
-    pub async fn save(self, parent: Option<&impl HasWindowHandle>) -> Option<PathBuf> {
+    pub async fn save(self, parent: Option<&impl AsWindow>) -> Option<PathBuf> {
         let parent = parent
-            .map(|p| unwrap_win32_handle(p.window_handle()) as isize)
+            .map(|p| p.as_window().as_raw_window() as isize)
             .unwrap_or_default();
         compio::runtime::spawn_blocking(move || unsafe {
             let parent = HWND(parent as _);
