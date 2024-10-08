@@ -25,12 +25,14 @@ pub trait AsRawWindow {
 }
 
 impl AsRawWindow for RawWindow {
+    #[allow(clippy::clone_on_copy)]
     fn as_raw_window(&self) -> RawWindow {
         self.clone()
     }
 }
 
 impl AsRawWindow for BorrowedWindow<'_> {
+    #[allow(clippy::clone_on_copy)]
     fn as_raw_window(&self) -> RawWindow {
         self.handle.clone()
     }
