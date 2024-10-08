@@ -48,7 +48,10 @@ impl Widget {
         let geometry = self.widget.geometry();
         Rect::new(
             Point::new(geometry.x1 as _, geometry.y1 as _),
-            Size::new(geometry.x2 as _, geometry.y2 as _),
+            Size::new(
+                (geometry.x2 - geometry.x1) as _,
+                (geometry.y2 - geometry.y1) as _,
+            ),
         )
     }
 
