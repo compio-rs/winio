@@ -4,16 +4,16 @@ use compio::{fs::File, io::AsyncReadAtExt, runtime::spawn};
 use winio::{
     App, Button, ButtonEvent, Canvas, CanvasEvent, CanvasMessage, Child, Color, ColorTheme,
     Component, ComponentSender, DrawingFontBuilder, FileBox, HAlign, Point, Size, SolidColorBrush,
-    VAlign, Window, WindowEvent, block_on,
+    VAlign, Window, WindowEvent,
 };
 
 fn main() {
     #[cfg(feature = "enable_log")]
     tracing_subscriber::fmt()
-        .with_max_level(compio_log::Level::DEBUG)
+        .with_max_level(compio_log::Level::INFO)
         .init();
 
-    block_on(App::new("winio.fs").run::<MainModel>("Cargo.toml", &()));
+    App::new().run::<MainModel>("Cargo.toml", &())
 }
 
 struct MainModel {

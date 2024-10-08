@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use futures_channel::mpsc;
 use futures_util::{FutureExt, StreamExt};
 
@@ -81,36 +83,43 @@ impl<T: Component> ComponentReceiver<T> {
     }
 }
 
-#[derive(Debug)]
 pub struct App {
-    #[allow(dead_code)]
-    name: String,
+    runtime: Runtime,
 }
 
 impl App {
-    pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into() }
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        Self {
+            runtime: Runtime::new(),
+        }
     }
 
-    pub async fn run<T: Component>(&mut self, counter: T::Init, root: &T::Root) -> T::Event {
-        let (sender, mut receiver) = component_channel();
-        let mut model = T::init(counter, root, &sender);
-        loop {
-            let fut_start = model.start(&sender);
-            let fut_recv = receiver.recv();
-            futures_util::select! {
-                _ = fut_start.fuse() => unreachable!(),
-                msg = fut_recv.fuse() => {
-                    let need_render = model.update(msg, &sender).await;
-                    if need_render {
-                        model.render(&sender);
-                    }
-                    if let Some(e) = receiver.try_recv_output() {
-                        break e;
+    pub fn block_on<F: Future>(&self, future: F) -> F::Output {
+        self.runtime.block_on(future)
+    }
+
+    pub fn run<T: Component>(&mut self, counter: T::Init, root: &T::Root) -> T::Event {
+        self.block_on(async {
+            let (sender, mut receiver) = component_channel();
+            let mut model = T::init(counter, root, &sender);
+            loop {
+                let fut_start = model.start(&sender);
+                let fut_recv = receiver.recv();
+                futures_util::select! {
+                    _ = fut_start.fuse() => unreachable!(),
+                    msg = fut_recv.fuse() => {
+                        let need_render = model.update(msg, &sender).await;
+                        if need_render {
+                            model.render(&sender);
+                        }
+                        if let Some(e) = receiver.try_recv_output() {
+                            break e;
+                        }
                     }
                 }
             }
-        }
+        })
     }
 }
 
@@ -128,3 +137,5 @@ pub use edit::*;
 
 mod canvas;
 pub use canvas::*;
+
+use crate::runtime::Runtime;

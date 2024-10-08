@@ -1,20 +1,21 @@
 use std::time::Duration;
 
 use compio::{runtime::spawn, time::interval};
+use compio_log::info;
 use winio::{
     App, BrushPen, Canvas, CanvasEvent, CanvasMessage, Child, Color, ColorTheme, Component,
     ComponentSender, CustomButton, DrawingFontBuilder, HAlign, MessageBox, MessageBoxButton,
     MessageBoxResponse, MessageBoxStyle, MouseButton, Point, Rect, Size, SolidColorBrush, VAlign,
-    Window, WindowEvent, block_on,
+    Window, WindowEvent,
 };
 
 fn main() {
     #[cfg(feature = "enable_log")]
     tracing_subscriber::fmt()
-        .with_max_level(compio_log::Level::DEBUG)
+        .with_max_level(compio_log::Level::INFO)
         .init();
 
-    block_on(App::new("winio.basic").run::<MainModel>(0, &()));
+    App::new().run::<MainModel>(0, &());
 }
 
 struct MainModel {
@@ -106,12 +107,12 @@ impl Component for MainModel {
             }
             MainMessage::QueueRedraw => self.canvas.emit(CanvasMessage::Redraw).await,
             MainMessage::Redraw => true,
-            MainMessage::Mouse(b) => {
-                println!("{:?}", b);
+            MainMessage::Mouse(_b) => {
+                info!("{:?}", _b);
                 false
             }
-            MainMessage::MouseMove(p) => {
-                println!("{:?}", p);
+            MainMessage::MouseMove(_p) => {
+                info!("{:?}", _p);
                 false
             }
         }

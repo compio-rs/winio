@@ -5,16 +5,16 @@ use cyper::Client;
 use winio::{
     App, Button, ButtonEvent, Canvas, CanvasEvent, CanvasMessage, Child, Color, ColorTheme,
     Component, ComponentSender, DrawingFontBuilder, Edit, HAlign, Point, Size, SolidColorBrush,
-    VAlign, Window, WindowEvent, block_on,
+    VAlign, Window, WindowEvent,
 };
 
 fn main() {
     #[cfg(feature = "enable_log")]
     tracing_subscriber::fmt()
-        .with_max_level(compio_log::Level::TRACE)
+        .with_max_level(compio_log::Level::INFO)
         .init();
 
-    block_on(App::new("winio.net").run::<MainModel>("https://www.example.com/", &()));
+    App::new().run::<MainModel>("https://www.example.com/", &());
 }
 
 struct MainModel {

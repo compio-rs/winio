@@ -87,8 +87,12 @@ impl Runtime {
         }
     }
 
+    fn enter<T, F: FnOnce() -> T>(&self, f: F) -> T {
+        self.runtime.enter(|| RUNTIME.set(self, f))
+    }
+
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        self.runtime.enter(|| {
+        self.enter(|| {
             let mut result = None;
             unsafe {
                 self.runtime
@@ -230,7 +234,7 @@ pub(crate) unsafe extern "system" fn window_proc(
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
-    trace!("window_proc: {}, {}, {}, {}", handle, msg, wparam, lparam);
+    trace!("window_proc: {:p}, {}, {}, {}", handle, msg, wparam, lparam);
     let res = RUNTIME.with(|runtime| {
         let res = runtime.set_current_msg(handle, msg, wparam, lparam);
         runtime.runtime.run();
