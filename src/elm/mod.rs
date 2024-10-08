@@ -3,6 +3,8 @@ use std::future::Future;
 use futures_channel::mpsc;
 use futures_util::{FutureExt, StreamExt};
 
+use crate::runtime::Runtime;
+
 #[allow(async_fn_in_trait)]
 pub trait Component: Sized {
     type Init;
@@ -140,5 +142,3 @@ pub use edit::*;
 
 mod canvas;
 pub use canvas::*;
-
-use crate::runtime::Runtime;
