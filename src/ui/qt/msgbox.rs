@@ -14,7 +14,7 @@ fn msgbox_finished(data: *const u8, res: i32) {
 }
 
 async fn msgbox_custom(
-    parent: Option<&impl AsWindow>,
+    parent: Option<impl AsWindow>,
     msg: String,
     title: String,
     instr: String,
@@ -111,7 +111,7 @@ impl MessageBox {
         }
     }
 
-    pub async fn show(self, parent: Option<&impl AsWindow>) -> MessageBoxResponse {
+    pub async fn show(self, parent: Option<impl AsWindow>) -> MessageBoxResponse {
         msgbox_custom(
             parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )

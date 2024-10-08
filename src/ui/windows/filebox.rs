@@ -76,7 +76,7 @@ impl FileBox {
         self
     }
 
-    pub async fn open(self, parent: Option<&impl AsWindow>) -> Option<PathBuf> {
+    pub async fn open(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
         let parent = parent
             .map(|p| p.as_window().as_raw_window() as isize)
             .unwrap_or_default();
@@ -88,7 +88,7 @@ impl FileBox {
         .unwrap_or_else(|e| resume_unwind(e))
     }
 
-    pub async fn open_multiple(self, parent: Option<&impl AsWindow>) -> Vec<PathBuf> {
+    pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Vec<PathBuf> {
         let parent = parent
             .map(|p| p.as_window().as_raw_window() as isize)
             .unwrap_or_default();
@@ -100,7 +100,7 @@ impl FileBox {
         .unwrap_or_else(|e| resume_unwind(e))
     }
 
-    pub async fn save(self, parent: Option<&impl AsWindow>) -> Option<PathBuf> {
+    pub async fn save(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
         let parent = parent
             .map(|p| p.as_window().as_raw_window() as isize)
             .unwrap_or_default();

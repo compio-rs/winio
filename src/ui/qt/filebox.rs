@@ -66,21 +66,21 @@ impl FileBox {
         self
     }
 
-    pub async fn open(self, parent: Option<&impl AsWindow>) -> Option<PathBuf> {
+    pub async fn open(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
         self.filebox(parent, true, false).await.into_iter().next()
     }
 
-    pub async fn open_multiple(self, parent: Option<&impl AsWindow>) -> Vec<PathBuf> {
+    pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Vec<PathBuf> {
         self.filebox(parent, true, true).await
     }
 
-    pub async fn save(self, parent: Option<&impl AsWindow>) -> Option<PathBuf> {
+    pub async fn save(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
         self.filebox(parent, false, false).await.into_iter().next()
     }
 
     async fn filebox(
         self,
-        parent: Option<&impl AsWindow>,
+        parent: Option<impl AsWindow>,
         open: bool,
         multiple: bool,
     ) -> Vec<PathBuf> {

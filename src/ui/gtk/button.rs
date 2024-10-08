@@ -1,68 +1,63 @@
-use std::{
-    io,
-    rc::{Rc, Weak},
-};
+use std::rc::Rc;
 
 use gtk4::{glib::object::Cast, prelude::ButtonExt};
 
-use crate::{AsContainer, Callback, Point, Size, Widget};
+use crate::{
+    AsWindow, Point, Size,
+    ui::{Callback, Widget},
+};
 
 pub struct Button {
+    on_click: Rc<Callback<()>>,
     widget: gtk4::Button,
-    handle: Rc<Widget>,
-    on_click: Callback<()>,
+    handle: Widget,
 }
 
 impl Button {
-    pub fn new(parent: impl AsContainer) -> io::Result<Rc<Self>> {
+    pub fn new(parent: impl AsWindow) -> Self {
         let widget = gtk4::Button::new();
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
-        Ok(Rc::new_cyclic(|this: &Weak<Self>| {
-            widget.connect_clicked({
-                let this = this.clone();
-                move |_| {
-                    if let Some(this) = this.upgrade() {
-                        this.on_click.signal(());
-                    }
+        let on_click = Rc::new(Callback::new());
+        widget.connect_clicked({
+            let on_click = Rc::downgrade(&on_click);
+            move |_| {
+                if let Some(on_click) = on_click.upgrade() {
+                    on_click.signal(());
                 }
-            });
-            Self {
-                widget,
-                handle,
-                on_click: Callback::new(),
             }
-        }))
+        });
+        Self {
+            on_click,
+            widget,
+            handle,
+        }
     }
 
-    pub fn loc(&self) -> io::Result<Point> {
-        Ok(self.handle.loc())
+    pub fn loc(&self) -> Point {
+        self.handle.loc()
     }
 
-    pub fn set_loc(&self, p: Point) -> io::Result<()> {
+    pub fn set_loc(&mut self, p: Point) {
         self.handle.set_loc(p);
-        Ok(())
     }
 
-    pub fn size(&self) -> io::Result<Size> {
-        Ok(self.handle.size())
+    pub fn size(&self) -> Size {
+        self.handle.size()
     }
 
-    pub fn set_size(&self, s: Size) -> io::Result<()> {
+    pub fn set_size(&mut self, s: Size) {
         self.handle.set_size(s);
-        Ok(())
     }
 
-    pub fn text(&self) -> io::Result<String> {
-        Ok(self
-            .widget
+    pub fn text(&self) -> String {
+        self.widget
             .label()
             .map(|s| s.to_string())
-            .unwrap_or_default())
+            .unwrap_or_default()
     }
 
-    pub fn set_text(&self, s: impl AsRef<str>) -> io::Result<()> {
+    pub fn set_text(&mut self, s: impl AsRef<str>) {
         self.widget.set_label(s.as_ref());
-        Ok(())
     }
 
     pub async fn wait_click(&self) {

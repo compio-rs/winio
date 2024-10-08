@@ -26,13 +26,13 @@ pub trait AsRawWindow {
 
 impl AsRawWindow for RawWindow {
     fn as_raw_window(&self) -> RawWindow {
-        *self
+        self.clone()
     }
 }
 
 impl AsRawWindow for BorrowedWindow<'_> {
     fn as_raw_window(&self) -> RawWindow {
-        self.handle
+        self.handle.clone()
     }
 }
 

@@ -1,8 +1,8 @@
-use std::{io, sync::LazyLock};
+use std::sync::LazyLock;
 
 use gtk4::glib::{GString, dgettext};
 
-use crate::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle, Window};
+use crate::{AsRawWindow, AsWindow, MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
 struct PredefButtons {
     ok: GString,
@@ -30,14 +30,14 @@ impl PredefButtons {
 static PREDEF_BUTTONS: LazyLock<PredefButtons> = LazyLock::new(PredefButtons::new);
 
 async fn msgbox_custom(
-    parent: Option<&Window>,
+    parent: Option<impl AsWindow>,
     msg: String,
     _title: String,
     instr: String,
     _style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
-) -> io::Result<MessageBoxResponse> {
+) -> MessageBoxResponse {
     let predef = &*PREDEF_BUTTONS;
     let mut buttons = Vec::<&str>::new();
     let mut results = vec![];
@@ -79,13 +79,12 @@ async fn msgbox_custom(
     let dialog = builder.build();
 
     let res = dialog
-        .choose_future(parent.map(|w| w.as_window()))
+        .choose_future(parent.map(|w| w.as_window().as_raw_window()).as_ref())
         .await
         .ok();
 
-    Ok(res
-        .map(|res| results[res as usize])
-        .unwrap_or(MessageBoxResponse::Cancel))
+    res.map(|res| results[res as usize])
+        .unwrap_or(MessageBoxResponse::Cancel)
 }
 
 #[derive(Debug, Clone)]
@@ -116,7 +115,7 @@ impl MessageBox {
         }
     }
 
-    pub async fn show(self, parent: Option<&Window>) -> io::Result<MessageBoxResponse> {
+    pub async fn show(self, parent: Option<impl AsWindow>) -> MessageBoxResponse {
         msgbox_custom(
             parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )

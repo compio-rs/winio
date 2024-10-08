@@ -19,7 +19,7 @@ use windows_sys::Win32::{
 use crate::{AsRawWindow, AsWindow, MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
 async fn msgbox_custom(
-    parent: Option<&impl AsWindow>,
+    parent: Option<impl AsWindow>,
     msg: U16CString,
     title: U16CString,
     instr: U16CString,
@@ -135,7 +135,7 @@ impl MessageBox {
         }
     }
 
-    pub async fn show(self, parent: Option<&impl AsWindow>) -> MessageBoxResponse {
+    pub async fn show(self, parent: Option<impl AsWindow>) -> MessageBoxResponse {
         msgbox_custom(
             parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )
