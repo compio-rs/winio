@@ -39,10 +39,6 @@ void WinioCanvas::mouseReleaseEvent(QMouseEvent *event) {
     }
 }
 
-void WinioCanvas::resizeEvent(QResizeEvent *) {
-    m_buffer.setBoundingRect(this->rect());
-}
-
 std::unique_ptr<QWidget> new_canvas(QWidget *parent) {
     return std::make_unique<WinioCanvas>(parent);
 }

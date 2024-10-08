@@ -27,8 +27,6 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
-
-    void resizeEvent(QResizeEvent *event) override;
 };
 
 std::unique_ptr<QWidget> new_canvas(QWidget *parent);
