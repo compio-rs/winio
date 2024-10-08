@@ -10,6 +10,7 @@ pub type Rect = euclid::Rect<f64, ScreenSpace>;
 pub type RectBox = Box2D<f64, ScreenSpace>;
 pub type Margin = SideOffsets2D<f64, ScreenSpace>;
 pub type Rotation = Rotation2D<f64, ScreenSpace, ScreenSpace>;
+pub type Angle = euclid::Angle<f64>;
 
 pub struct RelativeSpace;
 
