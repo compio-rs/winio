@@ -1,4 +1,4 @@
-use std::{cell::RefCell, f64::consts::PI, marker::PhantomData, rc::Rc};
+use std::{cell::RefCell, f64::consts::PI, rc::Rc};
 
 use core_graphics::{color_space::CGColorSpace, context::CGContext, geometry};
 use foreign_types_shared::ForeignType;
@@ -14,7 +14,7 @@ use objc2_app_kit::{
     NSView,
 };
 use objc2_foundation::{
-    CGPoint, CGRect, MainThreadMarker, NSAffineTransform, NSAttributedString, NSDictionary, NSRect,
+    CGPoint, CGRect, MainThreadMarker, NSAffineTransform, NSAttributedString, NSDictionary,
     NSString,
 };
 
@@ -56,18 +56,17 @@ impl Canvas {
         self.handle.set_size(v)
     }
 
-    pub fn redraw(&self) {
+    fn redraw(&self) {
         unsafe {
             self.view.setNeedsDisplay(true);
         }
     }
 
-    pub async fn wait_redraw(&self) {
-        self.view.ivars().draw_rect.wait().await;
-    }
-
     pub fn context(&mut self) -> DrawingContext<'_> {
-        DrawingContext::new(self.size())
+        DrawingContext {
+            size: self.size(),
+            canvas: self,
+        }
     }
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
@@ -92,7 +91,6 @@ impl Canvas {
 
 #[derive(Default, Clone)]
 struct CanvasViewIvars {
-    draw_rect: Callback,
     mouse_down: Callback<MouseButton>,
     mouse_up: Callback<MouseButton>,
     mouse_move: Callback,
@@ -142,11 +140,6 @@ declare_class! {
             msg_send![super(self), updateTrackingAreas]
         }
 
-        #[method(drawRect:)]
-        unsafe fn drawRect(&self, _dirty_rect: NSRect) {
-            self.ivars().draw_rect.signal(());
-        }
-
         #[method(mouseDown:)]
         unsafe fn mouseDown(&self, event: &NSEvent) {
             self.ivars().mouse_down.signal(mouse_button(event));
@@ -185,17 +178,16 @@ unsafe fn mouse_button(event: &NSEvent) -> MouseButton {
 
 pub struct DrawingContext<'a> {
     size: Size,
-    _p: PhantomData<&'a mut Canvas>,
+    canvas: &'a mut Canvas,
+}
+
+impl Drop for DrawingContext<'_> {
+    fn drop(&mut self) {
+        self.canvas.redraw();
+    }
 }
 
 impl DrawingContext<'_> {
-    pub fn new(size: Size) -> Self {
-        Self {
-            size,
-            _p: PhantomData,
-        }
-    }
-
     pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
         let path = path_arc(self.size, rect, start, end);
         pen.draw(&path, self.size, rect)

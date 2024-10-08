@@ -7,7 +7,6 @@ use crate::{
 };
 
 pub struct Canvas {
-    on_paint: Box<Callback>,
     on_move: Box<Callback<Point>>,
     on_press: Box<Callback<MouseButton>>,
     on_release: Box<Callback<MouseButton>>,
@@ -18,7 +17,6 @@ impl Canvas {
     pub fn new(parent: impl AsWindow) -> Self {
         let mut widget = unsafe { ffi::new_canvas(parent.as_window().as_raw_window()) };
         widget.pin_mut().show();
-        let on_paint = Box::new(Callback::new());
         let on_move = Box::new(Callback::new());
         let on_press = Box::new(Callback::new());
         let on_release = Box::new(Callback::new());
@@ -40,7 +38,6 @@ impl Canvas {
             );
         }
         Self {
-            on_paint,
             on_move,
             on_press,
             on_release,
@@ -64,10 +61,6 @@ impl Canvas {
         self.widget.set_size(s);
     }
 
-    pub fn redraw(&mut self) {
-        self.on_paint.signal(());
-    }
-
     fn on_move(c: *const u8, x: i32, y: i32) {
         let c = c as *const Callback<Point>;
         if let Some(c) = unsafe { c.as_ref() } {
@@ -87,10 +80,6 @@ impl Canvas {
         if let Some(c) = unsafe { c.as_ref() } {
             c.signal(m.into());
         }
-    }
-
-    pub async fn wait_redraw(&self) {
-        self.on_paint.wait().await;
     }
 
     pub fn context(&mut self) -> DrawingContext<'_> {

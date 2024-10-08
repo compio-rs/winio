@@ -3,10 +3,9 @@ use std::time::Duration;
 use compio::{runtime::spawn, time::interval};
 use compio_log::info;
 use winio::{
-    App, BrushPen, Canvas, CanvasEvent, CanvasMessage, Child, Color, ColorTheme, Component,
-    ComponentSender, CustomButton, DrawingFontBuilder, HAlign, MessageBox, MessageBoxButton,
-    MessageBoxResponse, MessageBoxStyle, MouseButton, Point, Rect, Size, SolidColorBrush, VAlign,
-    Window, WindowEvent,
+    App, BrushPen, Canvas, CanvasEvent, Child, Color, ColorTheme, Component, ComponentSender,
+    CustomButton, DrawingFontBuilder, HAlign, MessageBox, MessageBoxButton, MessageBoxResponse,
+    MessageBoxStyle, MouseButton, Point, Rect, Size, SolidColorBrush, VAlign, Window, WindowEvent,
 };
 
 fn main() {
@@ -29,7 +28,6 @@ struct MainModel {
 enum MainMessage {
     Tick,
     Close,
-    QueueRedraw,
     Redraw,
     Mouse(MouseButton),
     MouseMove(Point),
@@ -68,7 +66,7 @@ impl Component for MainModel {
     async fn start(&mut self, sender: &ComponentSender<Self>) {
         let fut_window = self.window.start(sender, |e| match e {
             WindowEvent::Close => Some(MainMessage::Close),
-            WindowEvent::Move | WindowEvent::Resize => Some(MainMessage::QueueRedraw),
+            WindowEvent::Move | WindowEvent::Resize => Some(MainMessage::Redraw),
             _ => None,
         });
         let fut_canvas = self.canvas.start(sender, |e| match e {
@@ -104,7 +102,6 @@ impl Component for MainModel {
                 }
                 false
             }
-            MainMessage::QueueRedraw => self.canvas.emit(CanvasMessage::Redraw).await,
             MainMessage::Redraw => true,
             MainMessage::Mouse(_b) => {
                 info!("{:?}", _b);

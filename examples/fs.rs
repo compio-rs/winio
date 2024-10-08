@@ -2,9 +2,9 @@ use std::{io, path::Path};
 
 use compio::{fs::File, io::AsyncReadAtExt, runtime::spawn};
 use winio::{
-    App, Button, ButtonEvent, Canvas, CanvasEvent, CanvasMessage, Child, Color, ColorTheme,
-    Component, ComponentSender, DrawingFontBuilder, FileBox, HAlign, Point, Size, SolidColorBrush,
-    VAlign, Window, WindowEvent,
+    App, Button, ButtonEvent, Canvas, CanvasEvent, Child, Color, ColorTheme, Component,
+    ComponentSender, DrawingFontBuilder, FileBox, HAlign, Point, Size, SolidColorBrush, VAlign,
+    Window, WindowEvent,
 };
 
 fn main() {
@@ -34,7 +34,6 @@ enum FetchStatus {
 #[derive(Debug)]
 enum MainMessage {
     Close,
-    QueueRedraw,
     Redraw,
     ChooseFile,
     Fetch(FetchStatus),
@@ -75,7 +74,7 @@ impl Component for MainModel {
     async fn start(&mut self, sender: &winio::ComponentSender<Self>) {
         let fut_window = self.window.start(sender, |e| match e {
             WindowEvent::Close => Some(MainMessage::Close),
-            WindowEvent::Move | WindowEvent::Resize => Some(MainMessage::QueueRedraw),
+            WindowEvent::Move | WindowEvent::Resize => Some(MainMessage::Redraw),
             _ => None,
         });
         let fut_canvas = self.canvas.start(sender, |e| match e {
@@ -105,7 +104,6 @@ impl Component for MainModel {
                 sender.output(());
                 false
             }
-            MainMessage::QueueRedraw => self.canvas.emit(CanvasMessage::Redraw).await,
             MainMessage::Redraw => true,
             MainMessage::ChooseFile => {
                 if let Some(p) = FileBox::new()

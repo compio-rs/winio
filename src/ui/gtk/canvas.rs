@@ -20,7 +20,6 @@ use crate::{
 };
 
 pub struct Canvas {
-    on_redraw: Rc<Callback<()>>,
     on_motion: Rc<Callback<Point>>,
     on_pressed: Rc<Callback<MouseButton>>,
     on_released: Rc<Callback<MouseButton>>,
@@ -34,7 +33,6 @@ impl Canvas {
         let widget = gtk4::DrawingArea::new();
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
 
-        let on_redraw = Rc::new(Callback::new());
         let on_motion = Rc::new(Callback::new());
         let on_pressed = Rc::new(Callback::new());
         let on_released = Rc::new(Callback::new());
@@ -92,7 +90,6 @@ impl Canvas {
         widget.add_controller(controller);
 
         Self {
-            on_redraw,
             on_motion,
             on_pressed,
             on_released,
@@ -116,14 +113,6 @@ impl Canvas {
 
     pub fn set_size(&mut self, s: Size) {
         self.handle.set_size(s);
-    }
-
-    pub fn redraw(&self) {
-        self.on_redraw.signal(());
-    }
-
-    pub async fn wait_redraw(&self) {
-        self.on_redraw.wait().await;
     }
 
     pub fn context(&mut self) -> DrawingContext<'_> {

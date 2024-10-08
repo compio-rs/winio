@@ -34,15 +34,10 @@ pub enum CanvasEvent {
     MouseUp(MouseButton),
 }
 
-#[non_exhaustive]
-pub enum CanvasMessage {
-    Redraw,
-}
-
 impl Component for Canvas {
     type Event = CanvasEvent;
     type Init = ();
-    type Message = CanvasMessage;
+    type Message = ();
     type Root = Window;
 
     fn init(_counter: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
@@ -51,12 +46,6 @@ impl Component for Canvas {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) {
-        let fut_redraw = async {
-            loop {
-                self.widget.wait_redraw().await;
-                sender.output(CanvasEvent::Redraw);
-            }
-        };
         let fut_move = async {
             loop {
                 let p = self.widget.wait_mouse_move().await;
@@ -75,13 +64,10 @@ impl Component for Canvas {
                 sender.output(CanvasEvent::MouseUp(b));
             }
         };
-        futures_util::future::join4(fut_redraw, fut_move, fut_down, fut_up).await;
+        futures_util::future::join3(fut_move, fut_down, fut_up).await;
     }
 
-    async fn update(&mut self, message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
-        match message {
-            CanvasMessage::Redraw => self.widget.redraw(),
-        }
+    async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
         false
     }
 
