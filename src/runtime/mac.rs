@@ -45,8 +45,12 @@ impl Runtime {
         self.runtime.run();
     }
 
+    fn enter<T, F: FnOnce() -> T>(&self, f: F) -> T {
+        self.runtime.enter(|| super::RUNTIME.set(self, f))
+    }
+
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        self.runtime.enter(|| {
+        self.enter(|| {
             let mut result = None;
             unsafe {
                 self.runtime
