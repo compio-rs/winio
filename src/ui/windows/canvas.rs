@@ -343,7 +343,7 @@ impl DrawingContext<'_> {
         }
     }
 
-    pub fn draw_arc(&self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
+    pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
         let geo = self.get_arc_geo(rect, start, end, false);
         let (b, width) = self.get_pen(pen, rect);
         unsafe {
@@ -351,7 +351,7 @@ impl DrawingContext<'_> {
         }
     }
 
-    pub fn fill_pie(&self, brush: impl Brush, rect: Rect, start: f64, end: f64) {
+    pub fn fill_pie(&mut self, brush: impl Brush, rect: Rect, start: f64, end: f64) {
         let geo = self.get_arc_geo(rect, start, end, true);
         let b = self.get_brush(brush, rect);
         unsafe {
@@ -359,7 +359,7 @@ impl DrawingContext<'_> {
         }
     }
 
-    pub fn draw_ellipse(&self, pen: impl Pen, rect: Rect) {
+    pub fn draw_ellipse(&mut self, pen: impl Pen, rect: Rect) {
         let e = ellipse(rect);
         let (b, width) = self.get_pen(pen, rect);
         unsafe {
@@ -367,7 +367,7 @@ impl DrawingContext<'_> {
         }
     }
 
-    pub fn fill_ellipse(&self, brush: impl Brush, rect: Rect) {
+    pub fn fill_ellipse(&mut self, brush: impl Brush, rect: Rect) {
         let e = ellipse(rect);
         let b = self.get_brush(brush, rect);
         unsafe {
@@ -375,7 +375,7 @@ impl DrawingContext<'_> {
         }
     }
 
-    pub fn draw_line(&self, pen: impl Pen, start: Point, end: Point) {
+    pub fn draw_line(&mut self, pen: impl Pen, start: Point, end: Point) {
         let rect = RectBox::new(
             Point::new(start.x.min(end.x), start.y.min(end.y)),
             Point::new(start.x.max(end.x), start.y.max(end.y)),
@@ -388,21 +388,21 @@ impl DrawingContext<'_> {
         }
     }
 
-    pub fn draw_rect(&self, pen: impl Pen, rect: Rect) {
+    pub fn draw_rect(&mut self, pen: impl Pen, rect: Rect) {
         let (b, width) = self.get_pen(pen, rect);
         unsafe {
             self.target.DrawRectangle(&rect_f(rect), &b, width, None);
         }
     }
 
-    pub fn fill_rect(&self, brush: impl Brush, rect: Rect) {
+    pub fn fill_rect(&mut self, brush: impl Brush, rect: Rect) {
         let b = self.get_brush(brush, rect);
         unsafe {
             self.target.FillRectangle(&rect_f(rect), &b);
         }
     }
 
-    pub fn draw_round_rect(&self, pen: impl Pen, rect: Rect, round: Size) {
+    pub fn draw_round_rect(&mut self, pen: impl Pen, rect: Rect, round: Size) {
         let (b, width) = self.get_pen(pen, rect);
         unsafe {
             self.target.DrawRoundedRectangle(
@@ -418,7 +418,7 @@ impl DrawingContext<'_> {
         }
     }
 
-    pub fn fill_round_rect(&self, brush: impl Brush, rect: Rect, round: Size) {
+    pub fn fill_round_rect(&mut self, brush: impl Brush, rect: Rect, round: Size) {
         let b = self.get_brush(brush, rect);
         unsafe {
             self.target.FillRoundedRectangle(
@@ -433,7 +433,7 @@ impl DrawingContext<'_> {
     }
 
     pub fn draw_str(
-        &self,
+        &mut self,
         brush: impl Brush,
         font: DrawingFont,
         pos: Point,
