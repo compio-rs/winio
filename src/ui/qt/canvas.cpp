@@ -6,15 +6,15 @@
 WinioCanvas::WinioCanvas(QWidget *parent)
     : QWidget(parent), m_paint_callback(std::nullopt),
       m_move_callback(std::nullopt), m_press_callback(std::nullopt),
-      m_release_callback(std::nullopt) {
+      m_release_callback(std::nullopt), m_buffer() {
     setMouseTracking(true);
 }
 
+WinioCanvas::~WinioCanvas() {}
+
 void WinioCanvas::paintEvent(QPaintEvent *) {
-    if (m_paint_callback) {
-        auto &[callback, data] = *m_paint_callback;
-        callback(data);
-    }
+    QPainter painter(this);
+    m_buffer.play(&painter);
 }
 
 void WinioCanvas::mouseMoveEvent(QMouseEvent *event) {
@@ -39,14 +39,12 @@ void WinioCanvas::mouseReleaseEvent(QMouseEvent *event) {
     }
 }
 
-std::unique_ptr<QWidget> new_canvas(QWidget *parent) {
-    return std::make_unique<WinioCanvas>(parent);
+void WinioCanvas::resizeEvent(QResizeEvent *) {
+    m_buffer.setBoundingRect(this->rect());
 }
 
-void canvas_register_paint_event(QWidget &w, callback_fn_t<void()> callback,
-                                 std::uint8_t const *data) {
-    static_cast<WinioCanvas &>(w).m_paint_callback =
-        std::make_tuple(std::move(callback), data);
+std::unique_ptr<QWidget> new_canvas(QWidget *parent) {
+    return std::make_unique<WinioCanvas>(parent);
 }
 
 void canvas_register_move_event(QWidget &w,
@@ -71,7 +69,9 @@ void canvas_register_release_event(QWidget &w,
 }
 
 std::unique_ptr<QPainter> canvas_new_painter(QWidget &w) {
-    return std::make_unique<QPainter>(&w);
+    auto &c = static_cast<WinioCanvas &>(w);
+    c.m_buffer = QPicture{};
+    return std::make_unique<QPainter>(&c.m_buffer);
 }
 
 void painter_set_font(QPainter &p, rust::Str family, double size, bool italic,
@@ -89,7 +89,6 @@ QSizeF painter_measure_text(QPainter &p, QRectF rect, rust::Str text) {
 
 void painter_draw_text(QPainter &p, QRectF rect, rust::Str text) {
     QTextOption option{};
-    // option.setWrapMode(QTextOption::NoWrap);
     p.drawText(rect, QString::fromUtf8(text.data(), text.size()), option);
 }
 

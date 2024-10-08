@@ -4,6 +4,7 @@
 #include <QMouseEvent>
 #include <QPaintEvent>
 #include <QPainter>
+#include <QPicture>
 #include <QWidget>
 #include <memory>
 
@@ -16,18 +17,21 @@ struct WinioCanvas : public QWidget {
     callback_t<void(QtMouseButton)> m_press_callback;
     callback_t<void(QtMouseButton)> m_release_callback;
 
+    QPicture m_buffer;
+
     WinioCanvas(QWidget *parent);
+    ~WinioCanvas() override;
 
 protected:
     void paintEvent(QPaintEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
+
+    void resizeEvent(QResizeEvent *event) override;
 };
 
 std::unique_ptr<QWidget> new_canvas(QWidget *parent);
-void canvas_register_paint_event(QWidget &w, callback_fn_t<void()> callback,
-                                 std::uint8_t const *data);
 void canvas_register_move_event(QWidget &w,
                                 callback_fn_t<void(int, int)> callback,
                                 std::uint8_t const *data);
@@ -47,3 +51,16 @@ void painter_draw_text(QPainter &p, QRectF rect, rust::Str text);
 QColor color_transparent();
 std::unique_ptr<QBrush> new_brush(QColor c);
 std::unique_ptr<QPen> new_pen(QBrush const &b, double width);
+
+enum DrawCommandType {
+    DrawArc,
+    FillPie,
+    DrawEllipse,
+    FillEllipse,
+    DrawLine,
+    DrawRect,
+    FillRect,
+    DrawRoundRect,
+    FillRoundRect,
+    DrawStr,
+};

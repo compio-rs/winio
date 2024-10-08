@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use cxx::{ExternType, UniquePtr, type_id};
 
 use crate::{
@@ -25,11 +23,6 @@ impl Canvas {
         let on_press = Box::new(Callback::new());
         let on_release = Box::new(Callback::new());
         unsafe {
-            ffi::canvas_register_paint_event(
-                widget.pin_mut(),
-                Self::on_paint,
-                on_paint.as_ref() as *const _ as _,
-            );
             ffi::canvas_register_move_event(
                 widget.pin_mut(),
                 Self::on_move,
@@ -72,14 +65,7 @@ impl Canvas {
     }
 
     pub fn redraw(&mut self) {
-        self.widget.pin_mut().update();
-    }
-
-    fn on_paint(c: *const u8) {
-        let c = c as *const Callback<()>;
-        if let Some(c) = unsafe { c.as_ref() } {
-            c.signal(());
-        }
+        self.on_paint.signal(());
     }
 
     fn on_move(c: *const u8, x: i32, y: i32) {
@@ -111,7 +97,7 @@ impl Canvas {
         DrawingContext {
             painter: ffi::canvas_new_painter(self.widget.pin_mut()),
             size: self.widget.size(),
-            _p: PhantomData,
+            canvas: self,
         }
     }
 
@@ -131,12 +117,13 @@ impl Canvas {
 pub struct DrawingContext<'a> {
     painter: UniquePtr<ffi::QPainter>,
     size: Size,
-    _p: PhantomData<&'a Canvas>,
+    canvas: &'a mut Canvas,
 }
 
 impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
         self.painter.pin_mut().end();
+        self.canvas.widget.pin_mut().update();
     }
 }
 
@@ -423,6 +410,7 @@ unsafe impl ExternType for QSizeF {
 
 #[cxx::bridge]
 mod ffi {
+    extern "Rust" {}
     unsafe extern "C++" {
         include!("winio/src/ui/qt/canvas.hpp");
 
@@ -430,11 +418,6 @@ mod ffi {
         type QtMouseButton = super::QtMouseButton;
 
         unsafe fn new_canvas(parent: *mut QWidget) -> UniquePtr<QWidget>;
-        unsafe fn canvas_register_paint_event(
-            w: Pin<&mut QWidget>,
-            callback: unsafe fn(*const u8),
-            data: *const u8,
-        );
         unsafe fn canvas_register_move_event(
             w: Pin<&mut QWidget>,
             callback: unsafe fn(*const u8, i32, i32),

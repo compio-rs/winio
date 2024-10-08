@@ -114,6 +114,14 @@ impl AsRawWindow for Window {
     }
 }
 
+impl Drop for Window {
+    fn drop(&mut self) {
+        unsafe {
+            self.widget.drop_in_place();
+        }
+    }
+}
+
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++" {

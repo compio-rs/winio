@@ -1,4 +1,4 @@
-use std::pin::Pin;
+use std::{mem::ManuallyDrop, pin::Pin};
 
 use cxx::{ExternType, UniquePtr, type_id};
 pub(crate) use ffi::*;
@@ -6,12 +6,18 @@ pub(crate) use ffi::*;
 use crate::{AsRawWindow, Point, RawWindow, Rect, Size};
 
 pub struct Widget {
-    widget: UniquePtr<QWidget>,
+    widget: ManuallyDrop<UniquePtr<QWidget>>,
 }
 
 impl Widget {
     pub fn new(widget: UniquePtr<QWidget>) -> Self {
-        Self { widget }
+        Self {
+            widget: ManuallyDrop::new(widget),
+        }
+    }
+
+    pub(crate) unsafe fn drop_in_place(&mut self) {
+        ManuallyDrop::drop(&mut self.widget);
     }
 
     pub(crate) fn as_ref(&self) -> &QWidget {
