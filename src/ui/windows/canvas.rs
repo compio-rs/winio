@@ -1,6 +1,5 @@
-use std::{marker::PhantomData, mem::MaybeUninit, ptr::null};
+use std::{marker::PhantomData, mem::MaybeUninit};
 
-use compio::driver::syscall;
 use futures_util::FutureExt;
 use widestring::U16CString;
 use windows::{
@@ -30,12 +29,11 @@ use windows::{
     core::Interface,
 };
 use windows_sys::Win32::{
-    Graphics::Gdi::InvalidateRect,
     System::SystemServices::SS_OWNERDRAW,
     UI::{
-        Controls::{DRAWITEMSTRUCT, WC_STATICW},
+        Controls::WC_STATICW,
         WindowsAndMessaging::{
-            WM_DRAWITEM, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE,
+            WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE,
             WM_RBUTTONDOWN, WM_RBUTTONUP, WS_CHILD, WS_VISIBLE,
         },
     },
@@ -109,23 +107,6 @@ impl Canvas {
 
     pub fn set_size(&mut self, v: Size) {
         self.handle.set_size(v)
-    }
-
-    pub fn redraw(&self) {
-        syscall!(BOOL, unsafe {
-            InvalidateRect(self.handle.as_raw_window(), null(), 0)
-        })
-        .unwrap();
-    }
-
-    pub async fn wait_redraw(&self) {
-        loop {
-            let msg = self.handle.wait_parent(WM_DRAWITEM).await;
-            let ds = unsafe { &mut *(msg.lParam as *mut DRAWITEMSTRUCT) };
-            if ds.hwndItem == self.handle.as_raw_window() {
-                break;
-            }
-        }
     }
 
     pub fn context(&mut self) -> DrawingContext<'_> {
