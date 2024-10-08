@@ -1,5 +1,3 @@
-#![feature(let_chains)]
-
 use std::{io, path::Path};
 
 use compio::{fs::File, io::AsyncReadAtExt, runtime::spawn};
@@ -15,7 +13,7 @@ fn main() {
         .with_max_level(compio_log::Level::DEBUG)
         .init();
 
-    block_on(App::new("winio.fs").run::<MainModel>(FetchStatus::Loading, &()));
+    block_on(App::new("winio.fs").run::<MainModel>("Cargo.toml", &()));
 }
 
 struct MainModel {
@@ -44,7 +42,7 @@ enum MainMessage {
 
 impl Component for MainModel {
     type Event = ();
-    type Init = FetchStatus;
+    type Init = &'static str;
     type Message = MainMessage;
     type Root = ();
 
@@ -63,13 +61,13 @@ impl Component for MainModel {
         let mut button = Child::<Button>::init((), &window);
         button.set_text("Choose file...");
 
-        spawn(fetch("Cargo.toml", sender.clone())).detach();
+        spawn(fetch(counter, sender.clone())).detach();
 
         Self {
             window,
             canvas,
             button,
-            text: counter,
+            text: FetchStatus::Loading,
             is_dark,
         }
     }
@@ -96,6 +94,12 @@ impl Component for MainModel {
         message: Self::Message,
         sender: &winio::ComponentSender<Self>,
     ) -> bool {
+        futures_util::future::join3(
+            self.window.update(),
+            self.canvas.update(),
+            self.button.update(),
+        )
+        .await;
         match message {
             MainMessage::Close => {
                 sender.output(());

@@ -42,7 +42,7 @@ impl Component for MainModel {
 
     fn init(counter: Self::Init, _root: &Self::Root, sender: &ComponentSender<Self>) -> Self {
         let mut window = Child::<Window>::init((), &());
-        let canvas = Child::init((), &*window);
+        let canvas = Child::<Canvas>::init((), &window);
 
         window.set_text("Basic example");
         window.set_size(Size::new(800.0, 600.0));
@@ -80,8 +80,7 @@ impl Component for MainModel {
     }
 
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
-        self.window.update().await;
-        self.canvas.update().await;
+        futures_util::future::join(self.window.update(), self.canvas.update()).await;
         match message {
             MainMessage::Tick => {
                 self.counter += 1;
