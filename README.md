@@ -61,23 +61,3 @@ impl Component for MainModel {
     }
 }
 ```
-The asynchronous style of `winio` enables you writing simple code to handle the requests:
-```rust
-MainMessage::Close => {
-    match MessageBox::new()
-        .title("Basic example")
-        .message("Close window?")
-        .style(MessageBoxStyle::Info)
-        .buttons(MessageBoxButton::Yes | MessageBoxButton::No)
-        .show(Some(&*self.window))
-        .await
-    {
-        MessageBoxResponse::Yes => {
-            // stop the application
-            sender.output(());
-        }
-        _ => {}
-    }
-    false
-}
-```
