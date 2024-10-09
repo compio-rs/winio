@@ -58,12 +58,12 @@ fn component_channel<T: Component>() -> (ComponentSender<T>, ComponentReceiver<T
 }
 
 impl<T: Component> ComponentSender<T> {
-    pub fn post(&self, message: T::Message) {
-        self.message_tx.unbounded_send(message).unwrap();
+    pub fn post(&self, message: T::Message) -> bool {
+        self.message_tx.unbounded_send(message).is_ok()
     }
 
-    pub fn output(&self, event: T::Event) {
-        self.event_tx.unbounded_send(event).unwrap();
+    pub fn output(&self, event: T::Event) -> bool {
+        self.event_tx.unbounded_send(event).is_ok()
     }
 }
 
