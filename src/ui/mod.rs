@@ -1,34 +1,47 @@
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
-        mod windows;
-        pub use windows::*;
+        #[path = "windows/mod.rs"]
+        mod sys;
     } else if #[cfg(target_os = "macos")] {
-        mod mac;
-        pub use mac::*;
+        #[path = "mac/mod.rs"]
+        mod sys;
     } else {
         #[cfg(all(not(feature = "gtk"), not(feature = "qt")))]
         compile_error!("You must choose one of these features: [\"gtk\", \"qt\"]");
 
         cfg_if::cfg_if! {
             if #[cfg(feature = "qt")] {
-                mod qt;
-                pub use qt::*;
+                #[path = "qt/mod.rs"]
+                mod sys;
             } else {
-                mod gtk;
-                pub use gtk::*;
+                #[path = "gtk/mod.rs"]
+                mod sys;
             }
         }
     }
 }
 
+pub use sys::*;
+
 mod drawing;
-pub use drawing::*;
 
 mod msgbox;
-pub use msgbox::*;
 
 mod canvas;
-pub use canvas::*;
+
+mod window_handle;
+
+pub mod export {
+    pub use super::{
+        canvas::*,
+        drawing::*,
+        msgbox::*,
+        sys::{
+            Brush, CustomButton, DrawingContext, FileBox, FileFilter, MessageBox, Pen, RawWindow,
+        },
+        window_handle::*,
+    };
+}
 
 #[cfg(not(windows))]
 mod callback;

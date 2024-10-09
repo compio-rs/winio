@@ -1,4 +1,4 @@
-use std::{cell::RefCell, io, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 use block2::StackBlock;
 use objc2::{msg_send, rc::Id};
@@ -6,8 +6,7 @@ use objc2_app_kit::{NSModalResponseOK, NSOpenPanel, NSSavePanel};
 use objc2_foundation::{MainThreadMarker, NSArray, NSString};
 use objc2_uniform_type_identifiers::UTType;
 
-use super::from_nsstring;
-use crate::Window;
+use crate::{AsRawWindow, AsWindow, Window, ui::from_nsstring};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileFilter {
@@ -70,23 +69,23 @@ impl FileBox {
         self
     }
 
-    pub async fn open(self, parent: Option<&Window>) -> io::Result<Option<PathBuf>> {
+    pub async fn open(self, parent: Option<&Window>) -> Option<PathBuf> {
         unsafe {
             filebox(parent, self.title, self.filename, self.filters, true, false)
-                .await?
+                .await
                 .result()
         }
     }
 
-    pub async fn open_multiple(self, parent: Option<&Window>) -> io::Result<Vec<PathBuf>> {
+    pub async fn open_multiple(self, parent: Option<&Window>) -> Vec<PathBuf> {
         unsafe {
             filebox(parent, self.title, self.filename, self.filters, true, true)
-                .await?
+                .await
                 .results()
         }
     }
 
-    pub async fn save(self, parent: Option<&Window>) -> io::Result<Option<PathBuf>> {
+    pub async fn save(self, parent: Option<&Window>) -> Option<PathBuf> {
         unsafe {
             filebox(
                 parent,
@@ -96,20 +95,22 @@ impl FileBox {
                 false,
                 false,
             )
-            .await?
+            .await
             .result()
         }
     }
 }
 
 async unsafe fn filebox(
-    parent: Option<&Window>,
+    parent: Option<impl AsWindow>,
     title: String,
     filename: String,
     filters: Vec<FileFilter>,
     open: bool,
     multiple: bool,
-) -> io::Result<FileBoxInner> {
+) -> FileBoxInner {
+    let parent = parent.map(|p| p.as_window().as_raw_window());
+
     let mtm = MainThreadMarker::new().unwrap();
     let handle: Id<NSSavePanel> = if open {
         let handle = NSOpenPanel::openPanel(mtm);
@@ -130,8 +131,8 @@ async unsafe fn filebox(
     handle.setCanSelectHiddenExtension(false);
     handle.setTreatsFilePackagesAsDirectories(true);
 
-    if let Some(parent) = parent {
-        handle.setParentWindow(Some(&parent.as_nswindow()));
+    if let Some(parent) = &parent {
+        handle.setParentWindow(Some(parent));
     }
 
     if !title.is_empty() {
@@ -166,7 +167,7 @@ async unsafe fn filebox(
         }
     }
 
-    let res = if let Some(parent) = parent {
+    let res = if let Some(parent) = &parent {
         let (tx, rx) = futures_channel::oneshot::channel();
         let tx = Rc::new(RefCell::new(Some(tx)));
         let block = StackBlock::new(move |res| {
@@ -176,42 +177,42 @@ async unsafe fn filebox(
                 .send(res)
                 .ok();
         });
-        handle.beginSheetModalForWindow_completionHandler(&parent.as_nswindow(), &block);
+        handle.beginSheetModalForWindow_completionHandler(parent, &block);
         rx.await.expect("NSAlert cancelled")
     } else {
         handle.runModal()
     };
-    Ok(FileBoxInner(if res == NSModalResponseOK {
+    FileBoxInner(if res == NSModalResponseOK {
         Some(handle)
     } else {
         None
-    }))
+    })
 }
 
 struct FileBoxInner(Option<Id<NSSavePanel>>);
 
 impl FileBoxInner {
-    pub unsafe fn result(self) -> io::Result<Option<PathBuf>> {
+    pub unsafe fn result(self) -> Option<PathBuf> {
         if let Some(dialog) = self.0 {
-            Ok(dialog
+            dialog
                 .URL()
                 .and_then(|url| url.path())
-                .map(|s| PathBuf::from(from_nsstring(&s))))
+                .map(|s| PathBuf::from(from_nsstring(&s)))
         } else {
-            Ok(None)
+            None
         }
     }
 
-    pub unsafe fn results(self) -> io::Result<Vec<PathBuf>> {
+    pub unsafe fn results(self) -> Vec<PathBuf> {
         if let Some(dialog) = self.0 {
             let dialog: Id<NSOpenPanel> = Id::cast(dialog);
-            Ok(dialog
+            dialog
                 .URLs()
                 .iter()
                 .filter_map(|url| url.path().map(|s| PathBuf::from(from_nsstring(&s))))
-                .collect())
+                .collect()
         } else {
-            Ok(vec![])
+            vec![]
         }
     }
 }

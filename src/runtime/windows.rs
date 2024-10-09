@@ -18,21 +18,26 @@ use windows::Win32::{
     System::Com::{COINIT_MULTITHREADED, CoInitializeEx, CoUninitialize},
 };
 use windows_sys::Win32::{
-    Foundation::{HANDLE, HWND, LPARAM, LRESULT, POINT, WAIT_FAILED, WPARAM},
+    Foundation::{BOOL, HANDLE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_FAILED, WPARAM},
     Graphics::Gdi::{
-        BLACK_BRUSH, CreateSolidBrush, DeleteObject, GetStockObject, HDC, HGDIOBJ, ScreenToClient,
-        SetBkColor, SetBkMode, SetTextColor, TRANSPARENT, WHITE_BRUSH,
+        BLACK_BRUSH, CreateSolidBrush, DeleteObject, GetStockObject, HDC, HGDIOBJ, Rectangle,
+        ScreenToClient, SelectObject, SetBkColor, SetBkMode, SetTextColor, TRANSPARENT,
+        WHITE_BRUSH,
     },
     System::Threading::INFINITE,
     UI::WindowsAndMessaging::{
-        ChildWindowFromPoint, DefWindowProcW, DispatchMessageW, GetCursorPos, GetMessagePos,
-        GetMessageTime, MSG, MWMO_ALERTABLE, MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx,
-        PM_REMOVE, PeekMessageW, QS_ALLINPUT, TranslateMessage, WM_CTLCOLOREDIT, WM_CTLCOLORSTATIC,
+        ChildWindowFromPoint, DefWindowProcW, DispatchMessageW, EnumChildWindows, GetClientRect,
+        GetCursorPos, GetMessagePos, GetMessageTime, MSG, MWMO_ALERTABLE, MWMO_INPUTAVAILABLE,
+        MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW, QS_ALLINPUT, SWP_NOACTIVATE,
+        SWP_NOZORDER, SendMessageW, SetWindowPos, TranslateMessage, WM_CREATE, WM_CTLCOLOREDIT,
+        WM_CTLCOLORSTATIC, WM_DPICHANGED, WM_ERASEBKGND, WM_SETFONT,
     },
 };
 
 use super::RUNTIME;
-use crate::darkmode::is_dark_mode_allowed_for_app;
+use crate::ui::{
+    darkmode::is_dark_mode_allowed_for_app, dpi::get_dpi_for_window, font::default_font,
+};
 
 pub(crate) enum FutureState {
     Active(Option<Waker>),
@@ -82,8 +87,12 @@ impl Runtime {
         }
     }
 
+    fn enter<T, F: FnOnce() -> T>(&self, f: F) -> T {
+        self.runtime.enter(|| RUNTIME.set(self, f))
+    }
+
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        self.runtime.enter(|| {
+        self.enter(|| {
             let mut result = None;
             unsafe {
                 self.runtime
@@ -225,7 +234,7 @@ pub(crate) unsafe extern "system" fn window_proc(
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
-    trace!("window_proc: {}, {}, {}, {}", handle, msg, wparam, lparam);
+    trace!("window_proc: {:p}, {}, {}, {}", handle, msg, wparam, lparam);
     let res = RUNTIME.with(|runtime| {
         let res = runtime.set_current_msg(handle, msg, wparam, lparam);
         runtime.runtime.run();
@@ -268,10 +277,56 @@ pub(crate) unsafe extern "system" fn window_proc(
                     } as _;
                 }
             }
+            WM_CREATE => {
+                refresh_font(handle);
+            }
+            WM_ERASEBKGND => {
+                let hdc = wparam as HDC;
+                let brush = if is_dark_mode_allowed_for_app() {
+                    GetStockObject(BLACK_BRUSH)
+                } else {
+                    GetStockObject(WHITE_BRUSH)
+                };
+                let old_brush = SelectObject(hdc, brush);
+                let mut r = MaybeUninit::uninit();
+                GetClientRect(handle, r.as_mut_ptr());
+                let r = r.assume_init();
+                Rectangle(hdc, r.left - 1, r.top - 1, r.right + 1, r.bottom + 1);
+                SelectObject(hdc, old_brush);
+            }
+            WM_DPICHANGED => {
+                unsafe {
+                    let new_rect = lparam as *const RECT;
+                    if let Some(new_rect) = new_rect.as_ref() {
+                        SetWindowPos(
+                            handle,
+                            null_mut(),
+                            new_rect.left,
+                            new_rect.top,
+                            new_rect.right - new_rect.left,
+                            new_rect.bottom - new_rect.top,
+                            SWP_NOZORDER | SWP_NOACTIVATE,
+                        );
+                    }
+                }
+                refresh_font(handle);
+            }
             _ => {}
         }
         DefWindowProcW(handle, msg, wparam, lparam)
     }
+}
+
+pub(crate) unsafe fn refresh_font(handle: HWND) {
+    let font = default_font(get_dpi_for_window(handle));
+
+    unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        SendMessageW(hwnd, WM_SETFONT, lparam as _, 1);
+        EnumChildWindows(hwnd, Some(enum_callback), lparam);
+        1
+    }
+
+    enum_callback(handle, font as _);
 }
 
 const WHITE: COLORREF = COLORREF(0x00FFFFFF);

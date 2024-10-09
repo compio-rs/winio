@@ -18,3 +18,17 @@ pub use button::*;
 
 mod edit;
 pub use edit::*;
+
+pub type RawWindow = gtk4::Window;
+
+use std::cell::Cell;
+
+use crate::ColorTheme;
+
+thread_local! {
+    pub(crate) static COLOR_THEME: Cell<ColorTheme> = const { Cell::new(ColorTheme::Light) };
+}
+
+pub fn color_theme() -> ColorTheme {
+    COLOR_THEME.get()
+}

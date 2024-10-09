@@ -1,67 +1,83 @@
-use std::{
-    io,
-    rc::{Rc, Weak},
-};
+use std::rc::Rc;
 
 use gtk4::{glib::object::Cast, prelude::EditableExt};
 
-use crate::{AsContainer, Callback, Point, Size, Widget};
+use crate::{
+    AsWindow, HAlign, Point, Size,
+    ui::{Callback, Widget},
+};
 
 pub struct Edit {
+    on_changed: Rc<Callback<()>>,
     widget: gtk4::Entry,
-    handle: Rc<Widget>,
-    on_changed: Callback<()>,
+    handle: Widget,
 }
 
 impl Edit {
-    pub fn new(parent: impl AsContainer) -> io::Result<Rc<Self>> {
+    pub fn new(parent: impl AsWindow) -> Self {
         let widget = gtk4::Entry::new();
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
-        Ok(Rc::new_cyclic(|this: &Weak<Self>| {
-            widget.connect_changed({
-                let this = this.clone();
-                move |_| {
-                    if let Some(this) = this.upgrade() {
-                        this.on_changed.signal(());
-                    }
+        let on_changed = Rc::new(Callback::new());
+        widget.connect_changed({
+            let on_changed = Rc::downgrade(&on_changed);
+            move |_| {
+                if let Some(on_changed) = on_changed.upgrade() {
+                    on_changed.signal(());
                 }
-            });
-            Self {
-                widget,
-                handle,
-                on_changed: Callback::new(),
             }
-        }))
+        });
+        Self {
+            on_changed,
+            widget,
+            handle,
+        }
     }
 
-    pub fn loc(&self) -> io::Result<Point> {
-        Ok(self.handle.loc())
+    pub fn loc(&self) -> Point {
+        self.handle.loc()
     }
 
-    pub fn set_loc(&self, p: Point) -> io::Result<()> {
+    pub fn set_loc(&mut self, p: Point) {
         self.handle.set_loc(p);
-        Ok(())
     }
 
-    pub fn size(&self) -> io::Result<Size> {
-        Ok(self.handle.size())
+    pub fn size(&self) -> Size {
+        self.handle.size()
     }
 
-    pub fn set_size(&self, s: Size) -> io::Result<()> {
+    pub fn set_size(&mut self, s: Size) {
         self.handle.set_size(s);
-        Ok(())
     }
 
-    pub fn text(&self) -> io::Result<String> {
-        Ok(self.widget.text().to_string())
+    pub fn text(&self) -> String {
+        self.widget.text().to_string()
     }
 
-    pub fn set_text(&self, s: impl AsRef<str>) -> io::Result<()> {
+    pub fn set_text(&mut self, s: impl AsRef<str>) {
         self.widget.set_text(s.as_ref());
-        Ok(())
     }
 
-    pub async fn wait_changed(&self) {
+    pub fn halign(&self) -> HAlign {
+        let align = self.widget.alignment();
+        if align == 0.0 {
+            HAlign::Left
+        } else if align == 1.0 {
+            HAlign::Right
+        } else {
+            HAlign::Center
+        }
+    }
+
+    pub fn set_halign(&mut self, align: HAlign) {
+        let align = match align {
+            HAlign::Left => 0.0,
+            HAlign::Right => 1.0,
+            HAlign::Center => 0.5,
+        };
+        self.widget.set_alignment(align);
+    }
+
+    pub async fn wait_change(&self) {
         self.on_changed.wait().await
     }
 }

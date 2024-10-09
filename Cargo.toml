@@ -1,6 +1,6 @@
 [package]
 name = "winio"
-version = "0.1.8"
+version = "0.2.0"
 edition = "2021"
 description = "Single-threaded async GUI runtime based on compio."
 license = "MIT"
@@ -16,12 +16,14 @@ compio-log = "0.1.0"
 
 cfg-if = "1"
 euclid = "0.22"
+futures-util = { version = "0.3", features = ["alloc"] }
+futures-channel = "0.3"
 once_cell = "1"
 rgb = "0.8"
 slab = "0.4"
+scoped-tls = "1.0"
 
 [target.'cfg(windows)'.dependencies]
-futures-util = "0.3"
 widestring = "1"
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
@@ -56,7 +58,6 @@ windows = { version = "0.58", features = [
 core-foundation = "0.10"
 core-graphics = "0.24"
 foreign-types-shared = "0.3"
-futures-channel = "0.3"
 
 block2 = "0.5"
 objc2 = "0.5"
@@ -96,6 +97,7 @@ objc2-app-kit = { version = "0.2", features = [
     "NSSavePanel",
     "NSScreen",
     "NSStringDrawing",
+    "NSText",
     "NSTextField",
     "NSTrackingArea",
     "NSView",
@@ -109,8 +111,6 @@ gtk4 = { version = "0.9", optional = true, features = ["v4_14"] }
 pangocairo = { version = "0.20", optional = true }
 
 cxx = { version = "1.0", optional = true, features = ["c++20"] }
-futures-channel = { version = "0.3", optional = true }
-scoped-tls = { version = "1.0", optional = true }
 
 [dev-dependencies]
 compio = { version = "0.12.0", features = ["time", "native-tls"] }
@@ -133,17 +133,10 @@ qt-build-utils = { version = "0.6", optional = true }
 [features]
 default = ["qt"]
 gtk = ["dep:gtk4", "dep:pangocairo"]
-qt = [
-    "dep:cxx",
-    "dep:cxx-build",
-    "dep:qt-build-utils",
-    "dep:futures-channel",
-    "dep:scoped-tls",
-]
+qt = ["dep:cxx", "dep:cxx-build", "dep:qt-build-utils"]
 enable_log = ["compio/enable_log", "compio-log/enable_log"]
 
-once_cell_try = ["compio/once_cell_try", "cyper/once_cell_try"]
-nightly = ["compio/nightly", "cyper/nightly", "once_cell_try"]
+nightly = ["compio/nightly", "cyper/nightly"]
 
 [profile.release]
 lto = true

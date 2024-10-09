@@ -1,11 +1,11 @@
-use std::{io, path::PathBuf};
+use std::path::PathBuf;
 
 use gtk4::{
     gio::prelude::FileExt,
     glib::{GString, object::Cast},
 };
 
-use crate::Window;
+use crate::{AsRawWindow, AsWindow, Window};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileFilter {
@@ -68,19 +68,17 @@ impl FileBox {
         self
     }
 
-    pub async fn open(self, parent: Option<&Window>) -> io::Result<Option<PathBuf>> {
-        Ok(self
-            .filebox()
-            .open_future(parent.map(|w| w.as_window()))
+    pub async fn open(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
+        self.filebox()
+            .open_future(parent.map(|w| w.as_window().as_raw_window()).as_ref())
             .await
             .ok()
-            .and_then(|f| f.path()))
+            .and_then(|f| f.path())
     }
 
-    pub async fn open_multiple(self, parent: Option<&Window>) -> io::Result<Vec<PathBuf>> {
-        Ok(self
-            .filebox()
-            .open_multiple_future(parent.map(|w| w.as_window()))
+    pub async fn open_multiple(self, parent: Option<&Window>) -> Vec<PathBuf> {
+        self.filebox()
+            .open_multiple_future(parent.map(|w| w.as_window().as_raw_window()).as_ref())
             .await
             .ok()
             .map(|list| {
@@ -90,16 +88,15 @@ impl FileBox {
                     .filter_map(|f| f.path())
                     .collect()
             })
-            .unwrap_or_default())
+            .unwrap_or_default()
     }
 
-    pub async fn save(self, parent: Option<&Window>) -> io::Result<Option<PathBuf>> {
-        Ok(self
-            .filebox()
-            .save_future(parent.map(|w| w.as_window()))
+    pub async fn save(self, parent: Option<&Window>) -> Option<PathBuf> {
+        self.filebox()
+            .save_future(parent.map(|w| w.as_window().as_raw_window()).as_ref())
             .await
             .ok()
-            .and_then(|f| f.path()))
+            .and_then(|f| f.path())
     }
 
     fn filebox(self) -> gtk4::FileDialog {

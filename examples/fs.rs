@@ -1,135 +1,138 @@
-#![feature(let_chains)]
-
-use std::{
-    io,
-    path::{Path, PathBuf},
-    rc::{Rc, Weak},
-};
+use std::{io, path::Path};
 
 use compio::{fs::File, io::AsyncReadAtExt, runtime::spawn};
-use futures_util::{FutureExt, lock::Mutex};
 use winio::{
-    Button, Canvas, Color, ColorTheme, DrawingFontBuilder, FileBox, HAlign, Point, Size,
-    SolidColorBrush, VAlign, Window, block_on,
+    App, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, Component, ComponentSender,
+    DrawingFontBuilder, FileBox, HAlign, Point, Size, SolidColorBrush, VAlign, Window, WindowEvent,
 };
 
 fn main() {
     #[cfg(feature = "enable_log")]
     tracing_subscriber::fmt()
-        .with_max_level(compio_log::Level::DEBUG)
+        .with_max_level(compio_log::Level::INFO)
         .init();
 
-    block_on(async {
-        let window = Window::new().unwrap();
-        window.set_text("File IO example").unwrap();
-        window.set_size(Size::new(800.0, 600.0)).unwrap();
-
-        let is_dark = window.color_theme() == ColorTheme::Dark;
-
-        let canvas = Canvas::new(&window).unwrap();
-        let button = Button::new(&window).unwrap();
-        button.set_text("Choose file...").unwrap();
-        spawn(render(
-            Rc::downgrade(&window),
-            Rc::downgrade(&canvas),
-            Rc::downgrade(&button),
-        ))
-        .detach();
-
-        let text = Rc::new(Mutex::new(FetchStatus::Loading));
-        spawn(fetch(
-            Rc::downgrade(&window),
-            Rc::downgrade(&canvas),
-            Rc::downgrade(&button),
-            text.clone(),
-        ))
-        .detach();
-        spawn(redraw(is_dark, Rc::downgrade(&canvas), text)).detach();
-        window.wait_close().await;
-    })
+    App::new().run::<MainModel>("Cargo.toml", &())
 }
 
-async fn render(window: Weak<Window>, canvas: Weak<Canvas>, button: Weak<Button>) {
-    while let Some(window) = window.upgrade()
-        && let Some(canvas) = canvas.upgrade()
-        && let Some(button) = button.upgrade()
-    {
-        const BHEIGHT: f64 = 20.0;
-
-        let csize = window.client_size().unwrap();
-
-        button.set_loc(Point::new(0.0, 0.0)).unwrap();
-        button.set_size(Size::new(csize.width, BHEIGHT)).unwrap();
-        let bheight = button.size().unwrap().height;
-
-        canvas
-            .set_size(Size::new(csize.width, csize.height - bheight))
-            .unwrap();
-        canvas.set_loc(Point::new(0.0, bheight)).unwrap();
-        canvas.redraw().unwrap();
-
-        futures_util::select! {
-            _ = window.wait_size().fuse() => {}
-            _ = window.wait_move().fuse() => {}
-        }
-    }
+struct MainModel {
+    window: Child<Window>,
+    canvas: Child<Canvas>,
+    button: Child<Button>,
+    text: FetchStatus,
+    is_dark: bool,
 }
 
+#[derive(Debug)]
 enum FetchStatus {
     Loading,
     Complete(String),
     Error(String),
 }
 
-async fn read_file(path: impl AsRef<Path>) -> io::Result<String> {
-    let file = File::open(path).await?;
-    let (_, buffer) = file.read_to_end_at(vec![], 0).await?;
-    String::from_utf8(buffer).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+#[derive(Debug)]
+enum MainMessage {
+    Close,
+    Redraw,
+    ChooseFile,
+    Fetch(FetchStatus),
 }
 
-async fn fetch(
-    window: Weak<Window>,
-    canvas: Weak<Canvas>,
-    button: Weak<Button>,
-    text: Rc<Mutex<FetchStatus>>,
-) {
-    let mut path = PathBuf::from("Cargo.toml");
-    loop {
-        *text.lock().await = match read_file(&path).await {
-            Ok(text) => FetchStatus::Complete(text),
-            Err(e) => FetchStatus::Error(format!("{:?}", e)),
-        };
+impl Component for MainModel {
+    type Event = ();
+    type Init = &'static str;
+    type Message = MainMessage;
+    type Root = ();
 
-        if let Some(canvas) = canvas.upgrade() {
-            canvas.redraw().unwrap();
-        } else {
-            break;
+    fn init(
+        counter: Self::Init,
+        _root: &Self::Root,
+        sender: &winio::ComponentSender<Self>,
+    ) -> Self {
+        let mut window = Child::<Window>::init((), &());
+        window.set_text("File IO example");
+        window.set_size(Size::new(800.0, 600.0));
+
+        let is_dark = ColorTheme::current() == ColorTheme::Dark;
+
+        let canvas = Child::<Canvas>::init((), &window);
+        let mut button = Child::<Button>::init((), &window);
+        button.set_text("Choose file...");
+
+        spawn(fetch(counter, sender.clone())).detach();
+
+        Self {
+            window,
+            canvas,
+            button,
+            text: FetchStatus::Loading,
+            is_dark,
         }
+    }
 
-        if let Some(window) = window.upgrade()
-            && let Some(button) = button.upgrade()
-            && let Some(canvas) = canvas.upgrade()
-        {
-            button.wait_click().await;
-            if let Some(p) = FileBox::new()
-                .title("Open file")
-                .add_filter(("All files", "*.*"))
-                .open(Some(&window))
-                .await
-                .unwrap()
-            {
-                path = p;
-                *text.lock().await = FetchStatus::Loading;
-                canvas.redraw().unwrap();
+    async fn start(&mut self, sender: &winio::ComponentSender<Self>) {
+        let fut_window = self.window.start(sender, |e| match e {
+            WindowEvent::Close => Some(MainMessage::Close),
+            WindowEvent::Move | WindowEvent::Resize => Some(MainMessage::Redraw),
+            _ => None,
+        });
+        let fut_button = self.button.start(sender, |e| match e {
+            ButtonEvent::Click => Some(MainMessage::ChooseFile),
+            _ => None,
+        });
+        futures_util::future::join(fut_window, fut_button).await;
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        sender: &winio::ComponentSender<Self>,
+    ) -> bool {
+        futures_util::future::join3(
+            self.window.update(),
+            self.canvas.update(),
+            self.button.update(),
+        )
+        .await;
+        match message {
+            MainMessage::Close => {
+                sender.output(());
+                false
+            }
+            MainMessage::Redraw => true,
+            MainMessage::ChooseFile => {
+                if let Some(p) = FileBox::new()
+                    .title("Open file")
+                    .add_filter(("All files", "*.*"))
+                    .open(Some(&*self.window))
+                    .await
+                {
+                    spawn(fetch(p, sender.clone())).detach();
+                }
+                false
+            }
+            MainMessage::Fetch(status) => {
+                self.text = status;
+                true
             }
         }
     }
-}
 
-async fn redraw(is_dark: bool, canvas: Weak<Canvas>, text: Rc<Mutex<FetchStatus>>) {
-    while let Some(canvas) = canvas.upgrade() {
-        let ctx = canvas.wait_redraw().await.unwrap();
-        let brush = SolidColorBrush::new(if is_dark {
+    fn render(&mut self, _sender: &winio::ComponentSender<Self>) {
+        const BHEIGHT: f64 = 20.0;
+
+        let csize = self.window.client_size();
+
+        self.button.set_loc(Point::new(0.0, 0.0));
+        self.button.set_size(Size::new(csize.width, BHEIGHT));
+        let bheight = self.button.size().height;
+
+        self.canvas
+            .set_size(Size::new(csize.width, csize.height - bheight));
+        self.canvas.set_loc(Point::new(0.0, bheight));
+
+        let mut ctx = self.canvas.context();
+        let brush = SolidColorBrush::new(if self.is_dark {
             Color::new(255, 255, 255, 255)
         } else {
             Color::new(0, 0, 0, 255)
@@ -143,12 +146,26 @@ async fn redraw(is_dark: bool, canvas: Weak<Canvas>, text: Rc<Mutex<FetchStatus>
                 .size(12.0)
                 .build(),
             Point::new(0.0, 0.0),
-            match &*text.lock().await {
+            match &self.text {
                 FetchStatus::Loading => "Loading...",
                 FetchStatus::Complete(s) => s.as_str(),
                 FetchStatus::Error(e) => e.as_str(),
             },
-        )
-        .unwrap();
+        );
     }
+}
+
+async fn read_file(path: impl AsRef<Path>) -> io::Result<String> {
+    let file = File::open(path).await?;
+    let (_, buffer) = file.read_to_end_at(vec![], 0).await?;
+    String::from_utf8(buffer).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+}
+
+async fn fetch(path: impl AsRef<Path>, sender: ComponentSender<MainModel>) {
+    sender.post(MainMessage::Fetch(FetchStatus::Loading));
+    let status = match read_file(path).await {
+        Ok(text) => FetchStatus::Complete(text),
+        Err(e) => FetchStatus::Error(format!("{:?}", e)),
+    };
+    sender.post(MainMessage::Fetch(status));
 }

@@ -1,78 +1,53 @@
-#[cfg(feature = "once_cell_try")]
-use std::sync::OnceLock;
 use std::{
-    io,
     mem::MaybeUninit,
     ptr::{null, null_mut},
-    rc::Rc,
+    sync::OnceLock,
 };
 
 use compio::driver::syscall;
-#[cfg(not(feature = "once_cell_try"))]
-use once_cell::sync::OnceCell as OnceLock;
 use widestring::U16CString;
 use windows_sys::{
     Win32::{
-        Foundation::{BOOL, HWND, LPARAM, POINT, RECT, SetLastError},
-        Graphics::Gdi::{
-            BLACK_BRUSH, GetStockObject, HDC, MapWindowPoints, Rectangle, SelectObject, WHITE_BRUSH,
-        },
+        Foundation::{HWND, POINT, SetLastError},
+        Graphics::Gdi::MapWindowPoints,
         System::LibraryLoader::GetModuleHandleW,
         UI::WindowsAndMessaging::{
-            CW_USEDEFAULT, CloseWindow, CreateWindowExW, DestroyIcon, EnumChildWindows, GWL_STYLE,
-            GetClientRect, GetParent, GetWindowLongPtrW, GetWindowLongW, GetWindowRect,
-            GetWindowTextLengthW, GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW,
-            IMAGE_ICON, LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LoadCursorW, LoadImageW, MSG,
-            RegisterClassExW, SW_SHOWNORMAL, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
-            SendMessageW, SetWindowLongPtrW, SetWindowLongW, SetWindowPos, SetWindowTextW,
-            ShowWindow, WM_CLOSE, WM_DPICHANGED, WM_ERASEBKGND, WM_MOVE, WM_SETFONT, WM_SETICON,
-            WM_SIZE, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
+            CW_USEDEFAULT, CloseWindow, CreateWindowExW, DestroyIcon, GWL_STYLE, GetClientRect,
+            GetParent, GetWindowLongPtrW, GetWindowLongW, GetWindowRect, GetWindowTextLengthW,
+            GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW, IMAGE_ICON, LR_DEFAULTCOLOR,
+            LR_DEFAULTSIZE, LoadCursorW, LoadImageW, MSG, RegisterClassExW, SW_SHOWNORMAL,
+            SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SendMessageW, SetWindowLongPtrW, SetWindowLongW,
+            SetWindowPos, SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE, WM_SETICON, WM_SIZE,
+            WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
         },
     },
     w,
 };
 
-use super::{
-    darkmode::{
-        PreferredAppMode, control_use_dark_mode, is_dark_mode_allowed_for_app,
-        set_preferred_app_mode, window_use_dark_mode,
-    },
-    dpi::{DpiAware, get_dpi_for_window},
-    font::default_font,
-};
 use crate::{
-    ColorTheme, Point, Size,
+    AsRawWindow, Point, Size,
     runtime::{wait, window_proc},
+    ui::{
+        RawWindow,
+        darkmode::{
+            PreferredAppMode, control_use_dark_mode, set_preferred_app_mode, window_use_dark_mode,
+        },
+        dpi::{DpiAware, get_dpi_for_window},
+    },
 };
-
-pub trait AsRawWindow {
-    fn as_raw_window(&self) -> HWND;
-}
-
-pub trait IntoRawWindow {
-    fn into_raw_window(self) -> HWND;
-}
-
-pub trait FromRawWindow {
-    /// # Safety
-    /// Caller should ensure the handle being valid.
-    unsafe fn from_raw_window(handle: HWND) -> Self;
-}
-
-impl<T: AsRawWindow> AsRawWindow for &'_ T {
-    fn as_raw_window(&self) -> HWND {
-        (**self).as_raw_window()
-    }
-}
-
-impl<T: AsRawWindow> AsRawWindow for Rc<T> {
-    fn as_raw_window(&self) -> HWND {
-        self.as_ref().as_raw_window()
-    }
-}
 
 #[derive(Debug)]
 pub struct OwnedWindow(HWND);
+
+impl OwnedWindow {
+    pub unsafe fn from_raw_window(h: HWND) -> Self {
+        Self(h)
+    }
+
+    pub fn as_raw_window(&self) -> HWND {
+        self.0
+    }
+}
 
 impl Drop for OwnedWindow {
     fn drop(&mut self) {
@@ -81,20 +56,8 @@ impl Drop for OwnedWindow {
 }
 
 impl AsRawWindow for OwnedWindow {
-    fn as_raw_window(&self) -> HWND {
+    fn as_raw_window(&self) -> RawWindow {
         self.0
-    }
-}
-
-impl IntoRawWindow for OwnedWindow {
-    fn into_raw_window(self) -> HWND {
-        self.0
-    }
-}
-
-impl FromRawWindow for OwnedWindow {
-    unsafe fn from_raw_window(handle: HWND) -> Self {
-        Self(handle)
     }
 }
 
@@ -102,12 +65,7 @@ impl FromRawWindow for OwnedWindow {
 pub(crate) struct Widget(OwnedWindow);
 
 impl Widget {
-    pub fn new(
-        class_name: *const u16,
-        style: u32,
-        ex_style: u32,
-        parent: HWND,
-    ) -> io::Result<Self> {
+    pub fn new(class_name: *const u16, style: u32, ex_style: u32, parent: HWND) -> Self {
         let handle = unsafe {
             CreateWindowExW(
                 ex_style,
@@ -125,12 +83,17 @@ impl Widget {
             )
         };
         if handle.is_null() {
-            return Err(io::Error::last_os_error());
+            panic!("{:?}", std::io::Error::last_os_error());
         }
-        unsafe { control_use_dark_mode(handle) };
-        let this = Self(unsafe { OwnedWindow::from_raw_window(handle) });
-        this.refresh_font();
-        Ok(this)
+        unsafe {
+            control_use_dark_mode(handle);
+            crate::runtime::refresh_font(handle);
+            Self(OwnedWindow::from_raw_window(handle))
+        }
+    }
+
+    pub fn as_raw_window(&self) -> HWND {
+        self.0.as_raw_window()
     }
 
     pub async fn wait(&self, msg: u32) -> MSG {
@@ -143,20 +106,6 @@ impl Widget {
 
     pub fn dpi(&self) -> u32 {
         unsafe { get_dpi_for_window(self.as_raw_window()) }
-    }
-
-    fn refresh_font(&self) {
-        let font = default_font(self.dpi());
-
-        unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
-            SendMessageW(hwnd, WM_SETFONT, lparam as _, 1);
-            EnumChildWindows(hwnd, Some(enum_callback), lparam);
-            1
-        }
-
-        unsafe {
-            enum_callback(self.as_raw_window(), font as _);
-        }
     }
 
     pub fn size_d2l(&self, s: (i32, i32)) -> Size {
@@ -181,18 +130,19 @@ impl Widget {
         (p.x as i32, p.y as i32)
     }
 
-    fn sized(&self) -> io::Result<(i32, i32)> {
+    fn sized(&self) -> (i32, i32) {
         let handle = self.as_raw_window();
         let mut rect = MaybeUninit::uninit();
-        syscall!(BOOL, unsafe { GetWindowRect(handle, rect.as_mut_ptr()) })?;
+        syscall!(BOOL, unsafe { GetWindowRect(handle, rect.as_mut_ptr()) }).unwrap();
         let rect = unsafe { rect.assume_init() };
-        Ok((rect.right - rect.left, rect.bottom - rect.top))
+        (rect.right - rect.left, rect.bottom - rect.top)
     }
 
-    fn set_sized(&self, v: (i32, i32)) -> io::Result<()> {
+    fn set_sized(&self, v: (i32, i32)) {
         let handle = self.as_raw_window();
-        if v != self.sized()? {
-            syscall!(BOOL, unsafe {
+        if v != self.sized() {
+            syscall!(
+                BOOL,
                 SetWindowPos(
                     handle,
                     null_mut(),
@@ -202,24 +152,24 @@ impl Widget {
                     v.1,
                     SWP_NOMOVE | SWP_NOZORDER,
                 )
-            })?;
+            )
+            .unwrap();
         }
-        Ok(())
     }
 
-    pub fn size(&self) -> io::Result<Size> {
-        Ok(self.size_d2l(self.sized()?))
+    pub fn size(&self) -> Size {
+        self.size_d2l(self.sized())
     }
 
-    pub fn set_size(&self, v: Size) -> io::Result<()> {
+    pub fn set_size(&self, v: Size) {
         self.set_sized(self.size_l2d(v))
     }
 
-    fn locd(&self) -> io::Result<(i32, i32)> {
+    fn locd(&self) -> (i32, i32) {
         let handle = self.as_raw_window();
         unsafe {
             let mut rect = MaybeUninit::uninit();
-            syscall!(BOOL, GetWindowRect(handle, rect.as_mut_ptr()))?;
+            syscall!(BOOL, GetWindowRect(handle, rect.as_mut_ptr())).unwrap();
             let rect = rect.assume_init();
             let mut point = POINT {
                 x: rect.left,
@@ -228,15 +178,17 @@ impl Widget {
             syscall!(
                 BOOL,
                 MapWindowPoints(HWND_DESKTOP, GetParent(handle), &mut point, 2,)
-            )?;
-            Ok((point.x, point.y))
+            )
+            .unwrap();
+            (point.x, point.y)
         }
     }
 
-    fn set_locd(&self, p: (i32, i32)) -> io::Result<()> {
+    fn set_locd(&self, p: (i32, i32)) {
         let handle = self.as_raw_window();
-        if p != self.locd()? {
-            syscall!(BOOL, unsafe {
+        if p != self.locd() {
+            syscall!(
+                BOOL,
                 SetWindowPos(
                     handle,
                     null_mut(),
@@ -246,64 +198,66 @@ impl Widget {
                     0,
                     SWP_NOSIZE | SWP_NOZORDER,
                 )
-            })?;
+            )
+            .unwrap();
         }
-        Ok(())
     }
 
-    pub fn loc(&self) -> io::Result<Point> {
-        Ok(self.point_d2l(self.locd()?))
+    pub fn loc(&self) -> Point {
+        self.point_d2l(self.locd())
     }
 
-    pub fn set_loc(&self, p: Point) -> io::Result<()> {
+    pub fn set_loc(&self, p: Point) {
         self.set_locd(self.point_l2d(p))
     }
 
-    pub fn text(&self) -> io::Result<String> {
+    pub fn text(&self) -> String {
         let handle = self.as_raw_window();
         let len = unsafe { GetWindowTextLengthW(handle) };
         if len == 0 {
-            return Ok(String::new());
+            return String::new();
         };
         let mut res: Vec<u16> = Vec::with_capacity(len as usize + 1);
         syscall!(BOOL, unsafe {
             GetWindowTextW(handle, res.as_mut_ptr(), res.capacity() as _)
-        })?;
+        })
+        .unwrap();
         unsafe { res.set_len(len as usize + 1) };
-        Ok(unsafe { U16CString::from_vec_unchecked(res) }.to_string_lossy())
+        unsafe { U16CString::from_vec_unchecked(res) }.to_string_lossy()
     }
 
-    pub fn set_text(&self, s: impl AsRef<str>) -> io::Result<()> {
+    pub fn set_text(&self, s: impl AsRef<str>) {
         let handle = self.as_raw_window();
         let s = U16CString::from_str_truncate(s);
-        syscall!(BOOL, unsafe { SetWindowTextW(handle, s.as_ptr()) })?;
-        Ok(())
+        syscall!(BOOL, unsafe { SetWindowTextW(handle, s.as_ptr()) }).unwrap();
     }
 
-    pub fn style(&self) -> io::Result<u32> {
-        let res = syscall!(BOOL, unsafe {
+    pub fn style(&self) -> u32 {
+        syscall!(
+            BOOL,
             if cfg!(target_pointer_width = "64") {
                 GetWindowLongPtrW(self.as_raw_window(), GWL_STYLE) as u32
             } else {
                 GetWindowLongW(self.as_raw_window(), GWL_STYLE) as u32
             }
-        })?;
-        Ok(res)
+        )
+        .unwrap()
     }
 
-    pub fn set_style(&self, style: u32) -> io::Result<()> {
+    pub fn set_style(&self, style: u32) {
         unsafe { SetLastError(0) };
-        let res = syscall!(BOOL, unsafe {
+        let res = syscall!(
+            BOOL,
             if cfg!(target_pointer_width = "64") {
                 SetWindowLongPtrW(self.as_raw_window(), GWL_STYLE, style as _) as i32
             } else {
                 SetWindowLongW(self.as_raw_window(), GWL_STYLE, style as _)
             }
-        });
+        );
         match res {
-            Ok(_) => Ok(()),
-            Err(e) if e.raw_os_error() == Some(0) => Ok(()),
-            Err(e) => Err(e),
+            Ok(_) => {}
+            Err(e) if e.raw_os_error() == Some(0) => {}
+            Err(e) => panic!("{:?}", e),
         }
     }
 
@@ -315,14 +269,14 @@ impl Widget {
 }
 
 impl AsRawWindow for Widget {
-    fn as_raw_window(&self) -> HWND {
+    fn as_raw_window(&self) -> RawWindow {
         self.0.as_raw_window()
     }
 }
 
 pub const WINDOW_CLASS_NAME: *const u16 = w!("XamlWindow");
 
-fn register() -> io::Result<()> {
+fn register() {
     unsafe {
         set_preferred_app_mode(PreferredAppMode::AllowDark);
     }
@@ -340,15 +294,13 @@ fn register() -> io::Result<()> {
         lpszClassName: WINDOW_CLASS_NAME,
         hIconSm: null_mut(),
     };
-    syscall!(BOOL, unsafe { RegisterClassExW(&cls) })?;
-    Ok(())
+    syscall!(BOOL, unsafe { RegisterClassExW(&cls) }).unwrap();
 }
 
 static REGISTER: OnceLock<()> = OnceLock::new();
 
-fn register_once() -> io::Result<()> {
-    REGISTER.get_or_try_init(register)?;
-    Ok(())
+fn register_once() {
+    REGISTER.get_or_init(register);
 }
 
 #[derive(Debug)]
@@ -357,109 +309,53 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new() -> io::Result<Rc<Self>> {
-        register_once()?;
-        let handle = Widget::new(WINDOW_CLASS_NAME, WS_OVERLAPPEDWINDOW, 0, null_mut())?;
-        let this = Rc::<Self>::new_cyclic(|weak_this| {
-            compio::runtime::spawn({
-                let weak_this = weak_this.clone();
-                async move {
-                    while let Some(this) = weak_this.upgrade() {
-                        let msg = this.handle.wait(WM_ERASEBKGND).await;
-                        unsafe {
-                            let hdc = msg.wParam as HDC;
-                            let brush = if is_dark_mode_allowed_for_app() {
-                                GetStockObject(BLACK_BRUSH)
-                            } else {
-                                GetStockObject(WHITE_BRUSH)
-                            };
-                            let old_brush = SelectObject(hdc, brush);
-                            let mut r = MaybeUninit::uninit();
-                            GetClientRect(this.as_raw_window(), r.as_mut_ptr());
-                            let r = r.assume_init();
-                            Rectangle(hdc, r.left - 1, r.top - 1, r.right + 1, r.bottom + 1);
-                            SelectObject(hdc, old_brush);
-                        }
-                    }
-                }
-            })
-            .detach();
-            compio::runtime::spawn({
-                let weak_this = weak_this.clone();
-                async move {
-                    while let Some(this) = weak_this.upgrade() {
-                        let msg = this.handle.wait(WM_DPICHANGED).await;
-                        unsafe {
-                            let new_rect = msg.lParam as *const RECT;
-                            if let Some(new_rect) = new_rect.as_ref() {
-                                SetWindowPos(
-                                    this.as_raw_window(),
-                                    null_mut(),
-                                    new_rect.left,
-                                    new_rect.top,
-                                    new_rect.right - new_rect.left,
-                                    new_rect.bottom - new_rect.top,
-                                    SWP_NOZORDER | SWP_NOACTIVATE,
-                                );
-                            }
-                        }
-                        this.handle.refresh_font();
-                    }
-                }
-            })
-            .detach();
-            Self { handle }
-        });
+    pub fn new() -> Self {
+        register_once();
+        let handle = Widget::new(WINDOW_CLASS_NAME, WS_OVERLAPPEDWINDOW, 0, null_mut());
+        let this = Self { handle };
         unsafe { ShowWindow(this.as_raw_window(), SW_SHOWNORMAL) };
         unsafe { window_use_dark_mode(this.as_raw_window()) };
-        Ok(this)
+        this
     }
 
-    pub fn color_theme(&self) -> ColorTheme {
-        unsafe {
-            if is_dark_mode_allowed_for_app() {
-                ColorTheme::Dark
-            } else {
-                ColorTheme::Light
-            }
-        }
+    pub fn as_raw_window(&self) -> HWND {
+        self.handle.as_raw_window()
     }
 
-    pub fn loc(&self) -> io::Result<Point> {
+    pub fn loc(&self) -> Point {
         self.handle.loc()
     }
 
-    pub fn set_loc(&self, p: Point) -> io::Result<()> {
+    pub fn set_loc(&mut self, p: Point) {
         self.handle.set_loc(p)
     }
 
-    pub fn size(&self) -> io::Result<Size> {
+    pub fn size(&self) -> Size {
         self.handle.size()
     }
 
-    pub fn set_size(&self, v: Size) -> io::Result<()> {
+    pub fn set_size(&mut self, v: Size) {
         self.handle.set_size(v)
     }
 
-    pub fn client_size(&self) -> io::Result<Size> {
+    pub fn client_size(&self) -> Size {
         let handle = self.as_raw_window();
         let mut rect = MaybeUninit::uninit();
-        syscall!(BOOL, unsafe { GetClientRect(handle, rect.as_mut_ptr()) })?;
+        syscall!(BOOL, unsafe { GetClientRect(handle, rect.as_mut_ptr()) }).unwrap();
         let rect = unsafe { rect.assume_init() };
-        Ok(self
-            .handle
-            .size_d2l((rect.right - rect.left, rect.bottom - rect.top)))
+        self.handle
+            .size_d2l((rect.right - rect.left, rect.bottom - rect.top))
     }
 
-    pub fn text(&self) -> io::Result<String> {
+    pub fn text(&self) -> String {
         self.handle.text()
     }
 
-    pub fn set_text(&self, s: impl AsRef<str>) -> io::Result<()> {
+    pub fn set_text(&mut self, s: impl AsRef<str>) {
         self.handle.set_text(s)
     }
 
-    pub fn set_icon_by_id(&self, id: u16) -> io::Result<()> {
+    pub fn set_icon_by_id(&mut self, id: u16) {
         let icon = unsafe {
             LoadImageW(
                 GetModuleHandleW(null()),
@@ -471,11 +367,10 @@ impl Window {
             )
         };
         if icon.is_null() {
-            return Err(io::Error::last_os_error());
+            panic!("{:?}", std::io::Error::last_os_error());
         }
         self.handle.set_icon(icon);
-        syscall!(BOOL, DestroyIcon(icon))?;
-        Ok(())
+        syscall!(BOOL, DestroyIcon(icon)).unwrap();
     }
 
     pub async fn wait_size(&self) {
@@ -492,7 +387,7 @@ impl Window {
 }
 
 impl AsRawWindow for Window {
-    fn as_raw_window(&self) -> HWND {
+    fn as_raw_window(&self) -> RawWindow {
         self.handle.as_raw_window()
     }
 }

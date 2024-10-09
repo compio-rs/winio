@@ -1,97 +1,138 @@
-#![feature(let_chains)]
-
-use std::{
-    cell::Cell,
-    rc::{Rc, Weak},
-    time::Duration,
-};
+use std::time::Duration;
 
 use compio::{runtime::spawn, time::interval};
-use futures_util::FutureExt;
+use compio_log::info;
 use winio::{
-    BrushPen, Canvas, Color, ColorTheme, CustomButton, DrawingFontBuilder, HAlign, MessageBox,
-    MessageBoxButton, MessageBoxResponse, MessageBoxStyle, Point, Rect, Size, SolidColorBrush,
-    VAlign, Window, block_on,
+    App, BrushPen, Canvas, CanvasEvent, Child, Color, ColorTheme, Component, ComponentSender,
+    CustomButton, DrawingFontBuilder, HAlign, MessageBox, MessageBoxButton, MessageBoxResponse,
+    MessageBoxStyle, MouseButton, Point, Rect, Size, SolidColorBrush, VAlign, Window, WindowEvent,
 };
 
 fn main() {
     #[cfg(feature = "enable_log")]
     tracing_subscriber::fmt()
-        .with_max_level(compio_log::Level::DEBUG)
+        .with_max_level(compio_log::Level::INFO)
         .init();
 
-    block_on(async {
-        let window = Window::new().unwrap();
-        window.set_text("Basic example").unwrap();
-        window.set_size(Size::new(800.0, 600.0)).unwrap();
-
-        let is_dark = window.color_theme() == ColorTheme::Dark;
-
-        let canvas = Canvas::new(&window).unwrap();
-        let counter = Rc::new(Cell::new(0usize));
-
-        spawn(render(Rc::downgrade(&window), Rc::downgrade(&canvas))).detach();
-        spawn(track(Rc::downgrade(&canvas))).detach();
-        spawn(tick(Rc::downgrade(&canvas), counter.clone())).detach();
-        spawn(redraw(is_dark, Rc::downgrade(&canvas), counter)).detach();
-        wait_close(window).await;
-    })
+    App::new().run::<MainModel>(0, &());
 }
 
-async fn track(canvas: Weak<Canvas>) {
-    while let Some(canvas) = canvas.upgrade() {
-        futures_util::select! {
-            m = canvas.wait_mouse_down().fuse() => println!("{:?}", m),
-            m = canvas.wait_mouse_up().fuse() => println!("{:?}", m),
-            p = canvas.wait_mouse_move().fuse() => println!("{:?}", p.unwrap()),
+struct MainModel {
+    window: Child<Window>,
+    canvas: Child<Canvas>,
+    counter: usize,
+    is_dark: bool,
+}
+
+#[derive(Debug)]
+enum MainMessage {
+    Tick,
+    Close,
+    Redraw,
+    Mouse(MouseButton),
+    MouseMove(Point),
+}
+
+impl Component for MainModel {
+    type Event = ();
+    type Init = usize;
+    type Message = MainMessage;
+    type Root = ();
+
+    fn init(counter: Self::Init, _root: &Self::Root, sender: &ComponentSender<Self>) -> Self {
+        let mut window = Child::<Window>::init((), &());
+        let canvas = Child::<Canvas>::init((), &window);
+
+        window.set_text("Basic example");
+        window.set_size(Size::new(800.0, 600.0));
+
+        let sender = sender.clone();
+        spawn(async move {
+            let mut interval = interval(Duration::from_secs(1));
+            loop {
+                interval.tick().await;
+                sender.post(MainMessage::Tick);
+            }
+        })
+        .detach();
+        Self {
+            window,
+            canvas,
+            counter,
+            is_dark: ColorTheme::current() == ColorTheme::Dark,
         }
     }
-}
 
-async fn render(window: Weak<Window>, canvas: Weak<Canvas>) {
-    while let Some(window) = window.upgrade()
-        && let Some(canvas) = canvas.upgrade()
-    {
-        let csize = window.client_size().unwrap();
-        canvas.set_size(csize / 2.0).unwrap();
-        canvas
-            .set_loc(Point::new(csize.width / 4.0, csize.height / 4.0))
-            .unwrap();
-        canvas.redraw().unwrap();
-        futures_util::select! {
-            _ = window.wait_size().fuse() => {}
-            _ = window.wait_move().fuse() => {}
+    async fn start(&mut self, sender: &ComponentSender<Self>) {
+        let fut_window = self.window.start(sender, |e| match e {
+            WindowEvent::Close => Some(MainMessage::Close),
+            WindowEvent::Move | WindowEvent::Resize => Some(MainMessage::Redraw),
+            _ => None,
+        });
+        let fut_canvas = self.canvas.start(sender, |e| match e {
+            CanvasEvent::MouseDown(b) | CanvasEvent::MouseUp(b) => Some(MainMessage::Mouse(b)),
+            CanvasEvent::MouseMove(p) => Some(MainMessage::MouseMove(p)),
+            _ => None,
+        });
+        futures_util::future::join(fut_window, fut_canvas).await;
+    }
+
+    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
+        futures_util::future::join(self.window.update(), self.canvas.update()).await;
+        match message {
+            MainMessage::Tick => {
+                self.counter += 1;
+                true
+            }
+            MainMessage::Close => {
+                match MessageBox::new()
+                    .title("Basic example")
+                    .message("Close window?")
+                    .style(MessageBoxStyle::Info)
+                    .buttons(MessageBoxButton::Yes | MessageBoxButton::No)
+                    .custom_button(CustomButton::new(114, "114"))
+                    .show(Some(&*self.window))
+                    .await
+                {
+                    MessageBoxResponse::Yes | MessageBoxResponse::Custom(114) => {
+                        sender.output(());
+                    }
+                    _ => {}
+                }
+                false
+            }
+            MainMessage::Redraw => true,
+            MainMessage::Mouse(_b) => {
+                info!("{:?}", _b);
+                false
+            }
+            MainMessage::MouseMove(_p) => {
+                info!("{:?}", _p);
+                false
+            }
         }
     }
-}
 
-async fn tick(canvas: Weak<Canvas>, counter: Rc<Cell<usize>>) {
-    let mut interval = interval(Duration::from_secs(1));
-    loop {
-        interval.tick().await;
-        counter.set(counter.get() + 1);
-        if let Some(canvas) = canvas.upgrade() {
-            canvas.redraw().unwrap();
-        } else {
-            break;
-        }
-    }
-}
+    fn render(&mut self, _sender: &ComponentSender<Self>) {
+        self.window.render();
+        self.canvas.render();
 
-async fn redraw(is_dark: bool, canvas: Weak<Canvas>, counter: Rc<Cell<usize>>) {
-    while let Some(canvas) = canvas.upgrade() {
-        let ctx = canvas.wait_redraw().await.unwrap();
-        let size = canvas.size().unwrap();
-        let brush = SolidColorBrush::new(if is_dark {
+        let csize = self.window.client_size();
+        self.canvas.set_size(csize / 2.0);
+        self.canvas
+            .set_loc(Point::new(csize.width / 4.0, csize.height / 4.0));
+
+        let size = self.canvas.size();
+        let brush = SolidColorBrush::new(if self.is_dark {
             Color::new(255, 255, 255, 255)
         } else {
             Color::new(0, 0, 0, 255)
         });
+        let mut ctx = self.canvas.context();
         ctx.draw_ellipse(
             BrushPen::new(brush.clone(), 1.0),
             Rect::new(Point::new(size.width / 4.0, size.height / 4.0), size / 2.0),
-        )
-        .unwrap();
+        );
         ctx.draw_str(
             &brush,
             DrawingFontBuilder::new()
@@ -101,27 +142,7 @@ async fn redraw(is_dark: bool, canvas: Weak<Canvas>, counter: Rc<Cell<usize>>) {
                 .size(12.0)
                 .build(),
             Point::new(size.width / 2.0, size.height / 2.0),
-            format!("Hello world!\nRunning: {}s", counter.get()),
-        )
-        .unwrap();
-    }
-}
-
-async fn wait_close(window: Rc<Window>) {
-    loop {
-        window.wait_close().await;
-        match MessageBox::new()
-            .title("Basic example")
-            .message("Close window?")
-            .style(MessageBoxStyle::Info)
-            .buttons(MessageBoxButton::Yes | MessageBoxButton::No)
-            .custom_button(CustomButton::new(114, "114"))
-            .show(Some(&window))
-            .await
-            .unwrap()
-        {
-            MessageBoxResponse::Yes | MessageBoxResponse::Custom(114) => break,
-            _ => {}
-        }
+            format!("Hello world!\nRunning: {}s", self.counter),
+        );
     }
 }

@@ -1,121 +1,93 @@
-use std::{
-    cell::RefCell,
-    io,
-    mem::ManuallyDrop,
-    rc::{Rc, Weak},
-};
-
 use cxx::{ExternType, UniquePtr, type_id};
 
-use super::Widget;
 use crate::{
-    BrushPen, Callback, Color, DrawingFont, HAlign, MouseButton, Point, Rect, Size,
+    AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, HAlign, MouseButton, Point, Rect, Size,
     SolidColorBrush, VAlign,
+    ui::{Callback, Widget},
 };
 
 pub struct Canvas {
+    on_move: Box<Callback<Point>>,
+    on_press: Box<Callback<MouseButton>>,
+    on_release: Box<Callback<MouseButton>>,
     widget: Widget,
-    on_paint: Callback,
-    on_move: Callback<Point>,
-    on_press: Callback<MouseButton>,
-    on_release: Callback<MouseButton>,
 }
 
 impl Canvas {
-    pub fn new(parent: &Widget) -> io::Result<Rc<Self>> {
-        let mut widget = parent.pin_mut(ffi::new_canvas);
+    pub fn new(parent: impl AsWindow) -> Self {
+        let mut widget = unsafe { ffi::new_canvas(parent.as_window().as_raw_window()) };
         widget.pin_mut().show();
-        let widget = Rc::new_cyclic(|this: &Weak<Self>| {
-            unsafe {
-                ffi::canvas_register_paint_event(
-                    widget.pin_mut(),
-                    Self::on_paint,
-                    this.clone().into_raw().cast(),
-                );
-                ffi::canvas_register_move_event(
-                    widget.pin_mut(),
-                    Self::on_move,
-                    this.clone().into_raw().cast(),
-                );
-                ffi::canvas_register_press_event(
-                    widget.pin_mut(),
-                    Self::on_press,
-                    this.clone().into_raw().cast(),
-                );
-                ffi::canvas_register_release_event(
-                    widget.pin_mut(),
-                    Self::on_release,
-                    this.clone().into_raw().cast(),
-                );
-            }
-            Self {
-                widget: Widget::new(widget),
-                on_paint: Callback::new(),
-                on_move: Callback::new(),
-                on_press: Callback::new(),
-                on_release: Callback::new(),
-            }
-        });
-        Ok(widget)
+        let on_move = Box::new(Callback::new());
+        let on_press = Box::new(Callback::new());
+        let on_release = Box::new(Callback::new());
+        unsafe {
+            ffi::canvas_register_move_event(
+                widget.pin_mut(),
+                Self::on_move,
+                on_move.as_ref() as *const _ as _,
+            );
+            ffi::canvas_register_press_event(
+                widget.pin_mut(),
+                Self::on_press,
+                on_press.as_ref() as *const _ as _,
+            );
+            ffi::canvas_register_release_event(
+                widget.pin_mut(),
+                Self::on_release,
+                on_release.as_ref() as *const _ as _,
+            );
+        }
+        Self {
+            on_move,
+            on_press,
+            on_release,
+            widget: Widget::new(widget),
+        }
     }
 
-    pub fn loc(&self) -> io::Result<Point> {
-        Ok(self.widget.loc())
+    pub fn loc(&self) -> Point {
+        self.widget.loc()
     }
 
-    pub fn set_loc(&self, p: Point) -> io::Result<()> {
+    pub fn set_loc(&mut self, p: Point) {
         self.widget.set_loc(p);
-        Ok(())
     }
 
-    pub fn size(&self) -> io::Result<Size> {
-        Ok(self.widget.size())
+    pub fn size(&self) -> Size {
+        self.widget.size()
     }
 
-    pub fn set_size(&self, s: Size) -> io::Result<()> {
+    pub fn set_size(&mut self, s: Size) {
         self.widget.set_size(s);
-        Ok(())
     }
 
-    pub fn redraw(&self) -> io::Result<()> {
-        self.widget.pin_mut(|w| w.update());
-        Ok(())
-    }
-
-    fn on_paint(this: *const u8) {
-        let this = ManuallyDrop::new(unsafe { Weak::<Self>::from_raw(this.cast()) });
-        if let Some(this) = this.upgrade() {
-            this.on_paint.signal(());
+    fn on_move(c: *const u8, x: i32, y: i32) {
+        let c = c as *const Callback<Point>;
+        if let Some(c) = unsafe { c.as_ref() } {
+            c.signal(Point::new(x as _, y as _));
         }
     }
 
-    fn on_move(this: *const u8, x: i32, y: i32) {
-        let this = ManuallyDrop::new(unsafe { Weak::<Self>::from_raw(this.cast()) });
-        if let Some(this) = this.upgrade() {
-            this.on_move.signal(Point::new(x as _, y as _));
+    fn on_press(c: *const u8, m: QtMouseButton) {
+        let c = c as *const Callback<MouseButton>;
+        if let Some(c) = unsafe { c.as_ref() } {
+            c.signal(m.into());
         }
     }
 
-    fn on_press(this: *const u8, m: QtMouseButton) {
-        let this = ManuallyDrop::new(unsafe { Weak::<Self>::from_raw(this.cast()) });
-        if let Some(this) = this.upgrade() {
-            this.on_press.signal(m.into());
+    fn on_release(c: *const u8, m: QtMouseButton) {
+        let c = c as *const Callback<MouseButton>;
+        if let Some(c) = unsafe { c.as_ref() } {
+            c.signal(m.into());
         }
     }
 
-    fn on_release(this: *const u8, m: QtMouseButton) {
-        let this = ManuallyDrop::new(unsafe { Weak::<Self>::from_raw(this.cast()) });
-        if let Some(this) = this.upgrade() {
-            this.on_release.signal(m.into());
-        }
-    }
-
-    pub async fn wait_redraw(&self) -> io::Result<DrawingContext> {
-        self.on_paint.wait().await;
-        Ok(DrawingContext {
-            painter: RefCell::new(self.widget.pin_mut(ffi::canvas_new_painter)),
+    pub fn context(&mut self) -> DrawingContext<'_> {
+        DrawingContext {
+            painter: ffi::canvas_new_painter(self.widget.pin_mut()),
             size: self.widget.size(),
-        })
+            canvas: self,
+        }
     }
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
@@ -126,138 +98,125 @@ impl Canvas {
         self.on_release.wait().await
     }
 
-    pub async fn wait_mouse_move(&self) -> io::Result<Point> {
-        Ok(self.on_move.wait().await)
+    pub async fn wait_mouse_move(&self) -> Point {
+        self.on_move.wait().await
     }
 }
 
-pub struct DrawingContext {
-    painter: RefCell<UniquePtr<ffi::QPainter>>,
+pub struct DrawingContext<'a> {
+    painter: UniquePtr<ffi::QPainter>,
     size: Size,
+    canvas: &'a mut Canvas,
 }
 
-impl Drop for DrawingContext {
+impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
-        self.painter.borrow_mut().pin_mut().end();
+        self.painter.pin_mut().end();
+        self.canvas.widget.pin_mut().update();
     }
-}
-
-fn set_brush(painter: &mut UniquePtr<ffi::QPainter>, brush: impl Brush) {
-    painter.pin_mut().setBrush(&brush.create());
-    painter.pin_mut().setPen_color(&ffi::color_transparent());
-}
-
-fn set_pen(painter: &mut UniquePtr<ffi::QPainter>, pen: impl Pen) {
-    painter.pin_mut().setPen(&pen.create());
-    painter
-        .pin_mut()
-        .setBrush(&ffi::new_brush(ffi::color_transparent()));
 }
 
 fn drawing_angle(angle: f64) -> i32 {
     (-angle * 180.0 / std::f64::consts::PI * 16.0).round() as i32
 }
 
-impl DrawingContext {
-    pub fn draw_arc(&self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> io::Result<()> {
-        let mut painter = self.painter.borrow_mut();
-        set_pen(&mut painter, pen);
-        painter.pin_mut().drawArc(
+impl DrawingContext<'_> {
+    fn set_brush(&mut self, brush: impl Brush) {
+        self.painter.pin_mut().setBrush(&brush.create());
+        self.painter
+            .pin_mut()
+            .setPen_color(&ffi::color_transparent());
+    }
+
+    fn set_pen(&mut self, pen: impl Pen) {
+        self.painter.pin_mut().setPen(&pen.create());
+        self.painter
+            .pin_mut()
+            .setBrush(&ffi::new_brush(ffi::color_transparent()));
+    }
+
+    pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
+        self.set_pen(pen);
+        self.painter.pin_mut().drawArc(
             &QRectF(rect),
             drawing_angle(start),
             drawing_angle(end - start),
         );
-        Ok(())
     }
 
-    pub fn fill_pie(&self, brush: impl Brush, rect: Rect, start: f64, end: f64) -> io::Result<()> {
-        let mut painter = self.painter.borrow_mut();
-        set_brush(&mut painter, brush);
-        painter.pin_mut().drawPie(
+    pub fn fill_pie(&mut self, brush: impl Brush, rect: Rect, start: f64, end: f64) {
+        self.set_brush(brush);
+        self.painter.pin_mut().drawPie(
             &QRectF(rect),
             drawing_angle(start),
             drawing_angle(end - start),
         );
-        Ok(())
     }
 
-    pub fn draw_ellipse(&self, pen: impl Pen, rect: Rect) -> io::Result<()> {
-        let mut painter = self.painter.borrow_mut();
-        set_pen(&mut painter, pen);
-        painter.pin_mut().drawEllipse(&QRectF(rect));
-        Ok(())
+    pub fn draw_ellipse(&mut self, pen: impl Pen, rect: Rect) {
+        self.set_pen(pen);
+        self.painter.pin_mut().drawEllipse(&QRectF(rect));
     }
 
-    pub fn fill_ellipse(&self, brush: impl Brush, rect: Rect) -> io::Result<()> {
-        let mut painter = self.painter.borrow_mut();
-        set_brush(&mut painter, brush);
-        painter.pin_mut().drawEllipse(&QRectF(rect));
-        Ok(())
+    pub fn fill_ellipse(&mut self, brush: impl Brush, rect: Rect) {
+        self.set_brush(brush);
+        self.painter.pin_mut().drawEllipse(&QRectF(rect));
     }
 
-    pub fn draw_line(&self, pen: impl Pen, start: Point, end: Point) -> io::Result<()> {
-        let mut painter = self.painter.borrow_mut();
-        set_pen(&mut painter, pen);
-        painter.pin_mut().drawLine(&QPointF(start), &QPointF(end));
-        Ok(())
+    pub fn draw_line(&mut self, pen: impl Pen, start: Point, end: Point) {
+        self.set_pen(pen);
+        self.painter
+            .pin_mut()
+            .drawLine(&QPointF(start), &QPointF(end));
     }
 
-    pub fn draw_rect(&self, pen: impl Pen, rect: Rect) -> io::Result<()> {
-        let mut painter = self.painter.borrow_mut();
-        set_pen(&mut painter, pen);
-        painter.pin_mut().drawRect(&QRectF(rect));
-        Ok(())
+    pub fn draw_rect(&mut self, pen: impl Pen, rect: Rect) {
+        self.set_pen(pen);
+        self.painter.pin_mut().drawRect(&QRectF(rect));
     }
 
-    pub fn fill_rect(&self, brush: impl Brush, rect: Rect) -> io::Result<()> {
-        let mut painter = self.painter.borrow_mut();
-        set_brush(&mut painter, brush);
-        painter.pin_mut().drawRect(&QRectF(rect));
-        Ok(())
+    pub fn fill_rect(&mut self, brush: impl Brush, rect: Rect) {
+        self.set_brush(brush);
+        self.painter.pin_mut().drawRect(&QRectF(rect));
     }
 
-    pub fn draw_round_rect(&self, pen: impl Pen, rect: Rect, round: Size) -> io::Result<()> {
-        let mut painter = self.painter.borrow_mut();
-        set_pen(&mut painter, pen);
-        painter.pin_mut().drawRoundedRect(
+    pub fn draw_round_rect(&mut self, pen: impl Pen, rect: Rect, round: Size) {
+        self.set_pen(pen);
+        self.painter.pin_mut().drawRoundedRect(
             &QRectF(rect),
             round.width,
             round.height,
             QtSizeMode::AbsoluteSize,
         );
-        Ok(())
     }
 
-    pub fn fill_round_rect(&self, brush: impl Brush, rect: Rect, round: Size) -> io::Result<()> {
-        let mut painter = self.painter.borrow_mut();
-        set_brush(&mut painter, brush);
-        painter.pin_mut().drawRoundedRect(
+    pub fn fill_round_rect(&mut self, brush: impl Brush, rect: Rect, round: Size) {
+        self.set_brush(brush);
+        self.painter.pin_mut().drawRoundedRect(
             &QRectF(rect),
             round.width,
             round.height,
             QtSizeMode::AbsoluteSize,
         );
-        Ok(())
     }
 
     pub fn draw_str(
-        &self,
+        &mut self,
         brush: impl Brush,
         font: DrawingFont,
         pos: Point,
         text: impl AsRef<str>,
-    ) -> io::Result<()> {
+    ) {
         let text = text.as_ref();
-        let mut painter = self.painter.borrow_mut();
         ffi::painter_set_font(
-            painter.pin_mut(),
+            self.painter.pin_mut(),
             &font.family,
             font.size,
             font.italic,
             font.bold,
         );
         let rect = Rect::new(Point::zero(), self.size);
-        let size = ffi::painter_measure_text(painter.pin_mut(), QRectF(rect), text).0;
+        let size = ffi::painter_measure_text(self.painter.pin_mut(), QRectF(rect), text).0;
         let mut rect = Rect::new(pos, size);
         match font.halign {
             HAlign::Center => rect.origin.x -= rect.width() / 2.0,
@@ -270,9 +229,8 @@ impl DrawingContext {
             _ => {}
         }
 
-        set_pen(&mut painter, BrushPen::new(brush, 1.0));
-        ffi::painter_draw_text(painter.pin_mut(), QRectF(rect), text);
-        Ok(())
+        self.set_pen(BrushPen::new(brush, 1.0));
+        ffi::painter_draw_text(self.painter.pin_mut(), QRectF(rect), text);
     }
 }
 
@@ -336,6 +294,7 @@ unsafe impl ExternType for QtMouseButton {
 }
 
 #[repr(i32)]
+#[allow(dead_code)]
 pub enum QtSizeMode {
     AbsoluteSize,
     RelativeSize,
@@ -348,6 +307,7 @@ unsafe impl ExternType for QtSizeMode {
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 #[repr(i32)]
+#[allow(dead_code)]
 pub enum Spec {
     Invalid,
     Rgb,
@@ -439,18 +399,14 @@ unsafe impl ExternType for QSizeF {
 
 #[cxx::bridge]
 mod ffi {
+    extern "Rust" {}
     unsafe extern "C++" {
         include!("winio/src/ui/qt/canvas.hpp");
 
-        type QWidget = crate::QWidget;
+        type QWidget = crate::ui::QWidget;
         type QtMouseButton = super::QtMouseButton;
 
-        fn new_canvas(parent: Pin<&mut QWidget>) -> UniquePtr<QWidget>;
-        unsafe fn canvas_register_paint_event(
-            w: Pin<&mut QWidget>,
-            callback: unsafe fn(*const u8),
-            data: *const u8,
-        );
+        unsafe fn new_canvas(parent: *mut QWidget) -> UniquePtr<QWidget>;
         unsafe fn canvas_register_move_event(
             w: Pin<&mut QWidget>,
             callback: unsafe fn(*const u8, i32, i32),

@@ -1,8 +1,8 @@
 #include "edit.hpp"
 #include <QLineEdit>
 
-std::unique_ptr<QWidget> new_line_edit(QWidget &parent) {
-    return std::make_unique<QLineEdit>(&parent);
+std::unique_ptr<QWidget> new_line_edit(QWidget *parent) {
+    return std::make_unique<QLineEdit>(parent);
 }
 
 void line_edit_connect_changed(QWidget &w, callback_fn_t<void()> callback,
@@ -19,4 +19,14 @@ rust::String line_edit_get_text(QWidget const &w) {
 
 void line_edit_set_text(QWidget &w, rust::Str s) {
     static_cast<QLineEdit &>(w).setText(QString::fromUtf8(s.data(), s.size()));
+}
+
+QtAlignmentFlag line_edit_get_alignment(QWidget const &w) {
+    return (QtAlignmentFlag) static_cast<QLineEdit const &>(w)
+        .alignment()
+        .toInt();
+}
+
+void line_edit_set_alignment(QWidget &w, QtAlignmentFlag flag) {
+    static_cast<QLineEdit &>(w).setAlignment(flag);
 }

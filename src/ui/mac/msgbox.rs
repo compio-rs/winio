@@ -1,25 +1,27 @@
-use std::{cell::RefCell, io, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use block2::StackBlock;
 use compio::buf::arrayvec::ArrayVec;
 use objc2_app_kit::{NSAlert, NSAlertFirstButtonReturn, NSAlertStyle};
 use objc2_foundation::{MainThreadMarker, NSString};
 
-use crate::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle, Window};
+use crate::{AsRawWindow, AsWindow, MessageBoxButton, MessageBoxResponse, MessageBoxStyle, Window};
 
 async fn msgbox_custom(
-    parent: Option<&Window>,
+    parent: Option<impl AsWindow>,
     msg: String,
     title: String,
     instr: String,
     style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
-) -> io::Result<MessageBoxResponse> {
+) -> MessageBoxResponse {
     unsafe {
+        let parent = parent.map(|p| p.as_window().as_raw_window());
+
         let alert = NSAlert::new(MainThreadMarker::new().unwrap());
-        if let Some(parent) = parent {
-            alert.window().setParentWindow(Some(&parent.as_nswindow()));
+        if let Some(parent) = &parent {
+            alert.window().setParentWindow(Some(parent));
         }
         alert.setAlertStyle(match style {
             MessageBoxStyle::Info => NSAlertStyle::Informational,
@@ -67,7 +69,7 @@ async fn msgbox_custom(
             responses.push(MessageBoxResponse::Custom(b.result));
         }
 
-        if let Some(parent) = parent {
+        if let Some(parent) = &parent {
             let (tx, rx) = futures_channel::oneshot::channel();
             let tx = Rc::new(RefCell::new(Some(tx)));
             let block = StackBlock::new(move |res| {
@@ -77,11 +79,11 @@ async fn msgbox_custom(
                     .send(responses[(res - NSAlertFirstButtonReturn) as usize])
                     .ok();
             });
-            alert.beginSheetModalForWindow_completionHandler(&parent.as_nswindow(), Some(&block));
-            Ok(rx.await.expect("NSAlert cancelled"))
+            alert.beginSheetModalForWindow_completionHandler(parent, Some(&block));
+            rx.await.expect("NSAlert cancelled")
         } else {
             let res = alert.runModal();
-            Ok(responses[res as usize - NSAlertFirstButtonReturn as usize])
+            responses[res as usize - NSAlertFirstButtonReturn as usize]
         }
     }
 }
@@ -114,7 +116,7 @@ impl MessageBox {
         }
     }
 
-    pub async fn show(self, parent: Option<&Window>) -> io::Result<MessageBoxResponse> {
+    pub async fn show(self, parent: Option<&Window>) -> MessageBoxResponse {
         msgbox_custom(
             parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )

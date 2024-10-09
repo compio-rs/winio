@@ -1,9 +1,9 @@
-use std::{io, mem::ManuallyDrop, path::PathBuf};
+use std::{mem::ManuallyDrop, path::PathBuf, ptr::null_mut};
 
 use cxx::{ExternType, type_id};
 use futures_channel::oneshot;
 
-use crate::Window;
+use crate::{AsRawWindow, AsWindow};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileFilter {
@@ -66,33 +66,28 @@ impl FileBox {
         self
     }
 
-    pub async fn open(self, parent: Option<&Window>) -> io::Result<Option<PathBuf>> {
-        self.filebox(parent, true, false)
-            .await
-            .map(|files| files.into_iter().next())
+    pub async fn open(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
+        self.filebox(parent, true, false).await.into_iter().next()
     }
 
-    pub async fn open_multiple(self, parent: Option<&Window>) -> io::Result<Vec<PathBuf>> {
+    pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Vec<PathBuf> {
         self.filebox(parent, true, true).await
     }
 
-    pub async fn save(self, parent: Option<&Window>) -> io::Result<Option<PathBuf>> {
-        self.filebox(parent, false, false)
-            .await
-            .map(|files| files.into_iter().next())
+    pub async fn save(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
+        self.filebox(parent, false, false).await.into_iter().next()
     }
 
     async fn filebox(
         self,
-        parent: Option<&Window>,
+        parent: Option<impl AsWindow>,
         open: bool,
         multiple: bool,
-    ) -> io::Result<Vec<PathBuf>> {
-        let mut b = if let Some(parent) = parent {
-            parent.pin_mut(ffi::new_file_dialog_with_parent)
-        } else {
-            ffi::new_file_dialog()
-        };
+    ) -> Vec<PathBuf> {
+        let parent = parent
+            .map(|p| p.as_window().as_raw_window())
+            .unwrap_or(null_mut());
+        let mut b = unsafe { ffi::new_file_dialog(parent) };
 
         if open {
             b.pin_mut().setAcceptMode(QFileDialogAcceptMode::AcceptOpen);
@@ -124,17 +119,15 @@ impl FileBox {
             );
         }
         b.pin_mut().open();
-        let res = rx
-            .await
-            .map_err(|_| io::Error::new(io::ErrorKind::Other, "cannot receive result"))?;
+        let res = rx.await.unwrap();
         if res == 0 {
-            return Ok(vec![]);
+            return vec![];
         }
 
-        Ok(ffi::file_dialog_files(&b)
+        ffi::file_dialog_files(&b)
             .into_iter()
             .map(PathBuf::from)
-            .collect())
+            .collect()
     }
 }
 
@@ -177,7 +170,7 @@ mod ffi {
         include!("winio/src/ui/qt/filebox.hpp");
 
         type QFileDialog;
-        type QWidget = crate::QWidget;
+        type QWidget = crate::ui::QWidget;
         type QFileDialogAcceptMode = super::QFileDialogAcceptMode;
         type QFileDialogFileMode = super::QFileDialogFileMode;
 
@@ -185,9 +178,7 @@ mod ffi {
         fn setFileMode(self: Pin<&mut QFileDialog>, mode: QFileDialogFileMode);
         fn open(self: Pin<&mut QFileDialog>);
 
-        fn new_file_dialog() -> UniquePtr<QFileDialog>;
-        #[rust_name = "new_file_dialog_with_parent"]
-        fn new_file_dialog(parent: Pin<&mut QWidget>) -> UniquePtr<QFileDialog>;
+        unsafe fn new_file_dialog(parent: *mut QWidget) -> UniquePtr<QFileDialog>;
         unsafe fn file_dialog_connect_finished(
             b: Pin<&mut QFileDialog>,
             callback: unsafe fn(*const u8, i32),

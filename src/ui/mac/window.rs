@@ -1,5 +1,3 @@
-use std::{io, rc::Rc};
-
 use objc2::{
     ClassType, DeclaredClass, declare_class, msg_send_id,
     mutability::MainThreadOnly,
@@ -10,28 +8,13 @@ use objc2_app_kit::{
     NSBackingStoreType, NSControl, NSScreen, NSView, NSWindow, NSWindowDelegate, NSWindowStyleMask,
 };
 use objc2_foundation::{
-    CGPoint, CGSize, MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSRect,
-    NSString, NSUserDefaults,
+    CGPoint, CGSize, MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSRect, NSString,
 };
 
-use super::{from_cgsize, from_nsstring, to_cgsize};
-use crate::{Callback, ColorTheme, Point, Size};
-
-pub trait AsNSView {
-    fn as_nsview(&self) -> Id<NSView>;
-}
-
-impl<T: AsNSView> AsNSView for &'_ T {
-    fn as_nsview(&self) -> Id<NSView> {
-        (**self).as_nsview()
-    }
-}
-
-impl<T: AsNSView> AsNSView for Rc<T> {
-    fn as_nsview(&self) -> Id<NSView> {
-        (**self).as_nsview()
-    }
-}
+use crate::{
+    AsRawWindow, AsWindow, Point, RawWindow, Size,
+    ui::{Callback, from_cgsize, from_nsstring, to_cgsize},
+};
 
 pub struct Window {
     wnd: Id<NSWindow>,
@@ -39,7 +22,7 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new() -> io::Result<Rc<Self>> {
+    pub fn new() -> Self {
         unsafe {
             let mtm = MainThreadMarker::new().unwrap();
 
@@ -62,75 +45,51 @@ impl Window {
             wnd.setDelegate(Some(&del_obj));
 
             wnd.setIsVisible(true);
-            Ok(Rc::new(Self { wnd, delegate }))
+            Self { wnd, delegate }
         }
     }
 
-    pub fn as_nswindow(&self) -> Id<NSWindow> {
-        self.wnd.clone()
+    fn screen(&self) -> Id<NSScreen> {
+        self.wnd.screen().unwrap()
     }
 
-    fn screen(&self) -> io::Result<Id<NSScreen>> {
-        self.wnd
-            .screen()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "cannot get screen of the window"))
-    }
-
-    pub fn color_theme(&self) -> ColorTheme {
-        unsafe {
-            let osx_mode = NSUserDefaults::standardUserDefaults()
-                .stringForKey(&NSString::from_str("AppleInterfaceStyle"));
-            let is_dark = osx_mode
-                .map(|mode| mode.isEqualToString(&NSString::from_str("Dark")))
-                .unwrap_or_default();
-            if is_dark {
-                ColorTheme::Dark
-            } else {
-                ColorTheme::Light
-            }
-        }
-    }
-
-    pub fn loc(&self) -> io::Result<Point> {
+    pub fn loc(&self) -> Point {
         let frame = self.wnd.frame();
-        let screen_frame = self.screen()?.frame();
-        Ok(Point::new(
+        let screen_frame = self.screen().frame();
+        Point::new(
             frame.origin.x,
             screen_frame.size.height - frame.size.height - frame.origin.y,
-        ))
+        )
     }
 
-    pub fn set_loc(&self, p: Point) -> io::Result<()> {
+    pub fn set_loc(&mut self, p: Point) {
         let mut frame = self.wnd.frame();
-        let screen_frame = self.screen()?.frame();
+        let screen_frame = self.screen().frame();
         frame.origin.x = p.x;
         frame.origin.y = screen_frame.size.height - frame.size.height - p.y;
         self.wnd.setFrame_display(frame, true);
-        Ok(())
     }
 
-    pub fn size(&self) -> io::Result<Size> {
-        Ok(from_cgsize(self.wnd.frame().size))
+    pub fn size(&self) -> Size {
+        from_cgsize(self.wnd.frame().size)
     }
 
-    pub fn set_size(&self, v: Size) -> io::Result<()> {
+    pub fn set_size(&mut self, v: Size) {
         let mut frame = self.wnd.frame();
         frame.size = to_cgsize(v);
         self.wnd.setFrame_display(frame, true);
-        Ok(())
     }
 
-    pub fn client_size(&self) -> io::Result<Size> {
-        Ok(from_cgsize(self.as_nsview().frame().size))
+    pub fn client_size(&self) -> Size {
+        from_cgsize(self.wnd.contentView().unwrap().frame().size)
     }
 
-    pub fn text(&self) -> io::Result<String> {
-        Ok(from_nsstring(&self.wnd.title()))
+    pub fn text(&self) -> String {
+        from_nsstring(&self.wnd.title())
     }
 
-    pub fn set_text(&self, s: impl AsRef<str>) -> io::Result<()> {
+    pub fn set_text(&mut self, s: impl AsRef<str>) {
         self.wnd.setTitle(&NSString::from_str(s.as_ref()));
-        Ok(())
     }
 
     pub async fn wait_size(&self) {
@@ -146,11 +105,9 @@ impl Window {
     }
 }
 
-impl AsNSView for Window {
-    fn as_nsview(&self) -> Id<NSView> {
-        self.wnd
-            .contentView()
-            .expect("a window should contain a view")
+impl AsRawWindow for Window {
+    fn as_raw_window(&self) -> RawWindow {
+        self.wnd.clone()
     }
 }
 
@@ -216,8 +173,9 @@ pub(crate) struct Widget {
 }
 
 impl Widget {
-    pub fn from_nsview(parent: Id<NSView>, view: Id<NSView>) -> Self {
+    pub fn from_nsview(parent: impl AsWindow, view: Id<NSView>) -> Self {
         unsafe {
+            let parent = parent.as_window().as_raw_window().contentView().unwrap();
             parent.addSubview(&view);
             if view.is_kind_of::<NSControl>() {
                 Id::cast::<NSControl>(view.clone()).sizeToFit();
@@ -229,48 +187,38 @@ impl Widget {
         }
     }
 
-    pub fn parent(&self) -> io::Result<Id<NSView>> {
-        self.parent
-            .load()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "cannot find parent view"))
+    pub fn parent(&self) -> Id<NSView> {
+        self.parent.load().unwrap()
     }
 
-    pub fn loc(&self) -> io::Result<Point> {
+    pub fn loc(&self) -> Point {
         let frame = self.view.frame();
-        let screen_frame = self.parent()?.frame();
-        Ok(Point::new(
+        let screen_frame = self.parent().frame();
+        Point::new(
             frame.origin.x,
             screen_frame.size.height - frame.size.height - frame.origin.y,
-        ))
+        )
     }
 
-    pub fn set_loc(&self, p: Point) -> io::Result<()> {
+    pub fn set_loc(&mut self, p: Point) {
         let mut frame = self.view.frame();
-        let screen_frame = self.parent()?.frame();
+        let screen_frame = self.parent().frame();
         frame.origin.x = p.x;
         frame.origin.y = screen_frame.size.height - frame.size.height - p.y;
         unsafe {
             self.view.setFrame(frame);
         }
-        Ok(())
     }
 
-    pub fn size(&self) -> io::Result<Size> {
-        Ok(from_cgsize(self.view.frame().size))
+    pub fn size(&self) -> Size {
+        from_cgsize(self.view.frame().size)
     }
 
-    pub fn set_size(&self, v: Size) -> io::Result<()> {
+    pub fn set_size(&mut self, v: Size) {
         let mut frame = self.view.frame();
         frame.size = to_cgsize(v);
         unsafe {
             self.view.setFrame(frame);
         }
-        Ok(())
-    }
-}
-
-impl AsNSView for Widget {
-    fn as_nsview(&self) -> Id<NSView> {
-        self.view.clone()
     }
 }

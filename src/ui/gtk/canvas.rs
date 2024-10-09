@@ -1,12 +1,12 @@
 use std::{
+    cell::RefCell,
     f64::consts::{FRAC_PI_2, PI},
-    io,
-    rc::{Rc, Weak},
+    rc::Rc,
 };
 
 use gtk4::{
     EventControllerMotion, GestureClick,
-    cairo::Context,
+    cairo::{Content, Context, RecordingSurface},
     glib::object::Cast,
     pango::{FontDescription, SCALE as PANGO_SCALE, Style, Weight},
     prelude::{DrawingAreaExtManual, GestureSingleExt, WidgetExt},
@@ -14,114 +14,114 @@ use gtk4::{
 use pangocairo::functions::show_layout;
 
 use crate::{
-    AsContainer, BrushPen, Callback, Container, DrawingFont, HAlign, MouseButton, Point, Rect,
-    RectBox, RelativeToScreen, Size, SolidColorBrush, VAlign, Widget,
+    AsWindow, BrushPen, DrawingFont, HAlign, MouseButton, Point, Rect, RectBox, RelativeToScreen,
+    Size, SolidColorBrush, VAlign,
+    ui::{Callback, Widget},
 };
 
 pub struct Canvas {
+    on_motion: Rc<Callback<Point>>,
+    on_pressed: Rc<Callback<MouseButton>>,
+    on_released: Rc<Callback<MouseButton>>,
     widget: gtk4::DrawingArea,
-    handle: Rc<Widget>,
-    on_redraw: Callback<Context>,
-    on_motion: Callback<Point>,
-    on_pressed: Callback<MouseButton>,
-    on_released: Callback<MouseButton>,
+    handle: Widget,
+    surface: Rc<RefCell<RecordingSurface>>,
 }
 
 impl Canvas {
-    pub fn new(parent: impl AsContainer) -> io::Result<Rc<Self>> {
+    pub fn new(parent: impl AsWindow) -> Self {
         let widget = gtk4::DrawingArea::new();
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
-        Ok(Rc::new_cyclic(|this: &Weak<Self>| {
-            widget.set_draw_func({
-                let this = this.clone();
-                move |_, ctx, _, _| {
-                    if let Some(this) = this.upgrade() {
-                        this.on_redraw.signal(ctx.clone());
-                    }
-                }
-            });
 
-            let controller = EventControllerMotion::new();
-            controller.connect_motion({
-                let this = this.clone();
-                move |_, x, y| {
-                    if let Some(this) = this.upgrade() {
-                        this.on_motion.signal(Point::new(x, y));
-                    }
-                }
-            });
-            widget.add_controller(controller);
+        let on_motion = Rc::new(Callback::new());
+        let on_pressed = Rc::new(Callback::new());
+        let on_released = Rc::new(Callback::new());
 
-            const fn gtk_current_button(b: u32) -> MouseButton {
-                match b {
-                    1 => MouseButton::Left,
-                    2 => MouseButton::Middle,
-                    3 => MouseButton::Right,
-                    _ => MouseButton::Other,
+        let surface = Rc::new(RefCell::new(
+            RecordingSurface::create(Content::ColorAlpha, None).unwrap(),
+        ));
+
+        widget.set_draw_func({
+            let surface = surface.clone();
+            move |_, ctx, _, _| {
+                ctx.set_source_surface(&*surface.borrow(), 0.0, 0.0)
+                    .unwrap();
+                ctx.paint().unwrap();
+            }
+        });
+
+        let controller = EventControllerMotion::new();
+        controller.connect_motion({
+            let on_motion = Rc::downgrade(&on_motion);
+            move |_, x, y| {
+                if let Some(on_motion) = on_motion.upgrade() {
+                    on_motion.signal(Point::new(x, y));
                 }
             }
+        });
+        widget.add_controller(controller);
 
-            let controller = GestureClick::new();
-            controller.connect_pressed({
-                let this = this.clone();
-                move |controller, _, _, _| {
-                    if let Some(this) = this.upgrade() {
-                        this.on_pressed
-                            .signal(gtk_current_button(controller.current_button()));
-                    }
-                }
-            });
-            controller.connect_released({
-                let this = this.clone();
-                move |controller, _, _, _| {
-                    if let Some(this) = this.upgrade() {
-                        this.on_released
-                            .signal(gtk_current_button(controller.current_button()));
-                    }
-                }
-            });
-            widget.add_controller(controller);
-
-            Self {
-                widget,
-                handle,
-                on_redraw: Callback::new(),
-                on_motion: Callback::new(),
-                on_pressed: Callback::new(),
-                on_released: Callback::new(),
+        const fn gtk_current_button(b: u32) -> MouseButton {
+            match b {
+                1 => MouseButton::Left,
+                2 => MouseButton::Middle,
+                3 => MouseButton::Right,
+                _ => MouseButton::Other,
             }
-        }))
+        }
+
+        let controller = GestureClick::new();
+        controller.connect_pressed({
+            let on_pressed = Rc::downgrade(&on_pressed);
+            move |controller, _, _, _| {
+                if let Some(on_pressed) = on_pressed.upgrade() {
+                    on_pressed.signal(gtk_current_button(controller.current_button()));
+                }
+            }
+        });
+        controller.connect_released({
+            let on_released = Rc::downgrade(&on_released);
+            move |controller, _, _, _| {
+                if let Some(on_released) = on_released.upgrade() {
+                    on_released.signal(gtk_current_button(controller.current_button()));
+                }
+            }
+        });
+        widget.add_controller(controller);
+
+        Self {
+            on_motion,
+            on_pressed,
+            on_released,
+            widget,
+            handle,
+            surface,
+        }
     }
 
-    pub fn loc(&self) -> io::Result<Point> {
-        Ok(self.handle.loc())
+    pub fn loc(&self) -> Point {
+        self.handle.loc()
     }
 
-    pub fn set_loc(&self, p: Point) -> io::Result<()> {
+    pub fn set_loc(&mut self, p: Point) {
         self.handle.set_loc(p);
-        Ok(())
     }
 
-    pub fn size(&self) -> io::Result<Size> {
-        Ok(self.handle.size())
+    pub fn size(&self) -> Size {
+        self.handle.size()
     }
 
-    pub fn set_size(&self, s: Size) -> io::Result<()> {
+    pub fn set_size(&mut self, s: Size) {
         self.handle.set_size(s);
-        Ok(())
     }
 
-    pub fn redraw(&self) -> io::Result<()> {
-        self.widget.queue_draw();
-        Ok(())
-    }
-
-    pub async fn wait_redraw(&self) -> io::Result<DrawingContext> {
-        let ctx = self.on_redraw.wait().await;
-        Ok(DrawingContext {
-            ctx,
-            widget: self.widget.clone(),
-        })
+    pub fn context(&mut self) -> DrawingContext<'_> {
+        let mut surface = self.surface.borrow_mut();
+        *surface = RecordingSurface::create(Content::ColorAlpha, None).unwrap();
+        DrawingContext {
+            ctx: Context::new(&*surface).unwrap(),
+            widget: &mut self.widget,
+        }
     }
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
@@ -132,20 +132,14 @@ impl Canvas {
         self.on_released.wait().await
     }
 
-    pub async fn wait_mouse_move(&self) -> io::Result<Point> {
-        Ok(self.on_motion.wait().await)
+    pub async fn wait_mouse_move(&self) -> Point {
+        self.on_motion.wait().await
     }
 }
 
-impl AsContainer for Canvas {
-    fn as_container(&self) -> Container {
-        Container::Parent(Rc::downgrade(&self.handle))
-    }
-}
-
-pub struct DrawingContext {
+pub struct DrawingContext<'a> {
     ctx: Context,
-    widget: gtk4::DrawingArea,
+    widget: &'a mut gtk4::DrawingArea,
 }
 
 #[inline]
@@ -154,7 +148,7 @@ fn to_trans(rect: Rect) -> RelativeToScreen {
         .then_translate(rect.origin.to_vector())
 }
 
-impl DrawingContext {
+impl DrawingContext<'_> {
     #[inline]
     fn set_brush(&self, brush: impl Brush, rect: Rect) {
         brush.set(&self.ctx, to_trans(rect))
@@ -222,29 +216,27 @@ impl DrawingContext {
         self.ctx.set_matrix(save_matrix);
     }
 
-    pub fn draw_arc(&self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> io::Result<()> {
+    pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
         self.path_arc(rect, start, end);
         self.set_pen(pen, rect);
         self.ctx.stroke().ok();
-        Ok(())
     }
 
-    pub fn fill_pie(&self, brush: impl Brush, rect: Rect, start: f64, end: f64) -> io::Result<()> {
+    pub fn fill_pie(&mut self, brush: impl Brush, rect: Rect, start: f64, end: f64) {
         self.path_arc(rect, start, end);
         self.set_brush(brush, rect);
         self.ctx.fill().ok();
-        Ok(())
     }
 
-    pub fn draw_ellipse(&self, pen: impl Pen, rect: Rect) -> io::Result<()> {
+    pub fn draw_ellipse(&mut self, pen: impl Pen, rect: Rect) {
         self.draw_arc(pen, rect, 0.0, PI * 2.0)
     }
 
-    pub fn fill_ellipse(&self, brush: impl Brush, rect: Rect) -> io::Result<()> {
+    pub fn fill_ellipse(&mut self, brush: impl Brush, rect: Rect) {
         self.fill_pie(brush, rect, 0.0, PI * 2.0)
     }
 
-    pub fn draw_line(&self, pen: impl Pen, start: Point, end: Point) -> io::Result<()> {
+    pub fn draw_line(&mut self, pen: impl Pen, start: Point, end: Point) {
         let rect = RectBox::new(
             Point::new(start.x.min(end.x), start.y.min(end.y)),
             Point::new(start.x.max(end.x), start.y.max(end.y)),
@@ -255,44 +247,39 @@ impl DrawingContext {
         self.ctx.line_to(end.x, end.y);
         self.set_pen(pen, rect);
         self.ctx.stroke().ok();
-        Ok(())
     }
 
-    pub fn draw_rect(&self, pen: impl Pen, rect: Rect) -> io::Result<()> {
+    pub fn draw_rect(&mut self, pen: impl Pen, rect: Rect) {
         self.path_rect(rect);
         self.set_pen(pen, rect);
         self.ctx.stroke().ok();
-        Ok(())
     }
 
-    pub fn fill_rect(&self, brush: impl Brush, rect: Rect) -> io::Result<()> {
+    pub fn fill_rect(&mut self, brush: impl Brush, rect: Rect) {
         self.path_rect(rect);
         self.set_brush(brush, rect);
         self.ctx.fill().ok();
-        Ok(())
     }
 
-    pub fn draw_round_rect(&self, pen: impl Pen, rect: Rect, round: Size) -> io::Result<()> {
+    pub fn draw_round_rect(&mut self, pen: impl Pen, rect: Rect, round: Size) {
         self.path_round_rect(rect, round);
         self.set_pen(pen, rect);
         self.ctx.stroke().ok();
-        Ok(())
     }
 
-    pub fn fill_round_rect(&self, brush: impl Brush, rect: Rect, round: Size) -> io::Result<()> {
+    pub fn fill_round_rect(&mut self, brush: impl Brush, rect: Rect, round: Size) {
         self.path_round_rect(rect, round);
         self.set_brush(brush, rect);
         self.ctx.fill().ok();
-        Ok(())
     }
 
     pub fn draw_str(
-        &self,
+        &mut self,
         brush: impl Brush,
         font: DrawingFont,
         pos: Point,
         text: impl AsRef<str>,
-    ) -> io::Result<()> {
+    ) {
         let layout = self.widget.create_pango_layout(Some(text.as_ref()));
         let mut desp = FontDescription::from_string(&font.family);
         desp.set_size((font.size / 1.33) as i32 * PANGO_SCALE);
@@ -324,7 +311,12 @@ impl DrawingContext {
         self.ctx.move_to(rect.origin.x, rect.origin.y);
         self.set_brush(brush, rect);
         show_layout(&self.ctx, &layout);
-        Ok(())
+    }
+}
+
+impl Drop for DrawingContext<'_> {
+    fn drop(&mut self) {
+        self.widget.queue_draw();
     }
 }
 

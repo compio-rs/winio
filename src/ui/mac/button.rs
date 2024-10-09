@@ -1,5 +1,3 @@
-use std::{io, rc::Rc};
-
 use objc2::{
     ClassType, DeclaredClass, declare_class, msg_send_id,
     mutability::MainThreadOnly,
@@ -9,8 +7,10 @@ use objc2::{
 use objc2_app_kit::{NSBezelStyle, NSButton};
 use objc2_foundation::{MainThreadMarker, NSObject, NSString};
 
-use super::from_nsstring;
-use crate::{AsNSView, Callback, Point, Size, Widget};
+use crate::{
+    AsRawWindow, AsWindow, Point, Size,
+    ui::{Callback, Widget, from_nsstring},
+};
 
 #[derive(Debug)]
 pub struct Button {
@@ -20,52 +20,52 @@ pub struct Button {
 }
 
 impl Button {
-    pub fn new(parent: impl AsNSView) -> io::Result<Rc<Self>> {
+    pub fn new(parent: impl AsWindow) -> Self {
         unsafe {
             let mtm = MainThreadMarker::new().unwrap();
 
             let view = NSButton::new(mtm);
-            let handle = Widget::from_nsview(parent.as_nsview(), Id::cast(view.clone()));
+            let handle =
+                Widget::from_nsview(parent.as_window().as_raw_window(), Id::cast(view.clone()));
 
             let delegate = ButtonDelegate::new(mtm);
             view.setTarget(Some(&delegate));
             view.setAction(Some(sel!(onAction)));
 
             view.setBezelStyle(NSBezelStyle::FlexiblePush);
-            Ok(Rc::new(Self {
+            Self {
                 handle,
                 view,
                 delegate,
-            }))
+            }
         }
     }
 
-    pub fn loc(&self) -> io::Result<Point> {
+    pub fn loc(&self) -> Point {
         self.handle.loc()
     }
 
-    pub fn set_loc(&self, p: Point) -> io::Result<()> {
+    pub fn set_loc(&mut self, p: Point) {
         self.handle.set_loc(p)
     }
 
-    pub fn size(&self) -> io::Result<Size> {
+    pub fn size(&self) -> Size {
         self.handle.size()
     }
 
-    pub fn set_size(&self, v: Size) -> io::Result<()> {
+    pub fn set_size(&mut self, v: Size) {
         self.handle.set_size(v)
     }
 
-    pub fn text(&self) -> io::Result<String> {
-        unsafe { Ok(from_nsstring(&self.view.title())) }
+    pub fn text(&self) -> String {
+        unsafe { from_nsstring(&self.view.title()) }
     }
 
-    pub fn set_text(&self, s: impl AsRef<str>) -> io::Result<()> {
+    pub fn set_text(&mut self, s: impl AsRef<str>) {
         unsafe {
             self.view.setTitle(&NSString::from_str(s.as_ref()));
             self.view.sizeToFit();
         }
-        Ok(())
     }
 
     pub async fn wait_click(&self) {

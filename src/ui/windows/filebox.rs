@@ -1,4 +1,4 @@
-use std::{io, panic::resume_unwind, path::PathBuf};
+use std::{panic::resume_unwind, path::PathBuf};
 
 use widestring::{U16CStr, U16CString};
 use windows::{
@@ -13,7 +13,7 @@ use windows::{
     core::{HRESULT, Interface, PCWSTR},
 };
 
-use crate::ui::{AsRawWindow, Window};
+use crate::{AsRawWindow, AsWindow};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileFilter {
@@ -76,33 +76,33 @@ impl FileBox {
         self
     }
 
-    pub async fn open(self, parent: Option<&Window>) -> io::Result<Option<PathBuf>> {
+    pub async fn open(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
         let parent = parent
-            .map(|p| p.as_raw_window() as isize)
+            .map(|p| p.as_window().as_raw_window() as isize)
             .unwrap_or_default();
         compio::runtime::spawn_blocking(move || unsafe {
             let parent = HWND(parent as _);
-            filebox(parent, self.title, self.filename, self.filters, true, false)?.result()
+            filebox(parent, self.title, self.filename, self.filters, true, false).result()
         })
         .await
         .unwrap_or_else(|e| resume_unwind(e))
     }
 
-    pub async fn open_multiple(self, parent: Option<&Window>) -> io::Result<Vec<PathBuf>> {
+    pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Vec<PathBuf> {
         let parent = parent
-            .map(|p| p.as_raw_window() as isize)
+            .map(|p| p.as_window().as_raw_window() as isize)
             .unwrap_or_default();
         compio::runtime::spawn_blocking(move || unsafe {
             let parent = HWND(parent as _);
-            filebox(parent, self.title, self.filename, self.filters, true, true)?.results()
+            filebox(parent, self.title, self.filename, self.filters, true, true).results()
         })
         .await
         .unwrap_or_else(|e| resume_unwind(e))
     }
 
-    pub async fn save(self, parent: Option<&Window>) -> io::Result<Option<PathBuf>> {
+    pub async fn save(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
         let parent = parent
-            .map(|p| p.as_raw_window() as isize)
+            .map(|p| p.as_window().as_raw_window() as isize)
             .unwrap_or_default();
         compio::runtime::spawn_blocking(move || unsafe {
             let parent = HWND(parent as _);
@@ -113,7 +113,7 @@ impl FileBox {
                 self.filters,
                 false,
                 false,
-            )?
+            )
             .result()
         })
         .await
@@ -128,18 +128,18 @@ unsafe fn filebox(
     filters: Vec<FileFilter>,
     open: bool,
     multiple: bool,
-) -> io::Result<FileBoxInner> {
+) -> FileBoxInner {
     let handle: IFileDialog = if open {
-        CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER)?
+        CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER).unwrap()
     } else {
-        CoCreateInstance(&FileSaveDialog, None, CLSCTX_INPROC_SERVER)?
+        CoCreateInstance(&FileSaveDialog, None, CLSCTX_INPROC_SERVER).unwrap()
     };
 
     if !title.is_empty() {
-        handle.SetTitle(PCWSTR(title.as_ptr()))?;
+        handle.SetTitle(PCWSTR(title.as_ptr())).unwrap();
     }
     if !filename.is_empty() {
-        handle.SetFileName(PCWSTR(filename.as_ptr()))?;
+        handle.SetFileName(PCWSTR(filename.as_ptr())).unwrap();
     }
 
     let types = filters
@@ -149,56 +149,56 @@ unsafe fn filebox(
             pszSpec: PCWSTR(filter.pattern.as_ptr()),
         })
         .collect::<Vec<_>>();
-    handle.SetFileTypes(&types)?;
+    handle.SetFileTypes(&types).unwrap();
 
     if multiple {
         debug_assert!(open, "Cannot save to multiple targets.");
 
-        let mut opts = handle.GetOptions()?;
+        let mut opts = handle.GetOptions().unwrap();
         opts |= FOS_ALLOWMULTISELECT;
-        handle.SetOptions(opts)?;
+        handle.SetOptions(opts).unwrap();
     }
 
     let handle = match handle.Show(parent) {
         Ok(()) => Some(handle),
         Err(e) if e.code() == HRESULT::from(ERROR_CANCELLED) => None,
-        Err(e) => return Err(e.into()),
+        Err(e) => panic!("{:?}", e),
     };
 
-    Ok(FileBoxInner(handle))
+    FileBoxInner(handle)
 }
 
 struct FileBoxInner(Option<IFileDialog>);
 
 impl FileBoxInner {
-    pub unsafe fn result(self) -> io::Result<Option<PathBuf>> {
+    pub unsafe fn result(self) -> Option<PathBuf> {
         if let Some(dialog) = self.0 {
-            let item = dialog.GetResult()?;
-            let name_ptr = item.GetDisplayName(SIGDN_FILESYSPATH)?;
+            let item = dialog.GetResult().unwrap();
+            let name_ptr = item.GetDisplayName(SIGDN_FILESYSPATH).unwrap();
             let name_ptr = CoTaskMemPtr(name_ptr.0);
             let name = U16CStr::from_ptr_str(name_ptr.0).to_os_string();
-            Ok(Some(PathBuf::from(name)))
+            Some(PathBuf::from(name))
         } else {
-            Ok(None)
+            None
         }
     }
 
-    pub unsafe fn results(self) -> io::Result<Vec<PathBuf>> {
+    pub unsafe fn results(self) -> Vec<PathBuf> {
         if let Some(dialog) = self.0 {
-            let handle: IFileOpenDialog = dialog.cast()?;
-            let results = handle.GetResults()?;
-            let count = results.GetCount()?;
+            let handle: IFileOpenDialog = dialog.cast().unwrap();
+            let results = handle.GetResults().unwrap();
+            let count = results.GetCount().unwrap();
             let mut names = vec![];
             for i in 0..count {
-                let item = results.GetItemAt(i)?;
-                let name_ptr = item.GetDisplayName(SIGDN_FILESYSPATH)?;
+                let item = results.GetItemAt(i).unwrap();
+                let name_ptr = item.GetDisplayName(SIGDN_FILESYSPATH).unwrap();
                 let name_ptr = CoTaskMemPtr(name_ptr.0);
                 let name = U16CStr::from_ptr_str(name_ptr.0).to_os_string();
                 names.push(PathBuf::from(name));
             }
-            Ok(names)
+            names
         } else {
-            Ok(vec![])
+            vec![]
         }
     }
 }
