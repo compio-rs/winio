@@ -2,9 +2,8 @@ use std::{io, path::Path};
 
 use compio::{fs::File, io::AsyncReadAtExt, runtime::spawn};
 use winio::{
-    App, Button, ButtonEvent, Canvas, CanvasEvent, Child, Color, ColorTheme, Component,
-    ComponentSender, DrawingFontBuilder, FileBox, HAlign, Point, Size, SolidColorBrush, VAlign,
-    Window, WindowEvent,
+    App, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, Component, ComponentSender,
+    DrawingFontBuilder, FileBox, HAlign, Point, Size, SolidColorBrush, VAlign, Window, WindowEvent,
 };
 
 fn main() {
@@ -77,15 +76,11 @@ impl Component for MainModel {
             WindowEvent::Move | WindowEvent::Resize => Some(MainMessage::Redraw),
             _ => None,
         });
-        let fut_canvas = self.canvas.start(sender, |e| match e {
-            CanvasEvent::Redraw => Some(MainMessage::Redraw),
-            _ => None,
-        });
         let fut_button = self.button.start(sender, |e| match e {
             ButtonEvent::Click => Some(MainMessage::ChooseFile),
             _ => None,
         });
-        futures_util::future::join3(fut_window, fut_canvas, fut_button).await;
+        futures_util::future::join(fut_window, fut_button).await;
     }
 
     async fn update(

@@ -70,7 +70,6 @@ impl Component for MainModel {
             _ => None,
         });
         let fut_canvas = self.canvas.start(sender, |e| match e {
-            CanvasEvent::Redraw => Some(MainMessage::Redraw),
             CanvasEvent::MouseDown(b) | CanvasEvent::MouseUp(b) => Some(MainMessage::Mouse(b)),
             CanvasEvent::MouseMove(p) => Some(MainMessage::MouseMove(p)),
             _ => None,

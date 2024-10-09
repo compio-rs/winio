@@ -3,9 +3,8 @@ use std::time::Duration;
 use compio::{runtime::spawn, time::timeout};
 use cyper::Client;
 use winio::{
-    App, Button, ButtonEvent, Canvas, CanvasEvent, Child, Color, ColorTheme, Component,
-    ComponentSender, DrawingFontBuilder, Edit, HAlign, Point, Size, SolidColorBrush, VAlign,
-    Window, WindowEvent,
+    App, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, Component, ComponentSender,
+    DrawingFontBuilder, Edit, HAlign, Point, Size, SolidColorBrush, VAlign, Window, WindowEvent,
 };
 
 fn main() {
@@ -87,16 +86,12 @@ impl Component for MainModel {
             WindowEvent::Move | WindowEvent::Resize => Some(MainMessage::Redraw),
             _ => None,
         });
-        let fut_canvas = self.canvas.start(sender, |e| match e {
-            CanvasEvent::Redraw => Some(MainMessage::Redraw),
-            _ => None,
-        });
         let fut_button = self.button.start(sender, |e| match e {
             ButtonEvent::Click => Some(MainMessage::Go),
             _ => None,
         });
         let fut_entry = self.entry.start(sender, |_| None);
-        futures_util::future::join4(fut_window, fut_canvas, fut_button, fut_entry).await;
+        futures_util::future::join3(fut_window, fut_button, fut_entry).await;
     }
 
     async fn update(

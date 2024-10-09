@@ -28,7 +28,6 @@ impl Canvas {
 
 #[non_exhaustive]
 pub enum CanvasEvent {
-    Redraw,
     MouseMove(Point),
     MouseDown(MouseButton),
     MouseUp(MouseButton),
