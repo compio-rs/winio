@@ -238,14 +238,8 @@ impl DrawingContext<'_> {
         brush.draw(&path, self.size, rect)
     }
 
-    pub fn draw_str(
-        &mut self,
-        brush: impl Brush,
-        font: DrawingFont,
-        pos: Point,
-        text: impl AsRef<str>,
-    ) {
-        let (astr, rect) = measure_str(font, pos, text.as_ref());
+    pub fn draw_str(&mut self, brush: impl Brush, font: DrawingFont, pos: Point, text: &str) {
+        let (astr, rect) = measure_str(font, pos, text);
         let location = CGPoint::new(
             rect.origin.x,
             self.size.height - rect.size.height - rect.origin.y,
@@ -433,7 +427,9 @@ fn to_nscolor(c: Color) -> Id<NSColor> {
     }
 }
 
+/// Drawing brush.
 pub trait Brush {
+    #[doc(hidden)]
     fn draw(&self, path: &NSBezierPath, size: Size, rect: Rect);
 }
 
@@ -452,7 +448,9 @@ impl Brush for SolidColorBrush {
     }
 }
 
+/// Drawing pen.
 pub trait Pen {
+    #[doc(hidden)]
     fn draw(&self, path: &NSBezierPath, size: Size, rect: Rect);
 }
 

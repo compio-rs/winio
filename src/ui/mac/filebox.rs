@@ -6,7 +6,7 @@ use objc2_app_kit::{NSModalResponseOK, NSOpenPanel, NSSavePanel};
 use objc2_foundation::{MainThreadMarker, NSArray, NSString};
 use objc2_uniform_type_identifiers::UTType;
 
-use crate::{AsRawWindow, AsWindow, Window, ui::from_nsstring};
+use crate::{AsRawWindow, AsWindow, ui::from_nsstring};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileFilter {
@@ -21,23 +21,9 @@ impl FileFilter {
             pattern: pattern.to_string(),
         }
     }
-
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn pattern(&self) -> &str {
-        &self.pattern
-    }
 }
 
-impl From<(&str, &str)> for FileFilter {
-    fn from((name, pattern): (&str, &str)) -> Self {
-        Self::new(name, pattern)
-    }
-}
-
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct FileBox {
     title: String,
     filename: String,
@@ -49,27 +35,23 @@ impl FileBox {
         Self::default()
     }
 
-    pub fn title(mut self, title: impl AsRef<str>) -> Self {
-        self.title = title.as_ref().to_string();
-        self
+    pub fn title(&mut self, title: &str) {
+        self.title = title.to_string();
     }
 
-    pub fn filename(mut self, filename: impl AsRef<str>) -> Self {
-        self.filename = filename.as_ref().to_string();
-        self
+    pub fn filename(&mut self, filename: &str) {
+        self.filename = filename.to_string();
     }
 
-    pub fn filters(mut self, filters: impl IntoIterator<Item = FileFilter>) -> Self {
+    pub fn filters(&mut self, filters: impl IntoIterator<Item = FileFilter>) {
         self.filters = filters.into_iter().collect();
-        self
     }
 
-    pub fn add_filter(mut self, filter: impl Into<FileFilter>) -> Self {
-        self.filters.push(filter.into());
-        self
+    pub fn add_filter(&mut self, filter: FileFilter) {
+        self.filters.push(filter);
     }
 
-    pub async fn open(self, parent: Option<&Window>) -> Option<PathBuf> {
+    pub async fn open(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
         unsafe {
             filebox(parent, self.title, self.filename, self.filters, true, false)
                 .await
@@ -77,7 +59,7 @@ impl FileBox {
         }
     }
 
-    pub async fn open_multiple(self, parent: Option<&Window>) -> Vec<PathBuf> {
+    pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Vec<PathBuf> {
         unsafe {
             filebox(parent, self.title, self.filename, self.filters, true, true)
                 .await
@@ -85,7 +67,7 @@ impl FileBox {
         }
     }
 
-    pub async fn save(self, parent: Option<&Window>) -> Option<PathBuf> {
+    pub async fn save(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
         unsafe {
             filebox(
                 parent,
@@ -143,7 +125,7 @@ async unsafe fn filebox(
     if !filters.is_empty() {
         let allow_others = filters
             .iter()
-            .any(|f| f.pattern() == "*.*" || f.pattern() == "*");
+            .any(|f| f.pattern == "*.*" || f.pattern == "*");
         handle.setAllowsOtherFileTypes(allow_others);
 
         let ns_filters = NSArray::from_vec(

@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use objc2::{
     ClassType, DeclaredClass, declare_class, msg_send_id,
     mutability::MainThreadOnly,
@@ -16,6 +18,7 @@ use crate::{
     ui::{Callback, from_cgsize, from_nsstring, to_cgsize},
 };
 
+#[derive(Debug)]
 pub struct Window {
     wnd: Id<NSWindow>,
     delegate: Id<WindowDelegate>,
@@ -119,6 +122,7 @@ struct WindowDelegateIvars {
 }
 
 declare_class! {
+    #[derive(Debug)]
     struct WindowDelegate;
 
     unsafe impl ClassType for WindowDelegate {

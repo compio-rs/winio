@@ -54,8 +54,8 @@ impl FileBox {
         self.filters = filters.into_iter().collect();
     }
 
-    pub fn add_filter(&mut self, filter: impl Into<FileFilter>) {
-        self.filters.push(filter.into());
+    pub fn add_filter(&mut self, filter: FileFilter) {
+        self.filters.push(filter);
     }
 
     pub async fn open(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
