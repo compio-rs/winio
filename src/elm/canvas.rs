@@ -29,7 +29,7 @@ impl Canvas {
 
     /// Create the [`DrawingContext`] of the current canvas.
     pub fn context(&mut self) -> DrawingContext<'_> {
-        self.widget.context()
+        DrawingContext::new(self.widget.context())
     }
 }
 

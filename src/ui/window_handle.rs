@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use crate::ui::RawWindow;
 
+/// A borrowed window handle.
 pub struct BorrowedWindow<'a> {
     handle: RawWindow,
     _p: PhantomData<&'a ()>,
@@ -20,7 +21,9 @@ impl BorrowedWindow<'_> {
     }
 }
 
+/// Trait to exact the raw window handle.
 pub trait AsRawWindow {
+    /// Get the raw window handle.
     fn as_raw_window(&self) -> RawWindow;
 }
 
@@ -44,7 +47,9 @@ impl<T: AsRawWindow> AsRawWindow for &'_ T {
     }
 }
 
+/// Trait to borrow the window handle.
 pub trait AsWindow {
+    /// Get the window handle.
     fn as_window(&self) -> BorrowedWindow<'_>;
 }
 
