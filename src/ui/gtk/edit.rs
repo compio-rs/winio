@@ -7,6 +7,7 @@ use crate::{
     ui::{Callback, Widget},
 };
 
+#[derive(Debug)]
 pub struct Edit {
     on_changed: Rc<Callback<()>>,
     widget: gtk4::Entry,

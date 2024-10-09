@@ -5,6 +5,7 @@ use crate::{
     ui::{Callback, Widget},
 };
 
+#[derive(Debug)]
 pub struct Edit {
     on_changed: Box<Callback>,
     widget: Widget,

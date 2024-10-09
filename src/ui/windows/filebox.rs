@@ -28,23 +28,9 @@ impl FileFilter {
             pattern: U16CString::from_str_truncate(pattern),
         }
     }
-
-    pub fn name(&self) -> &U16CStr {
-        &self.name
-    }
-
-    pub fn pattern(&self) -> &U16CStr {
-        &self.pattern
-    }
 }
 
-impl From<(&str, &str)> for FileFilter {
-    fn from((name, pattern): (&str, &str)) -> Self {
-        Self::new(name, pattern)
-    }
-}
-
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct FileBox {
     title: U16CString,
     filename: U16CString,
@@ -56,24 +42,20 @@ impl FileBox {
         Self::default()
     }
 
-    pub fn title(mut self, title: impl AsRef<str>) -> Self {
+    pub fn title(&mut self, title: &str) {
         self.title = U16CString::from_str_truncate(title);
-        self
     }
 
-    pub fn filename(mut self, filename: impl AsRef<str>) -> Self {
+    pub fn filename(&mut self, filename: &str) {
         self.filename = U16CString::from_str_truncate(filename);
-        self
     }
 
-    pub fn filters(mut self, filters: impl IntoIterator<Item = FileFilter>) -> Self {
+    pub fn filters(&mut self, filters: impl IntoIterator<Item = FileFilter>) {
         self.filters = filters.into_iter().collect();
-        self
     }
 
-    pub fn add_filter(mut self, filter: impl Into<FileFilter>) -> Self {
-        self.filters.push(filter.into());
-        self
+    pub fn add_filter(&mut self, filter: FileFilter) {
+        self.filters.push(filter);
     }
 
     pub async fn open(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {

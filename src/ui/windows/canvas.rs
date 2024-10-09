@@ -41,7 +41,7 @@ use windows_sys::Win32::{
 
 use crate::{
     AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, HAlign, MouseButton, Point, Rect, RectBox,
-    RelativeToScreen, Rotation, Size, SolidColorBrush, VAlign,
+    Rotation, Size, SolidColorBrush, VAlign,
     ui::{Widget, darkmode::is_dark_mode_allowed_for_app},
 };
 
@@ -205,12 +205,6 @@ pub struct DrawingContext<'a> {
     _p: PhantomData<&'a Canvas>,
 }
 
-#[inline]
-fn to_trans(rect: Rect) -> RelativeToScreen {
-    RelativeToScreen::scale(rect.size.width, rect.size.height)
-        .then_translate(rect.origin.to_vector())
-}
-
 fn get_arc(rect: Rect, start: f64, end: f64) -> (Size, Point, Point, Point) {
     let radius = rect.size / 2.0;
     let centerp = rect.origin.add_size(&radius);
@@ -229,13 +223,13 @@ fn ellipse(rect: Rect) -> D2D1_ELLIPSE {
 
 impl DrawingContext<'_> {
     #[inline]
-    fn get_brush(&self, brush: impl Brush, rect: Rect) -> ID2D1Brush {
-        brush.create(&self.target, to_trans(rect))
+    fn get_brush(&self, brush: impl Brush, _rect: Rect) -> ID2D1Brush {
+        brush.create(&self.target)
     }
 
     #[inline]
-    fn get_pen(&self, pen: impl Pen, rect: Rect) -> (ID2D1Brush, f32) {
-        pen.create(&self.target, to_trans(rect))
+    fn get_pen(&self, pen: impl Pen, _rect: Rect) -> (ID2D1Brush, f32) {
+        pen.create(&self.target)
     }
 
     fn get_arc_geo(&self, rect: Rect, start: f64, end: f64, close: bool) -> ID2D1Geometry {
@@ -413,13 +407,7 @@ impl DrawingContext<'_> {
         }
     }
 
-    pub fn draw_str(
-        &mut self,
-        brush: impl Brush,
-        font: DrawingFont,
-        pos: Point,
-        text: impl AsRef<str>,
-    ) {
+    pub fn draw_str(&mut self, brush: impl Brush, font: DrawingFont, pos: Point, text: &str) {
         let (rect, layout) = self.get_str_layout(font, pos, text.as_ref());
         let b = self.get_brush(brush, rect);
         unsafe {
@@ -453,18 +441,20 @@ const BRUSH_PROPERTIES_DEFAULT: D2D1_BRUSH_PROPERTIES = D2D1_BRUSH_PROPERTIES {
     transform: MATRIX_IDENTITY,
 };
 
+/// Drawing brush.
 pub trait Brush {
-    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToScreen) -> ID2D1Brush;
+    #[doc(hidden)]
+    fn create(&self, target: &ID2D1RenderTarget) -> ID2D1Brush;
 }
 
 impl<B: Brush> Brush for &'_ B {
-    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToScreen) -> ID2D1Brush {
-        (**self).create(target, trans)
+    fn create(&self, target: &ID2D1RenderTarget) -> ID2D1Brush {
+        (**self).create(target)
     }
 }
 
 impl Brush for SolidColorBrush {
-    fn create(&self, target: &ID2D1RenderTarget, _trans: RelativeToScreen) -> ID2D1Brush {
+    fn create(&self, target: &ID2D1RenderTarget) -> ID2D1Brush {
         unsafe {
             target
                 .CreateSolidColorBrush(&color_f(self.color), Some(&BRUSH_PROPERTIES_DEFAULT))
@@ -475,19 +465,21 @@ impl Brush for SolidColorBrush {
     }
 }
 
+/// Drawing pen.
 pub trait Pen {
-    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToScreen) -> (ID2D1Brush, f32);
+    #[doc(hidden)]
+    fn create(&self, target: &ID2D1RenderTarget) -> (ID2D1Brush, f32);
 }
 
 impl<P: Pen> Pen for &'_ P {
-    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToScreen) -> (ID2D1Brush, f32) {
-        (**self).create(target, trans)
+    fn create(&self, target: &ID2D1RenderTarget) -> (ID2D1Brush, f32) {
+        (**self).create(target)
     }
 }
 
 impl<B: Brush> Pen for BrushPen<B> {
-    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToScreen) -> (ID2D1Brush, f32) {
-        let brush = self.brush.create(target, trans);
+    fn create(&self, target: &ID2D1RenderTarget) -> (ID2D1Brush, f32) {
+        let brush = self.brush.create(target);
         (brush, self.width as _)
     }
 }

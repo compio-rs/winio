@@ -1,4 +1,4 @@
-use std::{mem::ManuallyDrop, pin::Pin};
+use std::{fmt::Debug, mem::ManuallyDrop, pin::Pin};
 
 use cxx::{ExternType, UniquePtr, type_id};
 pub(crate) use ffi::*;
@@ -70,6 +70,12 @@ impl AsRawWindow for Widget {
             .as_ref()
             .map(|p| p as *const _ as *mut _)
             .unwrap_or(std::ptr::null_mut())
+    }
+}
+
+impl Debug for Widget {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Widget").finish_non_exhaustive()
     }
 }
 

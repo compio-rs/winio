@@ -16,6 +16,7 @@ pub use button::*;
 mod edit;
 pub use edit::*;
 
+/// [`NSWindow`].
 pub type RawWindow = Id<NSWindow>;
 
 use objc2::rc::Id;

@@ -14,11 +14,12 @@ use gtk4::{
 use pangocairo::functions::show_layout;
 
 use crate::{
-    AsWindow, BrushPen, DrawingFont, HAlign, MouseButton, Point, Rect, RectBox, RelativeToScreen,
-    Size, SolidColorBrush, VAlign,
+    AsWindow, BrushPen, DrawingFont, HAlign, MouseButton, Point, Rect, RectBox, Size,
+    SolidColorBrush, VAlign,
     ui::{Callback, Widget},
 };
 
+#[derive(Debug)]
 pub struct Canvas {
     on_motion: Rc<Callback<Point>>,
     on_pressed: Rc<Callback<MouseButton>>,
@@ -142,21 +143,15 @@ pub struct DrawingContext<'a> {
     widget: &'a mut gtk4::DrawingArea,
 }
 
-#[inline]
-fn to_trans(rect: Rect) -> RelativeToScreen {
-    RelativeToScreen::scale(rect.size.width, rect.size.height)
-        .then_translate(rect.origin.to_vector())
-}
-
 impl DrawingContext<'_> {
     #[inline]
-    fn set_brush(&self, brush: impl Brush, rect: Rect) {
-        brush.set(&self.ctx, to_trans(rect))
+    fn set_brush(&self, brush: impl Brush, _rect: Rect) {
+        brush.set(&self.ctx)
     }
 
     #[inline]
-    fn set_pen(&self, pen: impl Pen, rect: Rect) {
-        pen.set(&self.ctx, to_trans(rect))
+    fn set_pen(&self, pen: impl Pen, _rect: Rect) {
+        pen.set(&self.ctx)
     }
 
     fn path_arc(&self, rect: Rect, start: f64, end: f64) {
@@ -273,14 +268,8 @@ impl DrawingContext<'_> {
         self.ctx.fill().ok();
     }
 
-    pub fn draw_str(
-        &mut self,
-        brush: impl Brush,
-        font: DrawingFont,
-        pos: Point,
-        text: impl AsRef<str>,
-    ) {
-        let layout = self.widget.create_pango_layout(Some(text.as_ref()));
+    pub fn draw_str(&mut self, brush: impl Brush, font: DrawingFont, pos: Point, text: &str) {
+        let layout = self.widget.create_pango_layout(Some(text));
         let mut desp = FontDescription::from_string(&font.family);
         desp.set_size((font.size / 1.33) as i32 * PANGO_SCALE);
         if font.italic {
@@ -320,18 +309,20 @@ impl Drop for DrawingContext<'_> {
     }
 }
 
+/// Drawing brush.
 pub trait Brush {
-    fn set(&self, ctx: &Context, trans: RelativeToScreen);
+    #[doc(hidden)]
+    fn set(&self, ctx: &Context);
 }
 
 impl<B: Brush> Brush for &'_ B {
-    fn set(&self, ctx: &Context, trans: RelativeToScreen) {
-        (**self).set(ctx, trans)
+    fn set(&self, ctx: &Context) {
+        (**self).set(ctx)
     }
 }
 
 impl Brush for SolidColorBrush {
-    fn set(&self, ctx: &Context, _trans: RelativeToScreen) {
+    fn set(&self, ctx: &Context) {
         ctx.set_source_rgba(
             self.color.r as f64 / 255.0,
             self.color.g as f64 / 255.0,
@@ -341,19 +332,21 @@ impl Brush for SolidColorBrush {
     }
 }
 
+/// Drawing pen.
 pub trait Pen {
-    fn set(&self, ctx: &Context, trans: RelativeToScreen);
+    #[doc(hidden)]
+    fn set(&self, ctx: &Context);
 }
 
 impl<P: Pen> Pen for &'_ P {
-    fn set(&self, ctx: &Context, trans: RelativeToScreen) {
-        (**self).set(ctx, trans)
+    fn set(&self, ctx: &Context) {
+        (**self).set(ctx)
     }
 }
 
 impl<B: Brush> Pen for BrushPen<B> {
-    fn set(&self, ctx: &Context, trans: RelativeToScreen) {
-        self.brush.set(ctx, trans);
+    fn set(&self, ctx: &Context) {
+        self.brush.set(ctx);
         ctx.set_line_width(self.width);
     }
 }

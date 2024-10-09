@@ -7,6 +7,7 @@ use crate::{
     ui::{Callback, Widget},
 };
 
+#[derive(Debug)]
 pub struct Button {
     on_click: Rc<Callback<()>>,
     widget: gtk4::Button,

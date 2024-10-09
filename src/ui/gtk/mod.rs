@@ -19,6 +19,9 @@ pub use button::*;
 mod edit;
 pub use edit::*;
 
+/// GTK [`Window`].
+///
+/// [`Window`]: gtk4::Window
 pub type RawWindow = gtk4::Window;
 
 use std::cell::Cell;

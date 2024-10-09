@@ -2,6 +2,7 @@ use gtk4::prelude::{Cast, FixedExt, GtkWindowExt, WidgetExt};
 
 use crate::{AsRawWindow, AsWindow, Point, Size};
 
+#[derive(Debug)]
 pub struct Widget {
     widget: gtk4::Widget,
 }

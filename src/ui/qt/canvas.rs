@@ -6,6 +6,7 @@ use crate::{
     ui::{Callback, Widget},
 };
 
+#[derive(Debug)]
 pub struct Canvas {
     on_move: Box<Callback<Point>>,
     on_press: Box<Callback<MouseButton>>,
@@ -200,14 +201,7 @@ impl DrawingContext<'_> {
         );
     }
 
-    pub fn draw_str(
-        &mut self,
-        brush: impl Brush,
-        font: DrawingFont,
-        pos: Point,
-        text: impl AsRef<str>,
-    ) {
-        let text = text.as_ref();
+    pub fn draw_str(&mut self, brush: impl Brush, font: DrawingFont, pos: Point, text: &str) {
         ffi::painter_set_font(
             self.painter.pin_mut(),
             &font.family,
@@ -234,7 +228,9 @@ impl DrawingContext<'_> {
     }
 }
 
+/// Drawing brush.
 pub trait Brush {
+    #[doc(hidden)]
     fn create(&self) -> UniquePtr<ffi::QBrush>;
 }
 
@@ -250,7 +246,9 @@ impl Brush for SolidColorBrush {
     }
 }
 
+/// Drawing pen.
 pub trait Pen {
+    #[doc(hidden)]
     fn create(&self) -> UniquePtr<ffi::QPen>;
 }
 

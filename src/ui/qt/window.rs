@@ -4,6 +4,7 @@ use crate::{
     ui::{Callback, Widget},
 };
 
+#[derive(Debug)]
 pub struct Window {
     on_resize: Box<Callback<Size>>,
     on_move: Box<Callback<Point>>,
