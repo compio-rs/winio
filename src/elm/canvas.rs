@@ -1,35 +1,46 @@
 use crate::{Component, ComponentSender, DrawingContext, MouseButton, Point, Size, Window, ui};
 
+/// A simple drawing canvas.
+#[derive(Debug)]
 pub struct Canvas {
     widget: ui::Canvas,
 }
 
 impl Canvas {
+    /// The left top location.
     pub fn loc(&self) -> Point {
         self.widget.loc()
     }
 
+    /// Move the location.
     pub fn set_loc(&mut self, p: Point) {
         self.widget.set_loc(p)
     }
 
+    /// The size.
     pub fn size(&self) -> Size {
         self.widget.size()
     }
 
+    /// Resize.
     pub fn set_size(&mut self, v: Size) {
         self.widget.set_size(v)
     }
 
+    /// Create the [`DrawingContext`] of the current canvas.
     pub fn context(&mut self) -> DrawingContext<'_> {
         self.widget.context()
     }
 }
 
+/// Events of [`Canvas`].
 #[non_exhaustive]
 pub enum CanvasEvent {
+    /// The mouse moves.
     MouseMove(Point),
+    /// The mouse button pressed down.
     MouseDown(MouseButton),
+    /// The mouse button released.
     MouseUp(MouseButton),
 }
 

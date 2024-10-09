@@ -5,22 +5,32 @@ use futures_util::{FutureExt, StreamExt};
 
 use crate::runtime::Runtime;
 
+/// Foundamental GUI component.
 #[allow(async_fn_in_trait)]
 pub trait Component: Sized {
+    /// Initial parameter type.
     type Init;
+    /// The referenced root, usually the parent window.
     type Root;
+    /// The input message type to update.
     type Message;
+    /// The output event type to the parent.
     type Event;
 
-    fn init(counter: Self::Init, root: &Self::Root, sender: &ComponentSender<Self>) -> Self;
+    /// Create the initial component.
+    fn init(init: Self::Init, root: &Self::Root, sender: &ComponentSender<Self>) -> Self;
 
+    /// Start the event listening.
     async fn start(&mut self, sender: &ComponentSender<Self>);
 
+    /// Respond to the message.
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool;
 
+    /// Render the widgets.
     fn render(&mut self, sender: &ComponentSender<Self>);
 }
 
+/// Sender of input messages and output events.
 #[derive(Debug)]
 pub struct ComponentSender<T: Component> {
     message_tx: mpsc::UnboundedSender<T::Message>,
@@ -58,10 +68,12 @@ fn component_channel<T: Component>() -> (ComponentSender<T>, ComponentReceiver<T
 }
 
 impl<T: Component> ComponentSender<T> {
+    /// Post the message to the queue.
     pub fn post(&self, message: T::Message) -> bool {
         self.message_tx.unbounded_send(message).is_ok()
     }
 
+    /// Post the event to the queue.
     pub fn output(&self, event: T::Event) -> bool {
         self.event_tx.unbounded_send(event).is_ok()
     }
@@ -85,11 +97,13 @@ impl<T: Component> ComponentReceiver<T> {
     }
 }
 
+/// Root application, manages the async runtime.
 pub struct App {
     runtime: Runtime,
 }
 
 impl App {
+    /// Create [`App`].
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
@@ -97,10 +111,13 @@ impl App {
         }
     }
 
+    /// Block on the future till it completes.
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
         self.runtime.block_on(future)
     }
 
+    /// Create and manage the component, till it posts an event. The application
+    /// returns the first event from the component.
     pub fn run<T: Component>(&mut self, counter: T::Init, root: &T::Root) -> T::Event {
         self.block_on(async {
             let (sender, mut receiver) = component_channel();
