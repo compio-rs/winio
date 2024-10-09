@@ -29,4 +29,5 @@ pub fn color_theme() -> ColorTheme {
     }
 }
 
+/// Pointer to `QWidget`.
 pub type RawWindow = *mut QWidget;

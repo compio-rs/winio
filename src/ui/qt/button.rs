@@ -3,6 +3,7 @@ use crate::{
     ui::{Callback, Widget},
 };
 
+#[derive(Debug)]
 pub struct Button {
     on_click: Box<Callback>,
     widget: Widget,

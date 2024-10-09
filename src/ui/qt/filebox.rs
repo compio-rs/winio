@@ -18,23 +18,9 @@ impl FileFilter {
             pattern: pattern.to_string(),
         }
     }
-
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn pattern(&self) -> &str {
-        &self.pattern
-    }
 }
 
-impl From<(&str, &str)> for FileFilter {
-    fn from((name, pattern): (&str, &str)) -> Self {
-        Self::new(name, pattern)
-    }
-}
-
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct FileBox {
     title: String,
     filename: String,
@@ -46,24 +32,20 @@ impl FileBox {
         Self::default()
     }
 
-    pub fn title(mut self, title: impl AsRef<str>) -> Self {
-        self.title = title.as_ref().to_string();
-        self
+    pub fn title(&mut self, title: &str) {
+        self.title = title.to_string();
     }
 
-    pub fn filename(mut self, filename: impl AsRef<str>) -> Self {
-        self.filename = filename.as_ref().to_string();
-        self
+    pub fn filename(&mut self, filename: &str) {
+        self.filename = filename.to_string();
     }
 
-    pub fn filters(mut self, filters: impl IntoIterator<Item = FileFilter>) -> Self {
+    pub fn filters(&mut self, filters: impl IntoIterator<Item = FileFilter>) {
         self.filters = filters.into_iter().collect();
-        self
     }
 
-    pub fn add_filter(mut self, filter: impl Into<FileFilter>) -> Self {
-        self.filters.push(filter.into());
-        self
+    pub fn add_filter(&mut self, filter: FileFilter) {
+        self.filters.push(filter);
     }
 
     pub async fn open(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
