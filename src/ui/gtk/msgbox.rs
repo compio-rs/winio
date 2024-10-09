@@ -122,39 +122,32 @@ impl MessageBox {
         .await
     }
 
-    pub fn message(mut self, msg: impl AsRef<str>) -> Self {
-        self.msg = msg.as_ref().to_string();
-        self
+    pub fn message(&mut self, msg: &str) {
+        self.msg = msg.to_string();
     }
 
-    pub fn title(mut self, title: impl AsRef<str>) -> Self {
-        self.title = title.as_ref().to_string();
-        self
+    pub fn title(&mut self, title: &str) {
+        self.title = title.to_string();
     }
 
-    pub fn instruction(mut self, instr: impl AsRef<str>) -> Self {
-        self.instr = instr.as_ref().to_string();
-        self
+    pub fn instruction(&mut self, instr: &str) {
+        self.instr = instr.to_string();
     }
 
-    pub fn style(mut self, style: MessageBoxStyle) -> Self {
+    pub fn style(&mut self, style: MessageBoxStyle) {
         self.style = style;
-        self
     }
 
-    pub fn buttons(mut self, btns: MessageBoxButton) -> Self {
+    pub fn buttons(&mut self, btns: MessageBoxButton) {
         self.btns = btns;
-        self
     }
 
-    pub fn custom_button(mut self, btn: CustomButton) -> Self {
+    pub fn custom_button(&mut self, btn: CustomButton) {
         self.cbtns.push(btn);
-        self
     }
 
-    pub fn custom_buttons(mut self, btn: impl IntoIterator<Item = CustomButton>) -> Self {
+    pub fn custom_buttons(&mut self, btn: impl IntoIterator<Item = CustomButton>) {
         self.cbtns.extend(btn);
-        self
     }
 }
 
@@ -165,10 +158,10 @@ pub struct CustomButton {
 }
 
 impl CustomButton {
-    pub fn new(result: u16, text: impl AsRef<str>) -> Self {
+    pub fn new(result: u16, text: &str) -> Self {
         Self {
             result,
-            text: text.as_ref().to_string(),
+            text: text.to_string(),
         }
     }
 }

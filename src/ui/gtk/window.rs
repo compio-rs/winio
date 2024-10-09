@@ -4,6 +4,7 @@ use gtk4::{glib::Propagation, prelude::*};
 
 use crate::{AsRawWindow, ColorTheme, Point, RawWindow, Size, ui::Callback};
 
+#[derive(Debug)]
 pub struct Window {
     on_size: Rc<Callback<()>>,
     on_close: Rc<Callback<()>>,

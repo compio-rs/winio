@@ -5,7 +5,7 @@ use gtk4::{
     glib::{GString, object::Cast},
 };
 
-use crate::{AsRawWindow, AsWindow, Window};
+use crate::{AsRawWindow, AsWindow};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileFilter {
@@ -20,23 +20,9 @@ impl FileFilter {
             pattern: pattern.to_string(),
         }
     }
-
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn pattern(&self) -> &str {
-        &self.pattern
-    }
 }
 
-impl From<(&str, &str)> for FileFilter {
-    fn from((name, pattern): (&str, &str)) -> Self {
-        Self::new(name, pattern)
-    }
-}
-
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct FileBox {
     title: GString,
     filename: GString,
@@ -48,24 +34,20 @@ impl FileBox {
         Self::default()
     }
 
-    pub fn title(mut self, title: impl AsRef<str>) -> Self {
-        self.title = GString::from(title.as_ref().to_string());
-        self
+    pub fn title(&mut self, title: &str) {
+        self.title = GString::from(title.to_string());
     }
 
-    pub fn filename(mut self, filename: impl AsRef<str>) -> Self {
-        self.filename = GString::from(filename.as_ref().to_string());
-        self
+    pub fn filename(&mut self, filename: &str) {
+        self.filename = GString::from(filename.to_string());
     }
 
-    pub fn filters(mut self, filters: impl IntoIterator<Item = FileFilter>) -> Self {
+    pub fn filters(&mut self, filters: impl IntoIterator<Item = FileFilter>) {
         self.filters = filters.into_iter().collect();
-        self
     }
 
-    pub fn add_filter(mut self, filter: impl Into<FileFilter>) -> Self {
-        self.filters.push(filter.into());
-        self
+    pub fn add_filter(&mut self, filter: FileFilter) {
+        self.filters.push(filter);
     }
 
     pub async fn open(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
@@ -76,7 +58,7 @@ impl FileBox {
             .and_then(|f| f.path())
     }
 
-    pub async fn open_multiple(self, parent: Option<&Window>) -> Vec<PathBuf> {
+    pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Vec<PathBuf> {
         self.filebox()
             .open_multiple_future(parent.map(|w| w.as_window().as_raw_window()).as_ref())
             .await
@@ -91,7 +73,7 @@ impl FileBox {
             .unwrap_or_default()
     }
 
-    pub async fn save(self, parent: Option<&Window>) -> Option<PathBuf> {
+    pub async fn save(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
         self.filebox()
             .save_future(parent.map(|w| w.as_window().as_raw_window()).as_ref())
             .await
