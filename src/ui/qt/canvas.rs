@@ -1,3 +1,5 @@
+use std::pin::Pin;
+
 use cxx::{ExternType, UniquePtr, type_id};
 
 use crate::{
@@ -124,16 +126,14 @@ fn drawing_angle(angle: f64) -> i32 {
 impl DrawingContext<'_> {
     fn set_brush(&mut self, brush: impl Brush) {
         self.painter.pin_mut().setBrush(&brush.create());
-        self.painter
-            .pin_mut()
-            .setPen_color(&ffi::color_transparent());
+        self.painter.pin_mut().setPen_color(&QColor::transparent());
     }
 
     fn set_pen(&mut self, pen: impl Pen) {
         self.painter.pin_mut().setPen(&pen.create());
         self.painter
             .pin_mut()
-            .setBrush(&ffi::new_brush(ffi::color_transparent()));
+            .setBrush(&ffi::new_brush(&QColor::transparent()));
     }
 
     pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
@@ -242,7 +242,7 @@ impl<B: Brush> Brush for &'_ B {
 
 impl Brush for SolidColorBrush {
     fn create(&self) -> UniquePtr<ffi::QBrush> {
-        ffi::new_brush(self.color.into())
+        ffi::new_brush(&self.color.into())
     }
 }
 
@@ -351,6 +351,15 @@ impl QColor {
         } else {
             Self { cspec, ct: [0; 5] }
         }
+    }
+
+    pub fn transparent() -> Self {
+        let mut c = Self {
+            cspec: Spec::Invalid,
+            ct: [0; 5],
+        };
+        ffi::color_transparent(Pin::new(&mut c));
+        c
     }
 }
 
@@ -467,8 +476,8 @@ mod ffi {
         #[rust_name = "setPen_color"]
         fn setPen(self: Pin<&mut QPainter>, color: &QColor);
 
-        fn color_transparent() -> QColor;
-        fn new_brush(c: QColor) -> UniquePtr<QBrush>;
+        fn color_transparent(c: Pin<&mut QColor>);
+        fn new_brush(c: &QColor) -> UniquePtr<QBrush>;
         fn new_pen(b: &QBrush, width: f64) -> UniquePtr<QPen>;
     }
 }

@@ -46,8 +46,8 @@ void painter_set_font(QPainter &p, rust::Str family, double size, bool italic,
 QSizeF painter_measure_text(QPainter &p, QRectF rect, rust::Str text);
 void painter_draw_text(QPainter &p, QRectF rect, rust::Str text);
 
-QColor color_transparent();
-std::unique_ptr<QBrush> new_brush(QColor c);
+void color_transparent(QColor &c);
+std::unique_ptr<QBrush> new_brush(QColor const &c);
 std::unique_ptr<QPen> new_pen(QBrush const &b, double width);
 
 enum DrawCommandType {

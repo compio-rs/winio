@@ -13,8 +13,6 @@ fn main() {
         let qbuild =
             qt_build_utils::QtBuild::new(vec!["Core".into(), "Gui".into(), "Widgets".into()])
                 .unwrap();
-        let qt_ver = qbuild.version();
-        assert_eq!(qt_ver.major, 6);
 
         let sources = [
             "src/runtime/qt",

@@ -88,9 +88,9 @@ void painter_draw_text(QPainter &p, QRectF rect, rust::Str text) {
     p.drawText(rect, QString::fromUtf8(text.data(), text.size()), option);
 }
 
-QColor color_transparent() { return QColor{Qt::transparent}; }
+void color_transparent(QColor &c) { new (&c) QColor{Qt::transparent}; }
 
-std::unique_ptr<QBrush> new_brush(QColor c) {
+std::unique_ptr<QBrush> new_brush(QColor const &c) {
     return std::make_unique<QBrush>(c);
 }
 

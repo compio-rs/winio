@@ -22,9 +22,7 @@ void line_edit_set_text(QWidget &w, rust::Str s) {
 }
 
 QtAlignmentFlag line_edit_get_alignment(QWidget const &w) {
-    return (QtAlignmentFlag) static_cast<QLineEdit const &>(w)
-        .alignment()
-        .toInt();
+    return (QtAlignmentFlag)(int)static_cast<QLineEdit const &>(w).alignment();
 }
 
 void line_edit_set_alignment(QWidget &w, QtAlignmentFlag flag) {
