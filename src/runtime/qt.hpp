@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QSocketNotifier>
 #include <QTimer>
+#include <memory>
 #include <rust/cxx.h>
 #include <vector>
 

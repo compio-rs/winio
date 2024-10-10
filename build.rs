@@ -35,7 +35,7 @@ fn main() {
 
         let mut build = cxx_build::bridges(sources.map(|s| format!("{}.rs", s)));
         build
-            .std("c++20")
+            .std("c++17")
             .files(sources.map(|s| format!("{}.cpp", s)))
             .includes(inc);
         if std::env::var("PROFILE").as_deref() == Ok("release") {
