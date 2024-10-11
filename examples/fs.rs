@@ -1,11 +1,14 @@
-use std::{io, path::Path};
+use std::{
+    io,
+    path::{Path, PathBuf},
+};
 
 use compio::{fs::File, io::AsyncReadAtExt, runtime::spawn};
 use taffy::{NodeId, TaffyTree};
 use winio::{
     App, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, Component, ComponentSender,
-    DrawingFontBuilder, FileBox, HAlign, Layoutable, Point, Rect, Size, SolidColorBrush, VAlign,
-    Window, WindowEvent,
+    DrawingFontBuilder, FileBox, HAlign, Label, Layoutable, Point, Rect, Size, SolidColorBrush,
+    VAlign, Window, WindowEvent,
 };
 
 fn main() {
@@ -21,6 +24,7 @@ struct MainModel {
     window: Child<Window>,
     canvas: Child<Canvas>,
     button: Child<Button>,
+    label: Child<Label>,
     text: FetchStatus,
     bheight: f64,
     is_dark: bool,
@@ -38,6 +42,7 @@ enum MainMessage {
     Close,
     Redraw,
     ChooseFile,
+    OpenFile(PathBuf),
     Fetch(FetchStatus),
 }
 
@@ -65,12 +70,17 @@ impl Component for MainModel {
         button.set_size(Size::new(800.0, 20.0));
         let bheight = button.size().height;
 
+        let mut label = Child::<Label>::init((), &window);
+        label.set_text(counter);
+        label.set_halign(HAlign::Center);
+
         spawn(fetch(counter, sender.clone())).detach();
 
         Self {
             window,
             canvas,
             button,
+            label,
             text: FetchStatus::Loading,
             bheight,
             is_dark,
@@ -114,9 +124,14 @@ impl Component for MainModel {
                     .open(Some(&*self.window))
                     .await
                 {
-                    spawn(fetch(p, sender.clone())).detach();
+                    sender.post(MainMessage::OpenFile(p));
                 }
                 false
+            }
+            MainMessage::OpenFile(p) => {
+                self.label.set_text(p.to_str().unwrap_or_default());
+                spawn(fetch(p, sender.clone())).detach();
+                true
             }
             MainMessage::Fetch(status) => {
                 self.text = status;
@@ -128,7 +143,8 @@ impl Component for MainModel {
     fn render(&mut self, _sender: &winio::ComponentSender<Self>) {
         let csize = self.window.client_size();
 
-        let (brect, crect) = Layout::new(self.bheight).compute(csize);
+        let (lrect, brect, crect) = Layout::new(self.bheight).compute(csize);
+        self.label.set_rect(lrect);
         self.button.set_rect(brect);
         self.canvas.set_rect(crect);
 
@@ -175,12 +191,22 @@ struct Layout {
     taffy: TaffyTree,
     canvas: NodeId,
     button: NodeId,
+    label: NodeId,
     root: NodeId,
 }
 
 impl Layout {
     pub fn new(bheight: f64) -> Self {
         let mut taffy = TaffyTree::new();
+        let label = taffy
+            .new_leaf(taffy::Style {
+                size: taffy::Size {
+                    width: taffy::Dimension::Percent(1.0),
+                    height: taffy::Dimension::Length(20.0),
+                },
+                ..Default::default()
+            })
+            .unwrap();
         let button = taffy
             .new_leaf(taffy::Style {
                 size: taffy::Size {
@@ -207,27 +233,33 @@ impl Layout {
                     flex_direction: taffy::FlexDirection::Column,
                     ..Default::default()
                 },
-                &[button, canvas],
+                &[label, button, canvas],
             )
             .unwrap();
         Self {
             taffy,
             canvas,
             button,
+            label,
             root,
         }
     }
 
-    pub fn compute(mut self, csize: Size) -> (Rect, Rect) {
+    pub fn compute(mut self, csize: Size) -> (Rect, Rect, Rect) {
         self.taffy
             .compute_layout(self.root, taffy::Size {
                 width: taffy::AvailableSpace::Definite(csize.width as _),
                 height: taffy::AvailableSpace::Definite(csize.height as _),
             })
             .unwrap();
+        let label_rect = self.taffy.layout(self.label).unwrap();
         let button_rect = self.taffy.layout(self.button).unwrap();
         let canvas_rect = self.taffy.layout(self.canvas).unwrap();
-        (rect_t2e(button_rect), rect_t2e(canvas_rect))
+        (
+            rect_t2e(label_rect),
+            rect_t2e(button_rect),
+            rect_t2e(canvas_rect),
+        )
     }
 }
 

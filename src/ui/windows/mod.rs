@@ -20,6 +20,9 @@ pub use button::*;
 mod edit;
 pub use edit::*;
 
+mod label;
+pub use label::*;
+
 use crate::ColorTheme;
 
 pub fn color_theme() -> ColorTheme {
