@@ -2,9 +2,11 @@ use std::time::Duration;
 
 use compio::{runtime::spawn, time::timeout};
 use cyper::Client;
+use taffy::{NodeId, TaffyTree};
 use winio::{
     App, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, Component, ComponentSender,
-    DrawingFontBuilder, Edit, HAlign, Point, Size, SolidColorBrush, VAlign, Window, WindowEvent,
+    DrawingFontBuilder, Edit, HAlign, Point, Rect, Size, SolidColorBrush, VAlign, Window,
+    WindowEvent,
 };
 
 fn main() {
@@ -23,6 +25,7 @@ struct MainModel {
     entry: Child<Edit>,
     client: Client,
     text: FetchStatus,
+    bheight: f64,
     is_dark: bool,
 }
 
@@ -64,6 +67,9 @@ impl Component for MainModel {
         button.set_text("Go");
         let mut entry = Child::<Edit>::init((), &window);
         entry.set_text(counter);
+        entry.set_loc(Point::zero());
+        entry.set_size(Size::new(600.0, 20.0));
+        let bheight = entry.size().height;
 
         let client = Client::new();
 
@@ -76,6 +82,7 @@ impl Component for MainModel {
             entry,
             text: FetchStatus::Loading,
             client,
+            bheight,
             is_dark,
         }
     }
@@ -129,22 +136,14 @@ impl Component for MainModel {
     }
 
     fn render(&mut self, _sender: &winio::ComponentSender<Self>) {
-        const BSIZE: Size = Size::new(60.0, 20.0);
-
         let csize = self.window.client_size();
 
-        self.entry.set_loc(Point::new(0.0, 0.0));
-        self.entry
-            .set_size(Size::new(csize.width - BSIZE.width, BSIZE.height));
-        let bheight = self.entry.size().height;
-
-        self.button
-            .set_loc(Point::new(csize.width - BSIZE.width, 0.0));
-        self.button.set_size(Size::new(BSIZE.width, bheight));
-
-        self.canvas
-            .set_size(Size::new(csize.width, csize.height - bheight));
-        self.canvas.set_loc(Point::new(0.0, bheight));
+        let (erect, brect, crect) = Layout::new(self.bheight).compute(csize);
+        self.entry.set_size(erect.size);
+        self.button.set_loc(brect.origin);
+        self.button.set_size(brect.size);
+        self.canvas.set_loc(crect.origin);
+        self.canvas.set_size(crect.size);
 
         let mut ctx = self.canvas.context();
         let brush = SolidColorBrush::new(if self.is_dark {
@@ -160,7 +159,7 @@ impl Component for MainModel {
                 .family("Courier New")
                 .size(12.0)
                 .build(),
-            Point::new(0.0, 0.0),
+            Point::zero(),
             match &self.text {
                 FetchStatus::Loading => "Loading...",
                 FetchStatus::Complete(s) => s.as_str(),
@@ -183,4 +182,98 @@ async fn fetch(client: Client, url: String, sender: ComponentSender<MainModel>) 
             FetchStatus::Timedout
         };
     sender.post(MainMessage::Fetch(status));
+}
+
+struct Layout {
+    taffy: TaffyTree,
+    canvas: NodeId,
+    button: NodeId,
+    entry: NodeId,
+    root: NodeId,
+}
+
+impl Layout {
+    pub fn new(bheight: f64) -> Self {
+        let mut taffy = TaffyTree::new();
+        let entry = taffy
+            .new_leaf(taffy::Style {
+                size: taffy::Size::auto(),
+                flex_grow: 1.0,
+                ..Default::default()
+            })
+            .unwrap();
+        let button = taffy
+            .new_leaf(taffy::Style {
+                size: taffy::Size {
+                    width: taffy::Dimension::Length(60.0),
+                    height: taffy::Dimension::Auto,
+                },
+                ..Default::default()
+            })
+            .unwrap();
+        let header = taffy
+            .new_with_children(
+                taffy::Style {
+                    size: taffy::Size {
+                        width: taffy::Dimension::Percent(1.0),
+                        height: taffy::Dimension::Length(bheight as _),
+                    },
+                    flex_direction: taffy::FlexDirection::Row,
+                    ..Default::default()
+                },
+                &[entry, button],
+            )
+            .unwrap();
+        let canvas = taffy
+            .new_leaf(taffy::Style {
+                size: taffy::Size {
+                    width: taffy::Dimension::Percent(1.0),
+                    height: taffy::Dimension::Auto,
+                },
+                flex_grow: 1.0,
+                ..Default::default()
+            })
+            .unwrap();
+        let root = taffy
+            .new_with_children(
+                taffy::Style {
+                    size: taffy::Size::from_percent(1.0, 1.0),
+                    flex_direction: taffy::FlexDirection::Column,
+                    ..Default::default()
+                },
+                &[header, canvas],
+            )
+            .unwrap();
+        Self {
+            taffy,
+            canvas,
+            button,
+            entry,
+            root,
+        }
+    }
+
+    pub fn compute(mut self, csize: Size) -> (Rect, Rect, Rect) {
+        self.taffy
+            .compute_layout(self.root, taffy::Size {
+                width: taffy::AvailableSpace::Definite(csize.width as _),
+                height: taffy::AvailableSpace::Definite(csize.height as _),
+            })
+            .unwrap();
+        let entry_rect = self.taffy.layout(self.entry).unwrap();
+        let button_rect = self.taffy.layout(self.button).unwrap();
+        let canvas_rect = self.taffy.layout(self.canvas).unwrap();
+        (
+            rect_t2e(entry_rect),
+            rect_t2e(button_rect),
+            rect_t2e(canvas_rect),
+        )
+    }
+}
+
+fn rect_t2e(rect: &taffy::Layout) -> Rect {
+    Rect::new(
+        Point::new(rect.location.x as _, rect.location.y as _),
+        Size::new(rect.size.width as _, rect.size.height as _),
+    )
 }

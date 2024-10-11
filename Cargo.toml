@@ -123,6 +123,7 @@ rustls = { version = "0.23", default-features = false, features = ["ring"] }
 
 futures-util = "0.3"
 tracing-subscriber = "0.3"
+taffy = "0.6.0"
 
 [build-dependencies]
 embed-resource = "2"
