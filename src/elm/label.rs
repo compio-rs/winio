@@ -1,6 +1,6 @@
 use crate::{Component, ComponentSender, HAlign, Layoutable, Point, Size, Window, ui};
 
-/// A simple single-line text input box.
+/// A simple single-line label.
 #[derive(Debug)]
 pub struct Label {
     widget: ui::Label,

@@ -165,3 +165,6 @@ pub use label::*;
 
 mod canvas;
 pub use canvas::*;
+
+mod progress;
+pub use progress::*;
