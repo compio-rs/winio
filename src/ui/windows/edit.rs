@@ -1,7 +1,7 @@
 use windows_sys::Win32::UI::{
     Controls::WC_EDITW,
     WindowsAndMessaging::{
-        EN_UPDATE, ES_AUTOHSCROLL, ES_CENTER, ES_LEFT, ES_RIGHT, WM_COMMAND, WS_CHILD,
+        EN_UPDATE, ES_AUTOHSCROLL, ES_CENTER, ES_LEFT, ES_PASSWORD, ES_RIGHT, WM_COMMAND, WS_CHILD,
         WS_EX_CLIENTEDGE, WS_TABSTOP, WS_VISIBLE,
     },
 };
@@ -9,15 +9,19 @@ use windows_sys::Win32::UI::{
 use crate::{AsRawWindow, AsWindow, HAlign, Point, Size, ui::Widget};
 
 #[derive(Debug)]
-pub struct Edit {
+pub struct EditImpl<const PW: bool> {
     handle: Widget,
 }
 
-impl Edit {
+impl<const PW: bool> EditImpl<PW> {
     pub fn new(parent: impl AsWindow) -> Self {
+        let mut style = WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_LEFT as u32 | ES_AUTOHSCROLL as u32;
+        if PW {
+            style |= ES_PASSWORD as u32;
+        }
         let handle = Widget::new(
             WC_EDITW,
-            WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_LEFT as u32 | ES_AUTOHSCROLL as u32,
+            style,
             WS_EX_CLIENTEDGE,
             parent.as_window().as_raw_window(),
         );
@@ -82,3 +86,6 @@ impl Edit {
         }
     }
 }
+
+pub type Edit = EditImpl<false>;
+pub type PasswordEdit = EditImpl<true>;
