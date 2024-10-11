@@ -1,4 +1,4 @@
-use crate::{Component, ComponentSender, Point, Size, Window, ui};
+use crate::{Component, ComponentSender, Layoutable, Point, Size, Window, ui};
 
 /// A simple button.
 #[derive(Debug)]
@@ -7,26 +7,6 @@ pub struct Button {
 }
 
 impl Button {
-    /// The left top location.
-    pub fn loc(&self) -> Point {
-        self.widget.loc()
-    }
-
-    /// Move the location.
-    pub fn set_loc(&mut self, p: Point) {
-        self.widget.set_loc(p)
-    }
-
-    /// The size.
-    pub fn size(&self) -> Size {
-        self.widget.size()
-    }
-
-    /// Resize.
-    pub fn set_size(&mut self, v: Size) {
-        self.widget.set_size(v)
-    }
-
     /// The text.
     pub fn text(&self) -> String {
         self.widget.text()
@@ -35,6 +15,24 @@ impl Button {
     /// Set the text.
     pub fn set_text(&mut self, s: impl AsRef<str>) {
         self.widget.set_text(s)
+    }
+}
+
+impl Layoutable for Button {
+    fn loc(&self) -> Point {
+        self.widget.loc()
+    }
+
+    fn set_loc(&mut self, p: Point) {
+        self.widget.set_loc(p)
+    }
+
+    fn size(&self) -> Size {
+        self.widget.size()
+    }
+
+    fn set_size(&mut self, v: Size) {
+        self.widget.set_size(v)
     }
 }
 

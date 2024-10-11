@@ -1,4 +1,4 @@
-use crate::{AsRawWindow, Component, ComponentSender, Point, RawWindow, Size, ui};
+use crate::{AsRawWindow, Component, ComponentSender, Layoutable, Point, RawWindow, Size, ui};
 
 /// A simple window.
 #[derive(Debug)]
@@ -7,26 +7,6 @@ pub struct Window {
 }
 
 impl Window {
-    /// The left top location.
-    pub fn loc(&self) -> Point {
-        self.widget.loc()
-    }
-
-    /// Move the location.
-    pub fn set_loc(&mut self, p: Point) {
-        self.widget.set_loc(p)
-    }
-
-    /// The size.
-    pub fn size(&self) -> Size {
-        self.widget.size()
-    }
-
-    /// Resize.
-    pub fn set_size(&mut self, v: Size) {
-        self.widget.set_size(v)
-    }
-
     /// The title.
     pub fn text(&self) -> String {
         self.widget.text()
@@ -46,6 +26,24 @@ impl Window {
     #[cfg(windows)]
     pub fn set_icon_by_id(&mut self, id: u16) {
         self.widget.set_icon_by_id(id);
+    }
+}
+
+impl Layoutable for Window {
+    fn loc(&self) -> Point {
+        self.widget.loc()
+    }
+
+    fn set_loc(&mut self, p: Point) {
+        self.widget.set_loc(p)
+    }
+
+    fn size(&self) -> Size {
+        self.widget.size()
+    }
+
+    fn set_size(&mut self, v: Size) {
+        self.widget.set_size(v)
     }
 }
 

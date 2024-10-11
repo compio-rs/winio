@@ -1,4 +1,4 @@
-use crate::{Component, ComponentSender, HAlign, Point, Size, Window, ui};
+use crate::{Component, ComponentSender, HAlign, Layoutable, Point, Size, Window, ui};
 
 /// A simple single-line text input box.
 #[derive(Debug)]
@@ -7,26 +7,6 @@ pub struct Edit {
 }
 
 impl Edit {
-    /// The left top location.
-    pub fn loc(&self) -> Point {
-        self.widget.loc()
-    }
-
-    /// Move the location.
-    pub fn set_loc(&mut self, p: Point) {
-        self.widget.set_loc(p)
-    }
-
-    /// The size.
-    pub fn size(&self) -> Size {
-        self.widget.size()
-    }
-
-    /// Resize.
-    pub fn set_size(&mut self, v: Size) {
-        self.widget.set_size(v)
-    }
-
     /// The text.
     pub fn text(&self) -> String {
         self.widget.text()
@@ -45,6 +25,24 @@ impl Edit {
     /// Set the horizontal alignment.
     pub fn set_halign(&mut self, align: HAlign) {
         self.widget.set_halign(align);
+    }
+}
+
+impl Layoutable for Edit {
+    fn loc(&self) -> Point {
+        self.widget.loc()
+    }
+
+    fn set_loc(&mut self, p: Point) {
+        self.widget.set_loc(p)
+    }
+
+    fn size(&self) -> Size {
+        self.widget.size()
+    }
+
+    fn set_size(&mut self, v: Size) {
+        self.widget.set_size(v)
     }
 }
 

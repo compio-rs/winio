@@ -1,4 +1,6 @@
-use crate::{Component, ComponentSender, DrawingContext, MouseButton, Point, Size, Window, ui};
+use crate::{
+    Component, ComponentSender, DrawingContext, Layoutable, MouseButton, Point, Size, Window, ui,
+};
 
 /// A simple drawing canvas.
 #[derive(Debug)]
@@ -7,29 +9,27 @@ pub struct Canvas {
 }
 
 impl Canvas {
-    /// The left top location.
-    pub fn loc(&self) -> Point {
-        self.widget.loc()
-    }
-
-    /// Move the location.
-    pub fn set_loc(&mut self, p: Point) {
-        self.widget.set_loc(p)
-    }
-
-    /// The size.
-    pub fn size(&self) -> Size {
-        self.widget.size()
-    }
-
-    /// Resize.
-    pub fn set_size(&mut self, v: Size) {
-        self.widget.set_size(v)
-    }
-
     /// Create the [`DrawingContext`] of the current canvas.
     pub fn context(&mut self) -> DrawingContext<'_> {
         DrawingContext::new(self.widget.context())
+    }
+}
+
+impl Layoutable for Canvas {
+    fn loc(&self) -> Point {
+        self.widget.loc()
+    }
+
+    fn set_loc(&mut self, p: Point) {
+        self.widget.set_loc(p)
+    }
+
+    fn size(&self) -> Size {
+        self.widget.size()
+    }
+
+    fn set_size(&mut self, v: Size) {
+        self.widget.set_size(v)
     }
 }
 

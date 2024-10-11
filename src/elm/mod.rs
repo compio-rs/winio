@@ -148,6 +148,9 @@ impl App {
 mod child;
 pub use child::*;
 
+mod layout;
+pub use layout::*;
+
 mod window;
 pub use window::*;
 

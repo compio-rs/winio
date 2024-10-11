@@ -5,8 +5,9 @@ use compio_log::info;
 use taffy::{NodeId, TaffyTree};
 use winio::{
     App, BrushPen, Canvas, CanvasEvent, Child, Color, ColorTheme, Component, ComponentSender,
-    CustomButton, DrawingFontBuilder, HAlign, MessageBox, MessageBoxButton, MessageBoxResponse,
-    MessageBoxStyle, MouseButton, Point, Rect, Size, SolidColorBrush, VAlign, Window, WindowEvent,
+    CustomButton, DrawingFontBuilder, HAlign, Layoutable, MessageBox, MessageBoxButton,
+    MessageBoxResponse, MessageBoxStyle, MouseButton, Point, Rect, Size, SolidColorBrush, VAlign,
+    Window, WindowEvent,
 };
 
 fn main() {
@@ -122,8 +123,7 @@ impl Component for MainModel {
 
         let csize = self.window.client_size();
         let rect = Layout::new().compute(csize);
-        self.canvas.set_size(rect.size);
-        self.canvas.set_loc(rect.origin);
+        self.canvas.set_rect(rect);
 
         let size = self.canvas.size();
         let brush = SolidColorBrush::new(if self.is_dark {

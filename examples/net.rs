@@ -5,8 +5,8 @@ use cyper::Client;
 use taffy::{NodeId, TaffyTree};
 use winio::{
     App, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, Component, ComponentSender,
-    DrawingFontBuilder, Edit, HAlign, Point, Rect, Size, SolidColorBrush, VAlign, Window,
-    WindowEvent,
+    DrawingFontBuilder, Edit, HAlign, Layoutable, Point, Rect, Size, SolidColorBrush, VAlign,
+    Window, WindowEvent,
 };
 
 fn main() {
@@ -139,11 +139,9 @@ impl Component for MainModel {
         let csize = self.window.client_size();
 
         let (erect, brect, crect) = Layout::new(self.bheight).compute(csize);
-        self.entry.set_size(erect.size);
-        self.button.set_loc(brect.origin);
-        self.button.set_size(brect.size);
-        self.canvas.set_loc(crect.origin);
-        self.canvas.set_size(crect.size);
+        self.entry.set_rect(erect);
+        self.button.set_rect(brect);
+        self.canvas.set_rect(crect);
 
         let mut ctx = self.canvas.context();
         let brush = SolidColorBrush::new(if self.is_dark {
