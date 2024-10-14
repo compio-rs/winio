@@ -41,7 +41,7 @@ use windows_sys::Win32::{
 
 use crate::{
     AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, HAlign, MouseButton, Point, Rect, RectBox,
-    Rotation, Size, SolidColorBrush, VAlign,
+    Size, SolidColorBrush, VAlign, Vector,
     ui::{Widget, darkmode::is_dark_mode_allowed_for_app},
 };
 
@@ -111,7 +111,6 @@ impl Canvas {
 
     pub fn context(&mut self) -> DrawingContext<'_> {
         unsafe {
-            let dpi = self.handle.dpi();
             let size = self.handle.size_l2d(self.handle.size());
             self.target
                 .Resize(&D2D_SIZE_U {
@@ -126,7 +125,6 @@ impl Canvas {
                 } else {
                     Color::new(255, 255, 255, 255)
                 })));
-            self.target.SetDpi(dpi as f32, dpi as f32);
             DrawingContext {
                 target: self.target.clone().cast().unwrap(),
                 d2d: self.d2d.clone(),
@@ -208,8 +206,8 @@ pub struct DrawingContext<'a> {
 fn get_arc(rect: Rect, start: f64, end: f64) -> (Size, Point, Point, Point) {
     let radius = rect.size / 2.0;
     let centerp = rect.origin.add_size(&radius);
-    let startp = centerp + Rotation::radians(start).transform_vector(radius.to_vector());
-    let endp = centerp + Rotation::radians(end).transform_vector(radius.to_vector());
+    let startp = centerp + Vector::new(radius.width * start.cos(), radius.height * start.sin());
+    let endp = centerp + Vector::new(radius.width * end.cos(), radius.height * end.sin());
     (radius, centerp, startp, endp)
 }
 
