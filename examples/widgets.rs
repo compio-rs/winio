@@ -4,8 +4,9 @@ use taffy::{
 };
 use winio::{
     App, BrushPen, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, ComboBox, ComboBoxEvent,
-    ComboBoxMessage, Component, ComponentSender, Layoutable, MessageBox, MessageBoxButton,
-    ObservableVec, ObservableVecEvent, Point, Rect, Size, SolidColorBrush, Window, WindowEvent,
+    ComboBoxMessage, Component, ComponentSender, Edit, HAlign, Label, Layoutable, MessageBox,
+    MessageBoxButton, ObservableVec, ObservableVecEvent, PasswordEdit, Point, Rect, Size,
+    SolidColorBrush, Window, WindowEvent,
 };
 
 fn main() {
@@ -19,6 +20,11 @@ fn main() {
 
 struct MainModel {
     window: Child<Window>,
+    ulabel: Child<Label>,
+    plabel: Child<Label>,
+    uentry: Child<Edit>,
+    pentry: Child<PasswordEdit>,
+    eheight: f64,
     canvas: Child<Canvas>,
     combo: Child<ComboBox>,
     list: Child<ObservableVec<String>>,
@@ -53,6 +59,19 @@ impl Component for MainModel {
         window.set_text("Widgets example");
         window.set_size(Size::new(800.0, 600.0));
 
+        let mut ulabel = Child::<Label>::init((), &window);
+        ulabel.set_text("Username:");
+        ulabel.set_halign(HAlign::Right);
+        let mut plabel = Child::<Label>::init((), &window);
+        plabel.set_text("Password:");
+        plabel.set_halign(HAlign::Right);
+
+        let mut uentry = Child::<Edit>::init((), &window);
+        uentry.set_text("AAA");
+        let eheight = uentry.size().height;
+        let mut pentry = Child::<PasswordEdit>::init((), &window);
+        pentry.set_text("123456");
+
         let combo = Child::<ComboBox>::init((), &window);
 
         let mut list = Child::<ObservableVec<String>>::init(vec![], &());
@@ -71,6 +90,11 @@ impl Component for MainModel {
 
         Self {
             window,
+            ulabel,
+            plabel,
+            uentry,
+            pentry,
+            eheight,
             canvas,
             combo,
             list,
@@ -154,7 +178,21 @@ impl Component for MainModel {
         self.canvas.render();
 
         let csize = self.window.client_size();
-        let (combo_rect, canvas_rect, b1_rect, b2_rect, b3_rect) = Layout::new().compute(csize);
+        let (
+            ulabel_rect,
+            uentry_rect,
+            plabel_rect,
+            pentry_rect,
+            combo_rect,
+            canvas_rect,
+            b1_rect,
+            b2_rect,
+            b3_rect,
+        ) = Layout::new(self.eheight).compute(csize);
+        self.ulabel.set_rect(ulabel_rect);
+        self.uentry.set_rect(uentry_rect);
+        self.plabel.set_rect(plabel_rect);
+        self.pentry.set_rect(pentry_rect);
         self.combo.set_rect(combo_rect);
         self.canvas.set_rect(canvas_rect);
         self.push_button.set_rect(b1_rect);
@@ -167,16 +205,28 @@ impl Component for MainModel {
         } else {
             Color::new(0, 0, 0, 255)
         });
+        let pen = BrushPen::new(&brush, 1.0);
         let mut ctx = self.canvas.context();
-        ctx.draw_ellipse(
-            BrushPen::new(brush.clone(), 1.0),
-            Rect::new((size.to_vector() / 4.0).to_point(), size / 2.0),
+        let cx = size.width / 2.0;
+        let cy = size.height / 2.0;
+        let r = cx.min(cy) - 2.0;
+        ctx.draw_arc(
+            &pen,
+            Rect::new(Point::new(cx - r, cy - r), Size::new(r * 2.0, r * 2.0)),
+            std::f64::consts::PI,
+            std::f64::consts::PI * 2.0,
         );
+        ctx.draw_line(&pen, Point::new(cx - r, cy), Point::new(cx + r, cy));
     }
 }
 
 struct Layout {
     taffy: TaffyTree,
+    cred: NodeId,
+    ulabel: NodeId,
+    uentry: NodeId,
+    plabel: NodeId,
+    pentry: NodeId,
     canvas: NodeId,
     combo: NodeId,
     buttons: NodeId,
@@ -187,7 +237,7 @@ struct Layout {
 }
 
 impl Layout {
-    pub fn new() -> Self {
+    pub fn new(eheight: f64) -> Self {
         let mut taffy = TaffyTree::new();
         let combo = taffy
             .new_leaf(taffy::Style {
@@ -221,6 +271,12 @@ impl Layout {
                     width: auto(),
                     height: length(30.0),
                 },
+                margin: taffy::Rect {
+                    left: length(0.0),
+                    right: length(0.0),
+                    top: length(4.0),
+                    bottom: length(4.0),
+                },
                 ..Default::default()
             })
             .unwrap();
@@ -230,6 +286,12 @@ impl Layout {
                     width: auto(),
                     height: length(30.0),
                 },
+                margin: taffy::Rect {
+                    left: length(0.0),
+                    right: length(0.0),
+                    top: length(4.0),
+                    bottom: length(4.0),
+                },
                 ..Default::default()
             })
             .unwrap();
@@ -238,6 +300,12 @@ impl Layout {
                 size: taffy::Size {
                     width: auto(),
                     height: length(30.0),
+                },
+                margin: taffy::Rect {
+                    left: length(0.0),
+                    right: length(0.0),
+                    top: length(4.0),
+                    bottom: length(4.0),
                 },
                 ..Default::default()
             })
@@ -255,6 +323,72 @@ impl Layout {
             )
             .unwrap();
 
+        let ulabel = taffy
+            .new_leaf(taffy::Style {
+                size: auto(),
+                grid_column: line(1),
+                grid_row: line(2),
+                ..Default::default()
+            })
+            .unwrap();
+        let uentry = taffy
+            .new_leaf(taffy::Style {
+                size: taffy::Size {
+                    width: auto(),
+                    height: length(eheight as f32),
+                },
+                grid_column: line(2),
+                grid_row: line(2),
+                margin: taffy::Rect {
+                    left: length(4.0),
+                    right: length(0.0),
+                    top: length(4.0),
+                    bottom: length(4.0),
+                },
+                ..Default::default()
+            })
+            .unwrap();
+        let plabel = taffy
+            .new_leaf(taffy::Style {
+                size: auto(),
+                grid_column: line(1),
+                grid_row: line(3),
+                ..Default::default()
+            })
+            .unwrap();
+        let pentry = taffy
+            .new_leaf(taffy::Style {
+                size: taffy::Size {
+                    width: auto(),
+                    height: length(eheight as f32),
+                },
+                grid_column: line(2),
+                grid_row: line(3),
+                margin: taffy::Rect {
+                    left: length(4.0),
+                    right: length(0.0),
+                    top: length(4.0),
+                    bottom: length(4.0),
+                },
+                ..Default::default()
+            })
+            .unwrap();
+
+        let cred = taffy
+            .new_with_children(
+                taffy::Style {
+                    display: taffy::Display::Grid,
+                    size: auto(),
+                    grid_column: line(2),
+                    grid_row: line(1),
+                    grid_template_columns: vec![length(100.0), fr(1.0)],
+                    grid_template_rows: vec![fr(1.0), auto(), auto(), fr(1.0)],
+                    ..Default::default()
+                },
+                &[ulabel, uentry, plabel, pentry],
+            )
+            .unwrap();
+
         let root = taffy
             .new_with_children(
                 taffy::Style {
@@ -264,11 +398,16 @@ impl Layout {
                     grid_template_rows: vec![fr(1.0), length(50.0), fr(1.0)],
                     ..Default::default()
                 },
-                &[combo, canvas, buttons],
+                &[cred, combo, canvas, buttons],
             )
             .unwrap();
         Self {
             taffy,
+            cred,
+            ulabel,
+            uentry,
+            plabel,
+            pentry,
             canvas,
             combo,
             buttons,
@@ -279,7 +418,10 @@ impl Layout {
         }
     }
 
-    pub fn compute(mut self, csize: Size) -> (Rect, Rect, Rect, Rect, Rect) {
+    pub fn compute(
+        mut self,
+        csize: Size,
+    ) -> (Rect, Rect, Rect, Rect, Rect, Rect, Rect, Rect, Rect) {
         self.taffy
             .compute_layout(self.root, taffy::Size {
                 width: taffy::AvailableSpace::Definite(csize.width as _),
@@ -292,9 +434,19 @@ impl Layout {
         let b1_rect = self.taffy.layout(self.b1).unwrap();
         let b2_rect = self.taffy.layout(self.b2).unwrap();
         let b3_rect = self.taffy.layout(self.b3).unwrap();
+        let cred_rect = self.taffy.layout(self.cred).unwrap();
+        let ulabel_rect = self.taffy.layout(self.ulabel).unwrap();
+        let uentry_rect = self.taffy.layout(self.uentry).unwrap();
+        let plabel_rect = self.taffy.layout(self.plabel).unwrap();
+        let pentry_rect = self.taffy.layout(self.pentry).unwrap();
 
         let buttons_rect = rect_t2e(buttons_rect);
+        let cred_rect = rect_t2e(cred_rect);
         (
+            offset(rect_t2e(ulabel_rect), cred_rect),
+            offset(rect_t2e(uentry_rect), cred_rect),
+            offset(rect_t2e(plabel_rect), cred_rect),
+            offset(rect_t2e(pentry_rect), cred_rect),
             rect_t2e(combo_rect),
             rect_t2e(canvas_rect),
             offset(rect_t2e(b1_rect), buttons_rect),
