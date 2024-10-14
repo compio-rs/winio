@@ -1,12 +1,12 @@
 use taffy::{
     NodeId, TaffyTree,
-    prelude::{auto, fr, length, line, percent, repeat},
+    prelude::{auto, fr, length, line, repeat},
 };
 use winio::{
     App, BrushPen, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, ComboBox, ComboBoxEvent,
     ComboBoxMessage, Component, ComponentSender, DrawingFontBuilder, Edit, GradientStop, HAlign,
     Label, Layoutable, LinearGradientBrush, MessageBox, MessageBoxButton, ObservableVec,
-    ObservableVecEvent, PasswordEdit, Point, RadialGradientBrush, Rect, RelativePoint,
+    ObservableVecEvent, PasswordEdit, Point, Progress, RadialGradientBrush, Rect, RelativePoint,
     RelativeSize, Size, SolidColorBrush, VAlign, Window, WindowEvent,
 };
 
@@ -33,6 +33,7 @@ struct MainModel {
     push_button: Child<Button>,
     pop_button: Child<Button>,
     show_button: Child<Button>,
+    progress: Child<Progress>,
     is_dark: bool,
 }
 
@@ -89,6 +90,9 @@ impl Component for MainModel {
         let mut show_button = Child::<Button>::init((), &window);
         show_button.set_text("Show");
 
+        let mut progress = Child::<Progress>::init((), &window);
+        progress.set_indeterminate(true);
+
         Self {
             window,
             ulabel,
@@ -103,6 +107,7 @@ impl Component for MainModel {
             push_button,
             pop_button,
             show_button,
+            progress,
             is_dark: ColorTheme::current() == ColorTheme::Dark,
         }
     }
@@ -189,6 +194,7 @@ impl Component for MainModel {
             b1_rect,
             b2_rect,
             b3_rect,
+            progress_rect,
         ) = Layout::new(self.eheight).compute(csize);
         self.ulabel.set_rect(ulabel_rect);
         self.uentry.set_rect(uentry_rect);
@@ -199,6 +205,7 @@ impl Component for MainModel {
         self.push_button.set_rect(b1_rect);
         self.pop_button.set_rect(b2_rect);
         self.show_button.set_rect(b3_rect);
+        self.progress.set_rect(progress_rect);
 
         let size = self.canvas.size();
         let back_color = if self.is_dark {
@@ -281,6 +288,7 @@ struct Layout {
     b1: NodeId,
     b2: NodeId,
     b3: NodeId,
+    progress: NodeId,
     root: NodeId,
 }
 
@@ -296,8 +304,8 @@ impl Layout {
                 grid_column: line(2),
                 grid_row: line(2),
                 margin: taffy::Rect {
-                    left: percent(0.0),
-                    right: percent(0.0),
+                    left: length(4.0),
+                    right: length(4.0),
                     top: auto(),
                     bottom: auto(),
                 },
@@ -320,8 +328,8 @@ impl Layout {
                     height: length(30.0),
                 },
                 margin: taffy::Rect {
-                    left: length(0.0),
-                    right: length(0.0),
+                    left: length(4.0),
+                    right: length(4.0),
                     top: length(4.0),
                     bottom: length(4.0),
                 },
@@ -335,8 +343,8 @@ impl Layout {
                     height: length(30.0),
                 },
                 margin: taffy::Rect {
-                    left: length(0.0),
-                    right: length(0.0),
+                    left: length(4.0),
+                    right: length(4.0),
                     top: length(4.0),
                     bottom: length(4.0),
                 },
@@ -350,8 +358,8 @@ impl Layout {
                     height: length(30.0),
                 },
                 margin: taffy::Rect {
-                    left: length(0.0),
-                    right: length(0.0),
+                    left: length(4.0),
+                    right: length(4.0),
                     top: length(4.0),
                     bottom: length(4.0),
                 },
@@ -437,6 +445,24 @@ impl Layout {
             )
             .unwrap();
 
+        let progress = taffy
+            .new_leaf(taffy::Style {
+                size: taffy::Size {
+                    width: auto(),
+                    height: length(50.0),
+                },
+                grid_column: line(3),
+                grid_row: line(2),
+                margin: taffy::Rect {
+                    left: length(4.0),
+                    right: length(4.0),
+                    top: auto(),
+                    bottom: auto(),
+                },
+                ..Default::default()
+            })
+            .unwrap();
+
         let root = taffy
             .new_with_children(
                 taffy::Style {
@@ -446,7 +472,7 @@ impl Layout {
                     grid_template_rows: vec![fr(1.0), length(50.0), fr(1.0)],
                     ..Default::default()
                 },
-                &[cred, combo, canvas, buttons],
+                &[cred, combo, canvas, progress, buttons],
             )
             .unwrap();
         Self {
@@ -462,6 +488,7 @@ impl Layout {
             b1,
             b2,
             b3,
+            progress,
             root,
         }
     }
@@ -469,7 +496,7 @@ impl Layout {
     pub fn compute(
         mut self,
         csize: Size,
-    ) -> (Rect, Rect, Rect, Rect, Rect, Rect, Rect, Rect, Rect) {
+    ) -> (Rect, Rect, Rect, Rect, Rect, Rect, Rect, Rect, Rect, Rect) {
         self.taffy
             .compute_layout(self.root, taffy::Size {
                 width: taffy::AvailableSpace::Definite(csize.width as _),
@@ -487,6 +514,7 @@ impl Layout {
         let uentry_rect = self.taffy.layout(self.uentry).unwrap();
         let plabel_rect = self.taffy.layout(self.plabel).unwrap();
         let pentry_rect = self.taffy.layout(self.pentry).unwrap();
+        let progress_rect = self.taffy.layout(self.progress).unwrap();
 
         let buttons_rect = rect_t2e(buttons_rect);
         let cred_rect = rect_t2e(cred_rect);
@@ -500,6 +528,7 @@ impl Layout {
             offset(rect_t2e(b1_rect), buttons_rect),
             offset(rect_t2e(b2_rect), buttons_rect),
             offset(rect_t2e(b3_rect), buttons_rect),
+            rect_t2e(progress_rect),
         )
     }
 }
