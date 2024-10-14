@@ -35,14 +35,12 @@ impl<const E: bool> ComboBoxImpl<E> {
 
     pub fn preferred_size(&self) -> Size {
         let mut width = 0.0f64;
-        let mut height = 0.0f64;
         for i in 0..self.len() {
             let data = self.get_u16(i);
             let s = measure_string(self.handle.as_raw_window(), &data);
             width = width.max(s.width);
-            height = height.max(s.height);
         }
-        Size::new(width + 5.0, height + 10.0)
+        Size::new(width + 5.0, self.handle.size().height)
     }
 
     pub fn loc(&self) -> Point {
