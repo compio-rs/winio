@@ -6,7 +6,10 @@ use windows_sys::Win32::UI::{
     },
 };
 
-use crate::{AsRawWindow, AsWindow, HAlign, Point, Size, ui::Widget};
+use crate::{
+    AsRawWindow, AsWindow, HAlign, Point, Size,
+    ui::{Widget, font::measure_string},
+};
 
 #[derive(Debug)]
 pub struct EditImpl<const PW: bool> {
@@ -27,6 +30,11 @@ impl<const PW: bool> EditImpl<PW> {
         );
         handle.set_size(handle.size_d2l((100, 50)));
         Self { handle }
+    }
+
+    pub fn preferred_size(&self) -> Size {
+        let s = measure_string(self.handle.as_raw_window(), &self.handle.text_u16());
+        Size::new(s.width + 2.0, s.height + 2.0)
     }
 
     pub fn loc(&self) -> Point {

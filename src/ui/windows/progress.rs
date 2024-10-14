@@ -1,7 +1,7 @@
 use windows_sys::Win32::UI::{
     Controls::{
         PBM_GETPOS, PBM_GETRANGE, PBM_SETMARQUEE, PBM_SETPOS, PBM_SETRANGE32, PBS_MARQUEE,
-        PBS_SMOOTH, PROGRESS_CLASSW,
+        PBS_SMOOTHREVERSE, PROGRESS_CLASSW,
     },
     HiDpi::GetSystemMetricsForDpi,
     WindowsAndMessaging::{
@@ -20,12 +20,17 @@ impl Progress {
     pub fn new(parent: impl AsWindow) -> Self {
         let handle = Widget::new(
             PROGRESS_CLASSW,
-            WS_CHILD | WS_VISIBLE | WS_TABSTOP | PBS_SMOOTH,
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | PBS_SMOOTHREVERSE,
             0,
             parent.as_window().as_raw_window(),
         );
         handle.set_size(handle.size_d2l((100, 15)));
         Self { handle }
+    }
+
+    pub fn preferred_size(&self) -> Size {
+        let height = unsafe { GetSystemMetricsForDpi(SM_CYVSCROLL, USER_DEFAULT_SCREEN_DPI) };
+        Size::new(0.0, height as _)
     }
 
     pub fn loc(&self) -> Point {
@@ -40,9 +45,7 @@ impl Progress {
         self.handle.size()
     }
 
-    pub fn set_size(&mut self, mut v: Size) {
-        let height = unsafe { GetSystemMetricsForDpi(SM_CYVSCROLL, USER_DEFAULT_SCREEN_DPI) };
-        v.height = height as _;
+    pub fn set_size(&mut self, v: Size) {
         self.handle.set_size(v)
     }
 

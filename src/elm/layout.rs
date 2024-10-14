@@ -24,4 +24,9 @@ pub trait Layoutable {
         self.set_loc(r.origin);
         self.set_size(r.size);
     }
+
+    /// The preferred size.
+    fn preferred_size(&self) -> Size {
+        Size::zero()
+    }
 }

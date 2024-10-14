@@ -1,12 +1,18 @@
 use std::{
     collections::BTreeMap,
     io,
+    mem::MaybeUninit,
     sync::{LazyLock, Mutex},
 };
 
 use compio::driver::syscall;
+use widestring::U16CStr;
 use windows_sys::Win32::{
-    Graphics::Gdi::{CreateFontIndirectW, DeleteObject, HFONT, LOGFONTW},
+    Foundation::HWND,
+    Graphics::Gdi::{
+        CreateFontIndirectW, DeleteObject, GetTextExtentPoint32W, GetWindowDC, HDC, HFONT,
+        LOGFONTW, ReleaseDC,
+    },
     UI::{
         HiDpi::SystemParametersInfoForDpi,
         WindowsAndMessaging::{
@@ -16,6 +22,7 @@ use windows_sys::Win32::{
 };
 
 use super::dpi::DpiAware;
+use crate::Size;
 
 unsafe fn system_default_font() -> io::Result<LOGFONTW> {
     let mut ncm: NONCLIENTMETRICSW = unsafe { std::mem::zeroed() };
@@ -61,4 +68,41 @@ pub fn default_font(dpi: u32) -> HFONT {
             res
         },
     }
+}
+
+struct WinDC(HWND, HDC);
+
+impl WinDC {
+    pub fn new(hwnd: HWND) -> Self {
+        unsafe {
+            let hdc = GetWindowDC(hwnd);
+            Self(hwnd, hdc)
+        }
+    }
+}
+
+impl Drop for WinDC {
+    fn drop(&mut self) {
+        if !self.1.is_null() {
+            unsafe { ReleaseDC(self.0, self.1) };
+        }
+    }
+}
+
+pub fn measure_string(hwnd: HWND, s: &U16CStr) -> Size {
+    if s.is_empty() {
+        return Size::zero();
+    }
+    let hdc = WinDC::new(hwnd);
+    if hdc.1.is_null() {
+        return Size::zero();
+    }
+    let mut size = MaybeUninit::uninit();
+    syscall!(
+        BOOL,
+        GetTextExtentPoint32W(hdc.1, s.as_ptr(), s.len() as _, size.as_mut_ptr())
+    )
+    .unwrap();
+    let size = unsafe { size.assume_init() };
+    Size::new(size.cx as _, size.cy as _)
 }

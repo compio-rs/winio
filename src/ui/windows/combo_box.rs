@@ -2,14 +2,17 @@ use widestring::U16CString;
 use windows_sys::Win32::UI::{
     Controls::WC_COMBOBOXW,
     WindowsAndMessaging::{
-        CB_DELETESTRING, CB_GETCOUNT, CB_GETCURSEL, CB_GETITEMDATA, CB_INSERTSTRING,
-        CB_RESETCONTENT, CB_SETCURSEL, CB_SETITEMDATA, CBN_SELCHANGE, CBS_AUTOHSCROLL,
+        CB_DELETESTRING, CB_GETCOUNT, CB_GETCURSEL, CB_GETLBTEXT, CB_GETLBTEXTLEN, CB_INSERTSTRING,
+        CB_RESETCONTENT, CB_SETCURSEL, CBN_EDITUPDATE, CBN_SELCHANGE, CBS_AUTOHSCROLL,
         CBS_DROPDOWN, CBS_DROPDOWNLIST, CBS_HASSTRINGS, SendMessageW, WM_COMMAND, WS_CHILD,
         WS_TABSTOP, WS_VISIBLE,
     },
 };
 
-use crate::{AsRawWindow, AsWindow, Point, Size, ui::Widget};
+use crate::{
+    AsRawWindow, AsWindow, Point, Size,
+    ui::{Widget, font::measure_string},
+};
 
 #[derive(Debug)]
 pub struct ComboBoxImpl<const E: bool> {
@@ -28,6 +31,18 @@ impl<const E: bool> ComboBoxImpl<E> {
         let handle = Widget::new(WC_COMBOBOXW, style, 0, parent.as_window().as_raw_window());
         handle.set_size(handle.size_d2l((50, 14)));
         Self { handle }
+    }
+
+    pub fn preferred_size(&self) -> Size {
+        let mut width = 0.0f64;
+        let mut height = 0.0f64;
+        for i in 0..self.len() {
+            let data = self.get_u16(i);
+            let s = measure_string(self.handle.as_raw_window(), &data);
+            width = width.max(s.width);
+            height = height.max(s.height);
+        }
+        Size::new(width + 5.0, height + 10.0)
     }
 
     pub fn loc(&self) -> Point {
@@ -64,11 +79,22 @@ impl<const E: bool> ComboBoxImpl<E> {
         unsafe { SendMessageW(self.handle.as_raw_window(), CB_SETCURSEL, i as _, 0) };
     }
 
-    pub async fn wait_change(&self) {
+    pub async fn wait_select(&self) {
         loop {
             let msg = self.handle.wait_parent(WM_COMMAND).await;
             if msg.lParam == (self.handle.as_raw_window() as _)
                 && ((msg.wParam as u32 >> 16) == CBN_SELCHANGE)
+            {
+                break;
+            }
+        }
+    }
+
+    pub async fn wait_change(&self) {
+        loop {
+            let msg = self.handle.wait_parent(WM_COMMAND).await;
+            if msg.lParam == (self.handle.as_raw_window() as _)
+                && ((msg.wParam as u32 >> 16) == CBN_EDITUPDATE)
             {
                 break;
             }
@@ -91,21 +117,35 @@ impl<const E: bool> ComboBoxImpl<E> {
         unsafe { SendMessageW(self.handle.as_raw_window(), CB_DELETESTRING, i as _, 0) };
     }
 
+    fn get_u16(&self, i: usize) -> U16CString {
+        let mut len =
+            unsafe { SendMessageW(self.handle.as_raw_window(), CB_GETLBTEXTLEN, i as _, 0) };
+        if len == 0 {
+            return U16CString::new();
+        }
+        len += 1;
+        let mut res: Vec<u16> = Vec::with_capacity(len as usize);
+        let len = unsafe {
+            SendMessageW(
+                self.handle.as_raw_window(),
+                CB_GETLBTEXT,
+                i as _,
+                res.as_mut_ptr() as _,
+            )
+        };
+        unsafe {
+            res.set_len(len as usize + 1);
+            U16CString::from_vec_unchecked(res)
+        }
+    }
+
     pub fn get(&self, i: usize) -> String {
-        let data = unsafe { SendMessageW(self.handle.as_raw_window(), CB_GETITEMDATA, i as _, 0) };
-        unsafe { U16CString::from_ptr_str(data as _) }.to_string_lossy()
+        self.get_u16(i).to_string_lossy()
     }
 
     pub fn set(&mut self, i: usize, s: impl AsRef<str>) {
-        let s = U16CString::from_str_truncate(s);
-        unsafe {
-            SendMessageW(
-                self.handle.as_raw_window(),
-                CB_SETITEMDATA,
-                i as _,
-                s.as_ptr() as _,
-            )
-        };
+        self.remove(i);
+        self.insert(i, s);
     }
 
     pub fn len(&self) -> usize {
@@ -118,3 +158,4 @@ impl<const E: bool> ComboBoxImpl<E> {
 }
 
 pub type ComboBox = ComboBoxImpl<false>;
+pub type ComboEntry = ComboBoxImpl<true>;

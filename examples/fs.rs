@@ -26,7 +26,6 @@ struct MainModel {
     button: Child<Button>,
     label: Child<Label>,
     text: FetchStatus,
-    bheight: f64,
     is_dark: bool,
 }
 
@@ -66,9 +65,6 @@ impl Component for MainModel {
         let canvas = Child::<Canvas>::init((), &window);
         let mut button = Child::<Button>::init((), &window);
         button.set_text("Choose file...");
-        button.set_loc(Point::zero());
-        button.set_size(Size::new(800.0, 20.0));
-        let bheight = button.size().height;
 
         let mut label = Child::<Label>::init((), &window);
         label.set_text(counter);
@@ -82,7 +78,6 @@ impl Component for MainModel {
             button,
             label,
             text: FetchStatus::Loading,
-            bheight,
             is_dark,
         }
     }
@@ -143,7 +138,11 @@ impl Component for MainModel {
     fn render(&mut self, _sender: &winio::ComponentSender<Self>) {
         let csize = self.window.client_size();
 
-        let (lrect, brect, crect) = Layout::new(self.bheight).compute(csize);
+        let (lrect, brect, crect) = Layout::new(
+            self.label.preferred_size().height,
+            self.button.preferred_size().height,
+        )
+        .compute(csize);
         self.label.set_rect(lrect);
         self.button.set_rect(brect);
         self.canvas.set_rect(crect);
@@ -196,13 +195,13 @@ struct Layout {
 }
 
 impl Layout {
-    pub fn new(bheight: f64) -> Self {
+    pub fn new(lheight: f64, bheight: f64) -> Self {
         let mut taffy = TaffyTree::new();
         let label = taffy
             .new_leaf(taffy::Style {
                 size: taffy::Size {
                     width: taffy::Dimension::Percent(1.0),
-                    height: taffy::Dimension::Length(20.0),
+                    height: taffy::Dimension::Length(lheight as _),
                 },
                 ..Default::default()
             })

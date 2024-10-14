@@ -6,7 +6,10 @@ use windows_sys::Win32::{
     },
 };
 
-use crate::{AsRawWindow, AsWindow, HAlign, Point, Size, ui::Widget};
+use crate::{
+    AsRawWindow, AsWindow, HAlign, Point, Size,
+    ui::{Widget, font::measure_string},
+};
 
 #[derive(Debug)]
 pub struct Label {
@@ -23,6 +26,10 @@ impl Label {
         );
         handle.set_size(handle.size_d2l((100, 50)));
         Self { handle }
+    }
+
+    pub fn preferred_size(&self) -> Size {
+        measure_string(self.handle.as_raw_window(), &self.handle.text_u16())
     }
 
     pub fn loc(&self) -> Point {

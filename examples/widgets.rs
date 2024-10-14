@@ -25,7 +25,6 @@ struct MainModel {
     plabel: Child<Label>,
     uentry: Child<Edit>,
     pentry: Child<PasswordEdit>,
-    eheight: f64,
     canvas: Child<Canvas>,
     combo: Child<ComboBox>,
     list: Child<ObservableVec<String>>,
@@ -70,7 +69,6 @@ impl Component for MainModel {
 
         let mut uentry = Child::<Edit>::init((), &window);
         uentry.set_text("AAA");
-        let eheight = uentry.size().height;
         let mut pentry = Child::<PasswordEdit>::init((), &window);
         pentry.set_text("123456");
 
@@ -99,7 +97,6 @@ impl Component for MainModel {
             plabel,
             uentry,
             pentry,
-            eheight,
             canvas,
             combo,
             list,
@@ -195,7 +192,15 @@ impl Component for MainModel {
             b2_rect,
             b3_rect,
             progress_rect,
-        ) = Layout::new(self.eheight).compute(csize);
+        ) = Layout::new(
+            self.combo.preferred_size(),
+            self.ulabel.preferred_size(),
+            self.plabel.preferred_size(),
+            self.uentry.preferred_size().height,
+            self.push_button.preferred_size().height,
+            self.progress.preferred_size().height,
+        )
+        .compute(csize);
         self.ulabel.set_rect(ulabel_rect);
         self.uentry.set_rect(uentry_rect);
         self.plabel.set_rect(plabel_rect);
@@ -293,22 +298,24 @@ struct Layout {
 }
 
 impl Layout {
-    pub fn new(eheight: f64) -> Self {
+    pub fn new(
+        combo_size: Size,
+        ulabel_size: Size,
+        plabel_size: Size,
+        eheight: f64,
+        bheight: f64,
+        pheight: f64,
+    ) -> Self {
         let mut taffy = TaffyTree::new();
         let combo = taffy
             .new_leaf(taffy::Style {
                 size: taffy::Size {
-                    width: auto(),
-                    height: length(50.0),
+                    width: length(combo_size.width as f32),
+                    height: length(combo_size.height as f32),
                 },
                 grid_column: line(2),
                 grid_row: line(2),
-                margin: taffy::Rect {
-                    left: length(4.0),
-                    right: length(4.0),
-                    top: auto(),
-                    bottom: auto(),
-                },
+                margin: taffy::Rect::auto(),
                 ..Default::default()
             })
             .unwrap();
@@ -325,7 +332,7 @@ impl Layout {
             .new_leaf(taffy::Style {
                 size: taffy::Size {
                     width: auto(),
-                    height: length(30.0),
+                    height: length(bheight as f32),
                 },
                 margin: taffy::Rect {
                     left: length(4.0),
@@ -340,7 +347,7 @@ impl Layout {
             .new_leaf(taffy::Style {
                 size: taffy::Size {
                     width: auto(),
-                    height: length(30.0),
+                    height: length(bheight as f32),
                 },
                 margin: taffy::Rect {
                     left: length(4.0),
@@ -355,7 +362,7 @@ impl Layout {
             .new_leaf(taffy::Style {
                 size: taffy::Size {
                     width: auto(),
-                    height: length(30.0),
+                    height: length(bheight as f32),
                 },
                 margin: taffy::Rect {
                     left: length(4.0),
@@ -381,9 +388,18 @@ impl Layout {
 
         let ulabel = taffy
             .new_leaf(taffy::Style {
-                size: auto(),
+                size: taffy::Size {
+                    width: auto(),
+                    height: length(ulabel_size.height as f32),
+                },
                 grid_column: line(1),
                 grid_row: line(2),
+                margin: taffy::Rect {
+                    left: length(0.0),
+                    right: length(0.0),
+                    top: auto(),
+                    bottom: auto(),
+                },
                 ..Default::default()
             })
             .unwrap();
@@ -406,9 +422,18 @@ impl Layout {
             .unwrap();
         let plabel = taffy
             .new_leaf(taffy::Style {
-                size: auto(),
+                size: taffy::Size {
+                    width: auto(),
+                    height: length(plabel_size.height as f32),
+                },
                 grid_column: line(1),
                 grid_row: line(3),
+                margin: taffy::Rect {
+                    left: length(0.0),
+                    right: length(0.0),
+                    top: auto(),
+                    bottom: auto(),
+                },
                 ..Default::default()
             })
             .unwrap();
@@ -437,7 +462,10 @@ impl Layout {
                     size: auto(),
                     grid_column: line(2),
                     grid_row: line(1),
-                    grid_template_columns: vec![length(100.0), fr(1.0)],
+                    grid_template_columns: vec![
+                        length(ulabel_size.width.max(plabel_size.width) as f32),
+                        fr(1.0),
+                    ],
                     grid_template_rows: vec![fr(1.0), auto(), auto(), fr(1.0)],
                     ..Default::default()
                 },
@@ -449,7 +477,7 @@ impl Layout {
             .new_leaf(taffy::Style {
                 size: taffy::Size {
                     width: auto(),
-                    height: length(50.0),
+                    height: length(pheight as f32),
                 },
                 grid_column: line(3),
                 grid_row: line(2),

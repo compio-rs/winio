@@ -34,6 +34,10 @@ impl Layoutable for Button {
     fn set_size(&mut self, v: Size) {
         self.widget.set_size(v)
     }
+
+    fn preferred_size(&self) -> Size {
+        self.widget.preferred_size()
+    }
 }
 
 /// Events of [`Button`].

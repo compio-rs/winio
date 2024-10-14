@@ -25,7 +25,6 @@ struct MainModel {
     entry: Child<Edit>,
     client: Client,
     text: FetchStatus,
-    bheight: f64,
     is_dark: bool,
 }
 
@@ -67,9 +66,6 @@ impl Component for MainModel {
         button.set_text("Go");
         let mut entry = Child::<Edit>::init((), &window);
         entry.set_text(counter);
-        entry.set_loc(Point::zero());
-        entry.set_size(Size::new(600.0, 20.0));
-        let bheight = entry.size().height;
 
         let client = Client::new();
 
@@ -82,7 +78,6 @@ impl Component for MainModel {
             entry,
             text: FetchStatus::Loading,
             client,
-            bheight,
             is_dark,
         }
     }
@@ -138,7 +133,7 @@ impl Component for MainModel {
     fn render(&mut self, _sender: &winio::ComponentSender<Self>) {
         let csize = self.window.client_size();
 
-        let (erect, brect, crect) = Layout::new(self.bheight).compute(csize);
+        let (erect, brect, crect) = Layout::new(self.entry.preferred_size().height).compute(csize);
         self.entry.set_rect(erect);
         self.button.set_rect(brect);
         self.canvas.set_rect(crect);

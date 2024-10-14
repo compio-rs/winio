@@ -44,6 +44,10 @@ impl Layoutable for Label {
     fn set_size(&mut self, v: Size) {
         self.widget.set_size(v)
     }
+
+    fn preferred_size(&self) -> Size {
+        self.widget.preferred_size()
+    }
 }
 
 /// Events of [`Label`].
