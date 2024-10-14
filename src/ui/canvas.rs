@@ -1,4 +1,6 @@
-use crate::{Brush, Color, DrawingFont, Pen, Point, Rect, Size, ui::sys};
+use crate::{
+    Brush, Color, DrawingFont, Pen, Point, Rect, RelativePoint, RelativeSize, Size, ui::sys,
+};
 
 /// Brush with single solid color.
 #[derive(Debug, Clone)]
@@ -10,6 +12,75 @@ impl SolidColorBrush {
     /// Create [`SolidColorBrush`] with color.
     pub fn new(color: Color) -> Self {
         Self { color }
+    }
+}
+
+/// A transition point in a gradient.
+#[derive(Debug, PartialEq, Clone)]
+pub struct GradientStop {
+    /// Color of the stop.
+    pub color: Color,
+    /// Relative position of the stop, from 0 to 1.
+    pub pos: f64,
+}
+
+impl GradientStop {
+    /// Create [`GradientStop`].
+    pub fn new(color: Color, pos: f64) -> Self {
+        Self { color, pos }
+    }
+}
+
+impl From<(Color, f64)> for GradientStop {
+    fn from((color, pos): (Color, f64)) -> Self {
+        Self::new(color, pos)
+    }
+}
+
+/// Linear gradient brush.
+pub struct LinearGradientBrush {
+    pub(crate) stops: Vec<GradientStop>,
+    pub(crate) start: RelativePoint,
+    pub(crate) end: RelativePoint,
+}
+
+impl LinearGradientBrush {
+    /// Create [`LinearGradientBrush`].
+    pub fn new(
+        stops: impl IntoIterator<Item = GradientStop>,
+        start: RelativePoint,
+        end: RelativePoint,
+    ) -> Self {
+        Self {
+            stops: stops.into_iter().collect(),
+            start,
+            end,
+        }
+    }
+}
+
+/// Radial gradient brush.
+pub struct RadialGradientBrush {
+    pub(crate) stops: Vec<GradientStop>,
+    pub(crate) origin: RelativePoint,
+    pub(crate) center: RelativePoint,
+    pub(crate) radius: RelativeSize,
+}
+
+impl RadialGradientBrush {
+    /// Create [`RadialGradientBrush`].
+    pub fn new(
+        stops: impl IntoIterator<Item = GradientStop>,
+        origin: RelativePoint,
+        center: RelativePoint,
+        radius: RelativeSize,
+    ) -> Self {
+        Self {
+            stops: stops.into_iter().collect(),
+            origin,
+            center,
+            radius,
+        }
     }
 }
 

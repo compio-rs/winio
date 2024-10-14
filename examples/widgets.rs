@@ -4,9 +4,10 @@ use taffy::{
 };
 use winio::{
     App, BrushPen, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, ComboBox, ComboBoxEvent,
-    ComboBoxMessage, Component, ComponentSender, Edit, HAlign, Label, Layoutable, MessageBox,
-    MessageBoxButton, ObservableVec, ObservableVecEvent, PasswordEdit, Point, Rect, Size,
-    SolidColorBrush, Window, WindowEvent,
+    ComboBoxMessage, Component, ComponentSender, DrawingFontBuilder, Edit, GradientStop, HAlign,
+    Label, Layoutable, LinearGradientBrush, MessageBox, MessageBoxButton, ObservableVec,
+    ObservableVecEvent, PasswordEdit, Point, RadialGradientBrush, Rect, RelativePoint,
+    RelativeSize, Size, SolidColorBrush, VAlign, Window, WindowEvent,
 };
 
 fn main() {
@@ -200,11 +201,12 @@ impl Component for MainModel {
         self.show_button.set_rect(b3_rect);
 
         let size = self.canvas.size();
-        let brush = SolidColorBrush::new(if self.is_dark {
+        let back_color = if self.is_dark {
             Color::new(255, 255, 255, 255)
         } else {
             Color::new(0, 0, 0, 255)
-        });
+        };
+        let brush = SolidColorBrush::new(back_color);
         let pen = BrushPen::new(&brush, 1.0);
         let mut ctx = self.canvas.context();
         let cx = size.width / 2.0;
@@ -217,6 +219,52 @@ impl Component for MainModel {
             std::f64::consts::PI * 2.0,
         );
         ctx.draw_line(&pen, Point::new(cx - r, cy), Point::new(cx + r, cy));
+
+        let brush2 = LinearGradientBrush::new(
+            [
+                GradientStop::new(Color::new(0x87, 0xCE, 0xEB, 0xFF), 0.0),
+                GradientStop::new(back_color, 1.0),
+            ],
+            RelativePoint::zero(),
+            RelativePoint::new(0.0, 1.0),
+        );
+        let pen2 = BrushPen::new(&brush2, 1.0);
+        ctx.draw_round_rect(
+            &pen2,
+            Rect::new(
+                Point::new(cx - r - 1.0, cy - r - 1.0),
+                Size::new(r * 2.0 + 2.0, r * 1.618 + 2.0),
+            ),
+            Size::new(r / 10.0, r / 10.0),
+        );
+        ctx.draw_arc(
+            &pen,
+            Rect::new(
+                Point::new(
+                    cx - r - 1.0 + r / 10.0,
+                    cy + r * 0.618 + 1.0 - r * 0.382 / 2.0,
+                ),
+                Size::new(r * 2.0 - r / 5.0, r * 0.382),
+            ),
+            0.0,
+            std::f64::consts::PI,
+        );
+        let brush3 = RadialGradientBrush::new(
+            [
+                GradientStop::new(Color::new(0xF5, 0xF5, 0xF5, 0xFF), 0.0),
+                GradientStop::new(Color::new(0xFF, 0xC0, 0xCB, 0xFF), 1.0),
+            ],
+            RelativePoint::new(0.5, 0.5),
+            RelativePoint::new(0.2, 0.5),
+            RelativeSize::new(0.5, 0.5),
+        );
+        let font = DrawingFontBuilder::new()
+            .family("Arial")
+            .size(r / 5.0)
+            .halign(HAlign::Center)
+            .valign(VAlign::Bottom)
+            .build();
+        ctx.draw_str(&brush3, font, Point::new(cx, cy), "Hello world!");
     }
 }
 

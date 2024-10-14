@@ -9,15 +9,17 @@ use windows::{
             Common::{
                 D2D_POINT_2F, D2D_RECT_F, D2D_SIZE_F, D2D_SIZE_U, D2D1_ALPHA_MODE_PREMULTIPLIED,
                 D2D1_COLOR_F, D2D1_FIGURE_BEGIN_HOLLOW, D2D1_FIGURE_END_CLOSED,
-                D2D1_FIGURE_END_OPEN, D2D1_PIXEL_FORMAT,
+                D2D1_FIGURE_END_OPEN, D2D1_GRADIENT_STOP, D2D1_PIXEL_FORMAT,
             },
             D2D1_ARC_SEGMENT, D2D1_ARC_SIZE_LARGE, D2D1_ARC_SIZE_SMALL, D2D1_BRUSH_PROPERTIES,
-            D2D1_DRAW_TEXT_OPTIONS_NONE, D2D1_ELLIPSE, D2D1_FACTORY_TYPE_SINGLE_THREADED,
-            D2D1_FEATURE_LEVEL_DEFAULT, D2D1_HWND_RENDER_TARGET_PROPERTIES,
-            D2D1_PRESENT_OPTIONS_NONE, D2D1_RENDER_TARGET_PROPERTIES,
-            D2D1_RENDER_TARGET_TYPE_DEFAULT, D2D1_RENDER_TARGET_USAGE_NONE, D2D1_ROUNDED_RECT,
-            D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1CreateFactory, ID2D1Brush, ID2D1Factory,
-            ID2D1Geometry, ID2D1HwndRenderTarget, ID2D1RenderTarget,
+            D2D1_DRAW_TEXT_OPTIONS_NONE, D2D1_ELLIPSE, D2D1_EXTEND_MODE_CLAMP,
+            D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1_FEATURE_LEVEL_DEFAULT, D2D1_GAMMA_2_2,
+            D2D1_HWND_RENDER_TARGET_PROPERTIES, D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES,
+            D2D1_PRESENT_OPTIONS_NONE, D2D1_RADIAL_GRADIENT_BRUSH_PROPERTIES,
+            D2D1_RENDER_TARGET_PROPERTIES, D2D1_RENDER_TARGET_TYPE_DEFAULT,
+            D2D1_RENDER_TARGET_USAGE_NONE, D2D1_ROUNDED_RECT, D2D1_SWEEP_DIRECTION_CLOCKWISE,
+            D2D1CreateFactory, ID2D1Brush, ID2D1Factory, ID2D1Geometry, ID2D1HwndRenderTarget,
+            ID2D1RenderTarget,
         },
         DirectWrite::{
             DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC,
@@ -40,8 +42,9 @@ use windows_sys::Win32::{
 };
 
 use crate::{
-    AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, HAlign, MouseButton, Point, Rect, RectBox,
-    Size, SolidColorBrush, VAlign, Vector,
+    AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, GradientStop, HAlign, LinearGradientBrush,
+    MouseButton, Point, RadialGradientBrush, Rect, RectBox, RelativeToLogical, Size,
+    SolidColorBrush, VAlign, Vector,
     ui::{Widget, darkmode::is_dark_mode_allowed_for_app},
 };
 
@@ -196,11 +199,24 @@ fn rect_f(r: Rect) -> D2D_RECT_F {
     }
 }
 
+pub fn gradient_stop(s: &GradientStop) -> D2D1_GRADIENT_STOP {
+    D2D1_GRADIENT_STOP {
+        position: s.pos as f32,
+        color: color_f(s.color),
+    }
+}
+
 pub struct DrawingContext<'a> {
     target: ID2D1RenderTarget,
     d2d: ID2D1Factory,
     dwrite: IDWriteFactory,
     _p: PhantomData<&'a Canvas>,
+}
+
+#[inline]
+fn to_trans(rect: Rect) -> RelativeToLogical {
+    RelativeToLogical::scale(rect.size.width, rect.size.height)
+        .then_translate(rect.origin.to_vector())
 }
 
 fn get_arc(rect: Rect, start: f64, end: f64) -> (Size, Point, Point, Point) {
@@ -221,13 +237,13 @@ fn ellipse(rect: Rect) -> D2D1_ELLIPSE {
 
 impl DrawingContext<'_> {
     #[inline]
-    fn get_brush(&self, brush: impl Brush, _rect: Rect) -> ID2D1Brush {
-        brush.create(&self.target)
+    fn get_brush(&self, brush: impl Brush, rect: Rect) -> ID2D1Brush {
+        brush.create(&self.target, to_trans(rect))
     }
 
     #[inline]
-    fn get_pen(&self, pen: impl Pen, _rect: Rect) -> (ID2D1Brush, f32) {
-        pen.create(&self.target)
+    fn get_pen(&self, pen: impl Pen, rect: Rect) -> (ID2D1Brush, f32) {
+        pen.create(&self.target, to_trans(rect))
     }
 
     fn get_arc_geo(&self, rect: Rect, start: f64, end: f64, close: bool) -> ID2D1Geometry {
@@ -442,42 +458,96 @@ const BRUSH_PROPERTIES_DEFAULT: D2D1_BRUSH_PROPERTIES = D2D1_BRUSH_PROPERTIES {
 /// Drawing brush.
 pub trait Brush {
     #[doc(hidden)]
-    fn create(&self, target: &ID2D1RenderTarget) -> ID2D1Brush;
+    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToLogical) -> ID2D1Brush;
 }
 
 impl<B: Brush> Brush for &'_ B {
-    fn create(&self, target: &ID2D1RenderTarget) -> ID2D1Brush {
-        (**self).create(target)
+    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToLogical) -> ID2D1Brush {
+        (**self).create(target, trans)
     }
 }
 
 impl Brush for SolidColorBrush {
-    fn create(&self, target: &ID2D1RenderTarget) -> ID2D1Brush {
+    fn create(&self, target: &ID2D1RenderTarget, _trans: RelativeToLogical) -> ID2D1Brush {
         unsafe {
             target
                 .CreateSolidColorBrush(&color_f(self.color), Some(&BRUSH_PROPERTIES_DEFAULT))
                 .unwrap()
+                .cast()
+                .unwrap()
         }
-        .cast()
-        .unwrap()
+    }
+}
+
+impl Brush for LinearGradientBrush {
+    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToLogical) -> ID2D1Brush {
+        let props = D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES {
+            startPoint: point_2f(trans.transform_point(self.start)),
+            endPoint: point_2f(trans.transform_point(self.end)),
+        };
+        let stops = self.stops.iter().map(gradient_stop).collect::<Vec<_>>();
+        unsafe {
+            let stop_collection = target
+                .CreateGradientStopCollection(&stops, D2D1_GAMMA_2_2, D2D1_EXTEND_MODE_CLAMP)
+                .unwrap();
+            target
+                .CreateLinearGradientBrush(
+                    &props,
+                    Some(&BRUSH_PROPERTIES_DEFAULT),
+                    &stop_collection,
+                )
+                .unwrap()
+                .cast()
+                .unwrap()
+        }
+    }
+}
+
+impl Brush for RadialGradientBrush {
+    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToLogical) -> ID2D1Brush {
+        let radius = self.radius.to_vector();
+        let radius = trans.transform_vector(radius);
+        let props = D2D1_RADIAL_GRADIENT_BRUSH_PROPERTIES {
+            center: point_2f(trans.transform_point(self.center)),
+            gradientOriginOffset: point_2f(
+                trans.transform_vector(self.origin - self.center).to_point(),
+            ),
+            radiusX: radius.x as f32,
+            radiusY: radius.y as f32,
+        };
+        let stops = self.stops.iter().map(gradient_stop).collect::<Vec<_>>();
+        unsafe {
+            let stop_collection = target
+                .CreateGradientStopCollection(&stops, D2D1_GAMMA_2_2, D2D1_EXTEND_MODE_CLAMP)
+                .unwrap();
+            target
+                .CreateRadialGradientBrush(
+                    &props,
+                    Some(&BRUSH_PROPERTIES_DEFAULT),
+                    &stop_collection,
+                )
+                .unwrap()
+                .cast()
+                .unwrap()
+        }
     }
 }
 
 /// Drawing pen.
 pub trait Pen {
     #[doc(hidden)]
-    fn create(&self, target: &ID2D1RenderTarget) -> (ID2D1Brush, f32);
+    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToLogical) -> (ID2D1Brush, f32);
 }
 
 impl<P: Pen> Pen for &'_ P {
-    fn create(&self, target: &ID2D1RenderTarget) -> (ID2D1Brush, f32) {
-        (**self).create(target)
+    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToLogical) -> (ID2D1Brush, f32) {
+        (**self).create(target, trans)
     }
 }
 
 impl<B: Brush> Pen for BrushPen<B> {
-    fn create(&self, target: &ID2D1RenderTarget) -> (ID2D1Brush, f32) {
-        let brush = self.brush.create(target);
+    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToLogical) -> (ID2D1Brush, f32) {
+        let brush = self.brush.create(target, trans);
         (brush, self.width as _)
     }
 }
