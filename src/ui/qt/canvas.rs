@@ -457,7 +457,6 @@ unsafe impl ExternType for QSizeF {
 
 #[cxx::bridge]
 mod ffi {
-    extern "Rust" {}
     unsafe extern "C++" {
         include!("winio/src/ui/qt/canvas.hpp");
 
