@@ -42,10 +42,16 @@ pub trait Layoutable {
     }
 }
 
-fn rect_t2e(rect: &taffy::Layout) -> Rect {
+fn rect_t2e(rect: &taffy::Layout, margin: Margin) -> Rect {
     Rect::new(
-        Point::new(rect.location.x as _, rect.location.y as _),
-        Size::new(rect.size.width as _, rect.size.height as _),
+        Point::new(
+            rect.location.x as f64 + margin.left,
+            rect.location.y as f64 + margin.top,
+        ),
+        Size::new(
+            rect.size.width as f64 - margin.horizontal(),
+            rect.size.height as f64 - margin.vertical(),
+        ),
     )
 }
 
@@ -195,7 +201,9 @@ impl<'a> StackPanel<'a> {
         let mut tree: TaffyTree<()> = TaffyTree::new();
         let mut nodes = vec![];
         for child in &self.children {
-            let preferred_size = child.widget.preferred_size();
+            let mut preferred_size = child.widget.preferred_size();
+            preferred_size.width += child.margin.horizontal();
+            preferred_size.height += child.margin.vertical();
             let mut style = Style::default();
             style.size.width = match child.width {
                 Some(w) => length(w as f32),
@@ -216,12 +224,6 @@ impl<'a> StackPanel<'a> {
             style.min_size = taffy::Size {
                 width: length(preferred_size.width as f32),
                 height: length(preferred_size.height as f32),
-            };
-            style.margin = taffy::Rect {
-                left: length(child.margin.left as f32),
-                right: length(child.margin.right as f32),
-                top: length(child.margin.top as f32),
-                bottom: length(child.margin.bottom as f32),
             };
             match self.orient {
                 Orient::Horizontal => {
@@ -272,7 +274,9 @@ impl<'a> StackPanel<'a> {
         .unwrap();
         for (id, child) in nodes.iter().zip(&mut self.children) {
             let layout = tree.layout(*id).unwrap();
-            child.widget.set_rect(offset(rect_t2e(layout), self.loc));
+            child
+                .widget
+                .set_rect(offset(rect_t2e(layout, child.margin), self.loc));
         }
     }
 }
@@ -306,7 +310,7 @@ impl Layoutable for StackPanel<'_> {
         let (mut tree, root, _) = self.tree();
         tree.compute_layout(root, taffy::Size::max_content())
             .unwrap();
-        rect_t2e(tree.layout(root).unwrap()).size
+        rect_t2e(tree.layout(root).unwrap(), Margin::zero()).size
     }
 }
 
@@ -426,7 +430,9 @@ impl<'a> GridPanel<'a> {
         let mut tree: TaffyTree<()> = TaffyTree::new();
         let mut nodes = vec![];
         for child in &self.children {
-            let preferred_size = child.widget.preferred_size();
+            let mut preferred_size = child.widget.preferred_size();
+            preferred_size.width += child.margin.horizontal();
+            preferred_size.height += child.margin.vertical();
             let mut style = Style::default();
             style.size.width = match child.width {
                 Some(w) => length(w as f32),
@@ -445,12 +451,6 @@ impl<'a> GridPanel<'a> {
             style.min_size = taffy::Size {
                 width: length(preferred_size.width as f32),
                 height: length(preferred_size.height as f32),
-            };
-            style.margin = taffy::Rect {
-                left: length(child.margin.left as f32),
-                right: length(child.margin.right as f32),
-                top: length(child.margin.top as f32),
-                bottom: length(child.margin.bottom as f32),
             };
 
             if matches!(child.valign, VAlign::Top | VAlign::Center) {
@@ -510,7 +510,9 @@ impl<'a> GridPanel<'a> {
         .unwrap();
         for (id, child) in nodes.iter().zip(&mut self.children) {
             let layout = tree.layout(*id).unwrap();
-            child.widget.set_rect(offset(rect_t2e(layout), self.loc));
+            child
+                .widget
+                .set_rect(offset(rect_t2e(layout, child.margin), self.loc));
         }
     }
 }
@@ -544,6 +546,6 @@ impl Layoutable for GridPanel<'_> {
         let (mut tree, root, _) = self.tree();
         tree.compute_layout(root, taffy::Size::max_content())
             .unwrap();
-        rect_t2e(tree.layout(root).unwrap()).size
+        rect_t2e(tree.layout(root).unwrap(), Margin::zero()).size
     }
 }
