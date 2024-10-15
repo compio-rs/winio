@@ -63,6 +63,7 @@ impl Button {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
         self.widget.set_label(s.as_ref());
+        self.handle.reset_preferred_size();
     }
 
     pub async fn wait_click(&self) {

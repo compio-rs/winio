@@ -41,6 +41,7 @@ impl Label {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
         self.widget.set_text(s.as_ref());
+        self.handle.reset_preferred_size();
     }
 
     pub fn halign(&self) -> HAlign {

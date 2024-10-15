@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use gtk4::prelude::{Cast, FixedExt, GtkWindowExt, WidgetExt};
 
 use crate::{AsRawWindow, AsWindow, Point, Size};
@@ -5,6 +7,7 @@ use crate::{AsRawWindow, AsWindow, Point, Size};
 #[derive(Debug)]
 pub struct Widget {
     widget: gtk4::Widget,
+    preferred_size: Cell<Size>,
 }
 
 impl Widget {
@@ -15,12 +18,23 @@ impl Widget {
         let fixed = port.first_child().unwrap();
         let fixed = fixed.downcast::<gtk4::Fixed>().unwrap();
         fixed.put(&widget, 0.0, 0.0);
-        Self { widget }
+        Self {
+            widget,
+            preferred_size: Cell::new(Size::new(f64::MAX, f64::MAX)),
+        }
     }
 
     pub fn preferred_size(&self) -> Size {
         let (size, _) = self.widget.preferred_size();
-        Size::new(size.width() as _, size.height() as _)
+        let mut preferred_size = self.preferred_size.get();
+        preferred_size.width = preferred_size.width.min(size.width() as _);
+        preferred_size.height = preferred_size.height.min(size.height() as _);
+        self.preferred_size.set(preferred_size);
+        preferred_size
+    }
+
+    pub fn reset_preferred_size(&mut self) {
+        self.preferred_size.set(Size::new(f64::MAX, f64::MAX));
     }
 
     pub fn loc(&self) -> Point {

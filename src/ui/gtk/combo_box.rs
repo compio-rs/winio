@@ -76,7 +76,9 @@ impl<const E: bool> ComboBoxImpl<E> {
             .unwrap_or_default()
     }
 
-    pub fn set_text(&mut self, _s: impl AsRef<str>) {}
+    pub fn set_text(&mut self, _s: impl AsRef<str>) {
+        self.handle.reset_preferred_size();
+    }
 
     pub fn selection(&self) -> Option<usize> {
         let index = self.widget.selected();
@@ -105,7 +107,8 @@ impl<const E: bool> ComboBoxImpl<E> {
     }
 
     pub fn clear(&mut self) {
-        self.model.clear()
+        self.model.clear();
+        self.handle.reset_preferred_size();
     }
 
     pub fn get(&self, i: usize) -> String {
@@ -113,15 +116,18 @@ impl<const E: bool> ComboBoxImpl<E> {
     }
 
     pub fn set(&mut self, i: usize, s: impl AsRef<str>) {
-        self.model.set(i, s.as_ref().to_string())
+        self.model.set(i, s.as_ref().to_string());
+        self.handle.reset_preferred_size();
     }
 
     pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
-        self.model.insert(i, s.as_ref().to_string())
+        self.model.insert(i, s.as_ref().to_string());
+        self.handle.reset_preferred_size();
     }
 
     pub fn remove(&mut self, i: usize) {
         self.model.remove(i as _);
+        self.handle.reset_preferred_size();
     }
 }
 
