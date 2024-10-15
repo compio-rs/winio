@@ -13,21 +13,14 @@ impl Widget {
         let swindow = parent.child().unwrap();
         let port = swindow.first_child().unwrap();
         let fixed = port.first_child().unwrap();
-        widget.set_parent(&fixed);
         let fixed = fixed.downcast::<gtk4::Fixed>().unwrap();
         fixed.put(&widget, 0.0, 0.0);
         Self { widget }
     }
 
     pub fn preferred_size(&self) -> Size {
-        let (_, size) = self.widget.preferred_size();
-        let (_, width, ..) = self
-            .widget
-            .measure(gtk4::Orientation::Horizontal, size.width());
-        let (_, height, ..) = self
-            .widget
-            .measure(gtk4::Orientation::Vertical, size.height());
-        Size::new(width as _, height as _)
+        let (size, _) = self.widget.preferred_size();
+        Size::new(size.width() as _, size.height() as _)
     }
 
     pub fn loc(&self) -> Point {
