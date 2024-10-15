@@ -76,9 +76,9 @@ impl<const PW: bool> EditImpl<PW> {
         let mut style = self.handle.style();
         style &= !(ES_RIGHT as u32);
         match align {
-            HAlign::Left => style |= ES_LEFT as u32,
             HAlign::Center => style |= ES_CENTER as u32,
             HAlign::Right => style |= ES_RIGHT as u32,
+            _ => style |= ES_LEFT as u32,
         }
         self.handle.set_style(style)
     }

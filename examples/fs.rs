@@ -4,11 +4,10 @@ use std::{
 };
 
 use compio::{fs::File, io::AsyncReadAtExt, runtime::spawn};
-use taffy::{NodeId, TaffyTree};
 use winio::{
     App, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, Component, ComponentSender,
-    DrawingFontBuilder, FileBox, HAlign, Label, Layoutable, Point, Rect, Size, SolidColorBrush,
-    VAlign, Window, WindowEvent,
+    DrawingFontBuilder, FileBox, HAlign, Label, Layoutable, Orient, Point, Size, SolidColorBrush,
+    StackPanel, VAlign, Window, WindowEvent,
 };
 
 fn main() {
@@ -138,14 +137,13 @@ impl Component for MainModel {
     fn render(&mut self, _sender: &winio::ComponentSender<Self>) {
         let csize = self.window.client_size();
 
-        let (lrect, brect, crect) = Layout::new(
-            self.label.preferred_size().height,
-            self.button.preferred_size().height,
-        )
-        .compute(csize);
-        self.label.set_rect(lrect);
-        self.button.set_rect(brect);
-        self.canvas.set_rect(crect);
+        {
+            let mut panel = StackPanel::new(Orient::Vertical);
+            panel.push(&mut self.label).finish();
+            panel.push(&mut self.button).finish();
+            panel.push(&mut self.canvas).grow(true).finish();
+            panel.set_size(csize);
+        }
 
         let mut ctx = self.canvas.context();
         let brush = SolidColorBrush::new(if self.is_dark {
@@ -184,87 +182,4 @@ async fn fetch(path: impl AsRef<Path>, sender: ComponentSender<MainModel>) {
         Err(e) => FetchStatus::Error(format!("{:?}", e)),
     };
     sender.post(MainMessage::Fetch(status));
-}
-
-struct Layout {
-    taffy: TaffyTree,
-    canvas: NodeId,
-    button: NodeId,
-    label: NodeId,
-    root: NodeId,
-}
-
-impl Layout {
-    pub fn new(lheight: f64, bheight: f64) -> Self {
-        let mut taffy = TaffyTree::new();
-        let label = taffy
-            .new_leaf(taffy::Style {
-                size: taffy::Size {
-                    width: taffy::Dimension::Percent(1.0),
-                    height: taffy::Dimension::Length(lheight as _),
-                },
-                ..Default::default()
-            })
-            .unwrap();
-        let button = taffy
-            .new_leaf(taffy::Style {
-                size: taffy::Size {
-                    width: taffy::Dimension::Percent(1.0),
-                    height: taffy::Dimension::Length(bheight as _),
-                },
-                ..Default::default()
-            })
-            .unwrap();
-        let canvas = taffy
-            .new_leaf(taffy::Style {
-                size: taffy::Size {
-                    width: taffy::Dimension::Percent(1.0),
-                    height: taffy::Dimension::Auto,
-                },
-                flex_grow: 1.0,
-                ..Default::default()
-            })
-            .unwrap();
-        let root = taffy
-            .new_with_children(
-                taffy::Style {
-                    size: taffy::Size::from_percent(1.0, 1.0),
-                    flex_direction: taffy::FlexDirection::Column,
-                    ..Default::default()
-                },
-                &[label, button, canvas],
-            )
-            .unwrap();
-        Self {
-            taffy,
-            canvas,
-            button,
-            label,
-            root,
-        }
-    }
-
-    pub fn compute(mut self, csize: Size) -> (Rect, Rect, Rect) {
-        self.taffy
-            .compute_layout(self.root, taffy::Size {
-                width: taffy::AvailableSpace::Definite(csize.width as _),
-                height: taffy::AvailableSpace::Definite(csize.height as _),
-            })
-            .unwrap();
-        let label_rect = self.taffy.layout(self.label).unwrap();
-        let button_rect = self.taffy.layout(self.button).unwrap();
-        let canvas_rect = self.taffy.layout(self.canvas).unwrap();
-        (
-            rect_t2e(label_rect),
-            rect_t2e(button_rect),
-            rect_t2e(canvas_rect),
-        )
-    }
-}
-
-fn rect_t2e(rect: &taffy::Layout) -> Rect {
-    Rect::new(
-        Point::new(rect.location.x as _, rect.location.y as _),
-        Size::new(rect.size.width as _, rect.size.height as _),
-    )
 }

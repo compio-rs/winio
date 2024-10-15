@@ -3,8 +3,8 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use super::{ComponentReceiver, component_channel};
-use crate::{Component, ComponentSender};
+use super::{ComponentReceiver, Layoutable, component_channel};
+use crate::{Component, ComponentSender, Point, Size};
 
 /// Helper to embed one component into another. It handles different types of
 /// messages and events.
@@ -81,5 +81,27 @@ impl<T: Component> DerefMut for Child<T> {
 impl<T: Component + Debug> Debug for Child<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Child").field("model", &self.model).finish()
+    }
+}
+
+impl<T: Component + Layoutable> Layoutable for Child<T> {
+    fn loc(&self) -> Point {
+        self.model.loc()
+    }
+
+    fn set_loc(&mut self, p: Point) {
+        self.model.set_loc(p);
+    }
+
+    fn size(&self) -> Size {
+        self.model.size()
+    }
+
+    fn set_size(&mut self, s: Size) {
+        self.model.set_size(s);
+    }
+
+    fn preferred_size(&self) -> Size {
+        self.model.preferred_size()
     }
 }

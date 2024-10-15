@@ -1,4 +1,7 @@
+use std::ptr::null;
+
 use windows_sys::Win32::{
+    Graphics::Gdi::InvalidateRect,
     System::SystemServices::{SS_CENTER, SS_LEFT, SS_RIGHT},
     UI::{
         Controls::WC_STATICW,
@@ -45,7 +48,8 @@ impl Label {
     }
 
     pub fn set_size(&mut self, v: Size) {
-        self.handle.set_size(v)
+        self.handle.set_size(v);
+        unsafe { InvalidateRect(self.handle.as_raw_window(), null(), 1) };
     }
 
     pub fn text(&self) -> String {
@@ -71,9 +75,9 @@ impl Label {
         let mut style = self.handle.style();
         style &= !(SS_RIGHT);
         match align {
-            HAlign::Left => style |= SS_LEFT,
             HAlign::Center => style |= SS_CENTER,
             HAlign::Right => style |= SS_RIGHT,
+            _ => style |= SS_LEFT,
         }
         self.handle.set_style(style)
     }
