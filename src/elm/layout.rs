@@ -1,8 +1,4 @@
-use std::{
-    fmt::Display,
-    num::{NonZero, ParseFloatError},
-    str::FromStr,
-};
+use std::{fmt::Display, num::ParseFloatError, str::FromStr};
 
 use taffy::{
     NodeId, Style, TaffyTree, TrackSizingFunction,
@@ -70,8 +66,8 @@ struct LayoutChild<'a> {
     valign: VAlign,
     column: usize,
     row: usize,
-    column_span: NonZero<usize>,
-    row_span: NonZero<usize>,
+    column_span: usize,
+    row_span: usize,
 }
 
 impl<'a> LayoutChild<'a> {
@@ -86,8 +82,8 @@ impl<'a> LayoutChild<'a> {
             valign: VAlign::Stretch,
             column: 0,
             row: 0,
-            column_span: NonZero::new(1).unwrap(),
-            row_span: NonZero::new(1).unwrap(),
+            column_span: 1,
+            row_span: 1,
         }
     }
 }
@@ -153,13 +149,13 @@ impl<'a, 'b> LayoutChildBuilder<'a, 'b> {
     }
 
     /// The column span in the grid.
-    pub fn column_span(mut self, s: NonZero<usize>) -> Self {
+    pub fn column_span(mut self, s: usize) -> Self {
         self.child.column_span = s;
         self
     }
 
     /// The row span in the grid.
-    pub fn row_span(mut self, s: NonZero<usize>) -> Self {
+    pub fn row_span(mut self, s: usize) -> Self {
         self.child.row_span = s;
         self
     }
@@ -378,7 +374,7 @@ impl From<&GridLength> for TrackSizingFunction {
 }
 
 /// A grid layout container.
-pub struct GridPanel<'a> {
+pub struct Grid<'a> {
     children: Vec<LayoutChild<'a>>,
     columns: Vec<GridLength>,
     rows: Vec<GridLength>,
@@ -386,8 +382,8 @@ pub struct GridPanel<'a> {
     size: Size,
 }
 
-impl<'a> GridPanel<'a> {
-    /// Create [`GridPanel`].
+impl<'a> Grid<'a> {
+    /// Create [`Grid`].
     pub fn new(columns: Vec<GridLength>, rows: Vec<GridLength>) -> Self {
         Self {
             children: vec![],
@@ -398,7 +394,7 @@ impl<'a> GridPanel<'a> {
         }
     }
 
-    /// Create [`GridPanel`] with string-representative of grid lengths.
+    /// Create [`Grid`] with string-representative of grid lengths.
     pub fn from_str(
         columns: impl AsRef<str>,
         rows: impl AsRef<str>,
@@ -466,17 +462,17 @@ impl<'a> GridPanel<'a> {
                 style.margin.left = auto();
             }
 
-            style.grid_column = line(child.column as i16 + 1);
-            style.grid_row = line(child.row as i16 + 1);
+            style.grid_column.start = line(child.column as i16 + 1);
+            style.grid_row.start = line(child.row as i16 + 1);
 
-            let cspan = child.column_span.get();
+            let cspan = child.column_span;
             if cspan > 1 {
-                style.grid_column = span(cspan as u16);
+                style.grid_column.end = span(cspan as u16);
             }
 
-            let rspan = child.row_span.get();
+            let rspan = child.row_span;
             if rspan > 1 {
-                style.grid_row = span(rspan as u16);
+                style.grid_row.end = span(rspan as u16);
             }
 
             let node = tree.new_leaf(style).unwrap();
@@ -517,7 +513,7 @@ impl<'a> GridPanel<'a> {
     }
 }
 
-impl Layoutable for GridPanel<'_> {
+impl Layoutable for Grid<'_> {
     fn loc(&self) -> Point {
         self.loc
     }

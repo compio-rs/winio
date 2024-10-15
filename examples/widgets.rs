@@ -1,6 +1,6 @@
 use winio::{
     App, BrushPen, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, ComboBox, ComboBoxEvent,
-    ComboBoxMessage, Component, ComponentSender, DrawingFontBuilder, Edit, GradientStop, GridPanel,
+    ComboBoxMessage, Component, ComponentSender, DrawingFontBuilder, Edit, GradientStop, Grid,
     HAlign, Label, Layoutable, LinearGradientBrush, Margin, MessageBox, MessageBoxButton,
     ObservableVec, ObservableVecEvent, Orient, PasswordEdit, Point, Progress, RadialGradientBrush,
     Rect, RelativePoint, RelativeSize, Size, SolidColorBrush, StackPanel, VAlign, Window,
@@ -72,9 +72,11 @@ impl Component for MainModel {
         let combo = Child::<ComboBox>::init((), &window);
 
         let mut list = Child::<ObservableVec<String>>::init(vec![], &());
-        list.push("锟斤拷".into());
+        // https://www.zhihu.com/question/23600507/answer/140640887
         list.push("烫烫烫".into());
-        list.push("フフフ".into());
+        list.push("昍昍昍".into());
+        list.push("ﾌﾌﾌﾌﾌﾌ".into());
+        list.push("쳌쳌쳌".into());
 
         sender.post(MainMessage::Redraw);
 
@@ -150,7 +152,7 @@ impl Component for MainModel {
                 false
             }
             MainMessage::Push => {
-                self.list.push("屯屯屯".into());
+                self.list.push("锟斤拷".into());
                 false
             }
             MainMessage::Pop => {
@@ -179,8 +181,8 @@ impl Component for MainModel {
 
         let csize = self.window.client_size();
         {
-            let mut root_panel = GridPanel::from_str("1*,1*,1*", "1*,auto,1*").unwrap();
-            let mut cred_panel = GridPanel::from_str("auto,1*", "1*,auto,auto,1*").unwrap();
+            let mut root_panel = Grid::from_str("1*,1*,1*", "1*,auto,1*").unwrap();
+            let mut cred_panel = Grid::from_str("auto,1*", "1*,auto,auto,1*").unwrap();
             cred_panel
                 .push(&mut self.ulabel)
                 .valign(VAlign::Center)
@@ -219,7 +221,12 @@ impl Component for MainModel {
                 .row(1)
                 .finish();
 
-            root_panel.push(&mut self.canvas).column(0).row(2).finish();
+            root_panel
+                .push(&mut self.canvas)
+                .column(0)
+                .row(1)
+                .row_span(2)
+                .finish();
 
             let mut buttons_panel = StackPanel::new(Orient::Vertical);
             buttons_panel
