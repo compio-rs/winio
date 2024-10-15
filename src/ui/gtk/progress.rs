@@ -1,4 +1,6 @@
-use gtk4::glib::object::Cast;
+use std::{cell::Cell, rc::Rc, time::Duration};
+
+use gtk4::glib::{ControlFlow, SourceId, object::Cast};
 
 use crate::{AsWindow, Point, Size, ui::Widget};
 
@@ -6,6 +8,8 @@ use crate::{AsWindow, Point, Size, ui::Widget};
 pub struct Progress {
     widget: gtk4::ProgressBar,
     handle: Widget,
+    timer: Option<SourceId>,
+    indeterminate: Rc<Cell<bool>>,
     min: usize,
     max: usize,
 }
@@ -14,9 +18,22 @@ impl Progress {
     pub fn new(parent: impl AsWindow) -> Self {
         let widget = gtk4::ProgressBar::new();
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
+        let indeterminate = Rc::new(Cell::new(false));
+        let timer = gtk4::glib::timeout_add_local(Duration::from_millis(100), {
+            let widget = widget.clone();
+            let indeterminate = indeterminate.clone();
+            move || {
+                if indeterminate.get() {
+                    widget.pulse();
+                }
+                ControlFlow::Continue
+            }
+        });
         Self {
             widget,
             handle,
+            timer: Some(timer),
+            indeterminate,
             min: 0,
             max: 1,
         }
@@ -64,8 +81,16 @@ impl Progress {
     }
 
     pub fn is_indeterminate(&self) -> bool {
-        false
+        self.indeterminate.get()
     }
 
-    pub fn set_indeterminate(&mut self, _v: bool) {}
+    pub fn set_indeterminate(&mut self, v: bool) {
+        self.indeterminate.set(v);
+    }
+}
+
+impl Drop for Progress {
+    fn drop(&mut self) {
+        self.timer.take().unwrap().remove();
+    }
 }
