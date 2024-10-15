@@ -1,44 +1,18 @@
-use std::rc::Rc;
+use gtk4::glib::object::Cast;
 
-use gtk4::{
-    glib::object::Cast,
-    prelude::{EditableExt, EntryExt},
-};
-
-use crate::{
-    AsWindow, HAlign, Point, Size,
-    ui::{Callback, Widget},
-};
+use crate::{AsWindow, HAlign, Point, Size, ui::Widget};
 
 #[derive(Debug)]
-pub struct EditImpl<const PW: bool> {
-    on_changed: Rc<Callback<()>>,
-    widget: gtk4::Entry,
+pub struct Label {
+    widget: gtk4::Label,
     handle: Widget,
 }
 
-impl<const PW: bool> EditImpl<PW> {
+impl Label {
     pub fn new(parent: impl AsWindow) -> Self {
-        let widget = gtk4::Entry::new();
-        if PW {
-            widget.set_input_purpose(gtk4::InputPurpose::Password);
-            widget.set_visibility(false);
-        }
+        let widget = gtk4::Label::new(None);
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
-        let on_changed = Rc::new(Callback::new());
-        widget.connect_changed({
-            let on_changed = Rc::downgrade(&on_changed);
-            move |_| {
-                if let Some(on_changed) = on_changed.upgrade() {
-                    on_changed.signal(());
-                }
-            }
-        });
-        Self {
-            on_changed,
-            widget,
-            handle,
-        }
+        Self { widget, handle }
     }
 
     pub fn preferred_size(&self) -> Size {
@@ -71,7 +45,7 @@ impl<const PW: bool> EditImpl<PW> {
     }
 
     pub fn halign(&self) -> HAlign {
-        let align = EditableExt::alignment(&self.widget);
+        let align = self.widget.xalign();
         if align == 0.0 {
             HAlign::Left
         } else if align == 1.0 {
@@ -87,13 +61,6 @@ impl<const PW: bool> EditImpl<PW> {
             HAlign::Right => 1.0,
             _ => 0.5,
         };
-        EditableExt::set_alignment(&self.widget, align);
-    }
-
-    pub async fn wait_change(&self) {
-        self.on_changed.wait().await
+        self.widget.set_xalign(align);
     }
 }
-
-pub type Edit = EditImpl<false>;
-pub type PasswordEdit = EditImpl<true>;

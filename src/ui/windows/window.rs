@@ -212,10 +212,20 @@ impl Widget {
     }
 
     pub fn text(&self) -> String {
+        self.text_u16().to_string_lossy()
+    }
+
+    pub fn set_text(&self, s: impl AsRef<str>) {
+        let handle = self.as_raw_window();
+        let s = U16CString::from_str_truncate(s);
+        syscall!(BOOL, unsafe { SetWindowTextW(handle, s.as_ptr()) }).unwrap();
+    }
+
+    pub fn text_u16(&self) -> U16CString {
         let handle = self.as_raw_window();
         let len = unsafe { GetWindowTextLengthW(handle) };
         if len == 0 {
-            return String::new();
+            return U16CString::new();
         };
         let mut res: Vec<u16> = Vec::with_capacity(len as usize + 1);
         syscall!(BOOL, unsafe {
@@ -223,13 +233,7 @@ impl Widget {
         })
         .unwrap();
         unsafe { res.set_len(len as usize + 1) };
-        unsafe { U16CString::from_vec_unchecked(res) }.to_string_lossy()
-    }
-
-    pub fn set_text(&self, s: impl AsRef<str>) {
-        let handle = self.as_raw_window();
-        let s = U16CString::from_str_truncate(s);
-        syscall!(BOOL, unsafe { SetWindowTextW(handle, s.as_ptr()) }).unwrap();
+        unsafe { U16CString::from_vec_unchecked(res) }
     }
 
     pub fn style(&self) -> u32 {

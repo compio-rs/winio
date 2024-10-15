@@ -34,6 +34,10 @@ impl Button {
         }
     }
 
+    pub fn preferred_size(&self) -> Size {
+        self.handle.preferred_size()
+    }
+
     pub fn loc(&self) -> Point {
         self.handle.loc()
     }
@@ -59,6 +63,7 @@ impl Button {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
         self.widget.set_label(s.as_ref());
+        self.handle.reset_preferred_size();
     }
 
     pub async fn wait_click(&self) {

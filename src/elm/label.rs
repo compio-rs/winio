@@ -1,12 +1,12 @@
-use crate::{Component, ComponentSender, Layoutable, Point, Size, Window, ui};
+use crate::{Component, ComponentSender, HAlign, Layoutable, Point, Size, Window, ui};
 
-/// A simple button.
+/// A simple single-line label.
 #[derive(Debug)]
-pub struct Button {
-    widget: ui::Button,
+pub struct Label {
+    widget: ui::Label,
 }
 
-impl Button {
+impl Label {
     /// The text.
     pub fn text(&self) -> String {
         self.widget.text()
@@ -16,9 +16,19 @@ impl Button {
     pub fn set_text(&mut self, s: impl AsRef<str>) {
         self.widget.set_text(s)
     }
+
+    /// The horizontal alignment.
+    pub fn halign(&self) -> HAlign {
+        self.widget.halign()
+    }
+
+    /// Set the horizontal alignment.
+    pub fn set_halign(&mut self, align: HAlign) {
+        self.widget.set_halign(align);
+    }
 }
 
-impl Layoutable for Button {
+impl Layoutable for Label {
     fn loc(&self) -> Point {
         self.widget.loc()
     }
@@ -40,30 +50,22 @@ impl Layoutable for Button {
     }
 }
 
-/// Events of [`Button`].
+/// Events of [`Label`].
 #[non_exhaustive]
-pub enum ButtonEvent {
-    /// The button has been clicked.
-    Click,
-}
+pub enum LabelEvent {}
 
-impl Component for Button {
-    type Event = ButtonEvent;
+impl Component for Label {
+    type Event = LabelEvent;
     type Init = ();
     type Message = ();
     type Root = Window;
 
     fn init(_counter: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::Button::new(root);
+        let widget = ui::Label::new(root);
         Self { widget }
     }
 
-    async fn start(&mut self, sender: &ComponentSender<Self>) {
-        loop {
-            self.widget.wait_click().await;
-            sender.output(ButtonEvent::Click);
-        }
-    }
+    async fn start(&mut self, _sender: &ComponentSender<Self>) {}
 
     async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
         false

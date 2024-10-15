@@ -1,28 +1,40 @@
 use windows_sys::Win32::UI::{
     Controls::WC_EDITW,
     WindowsAndMessaging::{
-        EN_UPDATE, ES_AUTOHSCROLL, ES_CENTER, ES_LEFT, ES_RIGHT, WM_COMMAND, WS_CHILD,
+        EN_UPDATE, ES_AUTOHSCROLL, ES_CENTER, ES_LEFT, ES_PASSWORD, ES_RIGHT, WM_COMMAND, WS_CHILD,
         WS_EX_CLIENTEDGE, WS_TABSTOP, WS_VISIBLE,
     },
 };
 
-use crate::{AsRawWindow, AsWindow, HAlign, Point, Size, ui::Widget};
+use crate::{
+    AsRawWindow, AsWindow, HAlign, Point, Size,
+    ui::{Widget, font::measure_string},
+};
 
 #[derive(Debug)]
-pub struct Edit {
+pub struct EditImpl<const PW: bool> {
     handle: Widget,
 }
 
-impl Edit {
+impl<const PW: bool> EditImpl<PW> {
     pub fn new(parent: impl AsWindow) -> Self {
+        let mut style = WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_LEFT as u32 | ES_AUTOHSCROLL as u32;
+        if PW {
+            style |= ES_PASSWORD as u32;
+        }
         let handle = Widget::new(
             WC_EDITW,
-            WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_LEFT as u32 | ES_AUTOHSCROLL as u32,
+            style,
             WS_EX_CLIENTEDGE,
             parent.as_window().as_raw_window(),
         );
         handle.set_size(handle.size_d2l((100, 50)));
         Self { handle }
+    }
+
+    pub fn preferred_size(&self) -> Size {
+        let s = measure_string(self.handle.as_raw_window(), &self.handle.text_u16());
+        Size::new(s.width + 2.0, s.height + 2.0)
     }
 
     pub fn loc(&self) -> Point {
@@ -64,9 +76,9 @@ impl Edit {
         let mut style = self.handle.style();
         style &= !(ES_RIGHT as u32);
         match align {
-            HAlign::Left => style |= ES_LEFT as u32,
             HAlign::Center => style |= ES_CENTER as u32,
             HAlign::Right => style |= ES_RIGHT as u32,
+            _ => style |= ES_LEFT as u32,
         }
         self.handle.set_style(style)
     }
@@ -82,3 +94,6 @@ impl Edit {
         }
     }
 }
+
+pub type Edit = EditImpl<false>;
+pub type PasswordEdit = EditImpl<true>;

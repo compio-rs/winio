@@ -21,6 +21,19 @@ pub type Rotation = Rotation2D<f64, LogicalSpace, LogicalSpace>;
 /// Angle of vector.
 pub type Angle = euclid::Angle<f64>;
 
+/// The relative space, which maps [0.0, 1.0] to the logical space.
+pub struct RelativeSpace;
+
+/// Relative point.
+pub type RelativePoint = Point2D<f64, RelativeSpace>;
+/// Relative vector.
+pub type RelativeVector = Vector2D<f64, RelativeSpace>;
+/// Relative size.
+pub type RelativeSize = Size2D<f64, RelativeSpace>;
+
+/// Transform from the relative space to the logical space.
+pub type RelativeToLogical = Transform2D<f64, RelativeSpace, LogicalSpace>;
+
 /// Color theme of application.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[non_exhaustive]
@@ -38,6 +51,15 @@ impl ColorTheme {
     }
 }
 
+/// Orientation.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Orient {
+    /// Horizontal orientation.
+    Horizontal,
+    /// Vertical orientation.
+    Vertical,
+}
+
 /// Horizontal alignment.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum HAlign {
@@ -47,6 +69,8 @@ pub enum HAlign {
     Center,
     /// Right aligned.
     Right,
+    /// Fill the horizontal space.
+    Stretch,
 }
 
 /// Vertical alignment.
@@ -58,6 +82,8 @@ pub enum VAlign {
     Center,
     /// Bottom aligned.
     Bottom,
+    /// Fill the vertical space.
+    Stretch,
 }
 
 /// Color type.

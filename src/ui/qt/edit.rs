@@ -6,14 +6,14 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct Edit {
+pub struct EditImpl<const PW: bool> {
     on_changed: Box<Callback>,
     widget: Widget,
 }
 
-impl Edit {
+impl<const PW: bool> EditImpl<PW> {
     pub fn new(parent: impl AsWindow) -> Self {
-        let mut widget = unsafe { ffi::new_line_edit(parent.as_window().as_raw_window()) };
+        let mut widget = unsafe { ffi::new_line_edit(parent.as_window().as_raw_window(), PW) };
         widget.pin_mut().show();
         let on_changed = Box::new(Callback::new());
         unsafe {
@@ -27,6 +27,10 @@ impl Edit {
             on_changed,
             widget: Widget::new(widget),
         }
+    }
+
+    pub fn preferred_size(&self) -> Size {
+        self.widget.preferred_size()
     }
 
     pub fn loc(&self) -> Point {
@@ -59,6 +63,8 @@ impl Edit {
             HAlign::Right
         } else if flag.contains(QtAlignmentFlag::AlignHCenter) {
             HAlign::Center
+        } else if flag.contains(QtAlignmentFlag::AlignJustify) {
+            HAlign::Stretch
         } else {
             HAlign::Left
         }
@@ -71,6 +77,7 @@ impl Edit {
             HAlign::Left => flag |= QtAlignmentFlag::AlignLeft as i32,
             HAlign::Center => flag |= QtAlignmentFlag::AlignHCenter as i32,
             HAlign::Right => flag |= QtAlignmentFlag::AlignRight as i32,
+            HAlign::Stretch => flag |= QtAlignmentFlag::AlignJustify as i32,
         }
         unsafe {
             ffi::line_edit_set_alignment(
@@ -92,11 +99,14 @@ impl Edit {
     }
 }
 
+pub type Edit = EditImpl<false>;
+pub type PasswordEdit = EditImpl<true>;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 #[non_exhaustive]
 #[allow(dead_code, clippy::enum_variant_names)]
-enum QtAlignmentFlag {
+pub enum QtAlignmentFlag {
     AlignLeft    = 0x0001,
     AlignRight   = 0x0002,
     AlignHCenter = 0x0004,
@@ -122,7 +132,7 @@ mod ffi {
         type QWidget = crate::ui::QWidget;
         type QtAlignmentFlag = super::QtAlignmentFlag;
 
-        unsafe fn new_line_edit(parent: *mut QWidget) -> UniquePtr<QWidget>;
+        unsafe fn new_line_edit(parent: *mut QWidget, password: bool) -> UniquePtr<QWidget>;
         unsafe fn line_edit_connect_changed(
             w: Pin<&mut QWidget>,
             callback: unsafe fn(*const u8),

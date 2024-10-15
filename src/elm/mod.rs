@@ -151,6 +151,9 @@ pub use child::*;
 mod layout;
 pub use layout::*;
 
+mod collection;
+pub use collection::*;
+
 mod window;
 pub use window::*;
 
@@ -160,5 +163,14 @@ pub use button::*;
 mod edit;
 pub use edit::*;
 
+mod label;
+pub use label::*;
+
 mod canvas;
 pub use canvas::*;
+
+mod progress;
+pub use progress::*;
+
+mod combo_box;
+pub use combo_box::*;

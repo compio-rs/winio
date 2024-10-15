@@ -10,7 +10,8 @@ use objc2_app_kit::{
     NSBackingStoreType, NSControl, NSScreen, NSView, NSWindow, NSWindowDelegate, NSWindowStyleMask,
 };
 use objc2_foundation::{
-    CGPoint, CGSize, MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSRect, NSString,
+    CGPoint, CGSize, MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSRect, NSSize,
+    NSString,
 };
 
 use crate::{
@@ -181,9 +182,6 @@ impl Widget {
         unsafe {
             let parent = parent.as_window().as_raw_window().contentView().unwrap();
             parent.addSubview(&view);
-            if view.is_kind_of::<NSControl>() {
-                Id::cast::<NSControl>(view.clone()).sizeToFit();
-            }
             Self {
                 parent: WeakId::from_id(&parent),
                 view,
@@ -193,6 +191,15 @@ impl Widget {
 
     pub fn parent(&self) -> Id<NSView> {
         self.parent.load().unwrap()
+    }
+
+    pub fn preferred_size(&self) -> Size {
+        unsafe {
+            from_cgsize(
+                Id::cast::<NSControl>(self.view.clone())
+                    .sizeThatFits(NSSize::new(f64::MAX, f64::MAX)),
+            )
+        }
     }
 
     pub fn loc(&self) -> Point {

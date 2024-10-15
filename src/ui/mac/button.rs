@@ -41,6 +41,10 @@ impl Button {
         }
     }
 
+    pub fn preferred_size(&self) -> Size {
+        self.handle.preferred_size()
+    }
+
     pub fn loc(&self) -> Point {
         self.handle.loc()
     }
@@ -64,7 +68,6 @@ impl Button {
     pub fn set_text(&mut self, s: impl AsRef<str>) {
         unsafe {
             self.view.setTitle(&NSString::from_str(s.as_ref()));
-            self.view.sizeToFit();
         }
     }
 

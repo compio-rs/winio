@@ -6,7 +6,7 @@ use std::{
 
 use gtk4::{
     EventControllerMotion, GestureClick,
-    cairo::{Content, Context, RecordingSurface},
+    cairo::{Content, Context, LinearGradient, Matrix, RadialGradient, RecordingSurface},
     glib::object::Cast,
     pango::{FontDescription, SCALE as PANGO_SCALE, Style, Weight},
     prelude::{DrawingAreaExtManual, GestureSingleExt, WidgetExt},
@@ -14,8 +14,8 @@ use gtk4::{
 use pangocairo::functions::show_layout;
 
 use crate::{
-    AsWindow, BrushPen, DrawingFont, HAlign, MouseButton, Point, Rect, RectBox, Size,
-    SolidColorBrush, VAlign,
+    AsWindow, BrushPen, DrawingFont, HAlign, LinearGradientBrush, MouseButton, Point,
+    RadialGradientBrush, Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, VAlign,
     ui::{Callback, Widget},
 };
 
@@ -143,15 +143,27 @@ pub struct DrawingContext<'a> {
     widget: &'a mut gtk4::DrawingArea,
 }
 
+#[inline]
+fn to_trans(mut rect: Rect) -> RelativeToLogical {
+    if rect.size.width == 0.0 {
+        rect.size.width = 0.1;
+    }
+    if rect.size.height == 0.0 {
+        rect.size.height = 0.1;
+    }
+    RelativeToLogical::scale(rect.size.width, rect.size.height)
+        .then_translate(rect.origin.to_vector())
+}
+
 impl DrawingContext<'_> {
     #[inline]
-    fn set_brush(&self, brush: impl Brush, _rect: Rect) {
-        brush.set(&self.ctx)
+    fn set_brush(&self, brush: impl Brush, rect: Rect) {
+        brush.set(&self.ctx, to_trans(rect))
     }
 
     #[inline]
-    fn set_pen(&self, pen: impl Pen, _rect: Rect) {
-        pen.set(&self.ctx)
+    fn set_pen(&self, pen: impl Pen, rect: Rect) {
+        pen.set(&self.ctx, to_trans(rect))
     }
 
     fn path_arc(&self, rect: Rect, start: f64, end: f64) {
@@ -312,17 +324,17 @@ impl Drop for DrawingContext<'_> {
 /// Drawing brush.
 pub trait Brush {
     #[doc(hidden)]
-    fn set(&self, ctx: &Context);
+    fn set(&self, ctx: &Context, trans: RelativeToLogical);
 }
 
 impl<B: Brush> Brush for &'_ B {
-    fn set(&self, ctx: &Context) {
-        (**self).set(ctx)
+    fn set(&self, ctx: &Context, trans: RelativeToLogical) {
+        (**self).set(ctx, trans)
     }
 }
 
 impl Brush for SolidColorBrush {
-    fn set(&self, ctx: &Context) {
+    fn set(&self, ctx: &Context, _trans: RelativeToLogical) {
         ctx.set_source_rgba(
             self.color.r as f64 / 255.0,
             self.color.g as f64 / 255.0,
@@ -332,21 +344,66 @@ impl Brush for SolidColorBrush {
     }
 }
 
+impl Brush for LinearGradientBrush {
+    fn set(&self, ctx: &Context, trans: RelativeToLogical) {
+        let start = trans.transform_point(self.start);
+        let end = trans.transform_point(self.end);
+        let p = LinearGradient::new(start.x, start.y, end.x, end.y);
+        for stop in &self.stops {
+            p.add_color_stop_rgba(
+                stop.pos,
+                stop.color.r as f64 / 255.0,
+                stop.color.g as f64 / 255.0,
+                stop.color.b as f64 / 255.0,
+                stop.color.a as f64 / 255.0,
+            );
+        }
+        ctx.set_source(&p).unwrap();
+    }
+}
+
+impl Brush for RadialGradientBrush {
+    fn set(&self, ctx: &Context, trans: RelativeToLogical) {
+        let trans = trans.then_scale(1.0, self.radius.height / self.radius.width);
+        let p = RadialGradient::new(
+            self.origin.x,
+            self.origin.y,
+            0.0,
+            self.center.x,
+            self.center.y,
+            self.radius.width,
+        );
+        p.set_matrix(Matrix::new(
+            trans.m11, trans.m12, trans.m21, trans.m22, trans.m31, trans.m32,
+        ));
+        for stop in &self.stops {
+            p.add_color_stop_rgba(
+                stop.pos,
+                stop.color.r as f64 / 255.0,
+                stop.color.g as f64 / 255.0,
+                stop.color.b as f64 / 255.0,
+                stop.color.a as f64 / 255.0,
+            );
+        }
+        ctx.set_source(&p).unwrap();
+    }
+}
+
 /// Drawing pen.
 pub trait Pen {
     #[doc(hidden)]
-    fn set(&self, ctx: &Context);
+    fn set(&self, ctx: &Context, trans: RelativeToLogical);
 }
 
 impl<P: Pen> Pen for &'_ P {
-    fn set(&self, ctx: &Context) {
-        (**self).set(ctx)
+    fn set(&self, ctx: &Context, trans: RelativeToLogical) {
+        (**self).set(ctx, trans)
     }
 }
 
 impl<B: Brush> Pen for BrushPen<B> {
-    fn set(&self, ctx: &Context) {
-        self.brush.set(ctx);
+    fn set(&self, ctx: &Context, trans: RelativeToLogical) {
+        self.brush.set(ctx, trans);
         ctx.set_line_width(self.width);
     }
 }

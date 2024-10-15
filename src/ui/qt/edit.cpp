@@ -1,8 +1,12 @@
 #include "edit.hpp"
 #include <QLineEdit>
 
-std::unique_ptr<QWidget> new_line_edit(QWidget *parent) {
-    return std::make_unique<QLineEdit>(parent);
+std::unique_ptr<QWidget> new_line_edit(QWidget *parent, bool password) {
+    auto edit = std::make_unique<QLineEdit>(parent);
+    if (password) {
+        edit->setEchoMode(QLineEdit::Password);
+    }
+    return edit;
 }
 
 void line_edit_connect_changed(QWidget &w, callback_fn_t<void()> callback,

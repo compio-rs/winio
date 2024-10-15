@@ -5,7 +5,10 @@ use windows_sys::Win32::UI::{
     },
 };
 
-use crate::{AsRawWindow, AsWindow, Point, Size, ui::Widget};
+use crate::{
+    AsRawWindow, AsWindow, Point, Size,
+    ui::{Widget, font::measure_string},
+};
 
 #[derive(Debug)]
 pub struct Button {
@@ -22,6 +25,11 @@ impl Button {
         );
         handle.set_size(handle.size_d2l((50, 14)));
         Self { handle }
+    }
+
+    pub fn preferred_size(&self) -> Size {
+        let s = measure_string(self.handle.as_raw_window(), &self.handle.text_u16());
+        Size::new(s.width + 5.0, s.height + 2.0)
     }
 
     pub fn loc(&self) -> Point {

@@ -1,7 +1,9 @@
 #include "canvas.hpp"
 #include <QBrush>
 #include <QFont>
+#include <QLinearGradient>
 #include <QPen>
+#include <QRadialGradient>
 
 WinioCanvas::WinioCanvas(QWidget *parent)
     : QWidget(parent), m_paint_callback(std::nullopt),
@@ -96,4 +98,22 @@ std::unique_ptr<QBrush> new_brush(QColor const &c) {
 
 std::unique_ptr<QPen> new_pen(QBrush const &b, double width) {
     return std::make_unique<QPen>(b, width);
+}
+
+std::unique_ptr<QGradient> new_gradient_linear(QPointF start, QPointF end) {
+    return std::make_unique<QLinearGradient>(start, end);
+}
+
+std::unique_ptr<QGradient> new_gradient_radial(QPointF center, double radius,
+                                               QPointF origin) {
+    return std::make_unique<QRadialGradient>(center, radius, origin);
+}
+
+std::unique_ptr<QBrush> new_brush_gradient(QGradient const &g) {
+    return std::make_unique<QBrush>(g);
+}
+
+void brush_set_transform(QBrush &b, double m11, double m12, double m21,
+                         double m22, double m31, double m32) {
+    b.setTransform(QTransform{m11, m12, m21, m22, m31, m32});
 }

@@ -5,7 +5,8 @@ use objc2::{
     runtime::ProtocolObject,
 };
 use objc2_app_kit::{
-    NSControlTextEditingDelegate, NSTextAlignment, NSTextField, NSTextFieldDelegate,
+    NSControlTextEditingDelegate, NSSecureTextField, NSTextAlignment, NSTextField,
+    NSTextFieldDelegate,
 };
 use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString};
 
@@ -15,18 +16,22 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct Edit {
+pub struct EditImpl<const PW: bool> {
     handle: Widget,
     view: Id<NSTextField>,
     delegate: Id<EditDelegate>,
 }
 
-impl Edit {
+impl<const PW: bool> EditImpl<PW> {
     pub fn new(parent: impl AsWindow) -> Self {
         unsafe {
             let mtm = MainThreadMarker::new().unwrap();
 
-            let view = NSTextField::new(mtm);
+            let view = if PW {
+                Id::cast(NSSecureTextField::new(mtm))
+            } else {
+                NSTextField::new(mtm)
+            };
             view.setBezeled(true);
             view.setDrawsBackground(true);
             view.setEditable(true);
@@ -44,6 +49,10 @@ impl Edit {
                 delegate,
             }
         }
+    }
+
+    pub fn preferred_size(&self) -> Size {
+        self.handle.preferred_size()
     }
 
     pub fn loc(&self) -> Point {
@@ -69,7 +78,6 @@ impl Edit {
     pub fn set_text(&mut self, s: impl AsRef<str>) {
         unsafe {
             self.view.setStringValue(&NSString::from_str(s.as_ref()));
-            self.view.sizeToFit();
         }
     }
 
@@ -78,6 +86,7 @@ impl Edit {
         match align {
             NSTextAlignment::Right => HAlign::Right,
             NSTextAlignment::Center => HAlign::Center,
+            NSTextAlignment::Justified => HAlign::Stretch,
             _ => HAlign::Left,
         }
     }
@@ -88,6 +97,7 @@ impl Edit {
                 HAlign::Left => NSTextAlignment::Left,
                 HAlign::Center => NSTextAlignment::Center,
                 HAlign::Right => NSTextAlignment::Right,
+                HAlign::Stretch => NSTextAlignment::Justified,
             };
             self.view.setAlignment(align);
         }
@@ -97,6 +107,9 @@ impl Edit {
         self.delegate.ivars().changed.wait().await
     }
 }
+
+pub type Edit = EditImpl<false>;
+pub type PasswordEdit = EditImpl<true>;
 
 #[derive(Default, Clone)]
 struct EditDelegateIvars {
