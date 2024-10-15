@@ -8,19 +8,19 @@ use objc2::{
     rc::{Allocated, Id},
 };
 use objc2_app_kit::{
-    NSAttributedStringNSStringDrawing, NSBezierPath, NSColor, NSEvent, NSEventType, NSFont,
-    NSFontAttributeName, NSFontDescriptor, NSFontDescriptorSymbolicTraits,
-    NSForegroundColorAttributeName, NSGraphicsContext, NSTrackingArea, NSTrackingAreaOptions,
-    NSView,
+    NSAttributedStringNSStringDrawing, NSBezierPath, NSColor, NSColorSpace, NSEvent, NSEventType,
+    NSFont, NSFontAttributeName, NSFontDescriptor, NSFontDescriptorSymbolicTraits,
+    NSForegroundColorAttributeName, NSGradient, NSGradientDrawingOptions, NSGraphicsContext,
+    NSTrackingArea, NSTrackingAreaOptions, NSView,
 };
 use objc2_foundation::{
     CGPoint, CGRect, MainThreadMarker, NSAffineTransform, NSAttributedString, NSDictionary,
-    NSString,
+    NSMutableArray, NSPoint, NSString,
 };
 
 use crate::{
-    AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, HAlign, Margin, MouseButton, Point, Rect,
-    RectBox, Size, SolidColorBrush, VAlign,
+    AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, HAlign, LinearGradientBrush, Margin,
+    MouseButton, Point, RadialGradientBrush, Rect, RectBox, Size, SolidColorBrush, VAlign,
     ui::{Callback, Widget, from_cgsize, to_cgsize},
 };
 
@@ -444,6 +444,73 @@ impl Brush for SolidColorBrush {
         unsafe {
             to_nscolor(self.color).set();
             path.fill();
+        }
+    }
+}
+
+impl Brush for LinearGradientBrush {
+    fn draw(&self, path: &NSBezierPath, _size: Size, _rect: Rect) {
+        unsafe {
+            let mut colors = NSMutableArray::<NSColor>::new();
+            let mut locs = vec![];
+            for stop in &self.stops {
+                colors.addObject(&to_nscolor(stop.color));
+                locs.push(stop.pos);
+            }
+            let gradient = NSGradient::initWithColors_atLocations_colorSpace(
+                NSGradient::alloc(),
+                &colors,
+                locs.as_mut_ptr(),
+                &NSColorSpace::deviceRGBColorSpace(),
+            )
+            .unwrap();
+            let dir = self.end - self.start;
+            gradient.drawInBezierPath_angle(path, -dir.y.atan2(dir.x).to_degrees());
+        }
+    }
+}
+
+impl Brush for RadialGradientBrush {
+    fn draw(&self, path: &NSBezierPath, size: Size, rect: Rect) {
+        unsafe {
+            let mut colors = NSMutableArray::<NSColor>::new();
+            let mut locs = vec![];
+            for stop in &self.stops {
+                colors.addObject(&to_nscolor(stop.color));
+                locs.push(stop.pos);
+            }
+            let gradient = NSGradient::initWithColors_atLocations_colorSpace(
+                NSGradient::alloc(),
+                &colors,
+                locs.as_mut_ptr(),
+                &NSColorSpace::deviceRGBColorSpace(),
+            )
+            .unwrap();
+
+            draw_mask(
+                size,
+                || {
+                    NSColor::whiteColor().set();
+                    path.fill();
+                },
+                || {
+                    let transform = NSAffineTransform::transform();
+                    transform.scaleXBy_yBy(
+                        rect.size.width,
+                        rect.size.height * self.radius.height / self.radius.width,
+                    );
+                    let () = msg_send![&*transform, concat];
+                    let rs =
+                        Size::new(size.width / rect.size.width, size.height / rect.size.height);
+                    gradient.drawFromCenter_radius_toCenter_radius_options(
+                        NSPoint::new(self.origin.x, rs.height - self.origin.y),
+                        0.0,
+                        NSPoint::new(self.center.x, rs.height - self.center.y),
+                        self.radius.width,
+                        NSGradientDrawingOptions::NSGradientDrawsAfterEndingLocation,
+                    );
+                },
+            )
         }
     }
 }
