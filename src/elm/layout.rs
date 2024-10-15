@@ -1,8 +1,12 @@
-use std::num::NonZero;
+use std::{
+    fmt::Display,
+    num::{NonZero, ParseFloatError},
+    str::FromStr,
+};
 
 use taffy::{
-    Style, TaffyTree,
-    prelude::{auto, length, percent},
+    NodeId, Style, TaffyTree, TrackSizingFunction,
+    prelude::{auto, fr, length, line, percent, span},
 };
 
 use crate::{HAlign, Margin, Orient, Point, Rect, Size, VAlign};
@@ -36,6 +40,18 @@ pub trait Layoutable {
     fn preferred_size(&self) -> Size {
         Size::zero()
     }
+}
+
+fn rect_t2e(rect: &taffy::Layout) -> Rect {
+    Rect::new(
+        Point::new(rect.location.x as _, rect.location.y as _),
+        Size::new(rect.size.width as _, rect.size.height as _),
+    )
+}
+
+fn offset(mut a: Rect, offset: Point) -> Rect {
+    a.origin += offset.to_vector();
+    a
 }
 
 struct LayoutChild<'a> {
@@ -175,17 +191,18 @@ impl<'a> StackPanel<'a> {
         }
     }
 
-    fn render(&mut self) {
+    fn tree(&self) -> (TaffyTree, NodeId, Vec<NodeId>) {
         let mut tree: TaffyTree<()> = TaffyTree::new();
         let mut nodes = vec![];
         for child in &self.children {
+            let preferred_size = child.widget.preferred_size();
             let mut style = Style::default();
             style.size.width = match child.width {
                 Some(w) => length(w as f32),
                 None => match (self.orient, child.halign, child.grow) {
                     (Orient::Vertical, HAlign::Stretch, _) => percent(1.0),
                     (Orient::Horizontal, _, true) => auto(),
-                    _ => length(child.widget.preferred_size().width as f32),
+                    _ => length(preferred_size.width as f32),
                 },
             };
             style.size.height = match child.height {
@@ -193,8 +210,12 @@ impl<'a> StackPanel<'a> {
                 None => match (self.orient, child.valign, child.grow) {
                     (Orient::Horizontal, VAlign::Stretch, _) => percent(1.0),
                     (Orient::Vertical, _, true) => auto(),
-                    _ => length(child.widget.preferred_size().height as f32),
+                    _ => length(preferred_size.height as f32),
                 },
+            };
+            style.min_size = taffy::Size {
+                width: length(preferred_size.width as f32),
+                height: length(preferred_size.height as f32),
             };
             style.margin = taffy::Rect {
                 left: length(child.margin.left as f32),
@@ -239,6 +260,11 @@ impl<'a> StackPanel<'a> {
                 &nodes,
             )
             .unwrap();
+        (tree, root, nodes)
+    }
+
+    fn render(&mut self) {
+        let (mut tree, root, nodes) = self.tree();
         tree.compute_layout(root, taffy::Size {
             width: taffy::AvailableSpace::Definite(self.size.width as _),
             height: taffy::AvailableSpace::Definite(self.size.height as _),
@@ -249,18 +275,6 @@ impl<'a> StackPanel<'a> {
             child.widget.set_rect(offset(rect_t2e(layout), self.loc));
         }
     }
-}
-
-fn rect_t2e(rect: &taffy::Layout) -> Rect {
-    Rect::new(
-        Point::new(rect.location.x as _, rect.location.y as _),
-        Size::new(rect.size.width as _, rect.size.height as _),
-    )
-}
-
-fn offset(mut a: Rect, offset: Point) -> Rect {
-    a.origin += offset.to_vector();
-    a
 }
 
 impl Layoutable for StackPanel<'_> {
@@ -282,35 +296,254 @@ impl Layoutable for StackPanel<'_> {
         self.render();
     }
 
+    fn set_rect(&mut self, r: Rect) {
+        self.loc = r.origin;
+        self.size = r.size;
+        self.render();
+    }
+
     fn preferred_size(&self) -> Size {
-        let mut width = 0.0;
-        let mut height = 0.0;
-        match self.orient {
-            Orient::Horizontal => {
-                for child in &self.children {
-                    width += child
-                        .width
-                        .unwrap_or_else(|| child.widget.preferred_size().width);
-                    width += child.margin.horizontal();
-                    height = child
-                        .height
-                        .unwrap_or_else(|| child.widget.preferred_size().height)
-                        .max(height);
-                }
-            }
-            Orient::Vertical => {
-                for child in &self.children {
-                    height += child
-                        .height
-                        .unwrap_or_else(|| child.widget.preferred_size().height);
-                    height += child.margin.vertical();
-                    width = child
-                        .width
-                        .unwrap_or_else(|| child.widget.preferred_size().width)
-                        .max(width);
-                }
-            }
+        let (mut tree, root, _) = self.tree();
+        tree.compute_layout(root, taffy::Size::max_content())
+            .unwrap();
+        rect_t2e(tree.layout(root).unwrap()).size
+    }
+}
+
+/// Error can be returned when parsing [`GridLength`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum ParseGridLengthError {
+    /// Invalid length value.
+    InvalidLength(ParseFloatError),
+}
+
+impl Display for ParseGridLengthError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidLength(e) => write!(f, "invalid length value: {}", e),
         }
-        Size::new(width, height)
+    }
+}
+
+impl std::error::Error for ParseGridLengthError {}
+
+/// The width or height of a grid cell.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum GridLength {
+    /// The length is determined automatically.
+    Auto,
+    /// Represents a relative ratio.
+    Stretch(f64),
+    /// Fixed length.
+    Length(f64),
+}
+
+impl FromStr for GridLength {
+    type Err = ParseGridLengthError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.eq_ignore_ascii_case("auto") {
+            Ok(Self::Auto)
+        } else if let Some(s) = s.strip_suffix('*') {
+            s.parse::<f64>()
+                .map(Self::Stretch)
+                .map_err(ParseGridLengthError::InvalidLength)
+        } else {
+            s.parse::<f64>()
+                .map(Self::Length)
+                .map_err(ParseGridLengthError::InvalidLength)
+        }
+    }
+}
+
+impl From<GridLength> for TrackSizingFunction {
+    fn from(value: GridLength) -> Self {
+        match value {
+            GridLength::Auto => auto(),
+            GridLength::Length(v) => length(v as f32),
+            GridLength::Stretch(v) => fr(v as f32),
+        }
+    }
+}
+
+impl From<&GridLength> for TrackSizingFunction {
+    fn from(value: &GridLength) -> Self {
+        TrackSizingFunction::from(*value)
+    }
+}
+
+/// A grid layout container.
+pub struct GridPanel<'a> {
+    children: Vec<LayoutChild<'a>>,
+    columns: Vec<GridLength>,
+    rows: Vec<GridLength>,
+    loc: Point,
+    size: Size,
+}
+
+impl<'a> GridPanel<'a> {
+    /// Create [`GridPanel`].
+    pub fn new(columns: Vec<GridLength>, rows: Vec<GridLength>) -> Self {
+        Self {
+            children: vec![],
+            columns,
+            rows,
+            loc: Point::zero(),
+            size: Size::zero(),
+        }
+    }
+
+    /// Create [`GridPanel`] with string-representative of grid lengths.
+    pub fn from_str(
+        columns: impl AsRef<str>,
+        rows: impl AsRef<str>,
+    ) -> Result<Self, ParseGridLengthError> {
+        Ok(Self::new(
+            Self::parse_grid_lengths(columns.as_ref())?,
+            Self::parse_grid_lengths(rows.as_ref())?,
+        ))
+    }
+
+    fn parse_grid_lengths(s: &str) -> Result<Vec<GridLength>, ParseGridLengthError> {
+        let mut lengths = vec![];
+        for s in s.split(',') {
+            let s = s.trim();
+            lengths.push(s.parse()?);
+        }
+        Ok(lengths)
+    }
+
+    /// Push a child into the panel.
+    pub fn push<'b>(&'b mut self, widget: &'a mut dyn Layoutable) -> LayoutChildBuilder<'a, 'b> {
+        LayoutChildBuilder {
+            child: LayoutChild::new(widget),
+            children: &mut self.children,
+        }
+    }
+
+    fn tree(&self) -> (TaffyTree, NodeId, Vec<NodeId>) {
+        let mut tree: TaffyTree<()> = TaffyTree::new();
+        let mut nodes = vec![];
+        for child in &self.children {
+            let preferred_size = child.widget.preferred_size();
+            let mut style = Style::default();
+            style.size.width = match child.width {
+                Some(w) => length(w as f32),
+                None => match child.halign {
+                    HAlign::Stretch => auto(),
+                    _ => length(preferred_size.width as f32),
+                },
+            };
+            style.size.height = match child.height {
+                Some(h) => length(h as f32),
+                None => match child.valign {
+                    VAlign::Stretch => auto(),
+                    _ => length(preferred_size.height as f32),
+                },
+            };
+            style.min_size = taffy::Size {
+                width: length(preferred_size.width as f32),
+                height: length(preferred_size.height as f32),
+            };
+            style.margin = taffy::Rect {
+                left: length(child.margin.left as f32),
+                right: length(child.margin.right as f32),
+                top: length(child.margin.top as f32),
+                bottom: length(child.margin.bottom as f32),
+            };
+
+            if matches!(child.valign, VAlign::Top | VAlign::Center) {
+                style.margin.bottom = auto();
+            }
+            if matches!(child.valign, VAlign::Bottom | VAlign::Center) {
+                style.margin.top = auto();
+            }
+            if matches!(child.halign, HAlign::Left | HAlign::Center) {
+                style.margin.right = auto();
+            }
+            if matches!(child.halign, HAlign::Right | HAlign::Center) {
+                style.margin.left = auto();
+            }
+
+            style.grid_column = line(child.column as i16 + 1);
+            style.grid_row = line(child.row as i16 + 1);
+
+            let cspan = child.column_span.get();
+            if cspan > 1 {
+                style.grid_column = span(cspan as u16);
+            }
+
+            let rspan = child.row_span.get();
+            if rspan > 1 {
+                style.grid_row = span(rspan as u16);
+            }
+
+            let node = tree.new_leaf(style).unwrap();
+            nodes.push(node);
+        }
+        let root = tree
+            .new_with_children(
+                Style {
+                    display: taffy::Display::Grid,
+                    size: taffy::Size::from_percent(1.0, 1.0),
+                    grid_template_columns: self
+                        .columns
+                        .iter()
+                        .map(TrackSizingFunction::from)
+                        .collect(),
+                    grid_template_rows: self.rows.iter().map(TrackSizingFunction::from).collect(),
+                    ..Default::default()
+                },
+                &nodes,
+            )
+            .unwrap();
+        (tree, root, nodes)
+    }
+
+    fn render(&mut self) {
+        let (mut tree, root, nodes) = self.tree();
+        tree.compute_layout(root, taffy::Size {
+            width: taffy::AvailableSpace::Definite(self.size.width as _),
+            height: taffy::AvailableSpace::Definite(self.size.height as _),
+        })
+        .unwrap();
+        for (id, child) in nodes.iter().zip(&mut self.children) {
+            let layout = tree.layout(*id).unwrap();
+            child.widget.set_rect(offset(rect_t2e(layout), self.loc));
+        }
+    }
+}
+
+impl Layoutable for GridPanel<'_> {
+    fn loc(&self) -> Point {
+        self.loc
+    }
+
+    fn set_loc(&mut self, p: Point) {
+        self.loc = p;
+        self.render();
+    }
+
+    fn size(&self) -> Size {
+        self.size
+    }
+
+    fn set_size(&mut self, s: Size) {
+        self.size = s;
+        self.render();
+    }
+
+    fn set_rect(&mut self, r: Rect) {
+        self.loc = r.origin;
+        self.size = r.size;
+        self.render();
+    }
+
+    fn preferred_size(&self) -> Size {
+        let (mut tree, root, _) = self.tree();
+        tree.compute_layout(root, taffy::Size::max_content())
+            .unwrap();
+        rect_t2e(tree.layout(root).unwrap()).size
     }
 }

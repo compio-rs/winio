@@ -1,13 +1,10 @@
-use taffy::{
-    NodeId, TaffyTree,
-    prelude::{auto, fr, length, line, repeat},
-};
 use winio::{
     App, BrushPen, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, ComboBox, ComboBoxEvent,
-    ComboBoxMessage, Component, ComponentSender, DrawingFontBuilder, Edit, GradientStop, HAlign,
-    Label, Layoutable, LinearGradientBrush, MessageBox, MessageBoxButton, ObservableVec,
-    ObservableVecEvent, PasswordEdit, Point, Progress, RadialGradientBrush, Rect, RelativePoint,
-    RelativeSize, Size, SolidColorBrush, VAlign, Window, WindowEvent,
+    ComboBoxMessage, Component, ComponentSender, DrawingFontBuilder, Edit, GradientStop, GridPanel,
+    HAlign, Label, Layoutable, LinearGradientBrush, Margin, MessageBox, MessageBoxButton,
+    ObservableVec, ObservableVecEvent, Orient, PasswordEdit, Point, Progress, RadialGradientBrush,
+    Rect, RelativePoint, RelativeSize, Size, SolidColorBrush, StackPanel, VAlign, Window,
+    WindowEvent,
 };
 
 fn main() {
@@ -181,36 +178,70 @@ impl Component for MainModel {
         self.canvas.render();
 
         let csize = self.window.client_size();
-        let (
-            ulabel_rect,
-            uentry_rect,
-            plabel_rect,
-            pentry_rect,
-            combo_rect,
-            canvas_rect,
-            b1_rect,
-            b2_rect,
-            b3_rect,
-            progress_rect,
-        ) = Layout::new(
-            self.combo.preferred_size(),
-            self.ulabel.preferred_size(),
-            self.plabel.preferred_size(),
-            self.uentry.preferred_size().height,
-            self.push_button.preferred_size().height,
-            self.progress.preferred_size().height,
-        )
-        .compute(csize);
-        self.ulabel.set_rect(ulabel_rect);
-        self.uentry.set_rect(uentry_rect);
-        self.plabel.set_rect(plabel_rect);
-        self.pentry.set_rect(pentry_rect);
-        self.combo.set_rect(combo_rect);
-        self.canvas.set_rect(canvas_rect);
-        self.push_button.set_rect(b1_rect);
-        self.pop_button.set_rect(b2_rect);
-        self.show_button.set_rect(b3_rect);
-        self.progress.set_rect(progress_rect);
+        {
+            let mut root_panel = GridPanel::from_str("1*,1*,1*", "1*,auto,1*").unwrap();
+            let mut cred_panel = GridPanel::from_str("auto,1*", "1*,auto,auto,1*").unwrap();
+            cred_panel
+                .push(&mut self.ulabel)
+                .valign(VAlign::Center)
+                .column(0)
+                .row(1)
+                .finish();
+            cred_panel
+                .push(&mut self.uentry)
+                .margin(Margin::new_all_same(4.0))
+                .column(1)
+                .row(1)
+                .finish();
+            cred_panel
+                .push(&mut self.plabel)
+                .valign(VAlign::Center)
+                .column(0)
+                .row(2)
+                .finish();
+            cred_panel
+                .push(&mut self.pentry)
+                .margin(Margin::new_all_same(4.0))
+                .column(1)
+                .row(2)
+                .finish();
+            root_panel.push(&mut cred_panel).column(1).row(0).finish();
+
+            root_panel
+                .push(&mut self.combo)
+                .halign(HAlign::Center)
+                .column(1)
+                .row(1)
+                .finish();
+            root_panel
+                .push(&mut self.progress)
+                .column(2)
+                .row(1)
+                .finish();
+
+            root_panel.push(&mut self.canvas).column(0).row(2).finish();
+
+            let mut buttons_panel = StackPanel::new(Orient::Vertical);
+            buttons_panel
+                .push(&mut self.push_button)
+                .margin(Margin::new_all_same(4.0))
+                .finish();
+            buttons_panel
+                .push(&mut self.pop_button)
+                .margin(Margin::new_all_same(4.0))
+                .finish();
+            buttons_panel
+                .push(&mut self.show_button)
+                .margin(Margin::new_all_same(4.0))
+                .finish();
+            root_panel
+                .push(&mut buttons_panel)
+                .column(2)
+                .row(2)
+                .finish();
+
+            root_panel.set_size(csize);
+        }
 
         let size = self.canvas.size();
         let back_color = if self.is_dark {
@@ -278,297 +309,4 @@ impl Component for MainModel {
             .build();
         ctx.draw_str(&brush3, font, Point::new(cx, cy), "Hello world!");
     }
-}
-
-struct Layout {
-    taffy: TaffyTree,
-    cred: NodeId,
-    ulabel: NodeId,
-    uentry: NodeId,
-    plabel: NodeId,
-    pentry: NodeId,
-    canvas: NodeId,
-    combo: NodeId,
-    buttons: NodeId,
-    b1: NodeId,
-    b2: NodeId,
-    b3: NodeId,
-    progress: NodeId,
-    root: NodeId,
-}
-
-impl Layout {
-    pub fn new(
-        combo_size: Size,
-        ulabel_size: Size,
-        plabel_size: Size,
-        eheight: f64,
-        bheight: f64,
-        pheight: f64,
-    ) -> Self {
-        let mut taffy = TaffyTree::new();
-        let combo = taffy
-            .new_leaf(taffy::Style {
-                size: taffy::Size {
-                    width: length(combo_size.width as f32),
-                    height: length(combo_size.height as f32),
-                },
-                grid_column: line(2),
-                grid_row: line(2),
-                margin: taffy::Rect::auto(),
-                ..Default::default()
-            })
-            .unwrap();
-        let canvas = taffy
-            .new_leaf(taffy::Style {
-                size: auto(),
-                grid_column: line(1),
-                grid_row: line(3),
-                ..Default::default()
-            })
-            .unwrap();
-
-        let b1 = taffy
-            .new_leaf(taffy::Style {
-                size: taffy::Size {
-                    width: auto(),
-                    height: length(bheight as f32),
-                },
-                margin: taffy::Rect {
-                    left: length(4.0),
-                    right: length(4.0),
-                    top: length(4.0),
-                    bottom: length(4.0),
-                },
-                ..Default::default()
-            })
-            .unwrap();
-        let b2 = taffy
-            .new_leaf(taffy::Style {
-                size: taffy::Size {
-                    width: auto(),
-                    height: length(bheight as f32),
-                },
-                margin: taffy::Rect {
-                    left: length(4.0),
-                    right: length(4.0),
-                    top: length(4.0),
-                    bottom: length(4.0),
-                },
-                ..Default::default()
-            })
-            .unwrap();
-        let b3 = taffy
-            .new_leaf(taffy::Style {
-                size: taffy::Size {
-                    width: auto(),
-                    height: length(bheight as f32),
-                },
-                margin: taffy::Rect {
-                    left: length(4.0),
-                    right: length(4.0),
-                    top: length(4.0),
-                    bottom: length(4.0),
-                },
-                ..Default::default()
-            })
-            .unwrap();
-        let buttons = taffy
-            .new_with_children(
-                taffy::Style {
-                    size: auto(),
-                    grid_column: line(3),
-                    grid_row: line(3),
-                    flex_direction: taffy::FlexDirection::Column,
-                    ..Default::default()
-                },
-                &[b1, b2, b3],
-            )
-            .unwrap();
-
-        let ulabel = taffy
-            .new_leaf(taffy::Style {
-                size: taffy::Size {
-                    width: auto(),
-                    height: length(ulabel_size.height as f32),
-                },
-                grid_column: line(1),
-                grid_row: line(2),
-                margin: taffy::Rect {
-                    left: length(0.0),
-                    right: length(0.0),
-                    top: auto(),
-                    bottom: auto(),
-                },
-                ..Default::default()
-            })
-            .unwrap();
-        let uentry = taffy
-            .new_leaf(taffy::Style {
-                size: taffy::Size {
-                    width: auto(),
-                    height: length(eheight as f32),
-                },
-                grid_column: line(2),
-                grid_row: line(2),
-                margin: taffy::Rect {
-                    left: length(4.0),
-                    right: length(0.0),
-                    top: length(4.0),
-                    bottom: length(4.0),
-                },
-                ..Default::default()
-            })
-            .unwrap();
-        let plabel = taffy
-            .new_leaf(taffy::Style {
-                size: taffy::Size {
-                    width: auto(),
-                    height: length(plabel_size.height as f32),
-                },
-                grid_column: line(1),
-                grid_row: line(3),
-                margin: taffy::Rect {
-                    left: length(0.0),
-                    right: length(0.0),
-                    top: auto(),
-                    bottom: auto(),
-                },
-                ..Default::default()
-            })
-            .unwrap();
-        let pentry = taffy
-            .new_leaf(taffy::Style {
-                size: taffy::Size {
-                    width: auto(),
-                    height: length(eheight as f32),
-                },
-                grid_column: line(2),
-                grid_row: line(3),
-                margin: taffy::Rect {
-                    left: length(4.0),
-                    right: length(0.0),
-                    top: length(4.0),
-                    bottom: length(4.0),
-                },
-                ..Default::default()
-            })
-            .unwrap();
-
-        let cred = taffy
-            .new_with_children(
-                taffy::Style {
-                    display: taffy::Display::Grid,
-                    size: auto(),
-                    grid_column: line(2),
-                    grid_row: line(1),
-                    grid_template_columns: vec![
-                        length(ulabel_size.width.max(plabel_size.width) as f32),
-                        fr(1.0),
-                    ],
-                    grid_template_rows: vec![fr(1.0), auto(), auto(), fr(1.0)],
-                    ..Default::default()
-                },
-                &[ulabel, uentry, plabel, pentry],
-            )
-            .unwrap();
-
-        let progress = taffy
-            .new_leaf(taffy::Style {
-                size: taffy::Size {
-                    width: auto(),
-                    height: length(pheight as f32),
-                },
-                grid_column: line(3),
-                grid_row: line(2),
-                margin: taffy::Rect {
-                    left: length(4.0),
-                    right: length(4.0),
-                    top: auto(),
-                    bottom: auto(),
-                },
-                ..Default::default()
-            })
-            .unwrap();
-
-        let root = taffy
-            .new_with_children(
-                taffy::Style {
-                    display: taffy::Display::Grid,
-                    size: taffy::Size::from_percent(1.0, 1.0),
-                    grid_template_columns: vec![repeat(3, vec![fr(1.0)])],
-                    grid_template_rows: vec![fr(1.0), length(50.0), fr(1.0)],
-                    ..Default::default()
-                },
-                &[cred, combo, canvas, progress, buttons],
-            )
-            .unwrap();
-        Self {
-            taffy,
-            cred,
-            ulabel,
-            uentry,
-            plabel,
-            pentry,
-            canvas,
-            combo,
-            buttons,
-            b1,
-            b2,
-            b3,
-            progress,
-            root,
-        }
-    }
-
-    pub fn compute(
-        mut self,
-        csize: Size,
-    ) -> (Rect, Rect, Rect, Rect, Rect, Rect, Rect, Rect, Rect, Rect) {
-        self.taffy
-            .compute_layout(self.root, taffy::Size {
-                width: taffy::AvailableSpace::Definite(csize.width as _),
-                height: taffy::AvailableSpace::Definite(csize.height as _),
-            })
-            .unwrap();
-        let combo_rect = self.taffy.layout(self.combo).unwrap();
-        let canvas_rect = self.taffy.layout(self.canvas).unwrap();
-        let buttons_rect = self.taffy.layout(self.buttons).unwrap();
-        let b1_rect = self.taffy.layout(self.b1).unwrap();
-        let b2_rect = self.taffy.layout(self.b2).unwrap();
-        let b3_rect = self.taffy.layout(self.b3).unwrap();
-        let cred_rect = self.taffy.layout(self.cred).unwrap();
-        let ulabel_rect = self.taffy.layout(self.ulabel).unwrap();
-        let uentry_rect = self.taffy.layout(self.uentry).unwrap();
-        let plabel_rect = self.taffy.layout(self.plabel).unwrap();
-        let pentry_rect = self.taffy.layout(self.pentry).unwrap();
-        let progress_rect = self.taffy.layout(self.progress).unwrap();
-
-        let buttons_rect = rect_t2e(buttons_rect);
-        let cred_rect = rect_t2e(cred_rect);
-        (
-            offset(rect_t2e(ulabel_rect), cred_rect),
-            offset(rect_t2e(uentry_rect), cred_rect),
-            offset(rect_t2e(plabel_rect), cred_rect),
-            offset(rect_t2e(pentry_rect), cred_rect),
-            rect_t2e(combo_rect),
-            rect_t2e(canvas_rect),
-            offset(rect_t2e(b1_rect), buttons_rect),
-            offset(rect_t2e(b2_rect), buttons_rect),
-            offset(rect_t2e(b3_rect), buttons_rect),
-            rect_t2e(progress_rect),
-        )
-    }
-}
-
-fn rect_t2e(rect: &taffy::Layout) -> Rect {
-    Rect::new(
-        Point::new(rect.location.x as _, rect.location.y as _),
-        Size::new(rect.size.width as _, rect.size.height as _),
-    )
-}
-
-fn offset(mut a: Rect, offset: Rect) -> Rect {
-    a.origin += offset.origin.to_vector();
-    a
 }

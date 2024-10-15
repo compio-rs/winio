@@ -4,7 +4,7 @@ use std::{
 };
 
 use super::{ComponentReceiver, Layoutable, component_channel};
-use crate::{Component, ComponentSender, Point, Size};
+use crate::{Component, ComponentSender, Point, Rect, Size};
 
 /// Helper to embed one component into another. It handles different types of
 /// messages and events.
@@ -99,6 +99,14 @@ impl<T: Component + Layoutable> Layoutable for Child<T> {
 
     fn set_size(&mut self, s: Size) {
         self.model.set_size(s);
+    }
+
+    fn rect(&self) -> Rect {
+        self.model.rect()
+    }
+
+    fn set_rect(&mut self, r: Rect) {
+        self.model.set_rect(r);
     }
 
     fn preferred_size(&self) -> Size {
