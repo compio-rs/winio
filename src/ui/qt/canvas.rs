@@ -3,8 +3,8 @@ use std::pin::Pin;
 use cxx::{ExternType, UniquePtr, type_id};
 
 use crate::{
-    AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, HAlign, MouseButton, Point, Rect, Size,
-    SolidColorBrush, VAlign,
+    AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, HAlign, LinearGradientBrush, MouseButton,
+    Point, RadialGradientBrush, Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, VAlign,
     ui::{Callback, Widget},
 };
 
@@ -119,25 +119,33 @@ impl Drop for DrawingContext<'_> {
     }
 }
 
+#[inline]
+fn to_trans(rect: Rect) -> RelativeToLogical {
+    RelativeToLogical::scale(rect.size.width, rect.size.height)
+        .then_translate(rect.origin.to_vector())
+}
+
 fn drawing_angle(angle: f64) -> i32 {
     (-angle * 180.0 / std::f64::consts::PI * 16.0).round() as i32
 }
 
 impl DrawingContext<'_> {
-    fn set_brush(&mut self, brush: impl Brush) {
-        self.painter.pin_mut().setBrush(&brush.create());
+    fn set_brush(&mut self, brush: impl Brush, rect: Rect) {
+        self.painter
+            .pin_mut()
+            .setBrush(&brush.create(to_trans(rect)));
         self.painter.pin_mut().setPen_color(&QColor::transparent());
     }
 
-    fn set_pen(&mut self, pen: impl Pen) {
-        self.painter.pin_mut().setPen(&pen.create());
+    fn set_pen(&mut self, pen: impl Pen, rect: Rect) {
+        self.painter.pin_mut().setPen(&pen.create(to_trans(rect)));
         self.painter
             .pin_mut()
             .setBrush(&ffi::new_brush(&QColor::transparent()));
     }
 
     pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
-        self.set_pen(pen);
+        self.set_pen(pen, rect);
         self.painter.pin_mut().drawArc(
             &QRectF(rect),
             drawing_angle(start),
@@ -146,7 +154,7 @@ impl DrawingContext<'_> {
     }
 
     pub fn fill_pie(&mut self, brush: impl Brush, rect: Rect, start: f64, end: f64) {
-        self.set_brush(brush);
+        self.set_brush(brush, rect);
         self.painter.pin_mut().drawPie(
             &QRectF(rect),
             drawing_angle(start),
@@ -155,34 +163,39 @@ impl DrawingContext<'_> {
     }
 
     pub fn draw_ellipse(&mut self, pen: impl Pen, rect: Rect) {
-        self.set_pen(pen);
+        self.set_pen(pen, rect);
         self.painter.pin_mut().drawEllipse(&QRectF(rect));
     }
 
     pub fn fill_ellipse(&mut self, brush: impl Brush, rect: Rect) {
-        self.set_brush(brush);
+        self.set_brush(brush, rect);
         self.painter.pin_mut().drawEllipse(&QRectF(rect));
     }
 
     pub fn draw_line(&mut self, pen: impl Pen, start: Point, end: Point) {
-        self.set_pen(pen);
+        let rect = RectBox::new(
+            Point::new(start.x.min(end.x), start.y.min(end.y)),
+            Point::new(start.x.max(end.x), start.y.max(end.y)),
+        )
+        .to_rect();
+        self.set_pen(pen, rect);
         self.painter
             .pin_mut()
             .drawLine(&QPointF(start), &QPointF(end));
     }
 
     pub fn draw_rect(&mut self, pen: impl Pen, rect: Rect) {
-        self.set_pen(pen);
+        self.set_pen(pen, rect);
         self.painter.pin_mut().drawRect(&QRectF(rect));
     }
 
     pub fn fill_rect(&mut self, brush: impl Brush, rect: Rect) {
-        self.set_brush(brush);
+        self.set_brush(brush, rect);
         self.painter.pin_mut().drawRect(&QRectF(rect));
     }
 
     pub fn draw_round_rect(&mut self, pen: impl Pen, rect: Rect, round: Size) {
-        self.set_pen(pen);
+        self.set_pen(pen, rect);
         self.painter.pin_mut().drawRoundedRect(
             &QRectF(rect),
             round.width,
@@ -192,7 +205,7 @@ impl DrawingContext<'_> {
     }
 
     pub fn fill_round_rect(&mut self, brush: impl Brush, rect: Rect, round: Size) {
-        self.set_brush(brush);
+        self.set_brush(brush, rect);
         self.painter.pin_mut().drawRoundedRect(
             &QRectF(rect),
             round.width,
@@ -223,7 +236,7 @@ impl DrawingContext<'_> {
             _ => {}
         }
 
-        self.set_pen(BrushPen::new(brush, 1.0));
+        self.set_pen(BrushPen::new(brush, 1.0), rect);
         ffi::painter_draw_text(self.painter.pin_mut(), QRectF(rect), text);
     }
 }
@@ -231,36 +244,74 @@ impl DrawingContext<'_> {
 /// Drawing brush.
 pub trait Brush {
     #[doc(hidden)]
-    fn create(&self) -> UniquePtr<ffi::QBrush>;
+    fn create(&self, trans: RelativeToLogical) -> UniquePtr<ffi::QBrush>;
 }
 
 impl<B: Brush> Brush for &'_ B {
-    fn create(&self) -> UniquePtr<ffi::QBrush> {
-        (**self).create()
+    fn create(&self, trans: RelativeToLogical) -> UniquePtr<ffi::QBrush> {
+        (**self).create(trans)
     }
 }
 
 impl Brush for SolidColorBrush {
-    fn create(&self) -> UniquePtr<ffi::QBrush> {
+    fn create(&self, _trans: RelativeToLogical) -> UniquePtr<ffi::QBrush> {
         ffi::new_brush(&self.color.into())
     }
+}
+
+impl Brush for LinearGradientBrush {
+    fn create(&self, trans: RelativeToLogical) -> UniquePtr<ffi::QBrush> {
+        let mut g = ffi::new_gradient_linear(
+            QPointF(Point::new(self.start.x, self.start.y)),
+            QPointF(Point::new(self.end.x, self.end.y)),
+        );
+        for stop in &self.stops {
+            g.pin_mut().setColorAt(stop.pos, &QColor::from(stop.color));
+        }
+        let mut brush = ffi::new_brush_gradient(&g);
+        brush_set_transform(brush.pin_mut(), trans);
+        brush
+    }
+}
+
+impl Brush for RadialGradientBrush {
+    fn create(&self, trans: RelativeToLogical) -> UniquePtr<ffi::QBrush> {
+        let trans = trans.then_scale(1.0, self.radius.height / self.radius.width);
+        let mut g = ffi::new_gradient_radial(
+            QPointF(Point::new(self.center.x, self.center.y)),
+            self.radius.width,
+            QPointF(Point::new(self.origin.x, self.origin.y)),
+        );
+        for stop in &self.stops {
+            g.pin_mut().setColorAt(stop.pos, &QColor::from(stop.color));
+        }
+        let mut brush = ffi::new_brush_gradient(&g);
+        brush_set_transform(brush.pin_mut(), trans);
+        brush
+    }
+}
+
+fn brush_set_transform(b: Pin<&mut ffi::QBrush>, trans: RelativeToLogical) {
+    ffi::brush_set_transform(
+        b, trans.m11, trans.m12, trans.m21, trans.m22, trans.m31, trans.m32,
+    );
 }
 
 /// Drawing pen.
 pub trait Pen {
     #[doc(hidden)]
-    fn create(&self) -> UniquePtr<ffi::QPen>;
+    fn create(&self, trans: RelativeToLogical) -> UniquePtr<ffi::QPen>;
 }
 
 impl<P: Pen> Pen for &'_ P {
-    fn create(&self) -> UniquePtr<ffi::QPen> {
-        (**self).create()
+    fn create(&self, trans: RelativeToLogical) -> UniquePtr<ffi::QPen> {
+        (**self).create(trans)
     }
 }
 
 impl<B: Brush> Pen for BrushPen<B> {
-    fn create(&self) -> UniquePtr<ffi::QPen> {
-        let brush = self.brush.create();
+    fn create(&self, trans: RelativeToLogical) -> UniquePtr<ffi::QPen> {
+        let brush = self.brush.create(trans);
         ffi::new_pen(&brush, self.width)
     }
 }
@@ -479,5 +530,26 @@ mod ffi {
         fn color_transparent(c: Pin<&mut QColor>);
         fn new_brush(c: &QColor) -> UniquePtr<QBrush>;
         fn new_pen(b: &QBrush, width: f64) -> UniquePtr<QPen>;
+
+        type QGradient;
+
+        fn new_gradient_linear(start: QPointF, end: QPointF) -> UniquePtr<QGradient>;
+        fn new_gradient_radial(
+            center: QPointF,
+            radius: f64,
+            origin: QPointF,
+        ) -> UniquePtr<QGradient>;
+        fn setColorAt(self: Pin<&mut QGradient>, pos: f64, c: &QColor);
+
+        fn new_brush_gradient(g: &QGradient) -> UniquePtr<QBrush>;
+        fn brush_set_transform(
+            b: Pin<&mut QBrush>,
+            m11: f64,
+            m12: f64,
+            m21: f64,
+            m22: f64,
+            m31: f64,
+            m32: f64,
+        );
     }
 }

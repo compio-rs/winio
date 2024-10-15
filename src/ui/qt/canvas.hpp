@@ -1,6 +1,7 @@
 #pragma once
 
 #include "callback.hpp"
+#include <QGradient>
 #include <QMouseEvent>
 #include <QPaintEvent>
 #include <QPainter>
@@ -50,15 +51,10 @@ void color_transparent(QColor &c);
 std::unique_ptr<QBrush> new_brush(QColor const &c);
 std::unique_ptr<QPen> new_pen(QBrush const &b, double width);
 
-enum DrawCommandType {
-    DrawArc,
-    FillPie,
-    DrawEllipse,
-    FillEllipse,
-    DrawLine,
-    DrawRect,
-    FillRect,
-    DrawRoundRect,
-    FillRoundRect,
-    DrawStr,
-};
+std::unique_ptr<QGradient> new_gradient_linear(QPointF start, QPointF end);
+std::unique_ptr<QGradient> new_gradient_radial(QPointF center, double radius,
+                                               QPointF origin);
+
+std::unique_ptr<QBrush> new_brush_gradient(QGradient const &g);
+void brush_set_transform(QBrush &b, double m11, double m12, double m21,
+                         double m22, double m31, double m32);
