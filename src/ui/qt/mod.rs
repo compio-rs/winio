@@ -19,6 +19,12 @@ pub use button::*;
 mod edit;
 pub use edit::*;
 
+mod label;
+pub use label::*;
+
+mod progress;
+pub use progress::*;
+
 use crate::ColorTheme;
 
 pub fn color_theme() -> ColorTheme {

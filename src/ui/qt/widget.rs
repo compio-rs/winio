@@ -28,6 +28,11 @@ impl Widget {
         self.widget.pin_mut()
     }
 
+    pub fn preferred_size(&self) -> Size {
+        let s = self.widget.sizeHint();
+        Size::new(s.width as _, s.height as _)
+    }
+
     pub fn loc(&self) -> Point {
         Point::new(self.widget.x() as _, self.widget.y() as _)
     }
@@ -80,7 +85,17 @@ impl Debug for Widget {
 }
 
 #[repr(C)]
-#[doc(hidden)]
+pub struct QSize {
+    pub width: i32,
+    pub height: i32,
+}
+
+unsafe impl ExternType for QSize {
+    type Id = type_id!("QSize");
+    type Kind = cxx::kind::Trivial;
+}
+
+#[repr(C)]
 pub struct QRect {
     pub x1: i32,
     pub y1: i32,
@@ -102,6 +117,7 @@ mod ffi {
         fn is_dark() -> bool;
 
         type QWidget;
+        type QSize = super::QSize;
         type QRect = super::QRect;
 
         fn new_main_window() -> UniquePtr<QWidget>;
@@ -114,6 +130,7 @@ mod ffi {
         fn height(self: &QWidget) -> i32;
         fn resize(self: Pin<&mut QWidget>, w: i32, h: i32);
         fn geometry(self: &QWidget) -> &QRect;
+        fn sizeHint(self: &QWidget) -> QSize;
         fn update(self: Pin<&mut QWidget>);
         fn show(self: Pin<&mut QWidget>);
 

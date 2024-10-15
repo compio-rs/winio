@@ -27,6 +27,10 @@ impl Button {
         }
     }
 
+    pub fn preferred_size(&self) -> Size {
+        self.widget.preferred_size()
+    }
+
     pub fn loc(&self) -> Point {
         self.widget.loc()
     }

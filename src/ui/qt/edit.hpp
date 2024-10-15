@@ -6,7 +6,7 @@
 
 using QtAlignmentFlag = Qt::AlignmentFlag;
 
-std::unique_ptr<QWidget> new_line_edit(QWidget *parent);
+std::unique_ptr<QWidget> new_line_edit(QWidget *parent, bool password);
 void line_edit_connect_changed(QWidget &w, callback_fn_t<void()> callback,
                                std::uint8_t const *data);
 rust::String line_edit_get_text(QWidget const &w);
