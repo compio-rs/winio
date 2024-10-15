@@ -19,6 +19,17 @@ impl Widget {
         Self { widget }
     }
 
+    pub fn preferred_size(&self) -> Size {
+        let (_, size) = self.widget.preferred_size();
+        let (_, width, ..) = self
+            .widget
+            .measure(gtk4::Orientation::Horizontal, size.width());
+        let (_, height, ..) = self
+            .widget
+            .measure(gtk4::Orientation::Vertical, size.height());
+        Size::new(width as _, height as _)
+    }
+
     pub fn loc(&self) -> Point {
         let parent = self.widget.parent().unwrap();
         let fixed = parent.downcast::<gtk4::Fixed>().unwrap();
@@ -33,16 +44,10 @@ impl Widget {
     }
 
     pub fn size(&self) -> Size {
-        let (_, size) = self.widget.preferred_size();
-        let (_, width, ..) = self
-            .widget
-            .measure(gtk4::Orientation::Horizontal, size.width());
-        let (_, height, ..) = self
-            .widget
-            .measure(gtk4::Orientation::Vertical, size.height());
+        let preferred_size = self.preferred_size();
         Size::new(
-            self.widget.width().max(width) as f64,
-            self.widget.height().max(height) as f64,
+            (self.widget.width() as f64).max(preferred_size.width),
+            (self.widget.height() as f64).max(preferred_size.height),
         )
     }
 

@@ -34,6 +34,10 @@ impl Button {
         }
     }
 
+    pub fn preferred_size(&self) -> Size {
+        self.handle.preferred_size()
+    }
+
     pub fn loc(&self) -> Point {
         self.handle.loc()
     }
