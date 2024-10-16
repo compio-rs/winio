@@ -122,6 +122,7 @@ impl App {
         self.block_on(async {
             let (sender, mut receiver) = component_channel();
             let mut model = T::init(counter, root, &sender);
+            model.render(&sender);
             loop {
                 let fut_start = model.start(&sender);
                 let fut_recv = receiver.recv();

@@ -3,9 +3,9 @@ use std::time::Duration;
 use compio::{runtime::spawn, time::timeout};
 use cyper::Client;
 use winio::{
-    App, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, Component, ComponentSender,
-    DrawingFontBuilder, Edit, HAlign, Layoutable, Orient, Point, Size, SolidColorBrush, StackPanel,
-    VAlign, Window, WindowEvent,
+    App, Button, ButtonEvent, Canvas, CanvasEvent, Child, Color, ColorTheme, Component,
+    ComponentSender, DrawingFontBuilder, Edit, HAlign, Layoutable, Orient, Point, Size,
+    SolidColorBrush, StackPanel, VAlign, Window, WindowEvent,
 };
 
 fn main() {
@@ -84,7 +84,11 @@ impl Component for MainModel {
     async fn start(&mut self, sender: &winio::ComponentSender<Self>) {
         let fut_window = self.window.start(sender, |e| match e {
             WindowEvent::Close => Some(MainMessage::Close),
-            WindowEvent::Move | WindowEvent::Resize => Some(MainMessage::Redraw),
+            WindowEvent::Resize => Some(MainMessage::Redraw),
+            _ => None,
+        });
+        let fut_canvas = self.canvas.start(sender, |e| match e {
+            CanvasEvent::Redraw => Some(MainMessage::Redraw),
             _ => None,
         });
         let fut_button = self.button.start(sender, |e| match e {
@@ -92,7 +96,7 @@ impl Component for MainModel {
             _ => None,
         });
         let fut_entry = self.entry.start(sender, |_| None);
-        futures_util::future::join3(fut_window, fut_button, fut_entry).await;
+        futures_util::future::join4(fut_window, fut_canvas, fut_button, fut_entry).await;
     }
 
     async fn update(

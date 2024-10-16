@@ -46,6 +46,11 @@ impl FileBox {
         self.0.open_multiple(parent).await
     }
 
+    /// Show open file dialog, select folder only.
+    pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
+        self.0.open_folder(parent).await
+    }
+
     /// Show save file dialog.
     pub async fn save(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
         self.0.save(parent).await

@@ -49,15 +49,28 @@ impl FileBox {
     }
 
     pub async fn open(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
-        self.filebox(parent, true, false).await.into_iter().next()
+        self.filebox(parent, true, false, false)
+            .await
+            .into_iter()
+            .next()
     }
 
     pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Vec<PathBuf> {
-        self.filebox(parent, true, true).await
+        self.filebox(parent, true, true, false).await
+    }
+
+    pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
+        self.filebox(parent, true, false, true)
+            .await
+            .into_iter()
+            .next()
     }
 
     pub async fn save(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
-        self.filebox(parent, false, false).await.into_iter().next()
+        self.filebox(parent, false, false, false)
+            .await
+            .into_iter()
+            .next()
     }
 
     async fn filebox(
@@ -65,6 +78,7 @@ impl FileBox {
         parent: Option<impl AsWindow>,
         open: bool,
         multiple: bool,
+        folder: bool,
     ) -> Vec<PathBuf> {
         let parent = parent
             .map(|p| p.as_window().as_raw_window())
@@ -75,6 +89,8 @@ impl FileBox {
             b.pin_mut().setAcceptMode(QFileDialogAcceptMode::AcceptOpen);
             b.pin_mut().setFileMode(if multiple {
                 QFileDialogFileMode::ExistingFiles
+            } else if folder {
+                QFileDialogFileMode::Directory
             } else {
                 QFileDialogFileMode::ExistingFile
             });
@@ -133,7 +149,6 @@ unsafe impl ExternType for QFileDialogAcceptMode {
 }
 
 #[repr(i32)]
-#[allow(dead_code)]
 enum QFileDialogFileMode {
     AnyFile,
     ExistingFile,

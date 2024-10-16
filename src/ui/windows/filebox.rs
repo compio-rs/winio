@@ -6,8 +6,8 @@ use windows::{
         Foundation::{ERROR_CANCELLED, HWND},
         System::Com::{CLSCTX_INPROC_SERVER, CoCreateInstance, CoTaskMemFree},
         UI::Shell::{
-            Common::COMDLG_FILTERSPEC, FOS_ALLOWMULTISELECT, FileOpenDialog, FileSaveDialog,
-            IFileDialog, IFileOpenDialog, SIGDN_FILESYSPATH,
+            Common::COMDLG_FILTERSPEC, FOS_ALLOWMULTISELECT, FOS_PICKFOLDERS, FileOpenDialog,
+            FileSaveDialog, IFileDialog, IFileOpenDialog, SIGDN_FILESYSPATH,
         },
     },
     core::{HRESULT, Interface, PCWSTR},
@@ -64,7 +64,16 @@ impl FileBox {
             .unwrap_or_default();
         compio::runtime::spawn_blocking(move || unsafe {
             let parent = HWND(parent as _);
-            filebox(parent, self.title, self.filename, self.filters, true, false).result()
+            filebox(
+                parent,
+                self.title,
+                self.filename,
+                self.filters,
+                true,
+                false,
+                false,
+            )
+            .result()
         })
         .await
         .unwrap_or_else(|e| resume_unwind(e))
@@ -76,7 +85,37 @@ impl FileBox {
             .unwrap_or_default();
         compio::runtime::spawn_blocking(move || unsafe {
             let parent = HWND(parent as _);
-            filebox(parent, self.title, self.filename, self.filters, true, true).results()
+            filebox(
+                parent,
+                self.title,
+                self.filename,
+                self.filters,
+                true,
+                true,
+                false,
+            )
+            .results()
+        })
+        .await
+        .unwrap_or_else(|e| resume_unwind(e))
+    }
+
+    pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
+        let parent = parent
+            .map(|p| p.as_window().as_raw_window() as isize)
+            .unwrap_or_default();
+        compio::runtime::spawn_blocking(move || unsafe {
+            let parent = HWND(parent as _);
+            filebox(
+                parent,
+                self.title,
+                self.filename,
+                self.filters,
+                true,
+                false,
+                true,
+            )
+            .result()
         })
         .await
         .unwrap_or_else(|e| resume_unwind(e))
@@ -95,6 +134,7 @@ impl FileBox {
                 self.filters,
                 false,
                 false,
+                false,
             )
             .result()
         })
@@ -110,6 +150,7 @@ unsafe fn filebox(
     filters: Vec<FileFilter>,
     open: bool,
     multiple: bool,
+    folder: bool,
 ) -> FileBoxInner {
     let handle: IFileDialog = if open {
         CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER).unwrap()
@@ -138,6 +179,14 @@ unsafe fn filebox(
 
         let mut opts = handle.GetOptions().unwrap();
         opts |= FOS_ALLOWMULTISELECT;
+        handle.SetOptions(opts).unwrap();
+    }
+
+    if folder {
+        debug_assert!(open, "Cannot save to a folder.");
+
+        let mut opts = handle.GetOptions().unwrap();
+        opts |= FOS_PICKFOLDERS;
         handle.SetOptions(opts).unwrap();
     }
 

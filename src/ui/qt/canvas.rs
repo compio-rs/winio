@@ -1,6 +1,7 @@
 use std::pin::Pin;
 
 use cxx::{ExternType, UniquePtr, type_id};
+use image::{DynamicImage, Pixel, Rgb, Rgba};
 
 use crate::{
     AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, HAlign, LinearGradientBrush, MouseButton,
@@ -91,6 +92,10 @@ impl Canvas {
             size: self.widget.size(),
             canvas: self,
         }
+    }
+
+    pub async fn wait_redraw(&self) {
+        std::future::pending().await
     }
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
@@ -239,6 +244,20 @@ impl DrawingContext<'_> {
         self.set_pen(BrushPen::new(brush, 1.0), rect);
         ffi::painter_draw_text(self.painter.pin_mut(), QRectF(rect), text);
     }
+
+    pub fn create_image(&self, image: DynamicImage) -> DrawingImage {
+        DrawingImage::new(image)
+    }
+
+    pub fn draw_image(&mut self, image: &DrawingImage, rect: Rect, clip: Option<Rect>) {
+        let clip = clip.unwrap_or_else(|| Rect::new(Point::zero(), image.size()));
+        ffi::painter_draw_image(
+            self.painter.pin_mut(),
+            &QRectF(rect),
+            &image.pixmap,
+            &QRectF(clip),
+        );
+    }
 }
 
 /// Drawing brush.
@@ -313,6 +332,60 @@ impl<B: Brush> Pen for BrushPen<B> {
     fn create(&self, trans: RelativeToLogical) -> UniquePtr<ffi::QPen> {
         let brush = self.brush.create(trans);
         ffi::new_pen(&brush, self.width)
+    }
+}
+
+pub struct DrawingImage {
+    #[allow(dead_code)]
+    buffer: Vec<u8>,
+    pixmap: UniquePtr<ffi::QImage>,
+}
+
+impl DrawingImage {
+    fn new(image: DynamicImage) -> Self {
+        let width = image.width();
+        let height = image.height();
+        let (format, buffer, count) = match image {
+            DynamicImage::ImageRgb8(_) => (
+                QImageFormat::RGB888,
+                image.into_bytes(),
+                Rgb::<u8>::CHANNEL_COUNT,
+            ),
+            DynamicImage::ImageRgba8(_) => (
+                QImageFormat::RGBA8888,
+                image.into_bytes(),
+                Rgba::<u8>::CHANNEL_COUNT,
+            ),
+            DynamicImage::ImageRgba16(_) => (
+                QImageFormat::RGBA64,
+                image.into_bytes(),
+                Rgba::<u16>::CHANNEL_COUNT * 2,
+            ),
+            DynamicImage::ImageRgba32F(_) => (
+                QImageFormat::RGBA32FPx4,
+                image.into_bytes(),
+                Rgba::<f32>::CHANNEL_COUNT * 4,
+            ),
+            _ => (
+                QImageFormat::RGBA32FPx4,
+                DynamicImage::ImageRgba32F(image.into_rgba32f()).into_bytes(),
+                Rgba::<f32>::CHANNEL_COUNT * 4,
+            ),
+        };
+        let pixmap = unsafe {
+            ffi::new_image(
+                width as _,
+                height as _,
+                (width * count as u32) as _,
+                buffer.as_ptr(),
+                format,
+            )
+        };
+        Self { buffer, pixmap }
+    }
+
+    pub fn size(&self) -> Size {
+        Size::new(self.pixmap.width() as _, self.pixmap.height() as _)
     }
 }
 
@@ -455,6 +528,21 @@ unsafe impl ExternType for QSizeF {
     type Kind = cxx::kind::Trivial;
 }
 
+#[derive(Debug, Clone, Copy)]
+#[repr(i32)]
+#[non_exhaustive]
+pub enum QImageFormat {
+    RGB888     = 13,
+    RGBA8888   = 17,
+    RGBA64     = 26,
+    RGBA32FPx4 = 34,
+}
+
+unsafe impl ExternType for QImageFormat {
+    type Id = type_id!("QImageFormat");
+    type Kind = cxx::kind::Trivial;
+}
+
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++" {
@@ -550,5 +638,25 @@ mod ffi {
             m31: f64,
             m32: f64,
         );
+
+        type QImage;
+        type QImageFormat = super::QImageFormat;
+
+        unsafe fn new_image(
+            width: i32,
+            height: i32,
+            stride: i32,
+            bits: *const u8,
+            format: QImageFormat,
+        ) -> UniquePtr<QImage>;
+        fn painter_draw_image(
+            p: Pin<&mut QPainter>,
+            target: &QRectF,
+            image: &QImage,
+            source: &QRectF,
+        );
+
+        fn width(self: &QImage) -> i32;
+        fn height(self: &QImage) -> i32;
     }
 }

@@ -158,7 +158,7 @@ impl Component for ComboBox {
             ComboBoxMessage::Replace { at, value } => self.set(at, value),
             ComboBoxMessage::Clear => self.clear(),
         }
-        false
+        true
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {}
@@ -292,7 +292,7 @@ impl Component for ComboEntry {
             ComboBoxMessage::Replace { at, value } => self.set(at, value),
             ComboBoxMessage::Clear => self.clear(),
         }
-        false
+        true
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {}

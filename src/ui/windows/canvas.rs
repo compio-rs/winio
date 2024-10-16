@@ -1,6 +1,7 @@
 use std::{marker::PhantomData, mem::MaybeUninit};
 
 use futures_util::FutureExt;
+use image::{DynamicImage, Pixel, Rgba};
 use widestring::U16CString;
 use windows::{
     Foundation::Numerics::Matrix3x2,
@@ -11,31 +12,32 @@ use windows::{
                 D2D1_COLOR_F, D2D1_FIGURE_BEGIN_HOLLOW, D2D1_FIGURE_END_CLOSED,
                 D2D1_FIGURE_END_OPEN, D2D1_GRADIENT_STOP, D2D1_PIXEL_FORMAT,
             },
-            D2D1_ARC_SEGMENT, D2D1_ARC_SIZE_LARGE, D2D1_ARC_SIZE_SMALL, D2D1_BRUSH_PROPERTIES,
-            D2D1_DRAW_TEXT_OPTIONS_NONE, D2D1_ELLIPSE, D2D1_EXTEND_MODE_CLAMP,
-            D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1_FEATURE_LEVEL_DEFAULT, D2D1_GAMMA_2_2,
-            D2D1_HWND_RENDER_TARGET_PROPERTIES, D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES,
-            D2D1_PRESENT_OPTIONS_NONE, D2D1_RADIAL_GRADIENT_BRUSH_PROPERTIES,
-            D2D1_RENDER_TARGET_PROPERTIES, D2D1_RENDER_TARGET_TYPE_DEFAULT,
-            D2D1_RENDER_TARGET_USAGE_NONE, D2D1_ROUNDED_RECT, D2D1_SWEEP_DIRECTION_CLOCKWISE,
-            D2D1CreateFactory, ID2D1Brush, ID2D1Factory, ID2D1Geometry, ID2D1HwndRenderTarget,
-            ID2D1RenderTarget,
+            D2D1_ARC_SEGMENT, D2D1_ARC_SIZE_LARGE, D2D1_ARC_SIZE_SMALL,
+            D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR, D2D1_BITMAP_PROPERTIES,
+            D2D1_BRUSH_PROPERTIES, D2D1_DRAW_TEXT_OPTIONS_NONE, D2D1_ELLIPSE,
+            D2D1_EXTEND_MODE_CLAMP, D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1_FEATURE_LEVEL_DEFAULT,
+            D2D1_GAMMA_2_2, D2D1_HWND_RENDER_TARGET_PROPERTIES,
+            D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES, D2D1_PRESENT_OPTIONS_NONE,
+            D2D1_RADIAL_GRADIENT_BRUSH_PROPERTIES, D2D1_RENDER_TARGET_PROPERTIES,
+            D2D1_RENDER_TARGET_TYPE_HARDWARE, D2D1_RENDER_TARGET_USAGE_NONE, D2D1_ROUNDED_RECT,
+            D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1CreateFactory, ID2D1Bitmap, ID2D1Brush,
+            ID2D1Factory, ID2D1Geometry, ID2D1HwndRenderTarget, ID2D1RenderTarget,
         },
         DirectWrite::{
             DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC,
             DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_WEIGHT_NORMAL,
             DWriteCreateFactory, IDWriteFactory, IDWriteTextLayout,
         },
-        Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM,
+        Dxgi::Common::{DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM},
     },
     core::Interface,
 };
 use windows_sys::Win32::{
     System::SystemServices::SS_OWNERDRAW,
     UI::{
-        Controls::WC_STATICW,
+        Controls::{DRAWITEMSTRUCT, WC_STATICW},
         WindowsAndMessaging::{
-            WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE,
+            WM_DRAWITEM, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE,
             WM_RBUTTONDOWN, WM_RBUTTONUP, WS_CHILD, WS_VISIBLE,
         },
     },
@@ -70,7 +72,7 @@ impl Canvas {
         let target = unsafe {
             d2d.CreateHwndRenderTarget(
                 &D2D1_RENDER_TARGET_PROPERTIES {
-                    r#type: D2D1_RENDER_TARGET_TYPE_DEFAULT,
+                    r#type: D2D1_RENDER_TARGET_TYPE_HARDWARE,
                     pixelFormat: D2D1_PIXEL_FORMAT {
                         format: DXGI_FORMAT_B8G8R8A8_UNORM,
                         alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
@@ -133,6 +135,16 @@ impl Canvas {
                 d2d: self.d2d.clone(),
                 dwrite: self.dwrite.clone(),
                 _p: PhantomData,
+            }
+        }
+    }
+
+    pub async fn wait_redraw(&self) {
+        loop {
+            let msg = self.handle.wait_parent(WM_DRAWITEM).await;
+            let ds = unsafe { &mut *(msg.lParam as *mut DRAWITEMSTRUCT) };
+            if ds.hwndItem == self.handle.as_raw_window() {
+                break;
             }
         }
     }
@@ -433,6 +445,23 @@ impl DrawingContext<'_> {
             );
         }
     }
+
+    pub fn create_image(&self, image: DynamicImage) -> DrawingImage {
+        DrawingImage::new(&self.target, image)
+    }
+
+    pub fn draw_image(&mut self, image: &DrawingImage, rect: Rect, clip: Option<Rect>) {
+        unsafe {
+            let clip = clip.map(rect_f);
+            self.target.DrawBitmap(
+                &image.0,
+                Some(&rect_f(rect)),
+                1.0,
+                D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR,
+                clip.as_ref().map(|r| r as *const _),
+            );
+        }
+    }
 }
 
 impl Drop for DrawingContext<'_> {
@@ -549,5 +578,46 @@ impl<B: Brush> Pen for BrushPen<B> {
     fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToLogical) -> (ID2D1Brush, f32) {
         let brush = self.brush.create(target, trans);
         (brush, self.width as _)
+    }
+}
+
+pub struct DrawingImage(ID2D1Bitmap);
+
+impl DrawingImage {
+    fn new(target: &ID2D1RenderTarget, image: DynamicImage) -> Self {
+        let image = match image {
+            DynamicImage::ImageRgba8(image) => image,
+            _ => image.into_rgba8(),
+        };
+        let mut dpix = 0.0;
+        let mut dpiy = 0.0;
+        unsafe { target.GetDpi(&mut dpix, &mut dpiy) };
+        let prop = D2D1_BITMAP_PROPERTIES {
+            pixelFormat: D2D1_PIXEL_FORMAT {
+                format: DXGI_FORMAT_R8G8B8A8_UNORM,
+                alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
+            },
+            dpiX: dpix,
+            dpiY: dpiy,
+        };
+        let bitmap = unsafe {
+            target
+                .CreateBitmap(
+                    D2D_SIZE_U {
+                        width: image.width(),
+                        height: image.height(),
+                    },
+                    Some(image.as_ptr().cast()),
+                    image.width() * Rgba::<u8>::CHANNEL_COUNT as u32,
+                    &prop,
+                )
+                .unwrap()
+        };
+        Self(bitmap)
+    }
+
+    pub fn size(&self) -> Size {
+        let size = unsafe { self.0.GetSize() };
+        Size::new(size.width as _, size.height as _)
     }
 }

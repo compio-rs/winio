@@ -2,20 +2,22 @@ use std::{cell::RefCell, f64::consts::PI, rc::Rc};
 
 use core_graphics::{color_space::CGColorSpace, context::CGContext, geometry};
 use foreign_types_shared::ForeignType;
+use image::{DynamicImage, Pixel, Rgb, Rgba};
 use objc2::{
     ClassType, DeclaredClass, Encode, Encoding, class, declare_class, msg_send, msg_send_id,
     mutability::MainThreadOnly,
     rc::{Allocated, Id},
 };
 use objc2_app_kit::{
-    NSAttributedStringNSStringDrawing, NSBezierPath, NSColor, NSColorSpace, NSEvent, NSEventType,
-    NSFont, NSFontAttributeName, NSFontDescriptor, NSFontDescriptorSymbolicTraits,
-    NSForegroundColorAttributeName, NSGradient, NSGradientDrawingOptions, NSGraphicsContext,
-    NSTrackingArea, NSTrackingAreaOptions, NSView,
+    NSAttributedStringNSStringDrawing, NSBezierPath, NSBitmapFormat, NSBitmapImageRep, NSColor,
+    NSColorSpace, NSDeviceRGBColorSpace, NSEvent, NSEventType, NSFont, NSFontAttributeName,
+    NSFontDescriptor, NSFontDescriptorSymbolicTraits, NSForegroundColorAttributeName, NSGradient,
+    NSGradientDrawingOptions, NSGraphicsContext, NSImage, NSTrackingArea, NSTrackingAreaOptions,
+    NSView,
 };
 use objc2_foundation::{
     CGPoint, CGRect, MainThreadMarker, NSAffineTransform, NSAttributedString, NSDictionary,
-    NSMutableArray, NSPoint, NSString,
+    NSMutableArray, NSPoint, NSRect, NSString,
 };
 
 use crate::{
@@ -69,6 +71,10 @@ impl Canvas {
         }
     }
 
+    pub async fn wait_redraw(&self) {
+        self.view.ivars().draw_rect.wait().await;
+    }
+
     pub async fn wait_mouse_down(&self) -> MouseButton {
         self.view.ivars().mouse_down.wait().await
     }
@@ -91,6 +97,7 @@ impl Canvas {
 
 #[derive(Default, Clone)]
 struct CanvasViewIvars {
+    draw_rect: Callback,
     mouse_down: Callback<MouseButton>,
     mouse_up: Callback<MouseButton>,
     mouse_move: Callback,
@@ -138,6 +145,11 @@ declare_class! {
                 *area = Some(new_area);
             }
             msg_send![super(self), updateTrackingAreas]
+        }
+
+        #[method(drawRect:)]
+        unsafe fn drawRect(&self, _dirty_rect: NSRect) {
+            self.ivars().draw_rect.signal(());
         }
 
         #[method(mouseDown:)]
@@ -250,6 +262,24 @@ impl DrawingContext<'_> {
             || self.fill_rect(brush, rect),
         )
     }
+
+    pub fn create_image(&self, image: DynamicImage) -> DrawingImage {
+        DrawingImage::new(image)
+    }
+
+    pub fn draw_image(&mut self, image_rep: &DrawingImage, rect: Rect, clip: Option<Rect>) {
+        unsafe {
+            let image = NSImage::initWithSize(NSImage::alloc(), image_rep.0.size());
+            image.addRepresentation(&image_rep.0);
+            NSGraphicsContext::saveGraphicsState_class();
+            if let Some(clip) = clip {
+                let clip_path = path_rect(self.size, clip);
+                clip_path.addClip();
+            }
+            image.drawInRect(transform_rect(self.size, rect));
+            NSGraphicsContext::restoreGraphicsState_class();
+        }
+    }
 }
 
 fn path_arc(s: Size, rect: Rect, start: f64, end: f64) -> Id<NSBezierPath> {
@@ -296,19 +326,20 @@ fn path_line(s: Size, start: Point, end: Point) -> Id<NSBezierPath> {
     }
 }
 
-fn path_rect(s: Size, rect: Rect) -> Id<NSBezierPath> {
-    let rect = CGRect::new(
+fn transform_rect(s: Size, rect: Rect) -> CGRect {
+    CGRect::new(
         CGPoint::new(rect.origin.x, s.height - rect.size.height - rect.origin.y),
         to_cgsize(rect.size),
-    );
+    )
+}
+
+fn path_rect(s: Size, rect: Rect) -> Id<NSBezierPath> {
+    let rect = transform_rect(s, rect);
     unsafe { NSBezierPath::bezierPathWithRect(rect) }
 }
 
 fn path_round_rect(s: Size, rect: Rect, round: Size) -> Id<NSBezierPath> {
-    let rect = CGRect::new(
-        CGPoint::new(rect.origin.x, s.height - rect.size.height - rect.origin.y),
-        to_cgsize(rect.size),
-    );
+    let rect = transform_rect(s, rect);
     unsafe {
         NSBezierPath::bezierPathWithRoundedRect_xRadius_yRadius(rect, round.width, round.height)
     }
@@ -542,5 +573,47 @@ impl<B: Brush> Pen for BrushPen<B> {
             },
             || self.brush.draw(&region_path, size, rect),
         )
+    }
+}
+
+pub struct DrawingImage(Id<NSBitmapImageRep>);
+
+impl DrawingImage {
+    fn new(image: DynamicImage) -> Self {
+        let width = image.width();
+        let height = image.height();
+        let (mut buffer, spp, alpha, ccount) = match image {
+            DynamicImage::ImageRgb8(_) => (image.into_bytes(), 3, false, Rgb::<u8>::CHANNEL_COUNT),
+            DynamicImage::ImageRgba8(_) => (image.into_bytes(), 4, true, Rgba::<u8>::CHANNEL_COUNT),
+            _ => (
+                DynamicImage::ImageRgba8(image.into_rgba8()).into_bytes(),
+                4,
+                true,
+                Rgba::<u8>::CHANNEL_COUNT,
+            ),
+        };
+        let mut ptr = buffer.as_mut_ptr();
+        unsafe {
+            Self(NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bitmapFormat_bytesPerRow_bitsPerPixel(
+                    NSBitmapImageRep::alloc(),
+                    &mut ptr,
+                    width as _,
+                    height as _,
+                    8,
+                    spp,
+                    alpha,
+                    false,
+                    NSDeviceRGBColorSpace,
+                    NSBitmapFormat::AlphaNonpremultiplied,
+                    (ccount as u32 * width) as _,
+                    spp * 8,
+                )
+                .unwrap()
+            )
+        }
+    }
+
+    pub fn size(&self) -> Size {
+        from_cgsize(unsafe { self.0.size() })
     }
 }

@@ -18,6 +18,7 @@ cfg-if = "1"
 euclid = "0.22"
 futures-util = { version = "0.3", features = ["alloc"] }
 futures-channel = "0.3"
+image = { version = "0.25", default-features = false }
 once_cell = "1"
 rgb = "0.8"
 slab = "0.4"
@@ -82,6 +83,7 @@ objc2-app-kit = { version = "0.2", features = [
     "NSApplication",
     "NSAttributedString",
     "NSBezierPath",
+    "NSBitmapImageRep",
     "NSButton",
     "NSButtonCell",
     "NSColor",
@@ -94,6 +96,8 @@ objc2-app-kit = { version = "0.2", features = [
     "NSGradient",
     "NSGraphics",
     "NSGraphicsContext",
+    "NSImage",
+    "NSImageRep",
     "NSOpenPanel",
     "NSPanel",
     "NSProgressIndicator",
@@ -127,7 +131,11 @@ cyper = { version = "0.1.5", default-features = false, features = [
 ] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 
+dirs = "5.0"
 futures-util = "0.3"
+image = { version = "0.25", default-features = false, features = [
+    "default-formats",
+] }
 tracing-subscriber = "0.3"
 
 [build-dependencies]
