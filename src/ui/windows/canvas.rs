@@ -35,9 +35,9 @@ use windows::{
 use windows_sys::Win32::{
     System::SystemServices::SS_OWNERDRAW,
     UI::{
-        Controls::WC_STATICW,
+        Controls::{DRAWITEMSTRUCT, WC_STATICW},
         WindowsAndMessaging::{
-            WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE,
+            WM_DRAWITEM, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE,
             WM_RBUTTONDOWN, WM_RBUTTONUP, WS_CHILD, WS_VISIBLE,
         },
     },
@@ -135,6 +135,16 @@ impl Canvas {
                 d2d: self.d2d.clone(),
                 dwrite: self.dwrite.clone(),
                 _p: PhantomData,
+            }
+        }
+    }
+
+    pub async fn wait_redraw(&self) {
+        loop {
+            let msg = self.handle.wait_parent(WM_DRAWITEM).await;
+            let ds = unsafe { &mut *(msg.lParam as *mut DRAWITEMSTRUCT) };
+            if ds.hwndItem == self.handle.as_raw_window() {
+                break;
             }
         }
     }

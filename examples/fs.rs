@@ -5,9 +5,9 @@ use std::{
 
 use compio::{fs::File, io::AsyncReadAtExt, runtime::spawn};
 use winio::{
-    App, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, Component, ComponentSender,
-    DrawingFontBuilder, FileBox, HAlign, Label, Layoutable, Orient, Point, Size, SolidColorBrush,
-    StackPanel, VAlign, Window, WindowEvent,
+    App, Button, ButtonEvent, Canvas, CanvasEvent, Child, Color, ColorTheme, Component,
+    ComponentSender, DrawingFontBuilder, FileBox, HAlign, Label, Layoutable, Orient, Point, Size,
+    SolidColorBrush, StackPanel, VAlign, Window, WindowEvent,
 };
 
 fn main() {
@@ -84,14 +84,18 @@ impl Component for MainModel {
     async fn start(&mut self, sender: &winio::ComponentSender<Self>) {
         let fut_window = self.window.start(sender, |e| match e {
             WindowEvent::Close => Some(MainMessage::Close),
-            WindowEvent::Move | WindowEvent::Resize => Some(MainMessage::Redraw),
+            WindowEvent::Resize => Some(MainMessage::Redraw),
+            _ => None,
+        });
+        let fut_canvas = self.canvas.start(sender, |e| match e {
+            CanvasEvent::Redraw => Some(MainMessage::Redraw),
             _ => None,
         });
         let fut_button = self.button.start(sender, |e| match e {
             ButtonEvent::Click => Some(MainMessage::ChooseFile),
             _ => None,
         });
-        futures_util::future::join(fut_window, fut_button).await;
+        futures_util::future::join3(fut_window, fut_canvas, fut_button).await;
     }
 
     async fn update(

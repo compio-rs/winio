@@ -1,10 +1,10 @@
 use winio::{
-    App, BrushPen, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, ComboBox, ComboBoxEvent,
-    ComboBoxMessage, Component, ComponentSender, DrawingFontBuilder, Edit, GradientStop, Grid,
-    HAlign, Label, Layoutable, LinearGradientBrush, Margin, MessageBox, MessageBoxButton,
-    ObservableVec, ObservableVecEvent, Orient, PasswordEdit, Point, Progress, RadialGradientBrush,
-    Rect, RelativePoint, RelativeSize, Size, SolidColorBrush, StackPanel, VAlign, Window,
-    WindowEvent,
+    App, BrushPen, Button, ButtonEvent, Canvas, CanvasEvent, Child, Color, ColorTheme, ComboBox,
+    ComboBoxEvent, ComboBoxMessage, Component, ComponentSender, DrawingFontBuilder, Edit,
+    GradientStop, Grid, HAlign, Label, Layoutable, LinearGradientBrush, Margin, MessageBox,
+    MessageBoxButton, ObservableVec, ObservableVecEvent, Orient, PasswordEdit, Point, Progress,
+    RadialGradientBrush, Rect, RelativePoint, RelativeSize, Size, SolidColorBrush, StackPanel,
+    VAlign, Window, WindowEvent,
 };
 
 fn main() {
@@ -109,11 +109,15 @@ impl Component for MainModel {
     async fn start(&mut self, sender: &ComponentSender<Self>) {
         let fut_window = self.window.start(sender, |e| match e {
             WindowEvent::Close => Some(MainMessage::Close),
-            WindowEvent::Move | WindowEvent::Resize => Some(MainMessage::Redraw),
+            WindowEvent::Resize => Some(MainMessage::Redraw),
             _ => None,
         });
         let fut_combo = self.combo.start(sender, |e| match e {
             ComboBoxEvent::Select => Some(MainMessage::Select),
+            _ => None,
+        });
+        let fut_canvas = self.canvas.start(sender, |e| match e {
+            CanvasEvent::Redraw => Some(MainMessage::Redraw),
             _ => None,
         });
         let fut_list = self.list.start(sender, |e| Some(MainMessage::List(e)));
@@ -129,7 +133,9 @@ impl Component for MainModel {
             ButtonEvent::Click => Some(MainMessage::Show),
             _ => None,
         });
-        futures_util::join!(fut_window, fut_combo, fut_list, fut_push, fut_pop, fut_show);
+        futures_util::join!(
+            fut_window, fut_combo, fut_canvas, fut_list, fut_push, fut_pop, fut_show
+        );
     }
 
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {

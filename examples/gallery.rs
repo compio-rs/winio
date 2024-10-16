@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use compio::runtime::spawn_blocking;
 use image::{DynamicImage, ImageReader};
 use winio::{
-    App, BrushPen, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, Component,
+    App, BrushPen, Button, ButtonEvent, Canvas, CanvasEvent, Child, Color, ColorTheme, Component,
     ComponentSender, DrawingImage, Edit, FileBox, Layoutable, Orient, Point, Rect, Size,
     SolidColorBrush, StackPanel, Window, WindowEvent,
 };
@@ -83,11 +83,15 @@ impl Component for MainModel {
             WindowEvent::Resize => Some(MainMessage::Redraw),
             _ => None,
         });
+        let fut_canvas = self.canvas.start(sender, |e| match e {
+            CanvasEvent::Redraw => Some(MainMessage::Redraw),
+            _ => None,
+        });
         let fut_button = self.button.start(sender, |e| match e {
             ButtonEvent::Click => Some(MainMessage::ChooseFolder),
             _ => None,
         });
-        futures_util::future::join(fut_window, fut_button).await;
+        futures_util::future::join3(fut_window, fut_canvas, fut_button).await;
     }
 
     async fn update(
