@@ -53,17 +53,49 @@ impl FileBox {
 
     pub async fn open(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
         unsafe {
-            filebox(parent, self.title, self.filename, self.filters, true, false)
-                .await
-                .result()
+            filebox(
+                parent,
+                self.title,
+                self.filename,
+                self.filters,
+                true,
+                false,
+                false,
+            )
+            .await
+            .result()
         }
     }
 
     pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Vec<PathBuf> {
         unsafe {
-            filebox(parent, self.title, self.filename, self.filters, true, true)
-                .await
-                .results()
+            filebox(
+                parent,
+                self.title,
+                self.filename,
+                self.filters,
+                true,
+                true,
+                false,
+            )
+            .await
+            .results()
+        }
+    }
+
+    pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
+        unsafe {
+            filebox(
+                parent,
+                self.title,
+                self.filename,
+                self.filters,
+                true,
+                false,
+                true,
+            )
+            .await
+            .result()
         }
     }
 
@@ -74,6 +106,7 @@ impl FileBox {
                 self.title,
                 self.filename,
                 self.filters,
+                false,
                 false,
                 false,
             )
@@ -90,14 +123,15 @@ async unsafe fn filebox(
     filters: Vec<FileFilter>,
     open: bool,
     multiple: bool,
+    folder: bool,
 ) -> FileBoxInner {
     let parent = parent.map(|p| p.as_window().as_raw_window());
 
     let mtm = MainThreadMarker::new().unwrap();
     let handle: Id<NSSavePanel> = if open {
         let handle = NSOpenPanel::openPanel(mtm);
-        handle.setCanChooseFiles(true);
-        handle.setCanChooseDirectories(false);
+        handle.setCanChooseFiles(!folder);
+        handle.setCanChooseDirectories(folder);
         handle.setResolvesAliases(false);
         if multiple {
             handle.setAllowsMultipleSelection(true);
