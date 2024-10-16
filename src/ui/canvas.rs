@@ -1,4 +1,4 @@
-use image::RgbaImage;
+use image::DynamicImage;
 
 use crate::{
     Brush, Color, DrawingFont, Pen, Point, Rect, RelativePoint, RelativeSize, Size, ui::sys,
@@ -100,6 +100,16 @@ impl<B: Brush> BrushPen<B> {
     }
 }
 
+/// Canvas compatible drawing image.
+pub struct DrawingImage(sys::DrawingImage);
+
+impl DrawingImage {
+    /// Size of the image.
+    pub fn size(&self) -> Size {
+        self.0.size()
+    }
+}
+
 /// Canvas drawing context.
 pub struct DrawingContext<'a>(sys::DrawingContext<'a>);
 
@@ -177,8 +187,13 @@ impl<'a> DrawingContext<'a> {
         self.0.draw_str(brush, fix_font(font), pos, text.as_ref());
     }
 
+    /// Create a [`DrawingContext`]-compatible image from [`DynamicImage`].
+    pub fn create_image(&self, image: DynamicImage) -> DrawingImage {
+        DrawingImage(self.0.create_image(image))
+    }
+
     /// Draw a image with RGBA format.
-    pub fn draw_image(&mut self, image: &RgbaImage, rect: Rect, clip: Option<Rect>) {
-        self.0.draw_image(image, fix_rect(rect), clip);
+    pub fn draw_image(&mut self, image: &DrawingImage, rect: Rect, clip: Option<Rect>) {
+        self.0.draw_image(&image.0, fix_rect(rect), clip);
     }
 }

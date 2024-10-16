@@ -1,11 +1,11 @@
 use std::path::{Path, PathBuf};
 
 use compio::runtime::spawn_blocking;
-use image::{ImageReader, RgbaImage};
+use image::{DynamicImage, ImageReader};
 use winio::{
     App, BrushPen, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, Component,
-    ComponentSender, Edit, FileBox, Layoutable, Orient, Point, Rect, Size, SolidColorBrush,
-    StackPanel, Window, WindowEvent,
+    ComponentSender, DrawingImage, Edit, FileBox, Layoutable, Orient, Point, Rect, Size,
+    SolidColorBrush, StackPanel, Window, WindowEvent,
 };
 
 fn main() {
@@ -22,7 +22,8 @@ struct MainModel {
     canvas: Child<Canvas>,
     button: Child<Button>,
     entry: Child<Edit>,
-    images: Vec<RgbaImage>,
+    images: Vec<Option<DynamicImage>>,
+    images_cache: Vec<DrawingImage>,
     is_dark: bool,
 }
 
@@ -33,7 +34,7 @@ enum MainMessage {
     ChooseFolder,
     OpenFolder(PathBuf),
     Clear,
-    Append(RgbaImage),
+    Append(DynamicImage),
 }
 
 impl Component for MainModel {
@@ -71,6 +72,7 @@ impl Component for MainModel {
             button,
             entry,
             images: vec![],
+            images_cache: vec![],
             is_dark,
         }
     }
@@ -123,10 +125,11 @@ impl Component for MainModel {
             }
             MainMessage::Clear => {
                 self.images.clear();
+                self.images_cache.clear();
                 true
             }
             MainMessage::Append(image) => {
-                self.images.push(image);
+                self.images.push(Some(image));
                 true
             }
         }
@@ -157,15 +160,21 @@ impl Component for MainModel {
         const MAX_COLUMN: usize = 6;
         let length = size.width / (MAX_COLUMN as f64);
         let content_length = length - 10.0;
-        for (i, image) in self.images.iter().enumerate() {
+        for (i, image) in self.images.iter_mut().enumerate() {
+            if let Some(image) = image.take() {
+                let cache = ctx.create_image(image);
+                self.images_cache.insert(i, cache);
+            }
+            let image = &self.images_cache[i];
+            let image_size = image.size();
             let c = i % MAX_COLUMN;
             let r = i / MAX_COLUMN;
             let x = c as f64 * length + 5.0;
             let y = r as f64 * length + 5.0;
             let rect = Rect::new(Point::new(x, y), Size::new(content_length, content_length));
-            let rate = content_length / image.width().max(image.height()) as f64;
-            let real_width = image.width() as f64 * rate;
-            let real_height = image.height() as f64 * rate;
+            let rate = content_length / image_size.width.max(image_size.height);
+            let real_width = image_size.width * rate;
+            let real_height = image_size.height * rate;
             let real_x = (content_length - real_width) / 2.0;
             let real_y = (content_length - real_height) / 2.0;
             let real_rect = Rect::new(
@@ -180,16 +189,11 @@ impl Component for MainModel {
 
 fn fetch(path: impl AsRef<Path>, sender: ComponentSender<MainModel>) {
     sender.post(MainMessage::Clear);
-    let mut counter = 0;
     for p in path.as_ref().read_dir().unwrap() {
-        if counter >= 10 {
-            break;
-        }
         let p = p.unwrap();
         if let Ok(reader) = ImageReader::open(p.path()) {
             if let Ok(image) = reader.decode() {
-                sender.post(MainMessage::Append(image.to_rgba8()));
-                counter += 1;
+                sender.post(MainMessage::Append(image));
             }
         }
     }
