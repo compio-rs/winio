@@ -158,25 +158,44 @@ impl Component for MainModel {
         let pen = BrushPen::new(&brush, 1.0);
 
         const MAX_COLUMN: usize = 6;
-        let length = size.width / (MAX_COLUMN as f64);
-        let content_length = length - 10.0;
+        let occupy_width = size.width / (MAX_COLUMN as f64);
+        let content_width = occupy_width - 10.0;
         for (i, image) in self.images.iter_mut().enumerate() {
             if let Some(image) = image.take() {
                 let cache = ctx.create_image(image);
                 self.images_cache.insert(i, cache);
             }
-            let image = &self.images_cache[i];
+        }
+        let content_heights = self
+            .images_cache
+            .chunks(MAX_COLUMN)
+            .map(|images| {
+                (images
+                    .iter()
+                    .map(|image| {
+                        let image_size = image.size();
+                        (image_size.height
+                            * (content_width / image_size.width.max(image_size.height)))
+                            as usize
+                    })
+                    .max()
+                    .unwrap_or_default() as f64)
+                    .min(content_width)
+            })
+            .collect::<Vec<_>>();
+        for (i, image) in self.images_cache.iter().enumerate() {
             let image_size = image.size();
             let c = i % MAX_COLUMN;
             let r = i / MAX_COLUMN;
-            let x = c as f64 * length + 5.0;
-            let y = r as f64 * length + 5.0;
-            let rect = Rect::new(Point::new(x, y), Size::new(content_length, content_length));
-            let rate = content_length / image_size.width.max(image_size.height);
+            let x = c as f64 * occupy_width + 5.0;
+            let y = content_heights[..r].iter().map(|h| h + 10.0).sum::<f64>() + 5.0;
+            let content_height = content_heights[r];
+            let rect = Rect::new(Point::new(x, y), Size::new(content_width, content_height));
+            let rate = (content_width / image_size.width).min(content_height / image_size.height);
             let real_width = image_size.width * rate;
             let real_height = image_size.height * rate;
-            let real_x = (content_length - real_width) / 2.0;
-            let real_y = (content_length - real_height) / 2.0;
+            let real_x = (content_width - real_width) / 2.0;
+            let real_y = (content_height - real_height) / 2.0;
             let real_rect = Rect::new(
                 Point::new(x + real_x, y + real_y),
                 Size::new(real_width, real_height),
