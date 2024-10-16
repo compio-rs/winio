@@ -50,7 +50,7 @@ impl Component for MainModel {
     type Message = MainMessage;
     type Root = ();
 
-    fn init(_counter: Self::Init, _root: &Self::Root, sender: &ComponentSender<Self>) -> Self {
+    fn init(_counter: Self::Init, _root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
         let mut window = Child::<Window>::init((), &());
         let canvas = Child::<Canvas>::init((), &window);
 
@@ -77,8 +77,6 @@ impl Component for MainModel {
         list.push("昍昍昍".into());
         list.push("ﾌﾌﾌﾌﾌﾌ".into());
         list.push("쳌쳌쳌".into());
-
-        sender.post(MainMessage::Redraw);
 
         let mut push_button = Child::<Button>::init((), &window);
         push_button.set_text("Push");
