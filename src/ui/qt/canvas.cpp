@@ -117,3 +117,13 @@ void brush_set_transform(QBrush &b, double m11, double m12, double m21,
                          double m22, double m31, double m32) {
     b.setTransform(QTransform{m11, m12, m21, m22, m31, m32});
 }
+
+std::unique_ptr<QImage> new_image(int width, int height, int stride,
+                                  const uchar *bits, QImage::Format format) {
+    return std::make_unique<QImage>(bits, width, height, stride, format);
+}
+
+void painter_draw_image(QPainter &p, QRectF const &target, QImage const &image,
+                        QRectF const &source) {
+    p.drawImage(target, image, source);
+}

@@ -2,6 +2,7 @@
 
 #include "callback.hpp"
 #include <QGradient>
+#include <QImage>
 #include <QMouseEvent>
 #include <QPaintEvent>
 #include <QPainter>
@@ -11,6 +12,7 @@
 
 using QtMouseButton = Qt::MouseButton;
 using QtSizeMode = Qt::SizeMode;
+using QImageFormat = QImage::Format;
 
 struct WinioCanvas : public QWidget {
     callback_t<void()> m_paint_callback;
@@ -58,3 +60,8 @@ std::unique_ptr<QGradient> new_gradient_radial(QPointF center, double radius,
 std::unique_ptr<QBrush> new_brush_gradient(QGradient const &g);
 void brush_set_transform(QBrush &b, double m11, double m12, double m21,
                          double m22, double m31, double m32);
+
+std::unique_ptr<QImage> new_image(int width, int height, int stride,
+                                  const uchar *bits, QImage::Format format);
+void painter_draw_image(QPainter &p, QRectF const &target, QImage const &image,
+                        QRectF const &source);
