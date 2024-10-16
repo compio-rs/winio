@@ -577,7 +577,7 @@ impl DrawingImage {
     fn new(target: &ID2D1RenderTarget, image: DynamicImage) -> Self {
         let image = match image {
             DynamicImage::ImageRgba8(image) => image,
-            _ => image.to_rgba8(),
+            _ => image.into_rgba8(),
         };
         let mut dpix = 0.0;
         let mut dpiy = 0.0;

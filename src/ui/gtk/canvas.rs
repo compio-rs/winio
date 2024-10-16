@@ -6,11 +6,15 @@ use std::{
 
 use gtk4::{
     EventControllerMotion, GestureClick,
-    cairo::{Content, Context, LinearGradient, Matrix, RadialGradient, RecordingSurface},
+    cairo::{
+        Content, Context, Format, ImageSurface, LinearGradient, Matrix, RadialGradient,
+        RecordingSurface,
+    },
     glib::object::Cast,
     pango::{FontDescription, SCALE as PANGO_SCALE, Style, Weight},
     prelude::{DrawingAreaExtManual, GestureSingleExt, WidgetExt},
 };
+use image::DynamicImage;
 use pangocairo::functions::show_layout;
 
 use crate::{
@@ -313,6 +317,32 @@ impl DrawingContext<'_> {
         self.set_brush(brush, rect);
         show_layout(&self.ctx, &layout);
     }
+
+    pub fn create_image(&self, image: DynamicImage) -> DrawingImage {
+        DrawingImage::new(image)
+    }
+
+    pub fn draw_image(&mut self, image: &DrawingImage, rect: Rect, clip: Option<Rect>) {
+        self.ctx.save().unwrap();
+        let clip = clip.unwrap_or_else(|| Rect::new(Point::zero(), image.size()));
+        self.ctx.rectangle(
+            clip.origin.x,
+            clip.origin.y,
+            clip.size.width,
+            clip.size.height,
+        );
+        self.ctx.clip();
+        self.ctx.new_path();
+        let size = image.size();
+        self.ctx.translate(rect.origin.x, rect.origin.y);
+        self.ctx
+            .scale(rect.width() / size.width, rect.height() / size.height);
+        self.ctx
+            .set_source_surface(&image.0, -clip.origin.x, -clip.origin.y)
+            .unwrap();
+        self.ctx.paint().unwrap();
+        self.ctx.restore().unwrap();
+    }
 }
 
 impl Drop for DrawingContext<'_> {
@@ -405,5 +435,31 @@ impl<B: Brush> Pen for BrushPen<B> {
     fn set(&self, ctx: &Context, trans: RelativeToLogical) {
         self.brush.set(ctx, trans);
         ctx.set_line_width(self.width);
+    }
+}
+
+pub struct DrawingImage(ImageSurface);
+
+impl DrawingImage {
+    fn new(image: DynamicImage) -> Self {
+        let width = image.width();
+        let height = image.height();
+        let (format, buffer) = match image {
+            DynamicImage::ImageRgb32F(_) => (Format::__Unknown(6), image.into_bytes()), /* CAIRO_FORMAT_RGB96F */
+            DynamicImage::ImageRgba32F(_) => (Format::__Unknown(7), image.into_bytes()), /* CAIRO_FORMAT_RGBA128F */
+            _ => (
+                Format::__Unknown(7),
+                DynamicImage::ImageRgba32F(image.into_rgba32f()).into_bytes(),
+            ),
+        };
+        let stride = format.stride_for_width(width).unwrap();
+        let surface =
+            ImageSurface::create_for_data(buffer, format, width as _, height as _, stride as _)
+                .unwrap();
+        Self(surface)
+    }
+
+    pub fn size(&self) -> Size {
+        Size::new(self.0.width() as _, self.0.height() as _)
     }
 }

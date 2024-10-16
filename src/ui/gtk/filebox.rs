@@ -73,6 +73,14 @@ impl FileBox {
             .unwrap_or_default()
     }
 
+    pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
+        self.filebox()
+            .select_folder_future(parent.map(|w| w.as_window().as_raw_window()).as_ref())
+            .await
+            .ok()
+            .and_then(|f| f.path())
+    }
+
     pub async fn save(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
         self.filebox()
             .save_future(parent.map(|w| w.as_window().as_raw_window()).as_ref())
