@@ -1,8 +1,13 @@
-use windows_sys::Win32::UI::{
-    Controls::{EM_GETPASSWORDCHAR, EM_SETPASSWORDCHAR, WC_EDITW},
-    WindowsAndMessaging::{
-        EN_UPDATE, ES_AUTOHSCROLL, ES_CENTER, ES_LEFT, ES_PASSWORD, ES_RIGHT, SendMessageW,
-        WM_COMMAND, WS_CHILD, WS_EX_CLIENTEDGE, WS_TABSTOP, WS_VISIBLE,
+use std::ptr::null;
+
+use windows_sys::Win32::{
+    Graphics::Gdi::InvalidateRect,
+    UI::{
+        Controls::{EM_GETPASSWORDCHAR, EM_SETPASSWORDCHAR, WC_EDITW},
+        WindowsAndMessaging::{
+            EN_UPDATE, ES_AUTOHSCROLL, ES_CENTER, ES_LEFT, ES_PASSWORD, ES_RIGHT, SendMessageW,
+            WM_COMMAND, WS_CHILD, WS_EX_CLIENTEDGE, WS_TABSTOP, WS_VISIBLE,
+        },
     },
 };
 
@@ -85,6 +90,9 @@ impl Edit {
             } else {
                 SendMessageW(self.handle.as_raw_window(), EM_SETPASSWORDCHAR, 0, 0);
             }
+        }
+        unsafe {
+            InvalidateRect(self.handle.as_raw_window(), null(), 0);
         }
     }
 

@@ -1,10 +1,10 @@
 use winio::{
-    App, BrushPen, Button, ButtonEvent, Canvas, CanvasEvent, Child, Color, ColorTheme, ComboBox,
-    ComboBoxEvent, ComboBoxMessage, Component, ComponentSender, DrawingFontBuilder, Edit,
-    GradientStop, Grid, HAlign, Label, Layoutable, LinearGradientBrush, Margin, MessageBox,
-    MessageBoxButton, ObservableVec, ObservableVecEvent, Orient, Point, Progress,
-    RadialGradientBrush, Rect, RelativePoint, RelativeSize, Size, SolidColorBrush, StackPanel,
-    VAlign, Window, WindowEvent,
+    App, BrushPen, Button, ButtonEvent, Canvas, CanvasEvent, CheckBox, CheckBoxEvent, Child, Color,
+    ColorTheme, ComboBox, ComboBoxEvent, ComboBoxMessage, Component, ComponentSender,
+    DrawingFontBuilder, Edit, GradientStop, Grid, HAlign, Label, Layoutable, LinearGradientBrush,
+    Margin, MessageBox, MessageBoxButton, ObservableVec, ObservableVecEvent, Orient, Point,
+    Progress, RadialGradientBrush, Rect, RelativePoint, RelativeSize, Size, SolidColorBrush,
+    StackPanel, VAlign, Window, WindowEvent,
 };
 
 fn main() {
@@ -22,6 +22,7 @@ struct MainModel {
     plabel: Child<Label>,
     uentry: Child<Edit>,
     pentry: Child<Edit>,
+    pcheck: Child<CheckBox>,
     canvas: Child<Canvas>,
     combo: Child<ComboBox>,
     list: Child<ObservableVec<String>>,
@@ -42,6 +43,7 @@ enum MainMessage {
     Push,
     Pop,
     Show,
+    PasswordCheck,
 }
 
 impl Component for MainModel {
@@ -70,6 +72,10 @@ impl Component for MainModel {
         pentry.set_password(true);
         pentry.set_text("123456");
 
+        let mut pcheck = Child::<CheckBox>::init((), &window);
+        pcheck.set_checked(false);
+        pcheck.set_text("Show");
+
         let combo = Child::<ComboBox>::init((), &window);
 
         let mut list = Child::<ObservableVec<String>>::init(vec![], &());
@@ -95,6 +101,7 @@ impl Component for MainModel {
             plabel,
             uentry,
             pentry,
+            pcheck,
             canvas,
             combo,
             list,
@@ -111,6 +118,10 @@ impl Component for MainModel {
         let fut_window = self.window.start(sender, |e| match e {
             WindowEvent::Close => Some(MainMessage::Close),
             WindowEvent::Resize => Some(MainMessage::Redraw),
+            _ => None,
+        });
+        let fut_check = self.pcheck.start(sender, |e| match e {
+            CheckBoxEvent::Click => Some(MainMessage::PasswordCheck),
             _ => None,
         });
         let fut_combo = self.combo.start(sender, |e| match e {
@@ -135,7 +146,7 @@ impl Component for MainModel {
             _ => None,
         });
         futures_util::join!(
-            fut_window, fut_combo, fut_canvas, fut_list, fut_push, fut_pop, fut_show
+            fut_window, fut_check, fut_combo, fut_canvas, fut_list, fut_push, fut_pop, fut_show
         );
     }
 
@@ -147,6 +158,10 @@ impl Component for MainModel {
                 false
             }
             MainMessage::Redraw => true,
+            MainMessage::PasswordCheck => {
+                self.pentry.set_password(!self.pcheck.is_checked());
+                true
+            }
             MainMessage::List(e) => {
                 self.combo
                     .emit(ComboBoxMessage::from_observable_vec_event(e))
@@ -181,13 +196,10 @@ impl Component for MainModel {
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {
-        self.window.render();
-        self.canvas.render();
-
         let csize = self.window.client_size();
         {
             let mut root_panel = Grid::from_str("1*,1*,1*", "1*,auto,1*").unwrap();
-            let mut cred_panel = Grid::from_str("auto,1*", "1*,auto,auto,1*").unwrap();
+            let mut cred_panel = Grid::from_str("auto,1*,auto", "1*,auto,auto,1*").unwrap();
             cred_panel
                 .push(&mut self.ulabel)
                 .valign(VAlign::Center)
@@ -212,6 +224,7 @@ impl Component for MainModel {
                 .column(1)
                 .row(2)
                 .finish();
+            cred_panel.push(&mut self.pcheck).column(2).row(2).finish();
             root_panel.push(&mut cred_panel).column(1).row(0).finish();
 
             root_panel
