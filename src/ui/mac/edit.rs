@@ -16,36 +16,48 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct EditImpl<const PW: bool> {
+pub struct Edit {
     handle: Widget,
+    phandle: Widget,
     view: Id<NSTextField>,
+    pview: Id<NSTextField>,
+    password: bool,
     delegate: Id<EditDelegate>,
 }
 
-impl<const PW: bool> EditImpl<PW> {
+impl Edit {
     pub fn new(parent: impl AsWindow) -> Self {
         unsafe {
             let mtm = MainThreadMarker::new().unwrap();
 
-            let view = if PW {
-                Id::cast(NSSecureTextField::new(mtm))
-            } else {
-                NSTextField::new(mtm)
-            };
+            let view = NSTextField::new(mtm);
             view.setBezeled(true);
             view.setDrawsBackground(true);
             view.setEditable(true);
             view.setSelectable(true);
 
+            let pview: Id<NSTextField> = Id::cast(NSSecureTextField::new(mtm));
+            pview.setBezeled(true);
+            pview.setDrawsBackground(true);
+            pview.setEditable(true);
+            pview.setSelectable(true);
+            pview.setHidden(true);
+
             let handle =
                 Widget::from_nsview(parent.as_window().as_raw_window(), Id::cast(view.clone()));
+            let phandle =
+                Widget::from_nsview(parent.as_window().as_raw_window(), Id::cast(pview.clone()));
 
             let delegate = EditDelegate::new(mtm);
             let del_obj = ProtocolObject::from_id(delegate.clone());
             view.setDelegate(Some(&del_obj));
+            pview.setDelegate(Some(&del_obj));
             Self {
                 handle,
+                phandle,
                 view,
+                pview,
+                password: false,
                 delegate,
             }
         }
@@ -60,7 +72,8 @@ impl<const PW: bool> EditImpl<PW> {
     }
 
     pub fn set_loc(&mut self, p: Point) {
-        self.handle.set_loc(p)
+        self.handle.set_loc(p);
+        self.phandle.set_loc(p);
     }
 
     pub fn size(&self) -> Size {
@@ -68,16 +81,50 @@ impl<const PW: bool> EditImpl<PW> {
     }
 
     pub fn set_size(&mut self, v: Size) {
-        self.handle.set_size(v)
+        self.handle.set_size(v);
+        self.phandle.set_size(v);
     }
 
     pub fn text(&self) -> String {
-        unsafe { from_nsstring(&self.view.stringValue()) }
+        unsafe {
+            from_nsstring(
+                &if self.password {
+                    &self.pview
+                } else {
+                    &self.view
+                }
+                .stringValue(),
+            )
+        }
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
         unsafe {
-            self.view.setStringValue(&NSString::from_str(s.as_ref()));
+            if self.password {
+                &self.pview
+            } else {
+                &self.view
+            }
+            .setStringValue(&NSString::from_str(s.as_ref()));
+        }
+    }
+
+    pub fn is_password(&self) -> bool {
+        self.password
+    }
+
+    pub fn set_password(&mut self, v: bool) {
+        if self.password != v {
+            unsafe {
+                if v {
+                    self.pview.setStringValue(&self.view.stringValue());
+                } else {
+                    self.view.setStringValue(&self.pview.stringValue());
+                }
+            }
+            self.password = v;
+            self.pview.setHidden(!v);
+            self.view.setHidden(v);
         }
     }
 
@@ -100,6 +147,7 @@ impl<const PW: bool> EditImpl<PW> {
                 HAlign::Stretch => NSTextAlignment::Justified,
             };
             self.view.setAlignment(align);
+            self.pview.setAlignment(align);
         }
     }
 
@@ -107,9 +155,6 @@ impl<const PW: bool> EditImpl<PW> {
         self.delegate.ivars().changed.wait().await
     }
 }
-
-pub type Edit = EditImpl<false>;
-pub type PasswordEdit = EditImpl<true>;
 
 #[derive(Default, Clone)]
 struct EditDelegateIvars {
