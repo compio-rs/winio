@@ -29,8 +29,8 @@ use windows_sys::Win32::{
         ChildWindowFromPoint, DefWindowProcW, DispatchMessageW, EnumChildWindows, GetClientRect,
         GetCursorPos, GetMessagePos, GetMessageTime, MSG, MWMO_ALERTABLE, MWMO_INPUTAVAILABLE,
         MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW, QS_ALLINPUT, SWP_NOACTIVATE,
-        SWP_NOZORDER, SendMessageW, SetWindowPos, TranslateMessage, WM_CREATE, WM_CTLCOLOREDIT,
-        WM_CTLCOLORSTATIC, WM_DPICHANGED, WM_ERASEBKGND, WM_SETFONT,
+        SWP_NOZORDER, SendMessageW, SetWindowPos, TranslateMessage, WM_CREATE, WM_CTLCOLORBTN,
+        WM_CTLCOLOREDIT, WM_CTLCOLORSTATIC, WM_DPICHANGED, WM_ERASEBKGND, WM_SETFONT,
     },
 };
 
@@ -258,6 +258,15 @@ pub(crate) unsafe extern "system" fn window_proc(
                 } else {
                     GetStockObject(WHITE_BRUSH)
                 } as _;
+            }
+            WM_CTLCOLORBTN => {
+                if is_dark_mode_allowed_for_app() {
+                    let hdc = wparam as HDC;
+                    SetBkMode(hdc, TRANSPARENT as _);
+                    SetTextColor(hdc, WHITE.0);
+                    SetBkColor(hdc, BLACK.0);
+                    return GetStockObject(BLACK_BRUSH) as _;
+                }
             }
             WM_CTLCOLOREDIT => {
                 if is_dark_mode_allowed_for_app() {

@@ -4,7 +4,9 @@ use objc2::{
     rc::{Allocated, Id},
     sel,
 };
-use objc2_app_kit::{NSBezelStyle, NSButton};
+use objc2_app_kit::{
+    NSBezelStyle, NSButton, NSButtonType, NSControlStateValueOff, NSControlStateValueOn,
+};
 use objc2_foundation::{MainThreadMarker, NSObject, NSString};
 
 use crate::{
@@ -73,6 +75,130 @@ impl Button {
 
     pub async fn wait_click(&self) {
         self.delegate.ivars().action.wait().await
+    }
+}
+
+#[derive(Debug)]
+pub struct CheckBox {
+    handle: Button,
+}
+
+impl CheckBox {
+    pub fn new(parent: impl AsWindow) -> Self {
+        let handle = Button::new(parent);
+        unsafe {
+            handle.view.setButtonType(NSButtonType::Switch);
+            handle.view.setAllowsMixedState(false);
+        }
+        Self { handle }
+    }
+
+    pub fn preferred_size(&self) -> Size {
+        self.handle.preferred_size()
+    }
+
+    pub fn loc(&self) -> Point {
+        self.handle.loc()
+    }
+
+    pub fn set_loc(&mut self, p: Point) {
+        self.handle.set_loc(p)
+    }
+
+    pub fn size(&self) -> Size {
+        self.handle.size()
+    }
+
+    pub fn set_size(&mut self, v: Size) {
+        self.handle.set_size(v)
+    }
+
+    pub fn text(&self) -> String {
+        self.handle.text()
+    }
+
+    pub fn set_text(&mut self, s: impl AsRef<str>) {
+        self.handle.set_text(s);
+    }
+
+    pub fn is_checked(&self) -> bool {
+        unsafe { self.handle.view.state() == NSControlStateValueOn }
+    }
+
+    pub fn set_checked(&mut self, v: bool) {
+        unsafe {
+            self.handle.view.setState(if v {
+                NSControlStateValueOn
+            } else {
+                NSControlStateValueOff
+            })
+        }
+    }
+
+    pub async fn wait_click(&self) {
+        self.handle.wait_click().await
+    }
+}
+
+#[derive(Debug)]
+pub struct RadioButton {
+    handle: Button,
+}
+
+impl RadioButton {
+    pub fn new(parent: impl AsWindow) -> Self {
+        let handle = Button::new(parent);
+        unsafe {
+            handle.view.setButtonType(NSButtonType::Radio);
+            handle.view.setAllowsMixedState(false);
+        }
+        Self { handle }
+    }
+
+    pub fn preferred_size(&self) -> Size {
+        self.handle.preferred_size()
+    }
+
+    pub fn loc(&self) -> Point {
+        self.handle.loc()
+    }
+
+    pub fn set_loc(&mut self, p: Point) {
+        self.handle.set_loc(p)
+    }
+
+    pub fn size(&self) -> Size {
+        self.handle.size()
+    }
+
+    pub fn set_size(&mut self, v: Size) {
+        self.handle.set_size(v)
+    }
+
+    pub fn text(&self) -> String {
+        self.handle.text()
+    }
+
+    pub fn set_text(&mut self, s: impl AsRef<str>) {
+        self.handle.set_text(s);
+    }
+
+    pub fn is_checked(&self) -> bool {
+        unsafe { self.handle.view.state() == NSControlStateValueOn }
+    }
+
+    pub fn set_checked(&mut self, v: bool) {
+        unsafe {
+            self.handle.view.setState(if v {
+                NSControlStateValueOn
+            } else {
+                NSControlStateValueOff
+            })
+        }
+    }
+
+    pub async fn wait_click(&self) {
+        self.handle.wait_click().await
     }
 }
 

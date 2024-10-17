@@ -1,12 +1,12 @@
-use crate::{Component, ComponentSender, HAlign, Layoutable, Point, Size, Window, ui};
+use crate::{Component, ComponentSender, Layoutable, Point, Size, Window, ui};
 
-/// A simple single-line text input box.
+/// A simple check box.
 #[derive(Debug)]
-pub struct Edit {
-    widget: ui::Edit,
+pub struct CheckBox {
+    widget: ui::CheckBox,
 }
 
-impl Edit {
+impl CheckBox {
     /// The text.
     pub fn text(&self) -> String {
         self.widget.text()
@@ -17,28 +17,18 @@ impl Edit {
         self.widget.set_text(s)
     }
 
-    /// If the text input is password.
-    pub fn is_password(&self) -> bool {
-        self.widget.is_password()
+    /// If the box is checked.
+    pub fn is_checked(&self) -> bool {
+        self.widget.is_checked()
     }
 
-    /// Set if the text input is password.
-    pub fn set_password(&mut self, v: bool) {
-        self.widget.set_password(v);
-    }
-
-    /// The horizontal alignment.
-    pub fn halign(&self) -> HAlign {
-        self.widget.halign()
-    }
-
-    /// Set the horizontal alignment.
-    pub fn set_halign(&mut self, align: HAlign) {
-        self.widget.set_halign(align);
+    /// Set the checked state.
+    pub fn set_checked(&mut self, v: bool) {
+        self.widget.set_checked(v);
     }
 }
 
-impl Layoutable for Edit {
+impl Layoutable for CheckBox {
     fn loc(&self) -> Point {
         self.widget.loc()
     }
@@ -60,28 +50,28 @@ impl Layoutable for Edit {
     }
 }
 
-/// Events of [`Edit`].
+/// Events of [`CheckBox`].
 #[non_exhaustive]
-pub enum EditEvent {
-    /// The text has been changed.
-    Change,
+pub enum CheckBoxEvent {
+    /// The check box has been clicked.
+    Click,
 }
 
-impl Component for Edit {
-    type Event = EditEvent;
+impl Component for CheckBox {
+    type Event = CheckBoxEvent;
     type Init = ();
     type Message = ();
     type Root = Window;
 
     fn init(_counter: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::Edit::new(root);
+        let widget = ui::CheckBox::new(root);
         Self { widget }
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) {
         loop {
-            self.widget.wait_change().await;
-            sender.output(EditEvent::Change);
+            self.widget.wait_click().await;
+            sender.output(CheckBoxEvent::Click);
         }
     }
 

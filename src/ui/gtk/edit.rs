@@ -11,19 +11,15 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct EditImpl<const PW: bool> {
+pub struct Edit {
     on_changed: Rc<Callback<()>>,
     widget: gtk4::Entry,
     handle: Widget,
 }
 
-impl<const PW: bool> EditImpl<PW> {
+impl Edit {
     pub fn new(parent: impl AsWindow) -> Self {
         let widget = gtk4::Entry::new();
-        if PW {
-            widget.set_input_purpose(gtk4::InputPurpose::Password);
-            widget.set_visibility(false);
-        }
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
         let on_changed = Rc::new(Callback::new());
         widget.connect_changed({
@@ -70,6 +66,19 @@ impl<const PW: bool> EditImpl<PW> {
         self.handle.reset_preferred_size();
     }
 
+    pub fn is_password(&self) -> bool {
+        !self.widget.is_visible()
+    }
+
+    pub fn set_password(&mut self, v: bool) {
+        self.widget.set_input_purpose(if v {
+            gtk4::InputPurpose::Password
+        } else {
+            gtk4::InputPurpose::FreeForm
+        });
+        self.widget.set_visibility(!v);
+    }
+
     pub fn halign(&self) -> HAlign {
         let align = EditableExt::alignment(&self.widget);
         if align == 0.0 {
@@ -94,6 +103,3 @@ impl<const PW: bool> EditImpl<PW> {
         self.on_changed.wait().await
     }
 }
-
-pub type Edit = EditImpl<false>;
-pub type PasswordEdit = EditImpl<true>;

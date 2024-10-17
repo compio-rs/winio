@@ -1,10 +1,10 @@
 use winio::{
-    App, BrushPen, Button, ButtonEvent, Canvas, CanvasEvent, Child, Color, ColorTheme, ComboBox,
-    ComboBoxEvent, ComboBoxMessage, Component, ComponentSender, DrawingFontBuilder, Edit,
-    GradientStop, Grid, HAlign, Label, Layoutable, LinearGradientBrush, Margin, MessageBox,
-    MessageBoxButton, ObservableVec, ObservableVecEvent, Orient, PasswordEdit, Point, Progress,
-    RadialGradientBrush, Rect, RelativePoint, RelativeSize, Size, SolidColorBrush, StackPanel,
-    VAlign, Window, WindowEvent,
+    App, BrushPen, Button, ButtonEvent, Canvas, CanvasEvent, CheckBox, CheckBoxEvent, Child, Color,
+    ColorTheme, ComboBox, ComboBoxEvent, ComboBoxMessage, Component, ComponentSender,
+    DrawingFontBuilder, Edit, GradientStop, Grid, HAlign, Label, Layoutable, LinearGradientBrush,
+    Margin, MessageBox, MessageBoxButton, ObservableVec, ObservableVecEvent, Orient, Point,
+    Progress, RadialGradientBrush, RadioButton, RadioButtonGroup, Rect, RelativePoint,
+    RelativeSize, Size, SolidColorBrush, StackPanel, VAlign, Window, WindowEvent,
 };
 
 fn main() {
@@ -21,11 +21,16 @@ struct MainModel {
     ulabel: Child<Label>,
     plabel: Child<Label>,
     uentry: Child<Edit>,
-    pentry: Child<PasswordEdit>,
+    pentry: Child<Edit>,
+    pcheck: Child<CheckBox>,
     canvas: Child<Canvas>,
     combo: Child<ComboBox>,
     list: Child<ObservableVec<String>>,
     index: Option<usize>,
+    r1: Child<RadioButton>,
+    r2: Child<RadioButton>,
+    r3: Child<RadioButton>,
+    rindex: usize,
     push_button: Child<Button>,
     pop_button: Child<Button>,
     show_button: Child<Button>,
@@ -42,6 +47,8 @@ enum MainMessage {
     Push,
     Pop,
     Show,
+    RSelect(usize),
+    PasswordCheck,
 }
 
 impl Component for MainModel {
@@ -66,8 +73,13 @@ impl Component for MainModel {
 
         let mut uentry = Child::<Edit>::init((), &window);
         uentry.set_text("AAA");
-        let mut pentry = Child::<PasswordEdit>::init((), &window);
+        let mut pentry = Child::<Edit>::init((), &window);
+        pentry.set_password(true);
         pentry.set_text("123456");
+
+        let mut pcheck = Child::<CheckBox>::init((), &window);
+        pcheck.set_checked(false);
+        pcheck.set_text("Show");
 
         let combo = Child::<ComboBox>::init((), &window);
 
@@ -77,6 +89,14 @@ impl Component for MainModel {
         list.push("昍昍昍".into());
         list.push("ﾌﾌﾌﾌﾌﾌ".into());
         list.push("쳌쳌쳌".into());
+
+        let mut r1 = Child::<RadioButton>::init((), &window);
+        r1.set_text("屯屯屯");
+        r1.set_checked(true);
+        let mut r2 = Child::<RadioButton>::init((), &window);
+        r2.set_text("锟斤拷");
+        let mut r3 = Child::<RadioButton>::init((), &window);
+        r3.set_text("╠╠╠");
 
         let mut push_button = Child::<Button>::init((), &window);
         push_button.set_text("Push");
@@ -94,10 +114,15 @@ impl Component for MainModel {
             plabel,
             uentry,
             pentry,
+            pcheck,
             canvas,
             combo,
             list,
             index: None,
+            r1,
+            r2,
+            r3,
+            rindex: 0,
             push_button,
             pop_button,
             show_button,
@@ -110,6 +135,10 @@ impl Component for MainModel {
         let fut_window = self.window.start(sender, |e| match e {
             WindowEvent::Close => Some(MainMessage::Close),
             WindowEvent::Resize => Some(MainMessage::Redraw),
+            _ => None,
+        });
+        let fut_check = self.pcheck.start(sender, |e| match e {
+            CheckBoxEvent::Click => Some(MainMessage::PasswordCheck),
             _ => None,
         });
         let fut_combo = self.combo.start(sender, |e| match e {
@@ -133,8 +162,11 @@ impl Component for MainModel {
             ButtonEvent::Click => Some(MainMessage::Show),
             _ => None,
         });
+        let mut group = RadioButtonGroup::new(vec![&mut self.r1, &mut self.r2, &mut self.r3]);
+        let fut_group = group.start(sender, |i| Some(MainMessage::RSelect(i)));
         futures_util::join!(
-            fut_window, fut_combo, fut_canvas, fut_list, fut_push, fut_pop, fut_show
+            fut_window, fut_check, fut_combo, fut_canvas, fut_list, fut_push, fut_pop, fut_show,
+            fut_group
         );
     }
 
@@ -146,6 +178,10 @@ impl Component for MainModel {
                 false
             }
             MainMessage::Redraw => true,
+            MainMessage::PasswordCheck => {
+                self.pentry.set_password(!self.pcheck.is_checked());
+                true
+            }
             MainMessage::List(e) => {
                 self.combo
                     .emit(ComboBoxMessage::from_observable_vec_event(e))
@@ -156,11 +192,23 @@ impl Component for MainModel {
                 false
             }
             MainMessage::Push => {
-                self.list.push("锟斤拷".into());
+                self.list.push(
+                    match self.rindex {
+                        0 => &self.r1,
+                        1 => &self.r2,
+                        2 => &self.r3,
+                        _ => unreachable!(),
+                    }
+                    .text(),
+                );
                 false
             }
             MainMessage::Pop => {
                 self.list.pop();
+                false
+            }
+            MainMessage::RSelect(i) => {
+                self.rindex = i;
                 false
             }
             MainMessage::Show => {
@@ -180,13 +228,10 @@ impl Component for MainModel {
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {
-        self.window.render();
-        self.canvas.render();
-
         let csize = self.window.client_size();
         {
             let mut root_panel = Grid::from_str("1*,1*,1*", "1*,auto,1*").unwrap();
-            let mut cred_panel = Grid::from_str("auto,1*", "1*,auto,auto,1*").unwrap();
+            let mut cred_panel = Grid::from_str("auto,1*,auto", "1*,auto,auto,1*").unwrap();
             cred_panel
                 .push(&mut self.ulabel)
                 .valign(VAlign::Center)
@@ -211,7 +256,19 @@ impl Component for MainModel {
                 .column(1)
                 .row(2)
                 .finish();
+            cred_panel.push(&mut self.pcheck).column(2).row(2).finish();
             root_panel.push(&mut cred_panel).column(1).row(0).finish();
+
+            let mut rgroup_panel = Grid::from_str("auto", "1*,auto,auto,auto,1*").unwrap();
+            rgroup_panel.push(&mut self.r1).row(1).finish();
+            rgroup_panel.push(&mut self.r2).row(2).finish();
+            rgroup_panel.push(&mut self.r3).row(3).finish();
+            root_panel
+                .push(&mut rgroup_panel)
+                .column(2)
+                .row(0)
+                .halign(HAlign::Center)
+                .finish();
 
             root_panel
                 .push(&mut self.combo)

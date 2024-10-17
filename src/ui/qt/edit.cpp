@@ -1,12 +1,8 @@
 #include "edit.hpp"
 #include <QLineEdit>
 
-std::unique_ptr<QWidget> new_line_edit(QWidget *parent, bool password) {
-    auto edit = std::make_unique<QLineEdit>(parent);
-    if (password) {
-        edit->setEchoMode(QLineEdit::Password);
-    }
-    return edit;
+std::unique_ptr<QWidget> new_line_edit(QWidget *parent) {
+    return std::make_unique<QLineEdit>(parent);
 }
 
 void line_edit_connect_changed(QWidget &w, callback_fn_t<void()> callback,
@@ -31,4 +27,13 @@ QtAlignmentFlag line_edit_get_alignment(QWidget const &w) {
 
 void line_edit_set_alignment(QWidget &w, QtAlignmentFlag flag) {
     static_cast<QLineEdit &>(w).setAlignment(flag);
+}
+
+bool line_edit_is_password(QWidget const &w) {
+    return static_cast<QLineEdit const &>(w).echoMode() != QLineEdit::Normal;
+}
+
+void line_edit_set_password(QWidget &w, bool v) {
+    static_cast<QLineEdit &>(w).setEchoMode(v ? QLineEdit::Password
+                                              : QLineEdit::Normal);
 }

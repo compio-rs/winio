@@ -1,8 +1,13 @@
-use windows_sys::Win32::UI::{
-    Controls::WC_EDITW,
-    WindowsAndMessaging::{
-        EN_UPDATE, ES_AUTOHSCROLL, ES_CENTER, ES_LEFT, ES_PASSWORD, ES_RIGHT, WM_COMMAND, WS_CHILD,
-        WS_EX_CLIENTEDGE, WS_TABSTOP, WS_VISIBLE,
+use std::ptr::null;
+
+use windows_sys::Win32::{
+    Graphics::Gdi::InvalidateRect,
+    UI::{
+        Controls::{EM_GETPASSWORDCHAR, EM_SETPASSWORDCHAR, WC_EDITW},
+        WindowsAndMessaging::{
+            EN_UPDATE, ES_AUTOHSCROLL, ES_CENTER, ES_LEFT, ES_PASSWORD, ES_RIGHT, SendMessageW,
+            WM_COMMAND, WS_CHILD, WS_EX_CLIENTEDGE, WS_TABSTOP, WS_VISIBLE,
+        },
     },
 };
 
@@ -12,24 +17,32 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct EditImpl<const PW: bool> {
+pub struct Edit {
     handle: Widget,
+    pchar: u16,
 }
 
-impl<const PW: bool> EditImpl<PW> {
+impl Edit {
     pub fn new(parent: impl AsWindow) -> Self {
-        let mut style = WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_LEFT as u32 | ES_AUTOHSCROLL as u32;
-        if PW {
-            style |= ES_PASSWORD as u32;
-        }
         let handle = Widget::new(
             WC_EDITW,
-            style,
+            WS_CHILD
+                | WS_VISIBLE
+                | WS_TABSTOP
+                | ES_LEFT as u32
+                | ES_AUTOHSCROLL as u32
+                | ES_PASSWORD as u32,
             WS_EX_CLIENTEDGE,
             parent.as_window().as_raw_window(),
         );
+        let mut pchar =
+            unsafe { SendMessageW(handle.as_raw_window(), EM_GETPASSWORDCHAR, 0, 0) } as u16;
+        if pchar == 0 {
+            pchar = '*' as u32 as _;
+        }
+        unsafe { SendMessageW(handle.as_raw_window(), EM_SETPASSWORDCHAR, 0, 0) };
         handle.set_size(handle.size_d2l((100, 50)));
-        Self { handle }
+        Self { handle, pchar }
     }
 
     pub fn preferred_size(&self) -> Size {
@@ -59,6 +72,28 @@ impl<const PW: bool> EditImpl<PW> {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
         self.handle.set_text(s)
+    }
+
+    pub fn is_password(&self) -> bool {
+        unsafe { SendMessageW(self.handle.as_raw_window(), EM_GETPASSWORDCHAR, 0, 0) != 0 }
+    }
+
+    pub fn set_password(&mut self, v: bool) {
+        unsafe {
+            if v {
+                SendMessageW(
+                    self.handle.as_raw_window(),
+                    EM_SETPASSWORDCHAR,
+                    self.pchar as _,
+                    0,
+                );
+            } else {
+                SendMessageW(self.handle.as_raw_window(), EM_SETPASSWORDCHAR, 0, 0);
+            }
+        }
+        unsafe {
+            InvalidateRect(self.handle.as_raw_window(), null(), 0);
+        }
     }
 
     pub fn halign(&self) -> HAlign {
@@ -94,6 +129,3 @@ impl<const PW: bool> EditImpl<PW> {
         }
     }
 }
-
-pub type Edit = EditImpl<false>;
-pub type PasswordEdit = EditImpl<true>;
