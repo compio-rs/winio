@@ -2,7 +2,7 @@ use winio::{
     App, BrushPen, Button, ButtonEvent, Canvas, CanvasEvent, Child, Color, ColorTheme, ComboBox,
     ComboBoxEvent, ComboBoxMessage, Component, ComponentSender, DrawingFontBuilder, Edit,
     GradientStop, Grid, HAlign, Label, Layoutable, LinearGradientBrush, Margin, MessageBox,
-    MessageBoxButton, ObservableVec, ObservableVecEvent, Orient, PasswordEdit, Point, Progress,
+    MessageBoxButton, ObservableVec, ObservableVecEvent, Orient, Point, Progress,
     RadialGradientBrush, Rect, RelativePoint, RelativeSize, Size, SolidColorBrush, StackPanel,
     VAlign, Window, WindowEvent,
 };
@@ -21,7 +21,7 @@ struct MainModel {
     ulabel: Child<Label>,
     plabel: Child<Label>,
     uentry: Child<Edit>,
-    pentry: Child<PasswordEdit>,
+    pentry: Child<Edit>,
     canvas: Child<Canvas>,
     combo: Child<ComboBox>,
     list: Child<ObservableVec<String>>,
@@ -66,7 +66,8 @@ impl Component for MainModel {
 
         let mut uentry = Child::<Edit>::init((), &window);
         uentry.set_text("AAA");
-        let mut pentry = Child::<PasswordEdit>::init((), &window);
+        let mut pentry = Child::<Edit>::init((), &window);
+        pentry.set_password(true);
         pentry.set_text("123456");
 
         let combo = Child::<ComboBox>::init((), &window);
