@@ -3,8 +3,8 @@ use winio::{
     ColorTheme, ComboBox, ComboBoxEvent, ComboBoxMessage, Component, ComponentSender,
     DrawingFontBuilder, Edit, GradientStop, Grid, HAlign, Label, Layoutable, LinearGradientBrush,
     Margin, MessageBox, MessageBoxButton, ObservableVec, ObservableVecEvent, Orient, Point,
-    Progress, RadialGradientBrush, RadioBox, RadioBoxGroup, Rect, RelativePoint, RelativeSize,
-    Size, SolidColorBrush, StackPanel, VAlign, Window, WindowEvent,
+    Progress, RadialGradientBrush, RadioButton, RadioButtonGroup, Rect, RelativePoint,
+    RelativeSize, Size, SolidColorBrush, StackPanel, VAlign, Window, WindowEvent,
 };
 
 fn main() {
@@ -27,9 +27,9 @@ struct MainModel {
     combo: Child<ComboBox>,
     list: Child<ObservableVec<String>>,
     index: Option<usize>,
-    r1: Child<RadioBox>,
-    r2: Child<RadioBox>,
-    r3: Child<RadioBox>,
+    r1: Child<RadioButton>,
+    r2: Child<RadioButton>,
+    r3: Child<RadioButton>,
     rindex: usize,
     push_button: Child<Button>,
     pop_button: Child<Button>,
@@ -90,12 +90,12 @@ impl Component for MainModel {
         list.push("ﾌﾌﾌﾌﾌﾌ".into());
         list.push("쳌쳌쳌".into());
 
-        let mut r1 = Child::<RadioBox>::init((), &window);
+        let mut r1 = Child::<RadioButton>::init((), &window);
         r1.set_text("屯屯屯");
         r1.set_checked(true);
-        let mut r2 = Child::<RadioBox>::init((), &window);
+        let mut r2 = Child::<RadioButton>::init((), &window);
         r2.set_text("锟斤拷");
-        let mut r3 = Child::<RadioBox>::init((), &window);
+        let mut r3 = Child::<RadioButton>::init((), &window);
         r3.set_text("╠╠╠");
 
         let mut push_button = Child::<Button>::init((), &window);
@@ -162,7 +162,7 @@ impl Component for MainModel {
             ButtonEvent::Click => Some(MainMessage::Show),
             _ => None,
         });
-        let mut group = RadioBoxGroup::new(vec![&mut self.r1, &mut self.r2, &mut self.r3]);
+        let mut group = RadioButtonGroup::new(vec![&mut self.r1, &mut self.r2, &mut self.r3]);
         let fut_group = group.start(sender, |i| Some(MainMessage::RSelect(i)));
         futures_util::join!(
             fut_window, fut_check, fut_combo, fut_canvas, fut_list, fut_push, fut_pop, fut_show,

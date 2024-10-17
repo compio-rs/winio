@@ -86,11 +86,11 @@ impl CheckBox {
 }
 
 #[derive(Debug)]
-pub struct RadioBox {
+pub struct RadioButton {
     handle: CheckBox,
 }
 
-impl RadioBox {
+impl RadioButton {
     pub fn new(parent: impl AsWindow) -> Self {
         let handle = CheckBox::new_impl(parent, true);
         Self { handle }

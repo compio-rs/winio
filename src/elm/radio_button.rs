@@ -1,12 +1,12 @@
 use crate::{Component, ComponentSender, Layoutable, Point, Size, Window, ui};
 
-/// A simple radio box. See [`RadioBoxGroup`] for making selection groups.
+/// A simple radio box. See [`RadioButtonGroup`] for making selection groups.
 #[derive(Debug)]
-pub struct RadioBox {
-    widget: ui::RadioBox,
+pub struct RadioButton {
+    widget: ui::RadioButton,
 }
 
-impl RadioBox {
+impl RadioButton {
     /// The text.
     pub fn text(&self) -> String {
         self.widget.text()
@@ -28,7 +28,7 @@ impl RadioBox {
     }
 }
 
-impl Layoutable for RadioBox {
+impl Layoutable for RadioButton {
     fn loc(&self) -> Point {
         self.widget.loc()
     }
@@ -50,28 +50,28 @@ impl Layoutable for RadioBox {
     }
 }
 
-/// Events of [`RadioBox`].
+/// Events of [`RadioButton`].
 #[non_exhaustive]
-pub enum RadioBoxEvent {
+pub enum RadioButtonEvent {
     /// The check box has been clicked.
     Click,
 }
 
-impl Component for RadioBox {
-    type Event = RadioBoxEvent;
+impl Component for RadioButton {
+    type Event = RadioButtonEvent;
     type Init = ();
     type Message = ();
     type Root = Window;
 
     fn init(_counter: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::RadioBox::new(root);
+        let widget = ui::RadioButton::new(root);
         Self { widget }
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) {
         loop {
             self.widget.wait_click().await;
-            sender.output(RadioBoxEvent::Click);
+            sender.output(RadioButtonEvent::Click);
         }
     }
 
@@ -82,14 +82,14 @@ impl Component for RadioBox {
     fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
 
-/// A group of [`RadioBox`]. Only one of them could be checked.
-pub struct RadioBoxGroup<'a> {
-    radios: Vec<&'a mut RadioBox>,
+/// A group of [`RadioButton`]. Only one of them could be checked.
+pub struct RadioButtonGroup<'a> {
+    radios: Vec<&'a mut RadioButton>,
 }
 
-impl<'a> RadioBoxGroup<'a> {
-    /// Create [`RadioBoxGroup`].
-    pub fn new(radios: Vec<&'a mut RadioBox>) -> Self {
+impl<'a> RadioButtonGroup<'a> {
+    /// Create [`RadioButtonGroup`].
+    pub fn new(radios: Vec<&'a mut RadioButton>) -> Self {
         Self { radios }
     }
 

@@ -141,11 +141,11 @@ impl CheckBox {
 }
 
 #[derive(Debug)]
-pub struct RadioBox {
+pub struct RadioButton {
     handle: Button,
 }
 
-impl RadioBox {
+impl RadioButton {
     pub fn new(parent: impl AsWindow) -> Self {
         let handle = Button::new(parent);
         unsafe {

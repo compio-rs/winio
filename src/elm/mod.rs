@@ -179,5 +179,5 @@ pub use combo_box::*;
 mod check_box;
 pub use check_box::*;
 
-mod radio_box;
-pub use radio_box::*;
+mod radio_button;
+pub use radio_button::*;

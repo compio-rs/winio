@@ -12,11 +12,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct RadioBox {
+pub struct RadioButton {
     handle: Widget,
 }
 
-impl RadioBox {
+impl RadioButton {
     pub fn new(parent: impl AsWindow) -> Self {
         let handle = Widget::new(
             WC_BUTTONW,
