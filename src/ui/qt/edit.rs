@@ -6,14 +6,14 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct EditImpl<const PW: bool> {
+pub struct Edit {
     on_changed: Box<Callback>,
     widget: Widget,
 }
 
-impl<const PW: bool> EditImpl<PW> {
+impl Edit {
     pub fn new(parent: impl AsWindow) -> Self {
-        let mut widget = unsafe { ffi::new_line_edit(parent.as_window().as_raw_window(), PW) };
+        let mut widget = unsafe { ffi::new_line_edit(parent.as_window().as_raw_window()) };
         widget.pin_mut().show();
         let on_changed = Box::new(Callback::new());
         unsafe {
@@ -55,6 +55,14 @@ impl<const PW: bool> EditImpl<PW> {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
         ffi::line_edit_set_text(self.widget.pin_mut(), s.as_ref())
+    }
+
+    pub fn is_password(&self) -> bool {
+        ffi::line_edit_is_password(self.widget.as_ref())
+    }
+
+    pub fn set_password(&mut self, v: bool) {
+        ffi::line_edit_set_password(self.widget.pin_mut(), v);
     }
 
     pub fn halign(&self) -> HAlign {
@@ -99,9 +107,6 @@ impl<const PW: bool> EditImpl<PW> {
     }
 }
 
-pub type Edit = EditImpl<false>;
-pub type PasswordEdit = EditImpl<true>;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 #[non_exhaustive]
@@ -132,7 +137,7 @@ mod ffi {
         type QWidget = crate::ui::QWidget;
         type QtAlignmentFlag = super::QtAlignmentFlag;
 
-        unsafe fn new_line_edit(parent: *mut QWidget, password: bool) -> UniquePtr<QWidget>;
+        unsafe fn new_line_edit(parent: *mut QWidget) -> UniquePtr<QWidget>;
         unsafe fn line_edit_connect_changed(
             w: Pin<&mut QWidget>,
             callback: unsafe fn(*const u8),
@@ -143,5 +148,8 @@ mod ffi {
 
         fn line_edit_get_alignment(w: &QWidget) -> QtAlignmentFlag;
         fn line_edit_set_alignment(w: Pin<&mut QWidget>, flag: QtAlignmentFlag);
+
+        fn line_edit_is_password(w: &QWidget) -> bool;
+        fn line_edit_set_password(w: Pin<&mut QWidget>, v: bool);
     }
 }
