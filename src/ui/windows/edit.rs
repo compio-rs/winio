@@ -92,7 +92,7 @@ impl Edit {
             }
         }
         unsafe {
-            InvalidateRect(self.handle.as_raw_window(), null(), 0);
+            InvalidateRect(self.handle.as_raw_window(), null(), 1);
         }
     }
 
