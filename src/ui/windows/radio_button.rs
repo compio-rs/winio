@@ -78,7 +78,7 @@ impl RadioButton {
             if msg.lParam == (self.handle.as_raw_window() as _)
                 && ((msg.wParam as u32 >> 16) == BN_CLICKED)
             {
-                self.set_checked(!self.is_checked());
+                self.set_checked(true);
                 break;
             }
         }
