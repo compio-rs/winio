@@ -1,12 +1,12 @@
 use crate::{Component, ComponentSender, Layoutable, Point, Size, Window, ui};
 
-/// A simple check box.
+/// A simple radio box. See [`RadioBoxGroup`] for making selection groups.
 #[derive(Debug)]
-pub struct CheckBox {
-    widget: ui::CheckBox,
+pub struct RadioBox {
+    widget: ui::RadioBox,
 }
 
-impl CheckBox {
+impl RadioBox {
     /// The text.
     pub fn text(&self) -> String {
         self.widget.text()
@@ -28,7 +28,7 @@ impl CheckBox {
     }
 }
 
-impl Layoutable for CheckBox {
+impl Layoutable for RadioBox {
     fn loc(&self) -> Point {
         self.widget.loc()
     }
@@ -50,28 +50,28 @@ impl Layoutable for CheckBox {
     }
 }
 
-/// Events of [`CheckBox`].
+/// Events of [`RadioBox`].
 #[non_exhaustive]
-pub enum CheckBoxEvent {
+pub enum RadioBoxEvent {
     /// The check box has been clicked.
     Click,
 }
 
-impl Component for CheckBox {
-    type Event = CheckBoxEvent;
+impl Component for RadioBox {
+    type Event = RadioBoxEvent;
     type Init = ();
     type Message = ();
     type Root = Window;
 
     fn init(_counter: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::CheckBox::new(root);
+        let widget = ui::RadioBox::new(root);
         Self { widget }
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) {
         loop {
             self.widget.wait_click().await;
-            sender.output(CheckBoxEvent::Click);
+            sender.output(RadioBoxEvent::Click);
         }
     }
 
@@ -80,4 +80,38 @@ impl Component for CheckBox {
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {}
+}
+
+/// A group of [`RadioBox`]. Only one of them could be checked.
+pub struct RadioBoxGroup<'a> {
+    radios: Vec<&'a mut RadioBox>,
+}
+
+impl<'a> RadioBoxGroup<'a> {
+    /// Create [`RadioBoxGroup`].
+    pub fn new(radios: Vec<&'a mut RadioBox>) -> Self {
+        Self { radios }
+    }
+
+    /// Start listening the click events of the radio boxes.
+    pub async fn start<C: Component>(
+        &mut self,
+        sender: &ComponentSender<C>,
+        mut f: impl FnMut(usize) -> Option<C::Message>,
+    ) {
+        loop {
+            let ((), index, _) = futures_util::future::select_all(
+                self.radios.iter().map(|r| Box::pin(r.widget.wait_click())),
+            )
+            .await;
+            for (i, r) in self.radios.iter_mut().enumerate() {
+                if i != index {
+                    r.set_checked(false);
+                }
+            }
+            if let Some(message) = f(index) {
+                sender.post(message);
+            }
+        }
+    }
 }

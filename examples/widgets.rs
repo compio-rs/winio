@@ -3,8 +3,8 @@ use winio::{
     ColorTheme, ComboBox, ComboBoxEvent, ComboBoxMessage, Component, ComponentSender,
     DrawingFontBuilder, Edit, GradientStop, Grid, HAlign, Label, Layoutable, LinearGradientBrush,
     Margin, MessageBox, MessageBoxButton, ObservableVec, ObservableVecEvent, Orient, Point,
-    Progress, RadialGradientBrush, Rect, RelativePoint, RelativeSize, Size, SolidColorBrush,
-    StackPanel, VAlign, Window, WindowEvent,
+    Progress, RadialGradientBrush, RadioBox, RadioBoxGroup, Rect, RelativePoint, RelativeSize,
+    Size, SolidColorBrush, StackPanel, VAlign, Window, WindowEvent,
 };
 
 fn main() {
@@ -27,6 +27,10 @@ struct MainModel {
     combo: Child<ComboBox>,
     list: Child<ObservableVec<String>>,
     index: Option<usize>,
+    r1: Child<RadioBox>,
+    r2: Child<RadioBox>,
+    r3: Child<RadioBox>,
+    rindex: usize,
     push_button: Child<Button>,
     pop_button: Child<Button>,
     show_button: Child<Button>,
@@ -43,6 +47,7 @@ enum MainMessage {
     Push,
     Pop,
     Show,
+    RSelect(usize),
     PasswordCheck,
 }
 
@@ -85,6 +90,14 @@ impl Component for MainModel {
         list.push("ﾌﾌﾌﾌﾌﾌ".into());
         list.push("쳌쳌쳌".into());
 
+        let mut r1 = Child::<RadioBox>::init((), &window);
+        r1.set_text("屯屯屯");
+        r1.set_checked(true);
+        let mut r2 = Child::<RadioBox>::init((), &window);
+        r2.set_text("锟斤拷");
+        let mut r3 = Child::<RadioBox>::init((), &window);
+        r3.set_text("╠╠╠");
+
         let mut push_button = Child::<Button>::init((), &window);
         push_button.set_text("Push");
         let mut pop_button = Child::<Button>::init((), &window);
@@ -106,6 +119,10 @@ impl Component for MainModel {
             combo,
             list,
             index: None,
+            r1,
+            r2,
+            r3,
+            rindex: 0,
             push_button,
             pop_button,
             show_button,
@@ -145,8 +162,11 @@ impl Component for MainModel {
             ButtonEvent::Click => Some(MainMessage::Show),
             _ => None,
         });
+        let mut group = RadioBoxGroup::new(vec![&mut self.r1, &mut self.r2, &mut self.r3]);
+        let fut_group = group.start(sender, |i| Some(MainMessage::RSelect(i)));
         futures_util::join!(
-            fut_window, fut_check, fut_combo, fut_canvas, fut_list, fut_push, fut_pop, fut_show
+            fut_window, fut_check, fut_combo, fut_canvas, fut_list, fut_push, fut_pop, fut_show,
+            fut_group
         );
     }
 
@@ -172,11 +192,23 @@ impl Component for MainModel {
                 false
             }
             MainMessage::Push => {
-                self.list.push("锟斤拷".into());
+                self.list.push(
+                    match self.rindex {
+                        0 => &self.r1,
+                        1 => &self.r2,
+                        2 => &self.r3,
+                        _ => unreachable!(),
+                    }
+                    .text(),
+                );
                 false
             }
             MainMessage::Pop => {
                 self.list.pop();
+                false
+            }
+            MainMessage::RSelect(i) => {
+                self.rindex = i;
                 false
             }
             MainMessage::Show => {
@@ -226,6 +258,17 @@ impl Component for MainModel {
                 .finish();
             cred_panel.push(&mut self.pcheck).column(2).row(2).finish();
             root_panel.push(&mut cred_panel).column(1).row(0).finish();
+
+            let mut rgroup_panel = Grid::from_str("auto", "1*,auto,auto,auto,1*").unwrap();
+            rgroup_panel.push(&mut self.r1).row(1).finish();
+            rgroup_panel.push(&mut self.r2).row(2).finish();
+            rgroup_panel.push(&mut self.r3).row(3).finish();
+            root_panel
+                .push(&mut rgroup_panel)
+                .column(2)
+                .row(0)
+                .halign(HAlign::Center)
+                .finish();
 
             root_panel
                 .push(&mut self.combo)
