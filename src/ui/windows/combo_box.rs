@@ -40,7 +40,7 @@ impl<const E: bool> ComboBoxImpl<E> {
             let s = measure_string(self.handle.as_raw_window(), &data);
             width = width.max(s.width);
         }
-        Size::new(width + 5.0, self.handle.size().height)
+        Size::new(width + 20.0, self.handle.size().height)
     }
 
     pub fn loc(&self) -> Point {

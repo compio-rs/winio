@@ -24,9 +24,8 @@ use windows::{
             ID2D1Factory, ID2D1Geometry, ID2D1HwndRenderTarget, ID2D1RenderTarget,
         },
         DirectWrite::{
-            DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC,
-            DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_WEIGHT_NORMAL,
-            DWriteCreateFactory, IDWriteFactory, IDWriteTextLayout,
+            DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STYLE_NORMAL,
+            DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_WEIGHT_NORMAL, IDWriteFactory, IDWriteTextLayout,
         },
         Dxgi::Common::{DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM},
     },
@@ -47,7 +46,7 @@ use crate::{
     AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, GradientStop, HAlign, LinearGradientBrush,
     MouseButton, Point, RadialGradientBrush, Rect, RectBox, RelativeToLogical, Size,
     SolidColorBrush, VAlign, Vector,
-    ui::{Widget, darkmode::is_dark_mode_allowed_for_app},
+    ui::{Widget, darkmode::is_dark_mode_allowed_for_app, font::DWRITE_FACTORY},
 };
 
 #[derive(Debug)]
@@ -68,7 +67,7 @@ impl Canvas {
         );
         let d2d: ID2D1Factory =
             unsafe { D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None).unwrap() };
-        let dwrite = unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).unwrap() };
+        let dwrite = DWRITE_FACTORY.clone();
         let target = unsafe {
             d2d.CreateHwndRenderTarget(
                 &D2D1_RENDER_TARGET_PROPERTIES {

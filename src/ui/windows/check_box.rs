@@ -30,7 +30,7 @@ impl CheckBox {
 
     pub fn preferred_size(&self) -> Size {
         let s = measure_string(self.handle.as_raw_window(), &self.handle.text_u16());
-        Size::new(s.width, s.height + 2.0)
+        Size::new(s.width + 18.0, s.height + 2.0)
     }
 
     pub fn loc(&self) -> Point {

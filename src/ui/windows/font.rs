@@ -1,3 +1,4 @@
+use core::f32;
 use std::{
     collections::BTreeMap,
     io,
@@ -7,16 +8,21 @@ use std::{
 
 use compio::driver::syscall;
 use widestring::U16CStr;
+use windows::{
+    Win32::Graphics::DirectWrite::{
+        DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC,
+        DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_WEIGHT, DWriteCreateFactory, IDWriteFactory,
+    },
+    core::w,
+};
 use windows_sys::Win32::{
     Foundation::HWND,
-    Graphics::Gdi::{
-        CreateFontIndirectW, DeleteObject, GetTextExtentPoint32W, GetWindowDC, HDC, HFONT, HGDIOBJ,
-        LOGFONTW, ReleaseDC,
-    },
+    Graphics::Gdi::{CreateFontIndirectW, DeleteObject, GetObjectW, HFONT, HGDIOBJ, LOGFONTW},
     UI::{
-        HiDpi::SystemParametersInfoForDpi,
+        HiDpi::{GetDpiForWindow, SystemParametersInfoForDpi},
         WindowsAndMessaging::{
-            NONCLIENTMETRICSW, SPI_GETNONCLIENTMETRICS, USER_DEFAULT_SCREEN_DPI,
+            NONCLIENTMETRICSW, SPI_GETNONCLIENTMETRICS, SendMessageW, USER_DEFAULT_SCREEN_DPI,
+            WM_GETFONT,
         },
     },
 };
@@ -70,25 +76,6 @@ pub fn default_font(dpi: u32) -> HFONT {
     }
 }
 
-pub(crate) struct WinDC(pub HWND, pub HDC);
-
-impl WinDC {
-    pub fn new(hwnd: HWND) -> Self {
-        unsafe {
-            let hdc = GetWindowDC(hwnd);
-            Self(hwnd, hdc)
-        }
-    }
-}
-
-impl Drop for WinDC {
-    fn drop(&mut self) {
-        if !self.1.is_null() {
-            unsafe { ReleaseDC(self.0, self.1) };
-        }
-    }
-}
-
 pub(crate) struct WinBrush(pub HGDIOBJ);
 
 impl Drop for WinBrush {
@@ -100,20 +87,49 @@ impl Drop for WinBrush {
 unsafe impl Send for WinBrush {}
 unsafe impl Sync for WinBrush {}
 
+pub static DWRITE_FACTORY: LazyLock<IDWriteFactory> =
+    LazyLock::new(|| unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).unwrap() });
+
 pub fn measure_string(hwnd: HWND, s: &U16CStr) -> Size {
-    if s.is_empty() {
-        return Size::zero();
+    unsafe {
+        let hfont = SendMessageW(hwnd, WM_GETFONT, 0, 0) as HFONT;
+        let mut font = MaybeUninit::<LOGFONTW>::uninit();
+        if GetObjectW(
+            hfont,
+            std::mem::size_of::<LOGFONTW>() as _,
+            font.as_mut_ptr().cast(),
+        ) == 0
+        {
+            return Size::zero();
+        }
+        let font = font.assume_init();
+        let dpi = GetDpiForWindow(hwnd);
+        let height = font.lfHeight.abs().to_logical(dpi);
+        if s.is_empty() {
+            return Size::new(0.0, height as _);
+        }
+
+        let format = DWRITE_FACTORY
+            .CreateTextFormat(
+                windows::core::PCWSTR::from_raw(font.lfFaceName.as_ptr()),
+                None,
+                DWRITE_FONT_WEIGHT(font.lfWeight),
+                if font.lfItalic != 0 {
+                    DWRITE_FONT_STYLE_ITALIC
+                } else {
+                    DWRITE_FONT_STYLE_NORMAL
+                },
+                DWRITE_FONT_STRETCH_NORMAL,
+                height as f32,
+                w!(""),
+            )
+            .unwrap();
+        let layout = DWRITE_FACTORY
+            .CreateTextLayout(s.as_slice_with_nul(), &format, f32::MAX, f32::MAX)
+            .unwrap();
+        let mut metrics = MaybeUninit::uninit();
+        layout.GetMetrics(metrics.as_mut_ptr()).unwrap();
+        let metrics = metrics.assume_init();
+        Size::new(metrics.width as _, metrics.height as _)
     }
-    let hdc = WinDC::new(hwnd);
-    if hdc.1.is_null() {
-        return Size::zero();
-    }
-    let mut size = MaybeUninit::uninit();
-    syscall!(
-        BOOL,
-        GetTextExtentPoint32W(hdc.1, s.as_ptr(), s.len() as _, size.as_mut_ptr())
-    )
-    .unwrap();
-    let size = unsafe { size.assume_init() };
-    Size::new(size.cx as _, size.cy as _)
 }
