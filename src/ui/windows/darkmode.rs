@@ -299,12 +299,10 @@ impl Drop for DetourGuard {
     }
 }
 
-thread_local! {
-    static DETOUR_GUARD: DetourGuard = DetourGuard::new();
-}
+static DETOUR_GUARD: LazyLock<DetourGuard> = LazyLock::new(DetourGuard::new);
 
 pub unsafe fn init_dark() {
-    DETOUR_GUARD.with(|_| {});
+    LazyLock::force(&DETOUR_GUARD);
 }
 
 unsafe extern "system" fn dark_get_theme_color(
