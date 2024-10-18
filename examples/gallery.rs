@@ -24,7 +24,6 @@ struct MainModel {
     entry: Child<Edit>,
     images: Vec<Option<DynamicImage>>,
     images_cache: Vec<DrawingImage>,
-    is_dark: bool,
 }
 
 #[derive(Debug)]
@@ -47,8 +46,6 @@ impl Component for MainModel {
         let mut window = Child::<Window>::init((), &());
         window.set_text("Gallery example");
         window.set_size(Size::new(800.0, 600.0));
-
-        let is_dark = ColorTheme::current() == ColorTheme::Dark;
 
         let canvas = Child::<Canvas>::init((), &window);
         let mut button = Child::<Button>::init((), &window);
@@ -73,7 +70,6 @@ impl Component for MainModel {
             entry,
             images: vec![],
             images_cache: vec![],
-            is_dark,
         }
     }
 
@@ -154,7 +150,8 @@ impl Component for MainModel {
 
         let size = self.canvas.size();
         let mut ctx = self.canvas.context();
-        let brush = SolidColorBrush::new(if self.is_dark {
+        let is_dark = ColorTheme::current() == ColorTheme::Dark;
+        let brush = SolidColorBrush::new(if is_dark {
             Color::new(255, 255, 255, 255)
         } else {
             Color::new(0, 0, 0, 255)

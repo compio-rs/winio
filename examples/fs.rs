@@ -25,7 +25,6 @@ struct MainModel {
     button: Child<Button>,
     label: Child<Label>,
     text: FetchStatus,
-    is_dark: bool,
 }
 
 #[derive(Debug)]
@@ -59,8 +58,6 @@ impl Component for MainModel {
         window.set_text("File IO example");
         window.set_size(Size::new(800.0, 600.0));
 
-        let is_dark = ColorTheme::current() == ColorTheme::Dark;
-
         let canvas = Child::<Canvas>::init((), &window);
         let mut button = Child::<Button>::init((), &window);
         button.set_text("Choose file...");
@@ -77,7 +74,6 @@ impl Component for MainModel {
             button,
             label,
             text: FetchStatus::Loading,
-            is_dark,
         }
     }
 
@@ -150,7 +146,8 @@ impl Component for MainModel {
         }
 
         let mut ctx = self.canvas.context();
-        let brush = SolidColorBrush::new(if self.is_dark {
+        let is_dark = ColorTheme::current() == ColorTheme::Dark;
+        let brush = SolidColorBrush::new(if is_dark {
             Color::new(255, 255, 255, 255)
         } else {
             Color::new(0, 0, 0, 255)

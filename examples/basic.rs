@@ -23,7 +23,6 @@ struct MainModel {
     window: Child<Window>,
     canvas: Child<Canvas>,
     counter: usize,
-    is_dark: bool,
 }
 
 #[derive(Debug)]
@@ -63,7 +62,6 @@ impl Component for MainModel {
             window,
             canvas,
             counter,
-            is_dark: ColorTheme::current() == ColorTheme::Dark,
         }
     }
 
@@ -127,7 +125,8 @@ impl Component for MainModel {
         self.canvas.set_rect(rect);
 
         let size = self.canvas.size();
-        let brush = SolidColorBrush::new(if self.is_dark {
+        let is_dark = ColorTheme::current() == ColorTheme::Dark;
+        let brush = SolidColorBrush::new(if is_dark {
             Color::new(255, 255, 255, 255)
         } else {
             Color::new(0, 0, 0, 255)
