@@ -4,7 +4,7 @@ use std::{
     future::Future,
     mem::MaybeUninit,
     pin::Pin,
-    ptr::null_mut,
+    ptr::{null, null_mut},
     sync::LazyLock,
     task::{Context, Poll, Waker},
     time::Duration,
@@ -20,8 +20,8 @@ use windows::Win32::{
 use windows_sys::Win32::{
     Foundation::{BOOL, HANDLE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_FAILED, WPARAM},
     Graphics::Gdi::{
-        BLACK_BRUSH, CreateSolidBrush, DeleteObject, GetStockObject, HDC, HGDIOBJ, Rectangle,
-        ScreenToClient, SelectObject, SetBkColor, SetBkMode, SetTextColor, TRANSPARENT,
+        BLACK_BRUSH, CreateSolidBrush, DeleteObject, GetStockObject, HDC, HGDIOBJ, InvalidateRect,
+        Rectangle, ScreenToClient, SelectObject, SetBkColor, SetBkMode, SetTextColor, TRANSPARENT,
         WHITE_BRUSH,
     },
     System::Threading::INFINITE,
@@ -31,13 +31,15 @@ use windows_sys::Win32::{
         MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW, QS_ALLINPUT, SWP_NOACTIVATE,
         SWP_NOZORDER, SendMessageW, SetWindowPos, TranslateMessage, WM_CREATE, WM_CTLCOLORBTN,
         WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC, WM_DPICHANGED, WM_ERASEBKGND,
-        WM_SETFONT,
+        WM_SETFONT, WM_SETTINGCHANGE,
     },
 };
 
 use super::RUNTIME;
 use crate::ui::{
-    darkmode::is_dark_mode_allowed_for_app, dpi::get_dpi_for_window, font::default_font,
+    darkmode::{control_use_dark_mode, is_dark_mode_allowed_for_app, window_use_dark_mode},
+    dpi::get_dpi_for_window,
+    font::default_font,
 };
 
 pub(crate) enum FutureState {
@@ -246,6 +248,11 @@ pub(crate) unsafe extern "system" fn window_proc(
     } else {
         // These messages need special return values.
         match msg {
+            WM_SETTINGCHANGE => {
+                window_use_dark_mode(handle);
+                refresh_dark_mode(handle);
+                InvalidateRect(handle, null(), 1);
+            }
             WM_CTLCOLORSTATIC => {
                 let dark = is_dark_mode_allowed_for_app();
                 let hdc = wparam as HDC;
@@ -337,6 +344,17 @@ pub(crate) unsafe fn refresh_font(handle: HWND) {
     }
 
     enum_callback(handle, font as _);
+}
+
+unsafe fn refresh_dark_mode(handle: HWND) {
+    unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        control_use_dark_mode(hwnd);
+        InvalidateRect(hwnd, null(), 1);
+        EnumChildWindows(hwnd, Some(enum_callback), lparam);
+        1
+    }
+
+    EnumChildWindows(handle, Some(enum_callback), 0);
 }
 
 const WHITE: COLORREF = COLORREF(0x00FFFFFF);

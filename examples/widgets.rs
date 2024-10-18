@@ -35,7 +35,6 @@ struct MainModel {
     pop_button: Child<Button>,
     show_button: Child<Button>,
     progress: Child<Progress>,
-    is_dark: bool,
 }
 
 #[derive(Debug)]
@@ -127,7 +126,6 @@ impl Component for MainModel {
             pop_button,
             show_button,
             progress,
-            is_dark: ColorTheme::current() == ColorTheme::Dark,
         }
     }
 
@@ -312,7 +310,8 @@ impl Component for MainModel {
         }
 
         let size = self.canvas.size();
-        let back_color = if self.is_dark {
+        let is_dark = ColorTheme::current() == ColorTheme::Dark;
+        let back_color = if is_dark {
             Color::new(255, 255, 255, 255)
         } else {
             Color::new(0, 0, 0, 255)

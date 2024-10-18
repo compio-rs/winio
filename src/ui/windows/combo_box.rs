@@ -1,22 +1,17 @@
-use std::ptr::null;
-
 use widestring::U16CString;
-use windows_sys::{
-    Win32::UI::{
-        Controls::{SetWindowTheme, WC_COMBOBOXW},
-        WindowsAndMessaging::{
-            CB_DELETESTRING, CB_GETCOUNT, CB_GETCURSEL, CB_GETLBTEXT, CB_GETLBTEXTLEN,
-            CB_INSERTSTRING, CB_RESETCONTENT, CB_SETCURSEL, CBN_EDITUPDATE, CBN_SELCHANGE,
-            CBS_AUTOHSCROLL, CBS_DROPDOWN, CBS_DROPDOWNLIST, CBS_HASSTRINGS, SendMessageW,
-            WM_COMMAND, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
-        },
+use windows_sys::Win32::UI::{
+    Controls::WC_COMBOBOXW,
+    WindowsAndMessaging::{
+        CB_DELETESTRING, CB_GETCOUNT, CB_GETCURSEL, CB_GETLBTEXT, CB_GETLBTEXTLEN, CB_INSERTSTRING,
+        CB_RESETCONTENT, CB_SETCURSEL, CBN_EDITUPDATE, CBN_SELCHANGE, CBS_AUTOHSCROLL,
+        CBS_DROPDOWN, CBS_DROPDOWNLIST, CBS_HASSTRINGS, SendMessageW, WM_COMMAND, WS_CHILD,
+        WS_TABSTOP, WS_VISIBLE,
     },
-    w,
 };
 
 use crate::{
     AsRawWindow, AsWindow, Point, Size,
-    ui::{Widget, darkmode::is_dark_mode_allowed_for_app, font::measure_string},
+    ui::{Widget, font::measure_string},
 };
 
 #[derive(Debug)]
@@ -35,11 +30,6 @@ impl<const E: bool> ComboBoxImpl<E> {
         }
         let handle = Widget::new(WC_COMBOBOXW, style, 0, parent.as_window().as_raw_window());
         handle.set_size(handle.size_d2l((50, 14)));
-        unsafe {
-            if is_dark_mode_allowed_for_app() {
-                SetWindowTheme(handle.as_raw_window(), w!("DarkMode_CFD"), null());
-            }
-        }
         Self { handle }
     }
 

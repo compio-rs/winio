@@ -1,13 +1,15 @@
-use std::ptr::null_mut;
+use std::ptr::{null, null_mut};
 
+use widestring::U16CStr;
 use windows_sys::{
     Win32::{
         Foundation::{BOOL, BOOLEAN, HWND, S_OK},
         Graphics::Dwm::DwmSetWindowAttribute,
+        System::SystemServices::MAX_CLASS_NAME,
         UI::{
             Accessibility::{HCF_HIGHCONTRASTON, HIGHCONTRASTW},
             Controls::SetWindowTheme,
-            WindowsAndMessaging::{SPI_GETHIGHCONTRAST, SystemParametersInfoW},
+            WindowsAndMessaging::{GetClassNameW, SPI_GETHIGHCONTRAST, SystemParametersInfoW},
         },
     },
     core::HRESULT,
@@ -115,10 +117,20 @@ pub unsafe fn window_use_dark_mode(h_wnd: HWND) -> HRESULT {
     S_OK
 }
 
-pub unsafe fn control_use_dark_mode(h_wnd: HWND) -> HRESULT {
+pub unsafe fn control_use_dark_mode(hwnd: HWND) -> HRESULT {
     if is_dark_mode_allowed_for_app() {
-        SetWindowTheme(h_wnd, w!("DarkMode_Explorer"), null_mut())
+        let mut class = [0u16; MAX_CLASS_NAME as usize];
+        GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
+        let class = U16CStr::from_ptr_str(class.as_ptr()).to_string_lossy();
+        let subappname = if class.eq_ignore_ascii_case("ComboBox") {
+            w!("DarkMode_CFD")
+        } else if class.eq_ignore_ascii_case("msctls_progress32") {
+            null()
+        } else {
+            w!("DarkMode_Explorer")
+        };
+        SetWindowTheme(hwnd, subappname, null())
     } else {
-        S_OK
+        SetWindowTheme(hwnd, null(), null())
     }
 }
