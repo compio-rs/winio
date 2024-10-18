@@ -169,56 +169,54 @@ pub unsafe fn fix_button_dark_mode(hwnd: HWND) {
     if button_type <= BS_DEFPUSHBUTTON || button_type >= BS_OWNERDRAW {
         return;
     }
-    if is_dark_mode_allowed_for_app() {
-        let len = GetWindowTextLengthW(hwnd);
-        if len > 0 {
-            let mut res: Vec<u16> = Vec::with_capacity(len as usize + 1);
-            GetWindowTextW(hwnd, res.as_mut_ptr(), res.capacity() as _);
-            res.set_len(len as usize + 1);
-            let text = U16CString::from_vec_unchecked(res);
-            let hdc = GetDC(hwnd);
-            if !hdc.is_null() {
-                let font = SendMessageW(hwnd, WM_GETFONT, 0, 0) as HGDIOBJ;
-                let oldfont = SelectObject(hdc, font);
-                let mut rc = MaybeUninit::uninit();
-                GetClientRect(hwnd, rc.as_mut_ptr());
-                let mut rc = rc.assume_init();
-                DrawTextW(
-                    hdc,
-                    text.as_ptr(),
-                    text.len() as i32 + 1,
-                    &mut rc,
-                    DT_HIDEPREFIX | DT_CALCRECT,
-                );
-                let hbm = CreateCompatibleBitmap(hdc, rc.right - rc.left, rc.bottom - rc.top);
-                let hmdc = CreateCompatibleDC(hdc);
-                let hold = SelectObject(hmdc, hbm);
-                let old_font_m = SelectObject(hmdc, font);
-                SetBkMode(hmdc, TRANSPARENT as _);
-                SetTextColor(hmdc, WHITE);
-                SetBkColor(hmdc, BLACK);
-                DrawTextW(
-                    hmdc,
-                    text.as_ptr(),
-                    text.len() as i32 + 1,
-                    &mut rc,
-                    DT_HIDEPREFIX,
-                );
-                SelectObject(hmdc, old_font_m);
-                SelectObject(hmdc, hold);
-                DeleteDC(hmdc);
-                SelectObject(hdc, oldfont);
-                ReleaseDC(hwnd, hdc);
-                let style = style | BS_BITMAP;
-                if cfg!(target_pointer_width = "64") {
-                    SetWindowLongPtrW(hwnd, GWL_STYLE, style as _);
-                } else {
-                    SetWindowLongW(hwnd, GWL_STYLE, style as _);
-                }
-                let oldbm = SendMessageW(hwnd, BM_SETIMAGE, IMAGE_BITMAP as _, hbm as _);
-                if oldbm != 0 {
-                    DeleteObject(oldbm as _);
-                }
+    let len = GetWindowTextLengthW(hwnd);
+    if is_dark_mode_allowed_for_app() && len > 0 {
+        let mut res: Vec<u16> = Vec::with_capacity(len as usize + 1);
+        GetWindowTextW(hwnd, res.as_mut_ptr(), res.capacity() as _);
+        res.set_len(len as usize + 1);
+        let text = U16CString::from_vec_unchecked(res);
+        let hdc = GetDC(hwnd);
+        if !hdc.is_null() {
+            let font = SendMessageW(hwnd, WM_GETFONT, 0, 0) as HGDIOBJ;
+            let oldfont = SelectObject(hdc, font);
+            let mut rc = MaybeUninit::uninit();
+            GetClientRect(hwnd, rc.as_mut_ptr());
+            let mut rc = rc.assume_init();
+            DrawTextW(
+                hdc,
+                text.as_ptr(),
+                text.len() as i32 + 1,
+                &mut rc,
+                DT_HIDEPREFIX | DT_CALCRECT,
+            );
+            let hbm = CreateCompatibleBitmap(hdc, rc.right - rc.left, rc.bottom - rc.top);
+            let hmdc = CreateCompatibleDC(hdc);
+            let hold = SelectObject(hmdc, hbm);
+            let old_font_m = SelectObject(hmdc, font);
+            SetBkMode(hmdc, TRANSPARENT as _);
+            SetTextColor(hmdc, WHITE);
+            SetBkColor(hmdc, BLACK);
+            DrawTextW(
+                hmdc,
+                text.as_ptr(),
+                text.len() as i32 + 1,
+                &mut rc,
+                DT_HIDEPREFIX,
+            );
+            SelectObject(hmdc, old_font_m);
+            SelectObject(hmdc, hold);
+            DeleteDC(hmdc);
+            SelectObject(hdc, oldfont);
+            ReleaseDC(hwnd, hdc);
+            let style = style | BS_BITMAP;
+            if cfg!(target_pointer_width = "64") {
+                SetWindowLongPtrW(hwnd, GWL_STYLE, style as _);
+            } else {
+                SetWindowLongW(hwnd, GWL_STYLE, style as _);
+            }
+            let oldbm = SendMessageW(hwnd, BM_SETIMAGE, IMAGE_BITMAP as _, hbm as _);
+            if oldbm != 0 {
+                DeleteObject(oldbm as _);
             }
         }
     } else {
