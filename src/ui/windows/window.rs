@@ -86,7 +86,7 @@ impl Widget {
             panic!("{:?}", std::io::Error::last_os_error());
         }
         unsafe {
-            control_use_dark_mode(handle);
+            control_use_dark_mode(handle, false);
             crate::runtime::refresh_font(handle);
             Self(OwnedWindow::from_raw_window(handle))
         }

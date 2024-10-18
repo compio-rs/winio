@@ -28,12 +28,12 @@ use windows_sys::{
                 PBS_DISABLED, PP_TRANSPARENTBAR, PROGRESS_CLASSW, SetWindowTheme,
                 TASKDIALOG_NOTIFICATIONS, TDLG_MAININSTRUCTIONPANE, TDLG_PRIMARYPANEL,
                 TDLG_SECONDARYPANEL, TDN_CREATED, TDN_DIALOG_CONSTRUCTED, TMT_TEXTCOLOR,
-                WC_COMBOBOXW,
+                WC_BUTTONW, WC_COMBOBOXW,
             },
-            Shell::{DefSubclassProc, GetWindowSubclass, SetWindowSubclass},
+            Shell::{DefSubclassProc, SetWindowSubclass},
             WindowsAndMessaging::{
                 EnumChildWindows, GetClassNameW, GetClientRect, SPI_GETHIGHCONTRAST,
-                SystemParametersInfoW, WM_CTLCOLORDLG, WM_ERASEBKGND,
+                SystemParametersInfoW, WM_CTLCOLORDLG, WM_ERASEBKGND, WM_SETTINGCHANGE,
             },
         },
     },
@@ -144,15 +144,16 @@ pub unsafe fn window_use_dark_mode(h_wnd: HWND) -> HRESULT {
     S_OK
 }
 
-pub unsafe fn children_refresh_dark_mode(handle: HWND) {
+// MISC: If in task dialog, set lparam to 1.
+pub unsafe fn children_refresh_dark_mode(handle: HWND, lparam: LPARAM) {
     unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
-        control_use_dark_mode(hwnd);
+        control_use_dark_mode(hwnd, lparam != 0);
         InvalidateRect(hwnd, null(), 1);
         EnumChildWindows(hwnd, Some(enum_callback), lparam);
         1
     }
 
-    EnumChildWindows(handle, Some(enum_callback), 0);
+    EnumChildWindows(handle, Some(enum_callback), lparam);
 }
 
 #[inline]
@@ -169,22 +170,26 @@ fn u16_string_eq_ignore_case(s1: &U16CStr, s2: *const u16) -> bool {
     }
 }
 
-pub unsafe fn control_use_dark_mode(hwnd: HWND) {
+pub unsafe fn control_use_dark_mode(hwnd: HWND, misc_task_dialog: bool) {
     let mut class = [0u16; MAX_CLASS_NAME as usize];
     GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
     let class = U16CStr::from_ptr_str(class.as_ptr());
-    if is_dark_mode_allowed_for_app() {
-        let subappname = if u16_string_eq_ignore_case(class, WC_COMBOBOXW) {
+    let subappname = if is_dark_mode_allowed_for_app() {
+        if u16_string_eq_ignore_case(class, WC_COMBOBOXW) {
             w!("DarkMode_CFD")
-        } else if u16_string_eq_ignore_case(class, PROGRESS_CLASSW) {
+        } else if u16_string_eq_ignore_case(class, PROGRESS_CLASSW)
+            || (u16_string_eq_ignore_case(class, WC_BUTTONW) && misc_task_dialog)
+        {
             null()
         } else {
             w!("DarkMode_Explorer")
-        };
-        SetWindowTheme(hwnd, subappname, null());
+        }
+    } else if u16_string_eq_ignore_case(class, WC_BUTTONW) && misc_task_dialog {
+        w!("DarkMode_Explorer")
     } else {
-        SetWindowTheme(hwnd, null(), null());
-    }
+        null()
+    };
+    SetWindowTheme(hwnd, subappname, null());
 }
 
 const WHITE: COLORREF = 0x00FFFFFF;
@@ -333,7 +338,10 @@ unsafe extern "system" fn dark_draw_theme_text(
     dwtextflags2: u32,
     prect: *const RECT,
 ) -> HRESULT {
-    if (ipartid == BP_CHECKBOX || ipartid == BP_RADIOBUTTON) && istateid != PBS_DISABLED {
+    if is_dark_mode_allowed_for_app()
+        && (ipartid == BP_CHECKBOX || ipartid == BP_RADIOBUTTON)
+        && istateid != PBS_DISABLED
+    {
         let mut options: DTTOPTS = std::mem::zeroed();
         options.dwSize = std::mem::size_of::<DTTOPTS>() as _;
         options.dwFlags = DTT_TEXTCOLOR;
@@ -429,8 +437,7 @@ pub unsafe extern "system" fn task_dialog_callback(
     match msg {
         TDN_CREATED | TDN_DIALOG_CONSTRUCTED => {
             window_use_dark_mode(hwnd);
-            children_refresh_dark_mode(hwnd);
-            children_add_subclass(hwnd);
+            children_refresh_dark_mode(hwnd, 0);
         }
         _ => {}
     }
@@ -438,18 +445,6 @@ pub unsafe extern "system" fn task_dialog_callback(
         SetWindowSubclass(hwnd, Some(task_dialog_subclass), hwnd as _, lprefdata as _);
     }
     S_OK
-}
-
-unsafe fn children_add_subclass(handle: HWND) {
-    unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
-        EnumChildWindows(hwnd, Some(enum_callback), lparam);
-        if GetWindowSubclass(hwnd, Some(task_dialog_subclass), hwnd as _, null_mut()) == 0 {
-            SetWindowSubclass(hwnd, Some(task_dialog_subclass), hwnd as _, 0);
-        }
-        1
-    }
-
-    EnumChildWindows(handle, Some(enum_callback), 0);
 }
 
 unsafe extern "system" fn task_dialog_subclass(
@@ -461,6 +456,10 @@ unsafe extern "system" fn task_dialog_subclass(
     _dwrefdata: usize,
 ) -> LRESULT {
     match umsg {
+        WM_SETTINGCHANGE => {
+            window_use_dark_mode(hwnd);
+            children_refresh_dark_mode(hwnd, 1);
+        }
         WM_ERASEBKGND => {
             if is_dark_mode_allowed_for_app() {
                 let hdc = wparam as HDC;

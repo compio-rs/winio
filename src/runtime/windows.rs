@@ -250,7 +250,7 @@ pub(crate) unsafe extern "system" fn window_proc(
         match msg {
             WM_SETTINGCHANGE => {
                 window_use_dark_mode(handle);
-                children_refresh_dark_mode(handle);
+                children_refresh_dark_mode(handle, 0);
                 InvalidateRect(handle, null(), 1);
             }
             WM_CTLCOLORSTATIC => {
