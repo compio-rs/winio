@@ -17,8 +17,8 @@ use windows::Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx, CoUninit
 use windows_sys::Win32::{
     Foundation::{BOOL, COLORREF, HANDLE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_FAILED, WPARAM},
     Graphics::Gdi::{
-        BLACK_BRUSH, CreateSolidBrush, DeleteObject, GetStockObject, HDC, HGDIOBJ, InvalidateRect,
-        Rectangle, ScreenToClient, SelectObject, SetBkColor, SetBkMode, SetTextColor, TRANSPARENT,
+        BLACK_BRUSH, CreateSolidBrush, GetStockObject, HDC, InvalidateRect, Rectangle,
+        ScreenToClient, SelectObject, SetBkColor, SetBkMode, SetTextColor, TRANSPARENT,
         WHITE_BRUSH,
     },
     System::Threading::INFINITE,
@@ -34,9 +34,11 @@ use windows_sys::Win32::{
 
 use super::RUNTIME;
 use crate::ui::{
-    darkmode::{children_refresh_dark_mode, is_dark_mode_allowed_for_app, window_use_dark_mode},
+    darkmode::{
+        children_refresh_dark_mode, init_dark, is_dark_mode_allowed_for_app, window_use_dark_mode,
+    },
     dpi::get_dpi_for_window,
-    font::default_font,
+    font::{WinBrush, default_font},
 };
 
 pub(crate) enum FutureState {
@@ -75,6 +77,7 @@ pub struct Runtime {
 impl Runtime {
     pub fn new() -> Self {
         unsafe {
+            init_dark();
             CoInitializeEx(None, COINIT_MULTITHREADED).unwrap();
         }
 
@@ -341,17 +344,6 @@ pub(crate) unsafe fn refresh_font(handle: HWND) {
 
 const WHITE: COLORREF = 0x00FFFFFF;
 const BLACK: COLORREF = 0x00000000;
-
-struct WinBrush(HGDIOBJ);
-
-impl Drop for WinBrush {
-    fn drop(&mut self) {
-        unsafe { DeleteObject(self.0) };
-    }
-}
-
-unsafe impl Send for WinBrush {}
-unsafe impl Sync for WinBrush {}
 
 static EDIT_NORMAL_BACK: LazyLock<WinBrush> =
     LazyLock::new(|| WinBrush(unsafe { CreateSolidBrush(0x00212121) }));

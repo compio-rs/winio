@@ -10,7 +10,7 @@ use widestring::U16CStr;
 use windows_sys::Win32::{
     Foundation::HWND,
     Graphics::Gdi::{
-        CreateFontIndirectW, DeleteObject, GetTextExtentPoint32W, GetWindowDC, HDC, HFONT,
+        CreateFontIndirectW, DeleteObject, GetTextExtentPoint32W, GetWindowDC, HDC, HFONT, HGDIOBJ,
         LOGFONTW, ReleaseDC,
     },
     UI::{
@@ -40,7 +40,7 @@ unsafe fn system_default_font() -> io::Result<LOGFONTW> {
     Ok(ncm.lfMessageFont)
 }
 
-struct WinFont(HFONT);
+pub(crate) struct WinFont(pub HFONT);
 
 impl Drop for WinFont {
     fn drop(&mut self) {
@@ -70,7 +70,7 @@ pub fn default_font(dpi: u32) -> HFONT {
     }
 }
 
-struct WinDC(HWND, HDC);
+pub(crate) struct WinDC(pub HWND, pub HDC);
 
 impl WinDC {
     pub fn new(hwnd: HWND) -> Self {
@@ -88,6 +88,17 @@ impl Drop for WinDC {
         }
     }
 }
+
+pub(crate) struct WinBrush(pub HGDIOBJ);
+
+impl Drop for WinBrush {
+    fn drop(&mut self) {
+        unsafe { DeleteObject(self.0) };
+    }
+}
+
+unsafe impl Send for WinBrush {}
+unsafe impl Sync for WinBrush {}
 
 pub fn measure_string(hwnd: HWND, s: &U16CStr) -> Size {
     if s.is_empty() {

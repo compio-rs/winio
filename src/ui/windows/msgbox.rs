@@ -1,12 +1,15 @@
 use std::{
+    mem::MaybeUninit,
     panic::resume_unwind,
     ptr::{null, null_mut},
+    sync::LazyLock,
 };
 
 use widestring::U16CString;
 use windows_sys::{
     Win32::{
-        Foundation::{E_INVALIDARG, E_OUTOFMEMORY, HWND, LPARAM, S_OK, WPARAM},
+        Foundation::{BOOL, E_INVALIDARG, E_OUTOFMEMORY, HWND, LPARAM, LRESULT, S_OK, WPARAM},
+        Graphics::Gdi::{CreateSolidBrush, HDC, Rectangle, SelectObject},
         UI::{
             Controls::{
                 TASKDIALOG_BUTTON, TASKDIALOG_NOTIFICATIONS, TASKDIALOGCONFIG, TASKDIALOGCONFIG_0,
@@ -14,7 +17,11 @@ use windows_sys::{
                 TDF_ALLOW_DIALOG_CANCELLATION, TDF_SIZE_TO_CONTENT, TDN_CREATED,
                 TDN_DIALOG_CONSTRUCTED, TaskDialogIndirect,
             },
-            WindowsAndMessaging::{IDCANCEL, IDCLOSE, IDNO, IDOK, IDRETRY, IDYES},
+            Shell::{DefSubclassProc, GetWindowSubclass, SetWindowSubclass},
+            WindowsAndMessaging::{
+                EnumChildWindows, GetClientRect, IDCANCEL, IDCLOSE, IDNO, IDOK, IDRETRY, IDYES,
+                WM_CTLCOLORDLG, WM_ERASEBKGND,
+            },
         },
     },
     core::HRESULT,
@@ -22,7 +29,13 @@ use windows_sys::{
 
 use crate::{
     AsRawWindow, AsWindow, MessageBoxButton, MessageBoxResponse, MessageBoxStyle,
-    ui::darkmode::{children_refresh_dark_mode, window_use_dark_mode},
+    ui::{
+        darkmode::{
+            children_refresh_dark_mode, init_dark, is_dark_mode_allowed_for_app,
+            window_use_dark_mode,
+        },
+        font::WinBrush,
+    },
 };
 
 async fn msgbox_custom(
@@ -86,6 +99,9 @@ async fn msgbox_custom(
         };
 
         let mut result = 0;
+        unsafe {
+            init_dark();
+        }
         let res = unsafe { TaskDialogIndirect(&config, &mut result, null_mut(), null_mut()) };
         (res, result)
     })
@@ -119,17 +135,71 @@ unsafe extern "system" fn task_dialog_callback(
     msg: TASKDIALOG_NOTIFICATIONS,
     _wparam: WPARAM,
     _lparam: LPARAM,
-    _lprefdata: isize,
+    lprefdata: isize,
 ) -> HRESULT {
     match msg {
         TDN_CREATED | TDN_DIALOG_CONSTRUCTED => {
             window_use_dark_mode(hwnd);
             children_refresh_dark_mode(hwnd);
+            children_add_subclass(hwnd);
         }
         _ => {}
     }
+    if msg == TDN_CREATED {
+        SetWindowSubclass(hwnd, Some(task_dialog_subclass), hwnd as _, lprefdata as _);
+    }
     S_OK
 }
+
+unsafe fn children_add_subclass(handle: HWND) {
+    unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        EnumChildWindows(hwnd, Some(enum_callback), lparam);
+        if GetWindowSubclass(hwnd, Some(task_dialog_subclass), hwnd as _, null_mut()) == 0 {
+            SetWindowSubclass(hwnd, Some(task_dialog_subclass), hwnd as _, 0);
+        }
+        1
+    }
+
+    EnumChildWindows(handle, Some(enum_callback), 0);
+}
+
+unsafe extern "system" fn task_dialog_subclass(
+    hwnd: HWND,
+    umsg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+    _uidsubclass: usize,
+    _dwrefdata: usize,
+) -> LRESULT {
+    match umsg {
+        WM_ERASEBKGND => {
+            if is_dark_mode_allowed_for_app() {
+                let hdc = wparam as HDC;
+                let brush = DLG_GRAY_BACK.0;
+                let old_brush = SelectObject(hdc, brush);
+                let mut r = MaybeUninit::uninit();
+                GetClientRect(hwnd, r.as_mut_ptr());
+                let r = r.assume_init();
+                Rectangle(hdc, r.left - 1, r.top - 1, r.right + 1, r.bottom + 1);
+                SelectObject(hdc, old_brush);
+            }
+        }
+        WM_CTLCOLORDLG => {
+            if is_dark_mode_allowed_for_app() {
+                println!("CTLCOLORDLG");
+                return DLG_DARK_BACK.0 as _;
+            }
+        }
+        _ => {}
+    }
+    DefSubclassProc(hwnd, umsg, wparam, lparam)
+}
+
+static DLG_DARK_BACK: LazyLock<WinBrush> =
+    LazyLock::new(|| WinBrush(unsafe { CreateSolidBrush(0x00242424) }));
+
+static DLG_GRAY_BACK: LazyLock<WinBrush> =
+    LazyLock::new(|| WinBrush(unsafe { CreateSolidBrush(0x00333333) }));
 
 #[derive(Debug, Clone)]
 pub struct MessageBox {
