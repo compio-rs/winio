@@ -91,6 +91,7 @@ impl Component for MainModel {
                 match MessageBox::new()
                     .title("Basic example")
                     .message("Close window?")
+                    .instruction("The window is about to close.")
                     .style(MessageBoxStyle::Info)
                     .buttons(MessageBoxButton::Yes | MessageBoxButton::No)
                     .custom_button(CustomButton::new(114, "114"))

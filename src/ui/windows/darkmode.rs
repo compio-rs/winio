@@ -1,4 +1,5 @@
 use std::{
+    mem::MaybeUninit,
     ptr::{addr_of_mut, null, null_mut},
     sync::LazyLock,
 };
@@ -9,11 +10,14 @@ use detours_sys::{
 use widestring::U16CStr;
 use windows_sys::{
     Win32::{
-        Foundation::{BOOL, BOOLEAN, COLORREF, HWND, LPARAM, RECT, S_OK},
+        Foundation::{BOOL, BOOLEAN, COLORREF, HWND, LPARAM, LRESULT, RECT, S_OK, WPARAM},
         Globalization::{CSTR_EQUAL, CompareStringW, LOCALE_ALL, NORM_IGNORECASE},
         Graphics::{
             Dwm::DwmSetWindowAttribute,
-            Gdi::{CreateSolidBrush, DRAW_TEXT_FORMAT, FillRect, HDC, InvalidateRect},
+            Gdi::{
+                CreateSolidBrush, DRAW_TEXT_FORMAT, FillRect, HDC, InvalidateRect, Rectangle,
+                SelectObject,
+            },
         },
         System::{SystemServices::MAX_CLASS_NAME, Threading::GetCurrentThread},
         UI::{
@@ -22,11 +26,14 @@ use windows_sys::{
                 BP_CHECKBOX, BP_RADIOBUTTON, DTBGOPTS, DTT_TEXTCOLOR, DTTOPTS, DrawThemeBackground,
                 DrawThemeBackgroundEx, DrawThemeText, DrawThemeTextEx, GetThemeColor, HTHEME,
                 PBS_DISABLED, PP_TRANSPARENTBAR, PROGRESS_CLASSW, SetWindowTheme,
-                TDLG_MAININSTRUCTIONPANE, TDLG_PRIMARYPANEL, TDLG_SECONDARYPANEL, TMT_TEXTCOLOR,
+                TASKDIALOG_NOTIFICATIONS, TDLG_MAININSTRUCTIONPANE, TDLG_PRIMARYPANEL,
+                TDLG_SECONDARYPANEL, TDN_CREATED, TDN_DIALOG_CONSTRUCTED, TMT_TEXTCOLOR,
                 WC_COMBOBOXW,
             },
+            Shell::{DefSubclassProc, GetWindowSubclass, SetWindowSubclass},
             WindowsAndMessaging::{
-                EnumChildWindows, GetClassNameW, SPI_GETHIGHCONTRAST, SystemParametersInfoW,
+                EnumChildWindows, GetClassNameW, GetClientRect, SPI_GETHIGHCONTRAST,
+                SystemParametersInfoW, WM_CTLCOLORDLG, WM_ERASEBKGND,
             },
         },
     },
@@ -410,4 +417,68 @@ fn increase(c: COLORREF, inc: u32) -> COLORREF {
     let b = (c >> 16) & 0xFF;
     let b = (b + inc).min(0xFF);
     r + (g << 8) + (b << 16)
+}
+
+pub unsafe extern "system" fn task_dialog_callback(
+    hwnd: HWND,
+    msg: TASKDIALOG_NOTIFICATIONS,
+    _wparam: WPARAM,
+    _lparam: LPARAM,
+    lprefdata: isize,
+) -> HRESULT {
+    match msg {
+        TDN_CREATED | TDN_DIALOG_CONSTRUCTED => {
+            window_use_dark_mode(hwnd);
+            children_refresh_dark_mode(hwnd);
+            children_add_subclass(hwnd);
+        }
+        _ => {}
+    }
+    if msg == TDN_CREATED {
+        SetWindowSubclass(hwnd, Some(task_dialog_subclass), hwnd as _, lprefdata as _);
+    }
+    S_OK
+}
+
+unsafe fn children_add_subclass(handle: HWND) {
+    unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        EnumChildWindows(hwnd, Some(enum_callback), lparam);
+        if GetWindowSubclass(hwnd, Some(task_dialog_subclass), hwnd as _, null_mut()) == 0 {
+            SetWindowSubclass(hwnd, Some(task_dialog_subclass), hwnd as _, 0);
+        }
+        1
+    }
+
+    EnumChildWindows(handle, Some(enum_callback), 0);
+}
+
+unsafe extern "system" fn task_dialog_subclass(
+    hwnd: HWND,
+    umsg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+    _uidsubclass: usize,
+    _dwrefdata: usize,
+) -> LRESULT {
+    match umsg {
+        WM_ERASEBKGND => {
+            if is_dark_mode_allowed_for_app() {
+                let hdc = wparam as HDC;
+                let brush = DLG_GRAY_BACK.0;
+                let old_brush = SelectObject(hdc, brush);
+                let mut r = MaybeUninit::uninit();
+                GetClientRect(hwnd, r.as_mut_ptr());
+                let r = r.assume_init();
+                Rectangle(hdc, r.left - 1, r.top - 1, r.right + 1, r.bottom + 1);
+                SelectObject(hdc, old_brush);
+            }
+        }
+        WM_CTLCOLORDLG => {
+            if is_dark_mode_allowed_for_app() {
+                return DLG_DARK_BACK.0 as _;
+            }
+        }
+        _ => {}
+    }
+    DefSubclassProc(hwnd, umsg, wparam, lparam)
 }
