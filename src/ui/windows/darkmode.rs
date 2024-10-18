@@ -4,11 +4,12 @@ use widestring::U16CStr;
 use windows_sys::{
     Win32::{
         Foundation::{BOOL, BOOLEAN, HWND, S_OK},
+        Globalization::{CSTR_EQUAL, CompareStringW, LOCALE_ALL, NORM_IGNORECASE},
         Graphics::Dwm::DwmSetWindowAttribute,
         System::SystemServices::MAX_CLASS_NAME,
         UI::{
             Accessibility::{HCF_HIGHCONTRASTON, HIGHCONTRASTW},
-            Controls::SetWindowTheme,
+            Controls::{PROGRESS_CLASSW, SetWindowTheme, WC_COMBOBOXW},
             WindowsAndMessaging::{GetClassNameW, SPI_GETHIGHCONTRAST, SystemParametersInfoW},
         },
     },
@@ -117,14 +118,19 @@ pub unsafe fn window_use_dark_mode(h_wnd: HWND) -> HRESULT {
     S_OK
 }
 
+#[inline]
+fn u16_string_eq_ignore_case(s1: &U16CStr, s2: *const u16) -> bool {
+    unsafe { CompareStringW(LOCALE_ALL, NORM_IGNORECASE, s1.as_ptr(), -1, s2, -1) == CSTR_EQUAL }
+}
+
 pub unsafe fn control_use_dark_mode(hwnd: HWND) -> HRESULT {
     if is_dark_mode_allowed_for_app() {
         let mut class = [0u16; MAX_CLASS_NAME as usize];
         GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
-        let class = U16CStr::from_ptr_str(class.as_ptr()).to_string_lossy();
-        let subappname = if class.eq_ignore_ascii_case("ComboBox") {
+        let class = U16CStr::from_ptr_str(class.as_ptr());
+        let subappname = if u16_string_eq_ignore_case(class, WC_COMBOBOXW) {
             w!("DarkMode_CFD")
-        } else if class.eq_ignore_ascii_case("msctls_progress32") {
+        } else if u16_string_eq_ignore_case(class, PROGRESS_CLASSW) {
             null()
         } else {
             w!("DarkMode_Explorer")
