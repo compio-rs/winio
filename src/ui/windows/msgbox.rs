@@ -4,19 +4,26 @@ use std::{
 };
 
 use widestring::U16CString;
-use windows_sys::Win32::{
-    Foundation::{E_INVALIDARG, E_OUTOFMEMORY, S_OK},
-    UI::{
-        Controls::{
-            TASKDIALOG_BUTTON, TASKDIALOGCONFIG, TASKDIALOGCONFIG_0, TASKDIALOGCONFIG_1,
-            TD_ERROR_ICON, TD_INFORMATION_ICON, TD_WARNING_ICON, TDF_ALLOW_DIALOG_CANCELLATION,
-            TDF_SIZE_TO_CONTENT, TaskDialogIndirect,
+use windows_sys::{
+    Win32::{
+        Foundation::{E_INVALIDARG, E_OUTOFMEMORY, HWND, LPARAM, S_OK, WPARAM},
+        UI::{
+            Controls::{
+                TASKDIALOG_BUTTON, TASKDIALOG_NOTIFICATIONS, TASKDIALOGCONFIG, TASKDIALOGCONFIG_0,
+                TASKDIALOGCONFIG_1, TD_ERROR_ICON, TD_INFORMATION_ICON, TD_WARNING_ICON,
+                TDF_ALLOW_DIALOG_CANCELLATION, TDF_SIZE_TO_CONTENT, TDN_CREATED,
+                TDN_DIALOG_CONSTRUCTED, TaskDialogIndirect,
+            },
+            WindowsAndMessaging::{IDCANCEL, IDCLOSE, IDNO, IDOK, IDRETRY, IDYES},
         },
-        WindowsAndMessaging::{IDCANCEL, IDCLOSE, IDNO, IDOK, IDRETRY, IDYES},
     },
+    core::HRESULT,
 };
 
-use crate::{AsRawWindow, AsWindow, MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
+use crate::{
+    AsRawWindow, AsWindow, MessageBoxButton, MessageBoxResponse, MessageBoxStyle,
+    ui::darkmode::{children_refresh_dark_mode, window_use_dark_mode},
+};
 
 async fn msgbox_custom(
     parent: Option<impl AsWindow>,
@@ -73,7 +80,7 @@ async fn msgbox_custom(
                 hFooterIcon: null_mut(),
             },
             pszFooter: null(),
-            pfCallback: None,
+            pfCallback: Some(task_dialog_callback),
             lpCallbackData: 0,
             cxWidth: 0,
         };
@@ -105,6 +112,23 @@ async fn msgbox_custom(
         ),
         _ => panic!("{:?}", std::io::Error::from_raw_os_error(res)),
     }
+}
+
+unsafe extern "system" fn task_dialog_callback(
+    hwnd: HWND,
+    msg: TASKDIALOG_NOTIFICATIONS,
+    _wparam: WPARAM,
+    _lparam: LPARAM,
+    _lprefdata: isize,
+) -> HRESULT {
+    match msg {
+        TDN_CREATED | TDN_DIALOG_CONSTRUCTED => {
+            window_use_dark_mode(hwnd);
+            children_refresh_dark_mode(hwnd);
+        }
+        _ => {}
+    }
+    S_OK
 }
 
 #[derive(Debug, Clone)]

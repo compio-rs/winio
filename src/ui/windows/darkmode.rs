@@ -6,14 +6,14 @@ use std::{
 use widestring::{U16CStr, U16CString};
 use windows_sys::{
     Win32::{
-        Foundation::{BOOL, BOOLEAN, COLORREF, HWND, S_OK},
+        Foundation::{BOOL, BOOLEAN, COLORREF, HWND, LPARAM, S_OK},
         Globalization::{CSTR_EQUAL, CompareStringW, LOCALE_ALL, NORM_IGNORECASE},
         Graphics::{
             Dwm::DwmSetWindowAttribute,
             Gdi::{
                 CreateCompatibleBitmap, CreateCompatibleDC, DT_CALCRECT, DT_HIDEPREFIX, DeleteDC,
-                DeleteObject, DrawTextW, GetDC, HGDIOBJ, ReleaseDC, SelectObject, SetBkColor,
-                SetBkMode, SetTextColor, TRANSPARENT,
+                DeleteObject, DrawTextW, GetDC, HGDIOBJ, InvalidateRect, ReleaseDC, SelectObject,
+                SetBkColor, SetBkMode, SetTextColor, TRANSPARENT,
             },
         },
         System::SystemServices::MAX_CLASS_NAME,
@@ -21,10 +21,11 @@ use windows_sys::{
             Accessibility::{HCF_HIGHCONTRASTON, HIGHCONTRASTW},
             Controls::{PROGRESS_CLASSW, SetWindowTheme, WC_BUTTONW, WC_COMBOBOXW},
             WindowsAndMessaging::{
-                BM_SETIMAGE, BS_BITMAP, BS_DEFPUSHBUTTON, BS_OWNERDRAW, BS_TYPEMASK, GWL_STYLE,
-                GetClassNameW, GetClientRect, GetWindowLongPtrW, GetWindowLongW,
-                GetWindowTextLengthW, GetWindowTextW, IMAGE_BITMAP, SPI_GETHIGHCONTRAST,
-                SendMessageW, SetWindowLongPtrW, SetWindowLongW, SystemParametersInfoW, WM_GETFONT,
+                BM_SETIMAGE, BS_BITMAP, BS_DEFPUSHBUTTON, BS_OWNERDRAW, BS_TYPEMASK,
+                EnumChildWindows, GWL_STYLE, GetClassNameW, GetClientRect, GetWindowLongPtrW,
+                GetWindowLongW, GetWindowTextLengthW, GetWindowTextW, IMAGE_BITMAP,
+                SPI_GETHIGHCONTRAST, SendMessageW, SetWindowLongPtrW, SetWindowLongW,
+                SystemParametersInfoW, WM_GETFONT,
             },
         },
     },
@@ -131,6 +132,17 @@ pub unsafe fn window_use_dark_mode(h_wnd: HWND) -> HRESULT {
     }
     FlushMenuThemes();
     S_OK
+}
+
+pub unsafe fn children_refresh_dark_mode(handle: HWND) {
+    unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        control_use_dark_mode(hwnd);
+        InvalidateRect(hwnd, null(), 1);
+        EnumChildWindows(hwnd, Some(enum_callback), lparam);
+        1
+    }
+
+    EnumChildWindows(handle, Some(enum_callback), 0);
 }
 
 #[inline]

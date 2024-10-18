@@ -34,7 +34,7 @@ use windows_sys::Win32::{
 
 use super::RUNTIME;
 use crate::ui::{
-    darkmode::{control_use_dark_mode, is_dark_mode_allowed_for_app, window_use_dark_mode},
+    darkmode::{children_refresh_dark_mode, is_dark_mode_allowed_for_app, window_use_dark_mode},
     dpi::get_dpi_for_window,
     font::default_font,
 };
@@ -247,7 +247,7 @@ pub(crate) unsafe extern "system" fn window_proc(
         match msg {
             WM_SETTINGCHANGE => {
                 window_use_dark_mode(handle);
-                refresh_dark_mode(handle);
+                children_refresh_dark_mode(handle);
                 InvalidateRect(handle, null(), 1);
             }
             WM_CTLCOLORSTATIC => {
@@ -337,17 +337,6 @@ pub(crate) unsafe fn refresh_font(handle: HWND) {
     }
 
     enum_callback(handle, font as _);
-}
-
-unsafe fn refresh_dark_mode(handle: HWND) {
-    unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
-        control_use_dark_mode(hwnd);
-        InvalidateRect(hwnd, null(), 1);
-        EnumChildWindows(hwnd, Some(enum_callback), lparam);
-        1
-    }
-
-    EnumChildWindows(handle, Some(enum_callback), 0);
 }
 
 const WHITE: COLORREF = 0x00FFFFFF;
