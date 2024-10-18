@@ -4,7 +4,7 @@ use std::{
     sync::LazyLock,
 };
 
-use detours_sys::{
+use detours_sys2::{
     DetourAttach, DetourDetach, DetourTransactionBegin, DetourTransactionCommit, DetourUpdateThread,
 };
 use widestring::U16CStr;
