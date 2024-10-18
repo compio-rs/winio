@@ -8,7 +8,7 @@ use windows_sys::Win32::UI::{
 
 use crate::{
     AsRawWindow, AsWindow, Point, Size,
-    ui::{Widget, darkmode::fix_button_dark_mode, font::measure_string},
+    ui::{Widget, font::measure_string},
 };
 
 #[derive(Debug)]
@@ -54,10 +54,7 @@ impl CheckBox {
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.handle.set_text(s);
-        unsafe {
-            fix_button_dark_mode(self.handle.as_raw_window());
-        }
+        self.handle.set_text(s)
     }
 
     pub fn is_checked(&self) -> bool {

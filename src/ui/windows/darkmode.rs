@@ -1,44 +1,36 @@
 use std::{
-    mem::MaybeUninit,
-    ptr::{null, null_mut},
+    ptr::{addr_of_mut, null, null_mut},
     sync::LazyLock,
 };
 
 use detours_sys::{
     DetourAttach, DetourDetach, DetourTransactionBegin, DetourTransactionCommit, DetourUpdateThread,
 };
-use widestring::{U16CStr, U16CString};
+use widestring::U16CStr;
 use windows_sys::{
     Win32::{
         Foundation::{BOOL, BOOLEAN, COLORREF, HWND, LPARAM, RECT, S_OK},
         Globalization::{CSTR_EQUAL, CompareStringW, LOCALE_ALL, NORM_IGNORECASE},
         Graphics::{
             Dwm::DwmSetWindowAttribute,
-            Gdi::{
-                CreateCompatibleBitmap, CreateCompatibleDC, CreateSolidBrush, DT_CALCRECT,
-                DT_HIDEPREFIX, DeleteDC, DeleteObject, DrawTextW, FillRect, GetDC, HDC, HGDIOBJ,
-                InvalidateRect, ReleaseDC, SelectObject, SetBkColor, SetBkMode, SetTextColor,
-                TRANSPARENT,
-            },
+            Gdi::{CreateSolidBrush, DRAW_TEXT_FORMAT, FillRect, HDC, InvalidateRect},
         },
         System::{SystemServices::MAX_CLASS_NAME, Threading::GetCurrentThread},
         UI::{
             Accessibility::{HCF_HIGHCONTRASTON, HIGHCONTRASTW},
             Controls::{
-                DTBGOPTS, DrawThemeBackground, DrawThemeBackgroundEx, GetThemeColor, HTHEME,
-                PP_TRANSPARENTBAR, PROGRESS_CLASSW, SetWindowTheme, TDLG_MAININSTRUCTIONPANE,
-                TDLG_PRIMARYPANEL, TDLG_SECONDARYPANEL, TMT_TEXTCOLOR, WC_BUTTONW, WC_COMBOBOXW,
+                BP_CHECKBOX, BP_RADIOBUTTON, DTBGOPTS, DTT_TEXTCOLOR, DTTOPTS, DrawThemeBackground,
+                DrawThemeBackgroundEx, DrawThemeText, DrawThemeTextEx, GetThemeColor, HTHEME,
+                PBS_DISABLED, PP_TRANSPARENTBAR, PROGRESS_CLASSW, SetWindowTheme,
+                TDLG_MAININSTRUCTIONPANE, TDLG_PRIMARYPANEL, TDLG_SECONDARYPANEL, TMT_TEXTCOLOR,
+                WC_COMBOBOXW,
             },
             WindowsAndMessaging::{
-                BM_SETIMAGE, BS_BITMAP, BS_DEFPUSHBUTTON, BS_OWNERDRAW, BS_TYPEMASK,
-                EnumChildWindows, GWL_STYLE, GetClassNameW, GetClientRect, GetWindowLongPtrW,
-                GetWindowLongW, GetWindowTextLengthW, GetWindowTextW, IMAGE_BITMAP,
-                SPI_GETHIGHCONTRAST, SendMessageW, SetWindowLongPtrW, SetWindowLongW,
-                SystemParametersInfoW, WM_GETFONT,
+                EnumChildWindows, GetClassNameW, SPI_GETHIGHCONTRAST, SystemParametersInfoW,
             },
         },
     },
-    core::HRESULT,
+    core::{HRESULT, PCWSTR},
     w,
 };
 
@@ -186,87 +178,9 @@ pub unsafe fn control_use_dark_mode(hwnd: HWND) {
     } else {
         SetWindowTheme(hwnd, null(), null());
     }
-    if u16_string_eq_ignore_case(class, WC_BUTTONW) {
-        fix_button_dark_mode(hwnd);
-    }
-}
-
-pub unsafe fn fix_button_dark_mode(hwnd: HWND) {
-    let style = if cfg!(target_pointer_width = "64") {
-        GetWindowLongPtrW(hwnd, GWL_STYLE) as i32
-    } else {
-        GetWindowLongW(hwnd, GWL_STYLE) as i32
-    };
-    let button_type = style & BS_TYPEMASK;
-    if button_type <= BS_DEFPUSHBUTTON || button_type >= BS_OWNERDRAW {
-        return;
-    }
-    let len = GetWindowTextLengthW(hwnd);
-    if is_dark_mode_allowed_for_app() && len > 0 {
-        let mut res: Vec<u16> = Vec::with_capacity(len as usize + 1);
-        GetWindowTextW(hwnd, res.as_mut_ptr(), res.capacity() as _);
-        res.set_len(len as usize + 1);
-        let text = U16CString::from_vec_unchecked(res);
-        let hdc = GetDC(hwnd);
-        if !hdc.is_null() {
-            let font = SendMessageW(hwnd, WM_GETFONT, 0, 0) as HGDIOBJ;
-            let oldfont = SelectObject(hdc, font);
-            let mut rc = MaybeUninit::uninit();
-            GetClientRect(hwnd, rc.as_mut_ptr());
-            let mut rc = rc.assume_init();
-            DrawTextW(
-                hdc,
-                text.as_ptr(),
-                text.len() as i32 + 1,
-                &mut rc,
-                DT_HIDEPREFIX | DT_CALCRECT,
-            );
-            let hbm = CreateCompatibleBitmap(hdc, rc.right - rc.left, rc.bottom - rc.top);
-            let hmdc = CreateCompatibleDC(hdc);
-            let hold = SelectObject(hmdc, hbm);
-            let old_font_m = SelectObject(hmdc, font);
-            SetBkMode(hmdc, TRANSPARENT as _);
-            SetTextColor(hmdc, WHITE);
-            SetBkColor(hmdc, BLACK);
-            DrawTextW(
-                hmdc,
-                text.as_ptr(),
-                text.len() as i32 + 1,
-                &mut rc,
-                DT_HIDEPREFIX,
-            );
-            SelectObject(hmdc, old_font_m);
-            SelectObject(hmdc, hold);
-            DeleteDC(hmdc);
-            SelectObject(hdc, oldfont);
-            ReleaseDC(hwnd, hdc);
-            let style = style | BS_BITMAP;
-            if cfg!(target_pointer_width = "64") {
-                SetWindowLongPtrW(hwnd, GWL_STYLE, style as _);
-            } else {
-                SetWindowLongW(hwnd, GWL_STYLE, style as _);
-            }
-            let oldbm = SendMessageW(hwnd, BM_SETIMAGE, IMAGE_BITMAP as _, hbm as _);
-            if oldbm != 0 {
-                DeleteObject(oldbm as _);
-            }
-        }
-    } else {
-        let oldbm = SendMessageW(hwnd, BM_SETIMAGE, IMAGE_BITMAP as _, 0);
-        if oldbm != 0 {
-            DeleteObject(oldbm as _);
-        }
-        let style = style & !BS_BITMAP;
-        if cfg!(target_pointer_width = "64") {
-            SetWindowLongPtrW(hwnd, GWL_STYLE, style as _);
-        } else {
-            SetWindowLongW(hwnd, GWL_STYLE, style as _);
-        }
-    }
 }
 
 const WHITE: COLORREF = 0x00FFFFFF;
-const BLACK: COLORREF = 0x00000000;
 
 type GetThemeColorFn = unsafe extern "system" fn(
     htheme: HTHEME,
@@ -276,6 +190,19 @@ type GetThemeColorFn = unsafe extern "system" fn(
     pcolor: *mut COLORREF,
 ) -> HRESULT;
 static mut TRUE_GET_THEME_COLOR: GetThemeColorFn = GetThemeColor;
+
+type DrawThemeTextFn = unsafe extern "system" fn(
+    htheme: HTHEME,
+    hdc: HDC,
+    ipartid: i32,
+    istateid: i32,
+    psztext: PCWSTR,
+    cchtext: i32,
+    dwtextflags: DRAW_TEXT_FORMAT,
+    dwtextflags2: u32,
+    prect: *const RECT,
+) -> HRESULT;
+static mut TRUE_DRAW_THEME_TEXT: DrawThemeTextFn = DrawThemeText;
 
 type DrawThemeBackgroundFn = unsafe extern "system" fn(
     htheme: HTHEME,
@@ -301,15 +228,19 @@ unsafe fn detour_attach() {
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
     DetourAttach(
-        (&raw mut TRUE_GET_THEME_COLOR).cast(),
+        addr_of_mut!(TRUE_GET_THEME_COLOR).cast(),
         dark_get_theme_color as GetThemeColorFn as _,
     );
     DetourAttach(
-        std::ptr::addr_of_mut!(TRUE_DRAW_THEME_BACKGROUND).cast(),
+        addr_of_mut!(TRUE_DRAW_THEME_TEXT).cast(),
+        dark_draw_theme_text as DrawThemeTextFn as _,
+    );
+    DetourAttach(
+        addr_of_mut!(TRUE_DRAW_THEME_BACKGROUND).cast(),
         dark_draw_theme_background as DrawThemeBackgroundFn as _,
     );
     DetourAttach(
-        (&raw mut TRUE_DRAW_THEME_BACKGROUND_EX).cast(),
+        addr_of_mut!(TRUE_DRAW_THEME_BACKGROUND_EX).cast(),
         dark_draw_theme_background_ex as DrawThemeBackgroundExFn as _,
     );
     DetourTransactionCommit();
@@ -319,15 +250,19 @@ unsafe fn detour_detach() {
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
     DetourDetach(
-        (&raw mut TRUE_GET_THEME_COLOR).cast(),
+        addr_of_mut!(TRUE_GET_THEME_COLOR).cast(),
         dark_get_theme_color as GetThemeColorFn as _,
     );
     DetourDetach(
-        std::ptr::addr_of_mut!(TRUE_DRAW_THEME_BACKGROUND).cast(),
+        addr_of_mut!(TRUE_DRAW_THEME_TEXT).cast(),
+        dark_draw_theme_text as DrawThemeTextFn as _,
+    );
+    DetourDetach(
+        addr_of_mut!(TRUE_DRAW_THEME_BACKGROUND).cast(),
         dark_draw_theme_background as DrawThemeBackgroundFn as _,
     );
     DetourDetach(
-        (&raw mut TRUE_DRAW_THEME_BACKGROUND_EX).cast(),
+        addr_of_mut!(TRUE_DRAW_THEME_BACKGROUND_EX).cast(),
         dark_draw_theme_background_ex as DrawThemeBackgroundExFn as _,
     );
     DetourTransactionCommit();
@@ -380,6 +315,48 @@ unsafe extern "system" fn dark_get_theme_color(
     res
 }
 
+unsafe extern "system" fn dark_draw_theme_text(
+    htheme: HTHEME,
+    hdc: HDC,
+    ipartid: i32,
+    istateid: i32,
+    psztext: PCWSTR,
+    cchtext: i32,
+    dwtextflags: DRAW_TEXT_FORMAT,
+    dwtextflags2: u32,
+    prect: *const RECT,
+) -> HRESULT {
+    if (ipartid == BP_CHECKBOX || ipartid == BP_RADIOBUTTON) && istateid != PBS_DISABLED {
+        let mut options: DTTOPTS = std::mem::zeroed();
+        options.dwSize = std::mem::size_of::<DTTOPTS>() as _;
+        options.dwFlags = DTT_TEXTCOLOR;
+        options.crText = WHITE;
+        DrawThemeTextEx(
+            htheme,
+            hdc,
+            ipartid,
+            istateid,
+            psztext,
+            cchtext,
+            dwtextflags,
+            prect.cast_mut(),
+            &options,
+        )
+    } else {
+        TRUE_DRAW_THEME_TEXT(
+            htheme,
+            hdc,
+            ipartid,
+            istateid,
+            psztext,
+            cchtext,
+            dwtextflags,
+            dwtextflags2,
+            prect,
+        )
+    }
+}
+
 unsafe extern "system" fn dark_draw_theme_background(
     htheme: HTHEME,
     hdc: HDC,
@@ -389,7 +366,7 @@ unsafe extern "system" fn dark_draw_theme_background(
     pcliprect: *const RECT,
 ) -> HRESULT {
     let res = TRUE_DRAW_THEME_BACKGROUND(htheme, hdc, ipartid, istateid, prect, pcliprect);
-    if ipartid == PP_TRANSPARENTBAR {
+    if is_dark_mode_allowed_for_app() && ipartid == PP_TRANSPARENTBAR {
         FillRect(hdc, prect, DLG_GRAY_BACK.0);
     }
     res
