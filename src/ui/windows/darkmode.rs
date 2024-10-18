@@ -1,16 +1,31 @@
-use std::ptr::{null, null_mut};
+use std::{
+    mem::MaybeUninit,
+    ptr::{null, null_mut},
+};
 
-use widestring::U16CStr;
+use widestring::{U16CStr, U16CString};
 use windows_sys::{
     Win32::{
-        Foundation::{BOOL, BOOLEAN, HWND, S_OK},
+        Foundation::{BOOL, BOOLEAN, COLORREF, HWND, S_OK},
         Globalization::{CSTR_EQUAL, CompareStringW, LOCALE_ALL, NORM_IGNORECASE},
-        Graphics::Dwm::DwmSetWindowAttribute,
+        Graphics::{
+            Dwm::DwmSetWindowAttribute,
+            Gdi::{
+                CreateCompatibleBitmap, CreateCompatibleDC, DT_CALCRECT, DT_HIDEPREFIX, DeleteDC,
+                DeleteObject, DrawTextW, GetDC, HGDIOBJ, ReleaseDC, SelectObject, SetBkColor,
+                SetBkMode, SetTextColor, TRANSPARENT,
+            },
+        },
         System::SystemServices::MAX_CLASS_NAME,
         UI::{
             Accessibility::{HCF_HIGHCONTRASTON, HIGHCONTRASTW},
-            Controls::{PROGRESS_CLASSW, SetWindowTheme, WC_COMBOBOXW},
-            WindowsAndMessaging::{GetClassNameW, SPI_GETHIGHCONTRAST, SystemParametersInfoW},
+            Controls::{PROGRESS_CLASSW, SetWindowTheme, WC_BUTTONW, WC_COMBOBOXW},
+            WindowsAndMessaging::{
+                BM_SETIMAGE, BS_BITMAP, BS_DEFPUSHBUTTON, BS_OWNERDRAW, BS_TYPEMASK, GWL_STYLE,
+                GetClassNameW, GetClientRect, GetWindowLongPtrW, GetWindowLongW,
+                GetWindowTextLengthW, GetWindowTextW, IMAGE_BITMAP, SPI_GETHIGHCONTRAST,
+                SendMessageW, SetWindowLongPtrW, SetWindowLongW, SystemParametersInfoW, WM_GETFONT,
+            },
         },
     },
     core::HRESULT,
@@ -123,11 +138,11 @@ fn u16_string_eq_ignore_case(s1: &U16CStr, s2: *const u16) -> bool {
     unsafe { CompareStringW(LOCALE_ALL, NORM_IGNORECASE, s1.as_ptr(), -1, s2, -1) == CSTR_EQUAL }
 }
 
-pub unsafe fn control_use_dark_mode(hwnd: HWND) -> HRESULT {
+pub unsafe fn control_use_dark_mode(hwnd: HWND) {
+    let mut class = [0u16; MAX_CLASS_NAME as usize];
+    GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
+    let class = U16CStr::from_ptr_str(class.as_ptr());
     if is_dark_mode_allowed_for_app() {
-        let mut class = [0u16; MAX_CLASS_NAME as usize];
-        GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
-        let class = U16CStr::from_ptr_str(class.as_ptr());
         let subappname = if u16_string_eq_ignore_case(class, WC_COMBOBOXW) {
             w!("DarkMode_CFD")
         } else if u16_string_eq_ignore_case(class, PROGRESS_CLASSW) {
@@ -135,8 +150,90 @@ pub unsafe fn control_use_dark_mode(hwnd: HWND) -> HRESULT {
         } else {
             w!("DarkMode_Explorer")
         };
-        SetWindowTheme(hwnd, subappname, null())
+        SetWindowTheme(hwnd, subappname, null());
     } else {
-        SetWindowTheme(hwnd, null(), null())
+        SetWindowTheme(hwnd, null(), null());
+    }
+    if u16_string_eq_ignore_case(class, WC_BUTTONW) {
+        fix_button_dark_mode(hwnd);
     }
 }
+
+pub unsafe fn fix_button_dark_mode(hwnd: HWND) {
+    let style = if cfg!(target_pointer_width = "64") {
+        GetWindowLongPtrW(hwnd, GWL_STYLE) as i32
+    } else {
+        GetWindowLongW(hwnd, GWL_STYLE) as i32
+    };
+    let button_type = style & BS_TYPEMASK;
+    if button_type <= BS_DEFPUSHBUTTON || button_type >= BS_OWNERDRAW {
+        return;
+    }
+    if is_dark_mode_allowed_for_app() {
+        let len = GetWindowTextLengthW(hwnd);
+        if len > 0 {
+            let mut res: Vec<u16> = Vec::with_capacity(len as usize + 1);
+            GetWindowTextW(hwnd, res.as_mut_ptr(), res.capacity() as _);
+            res.set_len(len as usize + 1);
+            let text = U16CString::from_vec_unchecked(res);
+            let hdc = GetDC(hwnd);
+            if !hdc.is_null() {
+                let font = SendMessageW(hwnd, WM_GETFONT, 0, 0) as HGDIOBJ;
+                let oldfont = SelectObject(hdc, font);
+                let mut rc = MaybeUninit::uninit();
+                GetClientRect(hwnd, rc.as_mut_ptr());
+                let mut rc = rc.assume_init();
+                DrawTextW(
+                    hdc,
+                    text.as_ptr(),
+                    text.len() as i32 + 1,
+                    &mut rc,
+                    DT_HIDEPREFIX | DT_CALCRECT,
+                );
+                let hbm = CreateCompatibleBitmap(hdc, rc.right - rc.left, rc.bottom - rc.top);
+                let hmdc = CreateCompatibleDC(hdc);
+                let hold = SelectObject(hmdc, hbm);
+                let old_font_m = SelectObject(hmdc, font);
+                SetBkMode(hmdc, TRANSPARENT as _);
+                SetTextColor(hmdc, WHITE);
+                SetBkColor(hmdc, BLACK);
+                DrawTextW(
+                    hmdc,
+                    text.as_ptr(),
+                    text.len() as i32 + 1,
+                    &mut rc,
+                    DT_HIDEPREFIX,
+                );
+                SelectObject(hmdc, old_font_m);
+                SelectObject(hmdc, hold);
+                DeleteDC(hmdc);
+                SelectObject(hdc, oldfont);
+                ReleaseDC(hwnd, hdc);
+                let style = style | BS_BITMAP;
+                if cfg!(target_pointer_width = "64") {
+                    SetWindowLongPtrW(hwnd, GWL_STYLE, style as _);
+                } else {
+                    SetWindowLongW(hwnd, GWL_STYLE, style as _);
+                }
+                let oldbm = SendMessageW(hwnd, BM_SETIMAGE, IMAGE_BITMAP as _, hbm as _);
+                if oldbm != 0 {
+                    DeleteObject(oldbm as _);
+                }
+            }
+        }
+    } else {
+        let oldbm = SendMessageW(hwnd, BM_SETIMAGE, IMAGE_BITMAP as _, 0);
+        if oldbm != 0 {
+            DeleteObject(oldbm as _);
+        }
+        let style = style & !BS_BITMAP;
+        if cfg!(target_pointer_width = "64") {
+            SetWindowLongPtrW(hwnd, GWL_STYLE, style as _);
+        } else {
+            SetWindowLongW(hwnd, GWL_STYLE, style as _);
+        }
+    }
+}
+
+const WHITE: COLORREF = 0x00FFFFFF;
+const BLACK: COLORREF = 0x00000000;

@@ -13,12 +13,9 @@ use std::{
 use compio::driver::AsRawFd;
 use compio_log::*;
 use slab::Slab;
-use windows::Win32::{
-    Foundation::COLORREF,
-    System::Com::{COINIT_MULTITHREADED, CoInitializeEx, CoUninitialize},
-};
+use windows::Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx, CoUninitialize};
 use windows_sys::Win32::{
-    Foundation::{BOOL, HANDLE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_FAILED, WPARAM},
+    Foundation::{BOOL, COLORREF, HANDLE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_FAILED, WPARAM},
     Graphics::Gdi::{
         BLACK_BRUSH, CreateSolidBrush, DeleteObject, GetStockObject, HDC, HGDIOBJ, InvalidateRect,
         Rectangle, ScreenToClient, SelectObject, SetBkColor, SetBkMode, SetTextColor, TRANSPARENT,
@@ -258,8 +255,8 @@ pub(crate) unsafe extern "system" fn window_proc(
                 let hdc = wparam as HDC;
                 SetBkMode(hdc, TRANSPARENT as _);
                 if dark {
-                    SetTextColor(hdc, WHITE.0);
-                    SetBkColor(hdc, BLACK.0);
+                    SetTextColor(hdc, WHITE);
+                    SetBkColor(hdc, BLACK);
                 }
                 return if dark {
                     GetStockObject(BLACK_BRUSH)
@@ -269,10 +266,6 @@ pub(crate) unsafe extern "system" fn window_proc(
             }
             WM_CTLCOLORBTN => {
                 if is_dark_mode_allowed_for_app() {
-                    let hdc = wparam as HDC;
-                    SetBkMode(hdc, TRANSPARENT as _);
-                    SetTextColor(hdc, WHITE.0);
-                    SetBkColor(hdc, BLACK.0);
                     return GetStockObject(BLACK_BRUSH) as _;
                 }
             }
@@ -280,8 +273,8 @@ pub(crate) unsafe extern "system" fn window_proc(
                 if is_dark_mode_allowed_for_app() {
                     let hdc = wparam as HDC;
                     let hedit = lparam as HWND;
-                    SetTextColor(hdc, WHITE.0);
-                    SetBkColor(hdc, BLACK.0);
+                    SetTextColor(hdc, WHITE);
+                    SetBkColor(hdc, BLACK);
                     let mut p = MaybeUninit::uninit();
                     GetCursorPos(p.as_mut_ptr());
                     let mut p = p.assume_init();
@@ -357,8 +350,8 @@ unsafe fn refresh_dark_mode(handle: HWND) {
     EnumChildWindows(handle, Some(enum_callback), 0);
 }
 
-const WHITE: COLORREF = COLORREF(0x00FFFFFF);
-const BLACK: COLORREF = COLORREF(0x00000000);
+const WHITE: COLORREF = 0x00FFFFFF;
+const BLACK: COLORREF = 0x00000000;
 
 struct WinBrush(HGDIOBJ);
 
