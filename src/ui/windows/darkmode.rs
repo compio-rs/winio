@@ -5,7 +5,8 @@ use std::{
 };
 
 use slim_detours_sys::{
-    SlimDetoursAttach, SlimDetoursDetach, SlimDetoursTransactionBegin, SlimDetoursTransactionCommit,
+    SlimDetoursAttach, SlimDetoursDetach, SlimDetoursTransactionAbort, SlimDetoursTransactionBegin,
+    SlimDetoursTransactionCommit,
 };
 use sync_unsafe_cell::SyncUnsafeCell;
 use widestring::U16CStr;
@@ -239,34 +240,65 @@ type DrawThemeBackgroundExFn = unsafe extern "system" fn(
 static TRUE_DRAW_THEME_BACKGROUND_EX: SyncUnsafeCell<DrawThemeBackgroundExFn> =
     SyncUnsafeCell::new(DrawThemeBackgroundEx);
 
-unsafe fn detour_attach() {
-    SlimDetoursTransactionBegin();
-    SlimDetoursAttach(TRUE_GET_THEME_COLOR.get().cast(), dark_get_theme_color as _);
-    SlimDetoursAttach(TRUE_DRAW_THEME_TEXT.get().cast(), dark_draw_theme_text as _);
-    SlimDetoursAttach(
-        TRUE_DRAW_THEME_BACKGROUND.get().cast(),
-        dark_draw_theme_background as _,
-    );
-    SlimDetoursAttach(
-        TRUE_DRAW_THEME_BACKGROUND_EX.get().cast(),
-        dark_draw_theme_background_ex as _,
-    );
-    SlimDetoursTransactionCommit();
+#[inline]
+fn check_hresult(hr: HRESULT) -> std::io::Result<()> {
+    if hr >= 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::from_raw_os_error(hr))
+    }
 }
 
-unsafe fn detour_detach() {
-    SlimDetoursTransactionBegin();
-    SlimDetoursDetach(TRUE_GET_THEME_COLOR.get().cast(), dark_get_theme_color as _);
-    SlimDetoursDetach(TRUE_DRAW_THEME_TEXT.get().cast(), dark_draw_theme_text as _);
-    SlimDetoursDetach(
-        TRUE_DRAW_THEME_BACKGROUND.get().cast(),
-        dark_draw_theme_background as _,
-    );
-    SlimDetoursDetach(
-        TRUE_DRAW_THEME_BACKGROUND_EX.get().cast(),
-        dark_draw_theme_background_ex as _,
-    );
-    SlimDetoursTransactionCommit();
+unsafe fn detour_attach() -> std::io::Result<()> {
+    check_hresult(SlimDetoursTransactionBegin())?;
+    let ops = || -> std::io::Result<()> {
+        check_hresult(SlimDetoursAttach(
+            TRUE_GET_THEME_COLOR.get().cast(),
+            dark_get_theme_color as _,
+        ))?;
+        check_hresult(SlimDetoursAttach(
+            TRUE_DRAW_THEME_TEXT.get().cast(),
+            dark_draw_theme_text as _,
+        ))?;
+        check_hresult(SlimDetoursAttach(
+            TRUE_DRAW_THEME_BACKGROUND.get().cast(),
+            dark_draw_theme_background as _,
+        ))?;
+        check_hresult(SlimDetoursAttach(
+            TRUE_DRAW_THEME_BACKGROUND_EX.get().cast(),
+            dark_draw_theme_background_ex as _,
+        ))
+    };
+    match ops() {
+        Ok(()) => check_hresult(SlimDetoursTransactionCommit()),
+        Err(_) => check_hresult(SlimDetoursTransactionAbort()),
+    }
+}
+
+unsafe fn detour_detach() -> std::io::Result<()> {
+    check_hresult(SlimDetoursTransactionBegin())?;
+    let ops = || -> std::io::Result<()> {
+        check_hresult(SlimDetoursDetach(
+            TRUE_GET_THEME_COLOR.get().cast(),
+            dark_get_theme_color as _,
+        ))?;
+        check_hresult(SlimDetoursDetach(
+            TRUE_DRAW_THEME_TEXT.get().cast(),
+            dark_draw_theme_text as _,
+        ))?;
+        check_hresult(SlimDetoursDetach(
+            TRUE_DRAW_THEME_BACKGROUND.get().cast(),
+            dark_draw_theme_background as _,
+        ))?;
+        check_hresult(SlimDetoursDetach(
+            TRUE_DRAW_THEME_BACKGROUND_EX.get().cast(),
+            dark_draw_theme_background_ex as _,
+        ))
+    };
+    match ops() {
+        Ok(()) => check_hresult(SlimDetoursTransactionCommit()),
+        Err(_) => check_hresult(SlimDetoursTransactionAbort()),
+    }
 }
 
 struct DetourGuard;
@@ -274,7 +306,7 @@ struct DetourGuard;
 impl DetourGuard {
     pub fn new() -> Self {
         unsafe {
-            detour_attach();
+            detour_attach().ok();
         }
         Self
     }
@@ -283,7 +315,7 @@ impl DetourGuard {
 impl Drop for DetourGuard {
     fn drop(&mut self) {
         unsafe {
-            detour_detach();
+            detour_detach().ok();
         }
     }
 }
