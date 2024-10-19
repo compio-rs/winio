@@ -1,12 +1,13 @@
 use std::{
     mem::MaybeUninit,
-    ptr::{addr_of_mut, null, null_mut},
+    ptr::{null, null_mut},
     sync::LazyLock,
 };
 
-use detours_sys2::{
-    DetourAttach, DetourDetach, DetourTransactionBegin, DetourTransactionCommit, DetourUpdateThread,
+use slim_detours_sys::{
+    SlimDetoursAttach, SlimDetoursDetach, SlimDetoursTransactionBegin, SlimDetoursTransactionCommit,
 };
+use sync_unsafe_cell::SyncUnsafeCell;
 use widestring::U16CStr;
 use windows_sys::{
     Win32::{
@@ -19,7 +20,7 @@ use windows_sys::{
                 SelectObject,
             },
         },
-        System::{SystemServices::MAX_CLASS_NAME, Threading::GetCurrentThread},
+        System::SystemServices::MAX_CLASS_NAME,
         UI::{
             Accessibility::{HCF_HIGHCONTRASTON, HIGHCONTRASTW},
             Controls::{
@@ -201,7 +202,7 @@ type GetThemeColorFn = unsafe extern "system" fn(
     ipropid: i32,
     pcolor: *mut COLORREF,
 ) -> HRESULT;
-static mut TRUE_GET_THEME_COLOR: GetThemeColorFn = GetThemeColor;
+static TRUE_GET_THEME_COLOR: SyncUnsafeCell<GetThemeColorFn> = SyncUnsafeCell::new(GetThemeColor);
 
 type DrawThemeTextFn = unsafe extern "system" fn(
     htheme: HTHEME,
@@ -214,7 +215,7 @@ type DrawThemeTextFn = unsafe extern "system" fn(
     dwtextflags2: u32,
     prect: *const RECT,
 ) -> HRESULT;
-static mut TRUE_DRAW_THEME_TEXT: DrawThemeTextFn = DrawThemeText;
+static TRUE_DRAW_THEME_TEXT: SyncUnsafeCell<DrawThemeTextFn> = SyncUnsafeCell::new(DrawThemeText);
 
 type DrawThemeBackgroundFn = unsafe extern "system" fn(
     htheme: HTHEME,
@@ -224,7 +225,8 @@ type DrawThemeBackgroundFn = unsafe extern "system" fn(
     prect: *const RECT,
     pcliprect: *const RECT,
 ) -> HRESULT;
-static mut TRUE_DRAW_THEME_BACKGROUND: DrawThemeBackgroundFn = DrawThemeBackground;
+static TRUE_DRAW_THEME_BACKGROUND: SyncUnsafeCell<DrawThemeBackgroundFn> =
+    SyncUnsafeCell::new(DrawThemeBackground);
 
 type DrawThemeBackgroundExFn = unsafe extern "system" fn(
     htheme: HTHEME,
@@ -234,50 +236,37 @@ type DrawThemeBackgroundExFn = unsafe extern "system" fn(
     prect: *const RECT,
     poptions: *const DTBGOPTS,
 ) -> HRESULT;
-static mut TRUE_DRAW_THEME_BACKGROUND_EX: DrawThemeBackgroundExFn = DrawThemeBackgroundEx;
+static TRUE_DRAW_THEME_BACKGROUND_EX: SyncUnsafeCell<DrawThemeBackgroundExFn> =
+    SyncUnsafeCell::new(DrawThemeBackgroundEx);
 
 unsafe fn detour_attach() {
-    DetourTransactionBegin();
-    DetourUpdateThread(GetCurrentThread());
-    DetourAttach(
-        addr_of_mut!(TRUE_GET_THEME_COLOR).cast(),
-        dark_get_theme_color as GetThemeColorFn as _,
+    SlimDetoursTransactionBegin();
+    SlimDetoursAttach(TRUE_GET_THEME_COLOR.get().cast(), dark_get_theme_color as _);
+    SlimDetoursAttach(TRUE_DRAW_THEME_TEXT.get().cast(), dark_draw_theme_text as _);
+    SlimDetoursAttach(
+        TRUE_DRAW_THEME_BACKGROUND.get().cast(),
+        dark_draw_theme_background as _,
     );
-    DetourAttach(
-        addr_of_mut!(TRUE_DRAW_THEME_TEXT).cast(),
-        dark_draw_theme_text as DrawThemeTextFn as _,
+    SlimDetoursAttach(
+        TRUE_DRAW_THEME_BACKGROUND_EX.get().cast(),
+        dark_draw_theme_background_ex as _,
     );
-    DetourAttach(
-        addr_of_mut!(TRUE_DRAW_THEME_BACKGROUND).cast(),
-        dark_draw_theme_background as DrawThemeBackgroundFn as _,
-    );
-    DetourAttach(
-        addr_of_mut!(TRUE_DRAW_THEME_BACKGROUND_EX).cast(),
-        dark_draw_theme_background_ex as DrawThemeBackgroundExFn as _,
-    );
-    DetourTransactionCommit();
+    SlimDetoursTransactionCommit();
 }
 
 unsafe fn detour_detach() {
-    DetourTransactionBegin();
-    DetourUpdateThread(GetCurrentThread());
-    DetourDetach(
-        addr_of_mut!(TRUE_GET_THEME_COLOR).cast(),
-        dark_get_theme_color as GetThemeColorFn as _,
+    SlimDetoursTransactionBegin();
+    SlimDetoursDetach(TRUE_GET_THEME_COLOR.get().cast(), dark_get_theme_color as _);
+    SlimDetoursDetach(TRUE_DRAW_THEME_TEXT.get().cast(), dark_draw_theme_text as _);
+    SlimDetoursDetach(
+        TRUE_DRAW_THEME_BACKGROUND.get().cast(),
+        dark_draw_theme_background as _,
     );
-    DetourDetach(
-        addr_of_mut!(TRUE_DRAW_THEME_TEXT).cast(),
-        dark_draw_theme_text as DrawThemeTextFn as _,
+    SlimDetoursDetach(
+        TRUE_DRAW_THEME_BACKGROUND_EX.get().cast(),
+        dark_draw_theme_background_ex as _,
     );
-    DetourDetach(
-        addr_of_mut!(TRUE_DRAW_THEME_BACKGROUND).cast(),
-        dark_draw_theme_background as DrawThemeBackgroundFn as _,
-    );
-    DetourDetach(
-        addr_of_mut!(TRUE_DRAW_THEME_BACKGROUND_EX).cast(),
-        dark_draw_theme_background_ex as DrawThemeBackgroundExFn as _,
-    );
-    DetourTransactionCommit();
+    SlimDetoursTransactionCommit();
 }
 
 struct DetourGuard;
@@ -312,7 +301,7 @@ unsafe extern "system" fn dark_get_theme_color(
     ipropid: i32,
     pcolor: *mut COLORREF,
 ) -> HRESULT {
-    let res = TRUE_GET_THEME_COLOR(htheme, ipartid, istateid, ipropid, pcolor);
+    let res = (*TRUE_GET_THEME_COLOR.get())(htheme, ipartid, istateid, ipropid, pcolor);
 
     if is_dark_mode_allowed_for_app() && ipropid == TMT_TEXTCOLOR as _ {
         if ipartid == TDLG_MAININSTRUCTIONPANE {
@@ -356,7 +345,7 @@ unsafe extern "system" fn dark_draw_theme_text(
             &options,
         )
     } else {
-        TRUE_DRAW_THEME_TEXT(
+        (*TRUE_DRAW_THEME_TEXT.get())(
             htheme,
             hdc,
             ipartid,
@@ -378,7 +367,7 @@ unsafe extern "system" fn dark_draw_theme_background(
     prect: *const RECT,
     pcliprect: *const RECT,
 ) -> HRESULT {
-    let res = TRUE_DRAW_THEME_BACKGROUND(htheme, hdc, ipartid, istateid, prect, pcliprect);
+    let res = (*TRUE_DRAW_THEME_BACKGROUND.get())(htheme, hdc, ipartid, istateid, prect, pcliprect);
     if is_dark_mode_allowed_for_app() && ipartid == PP_TRANSPARENTBAR {
         FillRect(hdc, prect, DLG_GRAY_BACK.0);
     }
@@ -394,7 +383,9 @@ unsafe extern "system" fn dark_draw_theme_background_ex(
     poptions: *const DTBGOPTS,
 ) -> HRESULT {
     if !is_dark_mode_allowed_for_app() {
-        return TRUE_DRAW_THEME_BACKGROUND_EX(htheme, hdc, ipartid, istateid, prect, poptions);
+        return (*TRUE_DRAW_THEME_BACKGROUND_EX.get())(
+            htheme, hdc, ipartid, istateid, prect, poptions,
+        );
     }
     match ipartid {
         TDLG_PRIMARYPANEL => {
@@ -405,7 +396,9 @@ unsafe extern "system" fn dark_draw_theme_background_ex(
             FillRect(hdc, prect, DLG_DARK_BACK.0);
             S_OK
         }
-        _ => TRUE_DRAW_THEME_BACKGROUND_EX(htheme, hdc, ipartid, istateid, prect, poptions),
+        _ => {
+            (*TRUE_DRAW_THEME_BACKGROUND_EX.get())(htheme, hdc, ipartid, istateid, prect, poptions)
+        }
     }
 }
 
