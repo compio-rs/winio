@@ -17,7 +17,7 @@ void combo_box_connect_changed(QWidget &w, callback_fn_t<void()> callback,
 void combo_box_connect_select(QWidget &w, callback_fn_t<void()> callback,
                               std::uint8_t const *data) {
     QObject::connect(static_cast<QComboBox *>(&w),
-                     &QComboBox::currentIndexChanged,
+                     QOverload<int>::of(&QComboBox::currentIndexChanged),
                      [callback, data](int) { callback(data); });
 }
 
