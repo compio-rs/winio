@@ -34,7 +34,7 @@ use windows::{
 use windows_sys::Win32::{
     System::SystemServices::SS_OWNERDRAW,
     UI::{
-        Controls::{DRAWITEMSTRUCT, WC_STATICW},
+        Controls::WC_STATICW,
         WindowsAndMessaging::{
             WM_DRAWITEM, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE,
             WM_RBUTTONDOWN, WM_RBUTTONUP, WS_CHILD, WS_VISIBLE,
@@ -46,6 +46,7 @@ use crate::{
     AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, GradientStop, HAlign, LinearGradientBrush,
     MouseButton, Point, RadialGradientBrush, Rect, RectBox, RelativeToLogical, Size,
     SolidColorBrush, VAlign, Vector,
+    runtime::WindowMessageDetail,
     ui::{Widget, darkmode::is_dark_mode_allowed_for_app, font::DWRITE_FACTORY},
 };
 
@@ -141,9 +142,10 @@ impl Canvas {
     pub async fn wait_redraw(&self) {
         loop {
             let msg = self.handle.wait_parent(WM_DRAWITEM).await;
-            let ds = unsafe { &mut *(msg.lParam as *mut DRAWITEMSTRUCT) };
-            if ds.hwndItem == self.handle.as_raw_window() {
-                break;
+            if let Some(WindowMessageDetail::DrawItem(ds)) = msg.detail {
+                if ds.hwndItem == self.handle.as_raw_window() {
+                    break;
+                }
             }
         }
     }
@@ -166,7 +168,7 @@ impl Canvas {
 
     pub async fn wait_mouse_move(&self) -> Point {
         loop {
-            let msg = self.handle.wait_parent(WM_MOUSEMOVE).await;
+            let msg = self.handle.wait_parent(WM_MOUSEMOVE).await.message;
             let (x, y) = ((msg.lParam & 0xFFFF) as i32, (msg.lParam >> 16) as i32);
             let p = self.handle.point_d2l((x, y));
             let loc = self.loc();

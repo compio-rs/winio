@@ -22,13 +22,16 @@ use windows_sys::Win32::{
         WHITE_BRUSH,
     },
     System::Threading::INFINITE,
-    UI::WindowsAndMessaging::{
-        ChildWindowFromPoint, DefWindowProcW, DispatchMessageW, EnumChildWindows, GetClientRect,
-        GetCursorPos, GetMessagePos, GetMessageTime, MSG, MWMO_ALERTABLE, MWMO_INPUTAVAILABLE,
-        MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW, QS_ALLINPUT, SWP_NOACTIVATE,
-        SWP_NOZORDER, SendMessageW, SetWindowPos, TranslateMessage, WM_CREATE, WM_CTLCOLORBTN,
-        WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC, WM_DPICHANGED, WM_ERASEBKGND,
-        WM_SETFONT, WM_SETTINGCHANGE,
+    UI::{
+        Controls::DRAWITEMSTRUCT,
+        WindowsAndMessaging::{
+            ChildWindowFromPoint, DefWindowProcW, DispatchMessageW, EnumChildWindows,
+            GetClientRect, GetCursorPos, GetMessagePos, GetMessageTime, MSG, MWMO_ALERTABLE,
+            MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW, QS_ALLINPUT,
+            SWP_NOACTIVATE, SWP_NOZORDER, SendMessageW, SetWindowPos, TranslateMessage, WM_COMMAND,
+            WM_CREATE, WM_CTLCOLORBTN, WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC,
+            WM_DPICHANGED, WM_DRAWITEM, WM_ERASEBKGND, WM_SETFONT, WM_SETTINGCHANGE,
+        },
     },
 };
 
@@ -41,9 +44,27 @@ use crate::ui::{
     font::{WinBrush, default_font},
 };
 
+#[derive(Clone, Copy)]
+pub(crate) struct WindowMessage {
+    pub message: MSG,
+    pub detail: Option<WindowMessageDetail>,
+}
+
+#[derive(Clone, Copy)]
+#[non_exhaustive]
+pub(crate) enum WindowMessageDetail {
+    #[allow(dead_code)]
+    Command {
+        message: u32,
+        id: u32,
+        handle: HWND,
+    },
+    DrawItem(DRAWITEMSTRUCT),
+}
+
 pub(crate) enum FutureState {
     Active(Option<Waker>),
-    Completed(MSG),
+    Completed(WindowMessage),
 }
 
 impl Default for FutureState {
@@ -152,7 +173,7 @@ impl Runtime {
         let pos = unsafe { GetMessagePos() };
         let x = pos as u16;
         let y = (pos >> 16) as u16;
-        let msg = MSG {
+        let message = MSG {
             hwnd: handle,
             message: msg,
             wParam: wparam,
@@ -163,13 +184,30 @@ impl Runtime {
                 y: y as _,
             },
         };
-        let completes = self.registry.borrow_mut().remove(&(handle, msg.message));
+        let detail = match msg {
+            WM_COMMAND => {
+                let message = (wparam as u32 >> 16) & 0xFFFF;
+                let id = wparam as u32 & 0xFFFF;
+                let handle = lparam as HWND;
+                Some(WindowMessageDetail::Command {
+                    message,
+                    id,
+                    handle,
+                })
+            }
+            WM_DRAWITEM => Some(WindowMessageDetail::DrawItem(unsafe {
+                *(lparam as *const DRAWITEMSTRUCT)
+            })),
+            _ => None,
+        };
+        let full_msg = WindowMessage { message, detail };
+        let completes = self.registry.borrow_mut().remove(&(handle, msg));
         if let Some(completes) = completes {
             let dealt = !completes.is_empty();
             let mut futures = self.futures.borrow_mut();
             for id in completes {
                 let state = futures.get_mut(id).expect("cannot find registered future");
-                let state = std::mem::replace(&mut state.state, FutureState::Completed(msg));
+                let state = std::mem::replace(&mut state.state, FutureState::Completed(full_msg));
                 if let FutureState::Active(Some(w)) = state {
                     w.wake();
                 }
@@ -196,7 +234,7 @@ impl Runtime {
         MsgFuture { id }
     }
 
-    fn replace_waker(&self, id: usize, waker: &Waker) -> Option<MSG> {
+    fn replace_waker(&self, id: usize, waker: &Waker) -> Option<WindowMessage> {
         let mut futures = self.futures.borrow_mut();
         let state = futures.get_mut(id).expect("cannot find future");
         if let FutureState::Completed(msg) = state.state {
@@ -227,7 +265,7 @@ impl Drop for Runtime {
 
 /// # Safety
 /// The caller should ensure the handle valid.
-pub unsafe fn wait(handle: HWND, msg: u32) -> impl Future<Output = MSG> {
+pub unsafe fn wait(handle: HWND, msg: u32) -> impl Future<Output = WindowMessage> {
     RUNTIME.with(|runtime| runtime.register_message(handle, msg))
 }
 
@@ -353,7 +391,7 @@ struct MsgFuture {
 }
 
 impl Future for MsgFuture {
-    type Output = MSG;
+    type Output = WindowMessage;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         instrument!(Level::DEBUG, "MsgFuture", ?self.id);

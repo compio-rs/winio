@@ -94,7 +94,7 @@ pub struct LayoutChildBuilder<'a, 'b> {
     children: &'b mut Vec<LayoutChild<'a>>,
 }
 
-impl<'a, 'b> LayoutChildBuilder<'a, 'b> {
+impl LayoutChildBuilder<'_, '_> {
     /// Specify the child width.
     pub fn width(mut self, v: f64) -> Self {
         self.child.width = Some(v);

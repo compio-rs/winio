@@ -15,8 +15,8 @@ use windows_sys::{
             CW_USEDEFAULT, CloseWindow, CreateWindowExW, DestroyIcon, GWL_STYLE, GetClientRect,
             GetParent, GetWindowLongPtrW, GetWindowLongW, GetWindowRect, GetWindowTextLengthW,
             GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW, IMAGE_ICON, LR_DEFAULTCOLOR,
-            LR_DEFAULTSIZE, LoadCursorW, LoadImageW, MSG, RegisterClassExW, SW_SHOWNORMAL,
-            SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SendMessageW, SetWindowLongPtrW, SetWindowLongW,
+            LR_DEFAULTSIZE, LoadCursorW, LoadImageW, RegisterClassExW, SW_SHOWNORMAL, SWP_NOMOVE,
+            SWP_NOSIZE, SWP_NOZORDER, SendMessageW, SetWindowLongPtrW, SetWindowLongW,
             SetWindowPos, SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE, WM_SETICON, WM_SIZE,
             WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
         },
@@ -26,7 +26,7 @@ use windows_sys::{
 
 use crate::{
     AsRawWindow, Point, Size,
-    runtime::{wait, window_proc},
+    runtime::{WindowMessage, wait, window_proc},
     ui::{
         RawWindow,
         darkmode::{
@@ -96,11 +96,11 @@ impl Widget {
         self.0.as_raw_window()
     }
 
-    pub async fn wait(&self, msg: u32) -> MSG {
+    pub async fn wait(&self, msg: u32) -> WindowMessage {
         unsafe { wait(self.as_raw_window(), msg) }.await
     }
 
-    pub async fn wait_parent(&self, msg: u32) -> MSG {
+    pub async fn wait_parent(&self, msg: u32) -> WindowMessage {
         unsafe { wait(GetParent(self.as_raw_window()), msg) }.await
     }
 
