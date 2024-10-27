@@ -1,4 +1,4 @@
-use std::{cell::RefCell, f64::consts::PI, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use core_foundation::base::TCFType;
 use core_graphics::{color::CGColor, geometry::CGAffineTransform, sys as cgsys};
@@ -207,13 +207,11 @@ impl Drop for DrawingContext<'_> {
 impl DrawingContext<'_> {
     fn pen_draw(&self, pen: impl Pen, path: &CGMutablePath, rect: Rect) {
         let layer = pen.draw(&path, self.size, rect);
-        layer.setFrame(self.layer.frame());
         self.layer.addSublayer(&layer);
     }
 
     fn brush_draw(&self, brush: impl Brush, path: &CGMutablePath, rect: Rect) {
         let layer = brush.draw(&path, self.size, rect);
-        layer.setFrame(self.layer.frame());
         self.layer.addSublayer(&layer);
     }
 
@@ -275,7 +273,7 @@ impl DrawingContext<'_> {
             layer.setString(Some(&astr));
             layer.setWrapped(true);
             let brush_layer = brush.create_layer(self.size, rect);
-            brush_layer.setFrame(self.layer.frame());
+            brush_layer.setFrame(self.layer.bounds());
             brush_layer.setMask(Some(&layer));
             self.layer.addSublayer(&brush_layer);
         }
@@ -293,7 +291,7 @@ impl DrawingContext<'_> {
             source_layer.setContents(Some(&image));
             source_layer.setFrame(transform_rect(self.size, rect));
             let target_layer = CALayer::new();
-            target_layer.setFrame(self.layer.frame());
+            target_layer.setFrame(self.layer.bounds());
             if let Some(clip) = clip {
                 let mask_layer = CALayer::new();
                 mask_layer.setFrame(transform_rect(image_rep.size(), clip));
@@ -464,8 +462,8 @@ fn path_arc(s: Size, rect: Rect, start: f64, end: f64) -> CGMutablePath {
         centerp.x,
         (s.height - centerp.y) / rate,
         radius.width,
-        -start / PI * 180.0,
-        -end / PI * 180.0,
+        -start,
+        -end,
         true,
     );
     path
@@ -571,17 +569,6 @@ unsafe impl Encode for CGColorWrapper {
     const ENCODING: Encoding = Encoding::Pointer(&Encoding::Struct("CGColor", &[]));
 }
 
-fn to_nscolor(c: Color) -> Id<NSColor> {
-    unsafe {
-        NSColor::colorWithCalibratedRed_green_blue_alpha(
-            c.r as f64 / 255.0,
-            c.g as f64 / 255.0,
-            c.b as f64 / 255.0,
-            c.a as f64 / 255.0,
-        )
-    }
-}
-
 const TRANSPARENT: Color = Color::new(0, 0, 0, 0);
 const WHITE: Color = Color::new(255, 255, 255, 255);
 
@@ -601,8 +588,12 @@ pub trait Brush {
                 msg_send![&mask_layer, setFillColor:CGColorWrapper(white.as_concrete_TypeRef())];
             let () = msg_send![&mask_layer, setStrokeColor:CGColorWrapper(transparent.as_concrete_TypeRef())];
             let brush_layer = self.create_layer(size, rect);
-            brush_layer.setMask(Some(&mask_layer));
-            brush_layer
+            brush_layer.setFrame(transform_rect(size, rect));
+            let content_layer = CALayer::new();
+            content_layer.setFrame(CGRect::new(CGPoint::ZERO, to_cgsize(size)));
+            content_layer.addSublayer(&brush_layer);
+            content_layer.setMask(Some(&mask_layer));
+            content_layer
         }
     }
 }
@@ -626,19 +617,17 @@ impl Brush for SolidColorBrush {
 }
 
 impl Brush for LinearGradientBrush {
-    fn create_layer(&self, _size: Size, rect: Rect) -> Id<CALayer> {
+    fn create_layer(&self, _size: Size, _rect: Rect) -> Id<CALayer> {
         unsafe {
             let mut colors = NSMutableArray::<AnyObject>::new();
             let mut locs = NSMutableArray::<NSNumber>::new();
             for stop in &self.stops {
-                colors.addObject(&to_nscolor(stop.color));
+                // TODO: is it valid?
+                let cgcolor = to_cgcolor(stop.color);
+                colors.addObject(std::mem::transmute(cgcolor.as_concrete_TypeRef()));
                 locs.addObject(&NSNumber::new_f64(stop.pos));
             }
             let gradient = CAGradientLayer::new();
-            gradient.setFrame(CGRect::new(
-                CGPoint::new(rect.origin.x, rect.origin.y),
-                to_cgsize(rect.size),
-            ));
             gradient.setColors(Some(&colors));
             gradient.setLocations(Some(&locs));
             gradient.setStartPoint(CGPoint::new(self.start.x, self.start.y));
@@ -649,7 +638,7 @@ impl Brush for LinearGradientBrush {
 }
 
 impl Brush for RadialGradientBrush {
-    fn create_layer(&self, _size: Size, rect: Rect) -> Id<CALayer> {
+    fn create_layer(&self, _size: Size, _rect: Rect) -> Id<CALayer> {
         unsafe {
             // TODO: radius
             let _radius = self.radius;
@@ -657,14 +646,12 @@ impl Brush for RadialGradientBrush {
             let mut colors = NSMutableArray::<AnyObject>::new();
             let mut locs = NSMutableArray::<NSNumber>::new();
             for stop in &self.stops {
-                colors.addObject(&to_nscolor(stop.color));
+                // TODO: is it valid?
+                let cgcolor = to_cgcolor(stop.color);
+                colors.addObject(std::mem::transmute(cgcolor.as_concrete_TypeRef()));
                 locs.addObject(&NSNumber::new_f64(stop.pos));
             }
             let gradient = CAGradientLayer::new();
-            gradient.setFrame(CGRect::new(
-                CGPoint::new(rect.origin.x, rect.origin.y),
-                to_cgsize(rect.size),
-            ));
             gradient.setColors(Some(&colors));
             gradient.setLocations(Some(&locs));
             gradient.setStartPoint(CGPoint::new(self.origin.x, self.origin.y));
@@ -692,10 +679,20 @@ pub trait Pen {
             let () = msg_send![&mask_layer, setFillColor:CGColorWrapper(transparent.as_concrete_TypeRef())];
             let () =
                 msg_send![&mask_layer, setStrokeColor:CGColorWrapper(white.as_concrete_TypeRef())];
-            mask_layer.setLineWidth(self.width());
+            let width = self.width();
+            mask_layer.setLineWidth(width);
             let brush_layer = self.create_layer(size, rect);
-            brush_layer.setMask(Some(&mask_layer));
-            brush_layer
+            let mut brush_rect = transform_rect(size, rect);
+            brush_rect.origin.x -= width / 2.0;
+            brush_rect.origin.y -= width / 2.0;
+            brush_rect.size.width += width;
+            brush_rect.size.height += width;
+            brush_layer.setFrame(brush_rect);
+            let content_layer = CALayer::new();
+            content_layer.setFrame(CGRect::new(CGPoint::ZERO, to_cgsize(size)));
+            content_layer.addSublayer(&brush_layer);
+            content_layer.setMask(Some(&mask_layer));
+            content_layer
         }
     }
 }
