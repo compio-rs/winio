@@ -1,28 +1,31 @@
 use std::{cell::RefCell, f64::consts::PI, rc::Rc};
 
-use core_graphics::{color_space::CGColorSpace, context::CGContext, geometry};
-use foreign_types_shared::ForeignType;
+use core_foundation::base::TCFType;
+use core_graphics::{color::CGColor, geometry::CGAffineTransform, sys as cgsys};
 use image::{DynamicImage, Pixel, Rgb, Rgba};
 use objc2::{
-    ClassType, DeclaredClass, Encode, Encoding, class, declare_class, msg_send, msg_send_id,
+    ClassType, DeclaredClass, Encode, Encoding, declare_class, msg_send, msg_send_id,
     mutability::MainThreadOnly,
     rc::{Allocated, Id},
+    runtime::AnyObject,
 };
 use objc2_app_kit::{
-    NSAttributedStringNSStringDrawing, NSBezierPath, NSBitmapFormat, NSBitmapImageRep, NSColor,
-    NSColorSpace, NSDeviceRGBColorSpace, NSEvent, NSEventType, NSFont, NSFontAttributeName,
-    NSFontDescriptor, NSFontDescriptorSymbolicTraits, NSForegroundColorAttributeName, NSGradient,
-    NSGradientDrawingOptions, NSGraphicsContext, NSImage, NSTrackingArea, NSTrackingAreaOptions,
-    NSView,
+    NSAttributedStringNSStringDrawing, NSBitmapFormat, NSBitmapImageRep, NSColor,
+    NSDeviceRGBColorSpace, NSEvent, NSEventType, NSFont, NSFontAttributeName, NSFontDescriptor,
+    NSFontDescriptorSymbolicTraits, NSForegroundColorAttributeName, NSImage, NSTrackingArea,
+    NSTrackingAreaOptions, NSView,
 };
 use objc2_foundation::{
-    CGPoint, CGRect, MainThreadMarker, NSAffineTransform, NSAttributedString, NSDictionary,
-    NSMutableArray, NSPoint, NSRect, NSString,
+    CGPoint, CGRect, MainThreadMarker, NSAttributedString, NSDictionary, NSMutableArray, NSNumber,
+    NSRect, NSString,
+};
+use objc2_quartz_core::{
+    CAGradientLayer, CALayer, CAShapeLayer, CATextLayer, kCAGradientLayerRadial,
 };
 
 use crate::{
-    AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, HAlign, LinearGradientBrush, Margin,
-    MouseButton, Point, RadialGradientBrush, Rect, RectBox, Size, SolidColorBrush, VAlign,
+    AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, HAlign, LinearGradientBrush, MouseButton,
+    Point, RadialGradientBrush, Rect, RectBox, Size, SolidColorBrush, VAlign,
     ui::{Callback, Widget, from_cgsize, to_cgsize},
 };
 
@@ -35,6 +38,7 @@ pub struct Canvas {
 impl Canvas {
     pub fn new(parent: impl AsWindow) -> Self {
         let view = CanvasView::new(MainThreadMarker::new().unwrap());
+        view.setWantsLayer(true);
         let handle = Widget::from_nsview(
             parent.as_window().as_raw_window(),
             Id::into_super(view.clone()),
@@ -58,15 +62,13 @@ impl Canvas {
         self.handle.set_size(v)
     }
 
-    fn redraw(&self) {
-        unsafe {
-            self.view.setNeedsDisplay(true);
-        }
-    }
-
     pub fn context(&mut self) -> DrawingContext<'_> {
+        let size = self.size();
+        let layer = CALayer::new();
+        layer.setFrame(CGRect::new(CGPoint::ZERO, to_cgsize(size)));
         DrawingContext {
-            size: self.size(),
+            size,
+            layer,
             canvas: self,
         }
     }
@@ -190,34 +192,49 @@ unsafe fn mouse_button(event: &NSEvent) -> MouseButton {
 
 pub struct DrawingContext<'a> {
     size: Size,
+    layer: Id<CALayer>,
     canvas: &'a mut Canvas,
 }
 
 impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
-        self.canvas.redraw();
+        unsafe {
+            self.canvas.view.setLayer(Some(&self.layer));
+        }
     }
 }
 
 impl DrawingContext<'_> {
+    fn pen_draw(&self, pen: impl Pen, path: &CGMutablePath, rect: Rect) {
+        let layer = pen.draw(&path, self.size, rect);
+        layer.setFrame(self.layer.frame());
+        self.layer.addSublayer(&layer);
+    }
+
+    fn brush_draw(&self, brush: impl Brush, path: &CGMutablePath, rect: Rect) {
+        let layer = brush.draw(&path, self.size, rect);
+        layer.setFrame(self.layer.frame());
+        self.layer.addSublayer(&layer);
+    }
+
     pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
         let path = path_arc(self.size, rect, start, end);
-        pen.draw(&path, self.size, rect)
+        self.pen_draw(pen, &path, rect)
     }
 
     pub fn fill_pie(&mut self, brush: impl Brush, rect: Rect, start: f64, end: f64) {
         let path = path_arc(self.size, rect, start, end);
-        brush.draw(&path, self.size, rect)
+        self.brush_draw(brush, &path, rect)
     }
 
     pub fn draw_ellipse(&mut self, pen: impl Pen, rect: Rect) {
         let path = path_ellipse(self.size, rect);
-        pen.draw(&path, self.size, rect)
+        self.pen_draw(pen, &path, rect)
     }
 
     pub fn fill_ellipse(&mut self, brush: impl Brush, rect: Rect) {
         let path = path_ellipse(self.size, rect);
-        brush.draw(&path, self.size, rect)
+        self.brush_draw(brush, &path, rect)
     }
 
     pub fn draw_line(&mut self, pen: impl Pen, start: Point, end: Point) {
@@ -227,40 +244,41 @@ impl DrawingContext<'_> {
         )
         .to_rect();
         let path = path_line(self.size, start, end);
-        pen.draw(&path, self.size, rect)
+        self.pen_draw(pen, &path, rect)
     }
 
     pub fn draw_rect(&mut self, pen: impl Pen, rect: Rect) {
         let path = path_rect(self.size, rect);
-        pen.draw(&path, self.size, rect)
+        self.pen_draw(pen, &path, rect)
     }
 
     pub fn fill_rect(&mut self, brush: impl Brush, rect: Rect) {
         let path = path_rect(self.size, rect);
-        brush.draw(&path, self.size, rect)
+        self.brush_draw(brush, &path, rect)
     }
 
     pub fn draw_round_rect(&mut self, pen: impl Pen, rect: Rect, round: Size) {
         let path = path_round_rect(self.size, rect, round);
-        pen.draw(&path, self.size, rect)
+        self.pen_draw(pen, &path, rect)
     }
 
     pub fn fill_round_rect(&mut self, brush: impl Brush, rect: Rect, round: Size) {
         let path = path_round_rect(self.size, rect, round);
-        brush.draw(&path, self.size, rect)
+        self.brush_draw(brush, &path, rect)
     }
 
     pub fn draw_str(&mut self, brush: impl Brush, font: DrawingFont, pos: Point, text: &str) {
-        let (astr, rect) = measure_str(font, pos, text);
-        let location = CGPoint::new(
-            rect.origin.x,
-            self.size.height - rect.size.height - rect.origin.y,
-        );
-        draw_mask(
-            self.size,
-            || unsafe { astr.drawAtPoint(location) },
-            || self.fill_rect(brush, rect),
-        )
+        unsafe {
+            let layer = CATextLayer::new();
+            let (astr, rect) = measure_str(font, pos, text);
+            layer.setFrame(transform_rect(self.size, rect));
+            layer.setString(Some(&astr));
+            layer.setWrapped(true);
+            let brush_layer = brush.create_layer(self.size, rect);
+            brush_layer.setFrame(self.layer.frame());
+            brush_layer.setMask(Some(&layer));
+            self.layer.addSublayer(&brush_layer);
+        }
     }
 
     pub fn create_image(&self, image: DynamicImage) -> DrawingImage {
@@ -271,59 +289,200 @@ impl DrawingContext<'_> {
         unsafe {
             let image = NSImage::initWithSize(NSImage::alloc(), image_rep.0.size());
             image.addRepresentation(&image_rep.0);
-            NSGraphicsContext::saveGraphicsState_class();
+            let source_layer = CALayer::new();
+            source_layer.setContents(Some(&image));
+            source_layer.setFrame(transform_rect(self.size, rect));
+            let target_layer = CALayer::new();
+            target_layer.setFrame(self.layer.frame());
             if let Some(clip) = clip {
-                let clip_path = path_rect(self.size, clip);
-                clip_path.addClip();
+                let mask_layer = CALayer::new();
+                mask_layer.setFrame(transform_rect(image_rep.size(), clip));
+                let white = to_cgcolor(WHITE);
+                let () = msg_send![&mask_layer, setBackgroundColor:CGColorWrapper(white.as_concrete_TypeRef())];
+                source_layer.setMask(Some(&mask_layer));
             }
-            image.drawInRect(transform_rect(self.size, rect));
-            NSGraphicsContext::restoreGraphicsState_class();
+            target_layer.addSublayer(&source_layer);
+            self.layer.addSublayer(&target_layer);
         }
     }
 }
 
-fn path_arc(s: Size, rect: Rect, start: f64, end: f64) -> Id<NSBezierPath> {
-    unsafe {
-        let radius = rect.size / 2.0;
-        let centerp = Point::new(rect.origin.x + radius.width, rect.origin.y + radius.height);
-        let startp = Point::new(
-            centerp.x + radius.width * start.cos(),
-            centerp.y + radius.height * start.sin(),
-        );
+#[repr(transparent)]
+#[doc(hidden)]
+pub struct CGMutablePath(cgsys::CGPathRef);
 
-        let rate = radius.height / radius.width;
-        let transform = NSAffineTransform::transform();
-        transform.translateXBy_yBy(1.0, rate);
+impl CGMutablePath {
+    pub fn new() -> Self {
+        extern "C" {
+            fn CGPathCreateMutable() -> cgsys::CGPathRef;
+        }
+        Self(unsafe { CGPathCreateMutable() })
+    }
 
-        let path = NSBezierPath::bezierPath();
-        path.moveToPoint(CGPoint::new(startp.x, (s.height - startp.y) / rate));
-        path.appendBezierPathWithArcWithCenter_radius_startAngle_endAngle_clockwise(
-            CGPoint::new(centerp.x, (s.height - centerp.y) / rate),
-            radius.width,
-            -start / PI * 180.0,
-            -end / PI * 180.0,
-            true,
-        );
-        path.transformUsingAffineTransform(&transform);
-        path
+    pub unsafe fn to_layer(&self) -> Id<CAShapeLayer> {
+        let layer = CAShapeLayer::new();
+        let () = msg_send![&layer, setPath:CGPathWrapper(self.0)];
+        layer
+    }
+
+    pub fn move_to_point(&mut self, transform: Option<&CGAffineTransform>, x: f64, y: f64) {
+        extern "C" {
+            fn CGPathMoveToPoint(
+                path: cgsys::CGPathRef,
+                transform: Option<&CGAffineTransform>,
+                x: f64,
+                y: f64,
+            );
+        }
+        unsafe {
+            CGPathMoveToPoint(self.0, transform, x, y);
+        }
+    }
+
+    pub fn line_to_point(&mut self, transform: Option<&CGAffineTransform>, x: f64, y: f64) {
+        extern "C" {
+            fn CGPathAddLineToPoint(
+                path: cgsys::CGPathRef,
+                transform: Option<&CGAffineTransform>,
+                x: f64,
+                y: f64,
+            );
+        }
+        unsafe {
+            CGPathAddLineToPoint(self.0, transform, x, y);
+        }
+    }
+
+    pub fn add_arc(
+        &mut self,
+        transform: Option<&CGAffineTransform>,
+        x: f64,
+        y: f64,
+        radius: f64,
+        start: f64,
+        end: f64,
+        clockwise: bool,
+    ) {
+        extern "C" {
+            fn CGPathAddArc(
+                path: cgsys::CGPathRef,
+                transform: Option<&CGAffineTransform>,
+                x: f64,
+                y: f64,
+                radius: f64,
+                start: f64,
+                end: f64,
+                clockwise: bool,
+            );
+        }
+        unsafe {
+            CGPathAddArc(self.0, transform, x, y, radius, start, end, clockwise);
+        }
+    }
+
+    pub fn add_rect(&mut self, transform: Option<&CGAffineTransform>, rect: CGRect) {
+        extern "C" {
+            fn CGPathAddRect(
+                path: cgsys::CGPathRef,
+                transform: Option<&CGAffineTransform>,
+                rect: CGRect,
+            );
+        }
+        unsafe {
+            CGPathAddRect(self.0, transform, rect);
+        }
+    }
+
+    pub fn add_ellipse(&mut self, transform: Option<&CGAffineTransform>, rect: CGRect) {
+        extern "C" {
+            fn CGPathAddEllipseInRect(
+                path: cgsys::CGPathRef,
+                transform: Option<&CGAffineTransform>,
+                rect: CGRect,
+            );
+        }
+        unsafe {
+            CGPathAddEllipseInRect(self.0, transform, rect);
+        }
+    }
+
+    pub fn add_rounded_rect(
+        &mut self,
+        transform: Option<&CGAffineTransform>,
+        rect: CGRect,
+        corner_width: f64,
+        corner_height: f64,
+    ) {
+        extern "C" {
+            fn CGPathAddRoundedRect(
+                path: cgsys::CGPathRef,
+                transform: Option<&CGAffineTransform>,
+                rect: CGRect,
+                corner_width: f64,
+                corner_height: f64,
+            );
+        }
+        unsafe {
+            CGPathAddRoundedRect(self.0, transform, rect, corner_width, corner_height);
+        }
     }
 }
 
-fn path_ellipse(s: Size, rect: Rect) -> Id<NSBezierPath> {
-    let rect = CGRect::new(
-        CGPoint::new(rect.origin.x, s.height - rect.size.height - rect.origin.y),
-        to_cgsize(rect.size),
+impl Drop for CGMutablePath {
+    fn drop(&mut self) {
+        extern "C" {
+            fn CGPathRelease(path: cgsys::CGPathRef);
+        }
+        unsafe {
+            CGPathRelease(self.0);
+        }
+    }
+}
+
+#[repr(transparent)]
+struct CGPathWrapper(cgsys::CGPathRef);
+
+unsafe impl Encode for CGPathWrapper {
+    const ENCODING: Encoding = Encoding::Pointer(&Encoding::Struct("CGPath", &[]));
+}
+
+fn path_arc(s: Size, rect: Rect, start: f64, end: f64) -> CGMutablePath {
+    let radius = rect.size / 2.0;
+    let centerp = Point::new(rect.origin.x + radius.width, rect.origin.y + radius.height);
+    let startp = Point::new(
+        centerp.x + radius.width * start.cos(),
+        centerp.y + radius.height * start.sin(),
     );
-    unsafe { NSBezierPath::bezierPathWithOvalInRect(rect) }
+
+    let rate = radius.height / radius.width;
+    let transform = CGAffineTransform::new(1.0, 0.0, 0.0, rate, 0.0, 0.0);
+
+    let mut path = CGMutablePath::new();
+    path.move_to_point(None, startp.x, s.height - startp.y);
+    path.add_arc(
+        Some(&transform),
+        centerp.x,
+        (s.height - centerp.y) / rate,
+        radius.width,
+        -start / PI * 180.0,
+        -end / PI * 180.0,
+        true,
+    );
+    path
 }
 
-fn path_line(s: Size, start: Point, end: Point) -> Id<NSBezierPath> {
-    unsafe {
-        let path = NSBezierPath::bezierPath();
-        path.moveToPoint(CGPoint::new(start.x, s.height - start.y));
-        path.lineToPoint(CGPoint::new(end.x, s.height - end.y));
-        path
-    }
+fn path_ellipse(s: Size, rect: Rect) -> CGMutablePath {
+    let rect = transform_rect(s, rect);
+    let mut path = CGMutablePath::new();
+    path.add_ellipse(None, rect);
+    path
+}
+
+fn path_line(s: Size, start: Point, end: Point) -> CGMutablePath {
+    let mut path = CGMutablePath::new();
+    path.move_to_point(None, start.x, s.height - start.y);
+    path.line_to_point(None, end.x, s.height - end.y);
+    path
 }
 
 fn transform_rect(s: Size, rect: Rect) -> CGRect {
@@ -333,16 +492,18 @@ fn transform_rect(s: Size, rect: Rect) -> CGRect {
     )
 }
 
-fn path_rect(s: Size, rect: Rect) -> Id<NSBezierPath> {
+fn path_rect(s: Size, rect: Rect) -> CGMutablePath {
     let rect = transform_rect(s, rect);
-    unsafe { NSBezierPath::bezierPathWithRect(rect) }
+    let mut path = CGMutablePath::new();
+    path.add_rect(None, rect);
+    path
 }
 
-fn path_round_rect(s: Size, rect: Rect, round: Size) -> Id<NSBezierPath> {
+fn path_round_rect(s: Size, rect: Rect, round: Size) -> CGMutablePath {
     let rect = transform_rect(s, rect);
-    unsafe {
-        NSBezierPath::bezierPathWithRoundedRect_xRadius_yRadius(rect, round.width, round.height)
-    }
+    let mut path = CGMutablePath::new();
+    path.add_rounded_rect(None, rect, round.width, round.height);
+    path
 }
 
 fn measure_str(font: DrawingFont, pos: Point, text: &str) -> (Id<NSAttributedString>, Rect) {
@@ -361,59 +522,6 @@ fn measure_str(font: DrawingFont, pos: Point, text: &str) -> (Id<NSAttributedStr
         _ => {}
     }
     (astr, Rect::new(Point::new(x, y), size))
-}
-
-fn draw_mask(s: Size, mask: impl FnOnce(), fill: impl FnOnce()) {
-    let colorspace = CGColorSpace::create_device_gray();
-    let mask_context = CGContext::create_bitmap_context(
-        None,
-        s.width as _,
-        s.height as _,
-        8,
-        s.width as _,
-        &colorspace,
-        0,
-    );
-
-    #[repr(transparent)]
-    struct CGContextWrapper(*mut core_graphics::sys::CGContext);
-
-    unsafe impl Encode for CGContextWrapper {
-        const ENCODING: Encoding = Encoding::Pointer(&Encoding::Struct("CGContext", &[]));
-    }
-
-    unsafe {
-        let m_context_ptr = CGContextWrapper(mask_context.as_ptr());
-        let g_context: Id<NSGraphicsContext> = msg_send_id![class!(NSGraphicsContext), graphicsContextWithCGContext:m_context_ptr flipped:false];
-        NSGraphicsContext::saveGraphicsState_class();
-        NSGraphicsContext::setCurrentContext(Some(&g_context));
-    }
-
-    mask();
-
-    unsafe {
-        NSGraphicsContext::restoreGraphicsState_class();
-    }
-
-    let alpha_mask = mask_context.create_image().unwrap();
-
-    let window_context = unsafe {
-        let g_context = NSGraphicsContext::currentContext().unwrap();
-        let ptr: CGContextWrapper = msg_send![&g_context, CGContext];
-        CGContext::from_existing_context_ptr(ptr.0)
-    };
-    window_context.save();
-    window_context.clip_to_mask(
-        geometry::CGRect::new(
-            &geometry::CGPoint::default(),
-            &geometry::CGSize::new(s.width, s.height),
-        ),
-        &alpha_mask,
-    );
-
-    fill();
-
-    window_context.restore();
 }
 
 fn create_attr_str(font: &DrawingFont, text: &str) -> Id<NSAttributedString> {
@@ -447,6 +555,22 @@ fn create_attr_str(font: &DrawingFont, text: &str) -> Id<NSAttributedString> {
     }
 }
 
+fn to_cgcolor(c: Color) -> CGColor {
+    CGColor::rgb(
+        c.r as f64 / 255.0,
+        c.g as f64 / 255.0,
+        c.b as f64 / 255.0,
+        c.a as f64 / 255.0,
+    )
+}
+
+#[repr(transparent)]
+struct CGColorWrapper(cgsys::CGColorRef);
+
+unsafe impl Encode for CGColorWrapper {
+    const ENCODING: Encoding = Encoding::Pointer(&Encoding::Struct("CGColor", &[]));
+}
+
 fn to_nscolor(c: Color) -> Id<NSColor> {
     unsafe {
         NSColor::colorWithCalibratedRed_green_blue_alpha(
@@ -458,90 +582,95 @@ fn to_nscolor(c: Color) -> Id<NSColor> {
     }
 }
 
+const TRANSPARENT: Color = Color::new(0, 0, 0, 0);
+const WHITE: Color = Color::new(255, 255, 255, 255);
+
 /// Drawing brush.
 pub trait Brush {
     #[doc(hidden)]
-    fn draw(&self, path: &NSBezierPath, size: Size, rect: Rect);
+    fn create_layer(&self, size: Size, rect: Rect) -> Id<CALayer>;
+
+    #[doc(hidden)]
+    fn draw(&self, path: &CGMutablePath, size: Size, rect: Rect) -> Id<CALayer> {
+        unsafe {
+            let mask_layer = path.to_layer();
+            let transparent = to_cgcolor(TRANSPARENT);
+            let white = to_cgcolor(WHITE);
+            let () = msg_send![&mask_layer, setBackgroundColor:CGColorWrapper(transparent.as_concrete_TypeRef())];
+            let () =
+                msg_send![&mask_layer, setFillColor:CGColorWrapper(white.as_concrete_TypeRef())];
+            let () = msg_send![&mask_layer, setStrokeColor:CGColorWrapper(transparent.as_concrete_TypeRef())];
+            let brush_layer = self.create_layer(size, rect);
+            brush_layer.setMask(Some(&mask_layer));
+            brush_layer
+        }
+    }
 }
 
 impl<B: Brush> Brush for &'_ B {
-    fn draw(&self, path: &NSBezierPath, size: Size, rect: Rect) {
-        (**self).draw(path, size, rect)
+    fn create_layer(&self, size: Size, rect: Rect) -> Id<CALayer> {
+        (**self).create_layer(size, rect)
     }
 }
 
 impl Brush for SolidColorBrush {
-    fn draw(&self, path: &NSBezierPath, _size: Size, _rect: Rect) {
+    fn create_layer(&self, _size: Size, _rect: Rect) -> Id<CALayer> {
         unsafe {
-            to_nscolor(self.color).set();
-            path.fill();
+            let layer = CALayer::new();
+            let color = to_cgcolor(self.color);
+            let () =
+                msg_send![&layer, setBackgroundColor:CGColorWrapper(color.as_concrete_TypeRef())];
+            layer
         }
     }
 }
 
 impl Brush for LinearGradientBrush {
-    fn draw(&self, path: &NSBezierPath, _size: Size, _rect: Rect) {
+    fn create_layer(&self, _size: Size, rect: Rect) -> Id<CALayer> {
         unsafe {
-            let mut colors = NSMutableArray::<NSColor>::new();
-            let mut locs = vec![];
+            let mut colors = NSMutableArray::<AnyObject>::new();
+            let mut locs = NSMutableArray::<NSNumber>::new();
             for stop in &self.stops {
                 colors.addObject(&to_nscolor(stop.color));
-                locs.push(stop.pos);
+                locs.addObject(&NSNumber::new_f64(stop.pos));
             }
-            let gradient = NSGradient::initWithColors_atLocations_colorSpace(
-                NSGradient::alloc(),
-                &colors,
-                locs.as_mut_ptr(),
-                &NSColorSpace::deviceRGBColorSpace(),
-            )
-            .unwrap();
-            let dir = self.end - self.start;
-            gradient.drawInBezierPath_angle(path, -dir.y.atan2(dir.x).to_degrees());
+            let gradient = CAGradientLayer::new();
+            gradient.setFrame(CGRect::new(
+                CGPoint::new(rect.origin.x, rect.origin.y),
+                to_cgsize(rect.size),
+            ));
+            gradient.setColors(Some(&colors));
+            gradient.setLocations(Some(&locs));
+            gradient.setStartPoint(CGPoint::new(self.start.x, self.start.y));
+            gradient.setEndPoint(CGPoint::new(self.end.x, self.end.y));
+            Id::cast(gradient)
         }
     }
 }
 
 impl Brush for RadialGradientBrush {
-    fn draw(&self, path: &NSBezierPath, size: Size, rect: Rect) {
+    fn create_layer(&self, _size: Size, rect: Rect) -> Id<CALayer> {
         unsafe {
-            let mut colors = NSMutableArray::<NSColor>::new();
-            let mut locs = vec![];
+            // TODO: radius
+            let _radius = self.radius;
+
+            let mut colors = NSMutableArray::<AnyObject>::new();
+            let mut locs = NSMutableArray::<NSNumber>::new();
             for stop in &self.stops {
                 colors.addObject(&to_nscolor(stop.color));
-                locs.push(stop.pos);
+                locs.addObject(&NSNumber::new_f64(stop.pos));
             }
-            let gradient = NSGradient::initWithColors_atLocations_colorSpace(
-                NSGradient::alloc(),
-                &colors,
-                locs.as_mut_ptr(),
-                &NSColorSpace::deviceRGBColorSpace(),
-            )
-            .unwrap();
-
-            draw_mask(
-                size,
-                || {
-                    NSColor::whiteColor().set();
-                    path.fill();
-                },
-                || {
-                    let transform = NSAffineTransform::transform();
-                    transform.scaleXBy_yBy(
-                        rect.size.width,
-                        rect.size.height * self.radius.height / self.radius.width,
-                    );
-                    let () = msg_send![&*transform, concat];
-                    let rs =
-                        Size::new(size.width / rect.size.width, size.height / rect.size.height);
-                    gradient.drawFromCenter_radius_toCenter_radius_options(
-                        NSPoint::new(self.origin.x, rs.height - self.origin.y),
-                        0.0,
-                        NSPoint::new(self.center.x, rs.height - self.center.y),
-                        self.radius.width,
-                        NSGradientDrawingOptions::NSGradientDrawsAfterEndingLocation,
-                    );
-                },
-            )
+            let gradient = CAGradientLayer::new();
+            gradient.setFrame(CGRect::new(
+                CGPoint::new(rect.origin.x, rect.origin.y),
+                to_cgsize(rect.size),
+            ));
+            gradient.setColors(Some(&colors));
+            gradient.setLocations(Some(&locs));
+            gradient.setStartPoint(CGPoint::new(self.origin.x, self.origin.y));
+            gradient.setEndPoint(CGPoint::new(self.center.x, self.center.y));
+            gradient.setType(kCAGradientLayerRadial);
+            Id::cast(gradient)
         }
     }
 }
@@ -549,30 +678,45 @@ impl Brush for RadialGradientBrush {
 /// Drawing pen.
 pub trait Pen {
     #[doc(hidden)]
-    fn draw(&self, path: &NSBezierPath, size: Size, rect: Rect);
+    fn create_layer(&self, size: Size, rect: Rect) -> Id<CALayer>;
+    #[doc(hidden)]
+    fn width(&self) -> f64;
+
+    #[doc(hidden)]
+    fn draw(&self, path: &CGMutablePath, size: Size, rect: Rect) -> Id<CALayer> {
+        unsafe {
+            let mask_layer = path.to_layer();
+            let transparent = to_cgcolor(TRANSPARENT);
+            let white = to_cgcolor(WHITE);
+            let () = msg_send![&mask_layer, setBackgroundColor:CGColorWrapper(transparent.as_concrete_TypeRef())];
+            let () = msg_send![&mask_layer, setFillColor:CGColorWrapper(transparent.as_concrete_TypeRef())];
+            let () =
+                msg_send![&mask_layer, setStrokeColor:CGColorWrapper(white.as_concrete_TypeRef())];
+            mask_layer.setLineWidth(self.width());
+            let brush_layer = self.create_layer(size, rect);
+            brush_layer.setMask(Some(&mask_layer));
+            brush_layer
+        }
+    }
 }
 
 impl<P: Pen> Pen for &'_ P {
-    fn draw(&self, path: &NSBezierPath, size: Size, rect: Rect) {
-        (**self).draw(path, size, rect)
+    fn create_layer(&self, size: Size, rect: Rect) -> Id<CALayer> {
+        (**self).create_layer(size, rect)
+    }
+
+    fn width(&self) -> f64 {
+        (**self).width()
     }
 }
 
 impl<B: Brush> Pen for BrushPen<B> {
-    fn draw(&self, path: &NSBezierPath, size: Size, rect: Rect) {
-        let region_path = {
-            let rect = rect.outer_rect(Margin::new_all_same(self.width));
-            path_rect(size, rect)
-        };
-        draw_mask(
-            size,
-            || unsafe {
-                path.setLineWidth(self.width);
-                NSColor::whiteColor().set();
-                path.stroke();
-            },
-            || self.brush.draw(&region_path, size, rect),
-        )
+    fn create_layer(&self, size: Size, rect: Rect) -> Id<CALayer> {
+        self.brush.create_layer(size, rect)
+    }
+
+    fn width(&self) -> f64 {
+        self.width
     }
 }
 

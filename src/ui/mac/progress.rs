@@ -26,7 +26,7 @@ impl Progress {
     }
 
     pub fn preferred_size(&self) -> Size {
-        self.handle.preferred_size()
+        Size::new(0.0, 5.0)
     }
 
     pub fn loc(&self) -> Point {
@@ -73,6 +73,11 @@ impl Progress {
     pub fn set_indeterminate(&mut self, v: bool) {
         unsafe {
             self.view.setIndeterminate(v);
+            if v {
+                self.view.startAnimation(None);
+            } else {
+                self.view.stopAnimation(None);
+            }
         }
     }
 }
