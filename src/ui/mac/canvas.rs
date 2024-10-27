@@ -630,8 +630,8 @@ impl Brush for LinearGradientBrush {
             let gradient = CAGradientLayer::new();
             gradient.setColors(Some(&colors));
             gradient.setLocations(Some(&locs));
-            gradient.setStartPoint(CGPoint::new(self.start.x, self.start.y));
-            gradient.setEndPoint(CGPoint::new(self.end.x, self.end.y));
+            gradient.setStartPoint(CGPoint::new(self.start.x, 1.0 - self.start.y));
+            gradient.setEndPoint(CGPoint::new(self.end.x, 1.0 - self.end.y));
             Id::cast(gradient)
         }
     }
@@ -640,22 +640,20 @@ impl Brush for LinearGradientBrush {
 impl Brush for RadialGradientBrush {
     fn create_layer(&self, _size: Size, _rect: Rect) -> Id<CALayer> {
         unsafe {
-            // TODO: radius
-            let _radius = self.radius;
-
+            let ratio = self.radius.width.min(self.radius.height);
             let mut colors = NSMutableArray::<AnyObject>::new();
             let mut locs = NSMutableArray::<NSNumber>::new();
             for stop in &self.stops {
                 // TODO: is it valid?
                 let cgcolor = to_cgcolor(stop.color);
                 colors.addObject(std::mem::transmute(cgcolor.as_concrete_TypeRef()));
-                locs.addObject(&NSNumber::new_f64(stop.pos));
+                locs.addObject(&NSNumber::new_f64(stop.pos * ratio));
             }
             let gradient = CAGradientLayer::new();
             gradient.setColors(Some(&colors));
             gradient.setLocations(Some(&locs));
-            gradient.setStartPoint(CGPoint::new(self.origin.x, self.origin.y));
-            gradient.setEndPoint(CGPoint::new(self.center.x, self.center.y));
+            gradient.setStartPoint(CGPoint::new(self.origin.x, 1.0 - self.origin.y));
+            gradient.setEndPoint(CGPoint::new(self.center.x, 1.0 - self.center.y));
             gradient.setType(kCAGradientLayerRadial);
             Id::cast(gradient)
         }
