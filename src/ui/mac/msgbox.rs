@@ -2,7 +2,9 @@ use std::{cell::RefCell, rc::Rc};
 
 use block2::StackBlock;
 use compio::buf::arrayvec::ArrayVec;
-use objc2_app_kit::{NSAlert, NSAlertFirstButtonReturn, NSAlertStyle};
+use objc2_app_kit::{
+    NSAlert, NSAlertFirstButtonReturn, NSAlertStyle, NSImage, NSImageNameCaution, NSImageNameInfo,
+};
 use objc2_foundation::{MainThreadMarker, NSString};
 
 use crate::{AsRawWindow, AsWindow, MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
@@ -28,6 +30,14 @@ async fn msgbox_custom(
             MessageBoxStyle::Warning | MessageBoxStyle::Error => NSAlertStyle::Critical,
             _ => NSAlertStyle::Warning,
         });
+        let image = match style {
+            MessageBoxStyle::Info => NSImage::imageNamed(NSImageNameInfo),
+            MessageBoxStyle::Warning | MessageBoxStyle::Error => {
+                NSImage::imageNamed(NSImageNameCaution)
+            }
+            _ => None,
+        };
+        alert.setIcon(image.as_deref());
 
         alert.window().setTitle(&NSString::from_str(&title));
         if instr.is_empty() {
