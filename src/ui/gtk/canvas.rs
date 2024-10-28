@@ -174,14 +174,20 @@ impl DrawingContext<'_> {
         pen.set(&self.ctx, to_trans(rect))
     }
 
-    fn path_arc(&self, rect: Rect, start: f64, end: f64) {
+    fn path_arc(&self, rect: Rect, start: f64, end: f64, pie: bool) {
         let save_matrix = self.ctx.matrix();
         let rate = rect.size.height / rect.size.width;
         self.ctx.scale(1.0, rate);
         self.ctx.new_path();
         let center = rect.center();
+        if pie {
+            self.ctx.move_to(center.x, center.y / rate);
+        }
         self.ctx
             .arc(center.x, center.y / rate, rect.size.width / 2.0, start, end);
+        if pie {
+            self.ctx.close_path();
+        }
         self.ctx.set_matrix(save_matrix);
     }
 
@@ -231,14 +237,42 @@ impl DrawingContext<'_> {
         self.ctx.set_matrix(save_matrix);
     }
 
+    pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) {
+        let (x, y, width, height) = path.surface.ink_extents();
+        let rect = Rect::new(Point::new(x, y), Size::new(width, height));
+        pen.set(&path.ctx, to_trans(rect));
+        path.ctx.stroke().ok();
+        self.ctx
+            .set_source_surface(&path.surface, 0.0, 0.0)
+            .unwrap();
+        self.ctx.paint().unwrap();
+    }
+
+    pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) {
+        let (x, y, width, height) = path.surface.ink_extents();
+        let rect = Rect::new(Point::new(x, y), Size::new(width, height));
+        brush.set(&path.ctx, to_trans(rect));
+        path.ctx.stroke().ok();
+        self.ctx
+            .set_source_surface(&path.surface, 0.0, 0.0)
+            .unwrap();
+        self.ctx.paint().unwrap();
+    }
+
     pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
-        self.path_arc(rect, start, end);
+        self.path_arc(rect, start, end, false);
+        self.set_pen(pen, rect);
+        self.ctx.stroke().ok();
+    }
+
+    pub fn draw_pie(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
+        self.path_arc(rect, start, end, true);
         self.set_pen(pen, rect);
         self.ctx.stroke().ok();
     }
 
     pub fn fill_pie(&mut self, brush: impl Brush, rect: Rect, start: f64, end: f64) {
-        self.path_arc(rect, start, end);
+        self.path_arc(rect, start, end, true);
         self.set_brush(brush, rect);
         self.ctx.fill().ok();
     }
@@ -347,11 +381,61 @@ impl DrawingContext<'_> {
         self.ctx.paint().unwrap();
         self.ctx.restore().unwrap();
     }
+
+    pub fn create_path_builder(&self, start: Point) -> DrawingPathBuilder {
+        DrawingPathBuilder::new(start)
+    }
 }
 
 impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
         self.widget.queue_draw();
+    }
+}
+
+pub type DrawingPath = DrawingPathBuilder;
+
+pub struct DrawingPathBuilder {
+    surface: RecordingSurface,
+    ctx: Context,
+}
+
+impl DrawingPathBuilder {
+    fn new(start: Point) -> Self {
+        let surface = RecordingSurface::create(Content::ColorAlpha, None).unwrap();
+        let ctx = Context::new(&surface).unwrap();
+        ctx.new_path();
+        ctx.move_to(start.x, start.y);
+        Self { surface, ctx }
+    }
+
+    pub fn add_line(&mut self, p: Point) {
+        self.ctx.line_to(p.x, p.y);
+    }
+
+    pub fn add_arc(&mut self, center: Point, radius: Size, start: f64, end: f64, clockwise: bool) {
+        let save_matrix = self.ctx.matrix();
+        let rate = radius.height / radius.width;
+        self.ctx.scale(1.0, rate);
+        if clockwise {
+            self.ctx
+                .arc(center.x, center.y / rate, radius.width, start, end);
+        } else {
+            self.ctx
+                .arc_negative(center.x, center.y / rate, radius.width, start, end);
+        }
+        self.ctx.set_matrix(save_matrix);
+    }
+
+    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) {
+        self.ctx.curve_to(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+    }
+
+    pub fn build(self, close: bool) -> DrawingPath {
+        if close {
+            self.ctx.close_path();
+        }
+        self
     }
 }
 

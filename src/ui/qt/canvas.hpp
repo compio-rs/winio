@@ -6,6 +6,7 @@
 #include <QMouseEvent>
 #include <QPaintEvent>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPicture>
 #include <QWidget>
 #include <memory>
@@ -65,3 +66,5 @@ std::unique_ptr<QImage> new_image(int width, int height, int stride,
                                   const uchar *bits, QImage::Format format);
 void painter_draw_image(QPainter &p, QRectF const &target, QImage const &image,
                         QRectF const &source);
+
+std::unique_ptr<QPainterPath> new_path();

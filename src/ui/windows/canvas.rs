@@ -9,19 +9,21 @@ use windows::{
         Direct2D::{
             Common::{
                 D2D_POINT_2F, D2D_RECT_F, D2D_SIZE_F, D2D_SIZE_U, D2D1_ALPHA_MODE_PREMULTIPLIED,
-                D2D1_COLOR_F, D2D1_FIGURE_BEGIN_HOLLOW, D2D1_FIGURE_END_CLOSED,
-                D2D1_FIGURE_END_OPEN, D2D1_GRADIENT_STOP, D2D1_PIXEL_FORMAT,
+                D2D1_BEZIER_SEGMENT, D2D1_COLOR_F, D2D1_FIGURE_BEGIN_HOLLOW,
+                D2D1_FIGURE_END_CLOSED, D2D1_FIGURE_END_OPEN, D2D1_GRADIENT_STOP,
+                D2D1_PIXEL_FORMAT,
             },
             D2D1_ARC_SEGMENT, D2D1_ARC_SIZE_LARGE, D2D1_ARC_SIZE_SMALL,
             D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR, D2D1_BITMAP_PROPERTIES,
-            D2D1_BRUSH_PROPERTIES, D2D1_DRAW_TEXT_OPTIONS_NONE, D2D1_ELLIPSE,
-            D2D1_EXTEND_MODE_CLAMP, D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1_FEATURE_LEVEL_DEFAULT,
-            D2D1_GAMMA_2_2, D2D1_HWND_RENDER_TARGET_PROPERTIES,
+            D2D1_BRUSH_PROPERTIES, D2D1_DEFAULT_FLATTENING_TOLERANCE, D2D1_DRAW_TEXT_OPTIONS_NONE,
+            D2D1_ELLIPSE, D2D1_EXTEND_MODE_CLAMP, D2D1_FACTORY_TYPE_SINGLE_THREADED,
+            D2D1_FEATURE_LEVEL_DEFAULT, D2D1_GAMMA_2_2, D2D1_HWND_RENDER_TARGET_PROPERTIES,
             D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES, D2D1_PRESENT_OPTIONS_NONE,
             D2D1_RADIAL_GRADIENT_BRUSH_PROPERTIES, D2D1_RENDER_TARGET_PROPERTIES,
             D2D1_RENDER_TARGET_TYPE_HARDWARE, D2D1_RENDER_TARGET_USAGE_NONE, D2D1_ROUNDED_RECT,
-            D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1CreateFactory, ID2D1Bitmap, ID2D1Brush,
-            ID2D1Factory, ID2D1Geometry, ID2D1HwndRenderTarget, ID2D1RenderTarget,
+            D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_SWEEP_DIRECTION_COUNTER_CLOCKWISE,
+            D2D1CreateFactory, ID2D1Bitmap, ID2D1Brush, ID2D1Factory, ID2D1Geometry,
+            ID2D1GeometrySink, ID2D1HwndRenderTarget, ID2D1PathGeometry, ID2D1RenderTarget,
         },
         DirectWrite::{
             DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STYLE_NORMAL,
@@ -345,8 +347,51 @@ impl DrawingContext<'_> {
         }
     }
 
+    pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) {
+        let width = pen.width();
+        let rect = unsafe {
+            path.geo
+                .GetWidenedBounds(width, None, None, D2D1_DEFAULT_FLATTENING_TOLERANCE)
+                .unwrap()
+        };
+        let (b, width) = self.get_pen(
+            pen,
+            RectBox::new(
+                Point::new(rect.left as _, rect.top as _),
+                Point::new(rect.right as _, rect.bottom as _),
+            )
+            .to_rect(),
+        );
+        unsafe {
+            self.target.DrawGeometry(&path.geo, &b, width, None);
+        }
+    }
+
+    pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) {
+        let rect = unsafe { path.geo.GetBounds(None).unwrap() };
+        let b = self.get_brush(
+            brush,
+            RectBox::new(
+                Point::new(rect.left as _, rect.top as _),
+                Point::new(rect.right as _, rect.bottom as _),
+            )
+            .to_rect(),
+        );
+        unsafe {
+            self.target.FillGeometry(&path.geo, &b, None);
+        }
+    }
+
     pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
         let geo = self.get_arc_geo(rect, start, end, false);
+        let (b, width) = self.get_pen(pen, rect);
+        unsafe {
+            self.target.DrawGeometry(&geo, &b, width, None);
+        }
+    }
+
+    pub fn draw_pie(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
+        let geo = self.get_arc_geo(rect, start, end, true);
         let (b, width) = self.get_pen(pen, rect);
         unsafe {
             self.target.DrawGeometry(&geo, &b, width, None);
@@ -463,11 +508,93 @@ impl DrawingContext<'_> {
             );
         }
     }
+
+    pub fn create_path_builder(&self, start: Point) -> DrawingPathBuilder {
+        DrawingPathBuilder::new(&self.d2d, start)
+    }
 }
 
 impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
         unsafe { self.target.EndDraw(None, None) }.unwrap();
+    }
+}
+
+pub struct DrawingPath {
+    geo: ID2D1Geometry,
+}
+
+impl DrawingPath {
+    fn new(geo: ID2D1Geometry) -> Self {
+        Self { geo }
+    }
+}
+
+pub struct DrawingPathBuilder {
+    geo: ID2D1PathGeometry,
+    sink: ID2D1GeometrySink,
+}
+
+impl DrawingPathBuilder {
+    fn new(d2d: &ID2D1Factory, start: Point) -> Self {
+        unsafe {
+            let geo = d2d.CreatePathGeometry().unwrap();
+            let sink = geo.Open().unwrap();
+            sink.BeginFigure(point_2f(start), D2D1_FIGURE_BEGIN_HOLLOW);
+            Self { geo, sink }
+        }
+    }
+
+    pub fn add_line(&mut self, p: Point) {
+        unsafe {
+            self.sink.AddLine(point_2f(p));
+        }
+    }
+
+    pub fn add_arc(&mut self, center: Point, radius: Size, start: f64, end: f64, clockwise: bool) {
+        unsafe {
+            let startp =
+                center + Vector::new(radius.width * start.cos(), radius.height * start.sin());
+            let endp = center + Vector::new(radius.width * end.cos(), radius.height * end.sin());
+            self.add_line(startp);
+            self.sink.AddArc(&D2D1_ARC_SEGMENT {
+                point: point_2f(endp),
+                size: size_f(radius),
+                rotationAngle: 0.0,
+                sweepDirection: if clockwise {
+                    D2D1_SWEEP_DIRECTION_CLOCKWISE
+                } else {
+                    D2D1_SWEEP_DIRECTION_COUNTER_CLOCKWISE
+                },
+                arcSize: if (end - start) > std::f64::consts::PI {
+                    D2D1_ARC_SIZE_LARGE
+                } else {
+                    D2D1_ARC_SIZE_SMALL
+                },
+            });
+        }
+    }
+
+    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) {
+        unsafe {
+            self.sink.AddBezier(&D2D1_BEZIER_SEGMENT {
+                point1: point_2f(p1),
+                point2: point_2f(p2),
+                point3: point_2f(p3),
+            });
+        }
+    }
+
+    pub fn build(self, close: bool) -> DrawingPath {
+        unsafe {
+            self.sink.EndFigure(if close {
+                D2D1_FIGURE_END_CLOSED
+            } else {
+                D2D1_FIGURE_END_OPEN
+            });
+            self.sink.Close().unwrap();
+            DrawingPath::new(self.geo.cast().unwrap())
+        }
     }
 }
 
@@ -567,11 +694,17 @@ impl Brush for RadialGradientBrush {
 pub trait Pen {
     #[doc(hidden)]
     fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToLogical) -> (ID2D1Brush, f32);
+    #[doc(hidden)]
+    fn width(&self) -> f32;
 }
 
 impl<P: Pen> Pen for &'_ P {
     fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToLogical) -> (ID2D1Brush, f32) {
         (**self).create(target, trans)
+    }
+
+    fn width(&self) -> f32 {
+        (**self).width()
     }
 }
 
@@ -579,6 +712,10 @@ impl<B: Brush> Pen for BrushPen<B> {
     fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToLogical) -> (ID2D1Brush, f32) {
         let brush = self.brush.create(target, trans);
         (brush, self.width as _)
+    }
+
+    fn width(&self) -> f32 {
+        self.width as _
     }
 }
 

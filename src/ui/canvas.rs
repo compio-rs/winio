@@ -115,9 +115,15 @@ pub struct DrawingContext<'a>(sys::DrawingContext<'a>);
 
 #[inline]
 fn fix_rect(mut rect: Rect) -> Rect {
-    rect.size.width = rect.size.width.max(0.1);
-    rect.size.height = rect.size.height.max(0.1);
+    rect.size = fix_size(rect.size);
     rect
+}
+
+#[inline]
+fn fix_size(mut size: Size) -> Size {
+    size.width = size.width.max(0.1);
+    size.height = size.height.max(0.1);
+    size
 }
 
 #[inline]
@@ -131,9 +137,24 @@ impl<'a> DrawingContext<'a> {
         Self(ctx)
     }
 
+    /// Draw a path.
+    pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) {
+        self.0.draw_path(pen, &path.0);
+    }
+
+    /// Fill a path.
+    pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) {
+        self.0.fill_path(brush, &path.0);
+    }
+
     /// Draw an arc.
     pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
         self.0.draw_arc(pen, fix_rect(rect), start, end);
+    }
+
+    /// Draw an arc.
+    pub fn draw_pie(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
+        self.0.draw_pie(pen, fix_rect(rect), start, end);
     }
 
     /// Fill a pie.
@@ -195,5 +216,40 @@ impl<'a> DrawingContext<'a> {
     /// Draw a image with RGBA format.
     pub fn draw_image(&mut self, image: &DrawingImage, rect: Rect, clip: Option<Rect>) {
         self.0.draw_image(&image.0, fix_rect(rect), clip);
+    }
+
+    /// Create [`DrawingPathBuilder`].
+    pub fn create_path_builder(&self, start: Point) -> DrawingPathBuilder {
+        DrawingPathBuilder(self.0.create_path_builder(start))
+    }
+}
+
+/// A drawing path.
+pub struct DrawingPath(sys::DrawingPath);
+
+/// Builder for [`DrawingPath`].
+pub struct DrawingPathBuilder(sys::DrawingPathBuilder);
+
+impl DrawingPathBuilder {
+    /// Line from current point to the target point.
+    pub fn add_line(&mut self, p: Point) {
+        self.0.add_line(p);
+    }
+
+    /// Add arc. A line will be created implicitly if the start point is not the
+    /// current point.
+    pub fn add_arc(&mut self, center: Point, radius: Size, start: f64, end: f64, clockwise: bool) {
+        self.0
+            .add_arc(center, fix_size(radius), start, end, clockwise);
+    }
+
+    /// Add a cubic Bezier curve.
+    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) {
+        self.0.add_bezier(p1, p2, p3);
+    }
+
+    /// Build [`DrawingPath`].
+    pub fn build(self, close: bool) -> DrawingPath {
+        DrawingPath(self.0.build(close))
     }
 }

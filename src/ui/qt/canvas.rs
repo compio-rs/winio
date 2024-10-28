@@ -149,9 +149,30 @@ impl DrawingContext<'_> {
             .setBrush(&ffi::new_brush(&QColor::transparent()));
     }
 
+    pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) {
+        let rect = path.0.boundingRect();
+        self.set_pen(pen, rect.0);
+        self.painter.pin_mut().drawPath(&path.0);
+    }
+
+    pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) {
+        let rect = path.0.boundingRect();
+        self.set_brush(brush, rect.0);
+        self.painter.pin_mut().drawPath(&path.0);
+    }
+
     pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
         self.set_pen(pen, rect);
         self.painter.pin_mut().drawArc(
+            &QRectF(rect),
+            drawing_angle(start),
+            drawing_angle(end - start),
+        );
+    }
+
+    pub fn draw_pie(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
+        self.set_pen(pen, rect);
+        self.painter.pin_mut().drawPie(
             &QRectF(rect),
             drawing_angle(start),
             drawing_angle(end - start),
@@ -257,6 +278,48 @@ impl DrawingContext<'_> {
             &image.pixmap,
             &QRectF(clip),
         );
+    }
+
+    pub fn create_path_builder(&self, start: Point) -> DrawingPathBuilder {
+        DrawingPathBuilder::new(start)
+    }
+}
+
+pub struct DrawingPath(UniquePtr<ffi::QPainterPath>);
+
+pub struct DrawingPathBuilder(UniquePtr<ffi::QPainterPath>);
+
+impl DrawingPathBuilder {
+    fn new(start: Point) -> Self {
+        let mut ptr = ffi::new_path();
+        ptr.pin_mut().moveTo(start.x, start.y);
+        Self(ptr)
+    }
+
+    pub fn add_line(&mut self, p: Point) {
+        self.0.pin_mut().lineTo(p.x, p.y);
+    }
+
+    pub fn add_arc(&mut self, center: Point, radius: Size, start: f64, end: f64, clockwise: bool) {
+        self.0.pin_mut().arcTo(
+            center.x - radius.width,
+            center.y - radius.height,
+            radius.width * 2.0,
+            radius.height * 2.0,
+            start,
+            if clockwise { start - end } else { end - start } / std::f64::consts::PI * 180.0,
+        );
+    }
+
+    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) {
+        self.0.pin_mut().cubicTo(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+    }
+
+    pub fn build(mut self, close: bool) -> DrawingPath {
+        if close {
+            self.0.pin_mut().closeSubpath();
+        }
+        DrawingPath(self.0)
     }
 }
 
@@ -592,6 +655,7 @@ mod ffi {
             yr: f64,
             mode: QtSizeMode,
         );
+        fn drawPath(self: Pin<&mut QPainter>, path: &QPainterPath);
 
         fn end(self: Pin<&mut QPainter>) -> bool;
 
@@ -658,5 +722,32 @@ mod ffi {
 
         fn width(self: &QImage) -> i32;
         fn height(self: &QImage) -> i32;
+
+        type QPainterPath;
+
+        fn new_path() -> UniquePtr<QPainterPath>;
+
+        fn moveTo(self: Pin<&mut QPainterPath>, x: f64, y: f64);
+        fn lineTo(self: Pin<&mut QPainterPath>, x: f64, y: f64);
+        fn arcTo(
+            self: Pin<&mut QPainterPath>,
+            x: f64,
+            y: f64,
+            width: f64,
+            height: f64,
+            start: f64,
+            sweep: f64,
+        );
+        fn cubicTo(
+            self: Pin<&mut QPainterPath>,
+            x1: f64,
+            y1: f64,
+            x2: f64,
+            y2: f64,
+            x3: f64,
+            y3: f64,
+        );
+        fn closeSubpath(self: Pin<&mut QPainterPath>);
+        fn boundingRect(self: &QPainterPath) -> QRectF;
     }
 }
