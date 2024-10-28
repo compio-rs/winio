@@ -322,13 +322,12 @@ impl Component for MainModel {
         let cx = size.width / 2.0;
         let cy = size.height / 2.0;
         let r = cx.min(cy) - 2.0;
-        ctx.draw_arc(
+        ctx.draw_pie(
             &pen,
             Rect::new(Point::new(cx - r, cy - r), Size::new(r * 2.0, r * 2.0)),
             std::f64::consts::PI,
             std::f64::consts::PI * 2.0,
         );
-        ctx.draw_line(&pen, Point::new(cx - r, cy), Point::new(cx + r, cy));
 
         let brush2 = LinearGradientBrush::new(
             [
@@ -347,18 +346,17 @@ impl Component for MainModel {
             ),
             Size::new(r / 10.0, r / 10.0),
         );
-        ctx.draw_arc(
-            &pen,
-            Rect::new(
-                Point::new(
-                    cx - r - 1.0 + r / 10.0,
-                    cy + r * 0.618 + 1.0 - r * 0.382 / 2.0,
-                ),
-                Size::new(r * 2.0 - r / 5.0, r * 0.382),
-            ),
+        let mut path = ctx.create_path_builder(Point::new(cx + r + 1.0 - r / 10.0, cy));
+        path.add_arc(
+            Point::new(cx, cy + r * 0.618 + 1.0),
+            Size::new(r - r / 10.0, r * 0.382 / 2.0),
             0.0,
             std::f64::consts::PI,
+            true,
         );
+        path.add_line(Point::new(cx - r - 1.0 + r / 10.0, cy));
+        let path = path.build(false);
+        ctx.draw_path(&pen, &path);
         let brush3 = RadialGradientBrush::new(
             [
                 GradientStop::new(Color::new(0xF5, 0xF5, 0xF5, 0xFF), 0.0),
