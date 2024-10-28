@@ -91,7 +91,7 @@ impl Canvas {
             .window()
             .map(|w| {
                 let p = unsafe { w.mouseLocationOutsideOfEventStream() };
-                Point::new(p.x, p.y)
+                Point::new(p.x, self.size().height - p.y)
             })
             .unwrap()
     }
