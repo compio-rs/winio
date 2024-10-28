@@ -349,7 +349,7 @@ impl Component for MainModel {
         let mut path = ctx.create_path_builder(Point::new(cx + r + 1.0 - r / 10.0, cy));
         path.add_arc(
             Point::new(cx, cy + r * 0.618 + 1.0),
-            Size::new(r - r / 10.0, r * 0.382 / 2.0),
+            Size::new(r + 1.0 - r / 10.0, r * 0.382 / 2.0),
             0.0,
             std::f64::consts::PI,
             true,

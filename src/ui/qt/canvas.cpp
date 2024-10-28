@@ -127,3 +127,7 @@ void painter_draw_image(QPainter &p, QRectF const &target, QImage const &image,
                         QRectF const &source) {
     p.drawImage(target, image, source);
 }
+
+std::unique_ptr<QPainterPath> new_path() {
+    return std::make_unique<QPainterPath>();
+}
