@@ -30,9 +30,9 @@ pub type RawWindow = Id<NSWindow>;
 
 use objc2::rc::{Id, autoreleasepool};
 use objc2_app_kit::NSWindow;
-use objc2_foundation::{CGSize, NSString, NSUserDefaults, ns_string};
+use objc2_foundation::{CGPoint, CGRect, CGSize, NSString, NSUserDefaults, ns_string};
 
-use crate::{ColorTheme, Size};
+use crate::{ColorTheme, Point, Rect, Size};
 
 pub fn color_theme() -> ColorTheme {
     unsafe {
@@ -59,6 +59,33 @@ pub(crate) fn to_cgsize(size: Size) -> CGSize {
     CGSize::new(size.width, size.height)
 }
 
+#[inline]
+pub(crate) fn transform_rect(s: Size, rect: Rect) -> CGRect {
+    CGRect::new(
+        CGPoint::new(rect.origin.x, s.height - rect.size.height - rect.origin.y),
+        to_cgsize(rect.size),
+    )
+}
+
+#[inline]
+pub(crate) fn transform_cgrect(s: Size, rect: CGRect) -> Rect {
+    Rect::new(
+        Point::new(rect.origin.x, s.height - rect.size.height - rect.origin.y),
+        from_cgsize(rect.size),
+    )
+}
+
+#[inline]
+pub(crate) fn transform_point(s: Size, p: Point) -> CGPoint {
+    CGPoint::new(p.x, s.height - p.y)
+}
+
+#[inline]
+pub(crate) fn transform_cgpoint(s: Size, p: CGPoint) -> Point {
+    Point::new(p.x, s.height - p.y)
+}
+
+#[inline]
 pub(crate) fn from_nsstring(s: &NSString) -> String {
     autoreleasepool(|pool| s.as_str(pool).to_string())
 }

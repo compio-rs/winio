@@ -14,8 +14,9 @@ use objc2_foundation::{
     NSString,
 };
 
+use super::{transform_cgrect, transform_rect};
 use crate::{
-    AsRawWindow, AsWindow, Point, RawWindow, Size,
+    AsRawWindow, AsWindow, Point, RawWindow, Rect, Size,
     ui::{Callback, from_cgsize, from_nsstring, to_cgsize},
 };
 
@@ -60,17 +61,16 @@ impl Window {
     pub fn loc(&self) -> Point {
         let frame = self.wnd.frame();
         let screen_frame = self.screen().frame();
-        Point::new(
-            frame.origin.x,
-            screen_frame.size.height - frame.size.height - frame.origin.y,
-        )
+        transform_cgrect(from_cgsize(screen_frame.size), frame).origin
     }
 
     pub fn set_loc(&mut self, p: Point) {
-        let mut frame = self.wnd.frame();
+        let frame = self.wnd.frame();
         let screen_frame = self.screen().frame();
-        frame.origin.x = p.x;
-        frame.origin.y = screen_frame.size.height - frame.size.height - p.y;
+        let frame = transform_rect(
+            from_cgsize(screen_frame.size),
+            Rect::new(p, from_cgsize(frame.size)),
+        );
         self.wnd.setFrame_display(frame, true);
     }
 
@@ -205,17 +205,16 @@ impl Widget {
     pub fn loc(&self) -> Point {
         let frame = self.view.frame();
         let screen_frame = self.parent().frame();
-        Point::new(
-            frame.origin.x,
-            screen_frame.size.height - frame.size.height - frame.origin.y,
-        )
+        transform_cgrect(from_cgsize(screen_frame.size), frame).origin
     }
 
     pub fn set_loc(&mut self, p: Point) {
-        let mut frame = self.view.frame();
+        let frame = self.view.frame();
         let screen_frame = self.parent().frame();
-        frame.origin.x = p.x;
-        frame.origin.y = screen_frame.size.height - frame.size.height - p.y;
+        let frame = transform_rect(
+            from_cgsize(screen_frame.size),
+            Rect::new(p, from_cgsize(frame.size)),
+        );
         unsafe {
             self.view.setFrame(frame);
         }

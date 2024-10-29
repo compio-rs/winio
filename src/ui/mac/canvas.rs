@@ -28,7 +28,10 @@ use crate::{
     AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, GradientStop, HAlign, LinearGradientBrush,
     MouseButton, Point, RadialGradientBrush, Rect, RectBox, RelativePoint, Size, SolidColorBrush,
     VAlign,
-    ui::{Callback, Widget, from_cgsize, to_cgsize},
+    ui::{
+        Callback, Widget, from_cgsize, to_cgsize, transform_cgpoint, transform_cgrect,
+        transform_point, transform_rect,
+    },
 };
 
 #[derive(Debug)]
@@ -93,7 +96,7 @@ impl Canvas {
             .window()
             .map(|w| {
                 let p = unsafe { w.mouseLocationOutsideOfEventStream() };
-                Point::new(p.x, self.size().height - p.y)
+                transform_cgpoint(self.size(), p)
             })
             .unwrap()
     }
@@ -208,39 +211,27 @@ impl Drop for DrawingContext<'_> {
 
 impl DrawingContext<'_> {
     fn pen_draw(&self, pen: impl Pen, path: &CGPath, rect: Rect) {
-        let layer = pen.draw(&path, self.size, rect);
+        let layer = pen.draw(path, self.size, rect);
         self.layer.addSublayer(&layer);
     }
 
     fn brush_draw(&self, brush: impl Brush, path: &CGPath, rect: Rect) {
-        let layer = brush.draw(&path, self.size, rect);
+        let layer = brush.draw(path, self.size, rect);
         self.layer.addSublayer(&layer);
     }
 
     pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) {
         let rect = path.bounding();
         let path = &path.0;
-        let rect = Rect::new(
-            Point::new(
-                rect.origin.x,
-                self.size.height - rect.origin.y - rect.size.height,
-            ),
-            from_cgsize(rect.size),
-        );
-        self.pen_draw(pen, &path, rect)
+        let rect = transform_cgrect(self.size, rect);
+        self.pen_draw(pen, path, rect)
     }
 
     pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) {
         let rect = path.bounding();
         let path = &path.0;
-        let rect = Rect::new(
-            Point::new(
-                rect.origin.x,
-                self.size.height - rect.origin.y - rect.size.height,
-            ),
-            from_cgsize(rect.size),
-        );
-        self.brush_draw(brush, &path, rect)
+        let rect = transform_cgrect(self.size, rect);
+        self.brush_draw(brush, path, rect)
     }
 
     pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
@@ -358,12 +349,12 @@ pub struct DrawingPathBuilder {
 impl DrawingPathBuilder {
     fn new(size: Size, start: Point) -> Self {
         let mut path = CGMutablePath::new();
-        path.move_to_point(None, start.x, size.height - start.y);
+        path.move_to_point(None, transform_point(size, start));
         Self { size, path }
     }
 
     pub fn add_line(&mut self, p: Point) {
-        self.path.line_to_point(None, p.x, self.size.height - p.y);
+        self.path.line_to_point(None, transform_point(self.size, p));
     }
 
     pub fn add_arc(&mut self, center: Point, radius: Size, start: f64, end: f64, clockwise: bool) {
@@ -376,10 +367,10 @@ impl DrawingPathBuilder {
         let transform = CGAffineTransform::new(1.0, 0.0, 0.0, rate, 0.0, 0.0);
 
         self.add_line(startp);
+        let center = transform_point(self.size, center);
         self.path.add_arc(
             Some(&transform),
-            center.x,
-            (self.size.height - center.y) / rate,
+            CGPoint::new(center.x, center.y / rate),
             radius.width,
             -start,
             -end,
@@ -390,12 +381,9 @@ impl DrawingPathBuilder {
     pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) {
         self.path.add_curve(
             None,
-            p1.x,
-            self.size.height - p1.y,
-            p2.x,
-            self.size.height - p2.y,
-            p3.x,
-            self.size.height - p3.y,
+            transform_point(self.size, p1),
+            transform_point(self.size, p2),
+            transform_point(self.size, p3),
         );
     }
 
@@ -467,23 +455,22 @@ impl CGMutablePath {
         Self(unsafe { CGPath::from_ptr(CGPathCreateMutable()) })
     }
 
-    pub fn move_to_point(&mut self, transform: Option<&CGAffineTransform>, x: f64, y: f64) {
+    pub fn move_to_point(&mut self, transform: Option<&CGAffineTransform>, p: CGPoint) {
         unsafe {
-            CGPathMoveToPoint(self.0.as_ptr(), transform, x, y);
+            CGPathMoveToPoint(self.0.as_ptr(), transform, p.x, p.y);
         }
     }
 
-    pub fn line_to_point(&mut self, transform: Option<&CGAffineTransform>, x: f64, y: f64) {
+    pub fn line_to_point(&mut self, transform: Option<&CGAffineTransform>, p: CGPoint) {
         unsafe {
-            CGPathAddLineToPoint(self.0.as_ptr(), transform, x, y);
+            CGPathAddLineToPoint(self.0.as_ptr(), transform, p.x, p.y);
         }
     }
 
     pub fn add_arc(
         &mut self,
         transform: Option<&CGAffineTransform>,
-        x: f64,
-        y: f64,
+        center: CGPoint,
         radius: f64,
         start: f64,
         end: f64,
@@ -493,8 +480,8 @@ impl CGMutablePath {
             CGPathAddArc(
                 self.0.as_ptr(),
                 transform,
-                x,
-                y,
+                center.x,
+                center.y,
                 radius,
                 start,
                 end,
@@ -506,15 +493,21 @@ impl CGMutablePath {
     pub fn add_curve(
         &mut self,
         transform: Option<&CGAffineTransform>,
-        x1: f64,
-        y1: f64,
-        x2: f64,
-        y2: f64,
-        x3: f64,
-        y3: f64,
+        p1: CGPoint,
+        p2: CGPoint,
+        p3: CGPoint,
     ) {
         unsafe {
-            CGPathAddCurveToPoint(self.0.as_ptr(), transform, x1, y1, x2, y2, x3, y3);
+            CGPathAddCurveToPoint(
+                self.0.as_ptr(),
+                transform,
+                p1.x,
+                p1.y,
+                p2.x,
+                p2.y,
+                p3.x,
+                p3.y,
+            );
         }
     }
 
@@ -546,13 +539,6 @@ unsafe impl Encode for CGPathWrapper {
     const ENCODING: Encoding = Encoding::Pointer(&Encoding::Struct("CGPath", &[]));
 }
 
-fn transform_rect(s: Size, rect: Rect) -> CGRect {
-    CGRect::new(
-        CGPoint::new(rect.origin.x, s.height - rect.size.height - rect.origin.y),
-        to_cgsize(rect.size),
-    )
-}
-
 fn path_arc(s: Size, rect: Rect, start: f64, end: f64, pie: bool) -> CGMutablePath {
     let radius = rect.size / 2.0;
     let centerp = Point::new(rect.origin.x + radius.width, rect.origin.y + radius.height);
@@ -566,15 +552,14 @@ fn path_arc(s: Size, rect: Rect, start: f64, end: f64, pie: bool) -> CGMutablePa
 
     let mut path = CGMutablePath::new();
     if pie {
-        path.move_to_point(None, centerp.x, s.height - centerp.y);
-        path.line_to_point(None, startp.x, s.height - startp.y);
+        path.move_to_point(None, transform_point(s, centerp));
+        path.line_to_point(None, transform_point(s, startp));
     } else {
-        path.move_to_point(None, startp.x, s.height - startp.y);
+        path.move_to_point(None, transform_point(s, startp));
     }
     path.add_arc(
         Some(&transform),
-        centerp.x,
-        (s.height - centerp.y) / rate,
+        transform_point(s, centerp),
         radius.width,
         -start,
         -end,
@@ -593,8 +578,8 @@ fn path_ellipse(s: Size, rect: Rect) -> CGPath {
 
 fn path_line(s: Size, start: Point, end: Point) -> CGMutablePath {
     let mut path = CGMutablePath::new();
-    path.move_to_point(None, start.x, s.height - start.y);
-    path.line_to_point(None, end.x, s.height - end.y);
+    path.move_to_point(None, transform_point(s, start));
+    path.line_to_point(None, transform_point(s, end));
     path
 }
 
@@ -689,13 +674,12 @@ fn make_layer(
     width: f64,
     size: Size,
     rect: Rect,
-    background: Color,
     fill: Color,
     stroke: Color,
 ) -> Id<CALayer> {
     unsafe {
         let mask_layer = to_layer(path);
-        let background = to_cgcolor(background);
+        let background = to_cgcolor(TRANSPARENT);
         let () = msg_send![&mask_layer, setBackgroundColor:CGColorWrapper(background.as_concrete_TypeRef())];
         let fill = to_cgcolor(fill);
         let () = msg_send![&mask_layer, setFillColor:CGColorWrapper(fill.as_concrete_TypeRef())];
@@ -711,7 +695,7 @@ fn make_layer(
         brush_layer.setFrame(brush_rect);
         let content_layer = CALayer::new();
         content_layer.setFrame(CGRect::new(CGPoint::ZERO, to_cgsize(size)));
-        content_layer.addSublayer(&brush_layer);
+        content_layer.addSublayer(brush_layer);
         content_layer.setMask(Some(&mask_layer));
         content_layer
     }
@@ -730,7 +714,6 @@ pub trait Brush {
             0.0,
             size,
             rect,
-            TRANSPARENT,
             WHITE,
             TRANSPARENT,
         )
@@ -766,7 +749,7 @@ unsafe fn create_gradient_layer(
     let mut locs = NSMutableArray::<NSNumber>::new();
     for stop in stops {
         let cgcolor = to_cgcolor(stop.color);
-        colors.addObject(std::mem::transmute(cgcolor.as_concrete_TypeRef()));
+        colors.addObject(&*cgcolor.as_concrete_TypeRef().cast::<AnyObject>());
         cg_colors.push(cgcolor);
         locs.addObject(&NSNumber::new_f64(stop.pos * ratio));
     }
@@ -813,7 +796,6 @@ pub trait Pen {
             self.width(),
             size,
             rect,
-            TRANSPARENT,
             TRANSPARENT,
             WHITE,
         )
