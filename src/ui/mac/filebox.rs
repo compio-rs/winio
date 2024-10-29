@@ -25,8 +25,8 @@ impl FileFilter {
 
 #[derive(Debug, Default, Clone)]
 pub struct FileBox {
-    title: String,
-    filename: String,
+    title: Id<NSString>,
+    filename: Id<NSString>,
     filters: Vec<FileFilter>,
 }
 
@@ -36,11 +36,11 @@ impl FileBox {
     }
 
     pub fn title(&mut self, title: &str) {
-        self.title = title.to_string();
+        self.title = NSString::from_str(title);
     }
 
     pub fn filename(&mut self, filename: &str) {
-        self.filename = filename.to_string();
+        self.filename = NSString::from_str(filename);
     }
 
     pub fn filters(&mut self, filters: impl IntoIterator<Item = FileFilter>) {
@@ -118,8 +118,8 @@ impl FileBox {
 
 async unsafe fn filebox(
     parent: Option<impl AsWindow>,
-    title: String,
-    filename: String,
+    title: Id<NSString>,
+    filename: Id<NSString>,
     filters: Vec<FileFilter>,
     open: bool,
     multiple: bool,
@@ -152,10 +152,10 @@ async unsafe fn filebox(
     }
 
     if !title.is_empty() {
-        handle.setTitle(Some(&NSString::from_str(&title)));
+        handle.setTitle(Some(&title));
     }
 
-    handle.setNameFieldStringValue(&NSString::from_str(&filename));
+    handle.setNameFieldStringValue(&filename);
     if !filters.is_empty() {
         let allow_others = filters
             .iter()

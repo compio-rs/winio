@@ -2,6 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use block2::StackBlock;
 use compio::buf::arrayvec::ArrayVec;
+use objc2::rc::Id;
 use objc2_app_kit::{
     NSAlert, NSAlertFirstButtonReturn, NSAlertStyle, NSImage, NSImageNameCaution, NSImageNameInfo,
 };
@@ -11,9 +12,9 @@ use crate::{AsRawWindow, AsWindow, MessageBoxButton, MessageBoxResponse, Message
 
 async fn msgbox_custom(
     parent: Option<impl AsWindow>,
-    msg: String,
-    title: String,
-    instr: String,
+    msg: Id<NSString>,
+    title: Id<NSString>,
+    instr: Id<NSString>,
     style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
@@ -39,12 +40,12 @@ async fn msgbox_custom(
         };
         alert.setIcon(image.as_deref());
 
-        alert.window().setTitle(&NSString::from_str(&title));
+        alert.window().setTitle(&title);
         if instr.is_empty() {
-            alert.setMessageText(&NSString::from_str(&msg));
+            alert.setMessageText(&msg);
         } else {
-            alert.setMessageText(&NSString::from_str(&instr));
-            alert.setInformativeText(&NSString::from_str(&msg));
+            alert.setMessageText(&instr);
+            alert.setInformativeText(&msg);
         }
 
         let mut responses = ArrayVec::<MessageBoxResponse, 6>::new();
@@ -75,7 +76,7 @@ async fn msgbox_custom(
         }
 
         for b in cbtns {
-            alert.addButtonWithTitle(&NSString::from_str(&b.text));
+            alert.addButtonWithTitle(&b.text);
             responses.push(MessageBoxResponse::Custom(b.result));
         }
 
@@ -98,32 +99,19 @@ async fn msgbox_custom(
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct MessageBox {
-    msg: String,
-    title: String,
-    instr: String,
+    msg: Id<NSString>,
+    title: Id<NSString>,
+    instr: Id<NSString>,
     style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
 }
 
-impl Default for MessageBox {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl MessageBox {
     pub fn new() -> Self {
-        Self {
-            msg: String::new(),
-            title: String::new(),
-            instr: String::new(),
-            style: MessageBoxStyle::None,
-            btns: MessageBoxButton::None,
-            cbtns: vec![],
-        }
+        Self::default()
     }
 
     pub async fn show(self, parent: Option<impl AsWindow>) -> MessageBoxResponse {
@@ -134,15 +122,15 @@ impl MessageBox {
     }
 
     pub fn message(&mut self, msg: &str) {
-        self.msg = msg.to_string();
+        self.msg = NSString::from_str(msg);
     }
 
     pub fn title(&mut self, title: &str) {
-        self.title = title.to_string();
+        self.title = NSString::from_str(title);
     }
 
     pub fn instruction(&mut self, instr: &str) {
-        self.instr = instr.to_string();
+        self.instr = NSString::from_str(instr);
     }
 
     pub fn style(&mut self, style: MessageBoxStyle) {
@@ -165,14 +153,14 @@ impl MessageBox {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CustomButton {
     pub result: u16,
-    pub text: String,
+    pub text: Id<NSString>,
 }
 
 impl CustomButton {
     pub fn new(result: u16, text: &str) -> Self {
         Self {
             result,
-            text: text.to_string(),
+            text: NSString::from_str(text),
         }
     }
 }
