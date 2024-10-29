@@ -5,7 +5,7 @@ use compio::buf::arrayvec::ArrayVec;
 use objc2_app_kit::{
     NSAlert, NSAlertFirstButtonReturn, NSAlertStyle, NSImage, NSImageNameCaution, NSImageNameInfo,
 };
-use objc2_foundation::{MainThreadMarker, NSString};
+use objc2_foundation::{MainThreadMarker, NSString, ns_string};
 
 use crate::{AsRawWindow, AsWindow, MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
@@ -50,27 +50,27 @@ async fn msgbox_custom(
         let mut responses = ArrayVec::<MessageBoxResponse, 6>::new();
 
         if btns.contains(MessageBoxButton::Ok) {
-            alert.addButtonWithTitle(&NSString::from_str("Ok"));
+            alert.addButtonWithTitle(ns_string!("Ok"));
             responses.push(MessageBoxResponse::Ok);
         }
         if btns.contains(MessageBoxButton::Yes) {
-            alert.addButtonWithTitle(&NSString::from_str("Yes"));
+            alert.addButtonWithTitle(ns_string!("Yes"));
             responses.push(MessageBoxResponse::Yes);
         }
         if btns.contains(MessageBoxButton::No) {
-            alert.addButtonWithTitle(&NSString::from_str("No"));
+            alert.addButtonWithTitle(ns_string!("No"));
             responses.push(MessageBoxResponse::No);
         }
         if btns.contains(MessageBoxButton::Cancel) {
-            alert.addButtonWithTitle(&NSString::from_str("Cancel"));
+            alert.addButtonWithTitle(ns_string!("Cancel"));
             responses.push(MessageBoxResponse::Cancel);
         }
         if btns.contains(MessageBoxButton::Retry) {
-            alert.addButtonWithTitle(&NSString::from_str("Try again"));
+            alert.addButtonWithTitle(ns_string!("Try again"));
             responses.push(MessageBoxResponse::Retry);
         }
         if btns.contains(MessageBoxButton::Close) {
-            alert.addButtonWithTitle(&NSString::from_str("Close"));
+            alert.addButtonWithTitle(ns_string!("Close"));
             responses.push(MessageBoxResponse::Close);
         }
 

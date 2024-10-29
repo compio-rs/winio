@@ -161,6 +161,11 @@ qt = ["dep:cxx", "dep:cxx-build", "dep:qt-build-utils"]
 enable_log = ["compio/enable_log", "compio-log/enable_log"]
 
 nightly = ["compio/nightly", "cyper/nightly"]
+objc-static = [
+    "objc2/unstable-static-class-inlined",
+    "objc2/unstable-static-sel-inlined",
+    "objc2-foundation/unstable-static-nsstring",
+]
 
 [profile.release]
 lto = true

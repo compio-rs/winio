@@ -28,18 +28,18 @@ pub use combo_box::*;
 /// [`NSWindow`].
 pub type RawWindow = Id<NSWindow>;
 
-use objc2::rc::Id;
+use objc2::rc::{Id, autoreleasepool};
 use objc2_app_kit::NSWindow;
-use objc2_foundation::{CGSize, NSString, NSUserDefaults};
+use objc2_foundation::{CGSize, NSString, NSUserDefaults, ns_string};
 
 use crate::{ColorTheme, Size};
 
 pub fn color_theme() -> ColorTheme {
     unsafe {
-        let osx_mode = NSUserDefaults::standardUserDefaults()
-            .stringForKey(&NSString::from_str("AppleInterfaceStyle"));
+        let osx_mode =
+            NSUserDefaults::standardUserDefaults().stringForKey(ns_string!("AppleInterfaceStyle"));
         let is_dark = osx_mode
-            .map(|mode| mode.isEqualToString(&NSString::from_str("Dark")))
+            .map(|mode| mode.isEqualToString(ns_string!("Dark")))
             .unwrap_or_default();
         if is_dark {
             ColorTheme::Dark
@@ -60,6 +60,5 @@ pub(crate) fn to_cgsize(size: Size) -> CGSize {
 }
 
 pub(crate) fn from_nsstring(s: &NSString) -> String {
-    String::from_utf8_lossy(unsafe { std::ffi::CStr::from_ptr(s.UTF8String()) }.to_bytes())
-        .into_owned()
+    autoreleasepool(|pool| s.as_str(pool).to_string())
 }
