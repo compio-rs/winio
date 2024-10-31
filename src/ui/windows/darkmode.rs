@@ -1,13 +1,10 @@
 use std::{
     mem::MaybeUninit,
     ptr::{null, null_mut},
-    sync::LazyLock,
+    sync::{LazyLock, Once},
 };
 
-use slim_detours_sys::{
-    SlimDetoursAttach, SlimDetoursDetach, SlimDetoursTransactionAbort, SlimDetoursTransactionBegin,
-    SlimDetoursTransactionCommit,
-};
+use slim_detours_sys::{DETOUR_INLINE_HOOK, SlimDetoursInlineHooks};
 use sync_unsafe_cell::SyncUnsafeCell;
 use widestring::U16CStr;
 use windows_sys::{
@@ -241,89 +238,40 @@ static TRUE_DRAW_THEME_BACKGROUND_EX: SyncUnsafeCell<DrawThemeBackgroundExFn> =
     SyncUnsafeCell::new(DrawThemeBackgroundEx);
 
 #[inline]
-fn check_hresult(hr: HRESULT) -> std::io::Result<()> {
-    if hr >= 0 {
-        Ok(())
-    } else {
-        Err(std::io::Error::from_raw_os_error(hr))
-    }
+unsafe fn detour_hooks() -> [DETOUR_INLINE_HOOK; 4] {
+    [
+        DETOUR_INLINE_HOOK {
+            pszFuncName: null(),
+            ppPointer: TRUE_GET_THEME_COLOR.get().cast(),
+            pDetour: dark_get_theme_color as _,
+        },
+        DETOUR_INLINE_HOOK {
+            pszFuncName: null(),
+            ppPointer: TRUE_DRAW_THEME_TEXT.get().cast(),
+            pDetour: dark_draw_theme_text as _,
+        },
+        DETOUR_INLINE_HOOK {
+            pszFuncName: null(),
+            ppPointer: TRUE_DRAW_THEME_BACKGROUND.get().cast(),
+            pDetour: dark_draw_theme_background as _,
+        },
+        DETOUR_INLINE_HOOK {
+            pszFuncName: null(),
+            ppPointer: TRUE_DRAW_THEME_BACKGROUND_EX.get().cast(),
+            pDetour: dark_draw_theme_background_ex as _,
+        },
+    ]
 }
 
-unsafe fn detour_attach() -> std::io::Result<()> {
-    check_hresult(SlimDetoursTransactionBegin())?;
-    let ops = || -> std::io::Result<()> {
-        check_hresult(SlimDetoursAttach(
-            TRUE_GET_THEME_COLOR.get().cast(),
-            dark_get_theme_color as _,
-        ))?;
-        check_hresult(SlimDetoursAttach(
-            TRUE_DRAW_THEME_TEXT.get().cast(),
-            dark_draw_theme_text as _,
-        ))?;
-        check_hresult(SlimDetoursAttach(
-            TRUE_DRAW_THEME_BACKGROUND.get().cast(),
-            dark_draw_theme_background as _,
-        ))?;
-        check_hresult(SlimDetoursAttach(
-            TRUE_DRAW_THEME_BACKGROUND_EX.get().cast(),
-            dark_draw_theme_background_ex as _,
-        ))
-    };
-    match ops() {
-        Ok(()) => check_hresult(SlimDetoursTransactionCommit()),
-        Err(_) => check_hresult(SlimDetoursTransactionAbort()),
-    }
+unsafe fn detour_attach() {
+    let mut hooks = detour_hooks();
+    SlimDetoursInlineHooks(1, hooks.len() as _, hooks.as_mut_ptr());
 }
 
-unsafe fn detour_detach() -> std::io::Result<()> {
-    check_hresult(SlimDetoursTransactionBegin())?;
-    let ops = || -> std::io::Result<()> {
-        check_hresult(SlimDetoursDetach(
-            TRUE_GET_THEME_COLOR.get().cast(),
-            dark_get_theme_color as _,
-        ))?;
-        check_hresult(SlimDetoursDetach(
-            TRUE_DRAW_THEME_TEXT.get().cast(),
-            dark_draw_theme_text as _,
-        ))?;
-        check_hresult(SlimDetoursDetach(
-            TRUE_DRAW_THEME_BACKGROUND.get().cast(),
-            dark_draw_theme_background as _,
-        ))?;
-        check_hresult(SlimDetoursDetach(
-            TRUE_DRAW_THEME_BACKGROUND_EX.get().cast(),
-            dark_draw_theme_background_ex as _,
-        ))
-    };
-    match ops() {
-        Ok(()) => check_hresult(SlimDetoursTransactionCommit()),
-        Err(_) => check_hresult(SlimDetoursTransactionAbort()),
-    }
-}
-
-struct DetourGuard;
-
-impl DetourGuard {
-    pub fn new() -> Self {
-        unsafe {
-            detour_attach().ok();
-        }
-        Self
-    }
-}
-
-impl Drop for DetourGuard {
-    fn drop(&mut self) {
-        unsafe {
-            detour_detach().ok();
-        }
-    }
-}
-
-static DETOUR_GUARD: LazyLock<DetourGuard> = LazyLock::new(DetourGuard::new);
+static DETOUR_GUARD: Once = Once::new();
 
 pub unsafe fn init_dark() {
-    LazyLock::force(&DETOUR_GUARD);
+    DETOUR_GUARD.call_once(|| detour_attach());
 }
 
 unsafe extern "system" fn dark_get_theme_color(
