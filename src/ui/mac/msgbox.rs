@@ -91,7 +91,9 @@ async fn msgbox_custom(
                     .ok();
             });
             alert.beginSheetModalForWindow_completionHandler(parent, Some(&block));
-            rx.await.expect("NSAlert cancelled")
+            let res = rx.await.expect("NSAlert cancelled");
+            parent.makeKeyWindow();
+            res
         } else {
             let res = alert.runModal();
             responses[res as usize - NSAlertFirstButtonReturn as usize]

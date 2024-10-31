@@ -48,7 +48,7 @@ impl Window {
             let delegate = WindowDelegate::new(mtm);
             let del_obj = ProtocolObject::from_id(delegate.clone());
             wnd.setDelegate(Some(&del_obj));
-
+            wnd.makeKeyWindow();
             wnd.setIsVisible(true);
             Self { wnd, delegate }
         }
