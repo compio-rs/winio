@@ -1,6 +1,6 @@
 use std::{cell::RefCell, ops::Deref, rc::Rc};
 
-use core_foundation::base::TCFType;
+use core_foundation::{base::TCFType, string::CFStringRef};
 use core_graphics::{color::CGColor, geometry::CGAffineTransform, path::CGPath, sys as cgsys};
 use foreign_types_shared::ForeignType;
 use image::{DynamicImage, Pixel, Rgb, Rgba};
@@ -319,8 +319,8 @@ impl DrawingContext<'_> {
             if let Some(clip) = clip {
                 let mask_layer = CALayer::new();
                 mask_layer.setFrame(transform_rect(image_rep.size(), clip));
-                let white = to_cgcolor(WHITE);
-                let () = msg_send![&mask_layer, setBackgroundColor:CGColorWrapper(white.as_concrete_TypeRef())];
+                let white = CGColorGetConstantColor(kCGColorWhite);
+                let () = msg_send![&mask_layer, setBackgroundColor:CGColorWrapper(white)];
                 source_layer.setMask(Some(&mask_layer));
             }
             target_layer.addSublayer(&source_layer);
@@ -396,6 +396,11 @@ impl DrawingPathBuilder {
 }
 
 extern "C" {
+    fn CGColorGetConstantColor(name: CFStringRef) -> cgsys::CGColorRef;
+
+    static kCGColorWhite: CFStringRef;
+    static kCGColorClear: CFStringRef;
+
     fn CGPathGetBoundingBox(path: cgsys::CGPathRef) -> CGRect;
     fn CGPathCreateMutable() -> cgsys::CGPathRef;
     fn CGPathMoveToPoint(
@@ -665,40 +670,32 @@ unsafe impl Encode for CGColorWrapper {
     const ENCODING: Encoding = Encoding::Pointer(&Encoding::Struct("CGColor", &[]));
 }
 
-const TRANSPARENT: Color = Color::new(0, 0, 0, 0);
-const WHITE: Color = Color::new(255, 255, 255, 255);
-
-fn make_layer(
+unsafe fn make_layer(
     path: &CGPath,
     brush_layer: &CALayer,
     width: f64,
     size: Size,
     rect: Rect,
-    fill: Color,
-    stroke: Color,
+    fill: CFStringRef,
+    stroke: CFStringRef,
 ) -> Id<CALayer> {
-    unsafe {
-        let mask_layer = to_layer(path);
-        let background = to_cgcolor(TRANSPARENT);
-        let () = msg_send![&mask_layer, setBackgroundColor:CGColorWrapper(background.as_concrete_TypeRef())];
-        let fill = to_cgcolor(fill);
-        let () = msg_send![&mask_layer, setFillColor:CGColorWrapper(fill.as_concrete_TypeRef())];
-        let stroke = to_cgcolor(stroke);
-        let () =
-            msg_send![&mask_layer, setStrokeColor:CGColorWrapper(stroke.as_concrete_TypeRef())];
-        mask_layer.setLineWidth(width);
-        let mut brush_rect = transform_rect(size, rect);
-        brush_rect.origin.x -= width / 2.0;
-        brush_rect.origin.y -= width / 2.0;
-        brush_rect.size.width += width;
-        brush_rect.size.height += width;
-        brush_layer.setFrame(brush_rect);
-        let content_layer = CALayer::new();
-        content_layer.setFrame(CGRect::new(CGPoint::ZERO, to_cgsize(size)));
-        content_layer.addSublayer(brush_layer);
-        content_layer.setMask(Some(&mask_layer));
-        content_layer
-    }
+    let mask_layer = to_layer(path);
+    let fill = CGColorGetConstantColor(fill);
+    let () = msg_send![&mask_layer, setFillColor:CGColorWrapper(fill)];
+    let stroke = CGColorGetConstantColor(stroke);
+    let () = msg_send![&mask_layer, setStrokeColor:CGColorWrapper(stroke)];
+    mask_layer.setLineWidth(width);
+    let mut brush_rect = transform_rect(size, rect);
+    brush_rect.origin.x -= width / 2.0;
+    brush_rect.origin.y -= width / 2.0;
+    brush_rect.size.width += width;
+    brush_rect.size.height += width;
+    brush_layer.setFrame(brush_rect);
+    let content_layer = CALayer::new();
+    content_layer.setFrame(CGRect::new(CGPoint::ZERO, to_cgsize(size)));
+    content_layer.addSublayer(brush_layer);
+    content_layer.setMask(Some(&mask_layer));
+    content_layer
 }
 
 /// Drawing brush.
@@ -708,15 +705,17 @@ pub trait Brush {
 
     #[doc(hidden)]
     fn draw(&self, path: &CGPath, size: Size, rect: Rect) -> Id<CALayer> {
-        make_layer(
-            path,
-            &self.create_layer(),
-            0.0,
-            size,
-            rect,
-            WHITE,
-            TRANSPARENT,
-        )
+        unsafe {
+            make_layer(
+                path,
+                &self.create_layer(),
+                0.0,
+                size,
+                rect,
+                kCGColorWhite,
+                kCGColorClear,
+            )
+        }
     }
 }
 
@@ -790,15 +789,17 @@ pub trait Pen {
 
     #[doc(hidden)]
     fn draw(&self, path: &CGPath, size: Size, rect: Rect) -> Id<CALayer> {
-        make_layer(
-            path,
-            &self.create_layer(),
-            self.width(),
-            size,
-            rect,
-            TRANSPARENT,
-            WHITE,
-        )
+        unsafe {
+            make_layer(
+                path,
+                &self.create_layer(),
+                self.width(),
+                size,
+                rect,
+                kCGColorClear,
+                kCGColorWhite,
+            )
+        }
     }
 }
 
