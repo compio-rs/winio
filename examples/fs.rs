@@ -172,7 +172,11 @@ impl Component for MainModel {
 
 async fn read_file(path: impl AsRef<Path>) -> io::Result<String> {
     let file = File::open(path).await?;
-    let (_, buffer) = file.read_to_end_at(vec![], 0).await?;
+    let (res, buffer) = {
+        let buf_result= file.read_to_end_at(vec![], 0).await;
+        (buf_result.0, buf_result.1)
+    };
+    res?;
     String::from_utf8(buffer).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
 }
 
