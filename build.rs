@@ -5,7 +5,9 @@ fn main() {
     if target_os.as_deref() == Ok("windows") {
         println!("cargo:rerun-if-changed=app.manifest");
         println!("cargo:rerun-if-changed=manifest.rc");
-        embed_resource::compile("manifest.rc", embed_resource::NONE);
+        embed_resource::compile("manifest.rc", embed_resource::NONE)
+            .manifest_required()
+            .unwrap();
     }
 
     #[cfg(feature = "qt")]
