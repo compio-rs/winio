@@ -133,13 +133,12 @@ pangocairo = { version = "0.20", optional = true }
 cxx = { version = "1.0", optional = true, features = ["c++17"] }
 
 [dev-dependencies]
-compio = { version = "0.13.0", features = ["time", "native-tls"] }
+compio = { version = "0.13.0", features = ["time", "rustls", "ring"] }
 cyper = { version = "0.2.0", default-features = false, features = [
     "rustls",
     "http2",
     "http3-altsvc",
 ] }
-rustls = { version = "0.23", default-features = false, features = ["ring"] }
 
 dirs = "5.0"
 futures-util = "0.3"
