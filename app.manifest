@@ -15,6 +15,8 @@
     <asmv3:application>
         <asmv3:windowsSettings>
             <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
+            <activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>
+            <longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>
         </asmv3:windowsSettings>
     </asmv3:application>
 </assembly>
