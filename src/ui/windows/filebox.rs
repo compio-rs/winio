@@ -59,11 +59,9 @@ impl FileBox {
     }
 
     pub async fn open(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
-        let parent = parent
-            .map(|p| p.as_window().as_raw_window() as isize)
-            .unwrap_or_default();
+        let parent = parent.map(|p| p.as_window().as_raw_window() as isize);
         compio::runtime::spawn_blocking(move || unsafe {
-            let parent = HWND(parent as _);
+            let parent = parent.map(|w| HWND(w as _));
             filebox(
                 parent,
                 self.title,
@@ -80,11 +78,9 @@ impl FileBox {
     }
 
     pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Vec<PathBuf> {
-        let parent = parent
-            .map(|p| p.as_window().as_raw_window() as isize)
-            .unwrap_or_default();
+        let parent = parent.map(|p| p.as_window().as_raw_window() as isize);
         compio::runtime::spawn_blocking(move || unsafe {
-            let parent = HWND(parent as _);
+            let parent = parent.map(|w| HWND(w as _));
             filebox(
                 parent,
                 self.title,
@@ -101,11 +97,9 @@ impl FileBox {
     }
 
     pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
-        let parent = parent
-            .map(|p| p.as_window().as_raw_window() as isize)
-            .unwrap_or_default();
+        let parent = parent.map(|p| p.as_window().as_raw_window() as isize);
         compio::runtime::spawn_blocking(move || unsafe {
-            let parent = HWND(parent as _);
+            let parent = parent.map(|w| HWND(w as _));
             filebox(
                 parent,
                 self.title,
@@ -122,11 +116,9 @@ impl FileBox {
     }
 
     pub async fn save(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
-        let parent = parent
-            .map(|p| p.as_window().as_raw_window() as isize)
-            .unwrap_or_default();
+        let parent = parent.map(|p| p.as_window().as_raw_window() as isize);
         compio::runtime::spawn_blocking(move || unsafe {
-            let parent = HWND(parent as _);
+            let parent = parent.map(|w| HWND(w as _));
             filebox(
                 parent,
                 self.title,
@@ -144,7 +136,7 @@ impl FileBox {
 }
 
 unsafe fn filebox(
-    parent: HWND,
+    parent: Option<HWND>,
     title: U16CString,
     filename: U16CString,
     filters: Vec<FileFilter>,

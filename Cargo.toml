@@ -46,7 +46,7 @@ windows-sys = { version = "0.59", features = [
     "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
 ] }
-windows = { version = "0.58", features = [
+windows = { version = "0.60", features = [
     "Foundation_Numerics",
     "Win32_Foundation",
     "Win32_Graphics_Direct2D",
@@ -57,6 +57,7 @@ windows = { version = "0.58", features = [
     "Win32_UI_Shell",
     "Win32_UI_Shell_Common",
 ] }
+windows-numerics = "0.1"
 slim-detours-sys = "0.2"
 sync-unsafe-cell = "0.1"
 

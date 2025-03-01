@@ -4,7 +4,6 @@ use futures_util::FutureExt;
 use image::{DynamicImage, Pixel, Rgba};
 use widestring::U16CString;
 use windows::{
-    Foundation::Numerics::Matrix3x2,
     Win32::Graphics::{
         Direct2D::{
             Common::{
@@ -33,6 +32,7 @@ use windows::{
     },
     core::Interface,
 };
+use windows_numerics::Matrix3x2;
 use windows_sys::Win32::{
     System::SystemServices::SS_OWNERDRAW,
     UI::{
