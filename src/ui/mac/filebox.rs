@@ -1,7 +1,7 @@
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 use block2::StackBlock;
-use objc2::{msg_send, rc::Retained};
+use objc2::rc::Retained;
 use objc2_app_kit::{NSModalResponseOK, NSOpenPanel, NSSavePanel};
 use objc2_foundation::{MainThreadMarker, NSArray, NSString};
 use objc2_uniform_type_identifiers::UTType;
@@ -178,8 +178,7 @@ async unsafe fn filebox(
                 .collect::<Vec<_>>(),
         );
         if !ns_filters.is_empty() {
-            // TODO: use objc2 bindings
-            let () = msg_send![&handle, setAllowedContentTypes:&*ns_filters];
+            handle.setAllowedContentTypes(&ns_filters);
         }
     }
 

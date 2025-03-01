@@ -1,11 +1,8 @@
-use std::{cell::RefCell, ops::Deref, rc::Rc};
+use std::{cell::RefCell, ops::Deref, ptr::null, rc::Rc};
 
-use core_foundation::{base::TCFType, string::CFStringRef};
-use core_graphics::{color::CGColor, geometry::CGAffineTransform, path::CGPath, sys as cgsys};
-use foreign_types_shared::ForeignType;
 use image::{DynamicImage, Pixel, Rgb, Rgba};
 use objc2::{
-    AllocAnyThread, DeclaredClass, Encode, Encoding, MainThreadOnly, define_class, msg_send,
+    AllocAnyThread, DeclaredClass, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
     runtime::AnyObject,
 };
@@ -14,6 +11,14 @@ use objc2_app_kit::{
     NSDeviceRGBColorSpace, NSEvent, NSEventType, NSFont, NSFontAttributeName, NSFontDescriptor,
     NSFontDescriptorSymbolicTraits, NSForegroundColorAttributeName, NSImage, NSTrackingArea,
     NSTrackingAreaOptions, NSView,
+};
+use objc2_core_foundation::{CFRetained, CFString, CGAffineTransform};
+use objc2_core_graphics::{
+    CGAffineTransformMake, CGColor, CGColorCreateGenericRGB, CGColorGetConstantColor, CGPath,
+    CGPathAddArc, CGPathAddCurveToPoint, CGPathAddLineToPoint, CGPathCloseSubpath,
+    CGPathCreateMutable, CGPathCreateWithEllipseInRect, CGPathCreateWithRect,
+    CGPathCreateWithRoundedRect, CGPathGetBoundingBox, CGPathMoveToPoint, kCGColorClear,
+    kCGColorWhite,
 };
 use objc2_foundation::{
     MainThreadMarker, NSAttributedString, NSDictionary, NSMutableArray, NSNumber, NSPoint, NSRect,
@@ -312,8 +317,8 @@ impl DrawingContext<'_> {
             if let Some(clip) = clip {
                 let mask_layer = CALayer::new();
                 mask_layer.setFrame(transform_rect(image_rep.size(), clip));
-                let white = CGColorGetConstantColor(kCGColorWhite);
-                let () = msg_send![&mask_layer, setBackgroundColor:CGColorWrapper(white)];
+                let white = CGColorGetConstantColor(Some(kCGColorWhite));
+                mask_layer.setBackgroundColor(white.as_deref());
                 source_layer.setMask(Some(&mask_layer));
             }
             target_layer.addSublayer(&source_layer);
@@ -326,11 +331,11 @@ impl DrawingContext<'_> {
     }
 }
 
-pub struct DrawingPath(CGPath);
+pub struct DrawingPath(CFRetained<objc2_core_graphics::CGMutablePath>);
 
 impl DrawingPath {
     fn bounding(&self) -> NSRect {
-        unsafe { CGPathGetBoundingBox(self.0.as_ptr()) }
+        unsafe { CGPathGetBoundingBox(Some(&self.0)) }
     }
 }
 
@@ -357,7 +362,7 @@ impl DrawingPathBuilder {
         );
 
         let rate = radius.height / radius.width;
-        let transform = CGAffineTransform::new(1.0, 0.0, 0.0, rate, 0.0, 0.0);
+        let transform = unsafe { CGAffineTransformMake(1.0, 0.0, 0.0, rate, 0.0, 0.0) };
 
         self.add_line(startp);
         let center = transform_point(self.size, center);
@@ -388,80 +393,31 @@ impl DrawingPathBuilder {
     }
 }
 
-extern "C" {
-    fn CGColorGetConstantColor(name: CFStringRef) -> cgsys::CGColorRef;
-
-    static kCGColorWhite: CFStringRef;
-    static kCGColorClear: CFStringRef;
-
-    fn CGPathGetBoundingBox(path: cgsys::CGPathRef) -> NSRect;
-    fn CGPathCreateMutable() -> cgsys::CGPathRef;
-    fn CGPathMoveToPoint(
-        path: cgsys::CGPathRef,
-        transform: Option<&CGAffineTransform>,
-        x: f64,
-        y: f64,
-    );
-    fn CGPathAddLineToPoint(
-        path: cgsys::CGPathRef,
-        transform: Option<&CGAffineTransform>,
-        x: f64,
-        y: f64,
-    );
-    fn CGPathAddArc(
-        path: cgsys::CGPathRef,
-        transform: Option<&CGAffineTransform>,
-        x: f64,
-        y: f64,
-        radius: f64,
-        start: f64,
-        end: f64,
-        clockwise: bool,
-    );
-    fn CGPathAddCurveToPoint(
-        path: cgsys::CGPathRef,
-        transform: Option<&CGAffineTransform>,
-        x1: f64,
-        y1: f64,
-        x2: f64,
-        y2: f64,
-        x3: f64,
-        y3: f64,
-    );
-    fn CGPathCloseSubpath(path: cgsys::CGPathRef);
-    fn CGPathCreateWithEllipseInRect(
-        rect: NSRect,
-        transform: Option<&CGAffineTransform>,
-    ) -> cgsys::CGPathRef;
-    fn CGPathCreateWithRect(
-        rect: NSRect,
-        transform: Option<&CGAffineTransform>,
-    ) -> cgsys::CGPathRef;
-    fn CGPathCreateWithRoundedRect(
-        rect: NSRect,
-        width: f64,
-        height: f64,
-        transform: Option<&CGAffineTransform>,
-    ) -> cgsys::CGPathRef;
+#[inline]
+fn to_ptr<T>(v: Option<&T>) -> *const T {
+    match v {
+        Some(p) => p,
+        None => null(),
+    }
 }
 
 #[repr(transparent)]
-struct CGMutablePath(CGPath);
+struct CGMutablePath(CFRetained<objc2_core_graphics::CGMutablePath>);
 
 impl CGMutablePath {
     pub fn new() -> Self {
-        Self(unsafe { CGPath::from_ptr(CGPathCreateMutable()) })
+        Self(unsafe { CGPathCreateMutable() })
     }
 
     pub fn move_to_point(&mut self, transform: Option<&CGAffineTransform>, p: NSPoint) {
         unsafe {
-            CGPathMoveToPoint(self.0.as_ptr(), transform, p.x, p.y);
+            CGPathMoveToPoint(Some(&self.0), to_ptr(transform), p.x, p.y);
         }
     }
 
     pub fn line_to_point(&mut self, transform: Option<&CGAffineTransform>, p: NSPoint) {
         unsafe {
-            CGPathAddLineToPoint(self.0.as_ptr(), transform, p.x, p.y);
+            CGPathAddLineToPoint(Some(&self.0), to_ptr(transform), p.x, p.y);
         }
     }
 
@@ -476,8 +432,8 @@ impl CGMutablePath {
     ) {
         unsafe {
             CGPathAddArc(
-                self.0.as_ptr(),
-                transform,
+                Some(&self.0),
+                to_ptr(transform),
                 center.x,
                 center.y,
                 radius,
@@ -497,8 +453,8 @@ impl CGMutablePath {
     ) {
         unsafe {
             CGPathAddCurveToPoint(
-                self.0.as_ptr(),
-                transform,
+                Some(&self.0),
+                to_ptr(transform),
                 p1.x,
                 p1.y,
                 p2.x,
@@ -511,7 +467,7 @@ impl CGMutablePath {
 
     pub fn close(&mut self) {
         unsafe {
-            CGPathCloseSubpath(self.0.as_ptr());
+            CGPathCloseSubpath(Some(&self.0));
         }
     }
 }
@@ -526,15 +482,8 @@ impl Deref for CGMutablePath {
 
 unsafe fn to_layer(path: &CGPath) -> Retained<CAShapeLayer> {
     let layer = CAShapeLayer::new();
-    let () = msg_send![&layer, setPath:CGPathWrapper(path.as_ptr())];
+    layer.setPath(Some(path));
     layer
-}
-
-#[repr(transparent)]
-struct CGPathWrapper(cgsys::CGPathRef);
-
-unsafe impl Encode for CGPathWrapper {
-    const ENCODING: Encoding = Encoding::Pointer(&Encoding::Struct("CGPath", &[]));
 }
 
 fn path_arc(s: Size, rect: Rect, start: f64, end: f64, pie: bool) -> CGMutablePath {
@@ -546,7 +495,7 @@ fn path_arc(s: Size, rect: Rect, start: f64, end: f64, pie: bool) -> CGMutablePa
     );
 
     let rate = radius.height / radius.width;
-    let transform = CGAffineTransform::new(1.0, 0.0, 0.0, rate, 0.0, 0.0);
+    let transform = unsafe { CGAffineTransformMake(1.0, 0.0, 0.0, rate, 0.0, 0.0) };
 
     let mut path = CGMutablePath::new();
     if pie {
@@ -569,9 +518,9 @@ fn path_arc(s: Size, rect: Rect, start: f64, end: f64, pie: bool) -> CGMutablePa
     path
 }
 
-fn path_ellipse(s: Size, rect: Rect) -> CGPath {
+fn path_ellipse(s: Size, rect: Rect) -> CFRetained<CGPath> {
     let rect = transform_rect(s, rect);
-    unsafe { CGPath::from_ptr(CGPathCreateWithEllipseInRect(rect, None)) }
+    unsafe { CGPathCreateWithEllipseInRect(rect, null()) }
 }
 
 fn path_line(s: Size, start: Point, end: Point) -> CGMutablePath {
@@ -581,21 +530,14 @@ fn path_line(s: Size, start: Point, end: Point) -> CGMutablePath {
     path
 }
 
-fn path_rect(s: Size, rect: Rect) -> CGPath {
+fn path_rect(s: Size, rect: Rect) -> CFRetained<CGPath> {
     let rect = transform_rect(s, rect);
-    unsafe { CGPath::from_ptr(CGPathCreateWithRect(rect, None)) }
+    unsafe { CGPathCreateWithRect(rect, null()) }
 }
 
-fn path_round_rect(s: Size, rect: Rect, round: Size) -> CGPath {
+fn path_round_rect(s: Size, rect: Rect, round: Size) -> CFRetained<CGPath> {
     let rect = transform_rect(s, rect);
-    unsafe {
-        CGPath::from_ptr(CGPathCreateWithRoundedRect(
-            rect,
-            round.width,
-            round.height,
-            None,
-        ))
-    }
+    unsafe { CGPathCreateWithRoundedRect(rect, round.width, round.height, null()) }
 }
 
 fn measure_str(font: DrawingFont, pos: Point, text: &str) -> (Retained<NSAttributedString>, Rect) {
@@ -635,35 +577,28 @@ fn create_attr_str(font: &DrawingFont, text: &str) -> Retained<NSAttributedStrin
         }
 
         let nfont = NSFont::fontWithDescriptor_size(&fontdes, font.size).unwrap();
+        let fore = NSColor::whiteColor();
 
         NSAttributedString::initWithString_attributes(
             NSAttributedString::alloc(),
             &NSString::from_str(text),
             Some(&NSDictionary::from_slices(
                 &[NSFontAttributeName, NSForegroundColorAttributeName],
-                &[
-                    &*Retained::cast_unchecked::<AnyObject>(nfont),
-                    &*Retained::cast_unchecked::<AnyObject>(NSColor::whiteColor()),
-                ],
+                &[nfont.as_ref(), fore.as_ref()],
             )),
         )
     }
 }
 
-fn to_cgcolor(c: Color) -> CGColor {
-    CGColor::rgb(
-        c.r as f64 / 255.0,
-        c.g as f64 / 255.0,
-        c.b as f64 / 255.0,
-        c.a as f64 / 255.0,
-    )
-}
-
-#[repr(transparent)]
-struct CGColorWrapper(cgsys::CGColorRef);
-
-unsafe impl Encode for CGColorWrapper {
-    const ENCODING: Encoding = Encoding::Pointer(&Encoding::Struct("CGColor", &[]));
+fn to_cgcolor(c: Color) -> CFRetained<CGColor> {
+    unsafe {
+        CGColorCreateGenericRGB(
+            c.r as f64 / 255.0,
+            c.g as f64 / 255.0,
+            c.b as f64 / 255.0,
+            c.a as f64 / 255.0,
+        )
+    }
 }
 
 unsafe fn make_layer(
@@ -672,14 +607,14 @@ unsafe fn make_layer(
     width: f64,
     size: Size,
     rect: Rect,
-    fill: CFStringRef,
-    stroke: CFStringRef,
+    fill: &CFString,
+    stroke: &CFString,
 ) -> Retained<CALayer> {
     let mask_layer = to_layer(path);
-    let fill = CGColorGetConstantColor(fill);
-    let () = msg_send![&mask_layer, setFillColor:CGColorWrapper(fill)];
-    let stroke = CGColorGetConstantColor(stroke);
-    let () = msg_send![&mask_layer, setStrokeColor:CGColorWrapper(stroke)];
+    let fill = CGColorGetConstantColor(Some(fill));
+    mask_layer.setFillColor(fill.as_deref());
+    let stroke = CGColorGetConstantColor(Some(stroke));
+    mask_layer.setStrokeColor(stroke.as_deref());
     mask_layer.setLineWidth(width);
     let mut brush_rect = transform_rect(size, rect);
     brush_rect.origin.x -= width / 2.0;
@@ -726,8 +661,7 @@ impl Brush for SolidColorBrush {
         unsafe {
             let layer = CALayer::new();
             let color = to_cgcolor(self.color);
-            let () =
-                msg_send![&layer, setBackgroundColor:CGColorWrapper(color.as_concrete_TypeRef())];
+            layer.setBackgroundColor(Some(&color));
             layer
         }
     }
@@ -739,13 +673,11 @@ unsafe fn create_gradient_layer(
     end: RelativePoint,
     ratio: f64,
 ) -> Retained<CAGradientLayer> {
-    let mut cg_colors = vec![];
     let colors = NSMutableArray::<AnyObject>::new();
     let locs = NSMutableArray::<NSNumber>::new();
     for stop in stops {
         let cgcolor = to_cgcolor(stop.color);
-        colors.addObject(&*cgcolor.as_concrete_TypeRef().cast::<AnyObject>());
-        cg_colors.push(cgcolor);
+        colors.addObject(cgcolor.as_ref());
         locs.addObject(&NSNumber::new_f64(stop.pos * ratio));
     }
     let gradient = CAGradientLayer::new();

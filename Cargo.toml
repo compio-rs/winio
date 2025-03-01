@@ -62,12 +62,14 @@ slim-detours-sys = "0.2"
 sync-unsafe-cell = "0.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-core-foundation = "0.10"
-core-graphics = "0.24"
-foreign-types-shared = "0.3"
-
 block2 = "0.6"
 objc2 = "0.6"
+objc2-core-foundation = { version = "0.3", features = [
+    "CFCGTypes",
+    "CFFileDescriptor",
+    "CFRunLoop",
+] }
+objc2-core-graphics = { version = "0.3", features = ["CGColor", "CGPath"] }
 objc2-foundation = { version = "0.3", features = [
     "NSAffineTransform",
     "NSAttributedString",
@@ -85,6 +87,7 @@ objc2-foundation = { version = "0.3", features = [
 objc2-app-kit = { version = "0.3", features = [
     "block2",
     "objc2-quartz-core",
+    "objc2-uniform-type-identifiers",
     "NSAlert",
     "NSApplication",
     "NSAttributedString",
@@ -121,6 +124,7 @@ objc2-app-kit = { version = "0.3", features = [
 ] }
 objc2-uniform-type-identifiers = { version = "0.3", features = ["UTType"] }
 objc2-quartz-core = { version = "0.3", features = [
+    "objc2-core-graphics",
     "CALayer",
     "CAGradientLayer",
     "CAShapeLayer",

@@ -1,17 +1,18 @@
-use std::{future::Future, os::raw::c_void, time::Duration};
+use std::{future::Future, os::raw::c_void, ptr::null, time::Duration};
 
 use compio::driver::AsRawFd;
-use core_foundation::{
-    filedescriptor::{CFFileDescriptor, CFFileDescriptorRef, kCFFileDescriptorReadCallBack},
-    runloop::{CFRunLoop, kCFRunLoopDefaultMode},
-};
 use objc2::rc::Retained;
 use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy, NSEventMask};
+use objc2_core_foundation::{
+    CFFileDescriptor, CFFileDescriptorCreate, CFFileDescriptorCreateRunLoopSource,
+    CFFileDescriptorEnableCallBacks, CFRetained, CFRunLoopAddSource, CFRunLoopGetCurrent,
+    CFRunLoopRunInMode, kCFAllocatorDefault, kCFFileDescriptorReadCallBack, kCFRunLoopDefaultMode,
+};
 use objc2_foundation::{MainThreadMarker, NSDate, NSDefaultRunLoopMode};
 
 pub struct Runtime {
     runtime: compio::runtime::Runtime,
-    fd_source: CFFileDescriptor,
+    fd_source: CFRetained<CFFileDescriptor>,
     ns_app: Retained<NSApplication>,
 }
 
@@ -19,17 +20,32 @@ impl Runtime {
     pub fn new() -> Self {
         let runtime = compio::runtime::Runtime::new().unwrap();
 
-        extern "C" fn callback(
-            _fdref: CFFileDescriptorRef,
+        unsafe extern "C-unwind" fn callback(
+            _fdref: *mut CFFileDescriptor,
             _callback_types: usize,
             _info: *mut c_void,
         ) {
         }
 
-        let fd_source = CFFileDescriptor::new(runtime.as_raw_fd(), false, callback, None).unwrap();
-        let source = fd_source.to_run_loop_source(0).unwrap();
+        let fd_source = unsafe {
+            CFFileDescriptorCreate(
+                kCFAllocatorDefault,
+                runtime.as_raw_fd(),
+                false,
+                Some(callback),
+                null(),
+            )
+        }
+        .unwrap();
+        let source = unsafe {
+            CFFileDescriptorCreateRunLoopSource(kCFAllocatorDefault, Some(&fd_source), 0)
+        }
+        .unwrap();
 
-        CFRunLoop::get_current().add_source(&source, unsafe { kCFRunLoopDefaultMode });
+        unsafe {
+            let run_loop = CFRunLoopGetCurrent().unwrap();
+            CFRunLoopAddSource(&run_loop, Some(&source), kCFRunLoopDefaultMode);
+        }
 
         let ns_app = NSApplication::sharedApplication(MainThreadMarker::new().unwrap());
         ns_app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
@@ -71,13 +87,14 @@ impl Runtime {
                 } else {
                     self.runtime.current_timeout()
                 };
-                self.fd_source
-                    .enable_callbacks(kCFFileDescriptorReadCallBack);
-                CFRunLoop::run_in_mode(
-                    unsafe { kCFRunLoopDefaultMode },
-                    timeout.unwrap_or(Duration::MAX),
-                    true,
-                );
+                unsafe {
+                    CFFileDescriptorEnableCallBacks(&self.fd_source, kCFFileDescriptorReadCallBack);
+                    CFRunLoopRunInMode(
+                        kCFRunLoopDefaultMode,
+                        timeout.unwrap_or(Duration::MAX).as_secs_f64(),
+                        true,
+                    );
+                }
                 unsafe {
                     loop {
                         let event = self.ns_app.nextEventMatchingMask_untilDate_inMode_dequeue(
