@@ -1,7 +1,7 @@
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 use block2::StackBlock;
-use objc2::{msg_send, rc::Id};
+use objc2::{msg_send, rc::Retained};
 use objc2_app_kit::{NSModalResponseOK, NSOpenPanel, NSSavePanel};
 use objc2_foundation::{MainThreadMarker, NSArray, NSString};
 use objc2_uniform_type_identifiers::UTType;
@@ -25,8 +25,8 @@ impl FileFilter {
 
 #[derive(Debug, Default, Clone)]
 pub struct FileBox {
-    title: Id<NSString>,
-    filename: Id<NSString>,
+    title: Retained<NSString>,
+    filename: Retained<NSString>,
     filters: Vec<FileFilter>,
 }
 
@@ -118,8 +118,8 @@ impl FileBox {
 
 async unsafe fn filebox(
     parent: Option<impl AsWindow>,
-    title: Id<NSString>,
-    filename: Id<NSString>,
+    title: Retained<NSString>,
+    filename: Retained<NSString>,
     filters: Vec<FileFilter>,
     open: bool,
     multiple: bool,
@@ -128,7 +128,7 @@ async unsafe fn filebox(
     let parent = parent.map(|p| p.as_window().as_raw_window());
 
     let mtm = MainThreadMarker::new().unwrap();
-    let handle: Id<NSSavePanel> = if open {
+    let handle: Retained<NSSavePanel> = if open {
         let handle = NSOpenPanel::openPanel(mtm);
         handle.setCanChooseFiles(!folder);
         handle.setCanChooseDirectories(folder);
@@ -136,7 +136,7 @@ async unsafe fn filebox(
         if multiple {
             handle.setAllowsMultipleSelection(true);
         }
-        Id::into_super(handle)
+        Retained::into_super(handle)
     } else {
         let handle = NSSavePanel::savePanel(mtm);
         handle.setCanCreateDirectories(true);
@@ -162,8 +162,8 @@ async unsafe fn filebox(
             .any(|f| f.pattern == "*.*" || f.pattern == "*");
         handle.setAllowsOtherFileTypes(allow_others);
 
-        let ns_filters = NSArray::from_vec(
-            filters
+        let ns_filters = NSArray::from_retained_slice(
+            &filters
                 .into_iter()
                 .filter_map(|f| {
                     let pattern = f.pattern;
@@ -205,7 +205,7 @@ async unsafe fn filebox(
     })
 }
 
-struct FileBoxInner(Option<Id<NSSavePanel>>);
+struct FileBoxInner(Option<Retained<NSSavePanel>>);
 
 impl FileBoxInner {
     pub unsafe fn result(self) -> Option<PathBuf> {
@@ -221,7 +221,7 @@ impl FileBoxInner {
 
     pub unsafe fn results(self) -> Vec<PathBuf> {
         if let Some(dialog) = self.0 {
-            let dialog: Id<NSOpenPanel> = Id::cast(dialog);
+            let dialog: Retained<NSOpenPanel> = Retained::cast_unchecked(dialog);
             dialog
                 .URLs()
                 .iter()

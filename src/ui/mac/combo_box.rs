@@ -1,7 +1,6 @@
 use objc2::{
-    ClassType, DeclaredClass, declare_class, msg_send_id,
-    mutability::MainThreadOnly,
-    rc::{Allocated, Id},
+    DeclaredClass, MainThreadOnly, define_class, msg_send,
+    rc::{Allocated, Retained},
     runtime::ProtocolObject,
 };
 use objc2_app_kit::{
@@ -17,8 +16,8 @@ use crate::{
 #[derive(Debug)]
 pub struct ComboBoxImpl<const E: bool> {
     handle: Widget,
-    view: Id<NSComboBox>,
-    delegate: Id<ComboBoxDelegate>,
+    view: Retained<NSComboBox>,
+    delegate: Retained<ComboBoxDelegate>,
 }
 
 impl<const E: bool> ComboBoxImpl<E> {
@@ -31,11 +30,13 @@ impl<const E: bool> ComboBoxImpl<E> {
             view.setDrawsBackground(E);
             view.setEditable(E);
             view.setSelectable(E);
-            let handle =
-                Widget::from_nsview(parent.as_window().as_raw_window(), Id::cast(view.clone()));
+            let handle = Widget::from_nsview(
+                parent.as_window().as_raw_window(),
+                Retained::cast_unchecked(view.clone()),
+            );
 
             let delegate = ComboBoxDelegate::new(mtm);
-            let del_obj = ProtocolObject::from_id(delegate.clone());
+            let del_obj = ProtocolObject::from_retained(delegate.clone());
             view.setDelegate(Some(&del_obj));
 
             Self {
@@ -125,7 +126,7 @@ impl<const E: bool> ComboBoxImpl<E> {
 
     pub fn get(&self, i: usize) -> String {
         unsafe {
-            let s = Id::cast(self.view.itemObjectValueAtIndex(i as _));
+            let s = Retained::cast_unchecked(self.view.itemObjectValueAtIndex(i as _));
             from_nsstring(&s)
         }
     }
@@ -152,32 +153,26 @@ impl<const E: bool> ComboBoxImpl<E> {
 pub type ComboBox = ComboBoxImpl<false>;
 pub type ComboEntry = ComboBoxImpl<true>;
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 struct ComboBoxDelegateIvars {
     changed: Callback,
     select: Callback,
 }
 
-declare_class! {
+define_class! {
+    #[unsafe(super(NSObject))]
+    #[name = "WinioComboBoxDelegate"]
+    #[ivars = ComboBoxDelegateIvars]
+    #[thread_kind = MainThreadOnly]
     #[derive(Debug)]
     struct ComboBoxDelegate;
 
-    unsafe impl ClassType for ComboBoxDelegate {
-        type Super = NSObject;
-        type Mutability = MainThreadOnly;
-        const NAME: &'static str = "WinioComboBoxDelegate";
-    }
-
-    impl DeclaredClass for ComboBoxDelegate {
-        type Ivars = ComboBoxDelegateIvars;
-    }
-
     #[allow(non_snake_case)]
-    unsafe impl ComboBoxDelegate {
-        #[method_id(init)]
-        fn init(this: Allocated<Self>) -> Option<Id<Self>> {
+    impl ComboBoxDelegate {
+        #[unsafe(method_id(init))]
+        fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
             let this = this.set_ivars(ComboBoxDelegateIvars::default());
-            unsafe { msg_send_id![super(this), init] }
+            unsafe { msg_send![super(this), init] }
         }
     }
 
@@ -185,7 +180,7 @@ declare_class! {
 
     #[allow(non_snake_case)]
     unsafe impl NSControlTextEditingDelegate for ComboBoxDelegate {
-        #[method(controlTextDidChange:)]
+        #[unsafe(method(controlTextDidChange:))]
         fn controlTextDidChange(&self, _notification: &NSNotification) {
             self.ivars().changed.signal(());
         }
@@ -195,7 +190,7 @@ declare_class! {
 
     #[allow(non_snake_case)]
     unsafe impl NSComboBoxDelegate for ComboBoxDelegate {
-        #[method(comboBoxSelectionDidChange:)]
+        #[unsafe(method(comboBoxSelectionDidChange:))]
         unsafe fn comboBoxSelectionDidChange(&self, _notification: &NSNotification) {
             self.ivars().select.signal(());
         }
@@ -203,7 +198,7 @@ declare_class! {
 }
 
 impl ComboBoxDelegate {
-    pub fn new(mtm: MainThreadMarker) -> Id<Self> {
-        unsafe { msg_send_id![mtm.alloc::<Self>(), init] }
+    pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
+        unsafe { msg_send![mtm.alloc::<Self>(), init] }
     }
 }

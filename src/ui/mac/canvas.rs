@@ -5,9 +5,8 @@ use core_graphics::{color::CGColor, geometry::CGAffineTransform, path::CGPath, s
 use foreign_types_shared::ForeignType;
 use image::{DynamicImage, Pixel, Rgb, Rgba};
 use objc2::{
-    ClassType, DeclaredClass, Encode, Encoding, declare_class, msg_send, msg_send_id,
-    mutability::MainThreadOnly,
-    rc::{Allocated, Id},
+    AllocAnyThread, DeclaredClass, Encode, Encoding, MainThreadOnly, define_class, msg_send,
+    rc::{Allocated, Retained},
     runtime::AnyObject,
 };
 use objc2_app_kit::{
@@ -17,8 +16,8 @@ use objc2_app_kit::{
     NSTrackingAreaOptions, NSView,
 };
 use objc2_foundation::{
-    CGPoint, CGRect, MainThreadMarker, NSAttributedString, NSDictionary, NSMutableArray, NSNumber,
-    NSRect, NSString,
+    MainThreadMarker, NSAttributedString, NSDictionary, NSMutableArray, NSNumber, NSPoint, NSRect,
+    NSString,
 };
 use objc2_quartz_core::{
     CAGradientLayer, CALayer, CAShapeLayer, CATextLayer, kCAGradientLayerRadial,
@@ -36,7 +35,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct Canvas {
-    view: Id<CanvasView>,
+    view: Retained<CanvasView>,
     handle: Widget,
 }
 
@@ -46,7 +45,7 @@ impl Canvas {
         view.setWantsLayer(true);
         let handle = Widget::from_nsview(
             parent.as_window().as_raw_window(),
-            Id::into_super(view.clone()),
+            Retained::into_super(view.clone()),
         );
         Self { view, handle }
     }
@@ -70,7 +69,7 @@ impl Canvas {
     pub fn context(&mut self) -> DrawingContext<'_> {
         let size = self.size();
         let layer = CALayer::new();
-        layer.setFrame(CGRect::new(CGPoint::ZERO, to_cgsize(size)));
+        layer.setFrame(NSRect::new(NSPoint::ZERO, to_cgsize(size)));
         DrawingContext {
             size,
             layer,
@@ -102,38 +101,32 @@ impl Canvas {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 struct CanvasViewIvars {
     draw_rect: Callback,
     mouse_down: Callback<MouseButton>,
     mouse_up: Callback<MouseButton>,
     mouse_move: Callback,
-    area: Rc<RefCell<Option<Id<NSTrackingArea>>>>,
+    area: Rc<RefCell<Option<Retained<NSTrackingArea>>>>,
 }
 
-declare_class! {
+define_class! {
+    #[unsafe(super(NSView))]
+    #[name = "WinioCanvasView"]
+    #[ivars = CanvasViewIvars]
+    #[thread_kind = MainThreadOnly]
     #[derive(Debug)]
     struct CanvasView;
 
-    unsafe impl ClassType for CanvasView {
-        type Super = NSView;
-        type Mutability = MainThreadOnly;
-        const NAME: &'static str = "WinioCanvasView";
-    }
-
-    impl DeclaredClass for CanvasView {
-        type Ivars = CanvasViewIvars;
-    }
-
     #[allow(non_snake_case)]
-    unsafe impl CanvasView {
-        #[method_id(init)]
-        fn init(this: Allocated<Self>) -> Option<Id<Self>> {
+    impl CanvasView {
+        #[unsafe(method_id(init))]
+        fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
             let this = this.set_ivars(CanvasViewIvars::default());
-            unsafe { msg_send_id![super(this), init] }
+            unsafe { msg_send![super(this), init] }
         }
 
-        #[method(updateTrackingAreas)]
+        #[unsafe(method(updateTrackingAreas))]
         unsafe fn updateTrackingAreas(&self) {
             let this = self.ivars();
             {
@@ -144,7 +137,7 @@ declare_class! {
                 let new_area = NSTrackingArea::initWithRect_options_owner_userInfo(
                     NSTrackingArea::alloc(),
                     self.bounds(),
-                    NSTrackingAreaOptions::NSTrackingMouseMoved | NSTrackingAreaOptions::NSTrackingActiveAlways,
+                    NSTrackingAreaOptions::MouseMoved | NSTrackingAreaOptions::ActiveAlways,
                     Some(self),
                     None
                 );
@@ -154,27 +147,27 @@ declare_class! {
             msg_send![super(self), updateTrackingAreas]
         }
 
-        #[method(drawRect:)]
+        #[unsafe(method(drawRect:))]
         unsafe fn drawRect(&self, _dirty_rect: NSRect) {
             self.ivars().draw_rect.signal(());
         }
 
-        #[method(mouseDown:)]
+        #[unsafe(method(mouseDown:))]
         unsafe fn mouseDown(&self, event: &NSEvent) {
             self.ivars().mouse_down.signal(mouse_button(event));
         }
 
-        #[method(mouseUp:)]
+        #[unsafe(method(mouseUp:))]
         unsafe fn mouseUp(&self, event: &NSEvent) {
             self.ivars().mouse_up.signal(mouse_button(event));
         }
 
-        #[method(mouseDragged:)]
+        #[unsafe(method(mouseDragged:))]
         unsafe fn mouseDragged(&self, _event: &NSEvent) {
             self.ivars().mouse_move.signal(());
         }
 
-        #[method(mouseMoved:)]
+        #[unsafe(method(mouseMoved:))]
         unsafe fn mouseMoved(&self, _event: &NSEvent) {
             self.ivars().mouse_move.signal(());
         }
@@ -182,8 +175,8 @@ declare_class! {
 }
 
 impl CanvasView {
-    pub fn new(mtm: MainThreadMarker) -> Id<Self> {
-        unsafe { msg_send_id![mtm.alloc::<Self>(), init] }
+    pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
+        unsafe { msg_send![mtm.alloc::<Self>(), init] }
     }
 }
 
@@ -197,7 +190,7 @@ unsafe fn mouse_button(event: &NSEvent) -> MouseButton {
 
 pub struct DrawingContext<'a> {
     size: Size,
-    layer: Id<CALayer>,
+    layer: Retained<CALayer>,
     canvas: &'a mut Canvas,
 }
 
@@ -336,7 +329,7 @@ impl DrawingContext<'_> {
 pub struct DrawingPath(CGPath);
 
 impl DrawingPath {
-    fn bounding(&self) -> CGRect {
+    fn bounding(&self) -> NSRect {
         unsafe { CGPathGetBoundingBox(self.0.as_ptr()) }
     }
 }
@@ -370,7 +363,7 @@ impl DrawingPathBuilder {
         let center = transform_point(self.size, center);
         self.path.add_arc(
             Some(&transform),
-            CGPoint::new(center.x, center.y / rate),
+            NSPoint::new(center.x, center.y / rate),
             radius.width,
             -start,
             -end,
@@ -401,7 +394,7 @@ extern "C" {
     static kCGColorWhite: CFStringRef;
     static kCGColorClear: CFStringRef;
 
-    fn CGPathGetBoundingBox(path: cgsys::CGPathRef) -> CGRect;
+    fn CGPathGetBoundingBox(path: cgsys::CGPathRef) -> NSRect;
     fn CGPathCreateMutable() -> cgsys::CGPathRef;
     fn CGPathMoveToPoint(
         path: cgsys::CGPathRef,
@@ -437,15 +430,15 @@ extern "C" {
     );
     fn CGPathCloseSubpath(path: cgsys::CGPathRef);
     fn CGPathCreateWithEllipseInRect(
-        rect: CGRect,
+        rect: NSRect,
         transform: Option<&CGAffineTransform>,
     ) -> cgsys::CGPathRef;
     fn CGPathCreateWithRect(
-        rect: CGRect,
+        rect: NSRect,
         transform: Option<&CGAffineTransform>,
     ) -> cgsys::CGPathRef;
     fn CGPathCreateWithRoundedRect(
-        rect: CGRect,
+        rect: NSRect,
         width: f64,
         height: f64,
         transform: Option<&CGAffineTransform>,
@@ -460,13 +453,13 @@ impl CGMutablePath {
         Self(unsafe { CGPath::from_ptr(CGPathCreateMutable()) })
     }
 
-    pub fn move_to_point(&mut self, transform: Option<&CGAffineTransform>, p: CGPoint) {
+    pub fn move_to_point(&mut self, transform: Option<&CGAffineTransform>, p: NSPoint) {
         unsafe {
             CGPathMoveToPoint(self.0.as_ptr(), transform, p.x, p.y);
         }
     }
 
-    pub fn line_to_point(&mut self, transform: Option<&CGAffineTransform>, p: CGPoint) {
+    pub fn line_to_point(&mut self, transform: Option<&CGAffineTransform>, p: NSPoint) {
         unsafe {
             CGPathAddLineToPoint(self.0.as_ptr(), transform, p.x, p.y);
         }
@@ -475,7 +468,7 @@ impl CGMutablePath {
     pub fn add_arc(
         &mut self,
         transform: Option<&CGAffineTransform>,
-        center: CGPoint,
+        center: NSPoint,
         radius: f64,
         start: f64,
         end: f64,
@@ -498,9 +491,9 @@ impl CGMutablePath {
     pub fn add_curve(
         &mut self,
         transform: Option<&CGAffineTransform>,
-        p1: CGPoint,
-        p2: CGPoint,
-        p3: CGPoint,
+        p1: NSPoint,
+        p2: NSPoint,
+        p3: NSPoint,
     ) {
         unsafe {
             CGPathAddCurveToPoint(
@@ -531,7 +524,7 @@ impl Deref for CGMutablePath {
     }
 }
 
-unsafe fn to_layer(path: &CGPath) -> Id<CAShapeLayer> {
+unsafe fn to_layer(path: &CGPath) -> Retained<CAShapeLayer> {
     let layer = CAShapeLayer::new();
     let () = msg_send![&layer, setPath:CGPathWrapper(path.as_ptr())];
     layer
@@ -605,7 +598,7 @@ fn path_round_rect(s: Size, rect: Rect, round: Size) -> CGPath {
     }
 }
 
-fn measure_str(font: DrawingFont, pos: Point, text: &str) -> (Id<NSAttributedString>, Rect) {
+fn measure_str(font: DrawingFont, pos: Point, text: &str) -> (Retained<NSAttributedString>, Rect) {
     let astr = create_attr_str(&font, text);
     let size = from_cgsize(unsafe { astr.size() });
     let mut x = pos.x;
@@ -623,7 +616,7 @@ fn measure_str(font: DrawingFont, pos: Point, text: &str) -> (Id<NSAttributedStr
     (astr, Rect::new(Point::new(x, y), size))
 }
 
-fn create_attr_str(font: &DrawingFont, text: &str) -> Id<NSAttributedString> {
+fn create_attr_str(font: &DrawingFont, text: &str) -> Retained<NSAttributedString> {
     unsafe {
         let mut fontdes = NSFontDescriptor::fontDescriptorWithName_size(
             &NSString::from_str(&font.family),
@@ -632,10 +625,10 @@ fn create_attr_str(font: &DrawingFont, text: &str) -> Id<NSAttributedString> {
 
         let mut traits = NSFontDescriptorSymbolicTraits::empty();
         if font.italic {
-            traits |= NSFontDescriptorSymbolicTraits::NSFontDescriptorTraitItalic;
+            traits |= NSFontDescriptorSymbolicTraits::TraitItalic;
         }
         if font.bold {
-            traits |= NSFontDescriptorSymbolicTraits::NSFontDescriptorTraitBold;
+            traits |= NSFontDescriptorSymbolicTraits::TraitBold;
         }
         if !traits.is_empty() {
             fontdes = fontdes.fontDescriptorWithSymbolicTraits(traits);
@@ -646,9 +639,12 @@ fn create_attr_str(font: &DrawingFont, text: &str) -> Id<NSAttributedString> {
         NSAttributedString::initWithString_attributes(
             NSAttributedString::alloc(),
             &NSString::from_str(text),
-            Some(&NSDictionary::from_id_slice(
+            Some(&NSDictionary::from_slices(
                 &[NSFontAttributeName, NSForegroundColorAttributeName],
-                &[Id::cast(nfont), Id::cast(NSColor::whiteColor())],
+                &[
+                    &*Retained::cast_unchecked::<AnyObject>(nfont),
+                    &*Retained::cast_unchecked::<AnyObject>(NSColor::whiteColor()),
+                ],
             )),
         )
     }
@@ -678,7 +674,7 @@ unsafe fn make_layer(
     rect: Rect,
     fill: CFStringRef,
     stroke: CFStringRef,
-) -> Id<CALayer> {
+) -> Retained<CALayer> {
     let mask_layer = to_layer(path);
     let fill = CGColorGetConstantColor(fill);
     let () = msg_send![&mask_layer, setFillColor:CGColorWrapper(fill)];
@@ -692,7 +688,7 @@ unsafe fn make_layer(
     brush_rect.size.height += width;
     brush_layer.setFrame(brush_rect);
     let content_layer = CALayer::new();
-    content_layer.setFrame(CGRect::new(CGPoint::ZERO, to_cgsize(size)));
+    content_layer.setFrame(NSRect::new(NSPoint::ZERO, to_cgsize(size)));
     content_layer.addSublayer(brush_layer);
     content_layer.setMask(Some(&mask_layer));
     content_layer
@@ -701,10 +697,10 @@ unsafe fn make_layer(
 /// Drawing brush.
 pub trait Brush {
     #[doc(hidden)]
-    fn create_layer(&self) -> Id<CALayer>;
+    fn create_layer(&self) -> Retained<CALayer>;
 
     #[doc(hidden)]
-    fn draw(&self, path: &CGPath, size: Size, rect: Rect) -> Id<CALayer> {
+    fn draw(&self, path: &CGPath, size: Size, rect: Rect) -> Retained<CALayer> {
         unsafe {
             make_layer(
                 path,
@@ -720,13 +716,13 @@ pub trait Brush {
 }
 
 impl<B: Brush> Brush for &'_ B {
-    fn create_layer(&self) -> Id<CALayer> {
+    fn create_layer(&self) -> Retained<CALayer> {
         (**self).create_layer()
     }
 }
 
 impl Brush for SolidColorBrush {
-    fn create_layer(&self) -> Id<CALayer> {
+    fn create_layer(&self) -> Retained<CALayer> {
         unsafe {
             let layer = CALayer::new();
             let color = to_cgcolor(self.color);
@@ -742,10 +738,10 @@ unsafe fn create_gradient_layer(
     start: RelativePoint,
     end: RelativePoint,
     ratio: f64,
-) -> Id<CAGradientLayer> {
+) -> Retained<CAGradientLayer> {
     let mut cg_colors = vec![];
-    let mut colors = NSMutableArray::<AnyObject>::new();
-    let mut locs = NSMutableArray::<NSNumber>::new();
+    let colors = NSMutableArray::<AnyObject>::new();
+    let locs = NSMutableArray::<NSNumber>::new();
     for stop in stops {
         let cgcolor = to_cgcolor(stop.color);
         colors.addObject(&*cgcolor.as_concrete_TypeRef().cast::<AnyObject>());
@@ -755,27 +751,27 @@ unsafe fn create_gradient_layer(
     let gradient = CAGradientLayer::new();
     gradient.setColors(Some(&colors));
     gradient.setLocations(Some(&locs));
-    gradient.setStartPoint(CGPoint::new(start.x, 1.0 - start.y));
-    gradient.setEndPoint(CGPoint::new(end.x, 1.0 - end.y));
+    gradient.setStartPoint(NSPoint::new(start.x, 1.0 - start.y));
+    gradient.setEndPoint(NSPoint::new(end.x, 1.0 - end.y));
     gradient
 }
 
 impl Brush for LinearGradientBrush {
-    fn create_layer(&self) -> Id<CALayer> {
+    fn create_layer(&self) -> Retained<CALayer> {
         unsafe {
             let gradient = create_gradient_layer(&self.stops, self.start, self.end, 1.0);
-            Id::cast(gradient)
+            Retained::cast_unchecked(gradient)
         }
     }
 }
 
 impl Brush for RadialGradientBrush {
-    fn create_layer(&self) -> Id<CALayer> {
+    fn create_layer(&self) -> Retained<CALayer> {
         unsafe {
             let ratio = self.radius.width.min(self.radius.height);
             let gradient = create_gradient_layer(&self.stops, self.origin, self.center, ratio);
             gradient.setType(kCAGradientLayerRadial);
-            Id::cast(gradient)
+            Retained::cast_unchecked(gradient)
         }
     }
 }
@@ -783,12 +779,12 @@ impl Brush for RadialGradientBrush {
 /// Drawing pen.
 pub trait Pen {
     #[doc(hidden)]
-    fn create_layer(&self) -> Id<CALayer>;
+    fn create_layer(&self) -> Retained<CALayer>;
     #[doc(hidden)]
     fn width(&self) -> f64;
 
     #[doc(hidden)]
-    fn draw(&self, path: &CGPath, size: Size, rect: Rect) -> Id<CALayer> {
+    fn draw(&self, path: &CGPath, size: Size, rect: Rect) -> Retained<CALayer> {
         unsafe {
             make_layer(
                 path,
@@ -804,7 +800,7 @@ pub trait Pen {
 }
 
 impl<P: Pen> Pen for &'_ P {
-    fn create_layer(&self) -> Id<CALayer> {
+    fn create_layer(&self) -> Retained<CALayer> {
         (**self).create_layer()
     }
 
@@ -814,7 +810,7 @@ impl<P: Pen> Pen for &'_ P {
 }
 
 impl<B: Brush> Pen for BrushPen<B> {
-    fn create_layer(&self) -> Id<CALayer> {
+    fn create_layer(&self) -> Retained<CALayer> {
         self.brush.create_layer()
     }
 
@@ -823,7 +819,7 @@ impl<B: Brush> Pen for BrushPen<B> {
     }
 }
 
-pub struct DrawingImage(Id<NSBitmapImageRep>);
+pub struct DrawingImage(Retained<NSBitmapImageRep>);
 
 impl DrawingImage {
     fn new(image: DynamicImage) -> Self {

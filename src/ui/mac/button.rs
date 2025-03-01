@@ -1,7 +1,6 @@
 use objc2::{
-    ClassType, DeclaredClass, declare_class, msg_send_id,
-    mutability::MainThreadOnly,
-    rc::{Allocated, Id},
+    DeclaredClass, MainThreadOnly, define_class, msg_send,
+    rc::{Allocated, Retained},
     sel,
 };
 use objc2_app_kit::{
@@ -17,8 +16,8 @@ use crate::{
 #[derive(Debug)]
 pub struct Button {
     handle: Widget,
-    view: Id<NSButton>,
-    delegate: Id<ButtonDelegate>,
+    view: Retained<NSButton>,
+    delegate: Retained<ButtonDelegate>,
 }
 
 impl Button {
@@ -27,8 +26,10 @@ impl Button {
             let mtm = MainThreadMarker::new().unwrap();
 
             let view = NSButton::new(mtm);
-            let handle =
-                Widget::from_nsview(parent.as_window().as_raw_window(), Id::cast(view.clone()));
+            let handle = Widget::from_nsview(
+                parent.as_window().as_raw_window(),
+                Retained::cast_unchecked(view.clone()),
+            );
 
             let delegate = ButtonDelegate::new(mtm);
             view.setTarget(Some(&delegate));
@@ -202,34 +203,28 @@ impl RadioButton {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 struct ButtonDelegateIvars {
     action: Callback,
 }
 
-declare_class! {
+define_class! {
+    #[unsafe(super(NSObject))]
+    #[name = "WinioButtonDelegate"]
+    #[ivars = ButtonDelegateIvars]
+    #[thread_kind = MainThreadOnly]
     #[derive(Debug)]
     struct ButtonDelegate;
 
-    unsafe impl ClassType for ButtonDelegate {
-        type Super = NSObject;
-        type Mutability = MainThreadOnly;
-        const NAME: &'static str = "WinioButtonDelegate";
-    }
-
-    impl DeclaredClass for ButtonDelegate {
-        type Ivars = ButtonDelegateIvars;
-    }
-
     #[allow(non_snake_case)]
-    unsafe impl ButtonDelegate {
-        #[method_id(init)]
-        fn init(this: Allocated<Self>) -> Option<Id<Self>> {
+    impl ButtonDelegate {
+        #[unsafe(method_id(init))]
+        fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
             let this = this.set_ivars(ButtonDelegateIvars::default());
-            unsafe { msg_send_id![super(this), init] }
+            unsafe { msg_send![super(this), init] }
         }
 
-        #[method(onAction)]
+        #[unsafe(method(onAction))]
         unsafe fn onAction(&self) {
             self.ivars().action.signal(());
         }
@@ -237,7 +232,7 @@ declare_class! {
 }
 
 impl ButtonDelegate {
-    pub fn new(mtm: MainThreadMarker) -> Id<Self> {
-        unsafe { msg_send_id![mtm.alloc::<Self>(), init] }
+    pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
+        unsafe { msg_send![mtm.alloc::<Self>(), init] }
     }
 }

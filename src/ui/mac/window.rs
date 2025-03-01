@@ -1,17 +1,15 @@
 use std::fmt::Debug;
 
 use objc2::{
-    ClassType, DeclaredClass, declare_class, msg_send_id,
-    mutability::MainThreadOnly,
-    rc::{Allocated, Id, WeakId},
+    DeclaredClass, MainThreadOnly, define_class, msg_send,
+    rc::{Allocated, Retained, Weak},
     runtime::ProtocolObject,
 };
 use objc2_app_kit::{
     NSBackingStoreType, NSControl, NSScreen, NSView, NSWindow, NSWindowDelegate, NSWindowStyleMask,
 };
 use objc2_foundation::{
-    CGPoint, CGSize, MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSRect, NSSize,
-    NSString,
+    MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSPoint, NSRect, NSSize, NSString,
 };
 
 use super::{transform_cgrect, transform_rect};
@@ -22,8 +20,8 @@ use crate::{
 
 #[derive(Debug)]
 pub struct Window {
-    wnd: Id<NSWindow>,
-    delegate: Id<WindowDelegate>,
+    wnd: Retained<NSWindow>,
+    delegate: Retained<WindowDelegate>,
 }
 
 impl Window {
@@ -31,7 +29,7 @@ impl Window {
         unsafe {
             let mtm = MainThreadMarker::new().unwrap();
 
-            let frame = NSRect::new(CGPoint::ZERO, CGSize::new(100.0, 100.0));
+            let frame = NSRect::new(NSPoint::ZERO, NSSize::new(100.0, 100.0));
             let wnd = {
                 NSWindow::initWithContentRect_styleMask_backing_defer(
                     mtm.alloc(),
@@ -40,13 +38,13 @@ impl Window {
                         | NSWindowStyleMask::Closable
                         | NSWindowStyleMask::Resizable
                         | NSWindowStyleMask::Miniaturizable,
-                    NSBackingStoreType::NSBackingStoreBuffered,
+                    NSBackingStoreType::Buffered,
                     false,
                 )
             };
 
             let delegate = WindowDelegate::new(mtm);
-            let del_obj = ProtocolObject::from_id(delegate.clone());
+            let del_obj = ProtocolObject::from_retained(delegate.clone());
             wnd.setDelegate(Some(&del_obj));
             wnd.makeKeyWindow();
             wnd.setIsVisible(true);
@@ -54,7 +52,7 @@ impl Window {
         }
     }
 
-    fn screen(&self) -> Id<NSScreen> {
+    fn screen(&self) -> Retained<NSScreen> {
         self.wnd.screen().unwrap()
     }
 
@@ -115,32 +113,26 @@ impl AsRawWindow for Window {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 struct WindowDelegateIvars {
     did_resize: Callback,
     did_move: Callback,
     should_close: Callback,
 }
 
-declare_class! {
+define_class! {
+    #[unsafe(super(NSObject))]
+    #[name = "WinioWindowDelegate"]
+    #[ivars = WindowDelegateIvars]
+    #[thread_kind = MainThreadOnly]
     #[derive(Debug)]
     struct WindowDelegate;
 
-    unsafe impl ClassType for WindowDelegate {
-        type Super = NSObject;
-        type Mutability = MainThreadOnly;
-        const NAME: &'static str = "WinioWindowDelegate";
-    }
-
-    impl DeclaredClass for WindowDelegate {
-        type Ivars = WindowDelegateIvars;
-    }
-
-    unsafe impl WindowDelegate {
-        #[method_id(init)]
-        fn init(this: Allocated<Self>) -> Option<Id<Self>> {
+    impl WindowDelegate {
+        #[unsafe(method_id(init))]
+        fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
             let this = this.set_ivars(WindowDelegateIvars::default());
-            unsafe { msg_send_id![super(this), init] }
+            unsafe { msg_send![super(this), init] }
         }
     }
 
@@ -148,17 +140,17 @@ declare_class! {
 
     #[allow(non_snake_case)]
     unsafe impl NSWindowDelegate for WindowDelegate {
-        #[method(windowDidResize:)]
+        #[unsafe(method(windowDidResize:))]
         unsafe fn windowDidResize(&self, _notification: &NSNotification) {
             self.ivars().did_resize.signal(());
         }
 
-        #[method(windowDidMove:)]
+        #[unsafe(method(windowDidMove:))]
         unsafe fn windowDidMove(&self, _notification: &NSNotification) {
             self.ivars().did_move.signal(());
         }
 
-        #[method(windowShouldClose:)]
+        #[unsafe(method(windowShouldClose:))]
         unsafe fn windowShouldClose(&self, _sender: &NSWindow) -> bool {
             self.ivars().should_close.signal(())
         }
@@ -166,37 +158,37 @@ declare_class! {
 }
 
 impl WindowDelegate {
-    pub fn new(mtm: MainThreadMarker) -> Id<Self> {
-        unsafe { msg_send_id![mtm.alloc::<Self>(), init] }
+    pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
+        unsafe { msg_send![mtm.alloc::<Self>(), init] }
     }
 }
 
 #[derive(Debug)]
 pub(crate) struct Widget {
-    parent: WeakId<NSView>,
-    view: Id<NSView>,
+    parent: Weak<NSView>,
+    view: Retained<NSView>,
 }
 
 impl Widget {
-    pub fn from_nsview(parent: impl AsWindow, view: Id<NSView>) -> Self {
+    pub fn from_nsview(parent: impl AsWindow, view: Retained<NSView>) -> Self {
         unsafe {
             let parent = parent.as_window().as_raw_window().contentView().unwrap();
             parent.addSubview(&view);
             Self {
-                parent: WeakId::from_id(&parent),
+                parent: Weak::from_retained(&parent),
                 view,
             }
         }
     }
 
-    pub fn parent(&self) -> Id<NSView> {
+    pub fn parent(&self) -> Retained<NSView> {
         self.parent.load().unwrap()
     }
 
     pub fn preferred_size(&self) -> Size {
         unsafe {
             from_cgsize(
-                Id::cast::<NSControl>(self.view.clone())
+                Retained::cast_unchecked::<NSControl>(self.view.clone())
                     .sizeThatFits(NSSize::new(f64::MAX, f64::MAX)),
             )
         }

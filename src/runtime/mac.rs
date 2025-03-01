@@ -5,14 +5,14 @@ use core_foundation::{
     filedescriptor::{CFFileDescriptor, CFFileDescriptorRef, kCFFileDescriptorReadCallBack},
     runloop::{CFRunLoop, kCFRunLoopDefaultMode},
 };
-use objc2::rc::Id;
+use objc2::rc::Retained;
 use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy, NSEventMask};
 use objc2_foundation::{MainThreadMarker, NSDate, NSDefaultRunLoopMode};
 
 pub struct Runtime {
     runtime: compio::runtime::Runtime,
     fd_source: CFFileDescriptor,
-    ns_app: Id<NSApplication>,
+    ns_app: Retained<NSApplication>,
 }
 
 impl Runtime {

@@ -1,7 +1,6 @@
 use objc2::{
-    ClassType, DeclaredClass, declare_class, msg_send_id,
-    mutability::MainThreadOnly,
-    rc::{Allocated, Id},
+    DeclaredClass, MainThreadOnly, define_class, msg_send,
+    rc::{Allocated, Retained},
     runtime::ProtocolObject,
 };
 use objc2_app_kit::{
@@ -19,10 +18,10 @@ use crate::{
 pub struct Edit {
     handle: Widget,
     phandle: Widget,
-    view: Id<NSTextField>,
-    pview: Id<NSTextField>,
+    view: Retained<NSTextField>,
+    pview: Retained<NSTextField>,
     password: bool,
-    delegate: Id<EditDelegate>,
+    delegate: Retained<EditDelegate>,
 }
 
 impl Edit {
@@ -36,20 +35,25 @@ impl Edit {
             view.setEditable(true);
             view.setSelectable(true);
 
-            let pview: Id<NSTextField> = Id::cast(NSSecureTextField::new(mtm));
+            let pview: Retained<NSTextField> =
+                Retained::cast_unchecked(NSSecureTextField::new(mtm));
             pview.setBezeled(true);
             pview.setDrawsBackground(true);
             pview.setEditable(true);
             pview.setSelectable(true);
             pview.setHidden(true);
 
-            let handle =
-                Widget::from_nsview(parent.as_window().as_raw_window(), Id::cast(view.clone()));
-            let phandle =
-                Widget::from_nsview(parent.as_window().as_raw_window(), Id::cast(pview.clone()));
+            let handle = Widget::from_nsview(
+                parent.as_window().as_raw_window(),
+                Retained::cast_unchecked(view.clone()),
+            );
+            let phandle = Widget::from_nsview(
+                parent.as_window().as_raw_window(),
+                Retained::cast_unchecked(pview.clone()),
+            );
 
             let delegate = EditDelegate::new(mtm);
-            let del_obj = ProtocolObject::from_id(delegate.clone());
+            let del_obj = ProtocolObject::from_retained(delegate.clone());
             view.setDelegate(Some(&del_obj));
             pview.setDelegate(Some(&del_obj));
             Self {
@@ -156,31 +160,25 @@ impl Edit {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 struct EditDelegateIvars {
     changed: Callback,
 }
 
-declare_class! {
+define_class! {
+    #[unsafe(super(NSObject))]
+    #[name = "WinioEditDelegate"]
+    #[ivars = EditDelegateIvars]
+    #[thread_kind = MainThreadOnly]
     #[derive(Debug)]
     struct EditDelegate;
 
-    unsafe impl ClassType for EditDelegate {
-        type Super = NSObject;
-        type Mutability = MainThreadOnly;
-        const NAME: &'static str = "WinioEditDelegate";
-    }
-
-    impl DeclaredClass for EditDelegate {
-        type Ivars = EditDelegateIvars;
-    }
-
     #[allow(non_snake_case)]
-    unsafe impl EditDelegate {
-        #[method_id(init)]
-        fn init(this: Allocated<Self>) -> Option<Id<Self>> {
+    impl EditDelegate {
+        #[unsafe(method_id(init))]
+        fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
             let this = this.set_ivars(EditDelegateIvars::default());
-            unsafe { msg_send_id![super(this), init] }
+            unsafe { msg_send![super(this), init] }
         }
     }
 
@@ -188,7 +186,7 @@ declare_class! {
 
     #[allow(non_snake_case)]
     unsafe impl NSControlTextEditingDelegate for EditDelegate {
-        #[method(controlTextDidChange:)]
+        #[unsafe(method(controlTextDidChange:))]
         fn controlTextDidChange(&self, _notification: &NSNotification) {
             self.ivars().changed.signal(());
         }
@@ -198,7 +196,7 @@ declare_class! {
 }
 
 impl EditDelegate {
-    pub fn new(mtm: MainThreadMarker) -> Id<Self> {
-        unsafe { msg_send_id![mtm.alloc::<Self>(), init] }
+    pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
+        unsafe { msg_send![mtm.alloc::<Self>(), init] }
     }
 }

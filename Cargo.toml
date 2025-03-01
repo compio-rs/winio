@@ -23,7 +23,7 @@ once_cell = "1"
 rgb = "0.8"
 slab = "0.4"
 scoped-tls = "1.0"
-taffy = "0.6"
+taffy = "0.7"
 
 [target.'cfg(windows)'.dependencies]
 widestring = "1"
@@ -65,9 +65,9 @@ core-foundation = "0.10"
 core-graphics = "0.24"
 foreign-types-shared = "0.3"
 
-block2 = "0.5"
-objc2 = "0.5"
-objc2-foundation = { version = "0.2", features = [
+block2 = "0.6"
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = [
     "NSAffineTransform",
     "NSAttributedString",
     "NSDate",
@@ -81,7 +81,7 @@ objc2-foundation = { version = "0.2", features = [
     "NSURL",
     "NSUserDefaults",
 ] }
-objc2-app-kit = { version = "0.2", features = [
+objc2-app-kit = { version = "0.3", features = [
     "block2",
     "objc2-quartz-core",
     "NSAlert",
@@ -118,8 +118,8 @@ objc2-app-kit = { version = "0.2", features = [
     "NSWindow",
     "NSWindowScripting",
 ] }
-objc2-uniform-type-identifiers = { version = "0.2", features = ["UTType"] }
-objc2-quartz-core = { version = "0.2", features = [
+objc2-uniform-type-identifiers = { version = "0.3", features = ["UTType"] }
+objc2-quartz-core = { version = "0.3", features = [
     "CALayer",
     "CAGradientLayer",
     "CAShapeLayer",
@@ -140,7 +140,7 @@ cyper = { version = "0.2.0", default-features = false, features = [
     "http3-altsvc",
 ] }
 
-dirs = "5.0"
+dirs = "6.0"
 futures-util = "0.3"
 image = { version = "0.25", default-features = false, features = [
     "default-formats",

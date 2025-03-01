@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use block2::StackBlock;
 use compio::buf::arrayvec::ArrayVec;
-use objc2::rc::Id;
+use objc2::rc::Retained;
 use objc2_app_kit::{
     NSAlert, NSAlertFirstButtonReturn, NSAlertStyle, NSImage, NSImageNameCaution, NSImageNameInfo,
 };
@@ -12,9 +12,9 @@ use crate::{AsRawWindow, AsWindow, MessageBoxButton, MessageBoxResponse, Message
 
 async fn msgbox_custom(
     parent: Option<impl AsWindow>,
-    msg: Id<NSString>,
-    title: Id<NSString>,
-    instr: Id<NSString>,
+    msg: Retained<NSString>,
+    title: Retained<NSString>,
+    instr: Retained<NSString>,
     style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
@@ -103,9 +103,9 @@ async fn msgbox_custom(
 
 #[derive(Debug, Default, Clone)]
 pub struct MessageBox {
-    msg: Id<NSString>,
-    title: Id<NSString>,
-    instr: Id<NSString>,
+    msg: Retained<NSString>,
+    title: Retained<NSString>,
+    instr: Retained<NSString>,
     style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
@@ -155,7 +155,7 @@ impl MessageBox {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CustomButton {
     pub result: u16,
-    pub text: Id<NSString>,
+    pub text: Retained<NSString>,
 }
 
 impl CustomButton {

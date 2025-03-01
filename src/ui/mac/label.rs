@@ -1,4 +1,4 @@
-use objc2::rc::Id;
+use objc2::rc::Retained;
 use objc2_app_kit::{NSTextAlignment, NSTextField};
 use objc2_foundation::{MainThreadMarker, NSString};
 
@@ -10,7 +10,7 @@ use crate::{
 #[derive(Debug)]
 pub struct Label {
     handle: Widget,
-    view: Id<NSTextField>,
+    view: Retained<NSTextField>,
 }
 
 impl Label {
@@ -23,8 +23,10 @@ impl Label {
             view.setDrawsBackground(false);
             view.setEditable(false);
             view.setSelectable(false);
-            let handle =
-                Widget::from_nsview(parent.as_window().as_raw_window(), Id::cast(view.clone()));
+            let handle = Widget::from_nsview(
+                parent.as_window().as_raw_window(),
+                Retained::cast_unchecked(view.clone()),
+            );
 
             Self { handle, view }
         }
