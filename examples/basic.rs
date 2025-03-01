@@ -2,10 +2,9 @@ use std::time::Duration;
 
 use compio::{runtime::spawn, time::interval};
 use compio_log::info;
-use taffy::{NodeId, TaffyTree};
 use winio::{
     App, BrushPen, Canvas, CanvasEvent, Child, Color, ColorTheme, Component, ComponentSender,
-    CustomButton, DrawingFontBuilder, HAlign, Layoutable, MessageBox, MessageBoxButton,
+    CustomButton, DrawingFontBuilder, Grid, HAlign, Layoutable, MessageBox, MessageBoxButton,
     MessageBoxResponse, MessageBoxStyle, MouseButton, Point, Rect, Size, SolidColorBrush, VAlign,
     Window, WindowEvent,
 };
@@ -122,8 +121,11 @@ impl Component for MainModel {
         self.canvas.render();
 
         let csize = self.window.client_size();
-        let rect = Layout::new().compute(csize);
-        self.canvas.set_rect(rect);
+        {
+            let mut grid = Grid::from_str("1*,2*,1*", "1*,2*,1*").unwrap();
+            grid.push(&mut self.canvas).column(1).row(1).finish();
+            grid.set_size(csize);
+        }
 
         let size = self.canvas.size();
         let is_dark = ColorTheme::current() == ColorTheme::Dark;
@@ -148,52 +150,5 @@ impl Component for MainModel {
             (size.to_vector() / 2.0).to_point(),
             format!("Hello world!\nRunning: {}s", self.counter),
         );
-    }
-}
-
-struct Layout {
-    taffy: TaffyTree,
-    canvas: NodeId,
-    root: NodeId,
-}
-
-impl Layout {
-    pub fn new() -> Self {
-        let mut taffy = TaffyTree::new();
-        let canvas = taffy
-            .new_leaf(taffy::Style {
-                size: taffy::Size::from_percent(0.5, 0.5),
-                margin: taffy::Rect::auto(),
-                ..Default::default()
-            })
-            .unwrap();
-        let root = taffy
-            .new_with_children(
-                taffy::Style {
-                    size: taffy::Size::from_percent(1.0, 1.0),
-                    ..Default::default()
-                },
-                &[canvas],
-            )
-            .unwrap();
-        Self {
-            taffy,
-            canvas,
-            root,
-        }
-    }
-
-    pub fn compute(mut self, csize: Size) -> Rect {
-        self.taffy
-            .compute_layout(self.root, taffy::Size {
-                width: taffy::AvailableSpace::Definite(csize.width as _),
-                height: taffy::AvailableSpace::Definite(csize.height as _),
-            })
-            .unwrap();
-        let rect = self.taffy.layout(self.canvas).unwrap();
-        Rect::new(
-            Point::new(rect.location.x as _, rect.location.y as _),
-            Size::new(rect.size.width as _, rect.size.height as _),
-        )
     }
 }
