@@ -11,3 +11,6 @@ pub use ui::export::*;
 
 mod elm;
 pub use elm::*;
+
+#[doc(no_inline)]
+pub use compio;
