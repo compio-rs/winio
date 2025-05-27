@@ -85,7 +85,7 @@ impl<const E: bool> ComboBoxImpl<E> {
                 message, handle, ..
             }) = msg.detail
             {
-                if handle == self.handle.as_raw_window() && (message == CBN_SELCHANGE) {
+                if std::ptr::eq(handle, self.handle.as_raw_window()) && (message == CBN_SELCHANGE) {
                     break;
                 }
             }
@@ -99,7 +99,7 @@ impl<const E: bool> ComboBoxImpl<E> {
                 message, handle, ..
             }) = msg.detail
             {
-                if handle == self.handle.as_raw_window() && (message == CBN_EDITUPDATE) {
+                if std::ptr::eq(handle, self.handle.as_raw_window()) && (message == CBN_EDITUPDATE) {
                     break;
                 }
             }

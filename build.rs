@@ -31,17 +31,17 @@ fn main() {
         ];
 
         for s in sources {
-            println!("cargo:rerun-if-changed={}.rs", s);
-            println!("cargo:rerun-if-changed={}.cpp", s);
-            println!("cargo:rerun-if-changed={}.hpp", s);
+            println!("cargo:rerun-if-changed={s}.rs");
+            println!("cargo:rerun-if-changed={s}.cpp");
+            println!("cargo:rerun-if-changed={s}.hpp");
         }
 
         let inc = qbuild.include_paths();
 
-        let mut build = cxx_build::bridges(sources.map(|s| format!("{}.rs", s)));
+        let mut build = cxx_build::bridges(sources.map(|s| format!("{s}.rs")));
         build
             .std("c++17")
-            .files(sources.map(|s| format!("{}.cpp", s)))
+            .files(sources.map(|s| format!("{s}.cpp")))
             .includes(inc);
         if std::env::var("PROFILE").as_deref() == Ok("release") {
             build.flag("-flto").compiler("clang++");

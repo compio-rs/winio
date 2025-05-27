@@ -126,7 +126,7 @@ impl Edit {
                 message, handle, ..
             }) = msg.detail
             {
-                if handle == self.handle.as_raw_window() && (message == EN_UPDATE) {
+                if std::ptr::eq(handle, self.handle.as_raw_window()) && (message == EN_UPDATE) {
                     break;
                 }
             }

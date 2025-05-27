@@ -174,7 +174,7 @@ async fn fetch(client: Client, url: String, sender: ComponentSender<MainModel>) 
         if let Ok(res) = timeout(Duration::from_secs(8), client.get(url).unwrap().send()).await {
             match res {
                 Ok(response) => FetchStatus::Complete(response.text().await.unwrap()),
-                Err(e) => FetchStatus::Error(format!("{:?}", e)),
+                Err(e) => FetchStatus::Error(format!("{e:?}")),
             }
         } else {
             FetchStatus::Timedout

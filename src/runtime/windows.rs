@@ -320,7 +320,7 @@ pub(crate) unsafe extern "system" fn window_proc(
                     GetCursorPos(p.as_mut_ptr());
                     let mut p = p.assume_init();
                     ScreenToClient(hedit, &mut p);
-                    let is_hover = hedit == ChildWindowFromPoint(handle, p);
+                    let is_hover = std::ptr::eq(hedit, ChildWindowFromPoint(handle, p));
                     return if is_hover {
                         GetStockObject(BLACK_BRUSH)
                     } else {

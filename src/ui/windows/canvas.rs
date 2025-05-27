@@ -7,7 +7,7 @@ use windows::{
     Win32::Graphics::{
         Direct2D::{
             Common::{
-                D2D_POINT_2F, D2D_RECT_F, D2D_SIZE_F, D2D_SIZE_U, D2D1_ALPHA_MODE_PREMULTIPLIED,
+                D2D_RECT_F, D2D_SIZE_F, D2D_SIZE_U, D2D1_ALPHA_MODE_PREMULTIPLIED,
                 D2D1_BEZIER_SEGMENT, D2D1_COLOR_F, D2D1_FIGURE_BEGIN_HOLLOW,
                 D2D1_FIGURE_END_CLOSED, D2D1_FIGURE_END_OPEN, D2D1_GRADIENT_STOP,
                 D2D1_PIXEL_FORMAT,
@@ -32,7 +32,7 @@ use windows::{
     },
     core::Interface,
 };
-use windows_numerics::Matrix3x2;
+use windows_numerics::{Matrix3x2, Vector2};
 use windows_sys::Win32::{
     System::SystemServices::SS_OWNERDRAW,
     UI::{
@@ -145,7 +145,7 @@ impl Canvas {
         loop {
             let msg = self.handle.wait_parent(WM_DRAWITEM).await;
             if let Some(WindowMessageDetail::DrawItem(ds)) = msg.detail {
-                if ds.hwndItem == self.handle.as_raw_window() {
+                if std::ptr::eq(ds.hwndItem, self.handle.as_raw_window()) {
                     break;
                 }
             }
@@ -191,10 +191,10 @@ fn color_f(c: Color) -> D2D1_COLOR_F {
     }
 }
 
-const fn point_2f(p: Point) -> D2D_POINT_2F {
-    D2D_POINT_2F {
-        x: p.x as f32,
-        y: p.y as f32,
+const fn point_2f(p: Point) -> Vector2 {
+    Vector2 {
+        X: p.x as f32,
+        Y: p.y as f32,
     }
 }
 

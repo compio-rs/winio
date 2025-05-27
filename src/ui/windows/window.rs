@@ -261,7 +261,7 @@ impl Widget {
         match res {
             Ok(_) => {}
             Err(e) if e.raw_os_error() == Some(0) => {}
-            Err(e) => panic!("{:?}", e),
+            Err(e) => panic!("{e:?}"),
         }
     }
 

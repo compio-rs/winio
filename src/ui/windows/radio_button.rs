@@ -80,7 +80,7 @@ impl RadioButton {
                 message, handle, ..
             }) = msg.detail
             {
-                if handle == self.handle.as_raw_window() && (message == BN_CLICKED) {
+                if std::ptr::eq(handle, self.handle.as_raw_window()) && (message == BN_CLICKED) {
                     self.set_checked(true);
                     break;
                 }

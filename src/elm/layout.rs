@@ -321,7 +321,7 @@ pub enum ParseGridLengthError {
 impl Display for ParseGridLengthError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::InvalidLength(e) => write!(f, "invalid length value: {}", e),
+            Self::InvalidLength(e) => write!(f, "invalid length value: {e}"),
         }
     }
 }

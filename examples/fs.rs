@@ -180,7 +180,7 @@ async fn fetch(path: impl AsRef<Path>, sender: ComponentSender<MainModel>) {
     sender.post(MainMessage::Fetch(FetchStatus::Loading));
     let status = match read_file(path).await {
         Ok(text) => FetchStatus::Complete(text),
-        Err(e) => FetchStatus::Error(format!("{:?}", e)),
+        Err(e) => FetchStatus::Error(format!("{e:?}")),
     };
     sender.post(MainMessage::Fetch(status));
 }
