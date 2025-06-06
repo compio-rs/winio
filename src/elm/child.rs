@@ -32,11 +32,37 @@ impl<T: Component> Child<T> {
     }
 
     /// Start to receive and interp the events of the child component.
+    ///
+    /// Let's support there's a root component `MainModel`, and it contains a
+    /// `window: Child<Window>`. The message of `MainModel` is defined as
+    /// ```ignore
+    /// enum MainMessage {
+    ///     Noop,
+    ///     Close,
+    /// }
+    /// ```
+    /// In the `MainModel::start`, you should write
+    /// ```ignore
+    /// async fn start(&mut self, sender: &ComponentSender<Self>) {
+    ///     let fut_window = self.window.start(
+    ///         sender,
+    ///         |e| match e {
+    ///             WindowEvent::Close => Some(MainMessage::Close),
+    ///             // ignore other events
+    ///             _ => None,
+    ///         },
+    ///         // you should always propagate internal messages
+    ///         || MainMessage::Noop,
+    ///     );
+    ///     // ...other children
+    ///     futures_util::join!(fut_window, /* ... */);
+    /// }
+    /// ```
     pub async fn start<C: Component>(
         &mut self,
         sender: &ComponentSender<C>,
         mut f: impl FnMut(T::Event) -> Option<C::Message>,
-        mut internal_pass: impl FnMut() -> C::Message,
+        mut propagate: impl FnMut() -> C::Message,
     ) {
         let fut_start = self.model.start(&self.sender);
         let fut_forward = async {
@@ -51,7 +77,7 @@ impl<T: Component> Child<T> {
             loop {
                 let e = self.msg.recv().await;
                 self.msg_cache.push_back(e);
-                sender.post(internal_pass());
+                sender.post(propagate());
             }
         };
         futures_util::future::join3(fut_start, fut_forward, fut_internal).await;
