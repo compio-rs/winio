@@ -67,6 +67,8 @@ impl Component for MainModel {
 
         spawn(fetch(client.clone(), counter.to_string(), sender.clone())).detach();
 
+        window.show();
+
         Self {
             window,
             canvas,
@@ -78,7 +80,6 @@ impl Component for MainModel {
     }
 
     async fn start(&mut self, sender: &winio::ComponentSender<Self>) {
-        self.window.show();
         let fut_window = self.window.start(sender, |e| match e {
             WindowEvent::Close => Some(MainMessage::Close),
             WindowEvent::Resize => Some(MainMessage::Redraw),

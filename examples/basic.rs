@@ -57,6 +57,9 @@ impl Component for MainModel {
             }
         })
         .detach();
+
+        window.show();
+
         Self {
             window,
             canvas,
@@ -65,7 +68,6 @@ impl Component for MainModel {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) {
-        self.window.show();
         let fut_window = self.window.start(sender, |e| match e {
             WindowEvent::Close => Some(MainMessage::Close),
             WindowEvent::Resize => Some(MainMessage::Redraw),
