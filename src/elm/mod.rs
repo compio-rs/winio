@@ -117,6 +117,7 @@ impl App {
             loop {
                 let fut_start = model.start(&sender);
                 let fut_recv = msg_recv.recv();
+                let fut_ev = ev_recv.recv();
                 futures_util::select! {
                     _ = fut_start.fuse() => unreachable!(),
                     msg = fut_recv.fuse() => {
@@ -127,9 +128,9 @@ impl App {
                         if need_render {
                             model.render(&sender);
                         }
-                        if let Some(e) = ev_recv.try_recv() {
-                            break e;
-                        }
+                    }
+                    e = fut_ev.fuse() => {
+                        break e;
                     }
                 }
             }
