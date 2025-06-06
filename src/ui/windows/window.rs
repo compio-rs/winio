@@ -211,6 +211,16 @@ impl Widget {
         self.set_locd(self.point_l2d(p))
     }
 
+    pub fn is_visible(&self) -> bool {
+        unsafe { IsWindowVisible(self.as_raw_window()) != 0 }
+    }
+
+    pub fn set_visible(&mut self, v: bool) {
+        unsafe {
+            ShowWindow(self.as_raw_window(), if v { SW_SHOW } else { SW_HIDE });
+        }
+    }
+
     pub fn text(&self) -> String {
         self.text_u16().to_string_lossy()
     }
@@ -326,13 +336,11 @@ impl Window {
     }
 
     pub fn is_visible(&self) -> bool {
-        unsafe { IsWindowVisible(self.as_raw_window()) != 0 }
+        self.handle.is_visible()
     }
 
     pub fn set_visible(&mut self, v: bool) {
-        unsafe {
-            ShowWindow(self.as_raw_window(), if v { SW_SHOW } else { SW_HIDE });
-        }
+        self.handle.set_visible(v);
     }
 
     pub fn loc(&self) -> Point {

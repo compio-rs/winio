@@ -1,4 +1,4 @@
-use crate::{Component, ComponentSender, Layoutable, Point, Size, Window, ui};
+use crate::{Component, ComponentSender, Layoutable, Point, Size, Visible, Window, ui};
 
 /// A simple check box.
 #[derive(Debug)]
@@ -25,6 +25,16 @@ impl CheckBox {
     /// Set the checked state.
     pub fn set_checked(&mut self, v: bool) {
         self.widget.set_checked(v);
+    }
+}
+
+impl Visible for CheckBox {
+    fn is_visible(&self) -> bool {
+        self.widget.is_visible()
+    }
+
+    fn set_visible(&mut self, v: bool) {
+        self.widget.set_visible(v);
     }
 }
 

@@ -1,4 +1,6 @@
-use crate::{AsRawWindow, Component, ComponentSender, Layoutable, Point, RawWindow, Size, ui};
+use crate::{
+    AsRawWindow, Component, ComponentSender, Layoutable, Point, RawWindow, Size, Visible, ui,
+};
 
 /// A simple window.
 #[derive(Debug)]
@@ -29,6 +31,16 @@ impl Window {
     }
 }
 
+impl Visible for Window {
+    fn is_visible(&self) -> bool {
+        self.widget.is_visible()
+    }
+
+    fn set_visible(&mut self, v: bool) {
+        self.widget.set_visible(v);
+    }
+}
+
 impl Layoutable for Window {
     fn loc(&self) -> Point {
         self.widget.loc()
@@ -50,35 +62,6 @@ impl Layoutable for Window {
 impl AsRawWindow for Window {
     fn as_raw_window(&self) -> RawWindow {
         self.widget.as_raw_window()
-    }
-}
-
-/// Trait for a widget to set visibility.
-pub trait Visible {
-    /// If the widget is visible.
-    fn is_visible(&self) -> bool;
-
-    /// Set the visibility.
-    fn set_visible(&mut self, v: bool);
-
-    /// Show the widget.
-    fn show(&mut self) {
-        self.set_visible(true);
-    }
-
-    /// Hide the widget.
-    fn hide(&mut self) {
-        self.set_visible(false);
-    }
-}
-
-impl Visible for Window {
-    fn is_visible(&self) -> bool {
-        self.widget.is_visible()
-    }
-
-    fn set_visible(&mut self, v: bool) {
-        self.widget.set_visible(v);
     }
 }
 

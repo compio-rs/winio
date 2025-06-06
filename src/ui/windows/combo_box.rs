@@ -34,6 +34,14 @@ impl<const E: bool> ComboBoxImpl<E> {
         Self { handle }
     }
 
+    pub fn is_visible(&self) -> bool {
+        self.handle.is_visible()
+    }
+
+    pub fn set_visible(&mut self, v: bool) {
+        self.handle.set_visible(v);
+    }
+
     pub fn preferred_size(&self) -> Size {
         let mut width = 0.0f64;
         for i in 0..self.len() {
@@ -99,7 +107,8 @@ impl<const E: bool> ComboBoxImpl<E> {
                 message, handle, ..
             }) = msg.detail
             {
-                if std::ptr::eq(handle, self.handle.as_raw_window()) && (message == CBN_EDITUPDATE) {
+                if std::ptr::eq(handle, self.handle.as_raw_window()) && (message == CBN_EDITUPDATE)
+                {
                     break;
                 }
             }

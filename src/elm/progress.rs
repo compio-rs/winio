@@ -1,4 +1,4 @@
-use crate::{Component, ComponentSender, Layoutable, Point, Size, Window, ui};
+use crate::{Component, ComponentSender, Layoutable, Point, Size, Visible, Window, ui};
 
 /// A progress bar.
 #[derive(Debug)]
@@ -35,6 +35,16 @@ impl Progress {
     /// Set if the progress bar is in indeterminate state.
     pub fn set_indeterminate(&mut self, v: bool) {
         self.widget.set_indeterminate(v);
+    }
+}
+
+impl Visible for Progress {
+    fn is_visible(&self) -> bool {
+        self.widget.is_visible()
+    }
+
+    fn set_visible(&mut self, v: bool) {
+        self.widget.set_visible(v);
     }
 }
 

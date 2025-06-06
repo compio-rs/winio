@@ -28,6 +28,14 @@ impl Progress {
         Self { handle }
     }
 
+    pub fn is_visible(&self) -> bool {
+        self.handle.is_visible()
+    }
+
+    pub fn set_visible(&mut self, v: bool) {
+        self.handle.set_visible(v);
+    }
+
     pub fn preferred_size(&self) -> Size {
         let height = unsafe { GetSystemMetricsForDpi(SM_CYVSCROLL, USER_DEFAULT_SCREEN_DPI) };
         Size::new(0.0, height as _)
