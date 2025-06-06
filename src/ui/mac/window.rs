@@ -47,13 +47,20 @@ impl Window {
             let del_obj = ProtocolObject::from_retained(delegate.clone());
             wnd.setDelegate(Some(&del_obj));
             wnd.makeKeyWindow();
-            wnd.setIsVisible(true);
             Self { wnd, delegate }
         }
     }
 
     fn screen(&self) -> Retained<NSScreen> {
         self.wnd.screen().unwrap()
+    }
+
+    pub fn is_visible(&self) -> bool {
+        self.wnd.isVisible()
+    }
+
+    pub fn set_visible(&mut self, v: bool) {
+        unsafe { self.wnd.setIsVisible(v) }
     }
 
     pub fn loc(&self) -> Point {
@@ -183,6 +190,14 @@ impl Widget {
 
     pub fn parent(&self) -> Retained<NSView> {
         self.parent.load().unwrap()
+    }
+
+    pub fn is_visible(&self) -> bool {
+        unsafe { !self.view.isHidden() }
+    }
+
+    pub fn set_visible(&mut self, v: bool) {
+        self.view.setHidden(!v)
     }
 
     pub fn preferred_size(&self) -> Size {

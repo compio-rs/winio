@@ -55,6 +55,14 @@ impl Canvas {
         Self { view, handle }
     }
 
+    pub fn is_visible(&self) -> bool {
+        self.handle.is_visible()
+    }
+
+    pub fn set_visible(&mut self, v: bool) {
+        self.handle.set_visible(v);
+    }
+
     pub fn loc(&self) -> Point {
         self.handle.loc()
     }

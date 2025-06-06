@@ -32,6 +32,14 @@ impl Label {
         }
     }
 
+    pub fn is_visible(&self) -> bool {
+        self.handle.is_visible()
+    }
+
+    pub fn set_visible(&mut self, v: bool) {
+        self.handle.set_visible(v);
+    }
+
     pub fn preferred_size(&self) -> Size {
         self.handle.preferred_size()
     }
