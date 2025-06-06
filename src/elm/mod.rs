@@ -164,6 +164,9 @@ pub use button::*;
 mod edit;
 pub use edit::*;
 
+mod text_box;
+pub use text_box::*;
+
 mod label;
 pub use label::*;
 
