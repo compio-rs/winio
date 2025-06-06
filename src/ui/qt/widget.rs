@@ -28,6 +28,14 @@ impl Widget {
         self.widget.pin_mut()
     }
 
+    pub fn is_visible(&self) -> bool {
+        self.widget.isVisible()
+    }
+
+    pub fn set_visible(&mut self, v: bool) {
+        self.widget.pin_mut().setVisible(v);
+    }
+
     pub fn preferred_size(&self) -> Size {
         let s = self.widget.sizeHint();
         Size::new(s.width as _, s.height as _)
@@ -132,7 +140,8 @@ mod ffi {
         fn geometry(self: &QWidget) -> &QRect;
         fn sizeHint(self: &QWidget) -> QSize;
         fn update(self: Pin<&mut QWidget>);
-        fn show(self: Pin<&mut QWidget>);
+        fn isVisible(self: &QWidget) -> bool;
+        fn setVisible(self: Pin<&mut QWidget>, v: bool);
 
         fn widget_get_title(w: &QWidget) -> String;
         fn widget_set_title(w: Pin<&mut QWidget>, s: &str);

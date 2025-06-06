@@ -15,7 +15,6 @@ pub struct Window {
 impl Window {
     pub fn new() -> Self {
         let mut widget = super::new_main_window();
-        widget.pin_mut().show();
         let on_resize = Box::new(Callback::new());
         let on_move = Box::new(Callback::new());
         let on_close = Box::new(Callback::new());
@@ -42,6 +41,14 @@ impl Window {
             on_close,
             widget: Widget::new(widget),
         }
+    }
+
+    pub fn is_visible(&self) -> bool {
+        self.widget.is_visible()
+    }
+
+    pub fn set_visible(&mut self, v: bool) {
+        self.widget.set_visible(v);
     }
 
     pub fn loc(&self) -> Point {

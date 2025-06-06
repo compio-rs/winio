@@ -13,7 +13,7 @@ pub struct ComboBoxImpl<const E: bool> {
 impl<const E: bool> ComboBoxImpl<E> {
     pub fn new(parent: impl AsWindow) -> Self {
         let mut widget = unsafe { ffi::new_combo_box(parent.as_window().as_raw_window(), E) };
-        widget.pin_mut().show();
+        widget.pin_mut().setVisible(true);
         let on_changed = Box::new(Callback::new());
         let on_select = Box::new(Callback::new());
         unsafe {
@@ -33,6 +33,14 @@ impl<const E: bool> ComboBoxImpl<E> {
             on_select,
             widget: Widget::new(widget),
         }
+    }
+
+    pub fn is_visible(&self) -> bool {
+        self.widget.is_visible()
+    }
+
+    pub fn set_visible(&mut self, v: bool) {
+        self.widget.set_visible(v);
     }
 
     pub fn preferred_size(&self) -> Size {
