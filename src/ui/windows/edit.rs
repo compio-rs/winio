@@ -3,10 +3,10 @@ use std::ptr::null;
 use windows_sys::Win32::{
     Graphics::Gdi::InvalidateRect,
     UI::{
-        Controls::{EM_GETPASSWORDCHAR, EM_SETPASSWORDCHAR, WC_EDITW},
+        Controls::{EM_GETPASSWORDCHAR, EM_SETPASSWORDCHAR, ShowScrollBar, WC_EDITW},
         WindowsAndMessaging::{
             EN_UPDATE, ES_AUTOHSCROLL, ES_AUTOVSCROLL, ES_CENTER, ES_LEFT, ES_MULTILINE,
-            ES_PASSWORD, ES_RIGHT, SendMessageW, WM_COMMAND, WS_CHILD, WS_EX_CLIENTEDGE,
+            ES_PASSWORD, ES_RIGHT, SB_VERT, SendMessageW, WM_COMMAND, WS_CHILD, WS_EX_CLIENTEDGE,
             WS_TABSTOP, WS_VISIBLE,
         },
     },
@@ -228,6 +228,7 @@ impl TextBox {
                 | ES_MULTILINE as u32
                 | ES_AUTOVSCROLL as u32,
         );
+        unsafe { ShowScrollBar(handle.as_raw_window(), SB_VERT, 1) };
         Self { handle }
     }
 
