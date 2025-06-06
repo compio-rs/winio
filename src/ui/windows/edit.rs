@@ -15,7 +15,7 @@ use windows_sys::Win32::{
 use crate::{
     AsRawWindow, AsWindow, HAlign, Point, RawWindow, Size,
     runtime::WindowMessageDetail,
-    ui::{Widget, font::measure_string},
+    ui::{Widget, font::measure_string, sys::fix_crlf},
 };
 
 #[derive(Debug)]
@@ -265,7 +265,7 @@ impl TextBox {
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.handle.set_text(s.as_ref().replace("\n", "\r\n"))
+        self.handle.set_text(fix_crlf(s.as_ref()))
     }
 
     pub fn halign(&self) -> HAlign {

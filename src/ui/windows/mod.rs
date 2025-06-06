@@ -49,3 +49,17 @@ pub fn color_theme() -> ColorTheme {
 
 /// Raw window handle.
 pub type RawWindow = windows_sys::Win32::Foundation::HWND;
+
+fn fix_crlf(s: &str) -> String {
+    let mut v = Vec::with_capacity(s.len());
+    let mut prev = 0u8;
+    for &b in s.as_bytes() {
+        if b == b'\n' && prev != b'\r' {
+            v.push(b'\r');
+        }
+        v.push(b);
+        prev = b;
+    }
+    // Safety: only ASCII operations
+    unsafe { String::from_utf8_unchecked(v) }
+}
