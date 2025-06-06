@@ -80,7 +80,7 @@ impl Component for Progress {
     type Message = ();
     type Root = Window;
 
-    fn init(_counter: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
+    fn init(_init: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
         let widget = ui::Progress::new(root);
         Self { widget }
     }

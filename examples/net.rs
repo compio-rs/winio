@@ -49,11 +49,7 @@ impl Component for MainModel {
     type Message = MainMessage;
     type Root = ();
 
-    fn init(
-        counter: Self::Init,
-        _root: &Self::Root,
-        sender: &winio::ComponentSender<Self>,
-    ) -> Self {
+    fn init(url: Self::Init, _root: &Self::Root, sender: &winio::ComponentSender<Self>) -> Self {
         let mut window = Child::<Window>::init((), &());
         window.set_text("Networking example");
         window.set_size(Size::new(800.0, 600.0));
@@ -62,11 +58,11 @@ impl Component for MainModel {
         let mut button = Child::<Button>::init((), &window);
         button.set_text("Go");
         let mut entry = Child::<Edit>::init((), &window);
-        entry.set_text(counter);
+        entry.set_text(url);
 
         let client = Client::new();
 
-        spawn(fetch(client.clone(), counter.to_string(), sender.clone())).detach();
+        spawn(fetch(client.clone(), url.to_string(), sender.clone())).detach();
 
         window.show();
 

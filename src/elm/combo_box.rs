@@ -149,7 +149,7 @@ impl Component for ComboBox {
     type Message = ComboBoxMessage;
     type Root = Window;
 
-    fn init(_counter: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
+    fn init(_init: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
         let widget = ui::ComboBox::new(root);
         Self { widget }
     }
@@ -274,7 +274,7 @@ impl Component for ComboEntry {
     type Message = ComboBoxMessage;
     type Root = Window;
 
-    fn init(_counter: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
+    fn init(_init: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
         let widget = ui::ComboEntry::new(root);
         Self { widget }
     }

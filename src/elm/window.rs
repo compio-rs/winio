@@ -83,7 +83,7 @@ impl Component for Window {
     type Message = ();
     type Root = ();
 
-    fn init(_counter: Self::Init, _root: &(), _sender: &ComponentSender<Self>) -> Self {
+    fn init(_init: Self::Init, _root: &(), _sender: &ComponentSender<Self>) -> Self {
         Self {
             widget: ui::Window::new(),
         }

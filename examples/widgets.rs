@@ -58,7 +58,7 @@ impl Component for MainModel {
     type Message = MainMessage;
     type Root = ();
 
-    fn init(_counter: Self::Init, _root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
+    fn init(_init: Self::Init, _root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
         let mut window = Child::<Window>::init((), &());
         let canvas = Child::<Canvas>::init((), &window);
 

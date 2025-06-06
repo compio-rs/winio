@@ -109,10 +109,10 @@ impl App {
 
     /// Create and manage the component, till it posts an event. The application
     /// returns the first event from the component.
-    pub fn run<T: Component>(&mut self, counter: T::Init, root: &T::Root) -> T::Event {
+    pub fn run<T: Component>(&mut self, init: T::Init, root: &T::Root) -> T::Event {
         self.block_on(async {
             let (sender, mut msg_recv, mut ev_recv) = component_channel();
-            let mut model = T::init(counter, root, &sender);
+            let mut model = T::init(init, root, &sender);
             model.render(&sender);
             loop {
                 let fut_start = model.start(&sender);

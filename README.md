@@ -24,7 +24,7 @@ impl Component for MainModel {
     type Message = MainMessage;
     type Root = ();
 
-    fn init(_counter: Self::Init, _root: &Self::Root, sender: &ComponentSender<Self>) -> Self {
+    fn init(_init: Self::Init, _root: &Self::Root, sender: &ComponentSender<Self>) -> Self {
         // create & initialize the window
         let mut window = Child::<Window>::init((), &());
         window.set_text("Basic example");

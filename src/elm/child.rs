@@ -19,9 +19,9 @@ pub struct Child<T: Component> {
 
 impl<T: Component> Child<T> {
     /// Create and initialize the child component.
-    pub fn init(counter: T::Init, root: &T::Root) -> Self {
+    pub fn init(init: T::Init, root: &T::Root) -> Self {
         let (sender, msg, ev) = component_channel();
-        let model = T::init(counter, root, &sender);
+        let model = T::init(init, root, &sender);
         Self {
             model,
             sender,

@@ -50,11 +50,7 @@ impl Component for MainModel {
     type Message = MainMessage;
     type Root = ();
 
-    fn init(
-        counter: Self::Init,
-        _root: &Self::Root,
-        sender: &winio::ComponentSender<Self>,
-    ) -> Self {
+    fn init(path: Self::Init, _root: &Self::Root, sender: &winio::ComponentSender<Self>) -> Self {
         let mut window = Child::<Window>::init((), &());
         window.set_text("File IO example");
         window.set_size(Size::new(800.0, 600.0));
@@ -64,10 +60,10 @@ impl Component for MainModel {
         button.set_text("Choose file...");
 
         let mut label = Child::<Label>::init((), &window);
-        label.set_text(counter);
+        label.set_text(path);
         label.set_halign(HAlign::Center);
 
-        spawn(fetch(counter, sender.clone())).detach();
+        spawn(fetch(path, sender.clone())).detach();
 
         window.show();
 
