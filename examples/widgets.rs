@@ -4,7 +4,7 @@ use winio::{
     DrawingFontBuilder, Edit, GradientStop, Grid, HAlign, Label, Layoutable, LinearGradientBrush,
     Margin, MessageBox, MessageBoxButton, ObservableVec, ObservableVecEvent, Orient, Point,
     Progress, RadialGradientBrush, RadioButton, RadioButtonGroup, Rect, RelativePoint,
-    RelativeSize, Size, SolidColorBrush, StackPanel, VAlign, Visible, Window, WindowEvent,
+    RelativeSize, Size, SolidColorBrush, StackPanel, TextBox, VAlign, Visible, Window, WindowEvent,
 };
 
 fn main() {
@@ -35,6 +35,7 @@ struct MainModel {
     pop_button: Child<Button>,
     show_button: Child<Button>,
     progress: Child<Progress>,
+    mltext: Child<TextBox>,
 }
 
 #[derive(Debug)]
@@ -107,6 +108,9 @@ impl Component for MainModel {
         let mut progress = Child::<Progress>::init((), &window);
         progress.set_indeterminate(true);
 
+        let mut mltext = Child::<TextBox>::init((), &window);
+        mltext.set_text("This is an example of\nmulti-line text box.");
+
         Self {
             window,
             ulabel,
@@ -126,6 +130,7 @@ impl Component for MainModel {
             pop_button,
             show_button,
             progress,
+            mltext,
         }
     }
 
@@ -305,6 +310,13 @@ impl Component for MainModel {
                 .push(&mut buttons_panel)
                 .column(2)
                 .row(2)
+                .finish();
+
+            root_panel
+                .push(&mut self.mltext)
+                .column(1)
+                .row(2)
+                .margin(Margin::new_all_same(8.0))
                 .finish();
 
             root_panel.set_size(csize);
