@@ -68,7 +68,12 @@ impl Edit {
     }
 
     pub fn is_visible(&self) -> bool {
-        self.handle.is_visible()
+        if self.password {
+            &self.phandle
+        } else {
+            &self.handle
+        }
+        .is_visible()
     }
 
     pub fn set_visible(&mut self, v: bool) {
