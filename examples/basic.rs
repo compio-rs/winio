@@ -6,7 +6,7 @@ use winio::{
     App, BrushPen, Canvas, CanvasEvent, Child, Color, ColorTheme, Component, ComponentSender,
     CustomButton, DrawingFontBuilder, Grid, HAlign, Layoutable, MessageBox, MessageBoxButton,
     MessageBoxResponse, MessageBoxStyle, MouseButton, Point, Rect, Size, SolidColorBrush, VAlign,
-    Window, WindowEvent,
+    Visible, Window, WindowEvent,
 };
 
 fn main() {
@@ -65,6 +65,7 @@ impl Component for MainModel {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) {
+        self.window.show();
         let fut_window = self.window.start(sender, |e| match e {
             WindowEvent::Close => Some(MainMessage::Close),
             WindowEvent::Resize => Some(MainMessage::Redraw),

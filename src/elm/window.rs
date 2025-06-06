@@ -53,6 +53,35 @@ impl AsRawWindow for Window {
     }
 }
 
+/// Trait for a widget to set visibility.
+pub trait Visible {
+    /// If the widget is visible.
+    fn is_visible(&self) -> bool;
+
+    /// Set the visibility.
+    fn set_visible(&mut self, v: bool);
+
+    /// Show the widget.
+    fn show(&mut self) {
+        self.set_visible(true);
+    }
+
+    /// Hide the widget.
+    fn hide(&mut self) {
+        self.set_visible(false);
+    }
+}
+
+impl Visible for Window {
+    fn is_visible(&self) -> bool {
+        self.widget.is_visible()
+    }
+
+    fn set_visible(&mut self, v: bool) {
+        self.widget.set_visible(v);
+    }
+}
+
 /// Events of [`Window`].
 #[non_exhaustive]
 pub enum WindowEvent {
