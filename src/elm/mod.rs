@@ -47,12 +47,13 @@ impl<T: Component> Clone for ComponentSender<T> {
 }
 
 #[derive(Debug)]
-struct ComponentReceiver<T: Component> {
-    message_rx: mpsc::UnboundedReceiver<T::Message>,
-    event_rx: mpsc::UnboundedReceiver<T::Event>,
-}
+struct ComponentReceiver<T>(mpsc::UnboundedReceiver<T>);
 
-fn component_channel<T: Component>() -> (ComponentSender<T>, ComponentReceiver<T>) {
+fn component_channel<T: Component>() -> (
+    ComponentSender<T>,
+    ComponentReceiver<T::Message>,
+    ComponentReceiver<T::Event>,
+) {
     let (message_tx, message_rx) = mpsc::unbounded();
     let (event_tx, event_rx) = mpsc::unbounded();
     (
@@ -60,10 +61,8 @@ fn component_channel<T: Component>() -> (ComponentSender<T>, ComponentReceiver<T
             message_tx,
             event_tx,
         },
-        ComponentReceiver {
-            message_rx,
-            event_rx,
-        },
+        ComponentReceiver(message_rx),
+        ComponentReceiver(event_rx),
     )
 }
 
@@ -79,21 +78,13 @@ impl<T: Component> ComponentSender<T> {
     }
 }
 
-impl<T: Component> ComponentReceiver<T> {
-    async fn recv(&mut self) -> T::Message {
-        self.message_rx.next().await.unwrap()
+impl<T> ComponentReceiver<T> {
+    async fn recv(&mut self) -> T {
+        self.0.next().await.unwrap()
     }
 
-    fn try_recv(&mut self) -> Option<T::Message> {
-        self.message_rx.try_next().ok().flatten()
-    }
-
-    async fn recv_output(&mut self) -> T::Event {
-        self.event_rx.next().await.unwrap()
-    }
-
-    fn try_recv_output(&mut self) -> Option<T::Event> {
-        self.event_rx.try_next().ok().flatten()
+    fn try_recv(&mut self) -> Option<T> {
+        self.0.try_next().ok().flatten()
     }
 }
 
@@ -120,23 +111,23 @@ impl App {
     /// returns the first event from the component.
     pub fn run<T: Component>(&mut self, counter: T::Init, root: &T::Root) -> T::Event {
         self.block_on(async {
-            let (sender, mut receiver) = component_channel();
+            let (sender, mut msg_recv, mut ev_recv) = component_channel();
             let mut model = T::init(counter, root, &sender);
             model.render(&sender);
             loop {
                 let fut_start = model.start(&sender);
-                let fut_recv = receiver.recv();
+                let fut_recv = msg_recv.recv();
                 futures_util::select! {
                     _ = fut_start.fuse() => unreachable!(),
                     msg = fut_recv.fuse() => {
                         let mut need_render = model.update(msg, &sender).await;
-                        while let Some(msg) = receiver.try_recv() {
+                        while let Some(msg) = msg_recv.try_recv() {
                             need_render |= model.update(msg, &sender).await;
                         }
                         if need_render {
                             model.render(&sender);
                         }
-                        if let Some(e) = receiver.try_recv_output() {
+                        if let Some(e) = ev_recv.try_recv() {
                             break e;
                         }
                     }

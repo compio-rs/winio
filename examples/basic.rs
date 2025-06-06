@@ -26,6 +26,7 @@ struct MainModel {
 
 #[derive(Debug)]
 enum MainMessage {
+    Noop,
     Tick,
     Close,
     Redraw,
@@ -68,23 +69,32 @@ impl Component for MainModel {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) {
-        let fut_window = self.window.start(sender, |e| match e {
-            WindowEvent::Close => Some(MainMessage::Close),
-            WindowEvent::Resize => Some(MainMessage::Redraw),
-            _ => None,
-        });
-        let fut_canvas = self.canvas.start(sender, |e| match e {
-            CanvasEvent::Redraw => Some(MainMessage::Redraw),
-            CanvasEvent::MouseDown(b) | CanvasEvent::MouseUp(b) => Some(MainMessage::Mouse(b)),
-            CanvasEvent::MouseMove(p) => Some(MainMessage::MouseMove(p)),
-            _ => None,
-        });
+        let fut_window = self.window.start(
+            sender,
+            |e| match e {
+                WindowEvent::Close => Some(MainMessage::Close),
+                WindowEvent::Resize => Some(MainMessage::Redraw),
+                _ => None,
+            },
+            || MainMessage::Noop,
+        );
+        let fut_canvas = self.canvas.start(
+            sender,
+            |e| match e {
+                CanvasEvent::Redraw => Some(MainMessage::Redraw),
+                CanvasEvent::MouseDown(b) | CanvasEvent::MouseUp(b) => Some(MainMessage::Mouse(b)),
+                CanvasEvent::MouseMove(p) => Some(MainMessage::MouseMove(p)),
+                _ => None,
+            },
+            || MainMessage::Noop,
+        );
         futures_util::future::join(fut_window, fut_canvas).await;
     }
 
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
         futures_util::future::join(self.window.update(), self.canvas.update()).await;
         match message {
+            MainMessage::Noop => false,
             MainMessage::Tick => {
                 self.counter += 1;
                 true

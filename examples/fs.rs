@@ -36,6 +36,7 @@ enum FetchStatus {
 
 #[derive(Debug)]
 enum MainMessage {
+    Noop,
     Close,
     Redraw,
     ChooseFile,
@@ -80,19 +81,31 @@ impl Component for MainModel {
     }
 
     async fn start(&mut self, sender: &winio::ComponentSender<Self>) {
-        let fut_window = self.window.start(sender, |e| match e {
-            WindowEvent::Close => Some(MainMessage::Close),
-            WindowEvent::Resize => Some(MainMessage::Redraw),
-            _ => None,
-        });
-        let fut_canvas = self.canvas.start(sender, |e| match e {
-            CanvasEvent::Redraw => Some(MainMessage::Redraw),
-            _ => None,
-        });
-        let fut_button = self.button.start(sender, |e| match e {
-            ButtonEvent::Click => Some(MainMessage::ChooseFile),
-            _ => None,
-        });
+        let fut_window = self.window.start(
+            sender,
+            |e| match e {
+                WindowEvent::Close => Some(MainMessage::Close),
+                WindowEvent::Resize => Some(MainMessage::Redraw),
+                _ => None,
+            },
+            || MainMessage::Noop,
+        );
+        let fut_canvas = self.canvas.start(
+            sender,
+            |e| match e {
+                CanvasEvent::Redraw => Some(MainMessage::Redraw),
+                _ => None,
+            },
+            || MainMessage::Noop,
+        );
+        let fut_button = self.button.start(
+            sender,
+            |e| match e {
+                ButtonEvent::Click => Some(MainMessage::ChooseFile),
+                _ => None,
+            },
+            || MainMessage::Noop,
+        );
         futures_util::future::join3(fut_window, fut_canvas, fut_button).await;
     }
 
@@ -108,6 +121,7 @@ impl Component for MainModel {
         )
         .await;
         match message {
+            MainMessage::Noop => false,
             MainMessage::Close => {
                 sender.output(());
                 false

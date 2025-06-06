@@ -40,6 +40,7 @@ struct MainModel {
 
 #[derive(Debug)]
 enum MainMessage {
+    Noop,
     Close,
     Redraw,
     List(ObservableVecEvent<String>),
@@ -137,36 +138,66 @@ impl Component for MainModel {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) {
-        let fut_window = self.window.start(sender, |e| match e {
-            WindowEvent::Close => Some(MainMessage::Close),
-            WindowEvent::Resize => Some(MainMessage::Redraw),
-            _ => None,
-        });
-        let fut_check = self.pcheck.start(sender, |e| match e {
-            CheckBoxEvent::Click => Some(MainMessage::PasswordCheck),
-            _ => None,
-        });
-        let fut_combo = self.combo.start(sender, |e| match e {
-            ComboBoxEvent::Select => Some(MainMessage::Select),
-            _ => None,
-        });
-        let fut_canvas = self.canvas.start(sender, |e| match e {
-            CanvasEvent::Redraw => Some(MainMessage::Redraw),
-            _ => None,
-        });
-        let fut_list = self.list.start(sender, |e| Some(MainMessage::List(e)));
-        let fut_push = self.push_button.start(sender, |e| match e {
-            ButtonEvent::Click => Some(MainMessage::Push),
-            _ => None,
-        });
-        let fut_pop = self.pop_button.start(sender, |e| match e {
-            ButtonEvent::Click => Some(MainMessage::Pop),
-            _ => None,
-        });
-        let fut_show = self.show_button.start(sender, |e| match e {
-            ButtonEvent::Click => Some(MainMessage::Show),
-            _ => None,
-        });
+        let fut_window = self.window.start(
+            sender,
+            |e| match e {
+                WindowEvent::Close => Some(MainMessage::Close),
+                WindowEvent::Resize => Some(MainMessage::Redraw),
+                _ => None,
+            },
+            || MainMessage::Noop,
+        );
+        let fut_check = self.pcheck.start(
+            sender,
+            |e| match e {
+                CheckBoxEvent::Click => Some(MainMessage::PasswordCheck),
+                _ => None,
+            },
+            || MainMessage::Noop,
+        );
+        let fut_combo = self.combo.start(
+            sender,
+            |e| match e {
+                ComboBoxEvent::Select => Some(MainMessage::Select),
+                _ => None,
+            },
+            || MainMessage::Noop,
+        );
+        let fut_canvas = self.canvas.start(
+            sender,
+            |e| match e {
+                CanvasEvent::Redraw => Some(MainMessage::Redraw),
+                _ => None,
+            },
+            || MainMessage::Noop,
+        );
+        let fut_list =
+            self.list
+                .start(sender, |e| Some(MainMessage::List(e)), || MainMessage::Noop);
+        let fut_push = self.push_button.start(
+            sender,
+            |e| match e {
+                ButtonEvent::Click => Some(MainMessage::Push),
+                _ => None,
+            },
+            || MainMessage::Noop,
+        );
+        let fut_pop = self.pop_button.start(
+            sender,
+            |e| match e {
+                ButtonEvent::Click => Some(MainMessage::Pop),
+                _ => None,
+            },
+            || MainMessage::Noop,
+        );
+        let fut_show = self.show_button.start(
+            sender,
+            |e| match e {
+                ButtonEvent::Click => Some(MainMessage::Show),
+                _ => None,
+            },
+            || MainMessage::Noop,
+        );
         let mut group = RadioButtonGroup::new(vec![&mut self.r1, &mut self.r2, &mut self.r3]);
         let fut_group = group.start(sender, |i| Some(MainMessage::RSelect(i)));
         futures_util::join!(
@@ -178,6 +209,7 @@ impl Component for MainModel {
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
         futures_util::future::join(self.window.update(), self.canvas.update()).await;
         match message {
+            MainMessage::Noop => false,
             MainMessage::Close => {
                 sender.output(());
                 false

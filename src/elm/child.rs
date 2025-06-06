@@ -1,4 +1,5 @@
 use std::{
+    collections::VecDeque,
     fmt::Debug,
     ops::{Deref, DerefMut},
 };
@@ -11,18 +12,22 @@ use crate::{Component, ComponentSender, Point, Rect, Size};
 pub struct Child<T: Component> {
     model: T,
     sender: ComponentSender<T>,
-    receiver: ComponentReceiver<T>,
+    msg: ComponentReceiver<T::Message>,
+    ev: ComponentReceiver<T::Event>,
+    msg_cache: VecDeque<T::Message>,
 }
 
 impl<T: Component> Child<T> {
     /// Create and initialize the child component.
     pub fn init(counter: T::Init, root: &T::Root) -> Self {
-        let (sender, receiver) = component_channel();
+        let (sender, msg, ev) = component_channel();
         let model = T::init(counter, root, &sender);
         Self {
             model,
             sender,
-            receiver,
+            msg,
+            ev,
+            msg_cache: VecDeque::new(),
         }
     }
 
@@ -31,17 +36,25 @@ impl<T: Component> Child<T> {
         &mut self,
         sender: &ComponentSender<C>,
         mut f: impl FnMut(T::Event) -> Option<C::Message>,
+        mut internal_pass: impl FnMut() -> C::Message,
     ) {
         let fut_start = self.model.start(&self.sender);
         let fut_forward = async {
             loop {
-                let e = self.receiver.recv_output().await;
+                let e = self.ev.recv().await;
                 if let Some(m) = f(e) {
                     sender.post(m);
                 }
             }
         };
-        futures_util::future::join(fut_start, fut_forward).await;
+        let fut_internal = async {
+            loop {
+                let e = self.msg.recv().await;
+                self.msg_cache.push_back(e);
+                sender.post(internal_pass());
+            }
+        };
+        futures_util::future::join3(fut_start, fut_forward, fut_internal).await;
     }
 
     /// Emit message to the child component.
@@ -52,7 +65,10 @@ impl<T: Component> Child<T> {
     /// Respond to the child message.
     pub async fn update(&mut self) -> bool {
         let mut need_render = false;
-        while let Some(message) = self.receiver.try_recv() {
+        while let Some(message) = self.msg_cache.pop_front() {
+            need_render |= self.model.update(message, &self.sender).await;
+        }
+        while let Some(message) = self.msg.try_recv() {
             need_render |= self.model.update(message, &self.sender).await;
         }
         need_render
