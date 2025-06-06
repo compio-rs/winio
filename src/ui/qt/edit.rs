@@ -14,7 +14,7 @@ pub struct Edit {
 impl Edit {
     pub fn new(parent: impl AsWindow) -> Self {
         let mut widget = unsafe { ffi::new_line_edit(parent.as_window().as_raw_window()) };
-        widget.pin_mut().show();
+        widget.pin_mut().setVisible(true);
         let on_changed = Box::new(Callback::new());
         unsafe {
             ffi::line_edit_connect_changed(
@@ -27,6 +27,14 @@ impl Edit {
             on_changed,
             widget: Widget::new(widget),
         }
+    }
+
+    pub fn is_visible(&self) -> bool {
+        self.widget.is_visible()
+    }
+
+    pub fn set_visible(&mut self, v: bool) {
+        self.widget.set_visible(v);
     }
 
     pub fn preferred_size(&self) -> Size {

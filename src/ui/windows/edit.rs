@@ -46,6 +46,14 @@ impl Edit {
         Self { handle, pchar }
     }
 
+    pub fn is_visible(&self) -> bool {
+        self.handle.is_visible()
+    }
+
+    pub fn set_visible(&mut self, v: bool) {
+        self.handle.set_visible(v);
+    }
+
     pub fn preferred_size(&self) -> Size {
         let s = measure_string(self.handle.as_raw_window(), &self.handle.text_u16());
         Size::new(s.width + 8.0, s.height + 4.0)

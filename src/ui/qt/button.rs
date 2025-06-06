@@ -13,7 +13,7 @@ pub struct Button {
 
 impl Button {
     fn new_impl(mut widget: UniquePtr<ffi::QWidget>) -> Self {
-        widget.pin_mut().show();
+        widget.pin_mut().setVisible(true);
         let on_click = Box::new(Callback::new());
         unsafe {
             ffi::push_button_connect_clicked(
@@ -31,6 +31,14 @@ impl Button {
     pub fn new(parent: impl AsWindow) -> Self {
         let widget = unsafe { ffi::new_push_button(parent.as_window().as_raw_window()) };
         Self::new_impl(widget)
+    }
+
+    pub fn is_visible(&self) -> bool {
+        self.widget.is_visible()
+    }
+
+    pub fn set_visible(&mut self, v: bool) {
+        self.widget.set_visible(v);
     }
 
     pub fn preferred_size(&self) -> Size {
@@ -85,6 +93,14 @@ impl CheckBox {
         Self { widget }
     }
 
+    pub fn is_visible(&self) -> bool {
+        self.widget.is_visible()
+    }
+
+    pub fn set_visible(&mut self, v: bool) {
+        self.widget.set_visible(v);
+    }
+
     pub fn preferred_size(&self) -> Size {
         self.widget.preferred_size()
     }
@@ -136,6 +152,14 @@ impl RadioButton {
         let widget = unsafe { ffi::new_radio_button(parent.as_window().as_raw_window()) };
         let widget = Button::new_impl(widget);
         Self { widget }
+    }
+
+    pub fn is_visible(&self) -> bool {
+        self.widget.is_visible()
+    }
+
+    pub fn set_visible(&mut self, v: bool) {
+        self.widget.set_visible(v);
     }
 
     pub fn preferred_size(&self) -> Size {

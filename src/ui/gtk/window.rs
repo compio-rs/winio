@@ -70,7 +70,6 @@ impl Window {
                 Propagation::Proceed
             }
         });
-        window.set_visible(true);
         Self {
             on_size,
             on_close,
@@ -78,6 +77,14 @@ impl Window {
             swindow,
             fixed,
         }
+    }
+
+    pub fn is_visible(&self) -> bool {
+        self.window.get_visible()
+    }
+
+    pub fn set_visible(&self, v: bool) {
+        self.window.set_visible(v);
     }
 
     pub fn loc(&self) -> Point {

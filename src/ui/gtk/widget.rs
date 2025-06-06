@@ -24,6 +24,14 @@ impl Widget {
         }
     }
 
+    pub fn is_visible(&self) -> bool {
+        self.widget.get_visible()
+    }
+
+    pub fn set_visible(&self, v: bool) {
+        self.widget.set_visible(v);
+    }
+
     pub fn preferred_size(&self) -> Size {
         let (size, _) = self.widget.preferred_size();
         let mut preferred_size = self.preferred_size.get();

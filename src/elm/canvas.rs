@@ -1,5 +1,6 @@
 use crate::{
-    Component, ComponentSender, DrawingContext, Layoutable, MouseButton, Point, Size, Window, ui,
+    Component, ComponentSender, DrawingContext, Layoutable, MouseButton, Point, Size, Visible,
+    Window, ui,
 };
 
 /// A simple drawing canvas.
@@ -12,6 +13,16 @@ impl Canvas {
     /// Create the [`DrawingContext`] of the current canvas.
     pub fn context(&mut self) -> DrawingContext<'_> {
         DrawingContext::new(self.widget.context())
+    }
+}
+
+impl Visible for Canvas {
+    fn is_visible(&self) -> bool {
+        self.widget.is_visible()
+    }
+
+    fn set_visible(&mut self, v: bool) {
+        self.widget.set_visible(v);
     }
 }
 

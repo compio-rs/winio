@@ -20,7 +20,7 @@ pub struct Canvas {
 impl Canvas {
     pub fn new(parent: impl AsWindow) -> Self {
         let mut widget = unsafe { ffi::new_canvas(parent.as_window().as_raw_window()) };
-        widget.pin_mut().show();
+        widget.pin_mut().setVisible(true);
         let on_move = Box::new(Callback::new());
         let on_press = Box::new(Callback::new());
         let on_release = Box::new(Callback::new());
@@ -47,6 +47,14 @@ impl Canvas {
             on_release,
             widget: Widget::new(widget),
         }
+    }
+
+    pub fn is_visible(&self) -> bool {
+        self.widget.is_visible()
+    }
+
+    pub fn set_visible(&mut self, v: bool) {
+        self.widget.set_visible(v);
     }
 
     pub fn loc(&self) -> Point {

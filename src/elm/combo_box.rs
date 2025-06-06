@@ -1,5 +1,5 @@
 use super::ObservableVecEvent;
-use crate::{Component, ComponentSender, Layoutable, Point, Size, Window, ui};
+use crate::{Component, ComponentSender, Layoutable, Point, Size, Visible, Window, ui};
 
 /// A simple combo box.
 #[derive(Debug)]
@@ -51,6 +51,16 @@ impl ComboBox {
     /// Remove the selection item by index.
     pub fn remove(&mut self, i: usize) {
         self.widget.remove(i);
+    }
+}
+
+impl Visible for ComboBox {
+    fn is_visible(&self) -> bool {
+        self.widget.is_visible()
+    }
+
+    fn set_visible(&mut self, v: bool) {
+        self.widget.set_visible(v);
     }
 }
 

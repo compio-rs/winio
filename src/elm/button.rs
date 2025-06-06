@@ -1,4 +1,4 @@
-use crate::{Component, ComponentSender, Layoutable, Point, Size, Window, ui};
+use crate::{Component, ComponentSender, Layoutable, Point, Size, Visible, Window, ui};
 
 /// A simple button.
 #[derive(Debug)]
@@ -15,6 +15,16 @@ impl Button {
     /// Set the text.
     pub fn set_text(&mut self, s: impl AsRef<str>) {
         self.widget.set_text(s)
+    }
+}
+
+impl Visible for Button {
+    fn is_visible(&self) -> bool {
+        self.widget.is_visible()
+    }
+
+    fn set_visible(&mut self, v: bool) {
+        self.widget.set_visible(v);
     }
 }
 

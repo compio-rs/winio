@@ -4,7 +4,7 @@ use winio::{
     DrawingFontBuilder, Edit, GradientStop, Grid, HAlign, Label, Layoutable, LinearGradientBrush,
     Margin, MessageBox, MessageBoxButton, ObservableVec, ObservableVecEvent, Orient, Point,
     Progress, RadialGradientBrush, RadioButton, RadioButtonGroup, Rect, RelativePoint,
-    RelativeSize, Size, SolidColorBrush, StackPanel, VAlign, Window, WindowEvent,
+    RelativeSize, Size, SolidColorBrush, StackPanel, VAlign, Visible, Window, WindowEvent,
 };
 
 fn main() {
@@ -130,6 +130,7 @@ impl Component for MainModel {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) {
+        self.window.show();
         let fut_window = self.window.start(sender, |e| match e {
             WindowEvent::Close => Some(MainMessage::Close),
             WindowEvent::Resize => Some(MainMessage::Redraw),

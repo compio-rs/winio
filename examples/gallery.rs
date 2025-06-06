@@ -5,7 +5,7 @@ use image::{DynamicImage, ImageReader};
 use winio::{
     App, BrushPen, Button, ButtonEvent, Canvas, CanvasEvent, Child, Color, ColorTheme, Component,
     ComponentSender, DrawingImage, Edit, FileBox, Layoutable, Orient, Point, Rect, Size,
-    SolidColorBrush, StackPanel, Window, WindowEvent,
+    SolidColorBrush, StackPanel, Visible, Window, WindowEvent,
 };
 
 fn main() {
@@ -74,6 +74,7 @@ impl Component for MainModel {
     }
 
     async fn start(&mut self, sender: &winio::ComponentSender<Self>) {
+        self.window.show();
         let fut_window = self.window.start(sender, |e| match e {
             WindowEvent::Close => Some(MainMessage::Close),
             WindowEvent::Resize => Some(MainMessage::Redraw),

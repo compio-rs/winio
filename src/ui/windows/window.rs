@@ -14,11 +14,11 @@ use windows_sys::{
         UI::WindowsAndMessaging::{
             CW_USEDEFAULT, CloseWindow, CreateWindowExW, DestroyIcon, GWL_STYLE, GetClientRect,
             GetParent, GetWindowLongPtrW, GetWindowLongW, GetWindowRect, GetWindowTextLengthW,
-            GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW, IMAGE_ICON, LR_DEFAULTCOLOR,
-            LR_DEFAULTSIZE, LoadCursorW, LoadImageW, RegisterClassExW, SW_SHOWNORMAL, SWP_NOMOVE,
-            SWP_NOSIZE, SWP_NOZORDER, SendMessageW, SetWindowLongPtrW, SetWindowLongW,
-            SetWindowPos, SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE, WM_SETICON, WM_SIZE,
-            WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
+            GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW, IMAGE_ICON, IsWindowVisible,
+            LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LoadCursorW, LoadImageW, RegisterClassExW, SW_HIDE,
+            SW_SHOW, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SendMessageW, SetWindowLongPtrW,
+            SetWindowLongW, SetWindowPos, SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE,
+            WM_SETICON, WM_SIZE, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
         },
     },
     w,
@@ -211,6 +211,16 @@ impl Widget {
         self.set_locd(self.point_l2d(p))
     }
 
+    pub fn is_visible(&self) -> bool {
+        unsafe { IsWindowVisible(self.as_raw_window()) != 0 }
+    }
+
+    pub fn set_visible(&mut self, v: bool) {
+        unsafe {
+            ShowWindow(self.as_raw_window(), if v { SW_SHOW } else { SW_HIDE });
+        }
+    }
+
     pub fn text(&self) -> String {
         self.text_u16().to_string_lossy()
     }
@@ -317,13 +327,20 @@ impl Window {
         register_once();
         let handle = Widget::new(WINDOW_CLASS_NAME, WS_OVERLAPPEDWINDOW, 0, null_mut());
         let this = Self { handle };
-        unsafe { ShowWindow(this.as_raw_window(), SW_SHOWNORMAL) };
         unsafe { window_use_dark_mode(this.as_raw_window()) };
         this
     }
 
     pub fn as_raw_window(&self) -> HWND {
         self.handle.as_raw_window()
+    }
+
+    pub fn is_visible(&self) -> bool {
+        self.handle.is_visible()
+    }
+
+    pub fn set_visible(&mut self, v: bool) {
+        self.handle.set_visible(v);
     }
 
     pub fn loc(&self) -> Point {

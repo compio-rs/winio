@@ -1,4 +1,6 @@
-use crate::{AsRawWindow, Component, ComponentSender, Layoutable, Point, RawWindow, Size, ui};
+use crate::{
+    AsRawWindow, Component, ComponentSender, Layoutable, Point, RawWindow, Size, Visible, ui,
+};
 
 /// A simple window.
 #[derive(Debug)]
@@ -26,6 +28,16 @@ impl Window {
     #[cfg(windows)]
     pub fn set_icon_by_id(&mut self, id: u16) {
         self.widget.set_icon_by_id(id);
+    }
+}
+
+impl Visible for Window {
+    fn is_visible(&self) -> bool {
+        self.widget.is_visible()
+    }
+
+    fn set_visible(&mut self, v: bool) {
+        self.widget.set_visible(v);
     }
 }
 

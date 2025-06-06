@@ -1,4 +1,4 @@
-use crate::{Component, ComponentSender, HAlign, Layoutable, Point, Size, Window, ui};
+use crate::{Component, ComponentSender, HAlign, Layoutable, Point, Size, Visible, Window, ui};
 
 /// A simple single-line text input box.
 #[derive(Debug)]
@@ -35,6 +35,16 @@ impl Edit {
     /// Set the horizontal alignment.
     pub fn set_halign(&mut self, align: HAlign) {
         self.widget.set_halign(align);
+    }
+}
+
+impl Visible for Edit {
+    fn is_visible(&self) -> bool {
+        self.widget.is_visible()
+    }
+
+    fn set_visible(&mut self, v: bool) {
+        self.widget.set_visible(v);
     }
 }
 

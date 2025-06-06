@@ -7,6 +7,25 @@ use taffy::{
 
 use crate::{HAlign, Margin, Orient, Point, Rect, Size, VAlign};
 
+/// Trait for a widget to set visibility.
+pub trait Visible {
+    /// If the widget is visible.
+    fn is_visible(&self) -> bool;
+
+    /// Set the visibility.
+    fn set_visible(&mut self, v: bool);
+
+    /// Show the widget.
+    fn show(&mut self) {
+        self.set_visible(true);
+    }
+
+    /// Hide the widget.
+    fn hide(&mut self) {
+        self.set_visible(false);
+    }
+}
+
 /// Trait for a layoutable widget.
 pub trait Layoutable {
     /// The left top location.
@@ -263,10 +282,13 @@ impl<'a> StackPanel<'a> {
 
     fn render(&mut self) {
         let (mut tree, root, nodes) = self.tree();
-        tree.compute_layout(root, taffy::Size {
-            width: taffy::AvailableSpace::Definite(self.size.width as _),
-            height: taffy::AvailableSpace::Definite(self.size.height as _),
-        })
+        tree.compute_layout(
+            root,
+            taffy::Size {
+                width: taffy::AvailableSpace::Definite(self.size.width as _),
+                height: taffy::AvailableSpace::Definite(self.size.height as _),
+            },
+        )
         .unwrap();
         for (id, child) in nodes.iter().zip(&mut self.children) {
             let layout = tree.layout(*id).unwrap();
@@ -499,10 +521,13 @@ impl<'a> Grid<'a> {
 
     fn render(&mut self) {
         let (mut tree, root, nodes) = self.tree();
-        tree.compute_layout(root, taffy::Size {
-            width: taffy::AvailableSpace::Definite(self.size.width as _),
-            height: taffy::AvailableSpace::Definite(self.size.height as _),
-        })
+        tree.compute_layout(
+            root,
+            taffy::Size {
+                width: taffy::AvailableSpace::Definite(self.size.width as _),
+                height: taffy::AvailableSpace::Definite(self.size.height as _),
+            },
+        )
         .unwrap();
         for (id, child) in nodes.iter().zip(&mut self.children) {
             let layout = tree.layout(*id).unwrap();

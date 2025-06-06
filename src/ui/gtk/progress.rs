@@ -39,6 +39,14 @@ impl Progress {
         }
     }
 
+    pub fn is_visible(&self) -> bool {
+        self.handle.is_visible()
+    }
+
+    pub fn set_visible(&self, v: bool) {
+        self.handle.set_visible(v);
+    }
+
     pub fn preferred_size(&self) -> Size {
         self.handle.preferred_size()
     }

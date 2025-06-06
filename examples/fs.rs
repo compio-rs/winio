@@ -7,7 +7,7 @@ use compio::{fs::File, io::AsyncReadAtExt, runtime::spawn};
 use winio::{
     App, Button, ButtonEvent, Canvas, CanvasEvent, Child, Color, ColorTheme, Component,
     ComponentSender, DrawingFontBuilder, FileBox, HAlign, Label, Layoutable, Orient, Point, Size,
-    SolidColorBrush, StackPanel, VAlign, Window, WindowEvent,
+    SolidColorBrush, StackPanel, VAlign, Visible, Window, WindowEvent,
 };
 
 fn main() {
@@ -78,6 +78,7 @@ impl Component for MainModel {
     }
 
     async fn start(&mut self, sender: &winio::ComponentSender<Self>) {
+        self.window.show();
         let fut_window = self.window.start(sender, |e| match e {
             WindowEvent::Close => Some(MainMessage::Close),
             WindowEvent::Resize => Some(MainMessage::Redraw),
