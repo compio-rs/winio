@@ -1,6 +1,6 @@
 use crate::{Component, ComponentSender, HAlign, Layoutable, Point, Size, Visible, Window, ui};
 
-/// A simple single-line text input box.
+/// A simple multi-line text input box.
 #[derive(Debug)]
 pub struct TextBox {
     widget: ui::TextBox,
@@ -13,6 +13,8 @@ impl TextBox {
     }
 
     /// Set the text.
+    ///
+    /// Lines are separated with `\n`. You don't need to handle CRLF.
     pub fn set_text(&mut self, s: impl AsRef<str>) {
         self.widget.set_text(s)
     }
