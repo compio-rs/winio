@@ -12,13 +12,13 @@ use windows_sys::{
         Graphics::Gdi::MapWindowPoints,
         System::LibraryLoader::GetModuleHandleW,
         UI::WindowsAndMessaging::{
-            CW_USEDEFAULT, CloseWindow, CreateWindowExW, DestroyIcon, GWL_STYLE, GetClientRect,
-            GetParent, GetWindowLongPtrW, GetWindowLongW, GetWindowRect, GetWindowTextLengthW,
-            GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW, IMAGE_ICON, IsWindowVisible,
-            LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LoadCursorW, LoadImageW, RegisterClassExW, SW_HIDE,
-            SW_SHOW, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SendMessageW, SetWindowLongPtrW,
-            SetWindowLongW, SetWindowPos, SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE,
-            WM_SETICON, WM_SIZE, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
+            CW_USEDEFAULT, CloseWindow, CreateWindowExW, DestroyIcon, DestroyWindow, GWL_STYLE,
+            GetClientRect, GetParent, GetWindowLongPtrW, GetWindowLongW, GetWindowRect,
+            GetWindowTextLengthW, GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW,
+            IMAGE_ICON, IsWindowVisible, LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LoadCursorW, LoadImageW,
+            RegisterClassExW, SW_HIDE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SendMessageW,
+            SetWindowLongPtrW, SetWindowLongW, SetWindowPos, SetWindowTextW, ShowWindow, WM_CLOSE,
+            WM_MOVE, WM_SETICON, WM_SIZE, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
         },
     },
     w,
@@ -410,5 +410,13 @@ impl Window {
 impl AsRawWindow for Window {
     fn as_raw_window(&self) -> RawWindow {
         self.handle.as_raw_window()
+    }
+}
+
+impl Drop for Window {
+    fn drop(&mut self) {
+        unsafe {
+            DestroyWindow(self.handle.as_raw_window());
+        }
     }
 }
