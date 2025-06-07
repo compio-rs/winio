@@ -35,7 +35,19 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup Rust Toolchain
         run: rustup toolchain install ${{ matrix.toolchain }}
-      - name: Install Qt on Ubuntu
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt update
+
+          PKGS=()
+          if [[ "${{ matrix.setup.features }}" == *"gtk"* ]]; then
+              PKGS+=("libgtk-4-dev")
+          else
+              PKGS+=("qt6-base-dev")
+          fi
+
+          sudo apt install -y "${PKGS[@]}"
       - name: Setup target
         if: ${{ matrix.setup.target }}
         run: rustup +${{ matrix.toolchain }} target install ${{ matrix.setup.target }}
