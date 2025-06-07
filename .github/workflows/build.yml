@@ -1,0 +1,76 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ${{ matrix.setup.os }}
+    strategy:
+      matrix:
+        toolchain: ['nightly']
+        setup:
+          - os: 'ubuntu-22.04'
+          - os: 'ubuntu-24.04'
+          - os: 'ubuntu-24.04'
+            features: 'gtk'
+            no_default_features: true
+          - os: 'windows-latest'
+            target: 'x86_64-pc-windows-msvc'
+          - os: 'windows-latest'
+            target: 'i686-pc-windows-msvc'
+          - os: 'macos-13'
+          - os: 'macos-14'
+          - os: 'macos-15'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust Toolchain
+        run: rustup toolchain install ${{ matrix.toolchain }}
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt update
+
+          PKGS=()
+          if [[ "${{ matrix.setup.features }}" == *"gtk"* ]]; then
+              PKGS+=("libgtk-4-dev")
+          else
+              PKGS+=("qt6-base-dev")
+          fi
+
+          sudo apt install -y "${PKGS[@]}"
+      - name: Setup target
+        if: ${{ matrix.setup.target }}
+        run: rustup +${{ matrix.toolchain }} target install ${{ matrix.setup.target }}
+      - name: Build on ${{ matrix.setup.os }} ${{ matrix.toolchain }} ${{ matrix.setup.target }}
+        shell: bash
+        run: |
+          set -ex
+
+          # Add feature "nightly" if toolchain is nightly
+          if [[ "${{ matrix.toolchain }}" == "nightly" ]]; then
+              ARGS+=("--features" "nightly")
+          fi
+          # Add features if features is not empty
+          if [[ -n "${{ matrix.setup.features }}" ]]; then
+              ARGS+=("--features" "${{ matrix.setup.features }}")
+          fi
+          # Add no-default-features if no_default_features is true
+          if [[ -n "${{ matrix.setup.no_default_features }}" ]]; then
+              ARGS+=("--no-default-features")
+          fi
+          # Specify target if target is not empty
+          if [[ -n "${{ matrix.setup.target }}" ]]; then
+              ARGS+=("--target" "${{ matrix.setup.target }}")
+          fi
+
+          cargo +${{ matrix.toolchain }} build --all-targets --workspace "${ARGS[@]}"
