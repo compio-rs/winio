@@ -56,6 +56,7 @@ jobs:
         with:
           msystem: CLANG64
           pacboy: clang:c
+          release: false
       - name: Setup target
         if: ${{ matrix.setup.target }}
         run: rustup +${{ matrix.toolchain }} target install ${{ matrix.setup.target }}
