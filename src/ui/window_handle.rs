@@ -13,7 +13,7 @@ impl BorrowedWindow<'_> {
     ///
     /// The window must remain valid for the duration of the returned
     /// [`BorrowedWindow`].
-    pub unsafe fn from_raw(handle: RawWindow) -> Self {
+    pub unsafe fn borrow_raw(handle: RawWindow) -> Self {
         Self {
             handle,
             _p: PhantomData,
@@ -51,10 +51,4 @@ impl<T: AsRawWindow> AsRawWindow for &'_ T {
 pub trait AsWindow {
     /// Get the window handle.
     fn as_window(&self) -> BorrowedWindow<'_>;
-}
-
-impl<T: AsRawWindow> AsWindow for T {
-    fn as_window(&self) -> BorrowedWindow<'_> {
-        unsafe { BorrowedWindow::from_raw(self.as_raw_window()) }
-    }
 }
