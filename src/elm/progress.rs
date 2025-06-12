@@ -1,4 +1,4 @@
-use crate::{Component, ComponentSender, Layoutable, Point, Size, Visible, Window, ui};
+use crate::{BorrowedWindow, Component, ComponentSender, Layoutable, Point, Size, Visible, ui};
 
 /// A progress bar.
 #[derive(Debug)]
@@ -76,12 +76,11 @@ pub enum ProgressEvent {}
 
 impl Component for Progress {
     type Event = ProgressEvent;
-    type Init = ();
+    type Init<'a> = BorrowedWindow<'a>;
     type Message = ();
-    type Root = Window;
 
-    fn init(_init: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::Progress::new(root);
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+        let widget = ui::Progress::new(init);
         Self { widget }
     }
 

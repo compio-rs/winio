@@ -18,14 +18,14 @@ use windows_sys::{
             IMAGE_ICON, IsWindowVisible, LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LoadCursorW, LoadImageW,
             RegisterClassExW, SW_HIDE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SendMessageW,
             SetWindowLongPtrW, SetWindowLongW, SetWindowPos, SetWindowTextW, ShowWindow, WM_CLOSE,
-            WM_MOVE, WM_SETICON, WM_SIZE, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
+            WM_MOVE, WM_SETICON, WM_SIZE, WNDCLASSEXW, WS_CHILDWINDOW, WS_OVERLAPPEDWINDOW,
         },
     },
     w,
 };
 
 use crate::{
-    AsRawWindow, Point, Size,
+    AsRawWindow, AsWindow, Point, Size,
     runtime::{WindowMessage, wait, window_proc},
     ui::{
         RawWindow,
@@ -323,9 +323,18 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new() -> Self {
+    pub fn new(parent: Option<impl AsWindow>) -> Self {
         register_once();
-        let handle = Widget::new(WINDOW_CLASS_NAME, WS_OVERLAPPEDWINDOW, 0, null_mut());
+        let handle = if let Some(parent) = parent {
+            Widget::new(
+                WINDOW_CLASS_NAME,
+                WS_OVERLAPPEDWINDOW | WS_CHILDWINDOW,
+                0,
+                parent.as_window().as_raw_window(),
+            )
+        } else {
+            Widget::new(WINDOW_CLASS_NAME, WS_OVERLAPPEDWINDOW, 0, null_mut())
+        };
         let this = Self { handle };
         unsafe { window_use_dark_mode(this.as_raw_window()) };
         this

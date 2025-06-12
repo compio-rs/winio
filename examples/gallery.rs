@@ -14,7 +14,7 @@ fn main() {
         .with_max_level(compio_log::Level::INFO)
         .init();
 
-    App::new().run::<MainModel>(dirs::picture_dir(), &())
+    App::new().run::<MainModel>(dirs::picture_dir())
 }
 
 struct MainModel {
@@ -39,20 +39,19 @@ enum MainMessage {
 
 impl Component for MainModel {
     type Event = ();
-    type Init = Option<PathBuf>;
+    type Init<'a> = Option<PathBuf>;
     type Message = MainMessage;
-    type Root = ();
 
-    fn init(path: Self::Init, _root: &Self::Root, sender: &winio::ComponentSender<Self>) -> Self {
-        let mut window = Child::<Window>::init((), &());
+    fn init(path: Self::Init<'_>, sender: &winio::ComponentSender<Self>) -> Self {
+        let mut window = Child::<Window>::init(());
         window.set_text("Gallery example");
         window.set_size(Size::new(800.0, 600.0));
 
-        let canvas = Child::<Canvas>::init((), &window);
-        let mut button = Child::<Button>::init((), &window);
+        let canvas = Child::<Canvas>::init(&window);
+        let mut button = Child::<Button>::init(&window);
         button.set_text("...");
 
-        let mut entry = Child::<Edit>::init((), &window);
+        let mut entry = Child::<Edit>::init(&window);
         entry.set_text(
             path.as_ref()
                 .map(|p| p.to_string_lossy().into_owned())

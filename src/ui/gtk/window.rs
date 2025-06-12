@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use gtk4::{glib::Propagation, prelude::*};
 
-use crate::{AsRawWindow, ColorTheme, Point, RawWindow, Size, ui::Callback};
+use crate::{AsRawWindow, AsWindow, ColorTheme, Point, RawWindow, Size, ui::Callback};
 
 #[derive(Debug)]
 pub struct Window {
@@ -15,7 +15,7 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new() -> Self {
+    pub fn new(_: Option<impl AsWindow>) -> Self {
         let window = gtk4::Window::new();
 
         let color = window.color();

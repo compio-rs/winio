@@ -13,7 +13,7 @@ struct WinioMainWindow : public QMainWindow {
     callback_t<void(int, int)> m_move_callback;
     callback_t<bool()> m_close_callback;
 
-    WinioMainWindow();
+    WinioMainWindow(QWidget *parent);
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -21,7 +21,7 @@ protected:
     void closeEvent(QCloseEvent *event) override;
 };
 
-std::unique_ptr<QWidget> new_main_window();
+std::unique_ptr<QWidget> new_main_window(QWidget *parent);
 void main_window_register_resize_event(QWidget &w,
                                        callback_fn_t<void(int, int)> callback,
                                        std::uint8_t const *data);

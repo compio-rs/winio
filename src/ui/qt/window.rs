@@ -1,6 +1,8 @@
+use std::ptr::null_mut;
+
 use super::RawWindow;
 use crate::{
-    AsRawWindow, Point, Size,
+    AsRawWindow, AsWindow, Point, Size,
     ui::{Callback, Widget},
 };
 
@@ -13,8 +15,14 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new() -> Self {
-        let mut widget = super::new_main_window();
+    pub fn new(parent: Option<impl AsWindow>) -> Self {
+        let mut widget = unsafe {
+            super::new_main_window(
+                parent
+                    .map(|w| w.as_window().as_raw_window())
+                    .unwrap_or(null_mut()),
+            )
+        };
         let on_resize = Box::new(Callback::new());
         let on_move = Box::new(Callback::new());
         let on_close = Box::new(Callback::new());
@@ -125,7 +133,9 @@ impl AsRawWindow for Window {
 impl Drop for Window {
     fn drop(&mut self) {
         unsafe {
-            self.widget.drop_in_place();
+            if self.widget.as_ref().parentWidget().is_null() {
+                self.widget.drop_in_place();
+            }
         }
     }
 }

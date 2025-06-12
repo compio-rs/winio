@@ -5,7 +5,9 @@ use std::{
 };
 
 use super::{ComponentReceiver, Layoutable, component_channel};
-use crate::{Component, ComponentSender, Point, Rect, Size};
+use crate::{
+    AsRawWindow, AsWindow, BorrowedWindow, Component, ComponentSender, Point, RawWindow, Rect, Size,
+};
 
 /// Helper to embed one component into another. It handles different types of
 /// messages and events.
@@ -19,9 +21,9 @@ pub struct Child<T: Component> {
 
 impl<T: Component> Child<T> {
     /// Create and initialize the child component.
-    pub fn init(init: T::Init, root: &T::Root) -> Self {
+    pub fn init<'a>(init: impl Into<T::Init<'a>>) -> Self {
         let (sender, msg, ev) = component_channel();
-        let model = T::init(init, root, &sender);
+        let model = T::init(init.into(), &sender);
         Self {
             model,
             sender,
@@ -117,6 +119,18 @@ impl<T: Component> Deref for Child<T> {
 impl<T: Component> DerefMut for Child<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.model
+    }
+}
+
+impl<T: AsRawWindow + Component> AsRawWindow for Child<T> {
+    fn as_raw_window(&self) -> RawWindow {
+        self.model.as_raw_window()
+    }
+}
+
+impl<T: AsWindow + Component> AsWindow for Child<T> {
+    fn as_window(&self) -> BorrowedWindow<'_> {
+        self.model.as_window()
     }
 }
 

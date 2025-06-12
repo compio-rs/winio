@@ -1,4 +1,4 @@
-use crate::{Component, ComponentSender, Layoutable, Point, Size, Visible, Window, ui};
+use crate::{BorrowedWindow, Component, ComponentSender, Layoutable, Point, Size, Visible, ui};
 
 /// A simple button.
 #[derive(Debug)]
@@ -59,12 +59,11 @@ pub enum ButtonEvent {
 
 impl Component for Button {
     type Event = ButtonEvent;
-    type Init = ();
+    type Init<'a> = BorrowedWindow<'a>;
     type Message = ();
-    type Root = Window;
 
-    fn init(_init: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::Button::new(root);
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+        let widget = ui::Button::new(init);
         Self { widget }
     }
 

@@ -7,7 +7,7 @@ use objc2_app_kit::{NSTextAlignment, NSTextDelegate, NSTextView, NSTextViewDeleg
 use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString};
 
 use crate::{
-    AsRawWindow, AsWindow, HAlign, Point, Size,
+    AsWindow, HAlign, Point, Size,
     ui::{Callback, Widget, from_nsstring},
 };
 
@@ -29,10 +29,7 @@ impl TextBox {
             text_view.setEditable(true);
             text_view.setSelectable(true);
 
-            let handle = Widget::from_nsview(
-                parent.as_window().as_raw_window(),
-                Retained::cast_unchecked(view.clone()),
-            );
+            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
 
             let delegate = TextBoxDelegate::new(mtm);
             let del_obj = ProtocolObject::from_retained(delegate.clone());

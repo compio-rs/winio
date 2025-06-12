@@ -1,4 +1,4 @@
-use crate::{Component, ComponentSender, Layoutable, Point, Size, Visible, Window, ui};
+use crate::{BorrowedWindow, Component, ComponentSender, Layoutable, Point, Size, Visible, ui};
 
 /// A simple check box.
 #[derive(Debug)]
@@ -69,12 +69,11 @@ pub enum CheckBoxEvent {
 
 impl Component for CheckBox {
     type Event = CheckBoxEvent;
-    type Init = ();
+    type Init<'a> = BorrowedWindow<'a>;
     type Message = ();
-    type Root = Window;
 
-    fn init(_init: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::CheckBox::new(root);
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+        let widget = ui::CheckBox::new(init);
         Self { widget }
     }
 

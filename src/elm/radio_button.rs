@@ -1,4 +1,4 @@
-use crate::{Component, ComponentSender, Layoutable, Point, Size, Visible, Window, ui};
+use crate::{BorrowedWindow, Component, ComponentSender, Layoutable, Point, Size, Visible, ui};
 
 /// A simple radio box. See [`RadioButtonGroup`] for making selection groups.
 #[derive(Debug)]
@@ -69,12 +69,11 @@ pub enum RadioButtonEvent {
 
 impl Component for RadioButton {
     type Event = RadioButtonEvent;
-    type Init = ();
+    type Init<'a> = BorrowedWindow<'a>;
     type Message = ();
-    type Root = Window;
 
-    fn init(_init: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::RadioButton::new(root);
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+        let widget = ui::RadioButton::new(init);
         Self { widget }
     }
 

@@ -16,7 +16,7 @@ fn main() {
         .with_max_level(compio_log::Level::INFO)
         .init();
 
-    App::new().run::<MainModel>("Cargo.toml", &())
+    App::new().run::<MainModel>("Cargo.toml")
 }
 
 struct MainModel {
@@ -46,23 +46,23 @@ enum MainMessage {
 
 impl Component for MainModel {
     type Event = ();
-    type Init = &'static str;
+    type Init<'a> = &'a str;
     type Message = MainMessage;
-    type Root = ();
 
-    fn init(path: Self::Init, _root: &Self::Root, sender: &winio::ComponentSender<Self>) -> Self {
-        let mut window = Child::<Window>::init((), &());
+    fn init(path: Self::Init<'_>, sender: &winio::ComponentSender<Self>) -> Self {
+        let mut window = Child::<Window>::init(());
         window.set_text("File IO example");
         window.set_size(Size::new(800.0, 600.0));
 
-        let canvas = Child::<Canvas>::init((), &window);
-        let mut button = Child::<Button>::init((), &window);
+        let canvas = Child::<Canvas>::init(&window);
+        let mut button = Child::<Button>::init(&window);
         button.set_text("Choose file...");
 
-        let mut label = Child::<Label>::init((), &window);
+        let mut label = Child::<Label>::init(&window);
         label.set_text(path);
         label.set_halign(HAlign::Center);
 
+        let path = path.to_string();
         spawn(fetch(path, sender.clone())).detach();
 
         window.show();

@@ -29,9 +29,8 @@ use objc2_quartz_core::{
 };
 
 use crate::{
-    AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, GradientStop, HAlign, LinearGradientBrush,
-    MouseButton, Point, RadialGradientBrush, Rect, RectBox, RelativePoint, Size, SolidColorBrush,
-    VAlign,
+    AsWindow, BrushPen, Color, DrawingFont, GradientStop, HAlign, LinearGradientBrush, MouseButton,
+    Point, RadialGradientBrush, Rect, RectBox, RelativePoint, Size, SolidColorBrush, VAlign,
     ui::{
         Callback, Widget, from_cgsize, to_cgsize, transform_cgpoint, transform_cgrect,
         transform_point, transform_rect,
@@ -48,10 +47,7 @@ impl Canvas {
     pub fn new(parent: impl AsWindow) -> Self {
         let view = CanvasView::new(MainThreadMarker::new().unwrap());
         view.setWantsLayer(true);
-        let handle = Widget::from_nsview(
-            parent.as_window().as_raw_window(),
-            Retained::into_super(view.clone()),
-        );
+        let handle = Widget::from_nsview(parent, Retained::into_super(view.clone()));
         Self { view, handle }
     }
 

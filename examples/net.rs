@@ -14,7 +14,7 @@ fn main() {
         .with_max_level(compio_log::Level::INFO)
         .init();
 
-    App::new().run::<MainModel>("https://www.example.com/", &());
+    App::new().run::<MainModel>("https://www.example.com/");
 }
 
 struct MainModel {
@@ -45,24 +45,24 @@ enum MainMessage {
 
 impl Component for MainModel {
     type Event = ();
-    type Init = &'static str;
+    type Init<'a> = &'a str;
     type Message = MainMessage;
-    type Root = ();
 
-    fn init(url: Self::Init, _root: &Self::Root, sender: &winio::ComponentSender<Self>) -> Self {
-        let mut window = Child::<Window>::init((), &());
+    fn init(url: Self::Init<'_>, sender: &winio::ComponentSender<Self>) -> Self {
+        let mut window = Child::<Window>::init(());
         window.set_text("Networking example");
         window.set_size(Size::new(800.0, 600.0));
 
-        let canvas = Child::<Canvas>::init((), &window);
-        let mut button = Child::<Button>::init((), &window);
+        let canvas = Child::<Canvas>::init(&window);
+        let mut button = Child::<Button>::init(&window);
         button.set_text("Go");
-        let mut entry = Child::<Edit>::init((), &window);
+        let mut entry = Child::<Edit>::init(&window);
         entry.set_text(url);
 
         let client = Client::new();
 
-        spawn(fetch(client.clone(), url.to_string(), sender.clone())).detach();
+        let url = url.to_string();
+        spawn(fetch(client.clone(), url, sender.clone())).detach();
 
         window.show();
 

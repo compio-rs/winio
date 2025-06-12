@@ -10,7 +10,7 @@ use objc2_app_kit::{
 use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString};
 
 use crate::{
-    AsRawWindow, AsWindow, HAlign, Point, Size,
+    AsWindow, HAlign, Point, Size,
     ui::{Callback, Widget, from_nsstring},
 };
 
@@ -43,14 +43,10 @@ impl Edit {
             pview.setSelectable(true);
             pview.setHidden(true);
 
-            let handle = Widget::from_nsview(
-                parent.as_window().as_raw_window(),
-                Retained::cast_unchecked(view.clone()),
-            );
-            let phandle = Widget::from_nsview(
-                parent.as_window().as_raw_window(),
-                Retained::cast_unchecked(pview.clone()),
-            );
+            let handle =
+                Widget::from_nsview(parent.as_window(), Retained::cast_unchecked(view.clone()));
+            let phandle =
+                Widget::from_nsview(parent.as_window(), Retained::cast_unchecked(pview.clone()));
 
             let delegate = EditDelegate::new(mtm);
             let del_obj = ProtocolObject::from_retained(delegate.clone());

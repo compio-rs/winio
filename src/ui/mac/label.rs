@@ -3,7 +3,7 @@ use objc2_app_kit::{NSTextAlignment, NSTextField};
 use objc2_foundation::{MainThreadMarker, NSString};
 
 use crate::{
-    AsRawWindow, AsWindow, HAlign, Point, Size,
+    AsWindow, HAlign, Point, Size,
     ui::{Widget, from_nsstring},
 };
 
@@ -23,10 +23,7 @@ impl Label {
             view.setDrawsBackground(false);
             view.setEditable(false);
             view.setSelectable(false);
-            let handle = Widget::from_nsview(
-                parent.as_window().as_raw_window(),
-                Retained::cast_unchecked(view.clone()),
-            );
+            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
 
             Self { handle, view }
         }

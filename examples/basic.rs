@@ -15,7 +15,7 @@ fn main() {
         .with_max_level(compio_log::Level::INFO)
         .init();
 
-    App::new().run::<MainModel>(0, &());
+    App::new().run::<MainModel>(0usize);
 }
 
 struct MainModel {
@@ -36,13 +36,12 @@ enum MainMessage {
 
 impl Component for MainModel {
     type Event = ();
-    type Init = usize;
+    type Init<'a> = usize;
     type Message = MainMessage;
-    type Root = ();
 
-    fn init(counter: Self::Init, _root: &Self::Root, sender: &ComponentSender<Self>) -> Self {
-        let mut window = Child::<Window>::init((), &());
-        let canvas = Child::<Canvas>::init((), &window);
+    fn init(counter: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+        let mut window = Child::<Window>::init(());
+        let canvas = Child::<Canvas>::init(&window);
 
         window.set_text("Basic example");
         window.set_size(Size::new(800.0, 600.0));

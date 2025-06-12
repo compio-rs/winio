@@ -1,7 +1,7 @@
 #include "window.hpp"
 
-WinioMainWindow::WinioMainWindow()
-    : QMainWindow(), m_resize_callback(std::nullopt),
+WinioMainWindow::WinioMainWindow(QWidget *parent)
+    : QMainWindow(parent), m_resize_callback(std::nullopt),
       m_move_callback(std::nullopt), m_close_callback(std::nullopt) {
     setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
 }
@@ -33,8 +33,8 @@ void WinioMainWindow::closeEvent(QCloseEvent *event) {
     event->accept();
 }
 
-std::unique_ptr<QWidget> new_main_window() {
-    return std::make_unique<WinioMainWindow>();
+std::unique_ptr<QWidget> new_main_window(QWidget *parent) {
+    return std::make_unique<WinioMainWindow>(parent);
 }
 
 void main_window_register_resize_event(QWidget &w,
