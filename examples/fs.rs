@@ -50,7 +50,7 @@ impl Component for MainModel {
     type Message = MainMessage;
 
     fn init(path: Self::Init<'_>, sender: &winio::ComponentSender<Self>) -> Self {
-        let mut window = Child::<Window>::init(None);
+        let mut window = Child::<Window>::init(());
         window.set_text("File IO example");
         window.set_size(Size::new(800.0, 600.0));
 

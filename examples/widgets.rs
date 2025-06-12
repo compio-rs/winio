@@ -58,7 +58,7 @@ impl Component for MainModel {
     type Message = MainMessage;
 
     fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let mut window = Child::<Window>::init(None);
+        let mut window = Child::<Window>::init(());
         let canvas = Child::<Canvas>::init(&window);
 
         window.set_text("Widgets example");

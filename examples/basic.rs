@@ -40,7 +40,7 @@ impl Component for MainModel {
     type Message = MainMessage;
 
     fn init(counter: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
-        let mut window = Child::<Window>::init(None);
+        let mut window = Child::<Window>::init(());
         let canvas = Child::<Canvas>::init(&window);
 
         window.set_text("Basic example");

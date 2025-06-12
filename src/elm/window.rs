@@ -84,14 +84,35 @@ pub enum WindowEvent {
     Resize,
 }
 
+#[doc(hidden)]
+pub struct MaybeBorrowedWindow<'a>(Option<BorrowedWindow<'a>>);
+
+impl<'a, T: Into<BorrowedWindow<'a>>> From<T> for MaybeBorrowedWindow<'a> {
+    fn from(value: T) -> Self {
+        Self(Some(value.into()))
+    }
+}
+
+impl<'a, T: Into<BorrowedWindow<'a>>> From<Option<T>> for MaybeBorrowedWindow<'a> {
+    fn from(value: Option<T>) -> Self {
+        Self(value.map(|v| v.into()))
+    }
+}
+
+impl From<()> for MaybeBorrowedWindow<'_> {
+    fn from(_: ()) -> Self {
+        Self(None)
+    }
+}
+
 impl Component for Window {
     type Event = WindowEvent;
-    type Init<'a> = Option<BorrowedWindow<'a>>;
+    type Init<'a> = MaybeBorrowedWindow<'a>;
     type Message = ();
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
         Self {
-            widget: ui::Window::new(),
+            widget: ui::Window::new(init.0),
         }
     }
 
