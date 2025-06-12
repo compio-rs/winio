@@ -10,35 +10,48 @@ Winio follows ELM-like design, inspired by [`yew`](https://yew.rs/) and [`relm4`
 The application starts with a root `Component`:
 
 ```rust
+use winio::{
+    App, Child, Component, ComponentSender, Layoutable, Size, Visible, Window, WindowEvent,
+};
+
+fn main() {
+    App::new().run::<MainModel>(());
+}
+
 struct MainModel {
     window: Child<Window>,
 }
 
 enum MainMessage {
+    Noop,
     Close,
 }
 
 impl Component for MainModel {
     type Event = ();
-    type Init = ();
+    type Init<'a> = ();
     type Message = MainMessage;
-    type Root = ();
 
-    fn init(_init: Self::Init, _root: &Self::Root, sender: &ComponentSender<Self>) -> Self {
+    fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
         // create & initialize the window
-        let mut window = Child::<Window>::init((), &());
+        let mut window = Child::<Window>::init(());
         window.set_text("Basic example");
         window.set_size(Size::new(800.0, 600.0));
+        window.show();
         Self { window }
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) {
         // listen to events
         self.window
-            .start(sender, |e| match e {
-                WindowEvent::Close => Some(MainMessage::Close),
-                _ => None,
-            })
+            .start(
+                sender,
+                |e| match e {
+                    WindowEvent::Close => Some(MainMessage::Close),
+                    _ => None,
+                },
+                || MainMessage::Noop,
+            )
             .await;
     }
 
@@ -47,6 +60,7 @@ impl Component for MainModel {
         self.window.update().await;
         // deal with custom messages
         match message {
+            MainMessage::Noop => false,
             MainMessage::Close => {
                 // the root component output stops the application
                 sender.output(());
