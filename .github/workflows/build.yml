@@ -51,6 +51,11 @@ jobs:
           fi
 
           sudo apt install -y "${PKGS[@]}"
+      - uses: msys2/setup-msys2@v2
+        if: ${{ endsWith(matrix.setup.target, 'gnullvm') }}
+        with:
+          msystem: CLANG64
+          pacboy: clang:c
       - name: Setup target
         if: ${{ matrix.setup.target }}
         run: rustup +${{ matrix.toolchain }} target install ${{ matrix.setup.target }}
@@ -74,6 +79,10 @@ jobs:
           # Specify target if target is not empty
           if [[ -n "${{ matrix.setup.target }}" ]]; then
               ARGS+=("--target" "${{ matrix.setup.target }}")
+          fi
+
+          if [[ "${{ matrix.setup.target }}" == *"llvm"* ]]; then
+              PATH=/clang64/bin:$PATH
           fi
 
           cargo +${{ matrix.toolchain }} build --all-targets --workspace "${ARGS[@]}"
