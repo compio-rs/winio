@@ -28,8 +28,16 @@ impl Widget {
         self.widget.get_visible()
     }
 
-    pub fn set_visible(&self, v: bool) {
+    pub fn set_visible(&mut self, v: bool) {
         self.widget.set_visible(v);
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.widget.get_sensitive()
+    }
+
+    pub fn set_enabled(&mut self, v: bool) {
+        self.widget.set_sensitive(v);
     }
 
     pub fn preferred_size(&self) -> Size {
@@ -52,7 +60,7 @@ impl Widget {
         Point::new(x, y)
     }
 
-    pub fn set_loc(&self, p: Point) {
+    pub fn set_loc(&mut self, p: Point) {
         let parent = self.widget.parent().unwrap();
         let fixed = parent.downcast::<gtk4::Fixed>().unwrap();
         fixed.move_(&self.widget, p.x, p.y);
@@ -66,7 +74,7 @@ impl Widget {
         )
     }
 
-    pub fn set_size(&self, s: Size) {
+    pub fn set_size(&mut self, s: Size) {
         self.widget.set_size_request(s.width as _, s.height as _)
     }
 }
