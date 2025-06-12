@@ -9,7 +9,7 @@ use objc2_app_kit::{
 use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString};
 
 use crate::{
-    AsRawWindow, AsWindow, Point, Size,
+    AsWindow, Point, Size,
     ui::{Callback, Widget, from_nsstring},
 };
 
@@ -30,10 +30,7 @@ impl<const E: bool> ComboBoxImpl<E> {
             view.setDrawsBackground(E);
             view.setEditable(E);
             view.setSelectable(E);
-            let handle = Widget::from_nsview(
-                parent.as_window().as_raw_window(),
-                Retained::cast_unchecked(view.clone()),
-            );
+            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
 
             let delegate = ComboBoxDelegate::new(mtm);
             let del_obj = ProtocolObject::from_retained(delegate.clone());

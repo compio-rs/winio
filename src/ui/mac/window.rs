@@ -25,7 +25,7 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new() -> Self {
+    pub fn new(parent: Option<impl AsWindow>) -> Self {
         unsafe {
             let mtm = MainThreadMarker::new().unwrap();
 
@@ -42,6 +42,10 @@ impl Window {
                     false,
                 )
             };
+
+            if let Some(parent) = parent {
+                wnd.setParentWindow(Some(&parent.as_window().as_raw_window()));
+            }
 
             let delegate = WindowDelegate::new(mtm);
             let del_obj = ProtocolObject::from_retained(delegate.clone());

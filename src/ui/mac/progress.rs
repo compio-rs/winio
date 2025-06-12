@@ -2,7 +2,7 @@ use objc2::rc::Retained;
 use objc2_app_kit::NSProgressIndicator;
 use objc2_foundation::MainThreadMarker;
 
-use crate::{AsRawWindow, AsWindow, Point, Size, ui::Widget};
+use crate::{AsWindow, Point, Size, ui::Widget};
 
 #[derive(Debug)]
 pub struct Progress {
@@ -18,10 +18,7 @@ impl Progress {
             let view = NSProgressIndicator::new(mtm);
             view.setIndeterminate(false);
             view.setUsesThreadedAnimation(false);
-            let handle = Widget::from_nsview(
-                parent.as_window().as_raw_window(),
-                Retained::cast_unchecked(view.clone()),
-            );
+            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
 
             Self { handle, view }
         }

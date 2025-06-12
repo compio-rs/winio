@@ -9,7 +9,7 @@ use objc2_app_kit::{
 use objc2_foundation::{MainThreadMarker, NSObject, NSString};
 
 use crate::{
-    AsRawWindow, AsWindow, Point, Size,
+    AsWindow, Point, Size,
     ui::{Callback, Widget, from_nsstring},
 };
 
@@ -26,10 +26,7 @@ impl Button {
             let mtm = MainThreadMarker::new().unwrap();
 
             let view = NSButton::new(mtm);
-            let handle = Widget::from_nsview(
-                parent.as_window().as_raw_window(),
-                Retained::cast_unchecked(view.clone()),
-            );
+            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
 
             let delegate = ButtonDelegate::new(mtm);
             view.setTarget(Some(&delegate));
