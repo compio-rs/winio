@@ -13,7 +13,7 @@ fn main() {
         .with_max_level(compio_log::Level::INFO)
         .init();
 
-    App::new().run::<MainModel>((), &());
+    App::new().run::<MainModel>(());
 }
 
 struct MainModel {
@@ -54,62 +54,61 @@ enum MainMessage {
 
 impl Component for MainModel {
     type Event = ();
-    type Init = ();
+    type Init<'a> = ();
     type Message = MainMessage;
-    type Root = ();
 
-    fn init(_init: Self::Init, _root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
-        let mut window = Child::<Window>::init((), &());
-        let canvas = Child::<Canvas>::init((), &window);
+    fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+        let mut window = Child::<Window>::init(None);
+        let canvas = Child::<Canvas>::init(&window);
 
         window.set_text("Widgets example");
         window.set_size(Size::new(800.0, 600.0));
 
-        let mut ulabel = Child::<Label>::init((), &window);
+        let mut ulabel = Child::<Label>::init(&window);
         ulabel.set_text("Username:");
         ulabel.set_halign(HAlign::Right);
-        let mut plabel = Child::<Label>::init((), &window);
+        let mut plabel = Child::<Label>::init(&window);
         plabel.set_text("Password:");
         plabel.set_halign(HAlign::Right);
 
-        let mut uentry = Child::<Edit>::init((), &window);
+        let mut uentry = Child::<Edit>::init(&window);
         uentry.set_text("AAA");
-        let mut pentry = Child::<Edit>::init((), &window);
+        let mut pentry = Child::<Edit>::init(&window);
         pentry.set_password(true);
         pentry.set_text("123456");
 
-        let mut pcheck = Child::<CheckBox>::init((), &window);
+        let mut pcheck = Child::<CheckBox>::init(&window);
         pcheck.set_checked(false);
         pcheck.set_text("Show");
 
-        let combo = Child::<ComboBox>::init((), &window);
+        let combo = Child::<ComboBox>::init(&window);
 
-        let mut list = Child::<ObservableVec<String>>::init(vec![], &());
+        let mut list = Child::<ObservableVec<String>>::init(vec![]);
         // https://www.zhihu.com/question/23600507/answer/140640887
         list.push("烫烫烫".into());
         list.push("昍昍昍".into());
         list.push("ﾌﾌﾌﾌﾌﾌ".into());
         list.push("쳌쳌쳌".into());
 
-        let mut r1 = Child::<RadioButton>::init((), &window);
+        let mut r1 = Child::<RadioButton>::init(&window);
         r1.set_text("屯屯屯");
         r1.set_checked(true);
-        let mut r2 = Child::<RadioButton>::init((), &window);
+        let mut r2 = Child::<RadioButton>::init(&window);
         r2.set_text("锟斤拷");
-        let mut r3 = Child::<RadioButton>::init((), &window);
+        let mut r3 = Child::<RadioButton>::init(&window);
         r3.set_text("╠╠╠");
 
-        let mut push_button = Child::<Button>::init((), &window);
+        let mut push_button = Child::<Button>::init(&window);
         push_button.set_text("Push");
-        let mut pop_button = Child::<Button>::init((), &window);
+        let mut pop_button = Child::<Button>::init(&window);
         pop_button.set_text("Pop");
-        let mut show_button = Child::<Button>::init((), &window);
+        let mut show_button = Child::<Button>::init(&window);
         show_button.set_text("Show");
 
-        let mut progress = Child::<Progress>::init((), &window);
+        let mut progress = Child::<Progress>::init(&window);
         progress.set_indeterminate(true);
 
-        let mut mltext = Child::<TextBox>::init((), &window);
+        let mut mltext = Child::<TextBox>::init(&window);
         mltext.set_text("This is an example of\nmulti-line text box.");
 
         window.show();

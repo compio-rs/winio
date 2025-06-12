@@ -1,6 +1,6 @@
 use crate::{
-    Component, ComponentSender, DrawingContext, Layoutable, MouseButton, Point, Size, Visible,
-    Window, ui,
+    BorrowedWindow, Component, ComponentSender, DrawingContext, Layoutable, MouseButton, Point,
+    Size, Visible, ui,
 };
 
 /// A simple drawing canvas.
@@ -59,12 +59,11 @@ pub enum CanvasEvent {
 
 impl Component for Canvas {
     type Event = CanvasEvent;
-    type Init = ();
+    type Init<'a> = BorrowedWindow<'a>;
     type Message = ();
-    type Root = Window;
 
-    fn init(_init: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::Canvas::new(root);
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+        let widget = ui::Canvas::new(init);
         Self { widget }
     }
 

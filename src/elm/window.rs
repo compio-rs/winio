@@ -1,5 +1,6 @@
 use crate::{
-    AsRawWindow, Component, ComponentSender, Layoutable, Point, RawWindow, Size, Visible, ui,
+    AsRawWindow, AsWindow, BorrowedWindow, Component, ComponentSender, Layoutable, Point,
+    RawWindow, Size, Visible, ui,
 };
 
 /// A simple window.
@@ -65,6 +66,12 @@ impl AsRawWindow for Window {
     }
 }
 
+impl AsWindow for Window {
+    fn as_window(&self) -> BorrowedWindow<'_> {
+        self.widget.as_window()
+    }
+}
+
 /// Events of [`Window`].
 #[non_exhaustive]
 pub enum WindowEvent {
@@ -79,11 +86,10 @@ pub enum WindowEvent {
 
 impl Component for Window {
     type Event = WindowEvent;
-    type Init = ();
+    type Init<'a> = Option<BorrowedWindow<'a>>;
     type Message = ();
-    type Root = ();
 
-    fn init(_init: Self::Init, _root: &(), _sender: &ComponentSender<Self>) -> Self {
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
         Self {
             widget: ui::Window::new(),
         }

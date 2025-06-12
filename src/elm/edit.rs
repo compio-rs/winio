@@ -1,4 +1,6 @@
-use crate::{Component, ComponentSender, HAlign, Layoutable, Point, Size, Visible, Window, ui};
+use crate::{
+    BorrowedWindow, Component, ComponentSender, HAlign, Layoutable, Point, Size, Visible, ui,
+};
 
 /// A simple single-line text input box.
 #[derive(Debug)]
@@ -79,12 +81,11 @@ pub enum EditEvent {
 
 impl Component for Edit {
     type Event = EditEvent;
-    type Init = ();
+    type Init<'a> = BorrowedWindow<'a>;
     type Message = ();
-    type Root = Window;
 
-    fn init(_init: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::Edit::new(root);
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+        let widget = ui::Edit::new(init);
         Self { widget }
     }
 

@@ -1,4 +1,6 @@
-use crate::{Component, ComponentSender, HAlign, Layoutable, Point, Size, Visible, Window, ui};
+use crate::{
+    BorrowedWindow, Component, ComponentSender, HAlign, Layoutable, Point, Size, Visible, ui,
+};
 
 /// A simple multi-line text input box.
 #[derive(Debug)]
@@ -71,12 +73,11 @@ pub enum TextBoxEvent {
 
 impl Component for TextBox {
     type Event = TextBoxEvent;
-    type Init = ();
+    type Init<'a> = BorrowedWindow<'a>;
     type Message = ();
-    type Root = Window;
 
-    fn init(_init: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::TextBox::new(root);
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+        let widget = ui::TextBox::new(init);
         Self { widget }
     }
 

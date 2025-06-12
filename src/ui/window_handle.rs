@@ -1,8 +1,9 @@
 use std::marker::PhantomData;
 
-use crate::ui::RawWindow;
+use crate::ui::{OwnedWindow, RawWindow, Window};
 
 /// A borrowed window handle.
+#[derive(Clone)]
 pub struct BorrowedWindow<'a> {
     handle: RawWindow,
     _p: PhantomData<&'a ()>,
@@ -51,4 +52,35 @@ impl<T: AsRawWindow> AsRawWindow for &'_ T {
 pub trait AsWindow {
     /// Get the window handle.
     fn as_window(&self) -> BorrowedWindow<'_>;
+}
+
+impl AsWindow for BorrowedWindow<'_> {
+    fn as_window(&self) -> BorrowedWindow<'_> {
+        self.clone()
+    }
+}
+
+impl AsWindow for OwnedWindow {
+    fn as_window(&self) -> BorrowedWindow<'_> {
+        unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
+    }
+}
+
+impl AsWindow for Window {
+    fn as_window(&self) -> BorrowedWindow<'_> {
+        unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
+    }
+}
+
+impl<T: AsWindow + ?Sized> AsWindow for &T {
+    #[inline]
+    fn as_window(&self) -> BorrowedWindow<'_> {
+        T::as_window(self)
+    }
+}
+
+impl<'a, T: AsWindow + ?Sized> From<&'a T> for BorrowedWindow<'a> {
+    fn from(value: &'a T) -> Self {
+        value.as_window()
+    }
 }

@@ -9,16 +9,14 @@ use crate::runtime::Runtime;
 #[allow(async_fn_in_trait)]
 pub trait Component: Sized {
     /// Initial parameter type.
-    type Init;
-    /// The referenced root, usually the parent window.
-    type Root;
+    type Init<'a>;
     /// The input message type to update.
     type Message;
     /// The output event type to the parent.
     type Event;
 
     /// Create the initial component.
-    fn init(init: Self::Init, root: &Self::Root, sender: &ComponentSender<Self>) -> Self;
+    fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self;
 
     /// Start the event listening.
     async fn start(&mut self, sender: &ComponentSender<Self>);
@@ -109,10 +107,10 @@ impl App {
 
     /// Create and manage the component, till it posts an event. The application
     /// returns the first event from the component.
-    pub fn run<T: Component>(&mut self, init: T::Init, root: &T::Root) -> T::Event {
+    pub fn run<'a, T: Component>(&mut self, init: impl Into<T::Init<'a>>) -> T::Event {
         self.block_on(async {
             let (sender, mut msg_recv, mut ev_recv) = component_channel();
-            let mut model = T::init(init, root, &sender);
+            let mut model = T::init(init.into(), &sender);
             model.render(&sender);
             loop {
                 let fut_start = model.start(&sender);

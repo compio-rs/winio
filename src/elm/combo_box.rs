@@ -1,5 +1,5 @@
 use super::ObservableVecEvent;
-use crate::{Component, ComponentSender, Layoutable, Point, Size, Visible, Window, ui};
+use crate::{BorrowedWindow, Component, ComponentSender, Layoutable, Point, Size, Visible, ui};
 
 /// A simple combo box.
 #[derive(Debug)]
@@ -145,12 +145,11 @@ impl ComboBoxMessage {
 
 impl Component for ComboBox {
     type Event = ComboBoxEvent;
-    type Init = ();
+    type Init<'a> = BorrowedWindow<'a>;
     type Message = ComboBoxMessage;
-    type Root = Window;
 
-    fn init(_init: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::ComboBox::new(root);
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+        let widget = ui::ComboBox::new(init);
         Self { widget }
     }
 
@@ -270,12 +269,11 @@ pub enum ComboEntryEvent {
 
 impl Component for ComboEntry {
     type Event = ComboEntryEvent;
-    type Init = ();
+    type Init<'a> = BorrowedWindow<'a>;
     type Message = ComboBoxMessage;
-    type Root = Window;
 
-    fn init(_init: Self::Init, root: &Self::Root, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::ComboEntry::new(root);
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+        let widget = ui::ComboEntry::new(init);
         Self { widget }
     }
 
