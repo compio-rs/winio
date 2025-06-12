@@ -43,6 +43,14 @@ impl<const E: bool> ComboBoxImpl<E> {
         self.widget.set_visible(v);
     }
 
+    pub fn is_enabled(&self) -> bool {
+        self.widget.is_enabled()
+    }
+
+    pub fn set_enabled(&mut self, v: bool) {
+        self.widget.set_enabled(v);
+    }
+
     pub fn preferred_size(&self) -> Size {
         self.widget.preferred_size()
     }
