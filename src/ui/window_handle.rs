@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::ui::{OwnedWindow, RawWindow, Window};
+use crate::ui::{RawWindow, Window};
 
 /// A borrowed window handle.
 #[derive(Clone)]
@@ -57,12 +57,6 @@ pub trait AsWindow {
 impl AsWindow for BorrowedWindow<'_> {
     fn as_window(&self) -> BorrowedWindow<'_> {
         self.clone()
-    }
-}
-
-impl AsWindow for OwnedWindow {
-    fn as_window(&self) -> BorrowedWindow<'_> {
-        unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
     }
 }
 

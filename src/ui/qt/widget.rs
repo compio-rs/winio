@@ -128,8 +128,9 @@ mod ffi {
         type QSize = super::QSize;
         type QRect = super::QRect;
 
-        fn new_main_window() -> UniquePtr<QWidget>;
+        unsafe fn new_main_window(parent: *mut QWidget) -> UniquePtr<QWidget>;
 
+        fn parentWidget(self: &QWidget) -> *mut QWidget;
         fn x(self: &QWidget) -> i32;
         fn y(self: &QWidget) -> i32;
         #[cxx_name = "move"]
