@@ -83,7 +83,7 @@ jobs:
           fi
 
           if [[ "${{ matrix.setup.target }}" == *"llvm"* ]]; then
-              PATH=/clang64/bin:$PATH
+              PATH=/c/msys64/clang64/bin:$PATH
           fi
 
           cargo +${{ matrix.toolchain }} build --all-targets --workspace "${ARGS[@]}"
