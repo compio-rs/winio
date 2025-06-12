@@ -1,10 +1,11 @@
 use winio::{
     App, BrushPen, Button, ButtonEvent, Canvas, CanvasEvent, CheckBox, CheckBoxEvent, Child, Color,
     ColorTheme, ComboBox, ComboBoxEvent, ComboBoxMessage, Component, ComponentSender,
-    DrawingFontBuilder, Edit, GradientStop, Grid, HAlign, Label, Layoutable, LinearGradientBrush,
-    Margin, MessageBox, MessageBoxButton, ObservableVec, ObservableVecEvent, Orient, Point,
-    Progress, RadialGradientBrush, RadioButton, RadioButtonGroup, Rect, RelativePoint,
-    RelativeSize, Size, SolidColorBrush, StackPanel, TextBox, VAlign, Visible, Window, WindowEvent,
+    DrawingFontBuilder, Edit, Enable, GradientStop, Grid, HAlign, Label, Layoutable,
+    LinearGradientBrush, Margin, MessageBox, MessageBoxButton, ObservableVec, ObservableVecEvent,
+    Orient, Point, Progress, RadialGradientBrush, RadioButton, RadioButtonGroup, Rect,
+    RelativePoint, RelativeSize, Size, SolidColorBrush, StackPanel, TextBox, VAlign, Visible,
+    Window, WindowEvent,
 };
 
 fn main() {
@@ -219,6 +220,7 @@ impl Component for MainModel {
                 true
             }
             MainMessage::List(e) => {
+                self.pop_button.set_enabled(!self.list.is_empty());
                 self.combo
                     .emit(ComboBoxMessage::from_observable_vec_event(e))
                     .await
@@ -250,11 +252,12 @@ impl Component for MainModel {
             MainMessage::Show => {
                 MessageBox::new()
                     .title("Show selected item")
-                    .message(if let Some(index) = self.index {
-                        self.list[index].as_str()
-                    } else {
-                        "No selection."
-                    })
+                    .message(
+                        self.index
+                            .and_then(|index| self.list.get(index))
+                            .map(|s| s.as_str())
+                            .unwrap_or("No selection."),
+                    )
                     .buttons(MessageBoxButton::Ok)
                     .show(Some(&*self.window))
                     .await;

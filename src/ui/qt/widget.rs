@@ -36,6 +36,14 @@ impl Widget {
         self.widget.pin_mut().setVisible(v);
     }
 
+    pub fn is_enabled(&self) -> bool {
+        self.widget.isEnabled()
+    }
+
+    pub fn set_enabled(&mut self, v: bool) {
+        self.widget.pin_mut().setEnabled(v);
+    }
+
     pub fn preferred_size(&self) -> Size {
         let s = self.widget.sizeHint();
         Size::new(s.width as _, s.height as _)
@@ -143,6 +151,8 @@ mod ffi {
         fn update(self: Pin<&mut QWidget>);
         fn isVisible(self: &QWidget) -> bool;
         fn setVisible(self: Pin<&mut QWidget>, v: bool);
+        fn isEnabled(self: &QWidget) -> bool;
+        fn setEnabled(self: Pin<&mut QWidget>, v: bool);
 
         fn widget_get_title(w: &QWidget) -> String;
         fn widget_set_title(w: Pin<&mut QWidget>, s: &str);

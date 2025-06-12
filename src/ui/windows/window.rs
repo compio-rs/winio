@@ -11,14 +11,18 @@ use windows_sys::{
         Foundation::{HWND, POINT, SetLastError},
         Graphics::Gdi::MapWindowPoints,
         System::LibraryLoader::GetModuleHandleW,
-        UI::WindowsAndMessaging::{
-            CW_USEDEFAULT, CloseWindow, CreateWindowExW, DestroyIcon, DestroyWindow, GWL_STYLE,
-            GetClientRect, GetParent, GetWindowLongPtrW, GetWindowLongW, GetWindowRect,
-            GetWindowTextLengthW, GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW,
-            IMAGE_ICON, IsWindowVisible, LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LoadCursorW, LoadImageW,
-            RegisterClassExW, SW_HIDE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SendMessageW,
-            SetWindowLongPtrW, SetWindowLongW, SetWindowPos, SetWindowTextW, ShowWindow, WM_CLOSE,
-            WM_MOVE, WM_SETICON, WM_SIZE, WNDCLASSEXW, WS_CHILDWINDOW, WS_OVERLAPPEDWINDOW,
+        UI::{
+            Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled},
+            WindowsAndMessaging::{
+                CW_USEDEFAULT, CloseWindow, CreateWindowExW, DestroyIcon, DestroyWindow, GWL_STYLE,
+                GetClientRect, GetParent, GetWindowLongPtrW, GetWindowLongW, GetWindowRect,
+                GetWindowTextLengthW, GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW,
+                IMAGE_ICON, IsWindowVisible, LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LoadCursorW,
+                LoadImageW, RegisterClassExW, SW_HIDE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE,
+                SWP_NOZORDER, SendMessageW, SetWindowLongPtrW, SetWindowLongW, SetWindowPos,
+                SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE, WM_SETICON, WM_SIZE, WNDCLASSEXW,
+                WS_CHILDWINDOW, WS_OVERLAPPEDWINDOW,
+            },
         },
     },
     w,
@@ -218,6 +222,16 @@ impl Widget {
     pub fn set_visible(&mut self, v: bool) {
         unsafe {
             ShowWindow(self.as_raw_window(), if v { SW_SHOW } else { SW_HIDE });
+        }
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        unsafe { IsWindowEnabled(self.as_raw_window()) != 0 }
+    }
+
+    pub fn set_enabled(&mut self, v: bool) {
+        unsafe {
+            EnableWindow(self.as_raw_window(), if v { 1 } else { 0 });
         }
     }
 

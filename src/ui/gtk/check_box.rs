@@ -44,8 +44,16 @@ impl CheckBox {
         self.handle.is_visible()
     }
 
-    pub fn set_visible(&self, v: bool) {
+    pub fn set_visible(&mut self, v: bool) {
         self.handle.set_visible(v);
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.handle.is_enabled()
+    }
+
+    pub fn set_enabled(&mut self, v: bool) {
+        self.handle.set_enabled(v);
     }
 
     pub fn preferred_size(&self) -> Size {
@@ -108,8 +116,16 @@ impl RadioButton {
         self.handle.is_visible()
     }
 
-    pub fn set_visible(&self, v: bool) {
+    pub fn set_visible(&mut self, v: bool) {
         self.handle.set_visible(v);
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.handle.is_enabled()
+    }
+
+    pub fn set_enabled(&mut self, v: bool) {
+        self.handle.set_enabled(v);
     }
 
     pub fn preferred_size(&self) -> Size {

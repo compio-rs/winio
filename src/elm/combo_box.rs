@@ -1,5 +1,7 @@
 use super::ObservableVecEvent;
-use crate::{BorrowedWindow, Component, ComponentSender, Layoutable, Point, Size, Visible, ui};
+use crate::{
+    BorrowedWindow, Component, ComponentSender, Enable, Layoutable, Point, Size, Visible, ui,
+};
 
 /// A simple combo box.
 #[derive(Debug)]
@@ -61,6 +63,16 @@ impl Visible for ComboBox {
 
     fn set_visible(&mut self, v: bool) {
         self.widget.set_visible(v);
+    }
+}
+
+impl Enable for ComboBox {
+    fn is_enabled(&self) -> bool {
+        self.widget.is_enabled()
+    }
+
+    fn set_enabled(&mut self, v: bool) {
+        self.widget.set_enabled(v);
     }
 }
 
@@ -233,6 +245,26 @@ impl ComboEntry {
     /// Remove the selection item by index.
     pub fn remove(&mut self, i: usize) {
         self.widget.remove(i);
+    }
+}
+
+impl Visible for ComboEntry {
+    fn is_visible(&self) -> bool {
+        self.widget.is_visible()
+    }
+
+    fn set_visible(&mut self, v: bool) {
+        self.widget.set_visible(v);
+    }
+}
+
+impl Enable for ComboEntry {
+    fn is_enabled(&self) -> bool {
+        self.widget.is_enabled()
+    }
+
+    fn set_enabled(&mut self, v: bool) {
+        self.widget.set_enabled(v);
     }
 }
 

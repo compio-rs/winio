@@ -26,6 +26,25 @@ pub trait Visible {
     }
 }
 
+/// Trait for a widget to enable or disable.
+pub trait Enable {
+    /// If the widget is enabled.
+    fn is_enabled(&self) -> bool;
+
+    /// Set if the widget is enabled.
+    fn set_enabled(&mut self, v: bool);
+
+    /// Enable the widget.
+    fn enable(&mut self) {
+        self.set_enabled(true);
+    }
+
+    /// Disable the widget.
+    fn disable(&mut self) {
+        self.set_enabled(false);
+    }
+}
+
 /// Trait for a layoutable widget.
 pub trait Layoutable {
     /// The left top location.
