@@ -18,7 +18,7 @@ use windows_sys::Win32::{
 
 use crate::{
     AsRawWindow, AsWindow, MessageBoxButton, MessageBoxResponse, MessageBoxStyle,
-    ui::darkmode::task_dialog_callback,
+    ui::darkmode::TASK_DIALOG_CALLBACK,
 };
 
 async fn msgbox_custom(
@@ -76,7 +76,7 @@ async fn msgbox_custom(
                 hFooterIcon: null_mut(),
             },
             pszFooter: null(),
-            pfCallback: Some(task_dialog_callback),
+            pfCallback: TASK_DIALOG_CALLBACK,
             lpCallbackData: 0,
             cxWidth: 0,
         };

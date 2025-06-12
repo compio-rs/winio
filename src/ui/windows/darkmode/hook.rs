@@ -24,10 +24,10 @@ use windows_sys::{
             Controls::{
                 BP_CHECKBOX, BP_RADIOBUTTON, DTBGOPTS, DTT_TEXTCOLOR, DTTOPTS, DrawThemeBackground,
                 DrawThemeBackgroundEx, DrawThemeText, DrawThemeTextEx, GetThemeColor, HTHEME,
-                PBS_DISABLED, PP_TRANSPARENTBAR, PROGRESS_CLASSW, SetWindowTheme,
-                TASKDIALOG_NOTIFICATIONS, TDLG_MAININSTRUCTIONPANE, TDLG_PRIMARYPANEL,
-                TDLG_SECONDARYPANEL, TDN_CREATED, TDN_DIALOG_CONSTRUCTED, TMT_TEXTCOLOR,
-                WC_BUTTONW, WC_COMBOBOXW,
+                PBS_DISABLED, PFTASKDIALOGCALLBACK, PP_TRANSPARENTBAR, PROGRESS_CLASSW,
+                SetWindowTheme, TASKDIALOG_NOTIFICATIONS, TDLG_MAININSTRUCTIONPANE,
+                TDLG_PRIMARYPANEL, TDLG_SECONDARYPANEL, TDN_CREATED, TDN_DIALOG_CONSTRUCTED,
+                TMT_TEXTCOLOR, WC_BUTTONW, WC_COMBOBOXW,
             },
             Shell::{DefSubclassProc, SetWindowSubclass},
             WindowsAndMessaging::{
@@ -40,21 +40,11 @@ use windows_sys::{
     w,
 };
 
-use crate::ui::font::WinBrush;
+use crate::ui::{darkmode::PreferredAppMode, font::WinBrush};
 
 #[link(name = "ntdll")]
 extern "system" {
     fn RtlGetNtVersionNumbers(major: *mut u32, minor: *mut u32, build: *mut u32);
-}
-
-#[repr(u32)]
-#[allow(dead_code)]
-#[derive(Debug, PartialEq)]
-pub enum PreferredAppMode {
-    Default    = 0,
-    AllowDark  = 1,
-    ForceDark  = 2,
-    ForceLight = 3,
 }
 
 #[link(name = "uxtheme", kind = "raw-dylib")]
@@ -142,56 +132,6 @@ pub unsafe fn window_use_dark_mode(h_wnd: HWND) -> HRESULT {
     FlushMenuThemes();
     S_OK
 }
-
-// MISC: If in task dialog, set lparam to 1.
-pub unsafe fn children_refresh_dark_mode(handle: HWND, lparam: LPARAM) {
-    unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
-        control_use_dark_mode(hwnd, lparam != 0);
-        InvalidateRect(hwnd, null(), 1);
-        EnumChildWindows(hwnd, Some(enum_callback), lparam);
-        1
-    }
-
-    EnumChildWindows(handle, Some(enum_callback), lparam);
-}
-
-#[inline]
-fn u16_string_eq_ignore_case(s1: &U16CStr, s2: *const u16) -> bool {
-    unsafe {
-        CompareStringW(
-            LOCALE_ALL,
-            NORM_IGNORECASE,
-            s1.as_ptr(),
-            s1.len() as _,
-            s2,
-            -1,
-        ) == CSTR_EQUAL
-    }
-}
-
-pub unsafe fn control_use_dark_mode(hwnd: HWND, misc_task_dialog: bool) {
-    let mut class = [0u16; MAX_CLASS_NAME as usize];
-    GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
-    let class = U16CStr::from_ptr_str(class.as_ptr());
-    let subappname = if is_dark_mode_allowed_for_app() {
-        if u16_string_eq_ignore_case(class, WC_COMBOBOXW) {
-            w!("DarkMode_CFD")
-        } else if u16_string_eq_ignore_case(class, PROGRESS_CLASSW)
-            || (u16_string_eq_ignore_case(class, WC_BUTTONW) && misc_task_dialog)
-        {
-            null()
-        } else {
-            w!("DarkMode_Explorer")
-        }
-    } else if u16_string_eq_ignore_case(class, WC_BUTTONW) && misc_task_dialog {
-        w!("DarkMode_Explorer")
-    } else {
-        null()
-    };
-    SetWindowTheme(hwnd, subappname, null());
-}
-
-const WHITE: COLORREF = 0x00FFFFFF;
 
 type GetThemeColorFn = unsafe extern "system" fn(
     htheme: HTHEME,
@@ -305,6 +245,8 @@ unsafe extern "system" fn dark_draw_theme_text(
     dwtextflags2: u32,
     prect: *const RECT,
 ) -> HRESULT {
+    const WHITE: COLORREF = 0x00FFFFFF;
+
     if is_dark_mode_allowed_for_app()
         && (ipartid == BP_CHECKBOX || ipartid == BP_RADIOBUTTON)
         && istateid != PBS_DISABLED
@@ -398,7 +340,7 @@ fn increase(c: COLORREF, inc: u32) -> COLORREF {
     r + (g << 8) + (b << 16)
 }
 
-pub unsafe extern "system" fn task_dialog_callback(
+unsafe extern "system" fn task_dialog_callback(
     hwnd: HWND,
     msg: TASKDIALOG_NOTIFICATIONS,
     _wparam: WPARAM,
@@ -416,6 +358,56 @@ pub unsafe extern "system" fn task_dialog_callback(
         SetWindowSubclass(hwnd, Some(task_dialog_subclass), hwnd as _, lprefdata as _);
     }
     S_OK
+}
+
+pub const TASK_DIALOG_CALLBACK: PFTASKDIALOGCALLBACK = Some(task_dialog_callback);
+
+// MISC: If in task dialog, set lparam to 1.
+pub unsafe fn children_refresh_dark_mode(handle: HWND, lparam: LPARAM) {
+    unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        control_use_dark_mode(hwnd, lparam != 0);
+        InvalidateRect(hwnd, null(), 1);
+        EnumChildWindows(hwnd, Some(enum_callback), lparam);
+        1
+    }
+
+    EnumChildWindows(handle, Some(enum_callback), lparam);
+}
+
+#[inline]
+fn u16_string_eq_ignore_case(s1: &U16CStr, s2: *const u16) -> bool {
+    unsafe {
+        CompareStringW(
+            LOCALE_ALL,
+            NORM_IGNORECASE,
+            s1.as_ptr(),
+            s1.len() as _,
+            s2,
+            -1,
+        ) == CSTR_EQUAL
+    }
+}
+
+pub unsafe fn control_use_dark_mode(hwnd: HWND, misc_task_dialog: bool) {
+    let mut class = [0u16; MAX_CLASS_NAME as usize];
+    GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
+    let class = U16CStr::from_ptr_str(class.as_ptr());
+    let subappname = if is_dark_mode_allowed_for_app() {
+        if u16_string_eq_ignore_case(class, WC_COMBOBOXW) {
+            w!("DarkMode_CFD")
+        } else if u16_string_eq_ignore_case(class, PROGRESS_CLASSW)
+            || (u16_string_eq_ignore_case(class, WC_BUTTONW) && misc_task_dialog)
+        {
+            null()
+        } else {
+            w!("DarkMode_Explorer")
+        }
+    } else if u16_string_eq_ignore_case(class, WC_BUTTONW) && misc_task_dialog {
+        w!("DarkMode_Explorer")
+    } else {
+        null()
+    };
+    SetWindowTheme(hwnd, subappname, null());
 }
 
 unsafe extern "system" fn task_dialog_subclass(
