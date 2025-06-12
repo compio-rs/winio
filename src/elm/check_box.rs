@@ -1,4 +1,6 @@
-use crate::{BorrowedWindow, Component, ComponentSender, Layoutable, Point, Size, Visible, ui};
+use crate::{
+    BorrowedWindow, Component, ComponentSender, Enable, Layoutable, Point, Size, Visible, ui,
+};
 
 /// A simple check box.
 #[derive(Debug)]
@@ -35,6 +37,16 @@ impl Visible for CheckBox {
 
     fn set_visible(&mut self, v: bool) {
         self.widget.set_visible(v);
+    }
+}
+
+impl Enable for CheckBox {
+    fn is_enabled(&self) -> bool {
+        self.widget.is_enabled()
+    }
+
+    fn set_enabled(&mut self, v: bool) {
+        self.widget.set_enabled(v);
     }
 }
 
