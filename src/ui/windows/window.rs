@@ -328,7 +328,7 @@ impl Window {
         let handle = if let Some(parent) = parent {
             Widget::new(
                 WINDOW_CLASS_NAME,
-                WS_CHILDWINDOW,
+                WS_OVERLAPPEDWINDOW | WS_CHILDWINDOW,
                 0,
                 parent.as_window().as_raw_window(),
             )
