@@ -204,6 +204,16 @@ impl Widget {
         self.view.setHidden(!v)
     }
 
+    pub fn is_enabled(&self) -> bool {
+        unsafe { Retained::cast_unchecked::<NSControl>(self.view.clone()).isEnabled() }
+    }
+
+    pub fn set_enabled(&mut self, v: bool) {
+        unsafe {
+            Retained::cast_unchecked::<NSControl>(self.view.clone()).setEnabled(v);
+        }
+    }
+
     pub fn preferred_size(&self) -> Size {
         unsafe {
             from_cgsize(
