@@ -5,8 +5,8 @@ use compio_log::info;
 use winio::{
     App, BrushPen, Canvas, CanvasEvent, Child, Color, ColorTheme, Component, ComponentSender,
     CustomButton, DrawingFontBuilder, Grid, HAlign, Layoutable, MessageBox, MessageBoxButton,
-    MessageBoxResponse, MessageBoxStyle, MouseButton, Point, Rect, Size, SolidColorBrush, VAlign,
-    Visible, Window, WindowEvent,
+    MessageBoxResponse, MessageBoxStyle, Monitor, MouseButton, Point, Rect, Size, SolidColorBrush,
+    VAlign, Visible, Window, WindowEvent,
 };
 
 fn main() {
@@ -45,6 +45,12 @@ impl Component for MainModel {
 
         window.set_text("Basic example");
         window.set_size(Size::new(800.0, 600.0));
+
+        {
+            let monitors = Monitor::all();
+            let region = monitors[0].client_scaled();
+            window.set_loc(region.origin + region.size / 2.0 - window.size() / 2.0);
+        }
 
         let sender = sender.clone();
         spawn(async move {
