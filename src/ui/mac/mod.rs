@@ -4,6 +4,9 @@ pub use canvas::*;
 mod window;
 pub use window::*;
 
+mod monitor;
+pub use monitor::*;
+
 mod msgbox;
 pub use msgbox::*;
 
