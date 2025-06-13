@@ -4,20 +4,20 @@ pub fn monitor_get_all() -> Vec<Monitor> {
     ffi::screen_all()
         .into_iter()
         .map(|m| {
-            Monitor::new(
-                rect_from(m.geo),
-                rect_from(m.avail_geo),
-                Size::new(1.0, 1.0),
-            )
+            let dpi = Size::new(m.dpix / 96.0, m.dpiy / 96.0);
+            Monitor::new(rect_from(m.geo, dpi), rect_from(m.avail_geo, dpi), dpi)
         })
         .collect()
 }
 
 #[inline]
-fn rect_from(r: QRect) -> Rect {
+fn rect_from(r: QRect, dpi: Size) -> Rect {
     Rect::new(
-        Point::new(r.x1 as _, r.y1 as _),
-        Size::new((r.x2 - r.x1) as _, (r.y2 - r.y1) as _),
+        Point::new(r.x1 as f64 * dpi.width, r.y1 as f64 * dpi.height),
+        Size::new(
+            (r.x2 - r.x1) as f64 * dpi.width,
+            (r.y2 - r.y1) as f64 * dpi.height,
+        ),
     )
 }
 
@@ -26,6 +26,8 @@ mod ffi {
     struct Monitor {
         geo: QRect,
         avail_geo: QRect,
+        dpix: f64,
+        dpiy: f64,
     }
 
     unsafe extern "C++" {
