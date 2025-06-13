@@ -1,6 +1,9 @@
 use std::rc::Rc;
 
-use gtk4::{glib::object::Cast, prelude::CheckButtonExt};
+use gtk4::{
+    glib::object::Cast,
+    prelude::{CheckButtonExt, WidgetExt},
+};
 
 use crate::{
     AsWindow, Point, Size,
@@ -104,12 +107,16 @@ impl CheckBox {
 #[derive(Debug)]
 pub struct RadioButton {
     handle: CheckBox,
+    hidden: gtk4::CheckButton,
 }
 
 impl RadioButton {
     pub fn new(parent: impl AsWindow) -> Self {
-        let handle = CheckBox::new_impl(parent, true);
-        Self { handle }
+        let handle = CheckBox::new_impl(parent.as_window(), true);
+        let hidden = gtk4::CheckButton::new();
+        hidden.set_visible(false);
+        handle.widget.set_group(Some(&hidden));
+        Self { handle, hidden }
     }
 
     pub fn is_visible(&self) -> bool {
@@ -161,7 +168,11 @@ impl RadioButton {
     }
 
     pub fn set_checked(&mut self, v: bool) {
-        self.handle.set_checked(v);
+        if v {
+            self.handle.set_checked(true);
+        } else {
+            self.hidden.set_active(true);
+        }
     }
 
     pub async fn wait_click(&self) {
