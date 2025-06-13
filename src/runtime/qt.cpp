@@ -26,16 +26,20 @@ WinioQtEventLoop::WinioQtEventLoop(rust::Vec<rust::String> args, int fd)
 
 void WinioQtEventLoop::process() {
     auto dispatcher = QApplication::eventDispatcher();
-    dispatcher->processEvents(QEventLoop::ApplicationExec |
-                              QEventLoop::WaitForMoreEvents |
-                              QEventLoop::EventLoopExec);
+    dispatcher->processEvents(
+#if QT_VERSION >= QT_VERSION_CHECK(6, 3, 0)
+        QEventLoop::ApplicationExec |
+#endif
+        QEventLoop::WaitForMoreEvents | QEventLoop::EventLoopExec);
 }
 
 void WinioQtEventLoop::process(int maxtime) {
     auto dispatcher = QApplication::eventDispatcher();
     auto id = dispatcher->registerTimer(maxtime, Qt::CoarseTimer, qApp);
-    dispatcher->processEvents(QEventLoop::ApplicationExec |
-                              QEventLoop::WaitForMoreEvents |
-                              QEventLoop::EventLoopExec);
+    dispatcher->processEvents(
+#if QT_VERSION >= QT_VERSION_CHECK(6, 3, 0)
+        QEventLoop::ApplicationExec |
+#endif
+        QEventLoop::WaitForMoreEvents | QEventLoop::EventLoopExec);
     dispatcher->unregisterTimer(id);
 }
