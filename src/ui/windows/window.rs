@@ -15,13 +15,13 @@ use windows_sys::{
             Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled},
             WindowsAndMessaging::{
                 CW_USEDEFAULT, CloseWindow, CreateWindowExW, DestroyIcon, DestroyWindow, GWL_STYLE,
-                GetClientRect, GetParent, GetWindowLongPtrW, GetWindowLongW, GetWindowRect,
-                GetWindowTextLengthW, GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW,
-                IMAGE_ICON, IsWindowVisible, LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LoadCursorW,
-                LoadImageW, RegisterClassExW, SW_HIDE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE,
-                SWP_NOZORDER, SendMessageW, SetWindowLongPtrW, SetWindowLongW, SetWindowPos,
-                SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE, WM_SETICON, WM_SIZE, WNDCLASSEXW,
-                WS_CHILDWINDOW, WS_OVERLAPPEDWINDOW,
+                GetClientRect, GetParent, GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW,
+                GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW, IMAGE_ICON,
+                IsWindowVisible, LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LoadCursorW, LoadImageW,
+                RegisterClassExW, SW_HIDE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
+                SendMessageW, SetWindowLongPtrW, SetWindowPos, SetWindowTextW, ShowWindow,
+                WM_CLOSE, WM_MOVE, WM_SETICON, WM_SIZE, WNDCLASSEXW, WS_CHILDWINDOW,
+                WS_OVERLAPPEDWINDOW,
             },
         },
     },
@@ -263,11 +263,7 @@ impl Widget {
     pub fn style(&self) -> u32 {
         syscall!(
             BOOL,
-            if cfg!(target_pointer_width = "64") {
-                GetWindowLongPtrW(self.as_raw_window(), GWL_STYLE) as u32
-            } else {
-                GetWindowLongW(self.as_raw_window(), GWL_STYLE) as u32
-            }
+            GetWindowLongPtrW(self.as_raw_window(), GWL_STYLE) as u32
         )
         .unwrap()
     }
@@ -276,11 +272,7 @@ impl Widget {
         unsafe { SetLastError(0) };
         let res = syscall!(
             BOOL,
-            if cfg!(target_pointer_width = "64") {
-                SetWindowLongPtrW(self.as_raw_window(), GWL_STYLE, style as _) as i32
-            } else {
-                SetWindowLongW(self.as_raw_window(), GWL_STYLE, style as _)
-            }
+            SetWindowLongPtrW(self.as_raw_window(), GWL_STYLE, style as _) as i32
         );
         match res {
             Ok(_) => {}
