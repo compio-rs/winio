@@ -30,6 +30,18 @@ impl Window {
     pub fn set_icon_by_id(&mut self, id: u16) {
         self.widget.set_icon_by_id(id);
     }
+
+    /// Get window style.
+    #[cfg(windows)]
+    pub fn style(&self) -> u32 {
+        self.widget.style()
+    }
+
+    /// Set window style.
+    #[cfg(windows)]
+    pub fn set_style(&mut self, s: u32) {
+        self.widget.set_style(s);
+    }
 }
 
 impl Visible for Window {

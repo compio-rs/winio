@@ -417,6 +417,14 @@ impl Window {
         syscall!(BOOL, DestroyIcon(icon)).unwrap();
     }
 
+    pub fn style(&self) -> u32 {
+        self.handle.style()
+    }
+
+    pub fn set_style(&mut self, v: u32) {
+        self.handle.set_style(v);
+    }
+
     pub async fn wait_size(&self) {
         self.handle.wait(WM_SIZE).await;
     }
