@@ -19,6 +19,7 @@ fn main() {
         let sources = [
             "src/runtime/qt",
             "src/ui/qt/widget",
+            "src/ui/qt/monitor",
             "src/ui/qt/msgbox",
             "src/ui/qt/filebox",
             "src/ui/qt/window",
