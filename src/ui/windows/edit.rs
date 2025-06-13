@@ -25,7 +25,7 @@ struct EditImpl {
 
 impl EditImpl {
     pub fn new(parent: impl AsWindow, style: u32) -> Self {
-        let handle = Widget::new(
+        let mut handle = Widget::new(
             WC_EDITW,
             style,
             WS_EX_CLIENTEDGE,

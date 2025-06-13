@@ -142,7 +142,7 @@ impl Widget {
         (rect.right - rect.left, rect.bottom - rect.top)
     }
 
-    fn set_sized(&self, v: (i32, i32)) {
+    fn set_sized(&mut self, v: (i32, i32)) {
         let handle = self.as_raw_window();
         if v != self.sized() {
             syscall!(
@@ -165,7 +165,7 @@ impl Widget {
         self.size_d2l(self.sized())
     }
 
-    pub fn set_size(&self, v: Size) {
+    pub fn set_size(&mut self, v: Size) {
         self.set_sized(self.size_l2d(v))
     }
 
@@ -188,7 +188,7 @@ impl Widget {
         }
     }
 
-    fn set_locd(&self, p: (i32, i32)) {
+    fn set_locd(&mut self, p: (i32, i32)) {
         let handle = self.as_raw_window();
         if p != self.locd() {
             syscall!(
@@ -211,7 +211,7 @@ impl Widget {
         self.point_d2l(self.locd())
     }
 
-    pub fn set_loc(&self, p: Point) {
+    pub fn set_loc(&mut self, p: Point) {
         self.set_locd(self.point_l2d(p))
     }
 
@@ -239,7 +239,7 @@ impl Widget {
         self.text_u16().to_string_lossy()
     }
 
-    pub fn set_text(&self, s: impl AsRef<str>) {
+    pub fn set_text(&mut self, s: impl AsRef<str>) {
         let handle = self.as_raw_window();
         let s = U16CString::from_str_truncate(s);
         syscall!(BOOL, unsafe { SetWindowTextW(handle, s.as_ptr()) }).unwrap();
@@ -272,7 +272,7 @@ impl Widget {
         .unwrap()
     }
 
-    pub fn set_style(&self, style: u32) {
+    pub fn set_style(&mut self, style: u32) {
         unsafe { SetLastError(0) };
         let res = syscall!(
             BOOL,
@@ -289,7 +289,7 @@ impl Widget {
         }
     }
 
-    pub fn set_icon(&self, icon: HICON) {
+    pub fn set_icon(&mut self, icon: HICON) {
         unsafe {
             SendMessageW(self.as_raw_window(), WM_SETICON, ICON_BIG as _, icon as _);
         }

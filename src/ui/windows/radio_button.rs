@@ -19,7 +19,7 @@ pub struct RadioButton {
 
 impl RadioButton {
     pub fn new(parent: impl AsWindow) -> Self {
-        let handle = Widget::new(
+        let mut handle = Widget::new(
             WC_BUTTONW,
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_RADIOBUTTON as u32,
             0,

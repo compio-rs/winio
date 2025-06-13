@@ -18,7 +18,7 @@ pub struct Button {
 
 impl Button {
     pub fn new(parent: impl AsWindow) -> Self {
-        let handle = Widget::new(
+        let mut handle = Widget::new(
             WC_BUTTONW,
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON as u32,
             0,

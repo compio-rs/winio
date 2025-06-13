@@ -29,7 +29,7 @@ impl<const E: bool> ComboBoxImpl<E> {
         } else {
             style |= CBS_DROPDOWNLIST as u32;
         }
-        let handle = Widget::new(WC_COMBOBOXW, style, 0, parent.as_window().as_raw_window());
+        let mut handle = Widget::new(WC_COMBOBOXW, style, 0, parent.as_window().as_raw_window());
         handle.set_size(handle.size_d2l((50, 14)));
         Self { handle }
     }

@@ -18,7 +18,7 @@ pub struct Progress {
 
 impl Progress {
     pub fn new(parent: impl AsWindow) -> Self {
-        let handle = Widget::new(
+        let mut handle = Widget::new(
             PROGRESS_CLASSW,
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | PBS_SMOOTHREVERSE,
             0,

@@ -21,7 +21,7 @@ pub struct Label {
 
 impl Label {
     pub fn new(parent: impl AsWindow) -> Self {
-        let handle = Widget::new(
+        let mut handle = Widget::new(
             WC_STATICW,
             WS_CHILD | WS_VISIBLE | SS_LEFT,
             0,
