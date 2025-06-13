@@ -1,6 +1,6 @@
 use std::{future::Future, time::Duration};
 
-use compio::driver::AsRawFd;
+use compio::driver::{AsRawFd, ProactorBuilder};
 use gtk4::glib::{
     ControlFlow, IOCondition, MainContext, timeout_add_local_once, unix_fd_add_local,
 };
@@ -12,7 +12,12 @@ pub struct Runtime {
 
 impl Runtime {
     pub fn new() -> Self {
-        let runtime = compio::runtime::Runtime::new().unwrap();
+        let mut builder = ProactorBuilder::new();
+        builder.sqpoll_idle(Duration::from_secs(1));
+        let runtime = compio::runtime::Runtime::builder()
+            .with_proactor(builder)
+            .build()
+            .unwrap();
         let ctx = MainContext::default();
         gtk4::init().unwrap();
 

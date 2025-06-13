@@ -1,10 +1,10 @@
 #include "qt.hpp"
 
 #include <QAbstractEventDispatcher>
-#include <QTimer>
 
-std::unique_ptr<WinioQtEventLoop> new_event_loop(rust::Vec<rust::String> args) {
-    return std::make_unique<WinioQtEventLoop>(args);
+std::unique_ptr<WinioQtEventLoop> new_event_loop(rust::Vec<rust::String> args,
+                                                 int fd) {
+    return std::make_unique<WinioQtEventLoop>(args, fd);
 }
 
 static std::vector<const char *> args_ptr(rust::Vec<rust::String> const &args) {
@@ -15,19 +15,27 @@ static std::vector<const char *> args_ptr(rust::Vec<rust::String> const &args) {
     return result;
 }
 
-WinioQtEventLoop::WinioQtEventLoop(rust::Vec<rust::String> args)
+WinioQtEventLoop::WinioQtEventLoop(rust::Vec<rust::String> args, int fd)
     : m_args(std::move(args)), m_args_ptr(args_ptr(m_args)),
       m_argc(m_args.size()), m_app{m_argc, (char **)m_args_ptr.data()},
-      m_timer(&m_app) {
+      m_notifier{fd, QSocketNotifier::Read} {
     QApplication::setQuitOnLastWindowClosed(false);
-
-    m_timer.setSingleShot(false);
-    QObject::connect(&m_timer, &QTimer::timeout, []() {
-        if (poll_runtime()) {
-            QApplication::exit();
-        }
-    });
-    m_timer.start(0);
+    QObject::connect(&m_notifier, &QSocketNotifier::activated, []() {});
+    m_notifier.setEnabled(true);
 }
 
-void exec() { QApplication::exec(); }
+void WinioQtEventLoop::process() {
+    auto dispatcher = QApplication::eventDispatcher();
+    dispatcher->processEvents(QEventLoop::ApplicationExec |
+                              QEventLoop::WaitForMoreEvents |
+                              QEventLoop::EventLoopExec);
+}
+
+void WinioQtEventLoop::process(int maxtime) {
+    auto dispatcher = QApplication::eventDispatcher();
+    auto id = dispatcher->registerTimer(maxtime, Qt::CoarseTimer, qApp);
+    dispatcher->processEvents(QEventLoop::ApplicationExec |
+                              QEventLoop::WaitForMoreEvents |
+                              QEventLoop::EventLoopExec);
+    dispatcher->unregisterTimer(id);
+}
