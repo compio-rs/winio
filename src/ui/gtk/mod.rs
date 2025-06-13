@@ -7,6 +7,9 @@ pub use canvas::*;
 mod widget;
 pub use widget::*;
 
+mod monitor;
+pub use monitor::*;
+
 mod msgbox;
 pub use msgbox::*;
 
