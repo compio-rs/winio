@@ -20,10 +20,17 @@ jobs:
         toolchain: ['nightly']
         setup:
           - os: 'ubuntu-22.04'
+            deps: 'qtbase5-dev'
           - os: 'ubuntu-24.04'
+            deps: 'qtbase5-dev'
+          - os: 'ubuntu-22.04'
+            deps: 'qt6-base-dev'
+          - os: 'ubuntu-24.04'
+            deps: 'qt6-base-dev'
           - os: 'ubuntu-24.04'
             features: 'gtk'
             no_default_features: true
+            deps: 'libgtk-4-dev'
           - os: 'windows-latest'
             target: 'x86_64-pc-windows-msvc'
           - os: 'windows-latest'
@@ -42,15 +49,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt update
-
-          PKGS=()
-          if [[ "${{ matrix.setup.features }}" == *"gtk"* ]]; then
-              PKGS+=("libgtk-4-dev")
-          else
-              PKGS+=("qt6-base-dev")
-          fi
-
-          sudo apt install -y "${PKGS[@]}"
+          sudo apt install -y "${{ matrix.setup.deps }}"
       - uses: msys2/setup-msys2@v2
         if: ${{ endsWith(matrix.setup.target, 'gnullvm') }}
         with:
