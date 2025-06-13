@@ -1,21 +1,24 @@
-mod canvas;
-pub use canvas::*;
-
 pub(crate) mod darkmode;
 pub(crate) mod dpi;
 pub(crate) mod font;
 
-mod msgbox;
-pub use msgbox::*;
-
 mod filebox;
 pub use filebox::*;
+
+mod monitor;
+pub use monitor::*;
+
+mod msgbox;
+pub use msgbox::*;
 
 mod window;
 pub use window::*;
 
 mod button;
 pub use button::*;
+
+mod canvas;
+pub use canvas::*;
 
 mod edit;
 pub use edit::*;

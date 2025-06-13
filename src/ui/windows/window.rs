@@ -179,11 +179,15 @@ impl Widget {
                 x: rect.left,
                 y: rect.top,
             };
-            syscall!(
+            SetLastError(0);
+            match syscall!(
                 BOOL,
                 MapWindowPoints(HWND_DESKTOP, GetParent(handle), &mut point, 2,)
-            )
-            .unwrap();
+            ) {
+                Ok(_) => {}
+                Err(e) if e.raw_os_error() == Some(0) => {}
+                Err(e) => panic!("{e:?}"),
+            }
             (point.x, point.y)
         }
     }

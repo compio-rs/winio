@@ -26,6 +26,7 @@ pub use sys::*;
 mod canvas;
 mod drawing;
 mod filebox;
+mod monitor;
 mod msgbox;
 mod window_handle;
 
@@ -34,6 +35,7 @@ pub mod export {
         canvas::*,
         drawing::*,
         filebox::*,
+        monitor::*,
         msgbox::*,
         sys::{Brush, Pen, RawWindow},
         window_handle::*,
