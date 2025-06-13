@@ -9,7 +9,7 @@ use sync_unsafe_cell::SyncUnsafeCell;
 use widestring::U16CStr;
 use windows_sys::{
     Win32::{
-        Foundation::{BOOL, BOOLEAN, COLORREF, HWND, LPARAM, LRESULT, RECT, S_OK, WPARAM},
+        Foundation::{COLORREF, HWND, LPARAM, LRESULT, RECT, S_OK, WPARAM},
         Globalization::{CSTR_EQUAL, CompareStringW, LOCALE_ALL, NORM_IGNORECASE},
         Graphics::{
             Dwm::DwmSetWindowAttribute,
@@ -36,7 +36,7 @@ use windows_sys::{
             },
         },
     },
-    core::{HRESULT, PCWSTR},
+    core::{BOOL, HRESULT, PCWSTR},
     w,
 };
 
@@ -50,12 +50,12 @@ extern "system" {
 #[link(name = "uxtheme", kind = "raw-dylib")]
 extern "system" {
     #[link_ordinal(132)]
-    fn ShouldAppsUseDarkMode() -> BOOLEAN;
+    fn ShouldAppsUseDarkMode() -> bool;
     #[link_ordinal(133)]
-    fn AllowDarkModeForWindow(h: HWND, a: BOOLEAN) -> BOOLEAN;
+    fn AllowDarkModeForWindow(h: HWND, a: bool) -> bool;
     // build < 18362
     #[link_ordinal(135)]
-    fn AllowDarkModeForApp(a: BOOLEAN) -> BOOLEAN;
+    fn AllowDarkModeForApp(a: bool) -> bool;
     // build >= 18362
     #[link_ordinal(135)]
     fn SetPreferredAppMode(m: PreferredAppMode) -> PreferredAppMode;
@@ -74,13 +74,7 @@ unsafe fn get_nt_build() -> u32 {
 pub unsafe fn set_preferred_app_mode(m: PreferredAppMode) -> PreferredAppMode {
     let build = get_nt_build();
     if build < 18362 {
-        if AllowDarkModeForApp(
-            if m == PreferredAppMode::AllowDark || m == PreferredAppMode::ForceDark {
-                1
-            } else {
-                0
-            },
-        ) != 0
+        if AllowDarkModeForApp(m == PreferredAppMode::AllowDark || m == PreferredAppMode::ForceDark)
         {
             PreferredAppMode::AllowDark
         } else {
@@ -103,15 +97,16 @@ pub unsafe fn is_dark_mode_allowed_for_app() -> bool {
     {
         return false;
     }
-    ((hc.dwFlags & HCF_HIGHCONTRASTON) == 0) && (ShouldAppsUseDarkMode() != 0)
+    ((hc.dwFlags & HCF_HIGHCONTRASTON) == 0) && ShouldAppsUseDarkMode()
 }
 
 const DWMWA_USE_IMMERSIVE_DARK_MODE: u32 = 0x13;
 const DWMWA_USE_IMMERSIVE_DARK_MODE_V2: u32 = 0x14;
 
 pub unsafe fn window_use_dark_mode(h_wnd: HWND) -> HRESULT {
-    let set_dark_mode = is_dark_mode_allowed_for_app() as BOOL;
-    AllowDarkModeForWindow(h_wnd, set_dark_mode as BOOLEAN);
+    let set_dark_mode = is_dark_mode_allowed_for_app();
+    AllowDarkModeForWindow(h_wnd, set_dark_mode);
+    let set_dark_mode = set_dark_mode as BOOL;
     let hr = DwmSetWindowAttribute(
         h_wnd,
         DWMWA_USE_IMMERSIVE_DARK_MODE_V2,
@@ -342,11 +337,12 @@ fn increase(c: COLORREF, inc: u32) -> COLORREF {
 
 unsafe extern "system" fn task_dialog_callback(
     hwnd: HWND,
-    msg: TASKDIALOG_NOTIFICATIONS,
+    msg: u32,
     _wparam: WPARAM,
     _lparam: LPARAM,
     lprefdata: isize,
 ) -> HRESULT {
+    let msg = msg as TASKDIALOG_NOTIFICATIONS;
     match msg {
         TDN_CREATED | TDN_DIALOG_CONSTRUCTED => {
             window_use_dark_mode(hwnd);
