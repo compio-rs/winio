@@ -3,6 +3,8 @@
 #include <QApplication>
 #include <QSocketNotifier>
 #include <rust/cxx.h>
+
+#include <memory>
 #include <vector>
 
 struct WinioQtEventLoop {
