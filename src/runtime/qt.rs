@@ -1,6 +1,6 @@
-use std::{cell::RefCell, future::Future, time::Duration};
+use std::{cell::RefCell, future::Future, os::fd::OwnedFd, time::Duration};
 
-use compio::driver::{AsRawFd, ProactorBuilder};
+use compio::driver::{AsRawFd, DriverType};
 use cxx::UniquePtr;
 
 #[cxx::bridge]
@@ -20,22 +20,28 @@ mod ffi {
 
 pub struct Runtime {
     runtime: compio::runtime::Runtime,
+    efd: Option<OwnedFd>,
     event_loop: RefCell<UniquePtr<ffi::WinioQtEventLoop>>,
 }
 
 impl Runtime {
     pub fn new() -> Self {
-        let mut builder = ProactorBuilder::new();
-        builder.sqpoll_idle(Duration::from_secs(1));
-        let runtime = compio::runtime::Runtime::builder()
-            .with_proactor(builder)
-            .build()
-            .unwrap();
+        let runtime = compio::runtime::Runtime::new().unwrap();
+        let efd = if DriverType::current() == DriverType::IoUring {
+            Some(super::iour::register_eventfd(runtime.as_raw_fd()).unwrap())
+        } else {
+            None
+        };
+        let poll_fd = efd
+            .as_ref()
+            .map(|f| f.as_raw_fd())
+            .unwrap_or_else(|| runtime.as_raw_fd());
         let args = std::env::args().collect::<Vec<_>>();
-        let event_loop = RefCell::new(ffi::new_event_loop(args, runtime.as_raw_fd()));
+        let event_loop = RefCell::new(ffi::new_event_loop(args, poll_fd));
 
         Self {
             runtime,
+            efd,
             event_loop,
         }
     }
@@ -77,6 +83,10 @@ impl Runtime {
                         .process_timeout(timeout.as_millis() as _);
                 } else {
                     self.event_loop.borrow_mut().pin_mut().process();
+                }
+
+                if let Some(efd) = &self.efd {
+                    super::iour::eventfd_clear(efd.as_raw_fd()).ok();
                 }
             }
         })

@@ -1,31 +1,34 @@
-use std::{future::Future, time::Duration};
+use std::{future::Future, os::fd::OwnedFd, time::Duration};
 
-use compio::driver::{AsRawFd, ProactorBuilder};
+use compio::driver::{AsRawFd, DriverType};
 use gtk4::glib::{
     ControlFlow, IOCondition, MainContext, timeout_add_local_once, unix_fd_add_local,
 };
 
 pub struct Runtime {
     runtime: compio::runtime::Runtime,
+    efd: Option<OwnedFd>,
     ctx: MainContext,
 }
 
 impl Runtime {
     pub fn new() -> Self {
-        let mut builder = ProactorBuilder::new();
-        builder.sqpoll_idle(Duration::from_secs(1));
-        let runtime = compio::runtime::Runtime::builder()
-            .with_proactor(builder)
-            .build()
-            .unwrap();
+        let runtime = compio::runtime::Runtime::new().unwrap();
+        let efd = if DriverType::current() == DriverType::IoUring {
+            Some(super::iour::register_eventfd(runtime.as_raw_fd()).unwrap())
+        } else {
+            None
+        };
+        let poll_fd = efd
+            .as_ref()
+            .map(|f| f.as_raw_fd())
+            .unwrap_or_else(|| runtime.as_raw_fd());
         let ctx = MainContext::default();
         gtk4::init().unwrap();
 
-        unix_fd_add_local(runtime.as_raw_fd(), IOCondition::IN, |_fd, _cond| {
-            ControlFlow::Continue
-        });
+        unix_fd_add_local(poll_fd, IOCondition::IN, |_fd, _cond| ControlFlow::Continue);
 
-        Self { runtime, ctx }
+        Self { runtime, efd, ctx }
     }
 
     pub fn run(&self) {
@@ -65,6 +68,10 @@ impl Runtime {
                     if self.ctx.find_source_by_id(&source_id).is_some() {
                         source_id.remove();
                     }
+                }
+
+                if let Some(efd) = &self.efd {
+                    super::iour::eventfd_clear(efd.as_raw_fd()).ok();
                 }
             }
         })
