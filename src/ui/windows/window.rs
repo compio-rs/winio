@@ -14,13 +14,13 @@ use windows_sys::{
         UI::{
             Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled},
             WindowsAndMessaging::{
-                CW_USEDEFAULT, CloseWindow, CreateWindowExW, DestroyIcon, DestroyWindow, GWL_STYLE,
+                CW_USEDEFAULT, CloseWindow, CreateWindowExW, DestroyWindow, GWL_STYLE,
                 GetClientRect, GetParent, GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW,
                 GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW, IMAGE_ICON,
-                IsWindowVisible, LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LoadCursorW, LoadImageW,
-                RegisterClassExW, SW_HIDE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
-                SendMessageW, SetWindowLongPtrW, SetWindowPos, SetWindowTextW, ShowWindow,
-                WM_CLOSE, WM_MOVE, WM_SETICON, WM_SIZE, WNDCLASSEXW, WS_CHILDWINDOW,
+                IsWindowVisible, LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LR_SHARED, LoadCursorW,
+                LoadImageW, RegisterClassExW, SW_HIDE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE,
+                SWP_NOZORDER, SendMessageW, SetWindowLongPtrW, SetWindowPos, SetWindowTextW,
+                ShowWindow, WM_CLOSE, WM_MOVE, WM_SETICON, WM_SIZE, WNDCLASSEXW, WS_CHILDWINDOW,
                 WS_OVERLAPPEDWINDOW,
             },
         },
@@ -403,14 +403,13 @@ impl Window {
                 IMAGE_ICON,
                 0,
                 0,
-                LR_DEFAULTCOLOR | LR_DEFAULTSIZE,
+                LR_DEFAULTCOLOR | LR_DEFAULTSIZE | LR_SHARED,
             )
         };
         if icon.is_null() {
             panic!("{:?}", std::io::Error::last_os_error());
         }
         self.handle.set_icon(icon);
-        syscall!(BOOL, DestroyIcon(icon)).unwrap();
     }
 
     pub fn style(&self) -> u32 {
