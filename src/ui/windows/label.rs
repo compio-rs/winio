@@ -5,7 +5,7 @@ use windows_sys::Win32::{
     System::SystemServices::{SS_CENTER, SS_LEFT, SS_RIGHT},
     UI::{
         Controls::WC_STATICW,
-        WindowsAndMessaging::{WS_CHILD, WS_VISIBLE},
+        WindowsAndMessaging::{WS_CHILD, WS_EX_TRANSPARENT, WS_VISIBLE},
     },
 };
 
@@ -24,7 +24,7 @@ impl Label {
         let mut handle = Widget::new(
             WC_STATICW,
             WS_CHILD | WS_VISIBLE | SS_LEFT,
-            0,
+            WS_EX_TRANSPARENT,
             parent.as_window().as_raw_window(),
         );
         handle.set_size(handle.size_d2l((100, 50)));

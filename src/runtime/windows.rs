@@ -19,8 +19,7 @@ use windows_sys::{
         Foundation::{COLORREF, HANDLE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_FAILED, WPARAM},
         Graphics::Gdi::{
             BLACK_BRUSH, CreateSolidBrush, GetStockObject, HDC, InvalidateRect, Rectangle,
-            ScreenToClient, SelectObject, SetBkColor, SetBkMode, SetTextColor, TRANSPARENT,
-            WHITE_BRUSH,
+            ScreenToClient, SelectObject, SetBkColor, SetTextColor, WHITE_BRUSH,
         },
         System::Threading::INFINITE,
         UI::{
@@ -42,7 +41,8 @@ use windows_sys::{
 use super::RUNTIME;
 use crate::ui::{
     darkmode::{
-        children_refresh_dark_mode, init_dark, is_dark_mode_allowed_for_app, window_use_dark_mode,
+        children_refresh_dark_mode, control_color_static, init_dark, is_dark_mode_allowed_for_app,
+        window_use_dark_mode,
     },
     dpi::get_dpi_for_window,
     font::{WinBrush, default_font},
@@ -296,18 +296,7 @@ pub(crate) unsafe extern "system" fn window_proc(
                 InvalidateRect(handle, null(), 1);
             }
             WM_CTLCOLORSTATIC => {
-                let dark = is_dark_mode_allowed_for_app();
-                let hdc = wparam as HDC;
-                SetBkMode(hdc, TRANSPARENT as _);
-                if dark {
-                    SetTextColor(hdc, WHITE);
-                    SetBkColor(hdc, BLACK);
-                }
-                return if dark {
-                    GetStockObject(BLACK_BRUSH)
-                } else {
-                    GetStockObject(WHITE_BRUSH)
-                } as _;
+                return control_color_static(lparam as HWND, wparam as HDC);
             }
             WM_CTLCOLORBTN => {
                 if is_dark_mode_allowed_for_app() {

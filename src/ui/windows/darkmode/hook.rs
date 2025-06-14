@@ -10,7 +10,6 @@ use widestring::U16CStr;
 use windows_sys::{
     Win32::{
         Foundation::{COLORREF, HWND, LPARAM, LRESULT, RECT, S_OK, WPARAM},
-        Globalization::{CSTR_EQUAL, CompareStringW, LOCALE_ALL, NORM_IGNORECASE},
         Graphics::{
             Dwm::DwmSetWindowAttribute,
             Gdi::{
@@ -40,7 +39,10 @@ use windows_sys::{
     w,
 };
 
-use crate::ui::{darkmode::PreferredAppMode, font::WinBrush};
+use crate::ui::{
+    darkmode::{PreferredAppMode, WHITE, u16_string_eq_ignore_case},
+    font::WinBrush,
+};
 
 #[link(name = "ntdll")]
 extern "system" {
@@ -240,8 +242,6 @@ unsafe extern "system" fn dark_draw_theme_text(
     dwtextflags2: u32,
     prect: *const RECT,
 ) -> HRESULT {
-    const WHITE: COLORREF = 0x00FFFFFF;
-
     if is_dark_mode_allowed_for_app()
         && (ipartid == BP_CHECKBOX || ipartid == BP_RADIOBUTTON)
         && istateid != PBS_DISABLED
@@ -368,20 +368,6 @@ pub unsafe fn children_refresh_dark_mode(handle: HWND, lparam: LPARAM) {
     }
 
     EnumChildWindows(handle, Some(enum_callback), lparam);
-}
-
-#[inline]
-fn u16_string_eq_ignore_case(s1: &U16CStr, s2: *const u16) -> bool {
-    unsafe {
-        CompareStringW(
-            LOCALE_ALL,
-            NORM_IGNORECASE,
-            s1.as_ptr(),
-            s1.len() as _,
-            s2,
-            -1,
-        ) == CSTR_EQUAL
-    }
 }
 
 pub unsafe fn control_use_dark_mode(hwnd: HWND, misc_task_dialog: bool) {
