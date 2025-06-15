@@ -15,6 +15,8 @@ mod ffi {
         fn process(self: Pin<&mut Self>);
         #[rust_name = "process_timeout"]
         fn process(self: Pin<&mut Self>, maxtime: i32);
+
+        fn setAppName(self: Pin<&mut Self>, name: &str);
     }
 }
 
@@ -44,6 +46,10 @@ impl Runtime {
             efd,
             event_loop,
         }
+    }
+
+    pub fn set_app_id(&mut self, id: &str) {
+        self.event_loop.borrow_mut().pin_mut().setAppName(id);
     }
 
     pub fn run(&self) {

@@ -18,6 +18,8 @@ struct WinioQtEventLoop {
 
     void process();
     void process(int maxtime);
+
+    void setAppName(rust::Str name);
 };
 
 std::unique_ptr<WinioQtEventLoop> new_event_loop(rust::Vec<rust::String> args,

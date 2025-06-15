@@ -1,6 +1,7 @@
 #include "qt.hpp"
 
 #include <QAbstractEventDispatcher>
+#include <QString>
 
 std::unique_ptr<WinioQtEventLoop> new_event_loop(rust::Vec<rust::String> args,
                                                  int fd) {
@@ -42,4 +43,8 @@ void WinioQtEventLoop::process(int maxtime) {
 #endif
         QEventLoop::WaitForMoreEvents | QEventLoop::EventLoopExec);
     dispatcher->unregisterTimer(id);
+}
+
+void WinioQtEventLoop::setAppName(rust::Str name) {
+    m_app.setDesktopFileName(QString::fromUtf8(name.data(), name.size()));
 }

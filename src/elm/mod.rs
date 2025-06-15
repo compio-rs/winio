@@ -89,6 +89,7 @@ impl<T> ComponentReceiver<T> {
 /// Root application, manages the async runtime.
 pub struct App {
     runtime: Runtime,
+    name: Option<String>,
 }
 
 impl App {
@@ -97,7 +98,26 @@ impl App {
     pub fn new() -> Self {
         Self {
             runtime: Runtime::new(),
+            name: None,
         }
+    }
+
+    /// Create [`App`] with application name.
+    pub fn new_with_name(name: impl AsRef<str>) -> Self {
+        #[allow(unused_mut)]
+        let mut runtime = Runtime::new();
+        let name = name.as_ref().to_string();
+        #[cfg(not(any(windows, target_vendor = "apple")))]
+        runtime.set_app_id(&name);
+        Self {
+            runtime,
+            name: Some(name),
+        }
+    }
+
+    /// The application name.
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
     }
 
     /// Block on the future till it completes.
