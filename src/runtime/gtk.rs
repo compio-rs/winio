@@ -1,12 +1,14 @@
 use std::{future::Future, os::fd::OwnedFd, time::Duration};
 
 use compio::driver::{AsRawFd, DriverType};
-use gtk4::glib::{
-    ControlFlow, IOCondition, MainContext, timeout_add_local_once, unix_fd_add_local,
+use gtk4::{
+    gio::{self, prelude::ApplicationExt},
+    glib::{ControlFlow, IOCondition, MainContext, timeout_add_local_once, unix_fd_add_local},
 };
 
 pub struct Runtime {
     runtime: compio::runtime::Runtime,
+    app: gio::Application,
     efd: Option<OwnedFd>,
     ctx: MainContext,
 }
@@ -25,10 +27,21 @@ impl Runtime {
             .unwrap_or_else(|| runtime.as_raw_fd());
         let ctx = MainContext::default();
         gtk4::init().unwrap();
+        let app = gio::Application::new(None, gio::ApplicationFlags::FLAGS_NONE);
+        app.set_default();
 
         unix_fd_add_local(poll_fd, IOCondition::IN, |_fd, _cond| ControlFlow::Continue);
 
-        Self { runtime, efd, ctx }
+        Self {
+            runtime,
+            app,
+            efd,
+            ctx,
+        }
+    }
+
+    pub fn set_app_id(&mut self, name: &str) {
+        self.app.set_application_id(Some(name));
     }
 
     pub fn run(&self) {
