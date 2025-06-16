@@ -1,6 +1,6 @@
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 
-use crate::{AsWindow, ui::sys};
+use crate::{MaybeBorrowedWindow, ui::sys};
 
 /// Style of message box.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
@@ -103,8 +103,8 @@ impl MessageBox {
     }
 
     /// Show message box.
-    pub async fn show(self, parent: Option<impl AsWindow>) -> MessageBoxResponse {
-        self.0.show(parent).await
+    pub async fn show(self, parent: impl Into<MaybeBorrowedWindow<'_>>) -> MessageBoxResponse {
+        self.0.show(parent.into().0).await
     }
 
     /// Main message.

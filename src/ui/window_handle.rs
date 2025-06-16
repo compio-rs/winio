@@ -78,3 +78,24 @@ impl<'a, T: AsWindow + ?Sized> From<&'a T> for BorrowedWindow<'a> {
         value.as_window()
     }
 }
+
+#[doc(hidden)]
+pub struct MaybeBorrowedWindow<'a>(pub Option<BorrowedWindow<'a>>);
+
+impl<'a, T: Into<BorrowedWindow<'a>>> From<T> for MaybeBorrowedWindow<'a> {
+    fn from(value: T) -> Self {
+        Self(Some(value.into()))
+    }
+}
+
+impl<'a, T: Into<BorrowedWindow<'a>>> From<Option<T>> for MaybeBorrowedWindow<'a> {
+    fn from(value: Option<T>) -> Self {
+        Self(value.map(|v| v.into()))
+    }
+}
+
+impl From<()> for MaybeBorrowedWindow<'_> {
+    fn from(_: ()) -> Self {
+        Self(None)
+    }
+}
