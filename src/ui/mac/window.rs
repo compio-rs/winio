@@ -217,8 +217,7 @@ impl Widget {
     pub fn preferred_size(&self) -> Size {
         unsafe {
             from_cgsize(
-                Retained::cast_unchecked::<NSControl>(self.view.clone())
-                    .sizeThatFits(NSSize::new(f64::MAX, f64::MAX)),
+                Retained::cast_unchecked::<NSControl>(self.view.clone()).sizeThatFits(NSSize::ZERO),
             )
         }
     }
