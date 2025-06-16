@@ -5,7 +5,7 @@ use image::{DynamicImage, ImageReader};
 use winio::{
     App, BrushPen, Button, ButtonEvent, Canvas, CanvasEvent, Child, Color, ColorTheme, Component,
     ComponentSender, DrawingImage, Edit, FileBox, Layoutable, Orient, Point, Rect, Size,
-    SolidColorBrush, StackPanel, Visible, Window, WindowEvent,
+    SolidColorBrush, StackPanel, Visible, Window, WindowEvent, init, start,
 };
 
 fn main() {
@@ -43,20 +43,21 @@ impl Component for MainModel {
     type Message = MainMessage;
 
     fn init(path: Self::Init<'_>, sender: &winio::ComponentSender<Self>) -> Self {
-        let mut window = Child::<Window>::init(());
-        window.set_text("Gallery example");
-        window.set_size(Size::new(800.0, 600.0));
-
-        let canvas = Child::<Canvas>::init(&window);
-        let mut button = Child::<Button>::init(&window);
-        button.set_text("...");
-
-        let mut entry = Child::<Edit>::init(&window);
-        entry.set_text(
-            path.as_ref()
-                .map(|p| p.to_string_lossy().into_owned())
-                .unwrap_or_default(),
-        );
+        init! {
+            window: Window = (()) => {
+                text: "Gallery example",
+                size: Size::new(800.0, 600.0),
+            },
+            canvas: Canvas = (&window),
+            button: Button = (&window) => {
+                text: "...",
+            },
+            entry: Edit = (&window) => {
+                text: path.as_ref()
+                          .map(|p| p.to_string_lossy().into_owned())
+                          .unwrap_or_default(),
+            }
+        }
 
         if let Some(path) = path {
             let sender = sender.clone();
@@ -76,32 +77,19 @@ impl Component for MainModel {
     }
 
     async fn start(&mut self, sender: &winio::ComponentSender<Self>) {
-        let fut_window = self.window.start(
-            sender,
-            |e| match e {
-                WindowEvent::Close => Some(MainMessage::Close),
-                WindowEvent::Resize => Some(MainMessage::Redraw),
-                _ => None,
+        start! {
+            sender, default: MainMessage::Noop,
+            self.window => {
+                WindowEvent::Close => MainMessage::Close,
+                WindowEvent::Resize => MainMessage::Redraw,
             },
-            || MainMessage::Noop,
-        );
-        let fut_canvas = self.canvas.start(
-            sender,
-            |e| match e {
-                CanvasEvent::Redraw => Some(MainMessage::Redraw),
-                _ => None,
+            self.canvas => {
+                CanvasEvent::Redraw => MainMessage::Redraw,
             },
-            || MainMessage::Noop,
-        );
-        let fut_button = self.button.start(
-            sender,
-            |e| match e {
-                ButtonEvent::Click => Some(MainMessage::ChooseFolder),
-                _ => None,
+            self.button => {
+                ButtonEvent::Click => MainMessage::ChooseFolder,
             },
-            || MainMessage::Noop,
-        );
-        futures_util::future::join3(fut_window, fut_canvas, fut_button).await;
+        }
     }
 
     async fn update(
@@ -125,7 +113,7 @@ impl Component for MainModel {
             MainMessage::ChooseFolder => {
                 if let Some(p) = FileBox::new()
                     .title("Open folder")
-                    .open_folder(Some(&*self.window))
+                    .open_folder(Some(&self.window))
                     .await
                 {
                     sender.post(MainMessage::OpenFolder(p));

@@ -5,7 +5,7 @@ use winio::{
     LinearGradientBrush, Margin, MessageBox, MessageBoxButton, ObservableVec, ObservableVecEvent,
     Orient, Point, Progress, RadialGradientBrush, RadioButton, RadioButtonGroup, Rect,
     RelativePoint, RelativeSize, Size, SolidColorBrush, StackPanel, TextBox, VAlign, Visible,
-    Window, WindowEvent,
+    Window, WindowEvent, init, start,
 };
 
 fn main() {
@@ -59,30 +59,58 @@ impl Component for MainModel {
     type Message = MainMessage;
 
     fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let mut window = Child::<Window>::init(());
-        let canvas = Child::<Canvas>::init(&window);
-
-        window.set_text("Widgets example");
-        window.set_size(Size::new(800.0, 600.0));
-
-        let mut ulabel = Child::<Label>::init(&window);
-        ulabel.set_text("Username:");
-        ulabel.set_halign(HAlign::Right);
-        let mut plabel = Child::<Label>::init(&window);
-        plabel.set_text("Password:");
-        plabel.set_halign(HAlign::Right);
-
-        let mut uentry = Child::<Edit>::init(&window);
-        uentry.set_text("AAA");
-        let mut pentry = Child::<Edit>::init(&window);
-        pentry.set_password(true);
-        pentry.set_text("123456");
-
-        let mut pcheck = Child::<CheckBox>::init(&window);
-        pcheck.set_checked(false);
-        pcheck.set_text("Show");
-
-        let combo = Child::<ComboBox>::init(&window);
+        init! {
+            window: Window = (()) => {
+                text: "Widgets example",
+                size: Size::new(800.0, 600.0),
+            },
+            canvas: Canvas = (&window),
+            ulabel: Label = (&window) => {
+                text: "Username:",
+                halign: HAlign::Right,
+            },
+            plabel: Label = (&window) => {
+                text: "Password:",
+                halign: HAlign::Right,
+            },
+            uentry: Edit = (&window) => {
+                text: "AAA",
+            },
+            pentry: Edit = (&window) => {
+                text: "123456",
+                password: true,
+            },
+            pcheck: CheckBox = (&window) => {
+                text: "Show",
+                checked: false,
+            },
+            combo: ComboBox = (&window),
+            r1: RadioButton = (&window) => {
+                text: "屯屯屯",
+                checked: true,
+            },
+            r2: RadioButton = (&window) => {
+                text: "锟斤拷",
+            },
+            r3: RadioButton = (&window) => {
+                text: "╠╠╠"
+            },
+            push_button: Button = (&window) => {
+                text: "Push",
+            },
+            pop_button: Button = (&window) => {
+                text: "Pop",
+            },
+            show_button: Button = (&window) => {
+                text: "Show",
+            },
+            progress: Progress = (&window) => {
+                indeterminate: true,
+            },
+            mltext: TextBox = (&window) => {
+                text: "This is an example of\nmulti-line text box.",
+            },
+        }
 
         let mut list = Child::<ObservableVec<String>>::init(vec![]);
         // https://www.zhihu.com/question/23600507/answer/140640887
@@ -90,27 +118,6 @@ impl Component for MainModel {
         list.push("昍昍昍".into());
         list.push("ﾌﾌﾌﾌﾌﾌ".into());
         list.push("쳌쳌쳌".into());
-
-        let mut r1 = Child::<RadioButton>::init(&window);
-        r1.set_text("屯屯屯");
-        r1.set_checked(true);
-        let mut r2 = Child::<RadioButton>::init(&window);
-        r2.set_text("锟斤拷");
-        let mut r3 = Child::<RadioButton>::init(&window);
-        r3.set_text("╠╠╠");
-
-        let mut push_button = Child::<Button>::init(&window);
-        push_button.set_text("Push");
-        let mut pop_button = Child::<Button>::init(&window);
-        pop_button.set_text("Pop");
-        let mut show_button = Child::<Button>::init(&window);
-        show_button.set_text("Show");
-
-        let mut progress = Child::<Progress>::init(&window);
-        progress.set_indeterminate(true);
-
-        let mut mltext = Child::<TextBox>::init(&window);
-        mltext.set_text("This is an example of\nmulti-line text box.");
 
         window.show();
 
@@ -138,72 +145,39 @@ impl Component for MainModel {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) {
-        let fut_window = self.window.start(
-            sender,
-            |e| match e {
-                WindowEvent::Close => Some(MainMessage::Close),
-                WindowEvent::Resize => Some(MainMessage::Redraw),
-                _ => None,
-            },
-            || MainMessage::Noop,
-        );
-        let fut_check = self.pcheck.start(
-            sender,
-            |e| match e {
-                CheckBoxEvent::Click => Some(MainMessage::PasswordCheck),
-                _ => None,
-            },
-            || MainMessage::Noop,
-        );
-        let fut_combo = self.combo.start(
-            sender,
-            |e| match e {
-                ComboBoxEvent::Select => Some(MainMessage::Select),
-                _ => None,
-            },
-            || MainMessage::Noop,
-        );
-        let fut_canvas = self.canvas.start(
-            sender,
-            |e| match e {
-                CanvasEvent::Redraw => Some(MainMessage::Redraw),
-                _ => None,
-            },
-            || MainMessage::Noop,
-        );
-        let fut_list =
-            self.list
-                .start(sender, |e| Some(MainMessage::List(e)), || MainMessage::Noop);
-        let fut_push = self.push_button.start(
-            sender,
-            |e| match e {
-                ButtonEvent::Click => Some(MainMessage::Push),
-                _ => None,
-            },
-            || MainMessage::Noop,
-        );
-        let fut_pop = self.pop_button.start(
-            sender,
-            |e| match e {
-                ButtonEvent::Click => Some(MainMessage::Pop),
-                _ => None,
-            },
-            || MainMessage::Noop,
-        );
-        let fut_show = self.show_button.start(
-            sender,
-            |e| match e {
-                ButtonEvent::Click => Some(MainMessage::Show),
-                _ => None,
-            },
-            || MainMessage::Noop,
-        );
+        let fut = async {
+            start! {
+                sender, default: MainMessage::Noop,
+                self.window => {
+                    WindowEvent::Close => MainMessage::Close,
+                    WindowEvent::Resize => MainMessage::Redraw,
+                },
+                self.pcheck => {
+                    CheckBoxEvent::Click => MainMessage::PasswordCheck,
+                },
+                self.combo => {
+                    ComboBoxEvent::Select => MainMessage::Select,
+                },
+                self.canvas => {
+                    CanvasEvent::Redraw => MainMessage::Redraw,
+                },
+                self.push_button => {
+                    ButtonEvent::Click => MainMessage::Push,
+                },
+                self.pop_button => {
+                    ButtonEvent::Click => MainMessage::Pop,
+                },
+                self.show_button => {
+                    ButtonEvent::Click => MainMessage::Show,
+                },
+                self.list => {
+                    e => MainMessage::List(e),
+                }
+            }
+        };
         let mut group = RadioButtonGroup::new(vec![&mut self.r1, &mut self.r2, &mut self.r3]);
         let fut_group = group.start(sender, |i| Some(MainMessage::RSelect(i)));
-        futures_util::join!(
-            fut_window, fut_check, fut_combo, fut_canvas, fut_list, fut_push, fut_pop, fut_show,
-            fut_group
-        );
+        futures_util::join!(fut, fut_group);
     }
 
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
@@ -259,7 +233,7 @@ impl Component for MainModel {
                             .unwrap_or("No selection."),
                     )
                     .buttons(MessageBoxButton::Ok)
-                    .show(Some(&*self.window))
+                    .show(Some(&self.window))
                     .await;
                 false
             }

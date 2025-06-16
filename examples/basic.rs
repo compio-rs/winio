@@ -6,7 +6,7 @@ use winio::{
     App, BrushPen, Canvas, CanvasEvent, Child, Color, ColorTheme, Component, ComponentSender,
     CustomButton, DrawingFontBuilder, Grid, HAlign, Layoutable, MessageBox, MessageBoxButton,
     MessageBoxResponse, MessageBoxStyle, Monitor, MouseButton, Point, Rect, Size, SolidColorBrush,
-    VAlign, Visible, Window, WindowEvent,
+    VAlign, Visible, Window, WindowEvent, init, start,
 };
 
 fn main() {
@@ -40,16 +40,17 @@ impl Component for MainModel {
     type Message = MainMessage;
 
     fn init(counter: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
-        let mut window = Child::<Window>::init(());
-        let canvas = Child::<Canvas>::init(&window);
-
-        window.set_text("Basic example");
-        window.set_size(Size::new(800.0, 600.0));
-
-        {
-            let monitors = Monitor::all();
-            let region = monitors[0].client_scaled();
-            window.set_loc(region.origin + region.size / 2.0 - window.size() / 2.0);
+        init! {
+            window: Window = (()) => {
+                text: "Basic example",
+                size: Size::new(800.0, 600.0),
+                loc: {
+                    let monitors = Monitor::all();
+                    let region = monitors[0].client_scaled();
+                    region.origin + region.size / 2.0 - window.size() / 2.0
+                },
+            },
+            canvas: Canvas = (&window),
         }
 
         let sender = sender.clone();
@@ -74,26 +75,18 @@ impl Component for MainModel {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) {
-        let fut_window = self.window.start(
-            sender,
-            |e| match e {
-                WindowEvent::Close => Some(MainMessage::Close),
-                WindowEvent::Resize => Some(MainMessage::Redraw),
-                _ => None,
+        start! {
+            sender, default: MainMessage::Noop,
+            self.window => {
+                WindowEvent::Close => MainMessage::Close,
+                WindowEvent::Resize => MainMessage::Redraw,
             },
-            || MainMessage::Noop,
-        );
-        let fut_canvas = self.canvas.start(
-            sender,
-            |e| match e {
-                CanvasEvent::Redraw => Some(MainMessage::Redraw),
-                CanvasEvent::MouseDown(b) | CanvasEvent::MouseUp(b) => Some(MainMessage::Mouse(b)),
-                CanvasEvent::MouseMove(p) => Some(MainMessage::MouseMove(p)),
-                _ => None,
+            self.canvas => {
+                CanvasEvent::Redraw => MainMessage::Redraw,
+                CanvasEvent::MouseDown(b) | CanvasEvent::MouseUp(b) => MainMessage::Mouse(b),
+                CanvasEvent::MouseMove(p) => MainMessage::MouseMove(p),
             },
-            || MainMessage::Noop,
-        );
-        futures_util::future::join(fut_window, fut_canvas).await;
+        }
     }
 
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
@@ -112,7 +105,7 @@ impl Component for MainModel {
                     .style(MessageBoxStyle::Info)
                     .buttons(MessageBoxButton::Yes | MessageBoxButton::No)
                     .custom_button(CustomButton::new(114, "114"))
-                    .show(Some(&*self.window))
+                    .show(Some(&self.window))
                     .await
                 {
                     MessageBoxResponse::Yes | MessageBoxResponse::Custom(114) => {

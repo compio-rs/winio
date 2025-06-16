@@ -1,5 +1,6 @@
 use winio::{
-    App, Child, Component, ComponentSender, Layoutable, Size, Visible, Window, WindowEvent,
+    App, Child, Component, ComponentSender, Layoutable, Size, Visible, Window, WindowEvent, init,
+    start,
 };
 
 fn main() {
@@ -29,14 +30,16 @@ impl Component for MainModel {
     type Message = MainMessage;
 
     fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let mut window = Child::<Window>::init(());
-        let mut cwindow = Child::<Window>::init(&window);
-
-        window.set_text("MDI example");
-        window.set_size(Size::new(800.0, 600.0));
-
-        cwindow.set_text("Child window");
-        cwindow.set_size(Size::new(400.0, 300.0));
+        init! {
+            window: Window = (()) => {
+                text: "MDI example",
+                size: Size::new(800.0, 600.0),
+            },
+            cwindow: Window = (&window) => {
+                text: "Child window",
+                size: Size::new(400.0, 300.0),
+            }
+        }
 
         cwindow.show();
         window.show();
@@ -45,24 +48,16 @@ impl Component for MainModel {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) {
-        let fut_window = self.window.start(
-            sender,
-            |e| match e {
-                WindowEvent::Close => Some(MainMessage::Close),
-                WindowEvent::Resize => Some(MainMessage::Redraw),
-                _ => None,
+        start! {
+            sender, default: MainMessage::Noop,
+            self.window => {
+                WindowEvent::Close => MainMessage::Close,
+                WindowEvent::Resize => MainMessage::Redraw,
             },
-            || MainMessage::Noop,
-        );
-        let fut_cwindow = self.cwindow.start(
-            sender,
-            |e| match e {
-                WindowEvent::Resize => Some(MainMessage::Redraw),
-                _ => None,
-            },
-            || MainMessage::Noop,
-        );
-        futures_util::future::join(fut_window, fut_cwindow).await;
+            self.cwindow => {
+                WindowEvent::Resize => MainMessage::Redraw,
+            }
+        }
     }
 
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {

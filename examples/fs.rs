@@ -7,7 +7,7 @@ use compio::{fs::File, io::AsyncReadAtExt, runtime::spawn};
 use winio::{
     App, Button, ButtonEvent, Canvas, CanvasEvent, Child, Color, ColorTheme, Component,
     ComponentSender, DrawingFontBuilder, FileBox, HAlign, Label, Layoutable, Orient, Point, Size,
-    SolidColorBrush, StackPanel, VAlign, Visible, Window, WindowEvent,
+    SolidColorBrush, StackPanel, VAlign, Visible, Window, WindowEvent, init, start,
 };
 
 fn main() {
@@ -50,17 +50,20 @@ impl Component for MainModel {
     type Message = MainMessage;
 
     fn init(path: Self::Init<'_>, sender: &winio::ComponentSender<Self>) -> Self {
-        let mut window = Child::<Window>::init(());
-        window.set_text("File IO example");
-        window.set_size(Size::new(800.0, 600.0));
-
-        let canvas = Child::<Canvas>::init(&window);
-        let mut button = Child::<Button>::init(&window);
-        button.set_text("Choose file...");
-
-        let mut label = Child::<Label>::init(&window);
-        label.set_text(path);
-        label.set_halign(HAlign::Center);
+        init! {
+            window: Window = (()) => {
+                text: "File IO example",
+                size: Size::new(800.0, 600.0),
+            },
+            canvas: Canvas = (&window),
+            button: Button = (&window) => {
+                text: "Choose file...",
+            },
+            label: Label = (&window) => {
+                text: path,
+                halign: HAlign::Center,
+            },
+        }
 
         let path = path.to_string();
         spawn(fetch(path, sender.clone())).detach();
@@ -77,32 +80,19 @@ impl Component for MainModel {
     }
 
     async fn start(&mut self, sender: &winio::ComponentSender<Self>) {
-        let fut_window = self.window.start(
-            sender,
-            |e| match e {
-                WindowEvent::Close => Some(MainMessage::Close),
-                WindowEvent::Resize => Some(MainMessage::Redraw),
-                _ => None,
+        start! {
+            sender, default: MainMessage::Noop,
+            self.window => {
+                WindowEvent::Close => MainMessage::Close,
+                WindowEvent::Resize => MainMessage::Redraw,
             },
-            || MainMessage::Noop,
-        );
-        let fut_canvas = self.canvas.start(
-            sender,
-            |e| match e {
-                CanvasEvent::Redraw => Some(MainMessage::Redraw),
-                _ => None,
+            self.canvas => {
+                CanvasEvent::Redraw => MainMessage::Redraw,
             },
-            || MainMessage::Noop,
-        );
-        let fut_button = self.button.start(
-            sender,
-            |e| match e {
-                ButtonEvent::Click => Some(MainMessage::ChooseFile),
-                _ => None,
+            self.button => {
+                ButtonEvent::Click => MainMessage::ChooseFile,
             },
-            || MainMessage::Noop,
-        );
-        futures_util::future::join3(fut_window, fut_canvas, fut_button).await;
+        }
     }
 
     async fn update(
@@ -127,7 +117,7 @@ impl Component for MainModel {
                 if let Some(p) = FileBox::new()
                     .title("Open file")
                     .add_filter(("All files", "*.*"))
-                    .open(Some(&*self.window))
+                    .open(Some(&self.window))
                     .await
                 {
                     sender.post(MainMessage::OpenFile(p));
