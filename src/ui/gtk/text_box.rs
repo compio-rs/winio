@@ -16,7 +16,6 @@ pub struct TextBox {
     on_changed: Rc<Callback<()>>,
     widget: gtk4::TextView,
     handle: Widget,
-    text: String,
 }
 
 impl TextBox {
@@ -42,7 +41,6 @@ impl TextBox {
             on_changed,
             widget,
             handle,
-            text: String::new(),
         }
     }
 
@@ -83,12 +81,14 @@ impl TextBox {
     }
 
     pub fn text(&self) -> String {
-        self.text.clone()
+        let buffer = self.widget.buffer();
+        buffer
+            .text(&buffer.start_iter(), &buffer.end_iter(), true)
+            .to_string()
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.text = s.as_ref().to_string();
-        self.widget.buffer().set_text(&self.text);
+        self.widget.buffer().set_text(s.as_ref());
         self.handle.reset_preferred_size();
     }
 
