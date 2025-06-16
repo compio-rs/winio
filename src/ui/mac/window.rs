@@ -6,7 +6,8 @@ use objc2::{
     runtime::ProtocolObject,
 };
 use objc2_app_kit::{
-    NSBackingStoreType, NSControl, NSScreen, NSView, NSWindow, NSWindowDelegate, NSWindowStyleMask,
+    NSBackingStoreType, NSControl, NSScreen, NSView, NSWindow, NSWindowDelegate,
+    NSWindowOrderingMode, NSWindowStyleMask,
 };
 use objc2_foundation::{
     MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSPoint, NSRect, NSSize, NSString,
@@ -44,7 +45,10 @@ impl Window {
             };
 
             if let Some(parent) = parent {
-                wnd.setParentWindow(Some(&parent.as_window().as_raw_window()));
+                parent
+                    .as_window()
+                    .as_raw_window()
+                    .addChildWindow_ordered(&wnd, NSWindowOrderingMode::Above);
             }
 
             let delegate = WindowDelegate::new(mtm);
