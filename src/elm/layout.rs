@@ -300,21 +300,8 @@ impl<'a> StackPanel<'a> {
     }
 
     fn render(&mut self) {
-        let (mut tree, root, nodes) = self.tree();
-        tree.compute_layout(
-            root,
-            taffy::Size {
-                width: taffy::AvailableSpace::Definite(self.size.width as _),
-                height: taffy::AvailableSpace::Definite(self.size.height as _),
-            },
-        )
-        .unwrap();
-        for (id, child) in nodes.iter().zip(&mut self.children) {
-            let layout = tree.layout(*id).unwrap();
-            child
-                .widget
-                .set_rect(offset(rect_t2e(layout, child.margin), self.loc));
-        }
+        let (tree, root, nodes) = self.tree();
+        render(tree, root, nodes, self.loc, self.size, &mut self.children)
     }
 }
 
@@ -539,21 +526,8 @@ impl<'a> Grid<'a> {
     }
 
     fn render(&mut self) {
-        let (mut tree, root, nodes) = self.tree();
-        tree.compute_layout(
-            root,
-            taffy::Size {
-                width: taffy::AvailableSpace::Definite(self.size.width as _),
-                height: taffy::AvailableSpace::Definite(self.size.height as _),
-            },
-        )
-        .unwrap();
-        for (id, child) in nodes.iter().zip(&mut self.children) {
-            let layout = tree.layout(*id).unwrap();
-            child
-                .widget
-                .set_rect(offset(rect_t2e(layout, child.margin), self.loc));
-        }
+        let (tree, root, nodes) = self.tree();
+        render(tree, root, nodes, self.loc, self.size, &mut self.children)
     }
 }
 
@@ -587,5 +561,29 @@ impl Layoutable for Grid<'_> {
         tree.compute_layout(root, taffy::Size::max_content())
             .unwrap();
         rect_t2e(tree.layout(root).unwrap(), Margin::zero()).size
+    }
+}
+
+fn render(
+    mut tree: TaffyTree,
+    root: NodeId,
+    nodes: Vec<NodeId>,
+    loc: Point,
+    size: Size,
+    children: &mut [LayoutChild],
+) {
+    tree.compute_layout(
+        root,
+        taffy::Size {
+            width: taffy::AvailableSpace::Definite(size.width as _),
+            height: taffy::AvailableSpace::Definite(size.height as _),
+        },
+    )
+    .unwrap();
+    for (id, child) in nodes.iter().zip(children) {
+        let layout = tree.layout(*id).unwrap();
+        child
+            .widget
+            .set_rect(offset(rect_t2e(layout, child.margin), loc));
     }
 }

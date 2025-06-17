@@ -82,7 +82,9 @@ impl Layoutable for ComboBox {
     }
 
     fn set_loc(&mut self, p: Point) {
-        self.widget.set_loc(p)
+        if !super::approx_eq_point(self.loc(), p) {
+            self.widget.set_loc(p);
+        }
     }
 
     fn size(&self) -> Size {
@@ -90,7 +92,9 @@ impl Layoutable for ComboBox {
     }
 
     fn set_size(&mut self, v: Size) {
-        self.widget.set_size(v)
+        if !super::approx_eq_size(self.size(), v) {
+            self.widget.set_size(v);
+        }
     }
 
     fn preferred_size(&self) -> Size {
