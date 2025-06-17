@@ -7,6 +7,10 @@ use std::{
 use slim_detours_sys::{DETOUR_INLINE_HOOK, SlimDetoursInlineHooks};
 use sync_unsafe_cell::SyncUnsafeCell;
 use widestring::U16CStr;
+#[cfg(target_pointer_width = "64")]
+use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongPtrW;
+#[cfg(target_pointer_width = "32")]
+use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongW as SetClassLongPtrW;
 use windows_sys::{
     Win32::{
         Foundation::{COLORREF, HWND, LPARAM, LRESULT, RECT, S_OK, WPARAM},
@@ -31,8 +35,8 @@ use windows_sys::{
             Shell::{DefSubclassProc, SetWindowSubclass},
             WindowsAndMessaging::{
                 EnumChildWindows, GCLP_HBRBACKGROUND, GetClassNameW, GetClientRect,
-                SPI_GETHIGHCONTRAST, SetClassLongPtrW, SystemParametersInfoW, WM_CTLCOLORDLG,
-                WM_ERASEBKGND, WM_SETTINGCHANGE,
+                SPI_GETHIGHCONTRAST, SystemParametersInfoW, WM_CTLCOLORDLG, WM_ERASEBKGND,
+                WM_SETTINGCHANGE,
             },
         },
     },
