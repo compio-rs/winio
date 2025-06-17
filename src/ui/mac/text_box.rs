@@ -1,14 +1,20 @@
 use objc2::{
-    DeclaredClass, MainThreadOnly, define_class, msg_send,
+    AnyThread, DeclaredClass, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
     runtime::ProtocolObject,
 };
-use objc2_app_kit::{NSTextAlignment, NSTextDelegate, NSTextView, NSTextViewDelegate};
-use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString};
+use objc2_app_kit::{
+    NSAttributedStringNSStringDrawing, NSFontAttributeName, NSTextAlignment, NSTextDelegate,
+    NSTextView, NSTextViewDelegate,
+};
+use objc2_foundation::{
+    MainThreadMarker, NSAttributedString, NSDictionary, NSNotification, NSObject, NSObjectProtocol,
+    NSString,
+};
 
 use crate::{
     AsWindow, HAlign, Point, Size,
-    ui::{Callback, Widget, from_nsstring},
+    ui::{Callback, Widget, from_cgsize, from_nsstring},
 };
 
 #[derive(Debug)]
@@ -59,7 +65,23 @@ impl TextBox {
     }
 
     pub fn preferred_size(&self) -> Size {
-        self.handle.preferred_size()
+        unsafe {
+            let font = self.text_view.font();
+            let text = NSAttributedString::initWithString_attributes(
+                NSAttributedString::alloc(),
+                &self.text_view.string(),
+                if let Some(font) = font {
+                    Some(NSDictionary::from_slices(
+                        &[NSFontAttributeName],
+                        &[font.as_ref()],
+                    ))
+                } else {
+                    None
+                }
+                .as_deref(),
+            );
+            from_cgsize(text.size())
+        }
     }
 
     pub fn loc(&self) -> Point {
