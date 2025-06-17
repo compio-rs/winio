@@ -117,7 +117,7 @@ impl Component for MainModel {
                 if let Some(p) = FileBox::new()
                     .title("Open file")
                     .add_filter(("All files", "*.*"))
-                    .open(Some(&self.window))
+                    .open(&self.window)
                     .await
                 {
                     sender.post(MainMessage::OpenFile(p));

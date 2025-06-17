@@ -233,7 +233,7 @@ impl Component for MainModel {
                             .unwrap_or("No selection."),
                     )
                     .buttons(MessageBoxButton::Ok)
-                    .show(Some(&self.window))
+                    .show(&self.window)
                     .await;
                 false
             }

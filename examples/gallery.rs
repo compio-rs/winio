@@ -113,7 +113,7 @@ impl Component for MainModel {
             MainMessage::ChooseFolder => {
                 if let Some(p) = FileBox::new()
                     .title("Open folder")
-                    .open_folder(Some(&self.window))
+                    .open_folder(&self.window)
                     .await
                 {
                     sender.post(MainMessage::OpenFolder(p));

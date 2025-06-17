@@ -105,7 +105,7 @@ impl Component for MainModel {
                     .style(MessageBoxStyle::Info)
                     .buttons(MessageBoxButton::Yes | MessageBoxButton::No)
                     .custom_button(CustomButton::new(114, "114"))
-                    .show(Some(&self.window))
+                    .show(&self.window)
                     .await
                 {
                     MessageBoxResponse::Yes | MessageBoxResponse::Custom(114) => {
