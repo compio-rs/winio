@@ -84,7 +84,11 @@ impl Window {
     }
 
     pub fn set_visible(&self, v: bool) {
-        self.window.set_visible(v);
+        if v {
+            self.window.present();
+        } else {
+            self.window.set_visible(v);
+        }
     }
 
     pub fn loc(&self) -> Point {
@@ -94,17 +98,15 @@ impl Window {
     pub fn set_loc(&mut self, _p: Point) {}
 
     pub fn size(&self) -> Size {
-        let (_, size) = self.window.preferred_size();
-        let (_, width, ..) = self
-            .window
-            .measure(gtk4::Orientation::Horizontal, size.width());
-        let (_, height, ..) = self
-            .window
-            .measure(gtk4::Orientation::Vertical, size.height());
-        Size::new(
-            self.window.width().max(width) as f64,
-            self.window.height().max(height) as f64,
-        )
+        let mut width = self.window.width();
+        if width == 0 {
+            width = self.window.default_width();
+        }
+        let mut height = self.window.height();
+        if height == 0 {
+            height = self.window.default_height();
+        }
+        Size::new(width as _, height as _)
     }
 
     pub fn set_size(&mut self, s: Size) {
@@ -112,8 +114,14 @@ impl Window {
     }
 
     pub fn client_size(&self) -> Size {
-        let width = self.swindow.width();
-        let height = self.swindow.height();
+        let mut width = self.swindow.width();
+        if width == 0 {
+            width = self.window.default_width();
+        }
+        let mut height = self.swindow.height();
+        if height == 0 {
+            height = self.window.default_height();
+        }
         Size::new(width as _, height as _)
     }
 
