@@ -44,7 +44,7 @@ fn main() {
             .std("c++17")
             .files(sources.map(|s| format!("{s}.cpp")))
             .includes(inc);
-        if std::env::var("PROFILE").as_deref() == Ok("release") {
+        if cfg!(feature = "clang-lto") && std::env::var("PROFILE").as_deref() == Ok("release") {
             build.flag("-flto").compiler("clang++");
         }
         qbuild.cargo_link_libraries(&mut build);

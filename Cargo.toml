@@ -1,6 +1,6 @@
 [package]
 name = "winio"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 description = "Single-threaded async GUI runtime based on compio."
 license = "MIT"
@@ -175,6 +175,7 @@ objc-static = [
     "objc2/unstable-static-sel-inlined",
     "objc2-foundation/unstable-static-nsstring",
 ]
+clang-lto = []
 
 [profile.release]
 lto = true
