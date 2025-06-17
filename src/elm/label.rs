@@ -29,6 +29,18 @@ impl Label {
     pub fn set_halign(&mut self, align: HAlign) {
         self.widget.set_halign(align);
     }
+
+    /// If the label background is transparent.
+    #[cfg(windows)]
+    pub fn is_transparent(&self) -> bool {
+        self.widget.is_transparent()
+    }
+
+    /// Set if the label background is transparent.
+    #[cfg(windows)]
+    pub fn set_transparent(&mut self, v: bool) {
+        self.widget.set_transparent(v)
+    }
 }
 
 impl Visible for Label {

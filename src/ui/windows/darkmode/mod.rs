@@ -7,7 +7,10 @@ use windows_sys::Win32::{
         TRANSPARENT, WHITE_BRUSH,
     },
     System::SystemServices::MAX_CLASS_NAME,
-    UI::{Controls::WC_STATICW, WindowsAndMessaging::GetClassNameW},
+    UI::{
+        Controls::WC_STATICW,
+        WindowsAndMessaging::{GWL_EXSTYLE, GetClassNameW, GetWindowLongPtrW, WS_EX_TRANSPARENT},
+    },
 };
 
 cfg_if::cfg_if! {
@@ -55,7 +58,8 @@ pub unsafe fn control_color_static(hwnd: HWND, hdc: HDC) -> LRESULT {
     let mut class = [0u16; MAX_CLASS_NAME as usize];
     GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
     let class = U16CStr::from_ptr_str(class.as_ptr());
-    let is_static = u16_string_eq_ignore_case(class, WC_STATICW);
+    let is_static = u16_string_eq_ignore_case(class, WC_STATICW)
+        && ((GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32 & WS_EX_TRANSPARENT) != 0);
 
     SetBkMode(hdc, TRANSPARENT as _);
     if dark {

@@ -8,13 +8,13 @@ use compio::driver::syscall;
 use widestring::U16CString;
 use windows_sys::{
     Win32::{
-        Foundation::{HWND, POINT, SetLastError},
+        Foundation::{ERROR_INVALID_HANDLE, HWND, POINT, SetLastError},
         Graphics::Gdi::{GetStockObject, MapWindowPoints, WHITE_BRUSH},
         System::LibraryLoader::GetModuleHandleW,
         UI::{
             Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled},
             WindowsAndMessaging::{
-                CW_USEDEFAULT, CloseWindow, CreateWindowExW, DestroyWindow, GWL_STYLE,
+                CW_USEDEFAULT, CloseWindow, CreateWindowExW, DestroyWindow, GWL_EXSTYLE, GWL_STYLE,
                 GetClientRect, GetParent, GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW,
                 GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW, IMAGE_ICON,
                 IsWindowVisible, LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LR_SHARED, LoadCursorW,
@@ -285,6 +285,29 @@ impl Widget {
         }
     }
 
+    pub fn ex_style(&self) -> u32 {
+        syscall!(
+            BOOL,
+            GetWindowLongPtrW(self.as_raw_window(), GWL_EXSTYLE) as u32
+        )
+        .unwrap()
+    }
+
+    pub fn set_ex_style(&mut self, style: u32) {
+        unsafe { SetLastError(0) };
+        let res = syscall!(
+            BOOL,
+            SetWindowLongPtrW(self.as_raw_window(), GWL_EXSTYLE, style as _) as i32
+        );
+        match res {
+            Ok(_) => {}
+            Err(e)
+                if e.raw_os_error() == Some(0)
+                    || e.raw_os_error() == Some(ERROR_INVALID_HANDLE as _) => {}
+            Err(e) => panic!("{e:?}"),
+        }
+    }
+
     pub fn set_icon(&mut self, icon: HICON) {
         unsafe {
             SendMessageW(self.as_raw_window(), WM_SETICON, ICON_BIG as _, icon as _);
@@ -418,6 +441,14 @@ impl Window {
 
     pub fn set_style(&mut self, v: u32) {
         self.handle.set_style(v);
+    }
+
+    pub fn ex_style(&self) -> u32 {
+        self.handle.ex_style()
+    }
+
+    pub fn set_ex_style(&mut self, v: u32) {
+        self.handle.set_ex_style(v);
     }
 
     pub async fn wait_size(&self) {

@@ -24,7 +24,7 @@ impl Label {
         let mut handle = Widget::new(
             WC_STATICW,
             WS_CHILD | WS_VISIBLE | SS_LEFT,
-            WS_EX_TRANSPARENT,
+            0,
             parent.as_window().as_raw_window(),
         );
         handle.set_size(handle.size_d2l((100, 50)));
@@ -96,5 +96,14 @@ impl Label {
             _ => style |= SS_LEFT,
         }
         self.handle.set_style(style)
+    }
+
+    pub fn is_transparent(&self) -> bool {
+        (self.handle.ex_style() & WS_EX_TRANSPARENT) != 0
+    }
+
+    pub fn set_transparent(&mut self, v: bool) {
+        let style = if v { WS_EX_TRANSPARENT } else { 0 };
+        self.handle.set_ex_style(style);
     }
 }

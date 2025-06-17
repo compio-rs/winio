@@ -42,6 +42,18 @@ impl Window {
     pub fn set_style(&mut self, s: u32) {
         self.widget.set_style(s);
     }
+
+    /// Get window extended style.
+    #[cfg(windows)]
+    pub fn ex_style(&self) -> u32 {
+        self.widget.ex_style()
+    }
+
+    /// Set window extended style.
+    #[cfg(windows)]
+    pub fn set_ex_style(&mut self, s: u32) {
+        self.widget.set_ex_style(s);
+    }
 }
 
 impl Visible for Window {
