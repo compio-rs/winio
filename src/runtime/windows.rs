@@ -18,20 +18,20 @@ use windows_sys::{
     Win32::{
         Foundation::{COLORREF, HANDLE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_FAILED, WPARAM},
         Graphics::Gdi::{
-            BLACK_BRUSH, CreateSolidBrush, GetStockObject, HDC, InvalidateRect, Rectangle,
-            ScreenToClient, SelectObject, SetBkColor, SetTextColor, WHITE_BRUSH,
+            BLACK_BRUSH, CreateSolidBrush, GetStockObject, HDC, InvalidateRect, ScreenToClient,
+            SetBkColor, SetTextColor,
         },
         System::Threading::INFINITE,
         UI::{
             Controls::DRAWITEMSTRUCT,
             WindowsAndMessaging::{
                 ChildWindowFromPoint, DefWindowProcW, DispatchMessageW, EnumChildWindows,
-                GetClientRect, GetCursorPos, GetMessagePos, GetMessageTime, MSG, MWMO_ALERTABLE,
+                GetCursorPos, GetMessagePos, GetMessageTime, MSG, MWMO_ALERTABLE,
                 MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW,
                 QS_ALLINPUT, SWP_NOACTIVATE, SWP_NOZORDER, SendMessageW, SetWindowPos,
                 TranslateMessage, WM_COMMAND, WM_CREATE, WM_CTLCOLORBTN, WM_CTLCOLOREDIT,
-                WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC, WM_DPICHANGED, WM_DRAWITEM, WM_ERASEBKGND,
-                WM_SETFONT, WM_SETTINGCHANGE,
+                WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC, WM_DPICHANGED, WM_DRAWITEM, WM_SETFONT,
+                WM_SETTINGCHANGE,
             },
         },
     },
@@ -323,20 +323,6 @@ pub(crate) unsafe extern "system" fn window_proc(
             }
             WM_CREATE => {
                 refresh_font(handle);
-            }
-            WM_ERASEBKGND => {
-                let hdc = wparam as HDC;
-                let brush = if is_dark_mode_allowed_for_app() {
-                    GetStockObject(BLACK_BRUSH)
-                } else {
-                    GetStockObject(WHITE_BRUSH)
-                };
-                let old_brush = SelectObject(hdc, brush);
-                let mut r = MaybeUninit::uninit();
-                GetClientRect(handle, r.as_mut_ptr());
-                let r = r.assume_init();
-                Rectangle(hdc, r.left - 1, r.top - 1, r.right + 1, r.bottom + 1);
-                SelectObject(hdc, old_brush);
             }
             WM_DPICHANGED => {
                 unsafe {

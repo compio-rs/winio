@@ -13,8 +13,8 @@ use windows_sys::{
         Graphics::{
             Dwm::DwmSetWindowAttribute,
             Gdi::{
-                CreateSolidBrush, DRAW_TEXT_FORMAT, FillRect, HDC, InvalidateRect, Rectangle,
-                SelectObject,
+                BLACK_BRUSH, CreateSolidBrush, DRAW_TEXT_FORMAT, FillRect, GetStockObject, HDC,
+                InvalidateRect, Rectangle, SelectObject, WHITE_BRUSH,
             },
         },
         System::SystemServices::MAX_CLASS_NAME,
@@ -30,8 +30,9 @@ use windows_sys::{
             },
             Shell::{DefSubclassProc, SetWindowSubclass},
             WindowsAndMessaging::{
-                EnumChildWindows, GetClassNameW, GetClientRect, SPI_GETHIGHCONTRAST,
-                SystemParametersInfoW, WM_CTLCOLORDLG, WM_ERASEBKGND, WM_SETTINGCHANGE,
+                EnumChildWindows, GCLP_HBRBACKGROUND, GetClassNameW, GetClientRect,
+                SPI_GETHIGHCONTRAST, SetClassLongPtrW, SystemParametersInfoW, WM_CTLCOLORDLG,
+                WM_ERASEBKGND, WM_SETTINGCHANGE,
             },
         },
     },
@@ -107,6 +108,12 @@ const DWMWA_USE_IMMERSIVE_DARK_MODE_V2: u32 = 0x14;
 
 pub unsafe fn window_use_dark_mode(h_wnd: HWND) -> HRESULT {
     let set_dark_mode = is_dark_mode_allowed_for_app();
+    let brush = if set_dark_mode {
+        GetStockObject(BLACK_BRUSH)
+    } else {
+        GetStockObject(WHITE_BRUSH)
+    };
+    SetClassLongPtrW(h_wnd, GCLP_HBRBACKGROUND, brush as _);
     AllowDarkModeForWindow(h_wnd, set_dark_mode);
     let set_dark_mode = set_dark_mode as BOOL;
     let hr = DwmSetWindowAttribute(

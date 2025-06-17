@@ -9,7 +9,7 @@ use widestring::U16CString;
 use windows_sys::{
     Win32::{
         Foundation::{HWND, POINT, SetLastError},
-        Graphics::Gdi::MapWindowPoints,
+        Graphics::Gdi::{GetStockObject, MapWindowPoints, WHITE_BRUSH},
         System::LibraryLoader::GetModuleHandleW,
         UI::{
             Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled},
@@ -313,7 +313,7 @@ fn register() {
         hInstance: unsafe { GetModuleHandleW(null()) },
         hIcon: null_mut(),
         hCursor: unsafe { LoadCursorW(null_mut(), IDC_ARROW) },
-        hbrBackground: null_mut(),
+        hbrBackground: unsafe { GetStockObject(WHITE_BRUSH) },
         lpszMenuName: null(),
         lpszClassName: WINDOW_CLASS_NAME,
         hIconSm: null_mut(),
