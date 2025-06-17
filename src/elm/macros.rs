@@ -17,17 +17,27 @@ pub use paste::paste as __paste;
 /// ```
 #[macro_export]
 macro_rules! init {
-    ($($name:ident : $t:ty = ($init:expr) $(=> { $($prop:ident : $value:expr),*$(,)? } )?),*$(,)?) => {
+    () => {};
+    ($($name:ident : $t:ty = ($init:expr) $(=> { $($a:tt)* } )?),+$(,)?) => {
         $(
             #[allow(unused_mut)]
             let mut $name = $crate::Child::<$t>::init($init);
             $(
-                $(
-                    $crate::__paste! {
-                        $name.[<set_ $prop>]($value);
-                    }
-                )*
+                $crate::__init_assign!($name, $($a)*);
             )?
+        )*
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! __init_assign {
+    ($name:ident, ) => {};
+    ($name:ident, $($prop:ident : $value:expr),+$(,)?) => {
+        $(
+            $crate::__paste! {
+                $name.[<set_ $prop>]($value);
+            }
         )*
     };
 }
@@ -49,18 +59,30 @@ macro_rules! init {
 /// ```
 #[macro_export]
 macro_rules! start {
-    ($sender:expr, default: $noop:expr, $($w:expr =>  { $($e:pat => $m:expr),*$(,)? }),*$(,)?) => {
+    ($sender:expr, default: $noop:expr $(,)?) => {};
+    ($sender:expr, default: $noop:expr, $($w:expr =>  { $($t:tt)* }),+$(,)?) => {
         $crate::__join!($(
             $w.start(
                 $sender,
-                |e| match e {
-                    $(
-                        $e => Some($m),
-                    )*
-                    _ => None,
-                },
+                $crate::__start_map!($($t)*),
                 || $noop
             ),
         )*);
     };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! __start_map {
+    () => {
+        |_| None
+    };
+    ($($e:pat => $m:expr),+$(,)?) => {
+        |e| match e {
+            $(
+                $e => Some($m),
+            )*
+            _ => None,
+        }
+    }
 }
