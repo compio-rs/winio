@@ -1,4 +1,5 @@
 #include "canvas.hpp"
+#include <QApplication>
 #include <QBrush>
 #include <QFont>
 #include <QLinearGradient>
@@ -91,6 +92,11 @@ void painter_draw_text(QPainter &p, QRectF rect, rust::Str text) {
 }
 
 void color_transparent(QColor &c) { new (&c) QColor{Qt::transparent}; }
+
+void color_accent(QColor &c) {
+    auto accent = QApplication::palette().color(QPalette::Accent);
+    new (&c) QColor{accent};
+}
 
 std::unique_ptr<QBrush> new_brush(QColor const &c) {
     return std::make_unique<QBrush>(c);

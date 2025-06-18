@@ -468,6 +468,11 @@ impl DrawingImage {
     }
 }
 
+/// Get the accent color.
+pub fn accent_color() -> Option<Color> {
+    Some(QColor::accent().into())
+}
+
 #[repr(i32)]
 #[non_exhaustive]
 #[allow(clippy::enum_variant_names)]
@@ -562,6 +567,15 @@ impl QColor {
             ct: [0; 5],
         };
         ffi::color_transparent(Pin::new(&mut c));
+        c
+    }
+
+    pub fn accent() -> Self {
+        let mut c = Self {
+            cspec: Spec::Invalid,
+            ct: [0; 5],
+        };
+        ffi::color_accent(Pin::new(&mut c));
         c
     }
 }
@@ -695,6 +709,7 @@ mod ffi {
         fn setPen(self: Pin<&mut QPainter>, color: &QColor);
 
         fn color_transparent(c: Pin<&mut QColor>);
+        fn color_accent(c: Pin<&mut QColor>);
         fn new_brush(c: &QColor) -> UniquePtr<QBrush>;
         fn new_pen(b: &QBrush, width: f64) -> UniquePtr<QPen>;
 
