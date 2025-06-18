@@ -37,6 +37,9 @@ pub use combo_box::*;
 mod check_box;
 pub use check_box::*;
 
+mod accent;
+pub use accent::*;
+
 /// GTK [`Window`].
 ///
 /// [`Window`]: gtk4::Window
