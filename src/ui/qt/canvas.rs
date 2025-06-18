@@ -470,7 +470,7 @@ impl DrawingImage {
 
 /// Get the accent color.
 pub fn accent_color() -> Option<Color> {
-    Some(QColor::accent().into())
+    QColor::accent().map(From::from)
 }
 
 #[repr(i32)]
@@ -570,13 +570,16 @@ impl QColor {
         c
     }
 
-    pub fn accent() -> Self {
+    pub fn accent() -> Option<Self> {
         let mut c = Self {
             cspec: Spec::Invalid,
             ct: [0; 5],
         };
-        ffi::color_accent(Pin::new(&mut c));
-        c
+        if ffi::color_accent(Pin::new(&mut c)) {
+            Some(c)
+        } else {
+            None
+        }
     }
 }
 
@@ -709,7 +712,7 @@ mod ffi {
         fn setPen(self: Pin<&mut QPainter>, color: &QColor);
 
         fn color_transparent(c: Pin<&mut QColor>);
-        fn color_accent(c: Pin<&mut QColor>);
+        fn color_accent(c: Pin<&mut QColor>) -> bool;
         fn new_brush(c: &QColor) -> UniquePtr<QBrush>;
         fn new_pen(b: &QBrush, width: f64) -> UniquePtr<QPen>;
 

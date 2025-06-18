@@ -93,9 +93,14 @@ void painter_draw_text(QPainter &p, QRectF rect, rust::Str text) {
 
 void color_transparent(QColor &c) { new (&c) QColor{Qt::transparent}; }
 
-void color_accent(QColor &c) {
+bool color_accent(QColor &c) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
     auto accent = QApplication::palette().color(QPalette::Accent);
     new (&c) QColor{accent};
+    return true;
+#else
+    return false;
+#endif
 }
 
 std::unique_ptr<QBrush> new_brush(QColor const &c) {
