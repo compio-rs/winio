@@ -31,6 +31,9 @@ pub use progress::*;
 mod combo_box;
 pub use combo_box::*;
 
+mod accent;
+pub use accent::*;
+
 /// [`NSWindow`].
 pub type RawWindow = Retained<NSWindow>;
 

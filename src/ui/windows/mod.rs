@@ -38,6 +38,9 @@ pub use check_box::*;
 mod radio_button;
 pub use radio_button::*;
 
+mod accent;
+pub use accent::*;
+
 use crate::ColorTheme;
 
 pub fn color_theme() -> ColorTheme {

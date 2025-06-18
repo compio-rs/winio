@@ -5,7 +5,7 @@ use winio::{
     LinearGradientBrush, Margin, MessageBox, MessageBoxButton, ObservableVec, ObservableVecEvent,
     Orient, Point, Progress, RadialGradientBrush, RadioButton, RadioButtonGroup, Rect,
     RelativePoint, RelativeSize, Size, SolidColorBrush, StackPanel, TextBox, VAlign, Visible,
-    Window, WindowEvent, init, start,
+    Window, WindowEvent, accent_color, init, start,
 };
 
 fn main() {
@@ -382,7 +382,10 @@ impl Component for MainModel {
         let brush3 = RadialGradientBrush::new(
             [
                 GradientStop::new(Color::new(0xF5, 0xF5, 0xF5, 0xFF), 0.0),
-                GradientStop::new(Color::new(0xFF, 0xC0, 0xCB, 0xFF), 1.0),
+                GradientStop::new(
+                    accent_color().unwrap_or(Color::new(0xFF, 0xC0, 0xCB, 0xFF)),
+                    1.0,
+                ),
             ],
             RelativePoint::new(0.5, 0.5),
             RelativePoint::new(0.2, 0.5),

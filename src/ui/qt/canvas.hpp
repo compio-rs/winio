@@ -51,6 +51,7 @@ QSizeF painter_measure_text(QPainter &p, QRectF rect, rust::Str text);
 void painter_draw_text(QPainter &p, QRectF rect, rust::Str text);
 
 void color_transparent(QColor &c);
+bool color_accent(QColor &c);
 std::unique_ptr<QBrush> new_brush(QColor const &c);
 std::unique_ptr<QPen> new_pen(QBrush const &b, double width);
 
