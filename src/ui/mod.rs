@@ -37,7 +37,7 @@ pub mod export {
         filebox::*,
         monitor::*,
         msgbox::*,
-        sys::{Brush, Pen, RawWindow},
+        sys::{Brush, Pen, RawWindow, accent_color},
         window_handle::*,
     };
 }
