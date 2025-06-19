@@ -1,6 +1,6 @@
 [package]
 name = "winio"
-version = "0.5.3"
+version = "0.5.4"
 edition = "2021"
 description = "Single-threaded async GUI runtime based on compio."
 license = "MIT"
