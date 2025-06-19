@@ -61,16 +61,7 @@ impl<const E: bool> ComboBoxImpl<E> {
     }
 
     pub fn preferred_size(&self) -> Size {
-        let old_selection = self.selection();
-        let mut size = self.handle.preferred_size();
-        for i in 0..self.len() {
-            self.set_selection_impl(Some(i));
-            let new_size = self.handle.preferred_size();
-            size.width = size.width.max(new_size.width);
-            size.height = size.height.max(new_size.height);
-        }
-        self.set_selection_impl(old_selection);
-        size
+        self.handle.preferred_size()
     }
 
     pub fn loc(&self) -> Point {
@@ -104,19 +95,18 @@ impl<const E: bool> ComboBoxImpl<E> {
         if index < 0 { None } else { Some(index as _) }
     }
 
-    fn set_selection_impl(&self, i: Option<usize>) {
+    pub fn set_selection(&mut self, i: Option<usize>) {
         unsafe {
-            if let Some(i) = self.selection() {
-                self.view.deselectItemAtIndex(i as _);
-            }
-            if let Some(i) = i {
-                self.view.selectItemAtIndex(i as _);
+            let old_sel = self.selection();
+            if i != old_sel {
+                if let Some(i) = self.selection() {
+                    self.view.deselectItemAtIndex(i as _);
+                }
+                if let Some(i) = i {
+                    self.view.selectItemAtIndex(i as _);
+                }
             }
         }
-    }
-
-    pub fn set_selection(&mut self, i: Option<usize>) {
-        self.set_selection_impl(i);
     }
 
     pub async fn wait_change(&self) {
