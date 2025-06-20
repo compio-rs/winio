@@ -5,7 +5,7 @@ use winio::{
     LinearGradientBrush, Margin, MessageBox, MessageBoxButton, ObservableVec, ObservableVecEvent,
     Orient, Point, Progress, RadialGradientBrush, RadioButton, RadioButtonGroup, Rect,
     RelativePoint, RelativeSize, Size, SolidColorBrush, StackPanel, TextBox, VAlign, Visible,
-    Window, WindowEvent, accent_color, init, start,
+    Window, WindowEvent, accent_color, init, layout, start,
 };
 
 fn main() {
@@ -243,90 +243,39 @@ impl Component for MainModel {
     fn render(&mut self, _sender: &ComponentSender<Self>) {
         let csize = self.window.client_size();
         {
-            let mut root_panel = Grid::from_str("1*,1*,1*", "1*,auto,1*").unwrap();
-            let mut cred_panel = Grid::from_str("auto,1*,auto", "1*,auto,auto,1*").unwrap();
-            cred_panel
-                .push(&mut self.ulabel)
-                .valign(VAlign::Center)
-                .column(0)
-                .row(1)
-                .finish();
-            cred_panel
-                .push(&mut self.uentry)
-                .margin(Margin::new_all_same(4.0))
-                .column(1)
-                .row(1)
-                .finish();
-            cred_panel
-                .push(&mut self.plabel)
-                .valign(VAlign::Center)
-                .column(0)
-                .row(2)
-                .finish();
-            cred_panel
-                .push(&mut self.pentry)
-                .margin(Margin::new_all_same(4.0))
-                .column(1)
-                .row(2)
-                .finish();
-            cred_panel.push(&mut self.pcheck).column(2).row(2).finish();
-            root_panel.push(&mut cred_panel).column(1).row(0).finish();
+            let mut cred_panel = layout! {
+                Grid::from_str("auto,1*,auto", "1*,auto,auto,1*").unwrap(),
+                self.ulabel => { column: 0, row: 1, valign: VAlign::Center },
+                self.uentry => { column: 1, row: 1, margin: Margin::new_all_same(4.0) },
+                self.plabel => { column: 0, row: 2, valign: VAlign::Center },
+                self.pentry => { column: 1, row: 2, margin: Margin::new_all_same(4.0) },
+                self.pcheck => { column: 2, row: 2 },
+            };
 
-            let mut rgroup_panel = Grid::from_str("auto", "1*,auto,auto,auto,1*").unwrap();
-            rgroup_panel.push(&mut self.r1).row(1).finish();
-            rgroup_panel.push(&mut self.r2).row(2).finish();
-            rgroup_panel.push(&mut self.r3).row(3).finish();
-            root_panel
-                .push(&mut rgroup_panel)
-                .column(2)
-                .row(0)
-                .halign(HAlign::Center)
-                .finish();
+            let mut rgroup_panel = layout! {
+                Grid::from_str("auto", "1*,auto,auto,auto,1*").unwrap(),
+                self.r1 => { row: 1 },
+                self.r2 => { row: 2 },
+                self.r3 => { row: 3 },
+            };
 
-            root_panel
-                .push(&mut self.combo)
-                .halign(HAlign::Center)
-                .column(1)
-                .row(1)
-                .finish();
-            root_panel
-                .push(&mut self.progress)
-                .column(2)
-                .row(1)
-                .finish();
+            let mut buttons_panel = layout! {
+                StackPanel::new(Orient::Vertical),
+                self.push_button => { margin: Margin::new_all_same(4.0) },
+                self.pop_button  => { margin: Margin::new_all_same(4.0) },
+                self.show_button => { margin: Margin::new_all_same(4.0) },
+            };
 
-            root_panel
-                .push(&mut self.canvas)
-                .column(0)
-                .row(1)
-                .row_span(2)
-                .finish();
-
-            let mut buttons_panel = StackPanel::new(Orient::Vertical);
-            buttons_panel
-                .push(&mut self.push_button)
-                .margin(Margin::new_all_same(4.0))
-                .finish();
-            buttons_panel
-                .push(&mut self.pop_button)
-                .margin(Margin::new_all_same(4.0))
-                .finish();
-            buttons_panel
-                .push(&mut self.show_button)
-                .margin(Margin::new_all_same(4.0))
-                .finish();
-            root_panel
-                .push(&mut buttons_panel)
-                .column(2)
-                .row(2)
-                .finish();
-
-            root_panel
-                .push(&mut self.mltext)
-                .column(1)
-                .row(2)
-                .margin(Margin::new_all_same(8.0))
-                .finish();
+            let mut root_panel = layout! {
+                Grid::from_str("1*,1*,1*", "1*,auto,1*").unwrap(),
+                cred_panel    => { column: 1, row: 0 },
+                rgroup_panel  => { column: 2, row: 0, halign: HAlign::Center },
+                self.canvas   => { column: 0, row: 1, row_span: 2 },
+                self.combo    => { column: 1, row: 1, halign: HAlign::Center },
+                self.progress => { column: 2, row: 1 },
+                self.mltext   => { column: 1, row: 2, margin: Margin::new_all_same(8.0) },
+                buttons_panel => { column: 2, row: 2 },
+            };
 
             root_panel.set_size(csize);
         }

@@ -6,7 +6,7 @@ use winio::{
     App, BrushPen, Canvas, CanvasEvent, Child, Color, ColorTheme, Component, ComponentSender,
     CustomButton, DrawingFontBuilder, Grid, HAlign, Layoutable, MessageBox, MessageBoxButton,
     MessageBoxResponse, MessageBoxStyle, Monitor, MouseButton, Point, Rect, Size, SolidColorBrush,
-    VAlign, Visible, Window, WindowEvent, init, start,
+    VAlign, Visible, Window, WindowEvent, init, layout, start,
 };
 
 fn main() {
@@ -133,8 +133,10 @@ impl Component for MainModel {
 
         let csize = self.window.client_size();
         {
-            let mut grid = Grid::from_str("1*,2*,1*", "1*,2*,1*").unwrap();
-            grid.push(&mut self.canvas).column(1).row(1).finish();
+            let mut grid = layout! {
+                Grid::from_str("1*,2*,1*", "1*,2*,1*").unwrap(),
+                self.canvas => { column: 1, row: 1 },
+            };
             grid.set_size(csize);
         }
 

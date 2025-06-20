@@ -7,7 +7,7 @@ use compio::{fs::File, io::AsyncReadAtExt, runtime::spawn};
 use winio::{
     App, Button, ButtonEvent, Canvas, CanvasEvent, Child, Color, ColorTheme, Component,
     ComponentSender, DrawingFontBuilder, FileBox, HAlign, Label, Layoutable, Orient, Point, Size,
-    SolidColorBrush, StackPanel, VAlign, Visible, Window, WindowEvent, init, start,
+    SolidColorBrush, StackPanel, VAlign, Visible, Window, WindowEvent, init, layout, start,
 };
 
 fn main() {
@@ -140,10 +140,11 @@ impl Component for MainModel {
         let csize = self.window.client_size();
 
         {
-            let mut panel = StackPanel::new(Orient::Vertical);
-            panel.push(&mut self.label).finish();
-            panel.push(&mut self.button).finish();
-            panel.push(&mut self.canvas).grow(true).finish();
+            let mut panel = layout! {
+                StackPanel::new(Orient::Vertical),
+                self.label, self.button,
+                self.canvas => { grow: true }
+            };
             panel.set_size(csize);
         }
 

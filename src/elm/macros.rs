@@ -89,3 +89,43 @@ macro_rules! __start_map {
         }
     }
 }
+
+/// Helper macro for layouts in `Component::render`.
+///
+/// ```ignore
+/// let csize = self.window.client_size();
+/// {
+///     let mut grid = layout! {
+///         Grid::from_str("1*,2*,1*", "1*,2*,1*").unwrap(),
+///         self.canvas => { column: 1, row: 1 },
+///     };
+///     grid.set_size(csize);
+/// }
+/// ```
+#[macro_export]
+macro_rules! layout {
+    ($root:expr, $($e:expr $(=>  { $($t:tt)* })?),+$(,)?) => {{
+        #[allow(unused_mut)]
+        let mut root = $root;
+        $(
+            $crate::__layout_push!(root, &mut $e, $($($t)*)?);
+        )+
+        root
+    }};
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! __layout_push {
+    ($root:expr, $e:expr,) => {
+        $root.push($e).finish();
+    };
+    ($root:expr, $e:expr, $($(#[$me:meta])* $p:ident : $v:expr),+$(,)?) => {
+        let builder = $root.push($e);
+        $(
+            $(#[$me])*
+            let builder = builder.$p($v);
+        )+
+        builder.finish();
+    };
+}

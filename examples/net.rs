@@ -5,7 +5,7 @@ use cyper::Client;
 use winio::{
     App, Button, ButtonEvent, Canvas, CanvasEvent, Child, Color, ColorTheme, Component,
     ComponentSender, DrawingFontBuilder, Edit, HAlign, Layoutable, Orient, Point, Size,
-    SolidColorBrush, StackPanel, VAlign, Visible, Window, WindowEvent, init, start,
+    SolidColorBrush, StackPanel, VAlign, Visible, Window, WindowEvent, init, layout, start,
 };
 
 fn main() {
@@ -136,12 +136,16 @@ impl Component for MainModel {
         let csize = self.window.client_size();
 
         {
-            let mut root_panel = StackPanel::new(Orient::Vertical);
-            let mut header_panel = StackPanel::new(Orient::Horizontal);
-            header_panel.push(&mut self.entry).grow(true).finish();
-            header_panel.push(&mut self.button).finish();
-            root_panel.push(&mut header_panel).finish();
-            root_panel.push(&mut self.canvas).grow(true).finish();
+            let mut header_panel = layout! {
+                StackPanel::new(Orient::Horizontal),
+                self.entry => { grow: true },
+                self.button
+            };
+            let mut root_panel = layout! {
+                StackPanel::new(Orient::Vertical),
+                header_panel,
+                self.canvas => { grow: true },
+            };
             root_panel.set_size(csize);
         }
 
