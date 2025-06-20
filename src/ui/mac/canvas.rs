@@ -82,8 +82,12 @@ impl Canvas {
 
     pub fn context(&mut self) -> DrawingContext<'_> {
         let size = self.size();
-        let layer = CALayer::new();
-        layer.setFrame(NSRect::new(NSPoint::ZERO, to_cgsize(size)));
+        let layer = unsafe {
+            self.view
+                .layer()
+                .unwrap_or_else(|| self.view.makeBackingLayer())
+        };
+        unsafe { layer.setSublayers(None) };
         DrawingContext {
             size,
             layer,
@@ -92,7 +96,7 @@ impl Canvas {
     }
 
     pub async fn wait_redraw(&self) {
-        self.view.ivars().draw_rect.wait().await;
+        std::future::pending().await
     }
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
@@ -117,7 +121,6 @@ impl Canvas {
 
 #[derive(Debug, Default, Clone)]
 struct CanvasViewIvars {
-    draw_rect: Callback,
     mouse_down: Callback<MouseButton>,
     mouse_up: Callback<MouseButton>,
     mouse_move: Callback,
@@ -161,9 +164,9 @@ define_class! {
             msg_send![super(self), updateTrackingAreas]
         }
 
-        #[unsafe(method(drawRect:))]
-        unsafe fn drawRect(&self, _dirty_rect: NSRect) {
-            self.ivars().draw_rect.signal(());
+        #[unsafe(method(wantsUpdateLayer))]
+        unsafe fn wantsUpdateLayer(&self) -> bool {
+            true
         }
 
         #[unsafe(method(mouseDown:))]
@@ -210,9 +213,7 @@ pub struct DrawingContext<'a> {
 
 impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
-        unsafe {
-            self.canvas.view.setLayer(Some(&self.layer));
-        }
+        unsafe { self.canvas.view.setNeedsDisplay(true) };
     }
 }
 
