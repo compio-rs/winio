@@ -1,4 +1,4 @@
-use std::{cell::RefCell, ops::Deref, ptr::null, rc::Rc};
+use std::{marker::PhantomData, ops::Deref, ptr::null};
 
 use image::{DynamicImage, Pixel, Rgb, Rgba};
 use objc2::{
@@ -9,8 +9,7 @@ use objc2::{
 use objc2_app_kit::{
     NSAttributedStringNSStringDrawing, NSBitmapFormat, NSBitmapImageRep, NSColor,
     NSDeviceRGBColorSpace, NSEvent, NSEventType, NSFont, NSFontAttributeName, NSFontDescriptor,
-    NSFontDescriptorSymbolicTraits, NSForegroundColorAttributeName, NSImage, NSTrackingArea,
-    NSTrackingAreaOptions, NSView,
+    NSFontDescriptorSymbolicTraits, NSForegroundColorAttributeName, NSImage, NSView,
 };
 use objc2_core_foundation::{CFRetained, CFString, CGAffineTransform};
 use objc2_core_graphics::{
@@ -81,17 +80,27 @@ impl Canvas {
     }
 
     pub fn context(&mut self) -> DrawingContext<'_> {
+        unsafe fn clear_layer(layer: &CALayer) {
+            if let Some(layers) = layer.sublayers() {
+                for layer in layers {
+                    clear_layer(&layer);
+                }
+            }
+            layer.setSublayers(None);
+        }
+
         let size = self.size();
-        let layer = unsafe {
-            self.view
+        unsafe {
+            let layer = self
+                .view
                 .layer()
-                .unwrap_or_else(|| self.view.makeBackingLayer())
-        };
-        unsafe { layer.setSublayers(None) };
-        DrawingContext {
-            size,
-            layer,
-            canvas: self,
+                .unwrap_or_else(|| self.view.makeBackingLayer());
+            clear_layer(&layer);
+            DrawingContext {
+                size,
+                layer,
+                _p: PhantomData,
+            }
         }
     }
 
@@ -124,7 +133,6 @@ struct CanvasViewIvars {
     mouse_down: Callback<MouseButton>,
     mouse_up: Callback<MouseButton>,
     mouse_move: Callback,
-    area: Rc<RefCell<Option<Retained<NSTrackingArea>>>>,
 }
 
 define_class! {
@@ -143,25 +151,9 @@ define_class! {
             unsafe { msg_send![super(this), init] }
         }
 
-        #[unsafe(method(updateTrackingAreas))]
-        unsafe fn updateTrackingAreas(&self) {
-            let this = self.ivars();
-            {
-                let mut area = this.area.borrow_mut();
-                if let Some(area) = area.take() {
-                    self.removeTrackingArea(&area);
-                }
-                let new_area = NSTrackingArea::initWithRect_options_owner_userInfo(
-                    NSTrackingArea::alloc(),
-                    self.bounds(),
-                    NSTrackingAreaOptions::MouseMoved | NSTrackingAreaOptions::ActiveAlways,
-                    Some(self),
-                    None
-                );
-                self.addTrackingArea(&new_area);
-                *area = Some(new_area);
-            }
-            msg_send![super(self), updateTrackingAreas]
+        #[unsafe(method(acceptsFirstResponder))]
+        unsafe fn acceptsFirstResponder(&self) -> bool {
+            true
         }
 
         #[unsafe(method(wantsUpdateLayer))]
@@ -208,13 +200,7 @@ unsafe fn mouse_button(event: &NSEvent) -> MouseButton {
 pub struct DrawingContext<'a> {
     size: Size,
     layer: Retained<CALayer>,
-    canvas: &'a mut Canvas,
-}
-
-impl Drop for DrawingContext<'_> {
-    fn drop(&mut self) {
-        unsafe { self.canvas.view.setNeedsDisplay(true) };
-    }
+    _p: PhantomData<&'a mut Canvas>,
 }
 
 impl DrawingContext<'_> {

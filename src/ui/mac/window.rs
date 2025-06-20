@@ -54,6 +54,7 @@ impl Window {
             let delegate = WindowDelegate::new(mtm);
             let del_obj = ProtocolObject::from_retained(delegate.clone());
             wnd.setDelegate(Some(&del_obj));
+            wnd.setAcceptsMouseMovedEvents(true);
             wnd.makeKeyWindow();
             Self { wnd, delegate }
         }
