@@ -23,15 +23,15 @@ use windows_sys::{
         },
         System::Threading::INFINITE,
         UI::{
-            Controls::DRAWITEMSTRUCT,
+            Controls::{DRAWITEMSTRUCT, NMHDR},
             WindowsAndMessaging::{
                 ChildWindowFromPoint, DefWindowProcW, DispatchMessageW, EnumChildWindows,
                 GetCursorPos, GetMessagePos, GetMessageTime, MSG, MWMO_ALERTABLE,
                 MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW,
                 QS_ALLINPUT, SWP_NOACTIVATE, SWP_NOZORDER, SendMessageW, SetWindowPos,
                 TranslateMessage, WM_COMMAND, WM_CREATE, WM_CTLCOLORBTN, WM_CTLCOLOREDIT,
-                WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC, WM_DPICHANGED, WM_DRAWITEM, WM_SETFONT,
-                WM_SETTINGCHANGE,
+                WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC, WM_DPICHANGED, WM_DRAWITEM, WM_NOTIFY,
+                WM_SETFONT, WM_SETTINGCHANGE,
             },
         },
     },
@@ -60,7 +60,7 @@ pub(crate) enum WindowMessageDetail {
     #[allow(dead_code)]
     Command {
         message: u32,
-        id: u32,
+        id: usize,
         handle: HWND,
     },
     DrawItem(DRAWITEMSTRUCT),
@@ -195,10 +195,18 @@ impl Runtime {
                 let handle = lparam as HWND;
                 Some(WindowMessageDetail::Command {
                     message,
-                    id,
+                    id: id as _,
                     handle,
                 })
             }
+            WM_NOTIFY => unsafe {
+                let hdr = &*(lparam as *const NMHDR);
+                Some(WindowMessageDetail::Command {
+                    message: hdr.code,
+                    id: hdr.idFrom,
+                    handle: hdr.hwndFrom,
+                })
+            },
             WM_DRAWITEM => Some(WindowMessageDetail::DrawItem(unsafe {
                 *(lparam as *const DRAWITEMSTRUCT)
             })),
