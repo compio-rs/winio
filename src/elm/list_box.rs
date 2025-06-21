@@ -100,6 +100,10 @@ impl Layoutable for ListBox {
     fn preferred_size(&self) -> Size {
         self.widget.preferred_size()
     }
+
+    fn min_size(&self) -> Size {
+        self.widget.min_size()
+    }
 }
 
 /// Events of [`ListBox`].

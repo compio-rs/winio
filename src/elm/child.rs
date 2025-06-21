@@ -168,4 +168,8 @@ impl<T: Component + Layoutable> Layoutable for Child<T> {
     fn preferred_size(&self) -> Size {
         self.model.preferred_size()
     }
+
+    fn min_size(&self) -> Size {
+        self.model.min_size()
+    }
 }

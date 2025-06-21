@@ -4,8 +4,8 @@ use windows_sys::Win32::UI::{
     WindowsAndMessaging::{
         LB_DELETESTRING, LB_GETCOUNT, LB_GETSEL, LB_GETTEXT, LB_GETTEXTLEN, LB_INSERTSTRING,
         LB_RESETCONTENT, LB_SETSEL, LBN_SELCANCEL, LBN_SELCHANGE, LBS_DISABLENOSCROLL,
-        LBS_HASSTRINGS, LBS_MULTIPLESEL, LBS_NOTIFY, LBS_USETABSTOPS, SendMessageW, WM_COMMAND,
-        WS_CHILD, WS_TABSTOP, WS_VISIBLE, WS_VSCROLL,
+        LBS_HASSTRINGS, LBS_MULTIPLESEL, LBS_NOINTEGRALHEIGHT, LBS_NOTIFY, LBS_USETABSTOPS,
+        SendMessageW, WM_COMMAND, WS_CHILD, WS_TABSTOP, WS_VISIBLE, WS_VSCROLL,
     },
 };
 
@@ -32,7 +32,8 @@ impl ListBox {
                 | LBS_MULTIPLESEL as u32
                 | LBS_HASSTRINGS as u32
                 | LBS_USETABSTOPS as u32
-                | LBS_DISABLENOSCROLL as u32,
+                | LBS_DISABLENOSCROLL as u32
+                | LBS_NOINTEGRALHEIGHT as u32,
             0,
             parent.as_window().as_raw_window(),
         );
@@ -64,6 +65,18 @@ impl ListBox {
             let s = measure_string(self.handle.as_raw_window(), &data);
             width = width.max(s.width);
             height += s.height;
+        }
+        Size::new(width + 20.0, height)
+    }
+
+    pub fn min_size(&self) -> Size {
+        let mut width = 0.0f64;
+        let mut height = 0.0f64;
+        for i in 0..self.len() {
+            let data = self.get_u16(i);
+            let s = measure_string(self.handle.as_raw_window(), &data);
+            width = width.max(s.width);
+            height = height.max(s.height);
         }
         Size::new(width + 20.0, height)
     }
