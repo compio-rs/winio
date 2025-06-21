@@ -104,13 +104,13 @@ impl Component for RadioButton {
 }
 
 /// A group of [`RadioButton`]. Only one of them could be checked.
-pub struct RadioButtonGroup<'a> {
-    radios: Vec<&'a mut RadioButton>,
+pub struct RadioButtonGroup<T> {
+    radios: T,
 }
 
-impl<'a> RadioButtonGroup<'a> {
+impl<'a, T: AsMut<[&'a mut RadioButton]>> RadioButtonGroup<T> {
     /// Create [`RadioButtonGroup`].
-    pub fn new(radios: Vec<&'a mut RadioButton>) -> Self {
+    pub fn new(radios: T) -> Self {
         Self { radios }
     }
 
@@ -119,13 +119,17 @@ impl<'a> RadioButtonGroup<'a> {
         &mut self,
         sender: &ComponentSender<C>,
         mut f: impl FnMut(usize) -> Option<C::Message>,
+        _propagate: impl FnMut() -> C::Message,
     ) {
         loop {
             let ((), index, _) = futures_util::future::select_all(
-                self.radios.iter().map(|r| Box::pin(r.widget.wait_click())),
+                self.radios
+                    .as_mut()
+                    .iter()
+                    .map(|r| Box::pin(r.widget.wait_click())),
             )
             .await;
-            for (i, r) in self.radios.iter_mut().enumerate() {
+            for (i, r) in self.radios.as_mut().iter_mut().enumerate() {
                 if i != index {
                     r.set_checked(false);
                 }

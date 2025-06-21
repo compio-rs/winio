@@ -79,6 +79,7 @@ macro_rules! __start_map {
     () => {
         |_| None
     };
+    ($f:expr) => { $f };
     ($($(#[$me:meta])* $e:pat => $m:expr),+$(,)?) => {
         |e| match e {
             $(

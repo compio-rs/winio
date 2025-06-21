@@ -145,39 +145,38 @@ impl Component for MainModel {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) {
-        let fut = async {
-            start! {
-                sender, default: MainMessage::Noop,
-                self.window => {
-                    WindowEvent::Close => MainMessage::Close,
-                    WindowEvent::Resize => MainMessage::Redraw,
-                },
-                self.pcheck => {
-                    CheckBoxEvent::Click => MainMessage::PasswordCheck,
-                },
-                self.combo => {
-                    ComboBoxEvent::Select => MainMessage::Select,
-                },
-                self.canvas => {
-                    CanvasEvent::Redraw => MainMessage::Redraw,
-                },
-                self.push_button => {
-                    ButtonEvent::Click => MainMessage::Push,
-                },
-                self.pop_button => {
-                    ButtonEvent::Click => MainMessage::Pop,
-                },
-                self.show_button => {
-                    ButtonEvent::Click => MainMessage::Show,
-                },
-                self.list => {
-                    e => MainMessage::List(e),
-                }
+        let mut radio_group = RadioButtonGroup::new([&mut *self.r1, &mut self.r2, &mut self.r3]);
+        start! {
+            sender, default: MainMessage::Noop,
+            self.window => {
+                WindowEvent::Close => MainMessage::Close,
+                WindowEvent::Resize => MainMessage::Redraw,
+            },
+            self.pcheck => {
+                CheckBoxEvent::Click => MainMessage::PasswordCheck,
+            },
+            self.combo => {
+                ComboBoxEvent::Select => MainMessage::Select,
+            },
+            self.canvas => {
+                CanvasEvent::Redraw => MainMessage::Redraw,
+            },
+            self.push_button => {
+                ButtonEvent::Click => MainMessage::Push,
+            },
+            self.pop_button => {
+                ButtonEvent::Click => MainMessage::Pop,
+            },
+            self.show_button => {
+                ButtonEvent::Click => MainMessage::Show,
+            },
+            self.list => {
+                e => MainMessage::List(e),
+            },
+            radio_group => {
+                |i| Some(MainMessage::RSelect(i))
             }
-        };
-        let mut group = RadioButtonGroup::new(vec![&mut self.r1, &mut self.r2, &mut self.r3]);
-        let fut_group = group.start(sender, |i| Some(MainMessage::RSelect(i)));
-        futures_util::join!(fut, fut_group);
+        }
     }
 
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
