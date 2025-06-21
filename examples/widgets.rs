@@ -85,7 +85,7 @@ impl Component for MainModel {
                 checked: false,
             },
             combo: ComboBox = (&window),
-            list: ObservableVec<String> = (vec![]) => {
+            list: ObservableVec<String> = (()) => {
                 // https://www.zhihu.com/question/23600507/answer/140640887
                 items: [
                     "烫烫烫",

@@ -123,12 +123,12 @@ pub enum ObservableVecEvent<T> {
 
 impl<T: Clone> Component for ObservableVec<T> {
     type Event = ObservableVecEvent<T>;
-    type Init<'a> = Vec<T>;
+    type Init<'a> = ();
     type Message = ();
 
-    fn init(vec: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+    fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
         Self {
-            vec,
+            vec: vec![],
             sender: sender.clone(),
         }
     }
