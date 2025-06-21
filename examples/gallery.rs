@@ -1,11 +1,16 @@
-use std::path::{Path, PathBuf};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+};
 
 use compio::runtime::spawn_blocking;
 use image::{DynamicImage, ImageReader};
+use itertools::Itertools;
 use winio::{
     App, BrushPen, Button, ButtonEvent, Canvas, CanvasEvent, Child, Color, ColorTheme, Component,
-    ComponentSender, DrawingImage, Edit, FileBox, Layoutable, Orient, Point, Rect, Size,
-    SolidColorBrush, StackPanel, Visible, Window, WindowEvent, init, layout, start,
+    ComponentSender, DrawingImage, Edit, FileBox, Layoutable, ListBox, ListBoxEvent,
+    ListBoxMessage, ObservableVec, ObservableVecEvent, Orient, Point, Rect, Size, SolidColorBrush,
+    StackPanel, Visible, Window, WindowEvent, init, layout, start,
 };
 
 fn main() {
@@ -22,8 +27,10 @@ struct MainModel {
     canvas: Child<Canvas>,
     button: Child<Button>,
     entry: Child<Edit>,
-    images: Vec<Option<DynamicImage>>,
-    images_cache: Vec<DrawingImage>,
+    list: Child<ObservableVec<String>>,
+    listbox: Child<ListBox>,
+    images: Vec<DynamicImage>,
+    sel_images: BTreeMap<usize, Option<DrawingImage>>,
 }
 
 #[derive(Debug)]
@@ -34,7 +41,9 @@ enum MainMessage {
     ChooseFolder,
     OpenFolder(PathBuf),
     Clear,
-    Append(DynamicImage),
+    Append(PathBuf, DynamicImage),
+    List(ObservableVecEvent<String>),
+    Select,
 }
 
 impl Component for MainModel {
@@ -56,7 +65,9 @@ impl Component for MainModel {
                 text: path.as_ref()
                           .map(|p| p.to_string_lossy().into_owned())
                           .unwrap_or_default(),
-            }
+            },
+            list: ObservableVec<String> = (()),
+            listbox: ListBox = (&window),
         }
 
         if let Some(path) = path {
@@ -71,8 +82,10 @@ impl Component for MainModel {
             canvas,
             button,
             entry,
+            list,
+            listbox,
             images: vec![],
-            images_cache: vec![],
+            sel_images: BTreeMap::new(),
         }
     }
 
@@ -89,6 +102,12 @@ impl Component for MainModel {
             self.button => {
                 ButtonEvent::Click => MainMessage::ChooseFolder,
             },
+            self.list => {
+                e => MainMessage::List(e),
+            },
+            self.listbox => {
+                ListBoxEvent::Select => MainMessage::Select,
+            }
         }
     }
 
@@ -127,12 +146,33 @@ impl Component for MainModel {
                 true
             }
             MainMessage::Clear => {
+                self.list.clear();
                 self.images.clear();
-                self.images_cache.clear();
+                self.sel_images.clear();
                 true
             }
-            MainMessage::Append(image) => {
-                self.images.push(Some(image));
+            MainMessage::Append(path, image) => {
+                if let Some(filename) = path.file_name() {
+                    self.list.push(filename.to_string_lossy().into_owned());
+                    self.images.push(image);
+                    true
+                } else {
+                    false
+                }
+            }
+            MainMessage::List(e) => {
+                self.listbox
+                    .emit(ListBoxMessage::from_observable_vec_event(e))
+                    .await
+            }
+            MainMessage::Select => {
+                for i in 0..self.list.len() {
+                    if self.listbox.is_selected(i) {
+                        self.sel_images.entry(i).or_insert(None);
+                    } else {
+                        self.sel_images.remove(&i);
+                    }
+                }
                 true
             }
         }
@@ -147,10 +187,15 @@ impl Component for MainModel {
                 self.entry => { grow: true },
                 self.button
             };
+            let mut content_panel = layout! {
+                StackPanel::new(Orient::Horizontal),
+                self.listbox,
+                self.canvas => { grow: true },
+            };
             let mut root_panel = layout! {
                 StackPanel::new(Orient::Vertical),
                 header_panel,
-                self.canvas => { grow: true },
+                content_panel => { grow: true },
             };
             root_panel.set_size(csize);
         }
@@ -165,23 +210,24 @@ impl Component for MainModel {
         });
         let pen = BrushPen::new(&brush, 1.0);
 
-        const MAX_COLUMN: usize = 6;
+        const MAX_COLUMN: usize = 3;
         let occupy_width = size.width / (MAX_COLUMN as f64);
         let content_width = occupy_width - 10.0;
-        for (i, image) in self.images.iter_mut().enumerate() {
-            if let Some(image) = image.take() {
-                let cache = ctx.create_image(image);
-                self.images_cache.insert(i, cache);
+        for (i, image) in self.sel_images.iter_mut() {
+            if image.is_none() {
+                let cache = ctx.create_image(self.images[*i].clone());
+                *image = Some(cache);
             }
         }
         let content_heights = self
-            .images_cache
+            .sel_images
+            .values()
             .chunks(MAX_COLUMN)
+            .into_iter()
             .map(|images| {
                 (images
-                    .iter()
                     .map(|image| {
-                        let image_size = image.size();
+                        let image_size = image.as_ref().unwrap().size();
                         (image_size.height
                             * (content_width / image_size.width.max(image_size.height)))
                             as usize
@@ -191,7 +237,8 @@ impl Component for MainModel {
                     .min(content_width)
             })
             .collect::<Vec<_>>();
-        for (i, image) in self.images_cache.iter().enumerate() {
+        for (i, image) in self.sel_images.values().enumerate() {
+            let image = image.as_ref().unwrap();
             let image_size = image.size();
             let c = i % MAX_COLUMN;
             let r = i / MAX_COLUMN;
@@ -217,10 +264,10 @@ impl Component for MainModel {
 fn fetch(path: impl AsRef<Path>, sender: ComponentSender<MainModel>) {
     sender.post(MainMessage::Clear);
     for p in path.as_ref().read_dir().unwrap() {
-        let p = p.unwrap();
-        if let Ok(reader) = ImageReader::open(p.path()) {
+        let p = p.unwrap().path();
+        if let Ok(reader) = ImageReader::open(&p) {
             if let Ok(image) = reader.decode() {
-                sender.post(MainMessage::Append(image));
+                sender.post(MainMessage::Append(p, image));
             }
         }
     }

@@ -5,7 +5,6 @@ use std::{
     mem::MaybeUninit,
     pin::Pin,
     ptr::{null, null_mut},
-    sync::LazyLock,
     task::{Context, Poll, Waker},
     time::Duration,
 };
@@ -16,22 +15,18 @@ use slab::Slab;
 use windows::Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx, CoUninitialize};
 use windows_sys::{
     Win32::{
-        Foundation::{COLORREF, HANDLE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_FAILED, WPARAM},
-        Graphics::Gdi::{
-            BLACK_BRUSH, CreateSolidBrush, GetStockObject, HDC, InvalidateRect, ScreenToClient,
-            SetBkColor, SetTextColor,
-        },
+        Foundation::{HANDLE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_FAILED, WPARAM},
+        Graphics::Gdi::{BLACK_BRUSH, GetStockObject, HDC, InvalidateRect},
         System::Threading::INFINITE,
         UI::{
             Controls::{DRAWITEMSTRUCT, NMHDR},
             WindowsAndMessaging::{
-                ChildWindowFromPoint, DefWindowProcW, DispatchMessageW, EnumChildWindows,
-                GetCursorPos, GetMessagePos, GetMessageTime, MSG, MWMO_ALERTABLE,
-                MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW,
-                QS_ALLINPUT, SWP_NOACTIVATE, SWP_NOZORDER, SendMessageW, SetWindowPos,
-                TranslateMessage, WM_COMMAND, WM_CREATE, WM_CTLCOLORBTN, WM_CTLCOLOREDIT,
-                WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC, WM_DPICHANGED, WM_DRAWITEM, WM_NOTIFY,
-                WM_SETFONT, WM_SETTINGCHANGE,
+                DefWindowProcW, DispatchMessageW, EnumChildWindows, GetMessagePos, GetMessageTime,
+                MSG, MWMO_ALERTABLE, MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx, PM_REMOVE,
+                PeekMessageW, QS_ALLINPUT, SWP_NOACTIVATE, SWP_NOZORDER, SendMessageW,
+                SetWindowPos, TranslateMessage, WM_COMMAND, WM_CREATE, WM_CTLCOLORBTN,
+                WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC, WM_DPICHANGED, WM_DRAWITEM,
+                WM_NOTIFY, WM_SETFONT, WM_SETTINGCHANGE,
             },
         },
     },
@@ -41,11 +36,11 @@ use windows_sys::{
 use super::RUNTIME;
 use crate::ui::{
     darkmode::{
-        children_refresh_dark_mode, control_color_static, init_dark, is_dark_mode_allowed_for_app,
-        window_use_dark_mode,
+        children_refresh_dark_mode, control_color_edit, control_color_static, init_dark,
+        is_dark_mode_allowed_for_app, window_use_dark_mode,
     },
     dpi::get_dpi_for_window,
-    font::{WinBrush, default_font},
+    font::default_font,
 };
 
 #[derive(Clone, Copy)]
@@ -312,21 +307,8 @@ pub(crate) unsafe extern "system" fn window_proc(
                 }
             }
             WM_CTLCOLOREDIT | WM_CTLCOLORLISTBOX => {
-                if is_dark_mode_allowed_for_app() {
-                    let hdc = wparam as HDC;
-                    let hedit = lparam as HWND;
-                    SetTextColor(hdc, WHITE);
-                    SetBkColor(hdc, BLACK);
-                    let mut p = MaybeUninit::uninit();
-                    GetCursorPos(p.as_mut_ptr());
-                    let mut p = p.assume_init();
-                    ScreenToClient(hedit, &mut p);
-                    let is_hover = std::ptr::eq(hedit, ChildWindowFromPoint(handle, p));
-                    return if is_hover {
-                        GetStockObject(BLACK_BRUSH)
-                    } else {
-                        EDIT_NORMAL_BACK.0
-                    } as _;
+                if let Some(res) = control_color_edit(handle, lparam as HWND, wparam as HDC) {
+                    return res;
                 }
             }
             WM_CREATE => {
@@ -366,12 +348,6 @@ pub(crate) unsafe fn refresh_font(handle: HWND) {
 
     enum_callback(handle, font as _);
 }
-
-const WHITE: COLORREF = 0x00FFFFFF;
-const BLACK: COLORREF = 0x00000000;
-
-static EDIT_NORMAL_BACK: LazyLock<WinBrush> =
-    LazyLock::new(|| WinBrush(unsafe { CreateSolidBrush(0x00212121) }));
 
 struct MsgFuture {
     id: usize,
