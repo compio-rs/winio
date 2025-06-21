@@ -68,6 +68,19 @@ impl<T: Clone> ObservableVec<T> {
     pub fn shrink_to_fit(&mut self) {
         self.vec.shrink_to_fit();
     }
+
+    /// Gets the inner items.
+    pub fn items(&self) -> &[T] {
+        &self.vec
+    }
+
+    /// Clears the vector, and appends the items one by one.
+    pub fn set_items<U: Into<T>>(&mut self, items: impl IntoIterator<Item = U>) {
+        self.clear();
+        for it in items {
+            self.push(it.into());
+        }
+    }
 }
 
 impl<T: Clone> Deref for ObservableVec<T> {

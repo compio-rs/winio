@@ -1,11 +1,14 @@
 use widestring::U16CString;
-use windows_sys::Win32::UI::{
-    Controls::WC_COMBOBOXW,
-    WindowsAndMessaging::{
-        CB_DELETESTRING, CB_GETCOUNT, CB_GETCURSEL, CB_GETLBTEXT, CB_GETLBTEXTLEN, CB_INSERTSTRING,
-        CB_RESETCONTENT, CB_SETCURSEL, CBN_EDITUPDATE, CBN_SELCHANGE, CBS_AUTOHSCROLL,
-        CBS_DROPDOWN, CBS_DROPDOWNLIST, CBS_HASSTRINGS, SendMessageW, WM_COMMAND, WS_CHILD,
-        WS_TABSTOP, WS_VISIBLE,
+use windows_sys::Win32::{
+    Graphics::Gdi::InvalidateRect,
+    UI::{
+        Controls::WC_COMBOBOXW,
+        WindowsAndMessaging::{
+            CB_DELETESTRING, CB_GETCOUNT, CB_GETCURSEL, CB_GETLBTEXT, CB_GETLBTEXTLEN,
+            CB_INSERTSTRING, CB_RESETCONTENT, CB_SETCURSEL, CBN_EDITUPDATE, CBN_SELCHANGE,
+            CBS_AUTOHSCROLL, CBS_DROPDOWN, CBS_DROPDOWNLIST, CBS_HASSTRINGS, SendMessageW,
+            WM_COMMAND, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
+        },
     },
 };
 
@@ -136,7 +139,10 @@ impl<const E: bool> ComboBoxImpl<E> {
     }
 
     pub fn remove(&mut self, i: usize) {
-        unsafe { SendMessageW(self.handle.as_raw_window(), CB_DELETESTRING, i as _, 0) };
+        unsafe {
+            SendMessageW(self.handle.as_raw_window(), CB_DELETESTRING, i as _, 0);
+            InvalidateRect(self.handle.as_raw_window(), std::ptr::null(), 1);
+        }
     }
 
     fn get_u16(&self, i: usize) -> U16CString {

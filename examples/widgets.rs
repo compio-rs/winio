@@ -85,6 +85,15 @@ impl Component for MainModel {
                 checked: false,
             },
             combo: ComboBox = (&window),
+            list: ObservableVec<String> = (vec![]) => {
+                // https://www.zhihu.com/question/23600507/answer/140640887
+                items: [
+                    "烫烫烫",
+                    "昍昍昍",
+                    "ﾌﾌﾌﾌﾌﾌ",
+                    "쳌쳌쳌"
+                ],
+            },
             r1: RadioButton = (&window) => {
                 text: "屯屯屯",
                 checked: true,
@@ -111,13 +120,6 @@ impl Component for MainModel {
                 text: "This is an example of\nmulti-line text box.",
             },
         }
-
-        let mut list = Child::<ObservableVec<String>>::init(vec![]);
-        // https://www.zhihu.com/question/23600507/answer/140640887
-        list.push("烫烫烫".into());
-        list.push("昍昍昍".into());
-        list.push("ﾌﾌﾌﾌﾌﾌ".into());
-        list.push("쳌쳌쳌".into());
 
         window.show();
 
