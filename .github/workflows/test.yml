@@ -1,4 +1,4 @@
-name: Build
+name: Test
 
 on:
   push:
@@ -85,4 +85,4 @@ jobs:
               PATH=/c/msys64/clang64/bin:$PATH
           fi
 
-          cargo +${{ matrix.toolchain }} build --all-targets --workspace "${ARGS[@]}"
+          cargo +${{ matrix.toolchain }} test --workspace "${ARGS[@]}"
