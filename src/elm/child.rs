@@ -35,7 +35,7 @@ impl<T: Component> Child<T> {
 
     /// Start to receive and interp the events of the child component.
     ///
-    /// Let's support there's a root component `MainModel`, and it contains a
+    /// Define a root component `MainModel`, and it contains a
     /// `window: Child<Window>`. The message of `MainModel` is defined as
     /// ```ignore
     /// enum MainMessage {
@@ -44,6 +44,18 @@ impl<T: Component> Child<T> {
     /// }
     /// ```
     /// In the `MainModel::start`, you should write
+    /// ```ignore
+    /// async fn start(&mut self, sender: &ComponentSender<Self>) {
+    ///     start! {
+    ///         sender, default: MainMessage::Noop,
+    ///         self.window => {
+    ///             WindowEvent::Close => MainMessage::Close,
+    ///         },
+    ///         // ...other children
+    ///     }
+    /// }
+    /// ```
+    /// It is equivalent to
     /// ```ignore
     /// async fn start(&mut self, sender: &ComponentSender<Self>) {
     ///     let fut_window = self.window.start(

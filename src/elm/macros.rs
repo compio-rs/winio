@@ -5,7 +5,8 @@ pub use paste::paste as __paste;
 
 /// Helper macro for `Component::init`.
 ///
-/// ```ignore
+/// ```no_run
+/// # use winio::{Canvas, Layoutable, Size, Visible, Window, init};
 /// init! {
 ///     window: Window = (()) => {
 ///         text: "Basic example",
@@ -45,18 +46,36 @@ macro_rules! __init_assign {
 
 /// Helper macro for `Component::start`.
 ///
-/// ```ignore
-/// start! {
-///     sender,
-///     default: MainMessage::Noop,
-///     self.window => {
-///         WindowEvent::Close => MainMessage::Close,
-///         WindowEvent::Resize => MainMessage::Redraw,
-///     },
-///     self.canvas => {
-///         CanvasEvent::Redraw => MainMessage::Redraw,
-///     },
-/// };
+/// ```no_run
+/// # use winio::{Canvas, CanvasEvent, Child, Component, ComponentSender, Window, WindowEvent, start};
+/// struct MainModel {
+///     window: Child<Window>,
+///     canvas: Child<Canvas>,
+/// }
+/// enum MainMessage {
+///     Noop,
+///     Redraw,
+///     Close,
+/// }
+/// # impl Component for MainModel {
+/// # type Init<'a> = (); type Message = MainMessage; type Event = ();
+/// # fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self { todo!() }
+/// # async fn update(&mut self, _msg: Self::Message, _sender: &ComponentSender<Self>) -> bool { false }
+/// # fn render(&mut self, _sender: &ComponentSender<Self>) {}
+/// async fn start(&mut self, sender: &ComponentSender<Self>) {
+///     start! {
+///         sender,
+///         default: MainMessage::Noop,
+///         self.window => {
+///             WindowEvent::Close => MainMessage::Close,
+///             WindowEvent::Resize => MainMessage::Redraw,
+///         },
+///         self.canvas => {
+///             CanvasEvent::Redraw => MainMessage::Redraw,
+///         },
+///     };
+/// }
+/// # }
 /// ```
 #[macro_export]
 macro_rules! start {
@@ -93,7 +112,13 @@ macro_rules! __start_map {
 
 /// Helper macro for layouts in `Component::render`.
 ///
-/// ```ignore
+/// ```no_run
+/// # use winio::{Canvas, Child, Grid, Layoutable, Window, layout};
+/// # struct MainModel {
+/// #     window: Child<Window>,
+/// #     canvas: Child<Canvas>,
+/// # }
+/// # impl MainModel { fn foo(&mut self) {
 /// let csize = self.window.client_size();
 /// {
 ///     let mut grid = layout! {
@@ -102,6 +127,7 @@ macro_rules! __start_map {
 ///     };
 ///     grid.set_size(csize);
 /// }
+/// # } }
 /// ```
 #[macro_export]
 macro_rules! layout {
