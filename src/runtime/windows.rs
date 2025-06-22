@@ -15,18 +15,18 @@ use slab::Slab;
 use windows::Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx, CoUninitialize};
 use windows_sys::{
     Win32::{
-        Foundation::{HANDLE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_FAILED, WPARAM},
+        Foundation::{HANDLE, HWND, LPARAM, LRESULT, RECT, WAIT_FAILED, WPARAM},
         Graphics::Gdi::{BLACK_BRUSH, GetStockObject, HDC, InvalidateRect},
         System::Threading::INFINITE,
         UI::{
             Controls::DRAWITEMSTRUCT,
             WindowsAndMessaging::{
-                DefWindowProcW, DispatchMessageW, EnumChildWindows, GetMessagePos, GetMessageTime,
-                MSG, MWMO_ALERTABLE, MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx, PM_REMOVE,
-                PeekMessageW, QS_ALLINPUT, SWP_NOACTIVATE, SWP_NOZORDER, SendMessageW,
-                SetWindowPos, TranslateMessage, WM_COMMAND, WM_CREATE, WM_CTLCOLORBTN,
-                WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC, WM_DPICHANGED, WM_DRAWITEM,
-                WM_SETFONT, WM_SETTINGCHANGE,
+                DefWindowProcW, DispatchMessageW, EnumChildWindows, MWMO_ALERTABLE,
+                MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW,
+                QS_ALLINPUT, SWP_NOACTIVATE, SWP_NOZORDER, SendMessageW, SetWindowPos,
+                TranslateMessage, WM_COMMAND, WM_CREATE, WM_CTLCOLORBTN, WM_CTLCOLOREDIT,
+                WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC, WM_DPICHANGED, WM_DRAWITEM, WM_SETFONT,
+                WM_SETTINGCHANGE,
             },
         },
     },
@@ -45,20 +45,24 @@ use crate::ui::{
 
 #[derive(Clone, Copy)]
 pub(crate) struct WindowMessage {
-    pub message: MSG,
+    // pub handle: HWND,
+    // pub message: u32,
+    // pub wparam: WPARAM,
+    pub lparam: LPARAM,
     pub detail: Option<WindowMessageDetail>,
 }
 
 #[derive(Clone, Copy)]
 #[non_exhaustive]
 pub(crate) enum WindowMessageDetail {
-    #[allow(dead_code)]
     Command {
         message: u32,
-        id: usize,
+        // id: usize,
         handle: HWND,
     },
-    DrawItem(DRAWITEMSTRUCT),
+    DrawItem {
+        handle: HWND,
+    },
 }
 
 pub(crate) enum FutureState {
@@ -173,39 +177,34 @@ impl Runtime {
         })
     }
 
-    fn set_current_msg(&self, handle: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> bool {
-        let pos = unsafe { GetMessagePos() };
-        let x = pos as u16;
-        let y = (pos >> 16) as u16;
-        let message = MSG {
-            hwnd: handle,
-            message: msg,
-            wParam: wparam,
-            lParam: lparam,
-            time: unsafe { GetMessageTime() as _ },
-            pt: POINT {
-                x: x as _,
-                y: y as _,
-            },
-        };
-        let detail = match msg {
+    fn set_current_msg(&self, handle: HWND, message: u32, wparam: WPARAM, lparam: LPARAM) -> bool {
+        let detail = match message {
             WM_COMMAND => {
                 let message = (wparam as u32 >> 16) & 0xFFFF;
-                let id = wparam as u32 & 0xFFFF;
+                // let id = wparam as u32 & 0xFFFF;
                 let handle = lparam as HWND;
                 Some(WindowMessageDetail::Command {
                     message,
-                    id: id as _,
+                    // id: id as _,
                     handle,
                 })
             }
-            WM_DRAWITEM => Some(WindowMessageDetail::DrawItem(unsafe {
-                *(lparam as *const DRAWITEMSTRUCT)
-            })),
+            WM_DRAWITEM => {
+                let drawitem = &unsafe { *(lparam as *const DRAWITEMSTRUCT) };
+                Some(WindowMessageDetail::DrawItem {
+                    handle: drawitem.hwndItem,
+                })
+            }
             _ => None,
         };
-        let full_msg = WindowMessage { message, detail };
-        let completes = self.registry.borrow_mut().remove(&(handle, msg));
+        let full_msg = WindowMessage {
+            // handle,
+            // message,
+            // wparam,
+            lparam,
+            detail,
+        };
+        let completes = self.registry.borrow_mut().remove(&(handle, message));
         if let Some(completes) = completes {
             let dealt = !completes.is_empty();
             let mut futures = self.futures.borrow_mut();

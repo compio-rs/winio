@@ -156,8 +156,8 @@ impl Canvas {
     pub async fn wait_redraw(&self) {
         loop {
             let msg = self.handle.wait_parent(WM_DRAWITEM).await;
-            if let Some(WindowMessageDetail::DrawItem(ds)) = msg.detail {
-                if std::ptr::eq(ds.hwndItem, self.handle.as_raw_window()) {
+            if let Some(WindowMessageDetail::DrawItem { handle }) = msg.detail {
+                if std::ptr::eq(handle, self.handle.as_raw_window()) {
                     break;
                 }
             }
@@ -182,8 +182,8 @@ impl Canvas {
 
     pub async fn wait_mouse_move(&self) -> Point {
         loop {
-            let msg = self.handle.wait_parent(WM_MOUSEMOVE).await.message;
-            let (x, y) = ((msg.lParam & 0xFFFF) as i32, (msg.lParam >> 16) as i32);
+            let msg = self.handle.wait_parent(WM_MOUSEMOVE).await;
+            let (x, y) = ((msg.lparam & 0xFFFF) as i32, (msg.lparam >> 16) as i32);
             let p = self.handle.point_d2l((x, y));
             let loc = self.loc();
             let size = self.size();
