@@ -26,7 +26,7 @@ use windows::{
         },
         DirectWrite::{
             DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STYLE_NORMAL,
-            DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_WEIGHT_NORMAL, IDWriteFactory, IDWriteTextLayout,
+            DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_WEIGHT_NORMAL, IDWriteTextLayout,
         },
         Dxgi::Common::{DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM},
     },
@@ -56,7 +56,6 @@ use crate::{
 pub struct Canvas {
     handle: Widget,
     d2d: ID2D1Factory,
-    dwrite: IDWriteFactory,
     target: ID2D1HwndRenderTarget,
 }
 
@@ -70,7 +69,6 @@ impl Canvas {
         );
         let d2d: ID2D1Factory =
             unsafe { D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None).unwrap() };
-        let dwrite = DWRITE_FACTORY.clone();
         let target = unsafe {
             d2d.CreateHwndRenderTarget(
                 &D2D1_RENDER_TARGET_PROPERTIES {
@@ -95,7 +93,6 @@ impl Canvas {
         Self {
             handle,
             d2d,
-            dwrite,
             target,
         }
     }
@@ -151,7 +148,6 @@ impl Canvas {
             DrawingContext {
                 target: self.target.clone().cast().unwrap(),
                 d2d: self.d2d.clone(),
-                dwrite: self.dwrite.clone(),
                 _p: PhantomData,
             }
         }
@@ -240,7 +236,6 @@ pub fn gradient_stop(s: &GradientStop) -> D2D1_GRADIENT_STOP {
 pub struct DrawingContext<'a> {
     target: ID2D1RenderTarget,
     d2d: ID2D1Factory,
-    dwrite: IDWriteFactory,
     _p: PhantomData<&'a Canvas>,
 }
 
@@ -310,8 +305,7 @@ impl DrawingContext<'_> {
     fn get_str_layout(&self, font: DrawingFont, pos: Point, s: &str) -> (Rect, IDWriteTextLayout) {
         unsafe {
             let font_family = U16CString::from_str_truncate(font.family);
-            let format = self
-                .dwrite
+            let format = DWRITE_FACTORY
                 .CreateTextFormat(
                     windows::core::PCWSTR::from_raw(font_family.as_ptr()),
                     None,
@@ -333,8 +327,7 @@ impl DrawingContext<'_> {
             let size = self.target.GetSize();
             let mut rect = Rect::new(pos, pos.to_vector().to_size());
             let s = U16CString::from_str_truncate(s);
-            let layout = self
-                .dwrite
+            let layout = DWRITE_FACTORY
                 .CreateTextLayout(s.as_slice_with_nul(), &format, size.width, size.height)
                 .unwrap();
             let mut metrics = MaybeUninit::uninit();
