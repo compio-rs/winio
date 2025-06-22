@@ -21,11 +21,12 @@ use crate::{
 };
 
 #[derive(Debug)]
-#[allow(unused)]
 pub struct ListBox {
     handle: Widget,
+    #[allow(unused)]
     view: Retained<NSScrollView>,
     table: Retained<NSTableView>,
+    #[allow(unused)]
     column: Retained<NSTableColumn>,
     delegate: Retained<ListBoxDelegate>,
 }
