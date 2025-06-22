@@ -19,14 +19,14 @@ use windows_sys::{
         Graphics::Gdi::{BLACK_BRUSH, GetStockObject, HDC, InvalidateRect},
         System::Threading::INFINITE,
         UI::{
-            Controls::{DRAWITEMSTRUCT, NMHDR},
+            Controls::DRAWITEMSTRUCT,
             WindowsAndMessaging::{
                 DefWindowProcW, DispatchMessageW, EnumChildWindows, GetMessagePos, GetMessageTime,
                 MSG, MWMO_ALERTABLE, MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx, PM_REMOVE,
                 PeekMessageW, QS_ALLINPUT, SWP_NOACTIVATE, SWP_NOZORDER, SendMessageW,
                 SetWindowPos, TranslateMessage, WM_COMMAND, WM_CREATE, WM_CTLCOLORBTN,
                 WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC, WM_DPICHANGED, WM_DRAWITEM,
-                WM_NOTIFY, WM_SETFONT, WM_SETTINGCHANGE,
+                WM_SETFONT, WM_SETTINGCHANGE,
             },
         },
     },
@@ -199,14 +199,6 @@ impl Runtime {
                     handle,
                 })
             }
-            WM_NOTIFY => unsafe {
-                let hdr = &*(lparam as *const NMHDR);
-                Some(WindowMessageDetail::Command {
-                    message: hdr.code,
-                    id: hdr.idFrom,
-                    handle: hdr.hwndFrom,
-                })
-            },
             WM_DRAWITEM => Some(WindowMessageDetail::DrawItem(unsafe {
                 *(lparam as *const DRAWITEMSTRUCT)
             })),
