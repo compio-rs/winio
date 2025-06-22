@@ -92,6 +92,9 @@ pub use grid::*;
 mod stack_panel;
 pub use stack_panel::*;
 
+#[cfg(test)]
+mod test;
+
 fn rect_t2e(rect: &taffy::Layout, margin: Margin) -> Rect {
     Rect::new(
         Point::new(
