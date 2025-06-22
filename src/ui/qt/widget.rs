@@ -49,6 +49,11 @@ impl Widget {
         Size::new(s.width as _, s.height as _)
     }
 
+    pub fn min_size(&self) -> Size {
+        let s = self.widget.minimumSize();
+        Size::new(s.width as _, s.height as _)
+    }
+
     pub fn loc(&self) -> Point {
         Point::new(self.widget.x() as _, self.widget.y() as _)
     }
@@ -148,6 +153,7 @@ mod ffi {
         fn resize(self: Pin<&mut QWidget>, w: i32, h: i32);
         fn geometry(self: &QWidget) -> &QRect;
         fn sizeHint(self: &QWidget) -> QSize;
+        fn minimumSize(self: &QWidget) -> QSize;
         fn update(self: Pin<&mut QWidget>);
         fn isVisible(self: &QWidget) -> bool;
         fn setVisible(self: Pin<&mut QWidget>, v: bool);

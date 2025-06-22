@@ -69,6 +69,11 @@ pub trait Layoutable {
     fn preferred_size(&self) -> Size {
         Size::zero()
     }
+
+    /// Min acceptable size.
+    fn min_size(&self) -> Size {
+        self.preferred_size()
+    }
 }
 
 trait LayoutChild {

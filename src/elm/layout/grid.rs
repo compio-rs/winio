@@ -156,11 +156,13 @@ impl<'a> Grid<'a> {
                     _ => length(preferred_size.height as f32),
                 },
             };
+            let mut min_size = child.widget.min_size();
+            min_size.width += child.margin.horizontal();
+            min_size.height += child.margin.vertical();
             style.min_size = taffy::Size {
-                width: length(preferred_size.width as f32),
-                height: length(preferred_size.height as f32),
+                width: length(min_size.width as f32),
+                height: length(min_size.height as f32),
             };
-
             if matches!(child.valign, VAlign::Top | VAlign::Center) {
                 style.margin.bottom = auto();
             }

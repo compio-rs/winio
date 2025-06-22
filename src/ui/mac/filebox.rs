@@ -197,6 +197,7 @@ async unsafe fn filebox(
     } else {
         handle.runModal()
     };
+    handle.close();
     FileBoxInner(if res == NSModalResponseOK {
         Some(handle)
     } else {

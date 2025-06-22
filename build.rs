@@ -29,6 +29,7 @@ fn main() {
             "src/ui/qt/label",
             "src/ui/qt/progress",
             "src/ui/qt/combo_box",
+            "src/ui/qt/list_box",
         ];
 
         for s in sources {

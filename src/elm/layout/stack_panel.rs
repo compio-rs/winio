@@ -68,9 +68,12 @@ impl<'a> StackPanel<'a> {
                     _ => length(preferred_size.height as f32),
                 },
             };
+            let mut min_size = child.widget.min_size();
+            min_size.width += child.margin.horizontal();
+            min_size.height += child.margin.vertical();
             style.min_size = taffy::Size {
-                width: length(preferred_size.width as f32),
-                height: length(preferred_size.height as f32),
+                width: length(min_size.width as f32),
+                height: length(min_size.height as f32),
             };
             match self.orient {
                 Orient::Horizontal => {
@@ -146,6 +149,13 @@ impl Layoutable for StackPanel<'_> {
     fn preferred_size(&self) -> Size {
         let (mut tree, root, _) = self.tree();
         tree.compute_layout(root, taffy::Size::max_content())
+            .unwrap();
+        rect_t2e(tree.layout(root).unwrap(), Margin::zero()).size
+    }
+
+    fn min_size(&self) -> Size {
+        let (mut tree, root, _) = self.tree();
+        tree.compute_layout(root, taffy::Size::min_content())
             .unwrap();
         rect_t2e(tree.layout(root).unwrap(), Margin::zero()).size
     }

@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, ops::Deref, ptr::null};
 
-use image::{DynamicImage, Pixel, Rgb, Rgba};
+use image::DynamicImage;
 use objc2::{
     AllocAnyThread, DeclaredClass, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
@@ -303,8 +303,8 @@ impl DrawingContext<'_> {
 
     pub fn draw_image(&mut self, image_rep: &DrawingImage, rect: Rect, clip: Option<Rect>) {
         unsafe {
-            let image = NSImage::initWithSize(NSImage::alloc(), image_rep.0.size());
-            image.addRepresentation(&image_rep.0);
+            let image = NSImage::initWithSize(NSImage::alloc(), image_rep.rep.size());
+            image.addRepresentation(&image_rep.rep);
             let source_layer = CALayer::new();
             source_layer.setContents(Some(&image));
             source_layer.setFrame(transform_rect(self.size, rect));
@@ -747,25 +747,28 @@ impl<B: Brush> Pen for BrushPen<B> {
     }
 }
 
-pub struct DrawingImage(Retained<NSBitmapImageRep>);
+pub struct DrawingImage {
+    #[allow(unused)]
+    buffer: Vec<u8>,
+    rep: Retained<NSBitmapImageRep>,
+}
 
 impl DrawingImage {
     fn new(image: DynamicImage) -> Self {
         let width = image.width();
         let height = image.height();
-        let (mut buffer, spp, alpha, ccount) = match image {
-            DynamicImage::ImageRgb8(_) => (image.into_bytes(), 3, false, Rgb::<u8>::CHANNEL_COUNT),
-            DynamicImage::ImageRgba8(_) => (image.into_bytes(), 4, true, Rgba::<u8>::CHANNEL_COUNT),
+        let (mut buffer, spp, alpha) = match image {
+            DynamicImage::ImageRgb8(_) => (image.into_bytes(), 3, false),
+            DynamicImage::ImageRgba8(_) => (image.into_bytes(), 4, true),
             _ => (
                 DynamicImage::ImageRgba8(image.into_rgba8()).into_bytes(),
                 4,
                 true,
-                Rgba::<u8>::CHANNEL_COUNT,
             ),
         };
         let mut ptr = buffer.as_mut_ptr();
-        unsafe {
-            Self(NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bitmapFormat_bytesPerRow_bitsPerPixel(
+        let rep = unsafe {
+            NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bitmapFormat_bytesPerRow_bitsPerPixel(
                     NSBitmapImageRep::alloc(),
                     &mut ptr,
                     width as _,
@@ -775,16 +778,16 @@ impl DrawingImage {
                     alpha,
                     false,
                     NSDeviceRGBColorSpace,
-                    NSBitmapFormat::AlphaNonpremultiplied,
-                    (ccount as u32 * width) as _,
+                    NSBitmapFormat(0),
+                    (spp as u32 * width) as _,
                     spp * 8,
                 )
                 .unwrap()
-            )
-        }
+        };
+        Self { buffer, rep }
     }
 
     pub fn size(&self) -> Size {
-        from_cgsize(unsafe { self.0.size() })
+        from_cgsize(unsafe { self.rep.size() })
     }
 }
