@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  test:
     runs-on: ${{ matrix.setup.os }}
     strategy:
       matrix:
