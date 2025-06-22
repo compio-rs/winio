@@ -155,13 +155,18 @@ impl Runtime {
                     panic!("{:?}", std::io::Error::last_os_error());
                 }
 
-                let mut msg = MaybeUninit::uninit();
-                let res = unsafe { PeekMessageW(msg.as_mut_ptr(), null_mut(), 0, 0, PM_REMOVE) };
-                if res != 0 {
-                    let msg = unsafe { msg.assume_init() };
-                    unsafe {
-                        TranslateMessage(&msg);
-                        DispatchMessageW(&msg);
+                loop {
+                    let mut msg = MaybeUninit::uninit();
+                    let res =
+                        unsafe { PeekMessageW(msg.as_mut_ptr(), null_mut(), 0, 0, PM_REMOVE) };
+                    if res != 0 {
+                        let msg = unsafe { msg.assume_init() };
+                        unsafe {
+                            TranslateMessage(&msg);
+                            DispatchMessageW(&msg);
+                        }
+                    } else {
+                        break;
                     }
                 }
             }
