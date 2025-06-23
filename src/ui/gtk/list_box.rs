@@ -26,9 +26,9 @@ impl ListBox {
         widget.bind_model(Some(&model), |obj| {
             let text = obj.downcast_ref::<gtk4::StringObject>().unwrap().string();
             let label = gtk4::Label::new(Some(&text));
+            label.set_halign(gtk4::Align::Start);
             unsafe { label.unsafe_cast() }
         });
-        widget.set_halign(gtk4::Align::Start);
         widget.set_selection_mode(gtk4::SelectionMode::Multiple);
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
         let on_changed = Rc::new(Callback::new());
