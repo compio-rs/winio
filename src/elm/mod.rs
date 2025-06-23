@@ -1,5 +1,6 @@
 use std::future::Future;
 
+use compio_log::*;
 use futures_channel::mpsc;
 use futures_util::{FutureExt, StreamExt};
 
@@ -128,7 +129,9 @@ impl App {
                 let fut_start = model.start(&sender);
                 let fut_recv = recv.recv();
                 futures_util::select! {
-                    _ = fut_start.fuse() => unreachable!(),
+                    _ = fut_start.fuse() => {
+                        error!("unexpected exit in `Component::start`");
+                    }
                     msg = fut_recv.fuse() => {
                         let mut need_render = match msg {
                             ComponentMessage::Message(msg) => model.update(msg, &sender).await,
