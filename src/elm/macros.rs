@@ -62,7 +62,7 @@ macro_rules! __init_assign {
 /// # fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self { todo!() }
 /// # async fn update(&mut self, _msg: Self::Message, _sender: &ComponentSender<Self>) -> bool { false }
 /// # fn render(&mut self, _sender: &ComponentSender<Self>) {}
-/// async fn start(&mut self, sender: &ComponentSender<Self>) {
+/// async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
 ///     start! {
 ///         sender,
 ///         default: MainMessage::Noop,
