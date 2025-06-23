@@ -9,6 +9,7 @@ use gtk4::{
 pub struct Runtime {
     runtime: compio::runtime::Runtime,
     app: gio::Application,
+    #[cfg(target_os = "linux")]
     efd: Option<OwnedFd>,
     ctx: MainContext,
 }
@@ -16,15 +17,21 @@ pub struct Runtime {
 impl Runtime {
     pub fn new() -> Self {
         let runtime = compio::runtime::Runtime::new().unwrap();
-        let efd = if DriverType::current() == DriverType::IoUring {
-            Some(super::iour::register_eventfd(runtime.as_raw_fd()).unwrap())
-        } else {
-            None
+        #[cfg(target_os = "linux")]
+        let (efd, poll_fd) = {
+            let efd = if DriverType::current() == DriverType::IoUring {
+                Some(super::iour::register_eventfd(runtime.as_raw_fd()).unwrap())
+            } else {
+                None
+            };
+            let poll_fd = efd
+                .as_ref()
+                .map(|f| f.as_raw_fd())
+                .unwrap_or_else(|| runtime.as_raw_fd());
+            (efd, poll_fd)
         };
-        let poll_fd = efd
-            .as_ref()
-            .map(|f| f.as_raw_fd())
-            .unwrap_or_else(|| runtime.as_raw_fd());
+        #[cfg(not(target_os = "linux"))]
+        let poll_fd = runtime.as_raw_fd();
         let ctx = MainContext::default();
         gtk4::init().unwrap();
         let app = gio::Application::new(None, gio::ApplicationFlags::FLAGS_NONE);
@@ -35,6 +42,7 @@ impl Runtime {
         Self {
             runtime,
             app,
+            #[cfg(target_os = "linux")]
             efd,
             ctx,
         }
@@ -83,6 +91,7 @@ impl Runtime {
                     }
                 }
 
+                #[cfg(target_os = "linux")]
                 if let Some(efd) = &self.efd {
                     super::iour::eventfd_clear(efd.as_raw_fd()).ok();
                 }

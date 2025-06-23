@@ -22,6 +22,7 @@ mod ffi {
 
 pub struct Runtime {
     runtime: compio::runtime::Runtime,
+    #[cfg(target_os = "linux")]
     efd: Option<OwnedFd>,
     event_loop: RefCell<UniquePtr<ffi::WinioQtEventLoop>>,
 }
@@ -29,20 +30,27 @@ pub struct Runtime {
 impl Runtime {
     pub fn new() -> Self {
         let runtime = compio::runtime::Runtime::new().unwrap();
-        let efd = if DriverType::current() == DriverType::IoUring {
-            Some(super::iour::register_eventfd(runtime.as_raw_fd()).unwrap())
-        } else {
-            None
+        #[cfg(target_os = "linux")]
+        let (efd, poll_fd) = {
+            let efd = if DriverType::current() == DriverType::IoUring {
+                Some(super::iour::register_eventfd(runtime.as_raw_fd()).unwrap())
+            } else {
+                None
+            };
+            let poll_fd = efd
+                .as_ref()
+                .map(|f| f.as_raw_fd())
+                .unwrap_or_else(|| runtime.as_raw_fd());
+            (efd, poll_fd)
         };
-        let poll_fd = efd
-            .as_ref()
-            .map(|f| f.as_raw_fd())
-            .unwrap_or_else(|| runtime.as_raw_fd());
+        #[cfg(not(target_os = "linux"))]
+        let poll_fd = runtime.as_raw_fd();
         let args = std::env::args().collect::<Vec<_>>();
         let event_loop = RefCell::new(ffi::new_event_loop(args, poll_fd));
 
         Self {
             runtime,
+            #[cfg(target_os = "linux")]
             efd,
             event_loop,
         }
@@ -91,6 +99,7 @@ impl Runtime {
                     self.event_loop.borrow_mut().pin_mut().process();
                 }
 
+                #[cfg(target_os = "linux")]
                 if let Some(efd) = &self.efd {
                     super::iour::eventfd_clear(efd.as_raw_fd()).ok();
                 }

@@ -9,6 +9,7 @@ cfg_if::cfg_if! {
         #[cfg(all(not(feature = "gtk"), not(feature = "qt")))]
         compile_error!("You must choose one of these features: [\"gtk\", \"qt\"]");
 
+        #[cfg(target_os = "linux")]
         mod iour;
 
         cfg_if::cfg_if! {
