@@ -77,7 +77,7 @@ impl Component for Canvas {
         Self { widget }
     }
 
-    async fn start(&mut self, sender: &ComponentSender<Self>) {
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         let fut_redraw = async {
             loop {
                 self.widget.wait_redraw().await;
@@ -102,7 +102,9 @@ impl Component for Canvas {
                 sender.output(CanvasEvent::MouseUp(b));
             }
         };
-        futures_util::future::join4(fut_redraw, fut_move, fut_down, fut_up).await;
+        futures_util::future::join4(fut_redraw, fut_move, fut_down, fut_up)
+            .await
+            .0
     }
 
     async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {

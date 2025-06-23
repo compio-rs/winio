@@ -146,7 +146,7 @@ impl Component for MainModel {
         }
     }
 
-    async fn start(&mut self, sender: &ComponentSender<Self>) {
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         let mut radio_group = RadioButtonGroup::new([&mut *self.r1, &mut self.r2, &mut self.r3]);
         start! {
             sender, default: MainMessage::Noop,

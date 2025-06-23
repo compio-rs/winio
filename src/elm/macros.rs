@@ -79,8 +79,13 @@ macro_rules! __init_assign {
 /// ```
 #[macro_export]
 macro_rules! start {
-    ($sender:expr, default: $noop:expr $(,)?) => {};
+    ($sender:expr, default: $noop:expr $(,)?) => {
+        let _sender = $sender;
+        let _default = $noop;
+        ::core::future::pending().await
+    };
     ($sender:expr, default: $noop:expr, $($(#[$m:meta])* $w:expr => { $($t:tt)* }),+$(,)?) => {
+        #[allow(unreachable_code)]
         $crate::__join!($(
             $(#[$m])*
             $w.start(
@@ -88,7 +93,7 @@ macro_rules! start {
                 $crate::__start_map!($($t)*),
                 || $noop
             ),
-        )*);
+        )*).0;
     };
 }
 

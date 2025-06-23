@@ -44,7 +44,7 @@ impl Component for MainModel {
         Self { window, cwindow }
     }
 
-    async fn start(&mut self, sender: &ComponentSender<Self>) {
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: MainMessage::Noop,
             self.window => {
@@ -118,7 +118,7 @@ impl Component for ChildModel {
         Self { window, check }
     }
 
-    async fn start(&mut self, sender: &ComponentSender<Self>) {
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: ChildMessage::Noop,
             self.window => {

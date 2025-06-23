@@ -100,7 +100,7 @@ impl Component for Edit {
         Self { widget }
     }
 
-    async fn start(&mut self, sender: &ComponentSender<Self>) {
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         loop {
             self.widget.wait_change().await;
             sender.output(EditEvent::Change);

@@ -53,6 +53,7 @@ impl<T> Callback<T> {
                 let v = if let WakerState::Signaled(v) = state {
                     v
                 } else {
+                    // SAFETY: already checked
                     unsafe { unreachable_unchecked() }
                 };
                 Poll::Ready(v)

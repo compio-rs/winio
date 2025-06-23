@@ -133,7 +133,9 @@ impl<T: Clone> Component for ObservableVec<T> {
         }
     }
 
-    async fn start(&mut self, _sender: &ComponentSender<Self>) {}
+    async fn start(&mut self, _sender: &ComponentSender<Self>) -> ! {
+        std::future::pending().await
+    }
 
     async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
         false

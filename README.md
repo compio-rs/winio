@@ -44,7 +44,7 @@ impl Component for MainModel {
         Self { window }
     }
 
-    async fn start(&mut self, sender: &ComponentSender<Self>) {
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         // listen to events
         start! {
             sender, default: MainMessage::Noop,

@@ -119,7 +119,7 @@ impl Component for Window {
         }
     }
 
-    async fn start(&mut self, sender: &ComponentSender<Self>) {
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         let fut_close = async {
             loop {
                 self.widget.wait_close().await;
@@ -138,7 +138,9 @@ impl Component for Window {
                 sender.output(WindowEvent::Resize);
             }
         };
-        futures_util::future::join3(fut_close, fut_move, fut_resize).await;
+        futures_util::future::join3(fut_close, fut_move, fut_resize)
+            .await
+            .0
     }
 
     async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {

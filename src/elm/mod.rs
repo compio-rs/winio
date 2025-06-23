@@ -1,6 +1,5 @@
-use std::future::Future;
+use std::{future::Future, hint::unreachable_unchecked};
 
-use compio_log::*;
 use futures_channel::mpsc;
 use futures_util::{FutureExt, StreamExt};
 
@@ -20,7 +19,7 @@ pub trait Component: Sized {
     fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self;
 
     /// Start the event listening.
-    async fn start(&mut self, sender: &ComponentSender<Self>);
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> !;
 
     /// Respond to the message.
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool;
@@ -120,9 +119,8 @@ impl App {
                 let fut_start = model.start(&sender);
                 let fut_recv = recv.recv();
                 futures_util::select! {
-                    _ = fut_start.fuse() => {
-                        error!("unexpected exit in `Component::start`");
-                    }
+                    // SAFETY: never type
+                    _ = fut_start.fuse() => unsafe { unreachable_unchecked() },
                     msg = fut_recv.fuse() => {
                         let mut need_render = match msg {
                             ComponentMessage::Message(msg) => model.update(msg, &sender).await,

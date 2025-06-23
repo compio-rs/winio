@@ -173,7 +173,7 @@ impl Component for ListBox {
         Self { widget }
     }
 
-    async fn start(&mut self, sender: &ComponentSender<Self>) {
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         loop {
             self.widget.wait_select().await;
             sender.output(ListBoxEvent::Select);
