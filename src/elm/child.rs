@@ -4,7 +4,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use super::{ComponentReceiver, Layoutable, component_channel};
+use super::{ComponentMessage, ComponentReceiver, Layoutable, component_channel};
 use crate::{
     AsRawWindow, AsWindow, BorrowedWindow, Component, ComponentSender, Point, RawWindow, Rect, Size,
 };
@@ -14,21 +14,19 @@ use crate::{
 pub struct Child<T: Component> {
     model: T,
     sender: ComponentSender<T>,
-    msg: ComponentReceiver<T::Message>,
-    ev: ComponentReceiver<T::Event>,
+    msg: ComponentReceiver<T>,
     msg_cache: VecDeque<T::Message>,
 }
 
 impl<T: Component> Child<T> {
     /// Create and initialize the child component.
     pub fn init<'a>(init: impl Into<T::Init<'a>>) -> Self {
-        let (sender, msg, ev) = component_channel();
+        let (sender, msg) = component_channel();
         let model = T::init(init.into(), &sender);
         Self {
             model,
             sender,
             msg,
-            ev,
             msg_cache: VecDeque::new(),
         }
     }
@@ -81,20 +79,21 @@ impl<T: Component> Child<T> {
         let fut_start = self.model.start(&self.sender);
         let fut_forward = async {
             loop {
-                let e = self.ev.recv().await;
-                if let Some(m) = f(e) {
-                    sender.post(m);
+                let msg = self.msg.recv().await;
+                match msg {
+                    ComponentMessage::Message(msg) => {
+                        self.msg_cache.push_back(msg);
+                        sender.post(propagate());
+                    }
+                    ComponentMessage::Event(e) => {
+                        if let Some(m) = f(e) {
+                            sender.post(m);
+                        }
+                    }
                 }
             }
         };
-        let fut_internal = async {
-            loop {
-                let e = self.msg.recv().await;
-                self.msg_cache.push_back(e);
-                sender.post(propagate());
-            }
-        };
-        futures_util::future::join3(fut_start, fut_forward, fut_internal).await;
+        futures_util::future::join(fut_start, fut_forward).await;
     }
 
     /// Emit message to the child component.
@@ -106,9 +105,6 @@ impl<T: Component> Child<T> {
     pub async fn update(&mut self) -> bool {
         let mut need_render = false;
         while let Some(message) = self.msg_cache.pop_front() {
-            need_render |= self.model.update(message, &self.sender).await;
-        }
-        while let Some(message) = self.msg.try_recv() {
             need_render |= self.model.update(message, &self.sender).await;
         }
         need_render

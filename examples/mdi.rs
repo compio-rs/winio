@@ -1,6 +1,6 @@
 use winio::{
-    App, Child, Component, ComponentSender, Layoutable, Size, Visible, Window, WindowEvent, init,
-    start,
+    App, CheckBox, CheckBoxEvent, Child, Component, ComponentSender, Layoutable, Size, Visible,
+    Window, WindowEvent, init, start,
 };
 
 fn main() {
@@ -14,7 +14,7 @@ fn main() {
 
 struct MainModel {
     window: Child<Window>,
-    cwindow: Child<Window>,
+    cwindow: Child<ChildModel>,
 }
 
 #[derive(Debug)]
@@ -22,6 +22,7 @@ enum MainMessage {
     Noop,
     Close,
     Redraw,
+    Check(bool),
 }
 
 impl Component for MainModel {
@@ -35,13 +36,9 @@ impl Component for MainModel {
                 text: "MDI example",
                 size: Size::new(800.0, 600.0),
             },
-            cwindow: Window = (&window) => {
-                text: "Child window",
-                size: Size::new(400.0, 300.0),
-            }
+            cwindow: ChildModel = (&*window),
         }
 
-        cwindow.show();
         window.show();
 
         Self { window, cwindow }
@@ -55,7 +52,7 @@ impl Component for MainModel {
                 WindowEvent::Resize => MainMessage::Redraw,
             },
             self.cwindow => {
-                WindowEvent::Resize => MainMessage::Redraw,
+                ChildEvent::Check(b) => MainMessage::Check(b),
             }
         }
     }
@@ -69,11 +66,88 @@ impl Component for MainModel {
                 false
             }
             MainMessage::Redraw => true,
+            MainMessage::Check(b) => {
+                self.window
+                    .set_text(if b { "Checked" } else { "MDI example" });
+                false
+            }
         }
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {
         self.window.render();
         self.cwindow.render();
+    }
+}
+
+struct ChildModel {
+    window: Child<Window>,
+    check: Child<CheckBox>,
+}
+
+#[derive(Debug)]
+enum ChildMessage {
+    Noop,
+    Redraw,
+    Check,
+}
+
+#[derive(Debug)]
+enum ChildEvent {
+    Check(bool),
+}
+
+impl Component for ChildModel {
+    type Event = ChildEvent;
+    type Init<'a> = &'a Window;
+    type Message = ChildMessage;
+
+    fn init(root: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+        init! {
+            window: Window = (root) => {
+                text: "Child window",
+                size: Size::new(400.0, 300.0),
+            },
+            check: CheckBox = (&window) => {
+                text: "Check me",
+            },
+        }
+
+        window.show();
+
+        Self { window, check }
+    }
+
+    async fn start(&mut self, sender: &ComponentSender<Self>) {
+        start! {
+            sender, default: ChildMessage::Noop,
+            self.window => {
+                WindowEvent::Resize => ChildMessage::Redraw,
+            },
+            self.check => {
+                CheckBoxEvent::Click => ChildMessage::Check,
+            }
+        }
+    }
+
+    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
+        futures_util::future::join(self.window.update(), self.check.update()).await;
+        match message {
+            ChildMessage::Noop => false,
+            ChildMessage::Redraw => true,
+            ChildMessage::Check => {
+                sender.output(ChildEvent::Check(self.check.is_checked()));
+                true
+            }
+        }
+    }
+
+    fn render(&mut self, _sender: &ComponentSender<Self>) {
+        self.window.render();
+        self.check.render();
+
+        let csize = self.window.client_size();
+        let psize = self.check.preferred_size();
+        self.check.set_size(Size::new(csize.width, psize.height));
     }
 }

@@ -28,60 +28,52 @@ pub trait Component: Sized {
     fn render(&mut self, sender: &ComponentSender<Self>);
 }
 
+#[derive(Debug)]
+enum ComponentMessage<T: Component> {
+    Message(T::Message),
+    Event(T::Event),
+}
+
 /// Sender of input messages and output events.
 #[derive(Debug)]
-pub struct ComponentSender<T: Component> {
-    message_tx: mpsc::UnboundedSender<T::Message>,
-    event_tx: mpsc::UnboundedSender<T::Event>,
-}
+pub struct ComponentSender<T: Component>(mpsc::UnboundedSender<ComponentMessage<T>>);
 
 impl<T: Component> Clone for ComponentSender<T> {
     fn clone(&self) -> Self {
-        Self {
-            message_tx: self.message_tx.clone(),
-            event_tx: self.event_tx.clone(),
-        }
+        Self(self.0.clone())
     }
 }
 
 #[derive(Debug)]
-struct ComponentReceiver<T>(mpsc::UnboundedReceiver<T>);
+struct ComponentReceiver<T: Component>(mpsc::UnboundedReceiver<ComponentMessage<T>>);
 
-fn component_channel<T: Component>() -> (
-    ComponentSender<T>,
-    ComponentReceiver<T::Message>,
-    ComponentReceiver<T::Event>,
-) {
-    let (message_tx, message_rx) = mpsc::unbounded();
-    let (event_tx, event_rx) = mpsc::unbounded();
-    (
-        ComponentSender {
-            message_tx,
-            event_tx,
-        },
-        ComponentReceiver(message_rx),
-        ComponentReceiver(event_rx),
-    )
+fn component_channel<T: Component>() -> (ComponentSender<T>, ComponentReceiver<T>) {
+    let (tx, rx) = mpsc::unbounded();
+    (ComponentSender(tx), ComponentReceiver(rx))
 }
 
 impl<T: Component> ComponentSender<T> {
     /// Post the message to the queue.
     pub fn post(&self, message: T::Message) -> bool {
-        self.message_tx.unbounded_send(message).is_ok()
+        self.0
+            .unbounded_send(ComponentMessage::Message(message))
+            .is_ok()
     }
 
     /// Post the event to the queue.
     pub fn output(&self, event: T::Event) -> bool {
-        self.event_tx.unbounded_send(event).is_ok()
+        self.0
+            .unbounded_send(ComponentMessage::Event(event))
+            .is_ok()
     }
 }
 
-impl<T> ComponentReceiver<T> {
-    async fn recv(&mut self) -> T {
+impl<T: Component> ComponentReceiver<T> {
+    async fn recv(&mut self) -> ComponentMessage<T> {
         self.0.next().await.unwrap()
     }
 
-    fn try_recv(&mut self) -> Option<T> {
+    fn try_recv(&mut self) -> Option<ComponentMessage<T>> {
         self.0.try_next().ok().flatten()
     }
 }
@@ -129,26 +121,28 @@ impl App {
     /// returns the first event from the component.
     pub fn run<'a, T: Component>(&mut self, init: impl Into<T::Init<'a>>) -> T::Event {
         self.block_on(async {
-            let (sender, mut msg_recv, mut ev_recv) = component_channel();
+            let (sender, mut recv) = component_channel();
             let mut model = T::init(init.into(), &sender);
             model.render(&sender);
-            loop {
+            'outer: loop {
                 let fut_start = model.start(&sender);
-                let fut_recv = msg_recv.recv();
-                let fut_ev = ev_recv.recv();
+                let fut_recv = recv.recv();
                 futures_util::select! {
                     _ = fut_start.fuse() => unreachable!(),
                     msg = fut_recv.fuse() => {
-                        let mut need_render = model.update(msg, &sender).await;
-                        while let Some(msg) = msg_recv.try_recv() {
-                            need_render |= model.update(msg, &sender).await;
+                        let mut need_render = match msg {
+                            ComponentMessage::Message(msg) => model.update(msg, &sender).await,
+                            ComponentMessage::Event(e) => break 'outer e,
+                        };
+                        while let Some(msg) = recv.try_recv() {
+                            need_render |= match msg {
+                                ComponentMessage::Message(msg) => model.update(msg, &sender).await,
+                                ComponentMessage::Event(e) => break 'outer e,
+                            };
                         }
                         if need_render {
                             model.render(&sender);
                         }
-                    }
-                    e = fut_ev.fuse() => {
-                        break e;
                     }
                 }
             }
