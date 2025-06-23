@@ -86,17 +86,8 @@ pub struct App {
 }
 
 impl App {
-    /// Create [`App`].
-    #[allow(clippy::new_without_default)]
-    pub fn new() -> Self {
-        Self {
-            runtime: Runtime::new(),
-            name: None,
-        }
-    }
-
     /// Create [`App`] with application name.
-    pub fn new_with_name(name: impl AsRef<str>) -> Self {
+    pub fn new(name: impl AsRef<str>) -> Self {
         #[allow(unused_mut)]
         let mut runtime = Runtime::new();
         let name = name.as_ref().to_string();

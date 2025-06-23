@@ -19,7 +19,7 @@ fn main() {
         .with_max_level(compio_log::Level::INFO)
         .init();
 
-    App::new().run::<MainModel>(dirs::picture_dir())
+    App::new("rs.compio.winio.gallery").run::<MainModel>(dirs::picture_dir())
 }
 
 struct MainModel {

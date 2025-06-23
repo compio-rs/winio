@@ -15,7 +15,7 @@ use winio::{
 };
 
 fn main() {
-    App::new().run::<MainModel>(());
+    App::new("rs.compio.winio.example").run::<MainModel>(());
 }
 
 struct MainModel {
@@ -34,25 +34,24 @@ impl Component for MainModel {
 
     fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
         // create & initialize the window
-        let mut window = Child::<Window>::init(());
-        window.set_text("Basic example");
-        window.set_size(Size::new(800.0, 600.0));
+        init! {
+            window: Window = (()) => {
+                text: "Basic example",
+                size: Size::new(800.0, 600.0),
+            }
+        }
         window.show();
         Self { window }
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) {
         // listen to events
-        self.window
-            .start(
-                sender,
-                |e| match e {
-                    WindowEvent::Close => Some(MainMessage::Close),
-                    _ => None,
-                },
-                || MainMessage::Noop,
-            )
-            .await;
+        start! {
+            sender, default: MainMessage::Noop,
+            self.window => {
+                WindowEvent::Close => MainMessage::Close,
+            }
+        }
     }
 
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
@@ -71,6 +70,7 @@ impl Component for MainModel {
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {
+        self.window.render();
         // adjust layout and draw widgets here
     }
 }
