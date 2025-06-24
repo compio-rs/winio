@@ -180,7 +180,7 @@ impl ListBox {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 struct ListBoxDelegateIvars {
     select: Callback,
     data: RefCell<Vec<String>>,

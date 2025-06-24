@@ -183,7 +183,7 @@ impl Edit {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 struct EditDelegateIvars {
     changed: Callback,
 }

@@ -248,7 +248,7 @@ impl RadioButton {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 struct ButtonDelegateIvars {
     action: Callback,
 }

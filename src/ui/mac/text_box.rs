@@ -137,7 +137,7 @@ impl TextBox {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 struct TextBoxDelegateIvars {
     changed: Callback,
 }
