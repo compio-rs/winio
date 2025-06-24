@@ -34,6 +34,7 @@ use windows::{
 };
 use windows_numerics::{Matrix3x2, Vector2};
 use windows_sys::Win32::{
+    Foundation::LPARAM,
     System::SystemServices::SS_OWNERDRAW,
     UI::{
         Controls::WC_STATICW,
@@ -165,31 +166,49 @@ impl Canvas {
     }
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
-        futures_util::select! {
-            _ = self.handle.wait_parent(WM_LBUTTONDOWN).fuse() => MouseButton::Left,
-            _ = self.handle.wait_parent(WM_RBUTTONDOWN).fuse() => MouseButton::Right,
-            _ = self.handle.wait_parent(WM_MBUTTONDOWN).fuse() => MouseButton::Middle,
+        loop {
+            let (msg, b) = futures_util::select! {
+                msg = self.handle.wait_parent(WM_LBUTTONDOWN).fuse() => (msg, MouseButton::Left),
+                msg = self.handle.wait_parent(WM_RBUTTONDOWN).fuse() => (msg, MouseButton::Right),
+                msg = self.handle.wait_parent(WM_MBUTTONDOWN).fuse() => (msg, MouseButton::Middle),
+            };
+            if self.is_in(msg.lparam).is_some() {
+                break b;
+            }
         }
     }
 
     pub async fn wait_mouse_up(&self) -> MouseButton {
-        futures_util::select! {
-            _ = self.handle.wait_parent(WM_LBUTTONUP).fuse() => MouseButton::Left,
-            _ = self.handle.wait_parent(WM_RBUTTONUP).fuse() => MouseButton::Right,
-            _ = self.handle.wait_parent(WM_MBUTTONUP).fuse() => MouseButton::Middle,
+        loop {
+            let (msg, b) = futures_util::select! {
+                msg = self.handle.wait_parent(WM_LBUTTONUP).fuse() => (msg, MouseButton::Left),
+                msg = self.handle.wait_parent(WM_RBUTTONUP).fuse() => (msg, MouseButton::Right),
+                msg = self.handle.wait_parent(WM_MBUTTONUP).fuse() => (msg, MouseButton::Middle),
+            };
+            if self.is_in(msg.lparam).is_some() {
+                break b;
+            }
         }
     }
 
     pub async fn wait_mouse_move(&self) -> Point {
         loop {
             let msg = self.handle.wait_parent(WM_MOUSEMOVE).await;
-            let (x, y) = ((msg.lparam & 0xFFFF) as i32, (msg.lparam >> 16) as i32);
-            let p = self.handle.point_d2l((x, y));
-            let loc = self.loc();
-            let size = self.size();
-            if Rect::new(loc, size).contains(p) {
-                break (p - loc).to_point();
+            if let Some(p) = self.is_in(msg.lparam) {
+                break p;
             }
+        }
+    }
+
+    fn is_in(&self, lparam: LPARAM) -> Option<Point> {
+        let (x, y) = ((lparam & 0xFFFF) as i32, (lparam >> 16) as i32);
+        let p = self.handle.point_d2l((x, y));
+        let loc = self.loc();
+        let size = self.size();
+        if Rect::new(loc, size).contains(p) {
+            Some((p - loc).to_point())
+        } else {
+            None
         }
     }
 }
