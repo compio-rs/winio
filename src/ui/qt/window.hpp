@@ -1,6 +1,5 @@
 #pragma once
 
-#include "callback.hpp"
 #include "common.hpp"
 #include <QCloseEvent>
 #include <QMainWindow>

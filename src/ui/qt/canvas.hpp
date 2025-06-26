@@ -1,6 +1,6 @@
 #pragma once
 
-#include "callback.hpp"
+#include "common.hpp"
 #include <QGradient>
 #include <QImage>
 #include <QMouseEvent>

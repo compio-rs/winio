@@ -1,6 +1,5 @@
 #pragma once
 
-#include "callback.hpp"
 #include "common.hpp"
 #include <QAbstractButton>
 #include <QCheckBox>

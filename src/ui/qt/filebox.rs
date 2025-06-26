@@ -98,14 +98,19 @@ impl FileBox {
             b.pin_mut().setAcceptMode(QFileDialogAcceptMode::AcceptSave);
             b.pin_mut().setFileMode(QFileDialogFileMode::AnyFile);
         }
-
-        let filter = self
-            .filters
-            .iter()
-            .map(|f| format!("{}({})", f.name, f.pattern))
-            .collect::<Vec<_>>()
-            .join(";;");
-        ffi::file_dialog_set_texts(b.pin_mut(), &self.title, &self.filename, &filter);
+        b.pin_mut().setWindowTitle(&self.title.into());
+        if !self.filename.is_empty() {
+            b.pin_mut().selectFile(&self.filename.into());
+        }
+        if !self.filters.is_empty() {
+            let filter = self
+                .filters
+                .iter()
+                .map(|f| format!("{}({})", f.name, f.pattern))
+                .collect::<Vec<_>>()
+                .join(";;");
+            b.pin_mut().setNameFilter(&filter.into());
+        }
 
         let (tx, rx) = oneshot::channel::<i32>();
         let tx = ManuallyDrop::new(Some(tx));
@@ -170,9 +175,13 @@ mod ffi {
         type QWidget = crate::ui::QWidget;
         type QFileDialogAcceptMode = super::QFileDialogAcceptMode;
         type QFileDialogFileMode = super::QFileDialogFileMode;
+        type QString = crate::ui::QString;
 
         fn setAcceptMode(self: Pin<&mut QFileDialog>, mode: QFileDialogAcceptMode);
         fn setFileMode(self: Pin<&mut QFileDialog>, mode: QFileDialogFileMode);
+        fn setWindowTitle(self: Pin<&mut QFileDialog>, s: &QString);
+        fn selectFile(self: Pin<&mut QFileDialog>, s: &QString);
+        fn setNameFilter(self: Pin<&mut QFileDialog>, s: &QString);
         fn open(self: Pin<&mut QFileDialog>);
 
         unsafe fn new_file_dialog(parent: *mut QWidget) -> UniquePtr<QFileDialog>;
@@ -180,12 +189,6 @@ mod ffi {
             b: Pin<&mut QFileDialog>,
             callback: unsafe fn(*const u8, i32),
             data: *const u8,
-        );
-        fn file_dialog_set_texts(
-            b: Pin<&mut QFileDialog>,
-            title: &str,
-            filename: &str,
-            filter: &str,
         );
         fn file_dialog_files(b: &QFileDialog) -> Vec<String>;
     }
