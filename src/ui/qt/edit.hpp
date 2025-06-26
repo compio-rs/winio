@@ -9,8 +9,8 @@
 using QtAlignmentFlag = Qt::Alignment;
 using QLineEditEchoMode = QLineEdit::EchoMode;
 
-STATIC_CAST_IMPL(QLineEdit, QWidget);
-STATIC_CAST_IMPL(QTextEdit, QWidget);
+STATIC_CAST_ASSERT(QLineEdit, QWidget);
+STATIC_CAST_ASSERT(QTextEdit, QWidget);
 
 std::unique_ptr<QLineEdit> new_line_edit(QWidget *parent);
 void line_edit_connect_changed(QLineEdit &w, callback_fn_t<void()> callback,

@@ -160,9 +160,6 @@ mod ffi {
 
         unsafe fn new_main_window(parent: *mut QWidget) -> UniquePtr<QMainWindow>;
 
-        fn static_cast_QMainWindow_QWidget(w: &QMainWindow) -> &QWidget;
-        fn static_cast_mut_QMainWindow_QWidget(w: Pin<&mut QMainWindow>) -> Pin<&mut QWidget>;
-
         unsafe fn main_window_register_resize_event(
             w: Pin<&mut QMainWindow>,
             callback: unsafe fn(*const u8, i32, i32),

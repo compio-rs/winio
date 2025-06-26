@@ -71,11 +71,11 @@ macro_rules! impl_static_cast {
     ($t:ty, $tbase:ty, $f:expr, $fmut:expr) => {
         impl $crate::ui::StaticCastTo<$tbase> for $t {
             fn static_cast(&self) -> &$tbase {
-                $f(self)
+                unsafe { std::mem::transmute(self) }
             }
 
             fn static_cast_mut(self: ::std::pin::Pin<&mut Self>) -> ::std::pin::Pin<&mut $tbase> {
-                $fmut(self)
+                unsafe { std::mem::transmute(self) }
             }
         }
     };

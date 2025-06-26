@@ -102,9 +102,6 @@ mod ffi {
 
         unsafe fn new_progress_bar(parent: *mut QWidget) -> UniquePtr<QProgressBar>;
 
-        fn static_cast_QProgressBar_QWidget(w: &QProgressBar) -> &QWidget;
-        fn static_cast_mut_QProgressBar_QWidget(w: Pin<&mut QProgressBar>) -> Pin<&mut QWidget>;
-
         fn setRange(self: Pin<&mut QProgressBar>, min: i32, max: i32);
         fn minimum(self: &QProgressBar) -> i32;
         fn maximum(self: &QProgressBar) -> i32;

@@ -109,9 +109,6 @@ mod ffi {
 
         unsafe fn new_label(parent: *mut QWidget) -> UniquePtr<QLabel>;
 
-        fn static_cast_QLabel_QWidget(w: &QLabel) -> &QWidget;
-        fn static_cast_mut_QLabel_QWidget(w: Pin<&mut QLabel>) -> Pin<&mut QWidget>;
-
         fn alignment(self: &QLabel) -> QtAlignmentFlag;
         fn setAlignment(self: Pin<&mut QLabel>, flag: QtAlignmentFlag);
         fn text(self: &QLabel) -> QString;

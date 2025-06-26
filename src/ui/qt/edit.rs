@@ -295,12 +295,6 @@ mod ffi {
         type QLineEditEchoMode = super::QLineEditEchoMode;
         type QString = crate::ui::QString;
 
-        fn static_cast_QLineEdit_QWidget(w: &QLineEdit) -> &QWidget;
-        fn static_cast_mut_QLineEdit_QWidget(w: Pin<&mut QLineEdit>) -> Pin<&mut QWidget>;
-
-        fn static_cast_QTextEdit_QWidget(w: &QTextEdit) -> &QWidget;
-        fn static_cast_mut_QTextEdit_QWidget(w: Pin<&mut QTextEdit>) -> Pin<&mut QWidget>;
-
         unsafe fn new_line_edit(parent: *mut QWidget) -> UniquePtr<QLineEdit>;
         unsafe fn line_edit_connect_changed(
             w: Pin<&mut QLineEdit>,

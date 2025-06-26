@@ -158,9 +158,6 @@ mod ffi {
         type QComboBox;
         type QString = crate::ui::QString;
 
-        fn static_cast_QComboBox_QWidget(w: &QComboBox) -> &QWidget;
-        fn static_cast_mut_QComboBox_QWidget(w: Pin<&mut QComboBox>) -> Pin<&mut QWidget>;
-
         unsafe fn new_combo_box(parent: *mut QWidget, editable: bool) -> UniquePtr<QComboBox>;
         unsafe fn combo_box_connect_changed(
             w: Pin<&mut QComboBox>,

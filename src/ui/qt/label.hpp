@@ -6,4 +6,4 @@
 
 std::unique_ptr<QLabel> new_label(QWidget *parent);
 
-STATIC_CAST_IMPL(QLabel, QWidget);
+STATIC_CAST_ASSERT(QLabel, QWidget);

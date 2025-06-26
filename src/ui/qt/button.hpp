@@ -10,10 +10,10 @@
 
 using QtCheckState = Qt::CheckState;
 
-STATIC_CAST_IMPL(QAbstractButton, QWidget);
-STATIC_CAST_IMPL(QPushButton, QAbstractButton);
-STATIC_CAST_IMPL(QCheckBox, QAbstractButton);
-STATIC_CAST_IMPL(QRadioButton, QAbstractButton);
+STATIC_CAST_ASSERT(QAbstractButton, QWidget);
+STATIC_CAST_ASSERT(QPushButton, QAbstractButton);
+STATIC_CAST_ASSERT(QCheckBox, QAbstractButton);
+STATIC_CAST_ASSERT(QRadioButton, QAbstractButton);
 
 std::unique_ptr<QPushButton> new_push_button(QWidget *parent);
 std::unique_ptr<QCheckBox> new_check_box(QWidget *parent);

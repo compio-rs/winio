@@ -209,26 +209,6 @@ mod ffi {
         type QRadioButton;
         type QtCheckState = super::QtCheckState;
 
-        fn static_cast_QAbstractButton_QWidget(w: &QAbstractButton) -> &QWidget;
-        fn static_cast_mut_QAbstractButton_QWidget(
-            w: Pin<&mut QAbstractButton>,
-        ) -> Pin<&mut QWidget>;
-
-        fn static_cast_QPushButton_QAbstractButton(w: &QPushButton) -> &QAbstractButton;
-        fn static_cast_mut_QPushButton_QAbstractButton(
-            w: Pin<&mut QPushButton>,
-        ) -> Pin<&mut QAbstractButton>;
-
-        fn static_cast_QCheckBox_QAbstractButton(w: &QCheckBox) -> &QAbstractButton;
-        fn static_cast_mut_QCheckBox_QAbstractButton(
-            w: Pin<&mut QCheckBox>,
-        ) -> Pin<&mut QAbstractButton>;
-
-        fn static_cast_QRadioButton_QAbstractButton(w: &QRadioButton) -> &QAbstractButton;
-        fn static_cast_mut_QRadioButton_QAbstractButton(
-            w: Pin<&mut QRadioButton>,
-        ) -> Pin<&mut QAbstractButton>;
-
         unsafe fn new_push_button(parent: *mut QWidget) -> UniquePtr<QPushButton>;
         unsafe fn new_check_box(parent: *mut QWidget) -> UniquePtr<QCheckBox>;
         unsafe fn new_radio_button(parent: *mut QWidget) -> UniquePtr<QRadioButton>;

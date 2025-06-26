@@ -142,10 +142,6 @@ mod ffi {
         type QListWidget;
         type QListWidgetItem;
         type QString = crate::ui::QString;
-
-        fn static_cast_QListWidget_QWidget(w: &QListWidget) -> &QWidget;
-        fn static_cast_mut_QListWidget_QWidget(w: Pin<&mut QListWidget>) -> Pin<&mut QWidget>;
-
         unsafe fn new_list_widget(parent: *mut QWidget) -> UniquePtr<QListWidget>;
         unsafe fn list_widget_connect_select(
             w: Pin<&mut QListWidget>,

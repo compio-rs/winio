@@ -23,7 +23,7 @@ protected:
 
 std::unique_ptr<QMainWindow> new_main_window(QWidget *parent);
 
-STATIC_CAST_IMPL(QMainWindow, QWidget);
+STATIC_CAST_ASSERT(QMainWindow, QWidget);
 
 void main_window_register_resize_event(QMainWindow &w,
                                        callback_fn_t<void(int, int)> callback,

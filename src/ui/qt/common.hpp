@@ -26,13 +26,11 @@ static_assert(sizeof(QString) == 3 * sizeof(std::size_t));
 static_assert(sizeof(QString) == sizeof(std::size_t));
 #endif
 
-#define STATIC_CAST_IMPL(t, base)                                              \
-    inline base const &static_cast_##t##_##base(t const &p) noexcept {         \
-        return static_cast<base const &>(p);                                   \
-    }                                                                          \
-    inline base &static_cast_mut_##t##_##base(t &p) noexcept {                 \
-        return static_cast<base &>(p);                                         \
-    }
+#define STATIC_CAST_ASSERT(t, base)                                            \
+    static_assert(std::is_base_of<base, t>::value &&                           \
+                  std::is_convertible<t *, base *>::value &&                   \
+                  std::is_polymorphic<base>::value &&                          \
+                  std::is_polymorphic<t>::value);
 
 inline QString new_string_utf8(const std::uint8_t *p, std::size_t len) {
     return QString::fromUtf8((const char *)p, (qsizetype)len);

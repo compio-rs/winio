@@ -5,6 +5,6 @@
 #include <QWidget>
 #include <memory>
 
-STATIC_CAST_IMPL(QProgressBar, QWidget);
+STATIC_CAST_ASSERT(QProgressBar, QWidget);
 
 std::unique_ptr<QProgressBar> new_progress_bar(QWidget *parent);
