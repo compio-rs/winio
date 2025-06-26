@@ -53,10 +53,14 @@ use crate::{
     ui::{Widget, darkmode::is_dark_mode_allowed_for_app, font::DWRITE_FACTORY},
 };
 
+thread_local! {
+    static D2D1_FACTORY: ID2D1Factory =
+        unsafe { D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None).unwrap() };
+}
+
 #[derive(Debug)]
 pub struct Canvas {
     handle: Widget,
-    d2d: ID2D1Factory,
     target: ID2D1HwndRenderTarget,
 }
 
@@ -68,34 +72,30 @@ impl Canvas {
             0,
             parent.as_window().as_raw_window(),
         );
-        let d2d: ID2D1Factory =
-            unsafe { D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None).unwrap() };
         let target = unsafe {
-            d2d.CreateHwndRenderTarget(
-                &D2D1_RENDER_TARGET_PROPERTIES {
-                    r#type: D2D1_RENDER_TARGET_TYPE_HARDWARE,
-                    pixelFormat: D2D1_PIXEL_FORMAT {
-                        format: DXGI_FORMAT_B8G8R8A8_UNORM,
-                        alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
+            D2D1_FACTORY.with(|d2d| {
+                d2d.CreateHwndRenderTarget(
+                    &D2D1_RENDER_TARGET_PROPERTIES {
+                        r#type: D2D1_RENDER_TARGET_TYPE_HARDWARE,
+                        pixelFormat: D2D1_PIXEL_FORMAT {
+                            format: DXGI_FORMAT_B8G8R8A8_UNORM,
+                            alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
+                        },
+                        dpiX: 0.0,
+                        dpiY: 0.0,
+                        usage: D2D1_RENDER_TARGET_USAGE_NONE,
+                        minLevel: D2D1_FEATURE_LEVEL_DEFAULT,
                     },
-                    dpiX: 0.0,
-                    dpiY: 0.0,
-                    usage: D2D1_RENDER_TARGET_USAGE_NONE,
-                    minLevel: D2D1_FEATURE_LEVEL_DEFAULT,
-                },
-                &D2D1_HWND_RENDER_TARGET_PROPERTIES {
-                    hwnd: windows::Win32::Foundation::HWND(handle.as_raw_window()),
-                    pixelSize: D2D_SIZE_U::default(),
-                    presentOptions: D2D1_PRESENT_OPTIONS_NONE,
-                },
-            )
-            .unwrap()
+                    &D2D1_HWND_RENDER_TARGET_PROPERTIES {
+                        hwnd: windows::Win32::Foundation::HWND(handle.as_raw_window()),
+                        pixelSize: D2D_SIZE_U::default(),
+                        presentOptions: D2D1_PRESENT_OPTIONS_NONE,
+                    },
+                )
+                .unwrap()
+            })
         };
-        Self {
-            handle,
-            d2d,
-            target,
-        }
+        Self { handle, target }
     }
 
     pub fn is_visible(&self) -> bool {
@@ -148,7 +148,6 @@ impl Canvas {
                 })));
             DrawingContext {
                 target: self.target.clone().cast().unwrap(),
-                d2d: self.d2d.clone(),
                 _p: PhantomData,
             }
         }
@@ -254,7 +253,6 @@ pub fn gradient_stop(s: &GradientStop) -> D2D1_GRADIENT_STOP {
 
 pub struct DrawingContext<'a> {
     target: ID2D1RenderTarget,
-    d2d: ID2D1Factory,
     _p: PhantomData<&'a Canvas>,
 }
 
@@ -293,7 +291,7 @@ impl DrawingContext<'_> {
 
     fn get_arc_geo(&self, rect: Rect, start: f64, end: f64, close: bool) -> ID2D1Geometry {
         unsafe {
-            let geo = self.d2d.CreatePathGeometry().unwrap();
+            let geo = D2D1_FACTORY.with(|d2d| d2d.CreatePathGeometry().unwrap());
             let sink = geo.Open().unwrap();
             let (radius, centerp, startp, endp) = get_arc(rect, start, end);
             sink.BeginFigure(point_2f(startp), D2D1_FIGURE_BEGIN_HOLLOW);
@@ -538,7 +536,7 @@ impl DrawingContext<'_> {
     }
 
     pub fn create_path_builder(&self, start: Point) -> DrawingPathBuilder {
-        DrawingPathBuilder::new(&self.d2d, start)
+        DrawingPathBuilder::new(start)
     }
 }
 
@@ -564,9 +562,9 @@ pub struct DrawingPathBuilder {
 }
 
 impl DrawingPathBuilder {
-    fn new(d2d: &ID2D1Factory, start: Point) -> Self {
+    fn new(start: Point) -> Self {
         unsafe {
-            let geo = d2d.CreatePathGeometry().unwrap();
+            let geo = D2D1_FACTORY.with(|d2d| d2d.CreatePathGeometry().unwrap());
             let sink = geo.Open().unwrap();
             sink.BeginFigure(point_2f(start), D2D1_FIGURE_BEGIN_HOLLOW);
             Self { geo, sink }
