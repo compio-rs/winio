@@ -183,7 +183,7 @@ async unsafe fn filebox(
     }
 
     let res = if let Some(parent) = &parent {
-        let (tx, rx) = futures_channel::oneshot::channel();
+        let (tx, rx) = local_sync::oneshot::channel();
         let tx = Rc::new(RefCell::new(Some(tx)));
         let block = StackBlock::new(move |res| {
             tx.borrow_mut()
