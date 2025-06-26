@@ -79,15 +79,17 @@ impl<T: Component> Child<T> {
         let fut_start = self.model.start(&self.sender);
         let fut_forward = async {
             loop {
-                let msg = self.msg.recv().await;
-                match msg {
-                    ComponentMessage::Message(msg) => {
-                        self.msg_cache.push_back(msg);
-                        sender.post(propagate());
-                    }
-                    ComponentMessage::Event(e) => {
-                        if let Some(m) = f(e) {
-                            sender.post(m);
+                self.msg.wait().await;
+                for msg in self.msg.fetch_all() {
+                    match msg {
+                        ComponentMessage::Message(msg) => {
+                            self.msg_cache.push_back(msg);
+                            sender.post(propagate());
+                        }
+                        ComponentMessage::Event(e) => {
+                            if let Some(m) = f(e) {
+                                sender.post(m);
+                            }
                         }
                     }
                 }

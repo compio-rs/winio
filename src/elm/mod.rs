@@ -35,7 +35,7 @@ enum ComponentMessage<T: Component> {
 
 /// Sender of input messages and output events.
 #[derive(Debug)]
-pub struct ComponentSender<T: Component>(flume::Sender<ComponentMessage<T>>);
+pub struct ComponentSender<T: Component>(Sender<ComponentMessage<T>>);
 
 impl<T: Component> Clone for ComponentSender<T> {
     fn clone(&self) -> Self {
@@ -44,39 +44,32 @@ impl<T: Component> Clone for ComponentSender<T> {
 }
 
 #[derive(Debug)]
-struct ComponentReceiver<T: Component>(flume::Receiver<ComponentMessage<T>>);
+struct ComponentReceiver<T: Component>(Receiver<ComponentMessage<T>>);
 
 fn component_channel<T: Component>() -> (ComponentSender<T>, ComponentReceiver<T>) {
-    let (tx, rx) = flume::unbounded();
+    let (tx, rx) = channel();
     (ComponentSender(tx), ComponentReceiver(rx))
 }
 
 impl<T: Component> ComponentSender<T> {
     /// Post the message to the queue.
     pub fn post(&self, message: T::Message) {
-        self.0
-            .send(ComponentMessage::Message(message))
-            .expect("component receiver disconnected")
+        self.0.send(ComponentMessage::Message(message))
     }
 
     /// Post the event to the queue.
     pub fn output(&self, event: T::Event) {
-        self.0
-            .send(ComponentMessage::Event(event))
-            .expect("component receiver disconnected")
+        self.0.send(ComponentMessage::Event(event))
     }
 }
 
 impl<T: Component> ComponentReceiver<T> {
-    async fn recv(&mut self) -> ComponentMessage<T> {
-        self.0
-            .recv_async()
-            .await
-            .expect("component sender disconnected")
+    async fn wait(&self) {
+        self.0.wait().await
     }
 
-    fn drain(&mut self) -> impl Iterator<Item = ComponentMessage<T>> + '_ {
-        self.0.drain()
+    fn fetch_all(&self) -> Vec<ComponentMessage<T>> {
+        self.0.fetch_all()
     }
 }
 
@@ -114,21 +107,18 @@ impl App {
     /// returns the first event from the component.
     pub fn run<'a, T: Component>(&mut self, init: impl Into<T::Init<'a>>) -> T::Event {
         self.block_on(async {
-            let (sender, mut recv) = component_channel();
+            let (sender, recv) = component_channel();
             let mut model = T::init(init.into(), &sender);
             model.render(&sender);
             'outer: loop {
                 let fut_start = model.start(&sender);
-                let fut_recv = recv.recv();
+                let fut_recv = recv.wait();
                 futures_util::select! {
                     // SAFETY: never type
                     _ = fut_start.fuse() => unsafe { unreachable_unchecked() },
-                    msg = fut_recv.fuse() => {
-                        let mut need_render = match msg {
-                            ComponentMessage::Message(msg) => model.update(msg, &sender).await,
-                            ComponentMessage::Event(e) => break 'outer e,
-                        };
-                        for msg in recv.drain() {
+                    _ = fut_recv.fuse() => {
+                        let mut need_render = false;
+                        for msg in recv.fetch_all() {
                             need_render |= match msg {
                                 ComponentMessage::Message(msg) => model.update(msg, &sender).await,
                                 ComponentMessage::Event(e) => break 'outer e,
@@ -155,6 +145,9 @@ fn approx_eq_size(s1: Size, s2: Size) -> bool {
 fn approx_eq(f1: f64, f2: f64) -> bool {
     (f1 - f2).abs() < 1.0
 }
+
+mod channel;
+pub(crate) use channel::*;
 
 mod child;
 pub use child::*;
