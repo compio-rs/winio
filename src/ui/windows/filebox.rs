@@ -4,7 +4,10 @@ use widestring::{U16CStr, U16CString};
 use windows::{
     Win32::{
         Foundation::{ERROR_CANCELLED, HWND},
-        System::Com::{CLSCTX_INPROC_SERVER, CoCreateInstance, CoTaskMemFree},
+        System::Com::{
+            CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx,
+            CoTaskMemFree, CoUninitialize,
+        },
         UI::Shell::{
             Common::COMDLG_FILTERSPEC, FOS_ALLOWMULTISELECT, FOS_PICKFOLDERS, FileOpenDialog,
             FileSaveDialog, IFileDialog, IFileOpenDialog, SIGDN_FILESYSPATH,
@@ -144,6 +147,8 @@ unsafe fn filebox(
     multiple: bool,
     folder: bool,
 ) -> FileBoxInner {
+    let init = CoInitialize::init();
+
     let handle: IFileDialog = if open {
         CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER).unwrap()
     } else {
@@ -188,10 +193,10 @@ unsafe fn filebox(
         Err(e) => panic!("{e:?}"),
     };
 
-    FileBoxInner(handle)
+    FileBoxInner(handle, init)
 }
 
-struct FileBoxInner(Option<IFileDialog>);
+struct FileBoxInner(Option<IFileDialog>, CoInitialize);
 
 impl FileBoxInner {
     pub unsafe fn result(self) -> Option<PathBuf> {
@@ -231,5 +236,22 @@ struct CoTaskMemPtr<T>(*mut T);
 impl<T> Drop for CoTaskMemPtr<T> {
     fn drop(&mut self) {
         unsafe { CoTaskMemFree(Some(self.0.cast())) }
+    }
+}
+
+struct CoInitialize;
+
+impl CoInitialize {
+    pub fn init() -> Self {
+        unsafe {
+            CoInitializeEx(None, COINIT_APARTMENTTHREADED).unwrap();
+        }
+        Self
+    }
+}
+
+impl Drop for CoInitialize {
+    fn drop(&mut self) {
+        unsafe { CoUninitialize() };
     }
 }

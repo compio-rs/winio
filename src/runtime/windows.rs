@@ -12,7 +12,6 @@ use std::{
 use compio::driver::AsRawFd;
 use compio_log::*;
 use slab::Slab;
-use windows::Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx, CoUninitialize};
 use windows_sys::{
     Win32::{
         Foundation::{HANDLE, HWND, LPARAM, LRESULT, RECT, WAIT_FAILED, WPARAM},
@@ -102,7 +101,6 @@ impl Runtime {
     pub fn new() -> Self {
         unsafe {
             init_dark();
-            CoInitializeEx(None, COINIT_MULTITHREADED).unwrap();
         }
 
         let runtime = compio::runtime::Runtime::new().unwrap();
@@ -257,12 +255,6 @@ impl Runtime {
         {
             futures.remove(&id);
         }
-    }
-}
-
-impl Drop for Runtime {
-    fn drop(&mut self) {
-        unsafe { CoUninitialize() };
     }
 }
 
