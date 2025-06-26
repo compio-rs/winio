@@ -1,8 +1,9 @@
 use std::{
-    collections::VecDeque,
     fmt::Debug,
     ops::{Deref, DerefMut},
 };
+
+use smallvec::SmallVec;
 
 use super::{ComponentMessage, ComponentReceiver, Layoutable, component_channel};
 use crate::{
@@ -15,7 +16,7 @@ pub struct Child<T: Component> {
     model: T,
     sender: ComponentSender<T>,
     msg: ComponentReceiver<T>,
-    msg_cache: VecDeque<T::Message>,
+    msg_cache: SmallVec<[T::Message; 1]>,
 }
 
 impl<T: Component> Child<T> {
@@ -27,7 +28,7 @@ impl<T: Component> Child<T> {
             model,
             sender,
             msg,
-            msg_cache: VecDeque::new(),
+            msg_cache: SmallVec::new(),
         }
     }
 
@@ -83,7 +84,7 @@ impl<T: Component> Child<T> {
                 for msg in self.msg.fetch_all() {
                     match msg {
                         ComponentMessage::Message(msg) => {
-                            self.msg_cache.push_back(msg);
+                            self.msg_cache.push(msg);
                             sender.post(propagate());
                         }
                         ComponentMessage::Event(e) => {
@@ -106,7 +107,7 @@ impl<T: Component> Child<T> {
     /// Respond to the child message.
     pub async fn update(&mut self) -> bool {
         let mut need_render = false;
-        while let Some(message) = self.msg_cache.pop_front() {
+        for message in self.msg_cache.drain(..) {
             need_render |= self.model.update(message, &self.sender).await;
         }
         need_render

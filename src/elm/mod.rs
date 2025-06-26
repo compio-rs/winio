@@ -68,7 +68,7 @@ impl<T: Component> ComponentReceiver<T> {
         self.0.wait().await
     }
 
-    fn fetch_all(&self) -> Vec<ComponentMessage<T>> {
+    fn fetch_all(&self) -> impl IntoIterator<Item = ComponentMessage<T>> {
         self.0.fetch_all()
     }
 }

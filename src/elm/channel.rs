@@ -7,15 +7,16 @@ use std::{
 };
 
 use futures_util::task::AtomicWaker;
+use smallvec::SmallVec;
 
 struct ChannelInner<T> {
-    data: Mutex<Vec<T>>,
+    data: Mutex<SmallVec<[T; 1]>>,
     waker: AtomicWaker,
 }
 
 pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
     let inner = Arc::new(ChannelInner {
-        data: Mutex::new(vec![]),
+        data: Mutex::new(SmallVec::new()),
         waker: AtomicWaker::new(),
     });
     (Sender(inner.clone()), Receiver(inner))
@@ -49,10 +50,8 @@ impl<T> Receiver<T> {
         RecvFut(&self.0)
     }
 
-    pub fn fetch_all(&self) -> Vec<T> {
-        let data = std::mem::take(&mut *self.0.data.lock().unwrap());
-        println!("{}", data.len() * std::mem::size_of::<T>());
-        data
+    pub fn fetch_all(&self) -> SmallVec<[T; 1]> {
+        std::mem::take(&mut *self.0.data.lock().unwrap())
     }
 }
 
