@@ -84,7 +84,7 @@ impl Edit {
     }
 
     pub fn halign(&self) -> HAlign {
-        let flag = ffi::line_edit_get_alignment(self.widget.as_ref());
+        let flag = self.widget.as_ref().alignment();
         if flag.contains(QtAlignmentFlag::AlignRight) {
             HAlign::Right
         } else if flag.contains(QtAlignmentFlag::AlignHCenter) {
@@ -97,7 +97,7 @@ impl Edit {
     }
 
     pub fn set_halign(&mut self, align: HAlign) {
-        let mut flag = ffi::line_edit_get_alignment(self.widget.as_ref()) as i32;
+        let mut flag = self.widget.as_ref().alignment() as i32;
         flag &= 0xFFF0;
         match align {
             HAlign::Left => flag |= QtAlignmentFlag::AlignLeft as i32,
@@ -106,10 +106,9 @@ impl Edit {
             HAlign::Stretch => flag |= QtAlignmentFlag::AlignJustify as i32,
         }
         unsafe {
-            ffi::line_edit_set_alignment(
-                self.widget.pin_mut(),
-                std::mem::transmute::<i32, QtAlignmentFlag>(flag),
-            );
+            self.widget
+                .pin_mut()
+                .setAlignment(std::mem::transmute::<i32, QtAlignmentFlag>(flag));
         }
     }
 
@@ -192,7 +191,7 @@ impl TextBox {
     }
 
     pub fn halign(&self) -> HAlign {
-        let flag = ffi::text_edit_get_alignment(self.widget.as_ref());
+        let flag = self.widget.as_ref().alignment();
         if flag.contains(QtAlignmentFlag::AlignRight) {
             HAlign::Right
         } else if flag.contains(QtAlignmentFlag::AlignHCenter) {
@@ -205,7 +204,7 @@ impl TextBox {
     }
 
     pub fn set_halign(&mut self, align: HAlign) {
-        let mut flag = ffi::text_edit_get_alignment(self.widget.as_ref()) as i32;
+        let mut flag = self.widget.as_ref().alignment() as i32;
         flag &= 0xFFF0;
         match align {
             HAlign::Left => flag |= QtAlignmentFlag::AlignLeft as i32,
@@ -214,10 +213,9 @@ impl TextBox {
             HAlign::Stretch => flag |= QtAlignmentFlag::AlignJustify as i32,
         }
         unsafe {
-            ffi::text_edit_set_alignment(
-                self.widget.pin_mut(),
-                std::mem::transmute::<i32, QtAlignmentFlag>(flag),
-            );
+            self.widget
+                .pin_mut()
+                .setAlignment(std::mem::transmute::<i32, QtAlignmentFlag>(flag));
         }
     }
 
@@ -310,9 +308,8 @@ mod ffi {
             data: *const u8,
         );
 
-        fn line_edit_get_alignment(w: &QLineEdit) -> QtAlignmentFlag;
-        fn line_edit_set_alignment(w: Pin<&mut QLineEdit>, flag: QtAlignmentFlag);
-
+        fn alignment(self: &QLineEdit) -> QtAlignmentFlag;
+        fn setAlignment(self: Pin<&mut QLineEdit>, flag: QtAlignmentFlag);
         fn text(self: &QLineEdit) -> QString;
         fn setText(self: Pin<&mut QLineEdit>, s: &QString);
         fn echoMode(self: &QLineEdit) -> QLineEditEchoMode;
@@ -325,9 +322,8 @@ mod ffi {
             data: *const u8,
         );
 
-        fn text_edit_get_alignment(w: &QTextEdit) -> QtAlignmentFlag;
-        fn text_edit_set_alignment(w: Pin<&mut QTextEdit>, flag: QtAlignmentFlag);
-
+        fn alignment(self: &QTextEdit) -> QtAlignmentFlag;
+        fn setAlignment(self: Pin<&mut QTextEdit>, flag: QtAlignmentFlag);
         fn toPlainText(self: &QTextEdit) -> QString;
         fn setText(self: Pin<&mut QTextEdit>, s: &QString);
     }

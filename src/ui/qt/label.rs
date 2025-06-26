@@ -61,7 +61,7 @@ impl Label {
     }
 
     pub fn halign(&self) -> HAlign {
-        let flag = ffi::label_get_alignment(self.widget.as_ref());
+        let flag = self.widget.as_ref().alignment();
         if flag.contains(QtAlignmentFlag::AlignRight) {
             HAlign::Right
         } else if flag.contains(QtAlignmentFlag::AlignHCenter) {
@@ -74,7 +74,7 @@ impl Label {
     }
 
     pub fn set_halign(&mut self, align: HAlign) {
-        let mut flag = ffi::label_get_alignment(self.widget.as_ref()) as i32;
+        let mut flag = self.widget.as_ref().alignment() as i32;
         flag &= 0xFFF0;
         match align {
             HAlign::Left => flag |= QtAlignmentFlag::AlignLeft as i32,
@@ -83,10 +83,9 @@ impl Label {
             HAlign::Stretch => flag |= QtAlignmentFlag::AlignJustify as i32,
         }
         unsafe {
-            ffi::label_set_alignment(
-                self.widget.pin_mut(),
-                std::mem::transmute::<i32, QtAlignmentFlag>(flag),
-            );
+            self.widget
+                .pin_mut()
+                .setAlignment(std::mem::transmute::<i32, QtAlignmentFlag>(flag));
         }
     }
 }
@@ -113,10 +112,9 @@ mod ffi {
         fn static_cast_QLabel_QWidget(w: &QLabel) -> &QWidget;
         fn static_cast_mut_QLabel_QWidget(w: Pin<&mut QLabel>) -> Pin<&mut QWidget>;
 
+        fn alignment(self: &QLabel) -> QtAlignmentFlag;
+        fn setAlignment(self: Pin<&mut QLabel>, flag: QtAlignmentFlag);
         fn text(self: &QLabel) -> QString;
         fn setText(self: Pin<&mut QLabel>, s: &QString);
-
-        fn label_get_alignment(w: &QLabel) -> QtAlignmentFlag;
-        fn label_set_alignment(w: Pin<&mut QLabel>, flag: QtAlignmentFlag);
     }
 }

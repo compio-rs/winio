@@ -10,14 +10,6 @@ void line_edit_connect_changed(QLineEdit &w, callback_fn_t<void()> callback,
                      [callback, data](QString const &) { callback(data); });
 }
 
-QtAlignmentFlag line_edit_get_alignment(QLineEdit const &w) {
-    return (QtAlignmentFlag)(int)w.alignment();
-}
-
-void line_edit_set_alignment(QLineEdit &w, QtAlignmentFlag flag) {
-    w.setAlignment(flag);
-}
-
 std::unique_ptr<QTextEdit> new_text_edit(QWidget *parent) {
     return std::make_unique<QTextEdit>(parent);
 }
@@ -26,12 +18,4 @@ void text_edit_connect_changed(QTextEdit &w, callback_fn_t<void()> callback,
                                std::uint8_t const *data) {
     QObject::connect(&w, &QTextEdit::textChanged,
                      [callback, data]() { callback(data); });
-}
-
-QtAlignmentFlag text_edit_get_alignment(QTextEdit const &w) {
-    return (QtAlignmentFlag)(int)w.alignment();
-}
-
-void text_edit_set_alignment(QTextEdit &w, QtAlignmentFlag flag) {
-    w.setAlignment(flag);
 }
