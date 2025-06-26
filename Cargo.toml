@@ -180,7 +180,6 @@ objc-static = [
     "objc2/unstable-static-sel-inlined",
     "objc2-foundation/unstable-static-nsstring",
 ]
-clang-lto = []
 
 [profile.release]
 lto = true

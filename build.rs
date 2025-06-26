@@ -44,10 +44,8 @@ fn main() {
         build
             .std("c++17")
             .files(sources.map(|s| format!("{s}.cpp")))
-            .includes(inc);
-        if cfg!(feature = "clang-lto") && std::env::var("PROFILE").as_deref() == Ok("release") {
-            build.flag("-flto").compiler("clang++");
-        }
+            .includes(inc)
+            .cpp(true);
         qbuild.cargo_link_libraries(&mut build);
         build.compile("winio");
     }
