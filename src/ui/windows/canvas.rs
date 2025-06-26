@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, mem::MaybeUninit};
+use std::mem::MaybeUninit;
 
 use futures_util::FutureExt;
 use image::{DynamicImage, Pixel, Rgba};
@@ -147,8 +147,7 @@ impl Canvas {
                     Color::new(255, 255, 255, 255)
                 })));
             DrawingContext {
-                target: self.target.clone().cast().unwrap(),
-                _p: PhantomData,
+                target: &self.target,
             }
         }
     }
@@ -252,8 +251,7 @@ pub fn gradient_stop(s: &GradientStop) -> D2D1_GRADIENT_STOP {
 }
 
 pub struct DrawingContext<'a> {
-    target: ID2D1RenderTarget,
-    _p: PhantomData<&'a Canvas>,
+    target: &'a ID2D1RenderTarget,
 }
 
 #[inline]
@@ -281,12 +279,12 @@ fn ellipse(rect: Rect) -> D2D1_ELLIPSE {
 impl DrawingContext<'_> {
     #[inline]
     fn get_brush(&self, brush: impl Brush, rect: Rect) -> ID2D1Brush {
-        brush.create(&self.target, to_trans(rect))
+        brush.create(self.target, to_trans(rect))
     }
 
     #[inline]
     fn get_pen(&self, pen: impl Pen, rect: Rect) -> (ID2D1Brush, f32) {
-        pen.create(&self.target, to_trans(rect))
+        pen.create(self.target, to_trans(rect))
     }
 
     fn get_arc_geo(&self, rect: Rect, start: f64, end: f64, close: bool) -> ID2D1Geometry {
@@ -519,7 +517,7 @@ impl DrawingContext<'_> {
     }
 
     pub fn create_image(&self, image: DynamicImage) -> DrawingImage {
-        DrawingImage::new(&self.target, image)
+        DrawingImage::new(self.target, image)
     }
 
     pub fn draw_image(&mut self, image: &DrawingImage, rect: Rect, clip: Option<Rect>) {
