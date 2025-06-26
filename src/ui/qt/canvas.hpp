@@ -52,14 +52,23 @@ void painter_draw_text(QPainter &p, QRectF rect, rust::Str text);
 
 void color_transparent(QColor &c);
 bool color_accent(QColor &c);
-std::unique_ptr<QBrush> new_brush(QColor const &c);
-std::unique_ptr<QPen> new_pen(QBrush const &b, double width);
+
+namespace rust {
+template <> struct IsRelocatable<QBrush> : std::true_type {};
+template <> struct IsRelocatable<QPen> : std::true_type {};
+} // namespace rust
+
+inline QBrush new_brush(QColor const &c) { return QBrush(c); }
+inline QPen new_pen(QBrush const &b, double width) { return QPen(b, width); }
+
+inline void brush_drop(QBrush &b) noexcept { b.~QBrush(); }
+inline void pen_drop(QPen &p) noexcept { p.~QPen(); }
 
 std::unique_ptr<QGradient> new_gradient_linear(QPointF start, QPointF end);
 std::unique_ptr<QGradient> new_gradient_radial(QPointF center, double radius,
                                                QPointF origin);
 
-std::unique_ptr<QBrush> new_brush_gradient(QGradient const &g);
+inline QBrush new_brush_gradient(QGradient const &g) { return QBrush(g); }
 void brush_set_transform(QBrush &b, double m11, double m12, double m21,
                          double m22, double m31, double m32);
 
