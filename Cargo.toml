@@ -16,15 +16,15 @@ compio-log = "0.1.0"
 
 cfg-if = "1"
 euclid = "0.22"
+flume = "0.11"
 futures-util = { version = "0.3", features = ["alloc"] }
-futures-channel = "0.3"
 image = { version = "0.25", default-features = false }
 once_cell = "1"
+paste = "1.0"
 rgb = "0.8"
 slab = "0.4"
 scoped-tls = "1.0"
 taffy = "0.8"
-paste = "1.0"
 
 [target.'cfg(windows)'.dependencies]
 widestring = "1"
@@ -136,14 +136,17 @@ objc2-quartz-core = { version = "0.3", features = [
     "CAShapeLayer",
     "CATextLayer",
 ] }
+local-sync = "0.1"
 
-[target.'cfg(not(any(windows, target_os = "macos")))'.dependencies]
+[target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
 
+[target.'cfg(not(any(windows, target_os = "macos")))'.dependencies]
 gtk4 = { version = "0.9", optional = true, features = ["v4_14"] }
 pangocairo = { version = "0.20", optional = true }
 
 cxx = { version = "1.0", optional = true, features = ["c++17"] }
+local-sync = { version = "0.1", optional = true }
 
 [dev-dependencies]
 compio = { version = "0.15.0", features = ["time", "rustls", "ring"] }
@@ -170,7 +173,7 @@ qt-build-utils = { version = "0.7", optional = true }
 [features]
 default = ["qt", "windows-dark-mode"]
 gtk = ["dep:gtk4", "dep:pangocairo"]
-qt = ["dep:cxx", "dep:cxx-build", "dep:qt-build-utils"]
+qt = ["dep:cxx", "dep:cxx-build", "dep:qt-build-utils", "dep:local-sync"]
 enable_log = ["compio/enable_log", "compio-log/enable_log"]
 
 nightly = ["compio/nightly", "cyper/nightly"]

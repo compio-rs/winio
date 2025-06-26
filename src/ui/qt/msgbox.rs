@@ -1,7 +1,7 @@
 use std::{collections::HashMap, mem::ManuallyDrop, ptr::null_mut};
 
 use cxx::{ExternType, type_id};
-use futures_channel::oneshot;
+use local_sync::oneshot;
 
 use crate::{AsRawWindow, AsWindow, MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 

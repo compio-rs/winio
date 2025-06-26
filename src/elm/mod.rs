@@ -1,7 +1,6 @@
 use std::{future::Future, hint::unreachable_unchecked};
 
-use futures_channel::mpsc;
-use futures_util::{FutureExt, StreamExt};
+use futures_util::FutureExt;
 
 use crate::{Point, Size, runtime::Runtime};
 
@@ -36,7 +35,7 @@ enum ComponentMessage<T: Component> {
 
 /// Sender of input messages and output events.
 #[derive(Debug)]
-pub struct ComponentSender<T: Component>(mpsc::UnboundedSender<ComponentMessage<T>>);
+pub struct ComponentSender<T: Component>(flume::Sender<ComponentMessage<T>>);
 
 impl<T: Component> Clone for ComponentSender<T> {
     fn clone(&self) -> Self {
@@ -45,36 +44,39 @@ impl<T: Component> Clone for ComponentSender<T> {
 }
 
 #[derive(Debug)]
-struct ComponentReceiver<T: Component>(mpsc::UnboundedReceiver<ComponentMessage<T>>);
+struct ComponentReceiver<T: Component>(flume::Receiver<ComponentMessage<T>>);
 
 fn component_channel<T: Component>() -> (ComponentSender<T>, ComponentReceiver<T>) {
-    let (tx, rx) = mpsc::unbounded();
+    let (tx, rx) = flume::unbounded();
     (ComponentSender(tx), ComponentReceiver(rx))
 }
 
 impl<T: Component> ComponentSender<T> {
     /// Post the message to the queue.
-    pub fn post(&self, message: T::Message) -> bool {
+    pub fn post(&self, message: T::Message) {
         self.0
-            .unbounded_send(ComponentMessage::Message(message))
-            .is_ok()
+            .send(ComponentMessage::Message(message))
+            .expect("component receiver disconnected")
     }
 
     /// Post the event to the queue.
-    pub fn output(&self, event: T::Event) -> bool {
+    pub fn output(&self, event: T::Event) {
         self.0
-            .unbounded_send(ComponentMessage::Event(event))
-            .is_ok()
+            .send(ComponentMessage::Event(event))
+            .expect("component receiver disconnected")
     }
 }
 
 impl<T: Component> ComponentReceiver<T> {
     async fn recv(&mut self) -> ComponentMessage<T> {
-        self.0.next().await.unwrap()
+        self.0
+            .recv_async()
+            .await
+            .expect("component sender disconnected")
     }
 
-    fn try_recv(&mut self) -> Option<ComponentMessage<T>> {
-        self.0.try_next().ok().flatten()
+    fn drain(&mut self) -> impl Iterator<Item = ComponentMessage<T>> + '_ {
+        self.0.drain()
     }
 }
 
@@ -126,7 +128,7 @@ impl App {
                             ComponentMessage::Message(msg) => model.update(msg, &sender).await,
                             ComponentMessage::Event(e) => break 'outer e,
                         };
-                        while let Some(msg) = recv.try_recv() {
+                        for msg in recv.drain() {
                             need_render |= match msg {
                                 ComponentMessage::Message(msg) => model.update(msg, &sender).await,
                                 ComponentMessage::Event(e) => break 'outer e,
