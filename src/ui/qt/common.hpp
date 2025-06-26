@@ -20,6 +20,12 @@ namespace rust {
 template <> struct IsRelocatable<QString> : std::true_type {};
 } // namespace rust
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+static_assert(sizeof(QString) == 3 * sizeof(std::size_t));
+#else
+static_assert(sizeof(QString) == sizeof(std::size_t));
+#endif
+
 #define STATIC_CAST_IMPL(t, base)                                              \
     inline base const &static_cast_##t##_##base(t const &p) noexcept {         \
         return static_cast<base const &>(p);                                   \

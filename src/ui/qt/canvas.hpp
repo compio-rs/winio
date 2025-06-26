@@ -58,6 +58,9 @@ template <> struct IsRelocatable<QBrush> : std::true_type {};
 template <> struct IsRelocatable<QPen> : std::true_type {};
 } // namespace rust
 
+static_assert(sizeof(QBrush) == sizeof(std::size_t));
+static_assert(sizeof(QPen) == sizeof(std::size_t));
+
 inline QBrush new_brush(QColor const &c) { return QBrush(c); }
 inline QPen new_pen(QBrush const &b, double width) { return QPen(b, width); }
 
