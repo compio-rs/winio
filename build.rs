@@ -51,7 +51,11 @@ fn main() {
         let mut build = cxx_build::bridges(sources.map(|s| format!("{s}.rs")));
         build
             .std("c++17")
-            .files(sources.map(|s| format!("{s}.cpp")))
+            .files(sources.iter().filter_map(|s| {
+                use std::path::PathBuf;
+                let path = PathBuf::from(format!("{s}.cpp"));
+                if path.exists() { Some(path) } else { None }
+            }))
             .includes(inc)
             .cpp(true);
         qbuild.cargo_link_libraries(&mut build);

@@ -4,6 +4,8 @@
 #include "edit.hpp"
 #include <QLabel>
 
-std::unique_ptr<QLabel> new_label(QWidget *parent);
+inline std::unique_ptr<QLabel> new_label(QWidget *parent) {
+    return std::make_unique<QLabel>(parent);
+}
 
 STATIC_CAST_ASSERT(QLabel, QWidget);
