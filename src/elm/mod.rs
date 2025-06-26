@@ -28,30 +28,20 @@ pub trait Component: Sized {
 }
 
 #[derive(Debug)]
-enum ComponentMessage<T: Component> {
+pub(crate) enum ComponentMessage<T: Component> {
     Message(T::Message),
     Event(T::Event),
 }
 
 /// Sender of input messages and output events.
 #[derive(Debug)]
-pub struct ComponentSender<T: Component>(Sender<ComponentMessage<T>>);
-
-impl<T: Component> Clone for ComponentSender<T> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
-
-#[derive(Debug)]
-struct ComponentReceiver<T: Component>(Receiver<ComponentMessage<T>>);
-
-fn component_channel<T: Component>() -> (ComponentSender<T>, ComponentReceiver<T>) {
-    let (tx, rx) = channel();
-    (ComponentSender(tx), ComponentReceiver(rx))
-}
+pub struct ComponentSender<T: Component>(Channel<ComponentMessage<T>>);
 
 impl<T: Component> ComponentSender<T> {
+    pub(crate) fn new() -> Self {
+        Self(Channel::new())
+    }
+
     /// Post the message to the queue.
     pub fn post(&self, message: T::Message) {
         self.0.send(ComponentMessage::Message(message))
@@ -61,15 +51,19 @@ impl<T: Component> ComponentSender<T> {
     pub fn output(&self, event: T::Event) {
         self.0.send(ComponentMessage::Event(event))
     }
-}
 
-impl<T: Component> ComponentReceiver<T> {
-    async fn wait(&self) {
+    pub(crate) async fn wait(&self) {
         self.0.wait().await
     }
 
-    fn fetch_all(&self) -> impl IntoIterator<Item = ComponentMessage<T>> {
+    pub(crate) fn fetch_all(&self) -> impl IntoIterator<Item = ComponentMessage<T>> {
         self.0.fetch_all()
+    }
+}
+
+impl<T: Component> Clone for ComponentSender<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
     }
 }
 
@@ -107,18 +101,18 @@ impl App {
     /// returns the first event from the component.
     pub fn run<'a, T: Component>(&mut self, init: impl Into<T::Init<'a>>) -> T::Event {
         self.block_on(async {
-            let (sender, recv) = component_channel();
+            let sender = ComponentSender::new();
             let mut model = T::init(init.into(), &sender);
             model.render(&sender);
             'outer: loop {
                 let fut_start = model.start(&sender);
-                let fut_recv = recv.wait();
+                let fut_recv = sender.wait();
                 futures_util::select! {
                     // SAFETY: never type
                     _ = fut_start.fuse() => unsafe { unreachable_unchecked() },
                     _ = fut_recv.fuse() => {
                         let mut need_render = false;
-                        for msg in recv.fetch_all() {
+                        for msg in sender.fetch_all() {
                             need_render |= match msg {
                                 ComponentMessage::Message(msg) => model.update(msg, &sender).await,
                                 ComponentMessage::Event(e) => break 'outer e,

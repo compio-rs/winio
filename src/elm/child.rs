@@ -5,7 +5,7 @@ use std::{
 
 use smallvec::SmallVec;
 
-use super::{ComponentMessage, ComponentReceiver, Layoutable, component_channel};
+use super::{ComponentMessage, Layoutable};
 use crate::{
     AsRawWindow, AsWindow, BorrowedWindow, Component, ComponentSender, Point, RawWindow, Rect, Size,
 };
@@ -15,19 +15,17 @@ use crate::{
 pub struct Child<T: Component> {
     model: T,
     sender: ComponentSender<T>,
-    msg: ComponentReceiver<T>,
     msg_cache: SmallVec<[T::Message; 1]>,
 }
 
 impl<T: Component> Child<T> {
     /// Create and initialize the child component.
     pub fn init<'a>(init: impl Into<T::Init<'a>>) -> Self {
-        let (sender, msg) = component_channel();
+        let sender = ComponentSender::new();
         let model = T::init(init.into(), &sender);
         Self {
             model,
             sender,
-            msg,
             msg_cache: SmallVec::new(),
         }
     }
@@ -80,8 +78,8 @@ impl<T: Component> Child<T> {
         let fut_start = self.model.start(&self.sender);
         let fut_forward = async {
             loop {
-                self.msg.wait().await;
-                for msg in self.msg.fetch_all() {
+                self.sender.wait().await;
+                for msg in self.sender.fetch_all() {
                     match msg {
                         ComponentMessage::Message(msg) => {
                             self.msg_cache.push(msg);

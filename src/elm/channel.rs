@@ -14,38 +14,21 @@ struct ChannelInner<T> {
     waker: AtomicWaker,
 }
 
-pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
-    let inner = Arc::new(ChannelInner {
-        data: Mutex::new(SmallVec::new()),
-        waker: AtomicWaker::new(),
-    });
-    (Sender(inner.clone()), Receiver(inner))
-}
+pub struct Channel<T>(Arc<ChannelInner<T>>);
 
-pub struct Sender<T>(Arc<ChannelInner<T>>);
+impl<T> Channel<T> {
+    pub fn new() -> Self {
+        Self(Arc::new(ChannelInner {
+            data: Mutex::default(),
+            waker: AtomicWaker::new(),
+        }))
+    }
 
-impl<T> Sender<T> {
     pub fn send(&self, data: T) {
         self.0.data.lock().unwrap().push(data);
         self.0.waker.wake();
     }
-}
 
-impl<T> Debug for Sender<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("Sender").finish_non_exhaustive()
-    }
-}
-
-impl<T> Clone for Sender<T> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
-
-pub struct Receiver<T>(Arc<ChannelInner<T>>);
-
-impl<T> Receiver<T> {
     pub fn wait(&self) -> impl Future<Output = ()> + '_ {
         RecvFut(&self.0)
     }
@@ -55,9 +38,15 @@ impl<T> Receiver<T> {
     }
 }
 
-impl<T> Debug for Receiver<T> {
+impl<T> Debug for Channel<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("Receiver").finish_non_exhaustive()
+        f.debug_tuple("Channel").finish_non_exhaustive()
+    }
+}
+
+impl<T> Clone for Channel<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
     }
 }
 
