@@ -1,29 +1,21 @@
 #pragma once
 
-#include "callback.hpp"
+#include "common.hpp"
+#include <QLineEdit>
+#include <QTextEdit>
 #include <QWidget>
 #include <memory>
 
-using QtAlignmentFlag = Qt::AlignmentFlag;
+using QtAlignmentFlag = Qt::Alignment;
+using QLineEditEchoMode = QLineEdit::EchoMode;
 
-std::unique_ptr<QWidget> new_line_edit(QWidget *parent);
-void line_edit_connect_changed(QWidget &w, callback_fn_t<void()> callback,
-                               std::uint8_t const *data);
-rust::String line_edit_get_text(QWidget const &w);
-void line_edit_set_text(QWidget &w, rust::Str s);
+STATIC_CAST_ASSERT(QLineEdit, QWidget);
+STATIC_CAST_ASSERT(QTextEdit, QWidget);
 
-QtAlignmentFlag line_edit_get_alignment(QWidget const &w);
-void line_edit_set_alignment(QWidget &w, QtAlignmentFlag flag);
-
-bool line_edit_is_password(QWidget const &w);
-void line_edit_set_password(QWidget &w, bool v);
-
-std::unique_ptr<QWidget> new_text_edit(QWidget *parent);
-void text_edit_connect_changed(QWidget &w, callback_fn_t<void()> callback,
+std::unique_ptr<QLineEdit> new_line_edit(QWidget *parent);
+void line_edit_connect_changed(QLineEdit &w, callback_fn_t<void()> callback,
                                std::uint8_t const *data);
 
-rust::String text_edit_get_text(QWidget const &w);
-void text_edit_set_text(QWidget &w, rust::Str s);
-
-QtAlignmentFlag text_edit_get_alignment(QWidget const &w);
-void text_edit_set_alignment(QWidget &w, QtAlignmentFlag flag);
+std::unique_ptr<QTextEdit> new_text_edit(QWidget *parent);
+void text_edit_connect_changed(QTextEdit &w, callback_fn_t<void()> callback,
+                               std::uint8_t const *data);

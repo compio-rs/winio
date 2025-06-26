@@ -1,18 +1,19 @@
+use std::pin::Pin;
+
 use crate::{
     AsRawWindow, AsWindow, Point, Size,
-    ui::{Callback, Widget},
+    ui::{Callback, Widget, impl_static_cast},
 };
 
 #[derive(Debug)]
 pub struct ListBox {
     on_select: Box<Callback>,
-    widget: Widget,
+    widget: Widget<ffi::QListWidget>,
 }
 
 impl ListBox {
     pub fn new(parent: impl AsWindow) -> Self {
         let mut widget = unsafe { ffi::new_list_widget(parent.as_window().as_raw_window()) };
-        widget.pin_mut().setVisible(true);
         let on_select = Box::new(Callback::new());
         unsafe {
             ffi::list_widget_connect_select(
@@ -21,10 +22,9 @@ impl ListBox {
                 on_select.as_ref() as *const _ as _,
             );
         }
-        Self {
-            on_select,
-            widget: Widget::new(widget),
-        }
+        let mut widget = Widget::new(widget);
+        widget.set_visible(true);
+        Self { on_select, widget }
     }
 
     pub fn is_visible(&self) -> bool {
@@ -68,11 +68,17 @@ impl ListBox {
     }
 
     pub fn is_selected(&self, i: usize) -> bool {
-        ffi::list_widget_is_selected(self.widget.as_ref(), i as _)
+        unsafe { self.widget.as_ref().item(i as _).as_ref() }
+            .map(|item| item.isSelected())
+            .unwrap_or_default()
     }
 
     pub fn set_selected(&mut self, i: usize, v: bool) {
-        ffi::list_widget_set_selected(self.widget.pin_mut(), i as _, v);
+        unsafe {
+            if let Some(item) = self.widget.as_ref().item(i as _).as_mut() {
+                Pin::new_unchecked(item).setSelected(v)
+            }
+        }
     }
 
     fn on_select(c: *const u8) {
@@ -87,29 +93,45 @@ impl ListBox {
     }
 
     pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
-        ffi::list_widget_insert(self.widget.pin_mut(), i as _, s.as_ref());
+        self.widget.pin_mut().insertItem(i as _, &s.as_ref().into());
     }
 
     pub fn remove(&mut self, i: usize) {
-        ffi::list_widget_remove(self.widget.pin_mut(), i as _);
+        unsafe {
+            let item = self.widget.as_ref().item(i as _);
+            self.widget.pin_mut().removeItemWidget(item);
+        }
     }
 
     pub fn get(&self, i: usize) -> String {
-        ffi::list_widget_get(self.widget.as_ref(), i as _)
+        unsafe { self.widget.as_ref().item(i as _).as_ref() }
+            .map(|item| item.text().into())
+            .unwrap_or_default()
     }
 
     pub fn set(&mut self, i: usize, s: impl AsRef<str>) {
-        ffi::list_widget_set(self.widget.pin_mut(), i as _, s.as_ref());
+        unsafe {
+            if let Some(item) = self.widget.as_ref().item(i as _).as_mut() {
+                Pin::new_unchecked(item).setText(&s.as_ref().into());
+            }
+        }
     }
 
     pub fn len(&self) -> usize {
-        ffi::list_widget_count(self.widget.as_ref()) as _
+        self.widget.as_ref().count() as _
     }
 
     pub fn clear(&mut self) {
-        ffi::list_widget_clear(self.widget.pin_mut());
+        self.widget.pin_mut().clear();
     }
 }
+
+impl_static_cast!(
+    ffi::QListWidget,
+    ffi::QWidget,
+    ffi::static_cast_QListWidget_QWidget,
+    ffi::static_cast_mut_QListWidget_QWidget
+);
 
 #[cxx::bridge]
 mod ffi {
@@ -117,22 +139,26 @@ mod ffi {
         include!("winio/src/ui/qt/list_box.hpp");
 
         type QWidget = crate::ui::QWidget;
-
-        unsafe fn new_list_widget(parent: *mut QWidget) -> UniquePtr<QWidget>;
+        type QListWidget;
+        type QListWidgetItem;
+        type QString = crate::ui::QString;
+        unsafe fn new_list_widget(parent: *mut QWidget) -> UniquePtr<QListWidget>;
         unsafe fn list_widget_connect_select(
-            w: Pin<&mut QWidget>,
+            w: Pin<&mut QListWidget>,
             callback: unsafe fn(*const u8),
             data: *const u8,
         );
 
-        fn list_widget_is_selected(w: &QWidget, i: i32) -> bool;
-        fn list_widget_set_selected(w: Pin<&mut QWidget>, i: i32, v: bool);
+        fn item(self: &QListWidget, i: i32) -> *mut QListWidgetItem;
 
-        fn list_widget_insert(w: Pin<&mut QWidget>, i: i32, s: &str);
-        fn list_widget_remove(w: Pin<&mut QWidget>, i: i32);
-        fn list_widget_clear(w: Pin<&mut QWidget>);
-        fn list_widget_count(w: &QWidget) -> i32;
-        fn list_widget_get(w: &QWidget, i: i32) -> String;
-        fn list_widget_set(w: Pin<&mut QWidget>, i: i32, s: &str);
+        fn isSelected(self: &QListWidgetItem) -> bool;
+        fn setSelected(self: Pin<&mut QListWidgetItem>, b: bool);
+        fn text(self: &QListWidgetItem) -> QString;
+        fn setText(self: Pin<&mut QListWidgetItem>, s: &QString);
+
+        fn insertItem(self: Pin<&mut QListWidget>, i: i32, s: &QString);
+        unsafe fn removeItemWidget(self: Pin<&mut QListWidget>, item: *mut QListWidgetItem);
+        fn clear(self: Pin<&mut QListWidget>);
+        fn count(self: &QListWidget) -> i32;
     }
 }

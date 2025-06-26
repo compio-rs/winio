@@ -1,6 +1,7 @@
-use std::pin::Pin;
+use std::{mem::MaybeUninit, pin::Pin};
 
 use cxx::{ExternType, UniquePtr, type_id};
+pub use ffi::QWidget;
 use image::{DynamicImage, Pixel, Rgb, Rgba};
 
 use crate::{
@@ -14,7 +15,7 @@ pub struct Canvas {
     on_move: Box<Callback<Point>>,
     on_press: Box<Callback<MouseButton>>,
     on_release: Box<Callback<MouseButton>>,
-    widget: Widget,
+    widget: Widget<ffi::QWidget>,
 }
 
 impl Canvas {
@@ -342,23 +343,23 @@ impl DrawingPathBuilder {
 /// Drawing brush.
 pub trait Brush {
     #[doc(hidden)]
-    fn create(&self, trans: RelativeToLogical) -> UniquePtr<ffi::QBrush>;
+    fn create(&self, trans: RelativeToLogical) -> QBrush;
 }
 
 impl<B: Brush> Brush for &'_ B {
-    fn create(&self, trans: RelativeToLogical) -> UniquePtr<ffi::QBrush> {
+    fn create(&self, trans: RelativeToLogical) -> QBrush {
         (**self).create(trans)
     }
 }
 
 impl Brush for SolidColorBrush {
-    fn create(&self, _trans: RelativeToLogical) -> UniquePtr<ffi::QBrush> {
+    fn create(&self, _trans: RelativeToLogical) -> QBrush {
         ffi::new_brush(&self.color.into())
     }
 }
 
 impl Brush for LinearGradientBrush {
-    fn create(&self, trans: RelativeToLogical) -> UniquePtr<ffi::QBrush> {
+    fn create(&self, trans: RelativeToLogical) -> QBrush {
         let mut g = ffi::new_gradient_linear(
             QPointF(Point::new(self.start.x, self.start.y)),
             QPointF(Point::new(self.end.x, self.end.y)),
@@ -367,13 +368,13 @@ impl Brush for LinearGradientBrush {
             g.pin_mut().setColorAt(stop.pos, &QColor::from(stop.color));
         }
         let mut brush = ffi::new_brush_gradient(&g);
-        brush_set_transform(brush.pin_mut(), trans);
+        brush_set_transform(Pin::new(&mut brush), trans);
         brush
     }
 }
 
 impl Brush for RadialGradientBrush {
-    fn create(&self, trans: RelativeToLogical) -> UniquePtr<ffi::QBrush> {
+    fn create(&self, trans: RelativeToLogical) -> QBrush {
         let trans = trans.then_scale(1.0, self.radius.height / self.radius.width);
         let mut g = ffi::new_gradient_radial(
             QPointF(Point::new(self.center.x, self.center.y)),
@@ -384,7 +385,7 @@ impl Brush for RadialGradientBrush {
             g.pin_mut().setColorAt(stop.pos, &QColor::from(stop.color));
         }
         let mut brush = ffi::new_brush_gradient(&g);
-        brush_set_transform(brush.pin_mut(), trans);
+        brush_set_transform(Pin::new(&mut brush), trans);
         brush
     }
 }
@@ -398,17 +399,17 @@ fn brush_set_transform(b: Pin<&mut ffi::QBrush>, trans: RelativeToLogical) {
 /// Drawing pen.
 pub trait Pen {
     #[doc(hidden)]
-    fn create(&self, trans: RelativeToLogical) -> UniquePtr<ffi::QPen>;
+    fn create(&self, trans: RelativeToLogical) -> QPen;
 }
 
 impl<P: Pen> Pen for &'_ P {
-    fn create(&self, trans: RelativeToLogical) -> UniquePtr<ffi::QPen> {
+    fn create(&self, trans: RelativeToLogical) -> QPen {
         (**self).create(trans)
     }
 }
 
 impl<B: Brush> Pen for BrushPen<B> {
-    fn create(&self, trans: RelativeToLogical) -> UniquePtr<ffi::QPen> {
+    fn create(&self, trans: RelativeToLogical) -> QPen {
         let brush = self.brush.create(trans);
         ffi::new_pen(&brush, self.width)
     }
@@ -639,12 +640,46 @@ unsafe impl ExternType for QImageFormat {
     type Kind = cxx::kind::Trivial;
 }
 
+#[repr(C)]
+#[doc(hidden)]
+pub struct QPen {
+    _data: MaybeUninit<usize>,
+}
+
+unsafe impl ExternType for QPen {
+    type Id = type_id!("QPen");
+    type Kind = cxx::kind::Trivial;
+}
+
+impl Drop for QPen {
+    fn drop(&mut self) {
+        ffi::pen_drop(Pin::new(self));
+    }
+}
+
+#[repr(C)]
+#[doc(hidden)]
+pub struct QBrush {
+    _data: MaybeUninit<usize>,
+}
+
+unsafe impl ExternType for QBrush {
+    type Id = type_id!("QBrush");
+    type Kind = cxx::kind::Trivial;
+}
+
+impl Drop for QBrush {
+    fn drop(&mut self) {
+        ffi::brush_drop(Pin::new(self));
+    }
+}
+
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++" {
         include!("winio/src/ui/qt/canvas.hpp");
 
-        type QWidget = crate::ui::QWidget;
+        type QWidget;
         type QtMouseButton = super::QtMouseButton;
 
         unsafe fn new_canvas(parent: *mut QWidget) -> UniquePtr<QWidget>;
@@ -703,8 +738,8 @@ mod ffi {
         fn painter_measure_text(p: Pin<&mut QPainter>, rect: QRectF, text: &str) -> QSizeF;
         fn painter_draw_text(p: Pin<&mut QPainter>, rect: QRectF, text: &str);
 
-        type QBrush;
-        type QPen;
+        type QBrush = super::QBrush;
+        type QPen = super::QPen;
 
         fn setBrush(self: Pin<&mut QPainter>, brush: &QBrush);
         fn setPen(self: Pin<&mut QPainter>, pen: &QPen);
@@ -713,8 +748,11 @@ mod ffi {
 
         fn color_transparent(c: Pin<&mut QColor>);
         fn color_accent(c: Pin<&mut QColor>) -> bool;
-        fn new_brush(c: &QColor) -> UniquePtr<QBrush>;
-        fn new_pen(b: &QBrush, width: f64) -> UniquePtr<QPen>;
+        fn new_brush(c: &QColor) -> QBrush;
+        fn new_pen(b: &QBrush, width: f64) -> QPen;
+
+        fn brush_drop(b: Pin<&mut QBrush>);
+        fn pen_drop(p: Pin<&mut QPen>);
 
         type QGradient;
 
@@ -726,7 +764,7 @@ mod ffi {
         ) -> UniquePtr<QGradient>;
         fn setColorAt(self: Pin<&mut QGradient>, pos: f64, c: &QColor);
 
-        fn new_brush_gradient(g: &QGradient) -> UniquePtr<QBrush>;
+        fn new_brush_gradient(g: &QGradient) -> QBrush;
         fn brush_set_transform(
             b: Pin<&mut QBrush>,
             m11: f64,

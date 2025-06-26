@@ -3,7 +3,7 @@ use std::ptr::null_mut;
 use super::RawWindow;
 use crate::{
     AsRawWindow, AsWindow, Point, Size,
-    ui::{Callback, Widget},
+    ui::{Callback, Widget, impl_static_cast, static_cast},
 };
 
 #[derive(Debug)]
@@ -11,13 +11,13 @@ pub struct Window {
     on_resize: Box<Callback<Size>>,
     on_move: Box<Callback<Point>>,
     on_close: Box<Callback<()>>,
-    widget: Widget,
+    widget: Widget<ffi::QMainWindow>,
 }
 
 impl Window {
     pub fn new(parent: Option<impl AsWindow>) -> Self {
         let mut widget = unsafe {
-            super::new_main_window(
+            ffi::new_main_window(
                 parent
                     .map(|w| w.as_window().as_raw_window())
                     .unwrap_or(null_mut()),
@@ -133,12 +133,22 @@ impl AsRawWindow for Window {
 impl Drop for Window {
     fn drop(&mut self) {
         unsafe {
-            if self.widget.as_ref().parentWidget().is_null() {
+            if static_cast::<ffi::QWidget>(self.widget.as_ref())
+                .parentWidget()
+                .is_null()
+            {
                 self.widget.drop_in_place();
             }
         }
     }
 }
+
+impl_static_cast!(
+    ffi::QMainWindow,
+    ffi::QWidget,
+    ffi::static_cast_QMainWindow_QWidget,
+    ffi::static_cast_mut_QMainWindow_QWidget
+);
 
 #[cxx::bridge]
 mod ffi {
@@ -146,19 +156,22 @@ mod ffi {
         include!("winio/src/ui/qt/window.hpp");
 
         type QWidget = crate::ui::QWidget;
+        type QMainWindow;
+
+        unsafe fn new_main_window(parent: *mut QWidget) -> UniquePtr<QMainWindow>;
 
         unsafe fn main_window_register_resize_event(
-            w: Pin<&mut QWidget>,
+            w: Pin<&mut QMainWindow>,
             callback: unsafe fn(*const u8, i32, i32),
             data: *const u8,
         );
         unsafe fn main_window_register_move_event(
-            w: Pin<&mut QWidget>,
+            w: Pin<&mut QMainWindow>,
             callback: unsafe fn(*const u8, i32, i32),
             data: *const u8,
         );
         unsafe fn main_window_register_close_event(
-            w: Pin<&mut QWidget>,
+            w: Pin<&mut QMainWindow>,
             callback: unsafe fn(*const u8) -> bool,
             data: *const u8,
         );

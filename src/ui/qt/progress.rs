@@ -1,17 +1,19 @@
-use crate::{AsRawWindow, AsWindow, Point, Size, ui::Widget};
+use crate::{
+    AsRawWindow, AsWindow, Point, Size,
+    ui::{Widget, impl_static_cast},
+};
 
 #[derive(Debug)]
 pub struct Progress {
-    widget: Widget,
+    widget: Widget<ffi::QProgressBar>,
 }
 
 impl Progress {
     pub fn new(parent: impl AsWindow) -> Self {
-        let mut widget = unsafe { ffi::new_progress_bar(parent.as_window().as_raw_window()) };
-        widget.pin_mut().setVisible(true);
-        Self {
-            widget: Widget::new(widget),
-        }
+        let widget = unsafe { ffi::new_progress_bar(parent.as_window().as_raw_window()) };
+        let mut widget = Widget::new(widget);
+        widget.set_visible(true);
+        Self { widget }
     }
 
     pub fn is_visible(&self) -> bool {
@@ -52,21 +54,21 @@ impl Progress {
 
     pub fn range(&self) -> (usize, usize) {
         (
-            ffi::progress_bar_get_minimum(self.widget.as_ref()) as _,
-            ffi::progress_bar_get_maximum(self.widget.as_ref()) as _,
+            self.widget.as_ref().minimum() as _,
+            self.widget.as_ref().maximum() as _,
         )
     }
 
     pub fn set_range(&mut self, min: usize, max: usize) {
-        ffi::progress_bar_set_range(self.widget.pin_mut(), min as _, max as _);
+        self.widget.pin_mut().setRange(min as _, max as _);
     }
 
     pub fn pos(&self) -> usize {
-        ffi::progress_bar_get_value(self.widget.as_ref()) as _
+        self.widget.as_ref().value() as _
     }
 
     pub fn set_pos(&mut self, pos: usize) {
-        ffi::progress_bar_set_value(self.widget.pin_mut(), pos as _);
+        self.widget.pin_mut().setValue(pos as _);
     }
 
     pub fn is_indeterminate(&self) -> bool {
@@ -83,20 +85,28 @@ impl Progress {
     }
 }
 
+impl_static_cast!(
+    ffi::QProgressBar,
+    ffi::QWidget,
+    ffi::static_cast_QProgressBar_QWidget,
+    ffi::static_cast_mut_QProgressBar_QWidget
+);
+
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++" {
         include!("winio/src/ui/qt/progress.hpp");
 
         type QWidget = crate::ui::QWidget;
+        type QProgressBar;
 
-        unsafe fn new_progress_bar(parent: *mut QWidget) -> UniquePtr<QWidget>;
+        unsafe fn new_progress_bar(parent: *mut QWidget) -> UniquePtr<QProgressBar>;
 
-        fn progress_bar_set_range(w: Pin<&mut QWidget>, min: i32, max: i32);
-        fn progress_bar_get_minimum(w: &QWidget) -> i32;
-        fn progress_bar_get_maximum(w: &QWidget) -> i32;
+        fn setRange(self: Pin<&mut QProgressBar>, min: i32, max: i32);
+        fn minimum(self: &QProgressBar) -> i32;
+        fn maximum(self: &QProgressBar) -> i32;
 
-        fn progress_bar_set_value(w: Pin<&mut QWidget>, v: i32);
-        fn progress_bar_get_value(w: &QWidget) -> i32;
+        fn setValue(self: Pin<&mut QProgressBar>, v: i32);
+        fn value(self: &QProgressBar) -> i32;
     }
 }

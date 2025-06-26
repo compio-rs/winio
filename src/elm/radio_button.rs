@@ -89,7 +89,7 @@ impl Component for RadioButton {
         Self { widget }
     }
 
-    async fn start(&mut self, sender: &ComponentSender<Self>) {
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         loop {
             self.widget.wait_click().await;
             sender.output(RadioButtonEvent::Click);

@@ -156,7 +156,7 @@ impl<const E: bool> ComboBoxImpl<E> {
 pub type ComboBox = ComboBoxImpl<false>;
 pub type ComboEntry = ComboBoxImpl<true>;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 struct ComboBoxDelegateIvars {
     changed: Callback,
     select: Callback,

@@ -75,7 +75,7 @@ impl<T: Component> Child<T> {
         sender: &ComponentSender<C>,
         mut f: impl FnMut(T::Event) -> Option<C::Message>,
         mut propagate: impl FnMut() -> C::Message,
-    ) {
+    ) -> ! {
         let fut_start = self.model.start(&self.sender);
         let fut_forward = async {
             loop {
@@ -93,7 +93,7 @@ impl<T: Component> Child<T> {
                 }
             }
         };
-        futures_util::future::join(fut_start, fut_forward).await;
+        futures_util::future::join(fut_start, fut_forward).await.0
     }
 
     /// Emit message to the child component.

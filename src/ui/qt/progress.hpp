@@ -1,13 +1,10 @@
 #pragma once
 
+#include "common.hpp"
+#include <QProgressBar>
 #include <QWidget>
 #include <memory>
 
-std::unique_ptr<QWidget> new_progress_bar(QWidget *parent);
+STATIC_CAST_ASSERT(QProgressBar, QWidget);
 
-void progress_bar_set_range(QWidget &w, int min, int max);
-int progress_bar_get_minimum(QWidget const &w);
-int progress_bar_get_maximum(QWidget const &w);
-
-void progress_bar_set_value(QWidget &w, int v);
-int progress_bar_get_value(QWidget const &w);
+std::unique_ptr<QProgressBar> new_progress_bar(QWidget *parent);

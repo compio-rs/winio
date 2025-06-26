@@ -1,3 +1,6 @@
+mod common;
+pub use common::*;
+
 mod window;
 pub use window::*;
 
@@ -46,3 +49,61 @@ pub fn color_theme() -> ColorTheme {
 
 /// Pointer to `QWidget`.
 pub type RawWindow = *mut QWidget;
+
+use std::pin::Pin;
+
+pub(crate) trait StaticCastTo<T> {
+    fn static_cast(&self) -> &T;
+    fn static_cast_mut(self: Pin<&mut Self>) -> Pin<&mut T>;
+}
+
+impl<T> StaticCastTo<T> for T {
+    fn static_cast(&self) -> &T {
+        self
+    }
+
+    fn static_cast_mut(self: Pin<&mut Self>) -> Pin<&mut T> {
+        self
+    }
+}
+
+macro_rules! impl_static_cast {
+    ($t:ty, $tbase:ty, $f:expr, $fmut:expr) => {
+        impl $crate::ui::StaticCastTo<$tbase> for $t {
+            fn static_cast(&self) -> &$tbase {
+                unsafe { std::mem::transmute(self) }
+            }
+
+            fn static_cast_mut(self: ::std::pin::Pin<&mut Self>) -> ::std::pin::Pin<&mut $tbase> {
+                unsafe { std::mem::transmute(self) }
+            }
+        }
+    };
+}
+
+macro_rules! impl_static_cast_propogate {
+    ($t1:ty, $t2:ty, $t3:ty) => {
+        impl $crate::ui::StaticCastTo<$t3> for $t1 {
+            fn static_cast(&self) -> &$t3 {
+                <Self as $crate::ui::StaticCastTo<$t2>>::static_cast(self).static_cast()
+            }
+
+            fn static_cast_mut(self: ::std::pin::Pin<&mut Self>) -> ::std::pin::Pin<&mut $t3> {
+                <Self as $crate::ui::StaticCastTo<$t2>>::static_cast_mut(self).static_cast_mut()
+            }
+        }
+    };
+}
+
+pub(crate) use impl_static_cast;
+pub(crate) use impl_static_cast_propogate;
+
+#[inline(always)]
+pub(crate) fn static_cast<T>(p: &impl StaticCastTo<T>) -> &T {
+    StaticCastTo::<T>::static_cast(p)
+}
+
+#[inline(always)]
+pub(crate) fn static_cast_mut<T>(p: Pin<&mut impl StaticCastTo<T>>) -> Pin<&mut T> {
+    StaticCastTo::<T>::static_cast_mut(p)
+}

@@ -1,6 +1,5 @@
-use std::future::Future;
+use std::{future::Future, hint::unreachable_unchecked};
 
-use compio_log::*;
 use futures_channel::mpsc;
 use futures_util::{FutureExt, StreamExt};
 
@@ -20,7 +19,7 @@ pub trait Component: Sized {
     fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self;
 
     /// Start the event listening.
-    async fn start(&mut self, sender: &ComponentSender<Self>);
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> !;
 
     /// Respond to the message.
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool;
@@ -86,17 +85,8 @@ pub struct App {
 }
 
 impl App {
-    /// Create [`App`].
-    #[allow(clippy::new_without_default)]
-    pub fn new() -> Self {
-        Self {
-            runtime: Runtime::new(),
-            name: None,
-        }
-    }
-
     /// Create [`App`] with application name.
-    pub fn new_with_name(name: impl AsRef<str>) -> Self {
+    pub fn new(name: impl AsRef<str>) -> Self {
         #[allow(unused_mut)]
         let mut runtime = Runtime::new();
         let name = name.as_ref().to_string();
@@ -129,9 +119,8 @@ impl App {
                 let fut_start = model.start(&sender);
                 let fut_recv = recv.recv();
                 futures_util::select! {
-                    _ = fut_start.fuse() => {
-                        error!("unexpected exit in `Component::start`");
-                    }
+                    // SAFETY: never type
+                    _ = fut_start.fuse() => unsafe { unreachable_unchecked() },
                     msg = fut_recv.fuse() => {
                         let mut need_render = match msg {
                             ComponentMessage::Message(msg) => model.update(msg, &sender).await,

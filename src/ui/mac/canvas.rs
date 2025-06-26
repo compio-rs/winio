@@ -128,7 +128,7 @@ impl Canvas {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 struct CanvasViewIvars {
     mouse_down: Callback<MouseButton>,
     mouse_up: Callback<MouseButton>,

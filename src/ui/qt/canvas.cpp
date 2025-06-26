@@ -103,14 +103,6 @@ bool color_accent(QColor &c) {
 #endif
 }
 
-std::unique_ptr<QBrush> new_brush(QColor const &c) {
-    return std::make_unique<QBrush>(c);
-}
-
-std::unique_ptr<QPen> new_pen(QBrush const &b, double width) {
-    return std::make_unique<QPen>(b, width);
-}
-
 std::unique_ptr<QGradient> new_gradient_linear(QPointF start, QPointF end) {
     return std::make_unique<QLinearGradient>(start, end);
 }
@@ -118,10 +110,6 @@ std::unique_ptr<QGradient> new_gradient_linear(QPointF start, QPointF end) {
 std::unique_ptr<QGradient> new_gradient_radial(QPointF center, double radius,
                                                QPointF origin) {
     return std::make_unique<QRadialGradient>(center, radius, origin);
-}
-
-std::unique_ptr<QBrush> new_brush_gradient(QGradient const &g) {
-    return std::make_unique<QBrush>(g);
 }
 
 void brush_set_transform(QBrush &b, double m11, double m12, double m21,

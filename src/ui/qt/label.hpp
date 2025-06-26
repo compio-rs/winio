@@ -1,11 +1,9 @@
 #pragma once
 
+#include "common.hpp"
 #include "edit.hpp"
+#include <QLabel>
 
-std::unique_ptr<QWidget> new_label(QWidget *parent);
+std::unique_ptr<QLabel> new_label(QWidget *parent);
 
-rust::String label_get_text(QWidget const &w);
-void label_set_text(QWidget &w, rust::Str s);
-
-QtAlignmentFlag label_get_alignment(QWidget const &w);
-void label_set_alignment(QWidget &w, QtAlignmentFlag flag);
+STATIC_CAST_ASSERT(QLabel, QWidget);

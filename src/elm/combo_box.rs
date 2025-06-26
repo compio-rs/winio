@@ -169,7 +169,7 @@ impl Component for ComboBox {
         Self { widget }
     }
 
-    async fn start(&mut self, sender: &ComponentSender<Self>) {
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         loop {
             self.widget.wait_select().await;
             sender.output(ComboBoxEvent::Select);
@@ -313,7 +313,7 @@ impl Component for ComboEntry {
         Self { widget }
     }
 
-    async fn start(&mut self, sender: &ComponentSender<Self>) {
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         let fut_select = async {
             loop {
                 self.widget.wait_select().await;
@@ -326,7 +326,7 @@ impl Component for ComboEntry {
                 sender.output(ComboEntryEvent::Change);
             }
         };
-        futures_util::future::join(fut_select, fut_change).await;
+        futures_util::future::join(fut_select, fut_change).await.0
     }
 
     async fn update(&mut self, message: Self::Message, _sender: &ComponentSender<Self>) -> bool {

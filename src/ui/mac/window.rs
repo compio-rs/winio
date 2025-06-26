@@ -129,7 +129,7 @@ impl AsRawWindow for Window {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 struct WindowDelegateIvars {
     did_resize: Callback,
     did_move: Callback,

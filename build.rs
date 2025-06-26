@@ -16,8 +16,16 @@ fn main() {
             qt_build_utils::QtBuild::new(vec!["Core".into(), "Gui".into(), "Widgets".into()])
                 .unwrap();
 
+        let major = qbuild.version().major;
+        if major != 5 && major != 6 {
+            panic!("Unsupported Qt version: {major}");
+        }
+        println!("cargo::rustc-check-cfg=cfg(qtver, values(\"5\", \"6\"))");
+        println!("cargo::rustc-cfg=qtver=\"{major}\"");
+
         let sources = [
             "src/runtime/qt",
+            "src/ui/qt/common",
             "src/ui/qt/widget",
             "src/ui/qt/monitor",
             "src/ui/qt/msgbox",
@@ -44,10 +52,8 @@ fn main() {
         build
             .std("c++17")
             .files(sources.map(|s| format!("{s}.cpp")))
-            .includes(inc);
-        if cfg!(feature = "clang-lto") && std::env::var("PROFILE").as_deref() == Ok("release") {
-            build.flag("-flto").compiler("clang++");
-        }
+            .includes(inc)
+            .cpp(true);
         qbuild.cargo_link_libraries(&mut build);
         build.compile("winio");
     }

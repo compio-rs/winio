@@ -57,7 +57,13 @@ async fn msgbox_custom(
         results.insert(key, MessageBoxResponse::Custom(btn.result));
     }
 
-    ffi::message_box_set_texts(b.pin_mut(), &title, &msg, &instr);
+    b.pin_mut().setWindowTitle(&title.into());
+    if instr.is_empty() {
+        b.pin_mut().setText(&msg.into());
+    } else {
+        b.pin_mut().setText(&instr.into());
+        b.pin_mut().setInformativeText(&msg.into());
+    }
 
     let icon = match style {
         MessageBoxStyle::None => QMessageBoxIcon::NoIcon,
@@ -201,9 +207,13 @@ mod ffi {
         type QWidget = crate::ui::QWidget;
         type QPushButton;
         type QAbstractButton;
+        type QString = crate::ui::QString;
 
         fn open(self: Pin<&mut QMessageBox>);
         fn setIcon(self: Pin<&mut QMessageBox>, icon: QMessageBoxIcon);
+        fn setWindowTitle(self: Pin<&mut QMessageBox>, s: &QString);
+        fn setText(self: Pin<&mut QMessageBox>, s: &QString);
+        fn setInformativeText(self: Pin<&mut QMessageBox>, s: &QString);
         fn addButton(
             self: Pin<&mut QMessageBox>,
             button: QMessageBoxStandardButton,
@@ -216,7 +226,6 @@ mod ffi {
             callback: unsafe fn(*const u8, i32),
             data: *const u8,
         );
-        fn message_box_set_texts(b: Pin<&mut QMessageBox>, title: &str, msg: &str, instr: &str);
         fn message_box_add_button(b: Pin<&mut QMessageBox>, text: &str) -> *mut QPushButton;
     }
 }

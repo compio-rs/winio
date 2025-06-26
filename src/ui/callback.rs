@@ -2,7 +2,6 @@ use std::{
     cell::RefCell,
     future::poll_fn,
     hint::unreachable_unchecked,
-    rc::Rc,
     task::{Poll, Waker},
 };
 
@@ -13,8 +12,8 @@ enum WakerState<T> {
     Signaled(T),
 }
 
-#[derive(Debug, Clone)]
-pub struct Callback<T = ()>(Rc<RefCell<WakerState<T>>>);
+#[derive(Debug)]
+pub struct Callback<T = ()>(RefCell<WakerState<T>>);
 
 impl<T> Default for Callback<T> {
     fn default() -> Self {
@@ -24,7 +23,7 @@ impl<T> Default for Callback<T> {
 
 impl<T> Callback<T> {
     pub fn new() -> Self {
-        Self(Rc::new(RefCell::new(WakerState::Inactive)))
+        Self(RefCell::new(WakerState::Inactive))
     }
 
     pub fn signal(&self, v: T) -> bool {
@@ -53,6 +52,7 @@ impl<T> Callback<T> {
                 let v = if let WakerState::Signaled(v) = state {
                     v
                 } else {
+                    // SAFETY: already checked
                     unsafe { unreachable_unchecked() }
                 };
                 Poll::Ready(v)
