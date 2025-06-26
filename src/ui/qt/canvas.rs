@@ -1,6 +1,7 @@
 use std::pin::Pin;
 
 use cxx::{ExternType, UniquePtr, type_id};
+pub use ffi::QWidget;
 use image::{DynamicImage, Pixel, Rgb, Rgba};
 
 use crate::{
@@ -14,7 +15,7 @@ pub struct Canvas {
     on_move: Box<Callback<Point>>,
     on_press: Box<Callback<MouseButton>>,
     on_release: Box<Callback<MouseButton>>,
-    widget: Widget,
+    widget: Widget<ffi::QWidget>,
 }
 
 impl Canvas {
@@ -644,7 +645,7 @@ mod ffi {
     unsafe extern "C++" {
         include!("winio/src/ui/qt/canvas.hpp");
 
-        type QWidget = crate::ui::QWidget;
+        type QWidget;
         type QtMouseButton = super::QtMouseButton;
 
         unsafe fn new_canvas(parent: *mut QWidget) -> UniquePtr<QWidget>;

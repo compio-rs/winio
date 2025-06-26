@@ -2,19 +2,18 @@ use cxx::{ExternType, type_id};
 
 use crate::{
     AsRawWindow, AsWindow, HAlign, Point, Size,
-    ui::{Callback, Widget},
+    ui::{Callback, Widget, impl_static_cast},
 };
 
 #[derive(Debug)]
 pub struct Edit {
     on_changed: Box<Callback>,
-    widget: Widget,
+    widget: Widget<ffi::QLineEdit>,
 }
 
 impl Edit {
     pub fn new(parent: impl AsWindow) -> Self {
         let mut widget = unsafe { ffi::new_line_edit(parent.as_window().as_raw_window()) };
-        widget.pin_mut().setVisible(true);
         let on_changed = Box::new(Callback::new());
         unsafe {
             ffi::line_edit_connect_changed(
@@ -23,10 +22,9 @@ impl Edit {
                 on_changed.as_ref() as *const _ as _,
             );
         }
-        Self {
-            on_changed,
-            widget: Widget::new(widget),
-        }
+        let mut widget = Widget::new(widget);
+        widget.set_visible(true);
+        Self { on_changed, widget }
     }
 
     pub fn is_visible(&self) -> bool {
@@ -66,19 +64,23 @@ impl Edit {
     }
 
     pub fn text(&self) -> String {
-        ffi::line_edit_get_text(self.widget.as_ref())
+        self.widget.as_ref().text().into()
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
-        ffi::line_edit_set_text(self.widget.pin_mut(), s.as_ref())
+        self.widget.pin_mut().setText(&s.as_ref().into())
     }
 
     pub fn is_password(&self) -> bool {
-        ffi::line_edit_is_password(self.widget.as_ref())
+        self.widget.as_ref().echoMode() != QLineEditEchoMode::Normal
     }
 
     pub fn set_password(&mut self, v: bool) {
-        ffi::line_edit_set_password(self.widget.pin_mut(), v);
+        self.widget.pin_mut().setEchoMode(if v {
+            QLineEditEchoMode::Password
+        } else {
+            QLineEditEchoMode::Normal
+        });
     }
 
     pub fn halign(&self) -> HAlign {
@@ -126,13 +128,12 @@ impl Edit {
 #[derive(Debug)]
 pub struct TextBox {
     on_changed: Box<Callback>,
-    widget: Widget,
+    widget: Widget<ffi::QTextEdit>,
 }
 
 impl TextBox {
     pub fn new(parent: impl AsWindow) -> Self {
         let mut widget = unsafe { ffi::new_text_edit(parent.as_window().as_raw_window()) };
-        widget.pin_mut().setVisible(true);
         let on_changed = Box::new(Callback::new());
         unsafe {
             ffi::text_edit_connect_changed(
@@ -141,10 +142,9 @@ impl TextBox {
                 on_changed.as_ref() as *const _ as _,
             );
         }
-        Self {
-            on_changed,
-            widget: Widget::new(widget),
-        }
+        let mut widget = Widget::new(widget);
+        widget.set_visible(true);
+        Self { on_changed, widget }
     }
 
     pub fn is_visible(&self) -> bool {
@@ -184,11 +184,11 @@ impl TextBox {
     }
 
     pub fn text(&self) -> String {
-        ffi::text_edit_get_text(self.widget.as_ref())
+        self.widget.as_ref().toPlainText().into()
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
-        ffi::text_edit_set_text(self.widget.pin_mut(), s.as_ref())
+        self.widget.pin_mut().setText(&s.as_ref().into())
     }
 
     pub fn halign(&self) -> HAlign {
@@ -255,39 +255,80 @@ impl QtAlignmentFlag {
     }
 }
 
+#[derive(PartialEq, Eq)]
+#[repr(i32)]
+#[non_exhaustive]
+#[allow(dead_code)]
+pub enum QLineEditEchoMode {
+    Normal,
+    NoEcho,
+    Password,
+    PasswordEchoOnEdit,
+}
+
+unsafe impl ExternType for QLineEditEchoMode {
+    type Id = type_id!("QLineEditEchoMode");
+    type Kind = cxx::kind::Trivial;
+}
+
+impl_static_cast!(
+    ffi::QLineEdit,
+    ffi::QWidget,
+    ffi::static_cast_QLineEdit_QWidget,
+    ffi::static_cast_mut_QLineEdit_QWidget
+);
+
+impl_static_cast!(
+    ffi::QTextEdit,
+    ffi::QWidget,
+    ffi::static_cast_QTextEdit_QWidget,
+    ffi::static_cast_mut_QTextEdit_QWidget
+);
+
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++" {
         include!("winio/src/ui/qt/edit.hpp");
 
         type QWidget = crate::ui::QWidget;
+        type QLineEdit;
+        type QTextEdit;
         type QtAlignmentFlag = super::QtAlignmentFlag;
+        type QLineEditEchoMode = super::QLineEditEchoMode;
+        type QString = crate::ui::QString;
 
-        unsafe fn new_line_edit(parent: *mut QWidget) -> UniquePtr<QWidget>;
+        fn static_cast_QLineEdit_QWidget(w: &QLineEdit) -> &QWidget;
+        fn static_cast_mut_QLineEdit_QWidget(w: Pin<&mut QLineEdit>) -> Pin<&mut QWidget>;
+
+        fn static_cast_QTextEdit_QWidget(w: &QTextEdit) -> &QWidget;
+        fn static_cast_mut_QTextEdit_QWidget(w: Pin<&mut QTextEdit>) -> Pin<&mut QWidget>;
+
+        unsafe fn new_line_edit(parent: *mut QWidget) -> UniquePtr<QLineEdit>;
         unsafe fn line_edit_connect_changed(
-            w: Pin<&mut QWidget>,
+            w: Pin<&mut QLineEdit>,
             callback: unsafe fn(*const u8),
             data: *const u8,
         );
-        fn line_edit_get_text(w: &QWidget) -> String;
-        fn line_edit_set_text(w: Pin<&mut QWidget>, s: &str);
 
-        fn line_edit_get_alignment(w: &QWidget) -> QtAlignmentFlag;
-        fn line_edit_set_alignment(w: Pin<&mut QWidget>, flag: QtAlignmentFlag);
+        fn line_edit_get_alignment(w: &QLineEdit) -> QtAlignmentFlag;
+        fn line_edit_set_alignment(w: Pin<&mut QLineEdit>, flag: QtAlignmentFlag);
 
-        fn line_edit_is_password(w: &QWidget) -> bool;
-        fn line_edit_set_password(w: Pin<&mut QWidget>, v: bool);
+        fn text(self: &QLineEdit) -> QString;
+        fn setText(self: Pin<&mut QLineEdit>, s: &QString);
+        fn echoMode(self: &QLineEdit) -> QLineEditEchoMode;
+        fn setEchoMode(self: Pin<&mut QLineEdit>, m: QLineEditEchoMode);
 
-        unsafe fn new_text_edit(parent: *mut QWidget) -> UniquePtr<QWidget>;
+        unsafe fn new_text_edit(parent: *mut QWidget) -> UniquePtr<QTextEdit>;
         unsafe fn text_edit_connect_changed(
-            w: Pin<&mut QWidget>,
+            w: Pin<&mut QTextEdit>,
             callback: unsafe fn(*const u8),
             data: *const u8,
         );
-        fn text_edit_get_text(w: &QWidget) -> String;
-        fn text_edit_set_text(w: Pin<&mut QWidget>, s: &str);
 
-        fn text_edit_get_alignment(w: &QWidget) -> QtAlignmentFlag;
-        fn text_edit_set_alignment(w: Pin<&mut QWidget>, flag: QtAlignmentFlag);
+        fn text_edit_get_alignment(w: &QTextEdit) -> QtAlignmentFlag;
+        fn text_edit_set_alignment(w: Pin<&mut QTextEdit>, flag: QtAlignmentFlag);
+
+        fn toPlainText(self: &QTextEdit) -> QString;
+        fn setText(self: Pin<&mut QTextEdit>, s: &QString);
     }
 }

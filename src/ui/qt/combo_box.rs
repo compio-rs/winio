@@ -1,19 +1,18 @@
 use crate::{
     AsRawWindow, AsWindow, Point, Size,
-    ui::{Callback, Widget},
+    ui::{Callback, Widget, impl_static_cast},
 };
 
 #[derive(Debug)]
 pub struct ComboBoxImpl<const E: bool> {
     on_changed: Box<Callback>,
     on_select: Box<Callback>,
-    widget: Widget,
+    widget: Widget<ffi::QComboBox>,
 }
 
 impl<const E: bool> ComboBoxImpl<E> {
     pub fn new(parent: impl AsWindow) -> Self {
         let mut widget = unsafe { ffi::new_combo_box(parent.as_window().as_raw_window(), E) };
-        widget.pin_mut().setVisible(true);
         let on_changed = Box::new(Callback::new());
         let on_select = Box::new(Callback::new());
         unsafe {
@@ -28,10 +27,12 @@ impl<const E: bool> ComboBoxImpl<E> {
                 on_select.as_ref() as *const _ as _,
             );
         }
+        let mut widget = Widget::new(widget);
+        widget.set_visible(true);
         Self {
             on_changed,
             on_select,
-            widget: Widget::new(widget),
+            widget,
         }
     }
 
@@ -72,21 +73,21 @@ impl<const E: bool> ComboBoxImpl<E> {
     }
 
     pub fn text(&self) -> String {
-        ffi::combo_box_get_text(self.widget.as_ref())
+        self.widget.as_ref().currentText().into()
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
-        ffi::combo_box_set_text(self.widget.pin_mut(), s.as_ref())
+        self.widget.pin_mut().setCurrentText(&s.as_ref().into());
     }
 
     pub fn selection(&self) -> Option<usize> {
-        let i = ffi::combo_box_get_current_index(self.widget.as_ref());
+        let i = self.widget.as_ref().currentIndex();
         if i < 0 { None } else { Some(i as _) }
     }
 
     pub fn set_selection(&mut self, i: Option<usize>) {
         let i = if let Some(i) = i { i as i32 } else { -1 };
-        ffi::combo_box_set_current_index(self.widget.pin_mut(), i);
+        self.widget.pin_mut().setCurrentIndex(i);
     }
 
     fn on_select(c: *const u8) {
@@ -112,32 +113,41 @@ impl<const E: bool> ComboBoxImpl<E> {
     }
 
     pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
-        ffi::combo_box_insert(self.widget.pin_mut(), i as _, s.as_ref());
+        ffi::combo_box_insert(self.widget.pin_mut(), i as _, &s.as_ref().into());
     }
 
     pub fn remove(&mut self, i: usize) {
-        ffi::combo_box_remove(self.widget.pin_mut(), i as _);
+        self.widget.pin_mut().removeItem(i as _);
     }
 
     pub fn get(&self, i: usize) -> String {
-        ffi::combo_box_get(self.widget.as_ref(), i as _)
+        self.widget.as_ref().itemText(i as _).into()
     }
 
     pub fn set(&mut self, i: usize, s: impl AsRef<str>) {
-        ffi::combo_box_set(self.widget.pin_mut(), i as _, s.as_ref());
+        self.widget
+            .pin_mut()
+            .setItemText(i as _, &s.as_ref().into());
     }
 
     pub fn len(&self) -> usize {
-        ffi::combo_box_count(self.widget.as_ref()) as _
+        self.widget.as_ref().count() as _
     }
 
     pub fn clear(&mut self) {
-        ffi::combo_box_clear(self.widget.pin_mut());
+        self.widget.pin_mut().clear();
     }
 }
 
 pub type ComboBox = ComboBoxImpl<false>;
 pub type ComboEntry = ComboBoxImpl<true>;
+
+impl_static_cast!(
+    ffi::QComboBox,
+    ffi::QWidget,
+    ffi::static_cast_QComboBox_QWidget,
+    ffi::static_cast_mut_QComboBox_QWidget
+);
 
 #[cxx::bridge]
 mod ffi {
@@ -145,30 +155,35 @@ mod ffi {
         include!("winio/src/ui/qt/combo_box.hpp");
 
         type QWidget = crate::ui::QWidget;
+        type QComboBox;
+        type QString = crate::ui::QString;
 
-        unsafe fn new_combo_box(parent: *mut QWidget, editable: bool) -> UniquePtr<QWidget>;
+        fn static_cast_QComboBox_QWidget(w: &QComboBox) -> &QWidget;
+        fn static_cast_mut_QComboBox_QWidget(w: Pin<&mut QComboBox>) -> Pin<&mut QWidget>;
+
+        unsafe fn new_combo_box(parent: *mut QWidget, editable: bool) -> UniquePtr<QComboBox>;
         unsafe fn combo_box_connect_changed(
-            w: Pin<&mut QWidget>,
+            w: Pin<&mut QComboBox>,
             callback: unsafe fn(*const u8),
             data: *const u8,
         );
         unsafe fn combo_box_connect_select(
-            w: Pin<&mut QWidget>,
+            w: Pin<&mut QComboBox>,
             callback: unsafe fn(*const u8),
             data: *const u8,
         );
 
-        fn combo_box_get_text(w: &QWidget) -> String;
-        fn combo_box_set_text(w: Pin<&mut QWidget>, s: &str);
+        fn currentText(self: &QComboBox) -> QString;
+        fn setCurrentText(self: Pin<&mut QComboBox>, s: &QString);
 
-        fn combo_box_get_current_index(w: &QWidget) -> i32;
-        fn combo_box_set_current_index(w: Pin<&mut QWidget>, i: i32);
+        fn currentIndex(self: &QComboBox) -> i32;
+        fn setCurrentIndex(self: Pin<&mut QComboBox>, i: i32);
 
-        fn combo_box_insert(w: Pin<&mut QWidget>, i: i32, s: &str);
-        fn combo_box_remove(w: Pin<&mut QWidget>, i: i32);
-        fn combo_box_clear(w: Pin<&mut QWidget>);
-        fn combo_box_count(w: &QWidget) -> i32;
-        fn combo_box_get(w: &QWidget, i: i32) -> String;
-        fn combo_box_set(w: Pin<&mut QWidget>, i: i32, s: &str);
+        fn combo_box_insert(w: Pin<&mut QComboBox>, i: i32, s: &QString);
+        fn removeItem(self: Pin<&mut QComboBox>, i: i32);
+        fn clear(self: Pin<&mut QComboBox>);
+        fn count(self: &QComboBox) -> i32;
+        fn itemText(self: &QComboBox, i: i32) -> QString;
+        fn setItemText(self: Pin<&mut QComboBox>, i: i32, s: &QString);
     }
 }

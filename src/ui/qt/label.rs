@@ -1,20 +1,19 @@
 use crate::{
     AsRawWindow, AsWindow, HAlign, Point, Size,
-    ui::{QtAlignmentFlag, Widget},
+    ui::{QtAlignmentFlag, Widget, impl_static_cast},
 };
 
 #[derive(Debug)]
 pub struct Label {
-    widget: Widget,
+    widget: Widget<ffi::QLabel>,
 }
 
 impl Label {
     pub fn new(parent: impl AsWindow) -> Self {
-        let mut widget = unsafe { ffi::new_label(parent.as_window().as_raw_window()) };
-        widget.pin_mut().setVisible(true);
-        Self {
-            widget: Widget::new(widget),
-        }
+        let widget = unsafe { ffi::new_label(parent.as_window().as_raw_window()) };
+        let mut widget = Widget::new(widget);
+        widget.set_visible(true);
+        Self { widget }
     }
 
     pub fn is_visible(&self) -> bool {
@@ -54,11 +53,11 @@ impl Label {
     }
 
     pub fn text(&self) -> String {
-        ffi::label_get_text(self.widget.as_ref())
+        self.widget.as_ref().text().into()
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
-        ffi::label_set_text(self.widget.pin_mut(), s.as_ref())
+        self.widget.pin_mut().setText(&s.as_ref().into());
     }
 
     pub fn halign(&self) -> HAlign {
@@ -92,20 +91,32 @@ impl Label {
     }
 }
 
+impl_static_cast!(
+    ffi::QLabel,
+    ffi::QWidget,
+    ffi::static_cast_QLabel_QWidget,
+    ffi::static_cast_mut_QLabel_QWidget
+);
+
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++" {
         include!("winio/src/ui/qt/label.hpp");
 
         type QWidget = crate::ui::QWidget;
+        type QLabel;
+        type QString = crate::ui::QString;
         type QtAlignmentFlag = crate::ui::QtAlignmentFlag;
 
-        unsafe fn new_label(parent: *mut QWidget) -> UniquePtr<QWidget>;
+        unsafe fn new_label(parent: *mut QWidget) -> UniquePtr<QLabel>;
 
-        fn label_get_text(w: &QWidget) -> String;
-        fn label_set_text(w: Pin<&mut QWidget>, s: &str);
+        fn static_cast_QLabel_QWidget(w: &QLabel) -> &QWidget;
+        fn static_cast_mut_QLabel_QWidget(w: Pin<&mut QLabel>) -> Pin<&mut QWidget>;
 
-        fn label_get_alignment(w: &QWidget) -> QtAlignmentFlag;
-        fn label_set_alignment(w: Pin<&mut QWidget>, flag: QtAlignmentFlag);
+        fn text(self: &QLabel) -> QString;
+        fn setText(self: Pin<&mut QLabel>, s: &QString);
+
+        fn label_get_alignment(w: &QLabel) -> QtAlignmentFlag;
+        fn label_set_alignment(w: Pin<&mut QLabel>, flag: QtAlignmentFlag);
     }
 }

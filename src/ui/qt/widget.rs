@@ -1,16 +1,19 @@
 use std::{fmt::Debug, mem::ManuallyDrop, pin::Pin};
 
-use cxx::{ExternType, UniquePtr, type_id};
-pub(crate) use ffi::*;
+use cxx::{ExternType, UniquePtr, memory::UniquePtrTarget, type_id};
+pub use ffi::is_dark;
 
-use crate::{AsRawWindow, Point, RawWindow, Rect, Size};
+use crate::{AsRawWindow, Point, RawWindow, Rect, Size, ui::StaticCastTo};
 
-pub struct Widget {
-    widget: ManuallyDrop<UniquePtr<QWidget>>,
+pub struct Widget<T: UniquePtrTarget> {
+    widget: ManuallyDrop<UniquePtr<T>>,
 }
 
-impl Widget {
-    pub fn new(widget: UniquePtr<QWidget>) -> Self {
+impl<T> Widget<T>
+where
+    T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
+{
+    pub fn new(widget: UniquePtr<T>) -> Self {
         Self {
             widget: ManuallyDrop::new(widget),
         }
@@ -20,58 +23,72 @@ impl Widget {
         ManuallyDrop::drop(&mut self.widget);
     }
 
-    pub(crate) fn as_ref(&self) -> &QWidget {
+    pub(crate) fn as_ref(&self) -> &T {
         &self.widget
     }
 
-    pub(crate) fn pin_mut(&mut self) -> Pin<&mut QWidget> {
+    pub(crate) fn pin_mut(&mut self) -> Pin<&mut T> {
         self.widget.pin_mut()
     }
 
+    fn as_ref_qwidget(&self) -> &ffi::QWidget {
+        self.as_ref().static_cast()
+    }
+
+    fn pin_mut_qwidget(&mut self) -> Pin<&mut ffi::QWidget> {
+        self.pin_mut().static_cast_mut()
+    }
+
     pub fn is_visible(&self) -> bool {
-        self.widget.isVisible()
+        self.as_ref_qwidget().isVisible()
     }
 
     pub fn set_visible(&mut self, v: bool) {
-        self.widget.pin_mut().setVisible(v);
+        self.pin_mut_qwidget().setVisible(v);
     }
 
     pub fn is_enabled(&self) -> bool {
-        self.widget.isEnabled()
+        self.as_ref_qwidget().isEnabled()
     }
 
     pub fn set_enabled(&mut self, v: bool) {
-        self.widget.pin_mut().setEnabled(v);
+        self.pin_mut_qwidget().setEnabled(v);
     }
 
     pub fn preferred_size(&self) -> Size {
-        let s = self.widget.sizeHint();
+        let s = self.as_ref_qwidget().sizeHint();
         Size::new(s.width as _, s.height as _)
     }
 
     pub fn min_size(&self) -> Size {
-        let s = self.widget.minimumSize();
+        let s = self.as_ref_qwidget().minimumSize();
         Size::new(s.width as _, s.height as _)
     }
 
     pub fn loc(&self) -> Point {
-        Point::new(self.widget.x() as _, self.widget.y() as _)
+        Point::new(
+            self.as_ref_qwidget().x() as _,
+            self.as_ref_qwidget().y() as _,
+        )
     }
 
     pub fn set_loc(&mut self, p: Point) {
-        self.widget.pin_mut().move_(p.x as _, p.y as _);
+        self.pin_mut_qwidget().move_(p.x as _, p.y as _);
     }
 
     pub fn size(&self) -> Size {
-        Size::new(self.widget.width() as _, self.widget.height() as _)
+        Size::new(
+            self.as_ref_qwidget().width() as _,
+            self.as_ref_qwidget().height() as _,
+        )
     }
 
     pub fn set_size(&mut self, s: Size) {
-        self.widget.pin_mut().resize(s.width as _, s.height as _);
+        self.pin_mut_qwidget().resize(s.width as _, s.height as _);
     }
 
     pub fn client_rect(&self) -> Rect {
-        let geometry = self.widget.geometry();
+        let geometry = self.as_ref_qwidget().geometry();
         Rect::new(
             Point::new(geometry.x1 as _, geometry.y1 as _),
             Size::new(
@@ -82,24 +99,27 @@ impl Widget {
     }
 
     pub fn text(&self) -> String {
-        widget_get_title(&self.widget)
+        self.as_ref_qwidget().windowTitle().into()
     }
 
     pub fn set_text(&mut self, s: &str) {
-        widget_set_title(self.widget.pin_mut(), s);
+        self.pin_mut_qwidget().setWindowTitle(&s.into());
     }
 }
 
-impl AsRawWindow for Widget {
+impl<T> AsRawWindow for Widget<T>
+where
+    T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
+{
     fn as_raw_window(&self) -> RawWindow {
-        self.widget
-            .as_ref()
-            .map(|p| p as *const _ as *mut _)
-            .unwrap_or(std::ptr::null_mut())
+        self.as_ref_qwidget() as *const ffi::QWidget as RawWindow
     }
 }
 
-impl Debug for Widget {
+impl<T> Debug for Widget<T>
+where
+    T: UniquePtrTarget,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Widget").finish_non_exhaustive()
     }
@@ -133,15 +153,13 @@ unsafe impl ExternType for QRect {
 mod ffi {
     unsafe extern "C++" {
         include!("winio/src/ui/qt/widget.hpp");
-        include!("winio/src/ui/qt/window.hpp");
 
         fn is_dark() -> bool;
 
-        type QWidget;
+        type QWidget = crate::ui::QWidget;
         type QSize = super::QSize;
         type QRect = super::QRect;
-
-        unsafe fn new_main_window(parent: *mut QWidget) -> UniquePtr<QWidget>;
+        type QString = crate::ui::QString;
 
         fn parentWidget(self: &QWidget) -> *mut QWidget;
         fn x(self: &QWidget) -> i32;
@@ -159,8 +177,7 @@ mod ffi {
         fn setVisible(self: Pin<&mut QWidget>, v: bool);
         fn isEnabled(self: &QWidget) -> bool;
         fn setEnabled(self: Pin<&mut QWidget>, v: bool);
-
-        fn widget_get_title(w: &QWidget) -> String;
-        fn widget_set_title(w: Pin<&mut QWidget>, s: &str);
+        fn windowTitle(self: &QWidget) -> QString;
+        fn setWindowTitle(self: Pin<&mut QWidget>, s: &QString);
     }
 }
