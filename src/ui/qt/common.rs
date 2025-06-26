@@ -1,4 +1,4 @@
-use std::mem::MaybeUninit;
+use std::{mem::MaybeUninit, pin::Pin};
 
 use cxx::{ExternType, type_id};
 
@@ -13,6 +13,14 @@ pub struct QString {
 unsafe impl ExternType for QString {
     type Id = type_id!("QString");
     type Kind = cxx::kind::Trivial;
+}
+
+impl Drop for QString {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::string_drop(Pin::new_unchecked(self));
+        }
+    }
 }
 
 impl From<String> for QString {
@@ -53,5 +61,6 @@ mod ffi {
 
         fn utf16(self: &QString) -> *const u16;
         fn string_len(s: &QString) -> usize;
+        fn string_drop(s: Pin<&mut QString>);
     }
 }

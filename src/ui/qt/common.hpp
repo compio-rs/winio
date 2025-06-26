@@ -19,4 +19,6 @@ inline QString new_string_utf8(const std::uint8_t *p, std::size_t len) {
     return QString::fromUtf8((const char *)p, (qsizetype)len);
 }
 
-inline std::size_t string_len(const QString &s) { return s.size(); }
+inline std::size_t string_len(const QString &s) noexcept { return s.size(); }
+
+inline void string_drop(QString &s) noexcept { s.~QString(); }
