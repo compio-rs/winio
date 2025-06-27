@@ -94,7 +94,9 @@ impl Window {
 
     pub fn set_size(&mut self, v: Size) {
         let mut frame = self.wnd.frame();
+        let ydiff = v.height - frame.size.height;
         frame.size = to_cgsize(v);
+        frame.origin.y -= ydiff;
         self.wnd.setFrame_display(frame, true);
     }
 
@@ -251,7 +253,9 @@ impl Widget {
 
     pub fn set_size(&mut self, v: Size) {
         let mut frame = self.view.frame();
+        let ydiff = v.height - frame.size.height;
         frame.size = to_cgsize(v);
+        frame.origin.y -= ydiff;
         unsafe {
             self.view.setFrame(frame);
         }
