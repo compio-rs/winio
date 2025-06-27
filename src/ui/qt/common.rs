@@ -51,7 +51,7 @@ impl From<&QString> for String {
 
 #[cxx::bridge]
 mod ffi {
-    unsafe extern "C++" {
+    unsafe extern "C++-unwind" {
         include!("winio/src/ui/qt/common.hpp");
 
         type QString = super::QString;

@@ -5,7 +5,7 @@ use cxx::UniquePtr;
 
 #[cxx::bridge]
 mod ffi {
-    unsafe extern "C++" {
+    unsafe extern "C++-unwind" {
         include!("winio/src/runtime/qt.hpp");
 
         type WinioQtEventLoop;

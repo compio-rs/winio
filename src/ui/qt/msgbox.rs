@@ -198,7 +198,7 @@ unsafe impl ExternType for QMessageBoxStandardButton {
 
 #[cxx::bridge]
 mod ffi {
-    unsafe extern "C++" {
+    unsafe extern "C++-unwind" {
         include!("winio/src/ui/qt/msgbox.hpp");
 
         type QMessageBox;

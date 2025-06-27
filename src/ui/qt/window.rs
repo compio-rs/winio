@@ -152,7 +152,7 @@ impl_static_cast!(
 
 #[cxx::bridge]
 mod ffi {
-    unsafe extern "C++" {
+    unsafe extern "C++-unwind" {
         include!("winio/src/ui/qt/window.hpp");
 
         type QWidget = crate::ui::QWidget;

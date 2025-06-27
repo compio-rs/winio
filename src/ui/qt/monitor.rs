@@ -30,7 +30,7 @@ mod ffi {
         dpiy: f64,
     }
 
-    unsafe extern "C++" {
+    unsafe extern "C++-unwind" {
         include!("winio/src/ui/qt/monitor.hpp");
 
         type QRect = super::QRect;

@@ -676,7 +676,7 @@ impl Drop for QBrush {
 
 #[cxx::bridge]
 mod ffi {
-    unsafe extern "C++" {
+    unsafe extern "C++-unwind" {
         include!("winio/src/ui/qt/canvas.hpp");
 
         type QWidget;

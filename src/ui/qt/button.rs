@@ -198,7 +198,7 @@ impl_static_cast_propogate!(ffi::QRadioButton, ffi::QAbstractButton, ffi::QWidge
 
 #[cxx::bridge]
 mod ffi {
-    unsafe extern "C++" {
+    unsafe extern "C++-unwind" {
         include!("winio/src/ui/qt/button.hpp");
 
         type QWidget = crate::ui::QWidget;

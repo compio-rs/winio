@@ -168,7 +168,7 @@ unsafe impl ExternType for QFileDialogFileMode {
 
 #[cxx::bridge]
 mod ffi {
-    unsafe extern "C++" {
+    unsafe extern "C++-unwind" {
         include!("winio/src/ui/qt/filebox.hpp");
 
         type QFileDialog;

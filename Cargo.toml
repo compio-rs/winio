@@ -145,7 +145,7 @@ libc = "0.2"
 gtk4 = { version = "0.9", optional = true, features = ["v4_14"] }
 pangocairo = { version = "0.20", optional = true }
 
-cxx = { version = "1.0", optional = true, features = ["c++17"] }
+cxx = { version = "1.0.160", optional = true, features = ["c++17"] }
 local-sync = { version = "0.1", optional = true }
 
 [dev-dependencies]
@@ -167,7 +167,7 @@ tracing-subscriber = "0.3"
 [build-dependencies]
 embed-resource = "3"
 
-cxx-build = { version = "1.0", optional = true }
+cxx-build = { version = "1.0.160", optional = true }
 qt-build-utils = { version = "0.7", optional = true }
 
 [features]
