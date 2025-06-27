@@ -79,27 +79,11 @@ impl Default for FutureState {
     }
 }
 
-struct RegisteredFuture {
-    state: FutureState,
-    handle: HWND,
-    msg: u32,
-}
-
-impl RegisteredFuture {
-    pub fn new(handle: HWND, msg: u32) -> Self {
-        Self {
-            state: FutureState::Active(None),
-            handle,
-            msg,
-        }
-    }
-}
-
 pub struct Runtime {
     runtime: compio::runtime::Runtime,
     d2d1: OnceCell<ID2D1Factory>,
     registry: RefCell<HashMap<(HWND, u32), HashSet<usize>>>,
-    futures: RefCell<Slab<RegisteredFuture>>,
+    futures: RefCell<Slab<FutureState>>,
 }
 
 impl Runtime {
@@ -200,7 +184,7 @@ impl Runtime {
             let mut futures = self.futures.borrow_mut();
             for id in completes {
                 let state = futures.get_mut(id).expect("cannot find registered future");
-                let state = std::mem::replace(&mut state.state, FutureState::Completed(full_msg));
+                let state = std::mem::replace(state, FutureState::Completed(full_msg));
                 if let FutureState::Active(Some(w)) = state {
                     w.wake();
                 }
@@ -214,37 +198,30 @@ impl Runtime {
     // Safety: the caller should ensure the handle valid.
     unsafe fn register_message(&self, handle: HWND, msg: u32) -> MsgFuture {
         instrument!(Level::DEBUG, "register_message", ?handle, ?msg);
-        let id = self
-            .futures
-            .borrow_mut()
-            .insert(RegisteredFuture::new(handle, msg));
+        let id = self.futures.borrow_mut().insert(FutureState::Active(None));
         self.registry
             .borrow_mut()
             .entry((handle, msg))
             .or_default()
             .insert(id);
         debug!("register: {}", id);
-        MsgFuture { id }
+        MsgFuture { id, handle, msg }
     }
 
     fn replace_waker(&self, id: usize, waker: &Waker) -> Option<WindowMessage> {
         let mut futures = self.futures.borrow_mut();
         let state = futures.get_mut(id).expect("cannot find future");
-        if let FutureState::Completed(msg) = state.state {
+        if let FutureState::Completed(msg) = *state {
             Some(msg)
         } else {
-            state.state = FutureState::Active(Some(waker.clone()));
+            *state = FutureState::Active(Some(waker.clone()));
             None
         }
     }
 
-    fn deregister(&self, id: usize) {
-        let state = self.futures.borrow_mut().remove(id);
-        if let Some(futures) = self
-            .registry
-            .borrow_mut()
-            .get_mut(&(state.handle, state.msg))
-        {
+    fn deregister(&self, id: usize, handle: HWND, msg: u32) {
+        self.futures.borrow_mut().remove(id);
+        if let Some(futures) = self.registry.borrow_mut().get_mut(&(handle, msg)) {
             futures.remove(&id);
         }
     }
@@ -331,6 +308,8 @@ pub(crate) unsafe fn refresh_font(handle: HWND) {
 
 struct MsgFuture {
     id: usize,
+    handle: HWND,
+    msg: u32,
 }
 
 impl Future for MsgFuture {
@@ -350,6 +329,6 @@ impl Future for MsgFuture {
 
 impl Drop for MsgFuture {
     fn drop(&mut self) {
-        RUNTIME.with(|runtime| runtime.deregister(self.id));
+        RUNTIME.with(|runtime| runtime.deregister(self.id, self.handle, self.msg));
     }
 }
