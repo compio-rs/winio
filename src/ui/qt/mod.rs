@@ -68,14 +68,18 @@ impl<T> StaticCastTo<T> for T {
 }
 
 macro_rules! impl_static_cast {
-    ($t:ty, $tbase:ty, $f:expr, $fmut:expr) => {
+    ($t:ty, $tbase:ty) => {
         impl $crate::ui::StaticCastTo<$tbase> for $t {
             fn static_cast(&self) -> &$tbase {
-                unsafe { std::mem::transmute(self) }
+                unsafe { &*(self as *const Self).cast() }
             }
 
             fn static_cast_mut(self: ::std::pin::Pin<&mut Self>) -> ::std::pin::Pin<&mut $tbase> {
-                unsafe { std::mem::transmute(self) }
+                unsafe {
+                    ::std::pin::Pin::new_unchecked(
+                        &mut *(self.get_unchecked_mut() as *mut Self).cast(),
+                    )
+                }
             }
         }
     };

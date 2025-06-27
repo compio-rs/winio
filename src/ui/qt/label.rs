@@ -90,12 +90,7 @@ impl Label {
     }
 }
 
-impl_static_cast!(
-    ffi::QLabel,
-    ffi::QWidget,
-    ffi::static_cast_QLabel_QWidget,
-    ffi::static_cast_mut_QLabel_QWidget
-);
+impl_static_cast!(ffi::QLabel, ffi::QWidget);
 
 #[cxx::bridge]
 mod ffi {

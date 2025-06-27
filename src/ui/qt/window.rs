@@ -143,12 +143,7 @@ impl Drop for Window {
     }
 }
 
-impl_static_cast!(
-    ffi::QMainWindow,
-    ffi::QWidget,
-    ffi::static_cast_QMainWindow_QWidget,
-    ffi::static_cast_mut_QMainWindow_QWidget
-);
+impl_static_cast!(ffi::QMainWindow, ffi::QWidget);
 
 #[cxx::bridge]
 mod ffi {

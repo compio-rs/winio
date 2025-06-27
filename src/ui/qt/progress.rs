@@ -85,12 +85,7 @@ impl Progress {
     }
 }
 
-impl_static_cast!(
-    ffi::QProgressBar,
-    ffi::QWidget,
-    ffi::static_cast_QProgressBar_QWidget,
-    ffi::static_cast_mut_QProgressBar_QWidget
-);
+impl_static_cast!(ffi::QProgressBar, ffi::QWidget);
 
 #[cxx::bridge]
 mod ffi {

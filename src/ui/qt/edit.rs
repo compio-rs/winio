@@ -269,19 +269,9 @@ unsafe impl ExternType for QLineEditEchoMode {
     type Kind = cxx::kind::Trivial;
 }
 
-impl_static_cast!(
-    ffi::QLineEdit,
-    ffi::QWidget,
-    ffi::static_cast_QLineEdit_QWidget,
-    ffi::static_cast_mut_QLineEdit_QWidget
-);
+impl_static_cast!(ffi::QLineEdit, ffi::QWidget);
 
-impl_static_cast!(
-    ffi::QTextEdit,
-    ffi::QWidget,
-    ffi::static_cast_QTextEdit_QWidget,
-    ffi::static_cast_mut_QTextEdit_QWidget
-);
+impl_static_cast!(ffi::QTextEdit, ffi::QWidget);
 
 #[cxx::bridge]
 mod ffi {

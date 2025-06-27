@@ -142,12 +142,7 @@ impl<const E: bool> ComboBoxImpl<E> {
 pub type ComboBox = ComboBoxImpl<false>;
 pub type ComboEntry = ComboBoxImpl<true>;
 
-impl_static_cast!(
-    ffi::QComboBox,
-    ffi::QWidget,
-    ffi::static_cast_QComboBox_QWidget,
-    ffi::static_cast_mut_QComboBox_QWidget
-);
+impl_static_cast!(ffi::QComboBox, ffi::QWidget);
 
 #[cxx::bridge]
 mod ffi {

@@ -126,12 +126,7 @@ impl ListBox {
     }
 }
 
-impl_static_cast!(
-    ffi::QListWidget,
-    ffi::QWidget,
-    ffi::static_cast_QListWidget_QWidget,
-    ffi::static_cast_mut_QListWidget_QWidget
-);
+impl_static_cast!(ffi::QListWidget, ffi::QWidget);
 
 #[cxx::bridge]
 mod ffi {

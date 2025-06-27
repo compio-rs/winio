@@ -162,37 +162,17 @@ unsafe impl ExternType for QtCheckState {
     type Kind = cxx::kind::Trivial;
 }
 
-impl_static_cast!(
-    ffi::QAbstractButton,
-    ffi::QWidget,
-    ffi::static_cast_QAbstractButton_QWidget,
-    ffi::static_cast_mut_QAbstractButton_QWidget
-);
+impl_static_cast!(ffi::QAbstractButton, ffi::QWidget);
 
-impl_static_cast!(
-    ffi::QPushButton,
-    ffi::QAbstractButton,
-    ffi::static_cast_QPushButton_QAbstractButton,
-    ffi::static_cast_mut_QPushButton_QAbstractButton
-);
+impl_static_cast!(ffi::QPushButton, ffi::QAbstractButton);
 
 impl_static_cast_propogate!(ffi::QPushButton, ffi::QAbstractButton, ffi::QWidget);
 
-impl_static_cast!(
-    ffi::QCheckBox,
-    ffi::QAbstractButton,
-    ffi::static_cast_QCheckBox_QAbstractButton,
-    ffi::static_cast_mut_QCheckBox_QAbstractButton
-);
+impl_static_cast!(ffi::QCheckBox, ffi::QAbstractButton);
 
 impl_static_cast_propogate!(ffi::QCheckBox, ffi::QAbstractButton, ffi::QWidget);
 
-impl_static_cast!(
-    ffi::QRadioButton,
-    ffi::QAbstractButton,
-    ffi::static_cast_QRadioButton_QAbstractButton,
-    ffi::static_cast_mut_QRadioButton_QAbstractButton
-);
+impl_static_cast!(ffi::QRadioButton, ffi::QAbstractButton);
 
 impl_static_cast_propogate!(ffi::QRadioButton, ffi::QAbstractButton, ffi::QWidget);
 
