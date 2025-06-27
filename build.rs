@@ -12,6 +12,8 @@ fn main() {
 
     #[cfg(feature = "qt")]
     if target_os.as_deref() != Ok("windows") && target_os.as_deref() != Ok("macos") {
+        use std::path::PathBuf;
+
         let qbuild =
             qt_build_utils::QtBuild::new(vec!["Core".into(), "Gui".into(), "Widgets".into()])
                 .unwrap();
@@ -42,8 +44,10 @@ fn main() {
 
         for s in sources {
             println!("cargo:rerun-if-changed={s}.rs");
-            println!("cargo:rerun-if-changed={s}.cpp");
             println!("cargo:rerun-if-changed={s}.hpp");
+            if PathBuf::from(format!("{s}.cpp")).exists() {
+                println!("cargo:rerun-if-changed={s}.cpp");
+            }
         }
 
         let inc = qbuild.include_paths();
@@ -52,7 +56,6 @@ fn main() {
         build
             .std("c++17")
             .files(sources.iter().filter_map(|s| {
-                use std::path::PathBuf;
                 let path = PathBuf::from(format!("{s}.cpp"));
                 if path.exists() { Some(path) } else { None }
             }))
