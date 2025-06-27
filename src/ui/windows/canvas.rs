@@ -15,14 +15,14 @@ use windows::{
             D2D1_ARC_SEGMENT, D2D1_ARC_SIZE_LARGE, D2D1_ARC_SIZE_SMALL,
             D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR, D2D1_BITMAP_PROPERTIES,
             D2D1_BRUSH_PROPERTIES, D2D1_DEFAULT_FLATTENING_TOLERANCE, D2D1_DRAW_TEXT_OPTIONS_NONE,
-            D2D1_ELLIPSE, D2D1_EXTEND_MODE_CLAMP, D2D1_FACTORY_TYPE_SINGLE_THREADED,
-            D2D1_FEATURE_LEVEL_DEFAULT, D2D1_GAMMA_2_2, D2D1_HWND_RENDER_TARGET_PROPERTIES,
-            D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES, D2D1_PRESENT_OPTIONS_NONE,
-            D2D1_RADIAL_GRADIENT_BRUSH_PROPERTIES, D2D1_RENDER_TARGET_PROPERTIES,
-            D2D1_RENDER_TARGET_TYPE_HARDWARE, D2D1_RENDER_TARGET_USAGE_NONE, D2D1_ROUNDED_RECT,
-            D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_SWEEP_DIRECTION_COUNTER_CLOCKWISE,
-            D2D1CreateFactory, ID2D1Bitmap, ID2D1Brush, ID2D1Factory, ID2D1Geometry,
-            ID2D1GeometrySink, ID2D1HwndRenderTarget, ID2D1PathGeometry, ID2D1RenderTarget,
+            D2D1_ELLIPSE, D2D1_EXTEND_MODE_CLAMP, D2D1_FEATURE_LEVEL_DEFAULT, D2D1_GAMMA_2_2,
+            D2D1_HWND_RENDER_TARGET_PROPERTIES, D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES,
+            D2D1_PRESENT_OPTIONS_NONE, D2D1_RADIAL_GRADIENT_BRUSH_PROPERTIES,
+            D2D1_RENDER_TARGET_PROPERTIES, D2D1_RENDER_TARGET_TYPE_HARDWARE,
+            D2D1_RENDER_TARGET_USAGE_NONE, D2D1_ROUNDED_RECT, D2D1_SWEEP_DIRECTION_CLOCKWISE,
+            D2D1_SWEEP_DIRECTION_COUNTER_CLOCKWISE, ID2D1Bitmap, ID2D1Brush, ID2D1Factory,
+            ID2D1Geometry, ID2D1GeometrySink, ID2D1HwndRenderTarget, ID2D1PathGeometry,
+            ID2D1RenderTarget,
         },
         DirectWrite::{
             DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STYLE_NORMAL,
@@ -49,12 +49,13 @@ use crate::{
     AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, GradientStop, HAlign, LinearGradientBrush,
     MouseButton, Point, RadialGradientBrush, Rect, RectBox, RelativeToLogical, Size,
     SolidColorBrush, VAlign, Vector,
+    runtime::RUNTIME,
     ui::{Widget, darkmode::is_dark_mode_allowed_for_app, font::DWRITE_FACTORY},
 };
 
-thread_local! {
-    static D2D1_FACTORY: ID2D1Factory =
-        unsafe { D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None).unwrap() };
+#[inline]
+fn d2d1<T>(f: impl FnOnce(&ID2D1Factory) -> T) -> T {
+    RUNTIME.with(|runtime| f(runtime.d2d1()))
 }
 
 #[derive(Debug)]
@@ -72,7 +73,7 @@ impl Canvas {
             parent.as_window().as_raw_window(),
         );
         let target = unsafe {
-            D2D1_FACTORY.with(|d2d| {
+            d2d1(|d2d| {
                 d2d.CreateHwndRenderTarget(
                     &D2D1_RENDER_TARGET_PROPERTIES {
                         r#type: D2D1_RENDER_TARGET_TYPE_HARDWARE,
@@ -277,7 +278,7 @@ impl DrawingContext<'_> {
 
     fn get_arc_geo(&self, rect: Rect, start: f64, end: f64, close: bool) -> ID2D1Geometry {
         unsafe {
-            let geo = D2D1_FACTORY.with(|d2d| d2d.CreatePathGeometry().unwrap());
+            let geo = d2d1(|d2d| d2d.CreatePathGeometry().unwrap());
             let sink = geo.Open().unwrap();
             let (radius, centerp, startp, endp) = get_arc(rect, start, end);
             sink.BeginFigure(point_2f(startp), D2D1_FIGURE_BEGIN_HOLLOW);
@@ -550,7 +551,7 @@ pub struct DrawingPathBuilder {
 impl DrawingPathBuilder {
     fn new(start: Point) -> Self {
         unsafe {
-            let geo = D2D1_FACTORY.with(|d2d| d2d.CreatePathGeometry().unwrap());
+            let geo = d2d1(|d2d| d2d.CreatePathGeometry().unwrap());
             let sink = geo.Open().unwrap();
             sink.BeginFigure(point_2f(start), D2D1_FIGURE_BEGIN_HOLLOW);
             Self { geo, sink }

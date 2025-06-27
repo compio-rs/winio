@@ -1,5 +1,5 @@
 use std::{
-    cell::RefCell,
+    cell::{OnceCell, RefCell},
     collections::{HashMap, HashSet},
     future::Future,
     mem::MaybeUninit,
@@ -12,6 +12,9 @@ use std::{
 use compio::driver::AsRawFd;
 use compio_log::*;
 use slab::Slab;
+use windows::Win32::Graphics::Direct2D::{
+    D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1CreateFactory, ID2D1Factory,
+};
 use windows_sys::{
     Win32::{
         Foundation::{HANDLE, HWND, LPARAM, LRESULT, RECT, WAIT_FAILED, WPARAM},
@@ -86,6 +89,7 @@ impl RegisteredFuture {
 
 pub struct Runtime {
     runtime: compio::runtime::Runtime,
+    d2d1: OnceCell<ID2D1Factory>,
     registry: RefCell<HashMap<(HWND, u32), HashSet<usize>>>,
     futures: RefCell<Slab<RegisteredFuture>>,
 }
@@ -100,9 +104,16 @@ impl Runtime {
 
         Self {
             runtime,
+            d2d1: OnceCell::new(),
             registry: RefCell::new(HashMap::new()),
             futures: RefCell::new(Slab::new()),
         }
+    }
+
+    pub(crate) fn d2d1(&self) -> &ID2D1Factory {
+        self.d2d1.get_or_init(|| unsafe {
+            D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None).unwrap()
+        })
     }
 
     fn enter<T, F: FnOnce() -> T>(&self, f: F) -> T {
