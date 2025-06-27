@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, ops::Deref, ptr::null};
+use std::{ops::Deref, ptr::null};
 
 use image::DynamicImage;
 use objc2::{
@@ -99,7 +99,7 @@ impl Canvas {
             DrawingContext {
                 size,
                 layer,
-                _p: PhantomData,
+                canvas: self,
             }
         }
     }
@@ -196,7 +196,7 @@ unsafe fn mouse_button(event: &NSEvent) -> MouseButton {
 pub struct DrawingContext<'a> {
     size: Size,
     layer: Retained<CALayer>,
-    _p: PhantomData<&'a mut Canvas>,
+    canvas: &'a mut Canvas,
 }
 
 impl DrawingContext<'_> {
@@ -286,6 +286,11 @@ impl DrawingContext<'_> {
             layer.setFrame(transform_rect(self.size, rect));
             layer.setString(Some(&astr));
             layer.setWrapped(true);
+            if let Some(window) = self.canvas.view.window() {
+                if let Some(screen) = window.screen() {
+                    layer.setContentsScale(screen.backingScaleFactor());
+                }
+            }
             let brush_layer = brush.create_layer();
             brush_layer.setFrame(self.layer.bounds());
             brush_layer.setMask(Some(&layer));
