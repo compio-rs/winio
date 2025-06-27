@@ -71,7 +71,7 @@ macro_rules! __init_assign {
 ///             WindowEvent::Resize => MainMessage::Redraw,
 ///         },
 ///         self.canvas => {
-///             CanvasEvent::Redraw => MainMessage::Redraw,
+///             CanvasEvent::MouseMove(_) => MainMessage::Redraw,
 ///         },
 ///     };
 /// }
