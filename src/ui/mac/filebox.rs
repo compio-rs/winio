@@ -1,4 +1,4 @@
-use std::{cell::RefCell, path::PathBuf, rc::Rc};
+use std::{cell::Cell, path::PathBuf, rc::Rc};
 
 use block2::StackBlock;
 use objc2::rc::Retained;
@@ -184,10 +184,9 @@ async unsafe fn filebox(
 
     let res = if let Some(parent) = &parent {
         let (tx, rx) = local_sync::oneshot::channel();
-        let tx = Rc::new(RefCell::new(Some(tx)));
+        let tx = Rc::new(Cell::new(Some(tx)));
         let block = StackBlock::new(move |res| {
-            tx.borrow_mut()
-                .take()
+            tx.take()
                 .expect("the handler should only be called once")
                 .send(res)
                 .ok();

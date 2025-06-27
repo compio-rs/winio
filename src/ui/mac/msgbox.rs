@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::Cell, rc::Rc};
 
 use block2::StackBlock;
 use compio::buf::arrayvec::ArrayVec;
@@ -82,10 +82,9 @@ async fn msgbox_custom(
 
         if let Some(parent) = &parent {
             let (tx, rx) = local_sync::oneshot::channel();
-            let tx = Rc::new(RefCell::new(Some(tx)));
+            let tx = Rc::new(Cell::new(Some(tx)));
             let block = StackBlock::new(move |res| {
-                tx.borrow_mut()
-                    .take()
+                tx.take()
                     .expect("the handler should only be called once")
                     .send(responses[(res - NSAlertFirstButtonReturn) as usize])
                     .ok();
