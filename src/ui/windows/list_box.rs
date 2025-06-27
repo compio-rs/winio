@@ -11,7 +11,7 @@ use windows_sys::Win32::UI::{
 
 use crate::{
     AsRawWindow, AsWindow, Point, Size,
-    runtime::WindowMessageDetail,
+    runtime::WindowMessageCommand,
     ui::{Widget, font::measure_string},
 };
 
@@ -114,16 +114,13 @@ impl ListBox {
 
     pub async fn wait_select(&self) {
         loop {
-            let msg = self.handle.wait_parent(WM_COMMAND).await;
-            if let Some(WindowMessageDetail::Command {
+            let WindowMessageCommand {
                 message, handle, ..
-            }) = msg.detail
+            } = self.handle.wait_parent(WM_COMMAND).await.command();
+            if std::ptr::eq(handle, self.handle.as_raw_window())
+                && (message == LBN_SELCHANGE || message == LBN_SELCANCEL)
             {
-                if std::ptr::eq(handle, self.handle.as_raw_window())
-                    && (message == LBN_SELCHANGE || message == LBN_SELCANCEL)
-                {
-                    break;
-                }
+                break;
             }
         }
     }

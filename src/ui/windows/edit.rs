@@ -14,7 +14,7 @@ use windows_sys::Win32::{
 
 use crate::{
     AsRawWindow, AsWindow, HAlign, Point, RawWindow, Size,
-    runtime::WindowMessageDetail,
+    runtime::WindowMessageCommand,
     ui::{Widget, font::measure_string, sys::fix_crlf},
 };
 
@@ -104,14 +104,11 @@ impl EditImpl {
 
     pub async fn wait_change(&self) {
         loop {
-            let msg = self.handle.wait_parent(WM_COMMAND).await;
-            if let Some(WindowMessageDetail::Command {
+            let WindowMessageCommand {
                 message, handle, ..
-            }) = msg.detail
-            {
-                if std::ptr::eq(handle, self.handle.as_raw_window()) && (message == EN_UPDATE) {
-                    break;
-                }
+            } = self.handle.wait_parent(WM_COMMAND).await.command();
+            if std::ptr::eq(handle, self.handle.as_raw_window()) && (message == EN_UPDATE) {
+                break;
             }
         }
     }

@@ -23,9 +23,9 @@ use windows_sys::{
         UI::WindowsAndMessaging::{
             DefWindowProcW, DispatchMessageW, EnumChildWindows, MWMO_ALERTABLE,
             MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW, QS_ALLINPUT,
-            SWP_NOACTIVATE, SWP_NOZORDER, SendMessageW, SetWindowPos, TranslateMessage, WM_COMMAND,
-            WM_CREATE, WM_CTLCOLORBTN, WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC,
-            WM_DPICHANGED, WM_SETFONT, WM_SETTINGCHANGE,
+            SWP_NOACTIVATE, SWP_NOZORDER, SendMessageW, SetWindowPos, TranslateMessage, WM_CREATE,
+            WM_CTLCOLORBTN, WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC, WM_DPICHANGED,
+            WM_SETFONT, WM_SETTINGCHANGE,
         },
     },
     core::BOOL,
@@ -45,19 +45,27 @@ use crate::ui::{
 pub(crate) struct WindowMessage {
     // pub handle: HWND,
     // pub message: u32,
-    // pub wparam: WPARAM,
+    pub wparam: WPARAM,
     pub lparam: LPARAM,
-    pub detail: Option<WindowMessageDetail>,
 }
 
-#[derive(Clone, Copy)]
-#[non_exhaustive]
-pub(crate) enum WindowMessageDetail {
-    Command {
-        message: u32,
-        // id: usize,
-        handle: HWND,
-    },
+impl WindowMessage {
+    pub(crate) fn command(self) -> WindowMessageCommand {
+        let message = (self.wparam as u32 >> 16) & 0xFFFF;
+        // let id = wparam as u32 & 0xFFFF;
+        let handle = self.lparam as HWND;
+        WindowMessageCommand {
+            message,
+            // id: id as _,
+            handle,
+        }
+    }
+}
+
+pub(crate) struct WindowMessageCommand {
+    pub message: u32,
+    // pub id: usize,
+    pub handle: HWND,
 }
 
 pub(crate) enum FutureState {
@@ -180,25 +188,11 @@ impl Runtime {
     }
 
     fn set_current_msg(&self, handle: HWND, message: u32, wparam: WPARAM, lparam: LPARAM) -> bool {
-        let detail = match message {
-            WM_COMMAND => {
-                let message = (wparam as u32 >> 16) & 0xFFFF;
-                // let id = wparam as u32 & 0xFFFF;
-                let handle = lparam as HWND;
-                Some(WindowMessageDetail::Command {
-                    message,
-                    // id: id as _,
-                    handle,
-                })
-            }
-            _ => None,
-        };
         let full_msg = WindowMessage {
             // handle,
             // message,
-            // wparam,
+            wparam,
             lparam,
-            detail,
         };
         let completes = self.registry.borrow_mut().remove(&(handle, message));
         if let Some(completes) = completes {
