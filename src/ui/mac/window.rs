@@ -56,7 +56,9 @@ impl Window {
             wnd.setDelegate(Some(&del_obj));
             wnd.setAcceptsMouseMovedEvents(true);
             wnd.makeKeyWindow();
-            Self { wnd, delegate }
+            let mut this = Self { wnd, delegate };
+            this.set_loc(Point::zero());
+            this
         }
     }
 
@@ -192,10 +194,12 @@ impl Widget {
         unsafe {
             let parent = parent.as_window().as_raw_window().contentView().unwrap();
             parent.addSubview(&view);
-            Self {
+            let mut this = Self {
                 parent: Weak::from_retained(&parent),
                 view,
-            }
+            };
+            this.set_loc(Point::zero());
+            this
         }
     }
 

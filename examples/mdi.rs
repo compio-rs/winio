@@ -1,6 +1,6 @@
 use winio::{
-    App, CheckBox, CheckBoxEvent, Child, Component, ComponentSender, Layoutable, Size, Visible,
-    Window, WindowEvent, init, start,
+    App, CheckBox, CheckBoxEvent, Child, Component, ComponentSender, Layoutable, Point, Size,
+    Visible, Window, WindowEvent, init, start,
 };
 
 fn main() {
@@ -58,8 +58,9 @@ impl Component for MainModel {
     }
 
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
-        futures_util::future::join(self.window.update(), self.cwindow.update()).await;
-        match message {
+        let (b1, b2) =
+            futures_util::future::join(self.window.update(), self.cwindow.update()).await;
+        let b3 = match message {
             MainMessage::Noop => false,
             MainMessage::Close => {
                 sender.output(());
@@ -71,7 +72,8 @@ impl Component for MainModel {
                     .set_text(if b { "Checked" } else { "MDI example" });
                 false
             }
-        }
+        };
+        b1 | b2 | b3
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {
@@ -148,6 +150,7 @@ impl Component for ChildModel {
 
         let csize = self.window.client_size();
         let psize = self.check.preferred_size();
+        self.check.set_loc(Point::zero());
         self.check.set_size(Size::new(csize.width, psize.height));
     }
 }
