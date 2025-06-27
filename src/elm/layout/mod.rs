@@ -41,6 +41,8 @@ pub trait Enable {
 }
 
 /// Trait for a layoutable widget.
+///
+/// To create a responsive layout, always set location and size together.
 pub trait Layoutable {
     /// The left top location.
     fn loc(&self) -> Point;
