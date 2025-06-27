@@ -1,6 +1,6 @@
 use std::{
     cell::{OnceCell, RefCell},
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     future::Future,
     mem::MaybeUninit,
     pin::Pin,
@@ -82,8 +82,7 @@ impl Default for FutureState {
 pub struct Runtime {
     runtime: compio::runtime::Runtime,
     d2d1: OnceCell<ID2D1Factory>,
-    registry: RefCell<HashMap<(HWND, u32), HashSet<usize>>>,
-    futures: RefCell<Slab<FutureState>>,
+    registry: RefCell<HashMap<(HWND, u32), Slab<FutureState>>>,
 }
 
 impl Runtime {
@@ -98,7 +97,6 @@ impl Runtime {
             runtime,
             d2d1: OnceCell::new(),
             registry: RefCell::new(HashMap::new()),
-            futures: RefCell::new(Slab::new()),
         }
     }
 
@@ -178,12 +176,11 @@ impl Runtime {
             wparam,
             lparam,
         };
-        let completes = self.registry.borrow_mut().remove(&(handle, message));
+        let mut registry = self.registry.borrow_mut();
+        let completes = registry.get_mut(&(handle, message));
         if let Some(completes) = completes {
             let dealt = !completes.is_empty();
-            let mut futures = self.futures.borrow_mut();
-            for id in completes {
-                let state = futures.get_mut(id).expect("cannot find registered future");
+            for (_, state) in completes {
                 let state = std::mem::replace(state, FutureState::Completed(full_msg));
                 if let FutureState::Active(Some(w)) = state {
                     w.wake();
@@ -198,31 +195,38 @@ impl Runtime {
     // Safety: the caller should ensure the handle valid.
     unsafe fn register_message(&self, handle: HWND, msg: u32) -> MsgFuture {
         instrument!(Level::DEBUG, "register_message", ?handle, ?msg);
-        let id = self.futures.borrow_mut().insert(FutureState::Active(None));
-        self.registry
+        let id = self
+            .registry
             .borrow_mut()
             .entry((handle, msg))
             .or_default()
-            .insert(id);
+            .insert(FutureState::Active(None));
         debug!("register: {}", id);
         MsgFuture { id, handle, msg }
     }
 
-    fn replace_waker(&self, id: usize, waker: &Waker) -> Option<WindowMessage> {
-        let mut futures = self.futures.borrow_mut();
-        let state = futures.get_mut(id).expect("cannot find future");
-        if let FutureState::Completed(msg) = *state {
-            Some(msg)
-        } else {
-            *state = FutureState::Active(Some(waker.clone()));
-            None
+    fn replace_waker(
+        &self,
+        id: usize,
+        handle: HWND,
+        msg: u32,
+        waker: &Waker,
+    ) -> Option<WindowMessage> {
+        if let Some(futures) = self.registry.borrow_mut().get_mut(&(handle, msg)) {
+            if let Some(state) = futures.get_mut(id) {
+                if let FutureState::Completed(msg) = *state {
+                    return Some(msg);
+                } else {
+                    *state = FutureState::Active(Some(waker.clone()));
+                }
+            }
         }
+        None
     }
 
     fn deregister(&self, id: usize, handle: HWND, msg: u32) {
-        self.futures.borrow_mut().remove(id);
         if let Some(futures) = self.registry.borrow_mut().get_mut(&(handle, msg)) {
-            futures.remove(&id);
+            futures.remove(id);
         }
     }
 }
@@ -317,7 +321,9 @@ impl Future for MsgFuture {
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         instrument!(Level::DEBUG, "MsgFuture", ?self.id);
-        if let Some(msg) = RUNTIME.with(|runtime| runtime.replace_waker(self.id, cx.waker())) {
+        if let Some(msg) = RUNTIME
+            .with(|runtime| runtime.replace_waker(self.id, self.handle, self.msg, cx.waker()))
+        {
             debug!("ready!");
             Poll::Ready(msg)
         } else {
