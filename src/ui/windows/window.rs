@@ -1,7 +1,7 @@
 use std::{
     mem::MaybeUninit,
     ptr::{null, null_mut},
-    sync::OnceLock,
+    sync::Once,
 };
 
 use compio::driver::syscall;
@@ -344,10 +344,10 @@ fn register() {
     syscall!(BOOL, unsafe { RegisterClassExW(&cls) }).unwrap();
 }
 
-static REGISTER: OnceLock<()> = OnceLock::new();
+static REGISTER: Once = Once::new();
 
 fn register_once() {
-    REGISTER.get_or_init(register);
+    REGISTER.call_once(register);
 }
 
 #[derive(Debug)]
