@@ -39,7 +39,7 @@ use windows_sys::Win32::{
     UI::{
         Controls::WC_STATICW,
         WindowsAndMessaging::{
-            WM_DRAWITEM, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE,
+            WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE,
             WM_RBUTTONDOWN, WM_RBUTTONUP, WS_CHILD, WS_VISIBLE,
         },
     },
@@ -49,7 +49,6 @@ use crate::{
     AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, GradientStop, HAlign, LinearGradientBrush,
     MouseButton, Point, RadialGradientBrush, Rect, RectBox, RelativeToLogical, Size,
     SolidColorBrush, VAlign, Vector,
-    runtime::WindowMessageDetail,
     ui::{Widget, darkmode::is_dark_mode_allowed_for_app, font::DWRITE_FACTORY},
 };
 
@@ -148,17 +147,6 @@ impl Canvas {
                 })));
             DrawingContext {
                 target: &self.target,
-            }
-        }
-    }
-
-    pub async fn wait_redraw(&self) {
-        loop {
-            let msg = self.handle.wait_parent(WM_DRAWITEM).await;
-            if let Some(WindowMessageDetail::DrawItem { handle }) = msg.detail {
-                if std::ptr::eq(handle, self.handle.as_raw_window()) {
-                    break;
-                }
             }
         }
     }

@@ -3,9 +3,9 @@ use std::time::Duration;
 use compio::{runtime::spawn, time::timeout};
 use cyper::Client;
 use winio::{
-    App, Button, ButtonEvent, Canvas, CanvasEvent, Child, Color, ColorTheme, Component,
-    ComponentSender, DrawingFontBuilder, Edit, HAlign, Layoutable, Orient, Point, Size,
-    SolidColorBrush, StackPanel, VAlign, Visible, Window, WindowEvent, init, layout, start,
+    App, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, Component, ComponentSender,
+    DrawingFontBuilder, Edit, HAlign, Layoutable, Orient, Point, Size, SolidColorBrush, StackPanel,
+    VAlign, Visible, Window, WindowEvent, init, layout, start,
 };
 
 fn main() {
@@ -86,9 +86,6 @@ impl Component for MainModel {
             self.window => {
                 WindowEvent::Close => MainMessage::Close,
                 WindowEvent::Resize => MainMessage::Redraw,
-            },
-            self.canvas => {
-                CanvasEvent::Redraw => MainMessage::Redraw,
             },
             self.button => {
                 ButtonEvent::Click => MainMessage::Go,

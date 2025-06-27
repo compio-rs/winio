@@ -57,8 +57,6 @@ impl Layoutable for Canvas {
 /// Events of [`Canvas`].
 #[non_exhaustive]
 pub enum CanvasEvent {
-    /// The canvas needs redraw.
-    Redraw,
     /// The mouse moves.
     MouseMove(Point),
     /// The mouse button pressed down.
@@ -78,12 +76,6 @@ impl Component for Canvas {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        let fut_redraw = async {
-            loop {
-                self.widget.wait_redraw().await;
-                sender.output(CanvasEvent::Redraw);
-            }
-        };
         let fut_move = async {
             loop {
                 let p = self.widget.wait_mouse_move().await;
@@ -102,7 +94,7 @@ impl Component for Canvas {
                 sender.output(CanvasEvent::MouseUp(b));
             }
         };
-        futures_util::future::join4(fut_redraw, fut_move, fut_down, fut_up)
+        futures_util::future::join3(fut_move, fut_down, fut_up)
             .await
             .0
     }

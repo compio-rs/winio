@@ -80,7 +80,6 @@ impl Component for MainModel {
                 WindowEvent::Resize => MainMessage::Redraw,
             },
             self.canvas => {
-                CanvasEvent::Redraw => MainMessage::Redraw,
                 CanvasEvent::MouseDown(b) | CanvasEvent::MouseUp(b) => MainMessage::Mouse(b),
                 CanvasEvent::MouseMove(p) => MainMessage::MouseMove(p),
             },

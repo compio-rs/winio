@@ -17,16 +17,12 @@ use windows_sys::{
         Foundation::{HANDLE, HWND, LPARAM, LRESULT, RECT, WAIT_FAILED, WPARAM},
         Graphics::Gdi::{BLACK_BRUSH, GetStockObject, HDC, InvalidateRect},
         System::Threading::INFINITE,
-        UI::{
-            Controls::DRAWITEMSTRUCT,
-            WindowsAndMessaging::{
-                DefWindowProcW, DispatchMessageW, EnumChildWindows, MWMO_ALERTABLE,
-                MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW,
-                QS_ALLINPUT, SWP_NOACTIVATE, SWP_NOZORDER, SendMessageW, SetWindowPos,
-                TranslateMessage, WM_COMMAND, WM_CREATE, WM_CTLCOLORBTN, WM_CTLCOLOREDIT,
-                WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC, WM_DPICHANGED, WM_DRAWITEM, WM_SETFONT,
-                WM_SETTINGCHANGE,
-            },
+        UI::WindowsAndMessaging::{
+            DefWindowProcW, DispatchMessageW, EnumChildWindows, MWMO_ALERTABLE,
+            MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW, QS_ALLINPUT,
+            SWP_NOACTIVATE, SWP_NOZORDER, SendMessageW, SetWindowPos, TranslateMessage, WM_COMMAND,
+            WM_CREATE, WM_CTLCOLORBTN, WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC,
+            WM_DPICHANGED, WM_SETFONT, WM_SETTINGCHANGE,
         },
     },
     core::BOOL,
@@ -57,9 +53,6 @@ pub(crate) enum WindowMessageDetail {
     Command {
         message: u32,
         // id: usize,
-        handle: HWND,
-    },
-    DrawItem {
         handle: HWND,
     },
 }
@@ -185,12 +178,6 @@ impl Runtime {
                     message,
                     // id: id as _,
                     handle,
-                })
-            }
-            WM_DRAWITEM => {
-                let drawitem = &unsafe { *(lparam as *const DRAWITEMSTRUCT) };
-                Some(WindowMessageDetail::DrawItem {
-                    handle: drawitem.hwndItem,
                 })
             }
             _ => None,

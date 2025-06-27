@@ -145,10 +145,6 @@ impl Canvas {
         }
     }
 
-    pub async fn wait_redraw(&self) {
-        std::future::pending().await
-    }
-
     pub async fn wait_mouse_down(&self) -> MouseButton {
         self.on_pressed.wait().await
     }

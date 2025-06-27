@@ -1,11 +1,11 @@
 use winio::{
-    App, BrushPen, Button, ButtonEvent, Canvas, CanvasEvent, CheckBox, CheckBoxEvent, Child, Color,
-    ColorTheme, ComboBox, ComboBoxEvent, ComboBoxMessage, Component, ComponentSender,
-    DrawingFontBuilder, Edit, Enable, GradientStop, Grid, HAlign, Label, Layoutable,
-    LinearGradientBrush, Margin, MessageBox, MessageBoxButton, ObservableVec, ObservableVecEvent,
-    Orient, Point, Progress, RadialGradientBrush, RadioButton, RadioButtonGroup, Rect,
-    RelativePoint, RelativeSize, Size, SolidColorBrush, StackPanel, TextBox, VAlign, Visible,
-    Window, WindowEvent, accent_color, init, layout, start,
+    App, BrushPen, Button, ButtonEvent, Canvas, CheckBox, CheckBoxEvent, Child, Color, ColorTheme,
+    ComboBox, ComboBoxEvent, ComboBoxMessage, Component, ComponentSender, DrawingFontBuilder, Edit,
+    Enable, GradientStop, Grid, HAlign, Label, Layoutable, LinearGradientBrush, Margin, MessageBox,
+    MessageBoxButton, ObservableVec, ObservableVecEvent, Orient, Point, Progress,
+    RadialGradientBrush, RadioButton, RadioButtonGroup, Rect, RelativePoint, RelativeSize, Size,
+    SolidColorBrush, StackPanel, TextBox, VAlign, Visible, Window, WindowEvent, accent_color, init,
+    layout, start,
 };
 
 fn main() {
@@ -159,9 +159,6 @@ impl Component for MainModel {
             },
             self.combo => {
                 ComboBoxEvent::Select => MainMessage::Select,
-            },
-            self.canvas => {
-                CanvasEvent::Redraw => MainMessage::Redraw,
             },
             self.push_button => {
                 ButtonEvent::Click => MainMessage::Push,
