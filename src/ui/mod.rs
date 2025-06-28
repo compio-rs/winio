@@ -6,8 +6,11 @@ cfg_if::cfg_if! {
         #[path = "mac/mod.rs"]
         mod sys;
     } else {
-        #[cfg(all(not(feature = "gtk"), not(feature = "qt")))]
-        compile_error!("You must choose one of these features: [\"gtk\", \"qt\"]");
+        #[cfg(any(
+            all(not(feature = "gtk"), not(feature = "qt")),
+            all(feature = "gtk", feature = "qt")
+        ))]
+        compile_error!("You must choose only one of these features: [\"gtk\", \"qt\"]");
 
         cfg_if::cfg_if! {
             if #[cfg(feature = "qt")] {
