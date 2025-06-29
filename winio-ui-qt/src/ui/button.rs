@@ -1,11 +1,14 @@
 use std::fmt::Debug;
 
 use cxx::{ExternType, UniquePtr, memory::UniquePtrTarget, type_id};
+use winio_callback::Callback;
+use winio_handle::AsWindow;
+use winio_primitive::{Point, Size};
 
 use crate::{
-    AsRawWindow, AsWindow, Point, Size,
+    GlobalRuntime,
     ui::{
-        Callback, StaticCastTo, Widget, impl_static_cast, impl_static_cast_propogate, static_cast,
+        StaticCastTo, Widget, impl_static_cast, impl_static_cast_propogate, static_cast,
         static_cast_mut,
     },
 };
@@ -18,6 +21,7 @@ where
     widget: Widget<T>,
 }
 
+#[allow(private_bounds)]
 impl<T> ButtonImpl<T>
 where
     T: StaticCastTo<ffi::QAbstractButton> + StaticCastTo<ffi::QWidget> + UniquePtrTarget,
@@ -85,7 +89,7 @@ where
     fn on_click(c: *const u8) {
         let c = c as *const Callback<()>;
         if let Some(c) = unsafe { c.as_ref() } {
-            c.signal(());
+            c.signal::<GlobalRuntime>(());
         }
     }
 
@@ -109,14 +113,14 @@ pub type RadioButton = ButtonImpl<ffi::QRadioButton>;
 
 impl Button {
     pub fn new(parent: impl AsWindow) -> Self {
-        let widget = unsafe { ffi::new_push_button(parent.as_window().as_raw_window()) };
+        let widget = unsafe { ffi::new_push_button(parent.as_window().as_qt()) };
         Self::new_impl(widget)
     }
 }
 
 impl CheckBox {
     pub fn new(parent: impl AsWindow) -> Self {
-        let widget = unsafe { ffi::new_check_box(parent.as_window().as_raw_window()) };
+        let widget = unsafe { ffi::new_check_box(parent.as_window().as_qt()) };
         Self::new_impl(widget)
     }
 
@@ -135,7 +139,7 @@ impl CheckBox {
 
 impl RadioButton {
     pub fn new(parent: impl AsWindow) -> Self {
-        let widget = unsafe { ffi::new_radio_button(parent.as_window().as_raw_window()) };
+        let widget = unsafe { ffi::new_radio_button(parent.as_window().as_qt()) };
         Self::new_impl(widget)
     }
 
@@ -148,6 +152,7 @@ impl RadioButton {
     }
 }
 
+#[doc(hidden)]
 #[repr(i32)]
 #[allow(dead_code)]
 #[derive(PartialEq, Eq)]
@@ -179,7 +184,7 @@ impl_static_cast_propogate!(ffi::QRadioButton, ffi::QAbstractButton, ffi::QWidge
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++-unwind" {
-        include!("winio/src/ui/qt/button.hpp");
+        include!("winio-ui-qt/src/ui/button.hpp");
 
         type QWidget = crate::ui::QWidget;
         type QString = crate::ui::QString;

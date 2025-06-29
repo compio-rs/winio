@@ -1,5 +1,5 @@
 mod common;
-pub use common::*;
+pub(crate) use common::*;
 
 mod window;
 pub use window::*;
@@ -8,7 +8,7 @@ mod canvas;
 pub use canvas::*;
 
 mod widget;
-pub use widget::*;
+pub(crate) use widget::*;
 
 mod monitor;
 pub use monitor::*;
@@ -36,21 +36,6 @@ pub use combo_box::*;
 
 mod list_box;
 pub use list_box::*;
-
-use crate::ColorTheme;
-
-pub fn color_theme() -> ColorTheme {
-    if is_dark() {
-        ColorTheme::Dark
-    } else {
-        ColorTheme::Light
-    }
-}
-
-/// Pointer to `QWidget`.
-pub type RawWindow = *mut QWidget;
-
-use std::pin::Pin;
 
 pub(crate) trait StaticCastTo<T> {
     fn static_cast(&self) -> &T;
@@ -110,4 +95,16 @@ pub(crate) fn static_cast<T>(p: &impl StaticCastTo<T>) -> &T {
 #[inline(always)]
 pub(crate) fn static_cast_mut<T>(p: Pin<&mut impl StaticCastTo<T>>) -> Pin<&mut T> {
     StaticCastTo::<T>::static_cast_mut(p)
+}
+
+use std::pin::Pin;
+
+use winio_primitive::ColorTheme;
+
+pub fn color_theme() -> ColorTheme {
+    if is_dark() {
+        ColorTheme::Dark
+    } else {
+        ColorTheme::Light
+    }
 }

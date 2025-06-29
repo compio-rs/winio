@@ -108,9 +108,7 @@ libc = "0.2"
 
 [target.'cfg(not(any(windows, target_os = "macos")))'.dependencies]
 winio-ui-gtk = { workspace = true, optional = true }
-
-cxx = { version = "1.0.160", optional = true, features = ["c++17"] }
-local-sync = { version = "0.1", optional = true }
+winio-ui-qt = { workspace = true, optional = true }
 
 [dev-dependencies]
 compio = { version = "0.15.0", features = ["time", "rustls", "ring"] }
@@ -131,13 +129,10 @@ tracing-subscriber = "0.3"
 [build-dependencies]
 embed-resource = "3"
 
-cxx-build = { version = "1.0.160", optional = true }
-qt-build-utils = { version = "0.7", optional = true }
-
 [features]
 default = ["qt", "win32-dark-mode"]
 gtk = ["dep:winio-ui-gtk"]
-qt = ["dep:cxx", "dep:cxx-build", "dep:qt-build-utils", "dep:local-sync"]
+qt = ["dep:winio-ui-qt"]
 enable_log = ["compio/enable_log", "compio-log/enable_log"]
 
 nightly = ["compio/nightly", "cyper/nightly"]

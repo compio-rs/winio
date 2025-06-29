@@ -1,6 +1,10 @@
+use winio_callback::Callback;
+use winio_handle::AsWindow;
+use winio_primitive::{Point, Size};
+
 use crate::{
-    AsRawWindow, AsWindow, Point, Size,
-    ui::{Callback, Widget, impl_static_cast},
+    GlobalRuntime,
+    ui::{Widget, impl_static_cast},
 };
 
 #[derive(Debug)]
@@ -12,7 +16,7 @@ pub struct ComboBoxImpl<const E: bool> {
 
 impl<const E: bool> ComboBoxImpl<E> {
     pub fn new(parent: impl AsWindow) -> Self {
-        let mut widget = unsafe { ffi::new_combo_box(parent.as_window().as_raw_window(), E) };
+        let mut widget = unsafe { ffi::new_combo_box(parent.as_window().as_qt(), E) };
         let on_changed = Box::new(Callback::new());
         let on_select = Box::new(Callback::new());
         unsafe {
@@ -93,14 +97,14 @@ impl<const E: bool> ComboBoxImpl<E> {
     fn on_select(c: *const u8) {
         let c = c as *const Callback<()>;
         if let Some(c) = unsafe { c.as_ref() } {
-            c.signal(());
+            c.signal::<GlobalRuntime>(());
         }
     }
 
     fn on_changed(c: *const u8) {
         let c = c as *const Callback<()>;
         if let Some(c) = unsafe { c.as_ref() } {
-            c.signal(());
+            c.signal::<GlobalRuntime>(());
         }
     }
 
@@ -134,6 +138,10 @@ impl<const E: bool> ComboBoxImpl<E> {
         self.widget.as_ref().count() as _
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn clear(&mut self) {
         self.widget.pin_mut().clear();
     }
@@ -147,7 +155,7 @@ impl_static_cast!(ffi::QComboBox, ffi::QWidget);
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++-unwind" {
-        include!("winio/src/ui/qt/combo_box.hpp");
+        include!("winio-ui-qt/src/ui/combo_box.hpp");
 
         type QWidget = crate::ui::QWidget;
         type QComboBox;

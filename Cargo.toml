@@ -9,6 +9,7 @@ members = [
     "winio-pollable",
     "winio-ui-win32",
     "winio-ui-gtk",
+    "winio-ui-qt",
 ]
 
 resolver = "2"
@@ -29,6 +30,7 @@ winio-elm = { path = "winio-elm", version = "0.1.0" }
 winio-pollable = { path = "winio-pollable", version = "0.1.0" }
 winio-ui-win32 = { path = "winio-ui-win32", version = "0.1.0" }
 winio-ui-gtk = { path = "winio-ui-gtk", version = "0.1.0" }
+winio-ui-qt = { path = "winio-ui-qt", version = "0.1.0" }
 
 compio = "0.15.0"
 compio-log = "0.1.0"

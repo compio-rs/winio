@@ -1,4 +1,6 @@
-use crate::{Monitor, Point, Rect, Size, ui::QRect};
+use winio_primitive::{Monitor, Point, Rect, Size};
+
+use crate::ui::QRect;
 
 pub fn monitor_get_all() -> Vec<Monitor> {
     ffi::screen_all()
@@ -31,7 +33,7 @@ mod ffi {
     }
 
     unsafe extern "C++-unwind" {
-        include!("winio/src/ui/qt/monitor.hpp");
+        include!("winio-ui-qt/src/ui/monitor.hpp");
 
         type QRect = super::QRect;
 

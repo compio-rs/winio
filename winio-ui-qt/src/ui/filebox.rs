@@ -2,8 +2,7 @@ use std::{mem::ManuallyDrop, path::PathBuf, ptr::null_mut};
 
 use cxx::{ExternType, type_id};
 use local_sync::oneshot;
-
-use crate::{AsRawWindow, AsWindow};
+use winio_handle::AsWindow;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileFilter {
@@ -80,9 +79,7 @@ impl FileBox {
         multiple: bool,
         folder: bool,
     ) -> Vec<PathBuf> {
-        let parent = parent
-            .map(|p| p.as_window().as_raw_window())
-            .unwrap_or(null_mut());
+        let parent = parent.map(|p| p.as_window().as_qt()).unwrap_or(null_mut());
         let mut b = unsafe { ffi::new_file_dialog(parent) };
 
         if open {
@@ -169,7 +166,7 @@ unsafe impl ExternType for QFileDialogFileMode {
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++-unwind" {
-        include!("winio/src/ui/qt/filebox.hpp");
+        include!("winio-ui-qt/src/ui/filebox.hpp");
 
         type QFileDialog;
         type QWidget = crate::ui::QWidget;

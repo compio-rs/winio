@@ -1,7 +1,7 @@
-use crate::{
-    AsRawWindow, AsWindow, HAlign, Point, Size,
-    ui::{QtAlignmentFlag, Widget, impl_static_cast},
-};
+use winio_handle::AsWindow;
+use winio_primitive::{HAlign, Point, Size};
+
+use crate::ui::{QtAlignmentFlag, Widget, impl_static_cast};
 
 #[derive(Debug)]
 pub struct Label {
@@ -10,7 +10,7 @@ pub struct Label {
 
 impl Label {
     pub fn new(parent: impl AsWindow) -> Self {
-        let widget = unsafe { ffi::new_label(parent.as_window().as_raw_window()) };
+        let widget = unsafe { ffi::new_label(parent.as_window().as_qt()) };
         let mut widget = Widget::new(widget);
         widget.set_visible(true);
         Self { widget }
@@ -95,7 +95,7 @@ impl_static_cast!(ffi::QLabel, ffi::QWidget);
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++-unwind" {
-        include!("winio/src/ui/qt/label.hpp");
+        include!("winio-ui-qt/src/ui/label.hpp");
 
         type QWidget = crate::ui::QWidget;
         type QLabel;

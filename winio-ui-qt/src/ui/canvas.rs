@@ -1,14 +1,16 @@
 use std::{mem::MaybeUninit, pin::Pin};
 
 use cxx::{ExternType, UniquePtr, type_id};
-pub use ffi::QWidget;
+pub(crate) use ffi::QWidget;
 use image::{DynamicImage, Pixel, Rgb, Rgba};
-
-use crate::{
-    AsRawWindow, AsWindow, BrushPen, Color, DrawingFont, HAlign, LinearGradientBrush, MouseButton,
-    Point, RadialGradientBrush, Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, VAlign,
-    ui::{Callback, Widget},
+use winio_callback::Callback;
+use winio_handle::AsWindow;
+use winio_primitive::{
+    BrushPen, Color, DrawingFont, HAlign, LinearGradientBrush, MouseButton, Point,
+    RadialGradientBrush, Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, VAlign,
 };
+
+use crate::{GlobalRuntime, ui::Widget};
 
 #[derive(Debug)]
 pub struct Canvas {
@@ -20,7 +22,7 @@ pub struct Canvas {
 
 impl Canvas {
     pub fn new(parent: impl AsWindow) -> Self {
-        let mut widget = unsafe { ffi::new_canvas(parent.as_window().as_raw_window()) };
+        let mut widget = unsafe { ffi::new_canvas(parent.as_window().as_qt()) };
         widget.pin_mut().setVisible(true);
         let on_move = Box::new(Callback::new());
         let on_press = Box::new(Callback::new());
@@ -85,21 +87,21 @@ impl Canvas {
     fn on_move(c: *const u8, x: i32, y: i32) {
         let c = c as *const Callback<Point>;
         if let Some(c) = unsafe { c.as_ref() } {
-            c.signal(Point::new(x as _, y as _));
+            c.signal::<GlobalRuntime>(Point::new(x as _, y as _));
         }
     }
 
     fn on_press(c: *const u8, m: QtMouseButton) {
         let c = c as *const Callback<MouseButton>;
         if let Some(c) = unsafe { c.as_ref() } {
-            c.signal(m.into());
+            c.signal::<GlobalRuntime>(m.into());
         }
     }
 
     fn on_release(c: *const u8, m: QtMouseButton) {
         let c = c as *const Callback<MouseButton>;
         if let Some(c) = unsafe { c.as_ref() } {
-            c.signal(m.into());
+            c.signal::<GlobalRuntime>(m.into());
         }
     }
 
@@ -472,8 +474,8 @@ pub fn accent_color() -> Option<Color> {
 
 #[repr(i32)]
 #[non_exhaustive]
-#[allow(clippy::enum_variant_names)]
-pub enum QtMouseButton {
+#[allow(dead_code, clippy::enum_variant_names)]
+pub(crate) enum QtMouseButton {
     NoButton     = 0x00000000,
     LeftButton   = 0x00000001,
     RightButton  = 0x00000002,
@@ -498,7 +500,7 @@ unsafe impl ExternType for QtMouseButton {
 
 #[repr(i32)]
 #[allow(dead_code)]
-pub enum QtSizeMode {
+pub(crate) enum QtSizeMode {
     AbsoluteSize,
     RelativeSize,
 }
@@ -511,7 +513,7 @@ unsafe impl ExternType for QtSizeMode {
 #[derive(PartialEq, Eq, Clone, Copy)]
 #[repr(i32)]
 #[allow(dead_code)]
-pub enum Spec {
+pub(crate) enum Spec {
     Invalid,
     Rgb,
     Hsv,
@@ -521,7 +523,7 @@ pub enum Spec {
 }
 
 #[repr(C)]
-pub struct QColor {
+pub(crate) struct QColor {
     cspec: Spec,
     ct: [u16; 5],
 }
@@ -598,7 +600,7 @@ impl From<QColor> for Color {
 }
 
 #[repr(transparent)]
-pub struct QRectF(Rect);
+pub(crate) struct QRectF(Rect);
 
 unsafe impl ExternType for QRectF {
     type Id = type_id!("QRectF");
@@ -606,7 +608,7 @@ unsafe impl ExternType for QRectF {
 }
 
 #[repr(transparent)]
-pub struct QPointF(Point);
+pub(crate) struct QPointF(Point);
 
 unsafe impl ExternType for QPointF {
     type Id = type_id!("QPointF");
@@ -614,7 +616,7 @@ unsafe impl ExternType for QPointF {
 }
 
 #[repr(transparent)]
-pub struct QSizeF(Size);
+pub(crate) struct QSizeF(Size);
 
 unsafe impl ExternType for QSizeF {
     type Id = type_id!("QSizeF");
@@ -624,7 +626,7 @@ unsafe impl ExternType for QSizeF {
 #[derive(Debug, Clone, Copy)]
 #[repr(i32)]
 #[non_exhaustive]
-pub enum QImageFormat {
+pub(crate) enum QImageFormat {
     RGB888     = 13,
     RGBA8888   = 17,
     RGBA64     = 26,
@@ -673,7 +675,7 @@ impl Drop for QBrush {
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++-unwind" {
-        include!("winio/src/ui/qt/canvas.hpp");
+        include!("winio-ui-qt/src/ui/canvas.hpp");
 
         type QWidget;
         type QtMouseButton = super::QtMouseButton;

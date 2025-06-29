@@ -2,10 +2,12 @@ use std::{fmt::Debug, mem::ManuallyDrop, pin::Pin};
 
 use cxx::{ExternType, UniquePtr, memory::UniquePtrTarget, type_id};
 pub use ffi::is_dark;
+use winio_handle::{AsRawWindow, RawWindow};
+use winio_primitive::{Point, Rect, Size};
 
-use crate::{AsRawWindow, Point, RawWindow, Rect, Size, ui::StaticCastTo};
+use crate::ui::StaticCastTo;
 
-pub struct Widget<T: UniquePtrTarget> {
+pub(crate) struct Widget<T: UniquePtrTarget> {
     widget: ManuallyDrop<UniquePtr<T>>,
 }
 
@@ -112,7 +114,11 @@ where
     T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
 {
     fn as_raw_window(&self) -> RawWindow {
-        self.as_ref_qwidget() as *const ffi::QWidget as RawWindow
+        RawWindow::Qt(
+            (self.as_ref_qwidget() as *const ffi::QWidget)
+                .cast_mut()
+                .cast(),
+        )
     }
 }
 
@@ -152,7 +158,7 @@ unsafe impl ExternType for QRect {
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++-unwind" {
-        include!("winio/src/ui/qt/widget.hpp");
+        include!("winio-ui-qt/src/ui/widget.hpp");
 
         fn is_dark() -> bool;
 

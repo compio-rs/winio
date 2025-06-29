@@ -1,8 +1,11 @@
 use cxx::{ExternType, type_id};
+use winio_callback::Callback;
+use winio_handle::AsWindow;
+use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
-    AsRawWindow, AsWindow, HAlign, Point, Size,
-    ui::{Callback, Widget, impl_static_cast},
+    GlobalRuntime,
+    ui::{Widget, impl_static_cast},
 };
 
 #[derive(Debug)]
@@ -13,7 +16,7 @@ pub struct Edit {
 
 impl Edit {
     pub fn new(parent: impl AsWindow) -> Self {
-        let mut widget = unsafe { ffi::new_line_edit(parent.as_window().as_raw_window()) };
+        let mut widget = unsafe { ffi::new_line_edit(parent.as_window().as_qt()) };
         let on_changed = Box::new(Callback::new());
         unsafe {
             ffi::line_edit_connect_changed(
@@ -115,7 +118,7 @@ impl Edit {
     fn on_changed(c: *const u8) {
         let c = c as *const Callback<()>;
         if let Some(c) = unsafe { c.as_ref() } {
-            c.signal(());
+            c.signal::<GlobalRuntime>(());
         }
     }
 
@@ -132,7 +135,7 @@ pub struct TextBox {
 
 impl TextBox {
     pub fn new(parent: impl AsWindow) -> Self {
-        let mut widget = unsafe { ffi::new_text_edit(parent.as_window().as_raw_window()) };
+        let mut widget = unsafe { ffi::new_text_edit(parent.as_window().as_qt()) };
         let on_changed = Box::new(Callback::new());
         unsafe {
             ffi::text_edit_connect_changed(
@@ -222,7 +225,7 @@ impl TextBox {
     fn on_changed(c: *const u8) {
         let c = c as *const Callback<()>;
         if let Some(c) = unsafe { c.as_ref() } {
-            c.signal(());
+            c.signal::<GlobalRuntime>(());
         }
     }
 
@@ -235,7 +238,7 @@ impl TextBox {
 #[repr(i32)]
 #[non_exhaustive]
 #[allow(dead_code, clippy::enum_variant_names)]
-pub enum QtAlignmentFlag {
+pub(crate) enum QtAlignmentFlag {
     AlignLeft    = 0x0001,
     AlignRight   = 0x0002,
     AlignHCenter = 0x0004,
@@ -257,7 +260,7 @@ impl QtAlignmentFlag {
 #[repr(i32)]
 #[non_exhaustive]
 #[allow(dead_code)]
-pub enum QLineEditEchoMode {
+pub(crate) enum QLineEditEchoMode {
     Normal,
     NoEcho,
     Password,
@@ -276,7 +279,7 @@ impl_static_cast!(ffi::QTextEdit, ffi::QWidget);
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++-unwind" {
-        include!("winio/src/ui/qt/edit.hpp");
+        include!("winio-ui-qt/src/ui/edit.hpp");
 
         type QWidget = crate::ui::QWidget;
         type QLineEdit;

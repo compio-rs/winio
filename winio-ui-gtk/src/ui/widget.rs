@@ -1,7 +1,7 @@
 use std::cell::Cell;
 
 use gtk4::prelude::{Cast, FixedExt, GtkWindowExt, WidgetExt};
-use winio_handle::{AsRawWindow, AsWindow};
+use winio_handle::AsWindow;
 use winio_primitive::{Point, Size};
 
 #[derive(Debug)]
@@ -12,7 +12,7 @@ pub(crate) struct Widget {
 
 impl Widget {
     pub fn new(parent: impl AsWindow, widget: gtk4::Widget) -> Self {
-        let parent = parent.as_window().as_raw_window();
+        let parent = parent.as_window().to_gtk();
         let swindow = parent.child().unwrap();
         let port = swindow.first_child().unwrap();
         let fixed = port.first_child().unwrap();

@@ -4,7 +4,7 @@ use gtk4::{
     gio::prelude::FileExt,
     glib::{GString, object::Cast},
 };
-use winio_handle::{AsRawWindow, AsWindow};
+use winio_handle::AsWindow;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileFilter {
@@ -51,7 +51,7 @@ impl FileBox {
 
     pub async fn open(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
         self.filebox()
-            .open_future(parent.map(|w| w.as_window().as_raw_window()).as_ref())
+            .open_future(parent.map(|w| w.as_window().to_gtk()).as_ref())
             .await
             .ok()
             .and_then(|f| f.path())
@@ -59,7 +59,7 @@ impl FileBox {
 
     pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Vec<PathBuf> {
         self.filebox()
-            .open_multiple_future(parent.map(|w| w.as_window().as_raw_window()).as_ref())
+            .open_multiple_future(parent.map(|w| w.as_window().to_gtk()).as_ref())
             .await
             .ok()
             .map(|list| {
@@ -74,7 +74,7 @@ impl FileBox {
 
     pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
         self.filebox()
-            .select_folder_future(parent.map(|w| w.as_window().as_raw_window()).as_ref())
+            .select_folder_future(parent.map(|w| w.as_window().to_gtk()).as_ref())
             .await
             .ok()
             .and_then(|f| f.path())
@@ -82,7 +82,7 @@ impl FileBox {
 
     pub async fn save(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
         self.filebox()
-            .save_future(parent.map(|w| w.as_window().as_raw_window()).as_ref())
+            .save_future(parent.map(|w| w.as_window().to_gtk()).as_ref())
             .await
             .ok()
             .and_then(|f| f.path())

@@ -1,9 +1,12 @@
 use std::ptr::null_mut;
 
-use super::RawWindow;
+use winio_callback::Callback;
+use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
+use winio_primitive::{Point, Size};
+
 use crate::{
-    AsRawWindow, AsWindow, Point, Size,
-    ui::{Callback, Widget, impl_static_cast, static_cast},
+    GlobalRuntime,
+    ui::{Widget, impl_static_cast, static_cast},
 };
 
 #[derive(Debug)]
@@ -17,11 +20,7 @@ pub struct Window {
 impl Window {
     pub fn new(parent: Option<impl AsWindow>) -> Self {
         let mut widget = unsafe {
-            ffi::new_main_window(
-                parent
-                    .map(|w| w.as_window().as_raw_window())
-                    .unwrap_or(null_mut()),
-            )
+            ffi::new_main_window(parent.map(|w| w.as_window().as_qt()).unwrap_or(null_mut()))
         };
         let on_resize = Box::new(Callback::new());
         let on_move = Box::new(Callback::new());
@@ -90,21 +89,21 @@ impl Window {
     fn on_resize(c: *const u8, width: i32, height: i32) {
         let c = c as *const Callback<Size>;
         if let Some(c) = unsafe { c.as_ref() } {
-            c.signal(Size::new(width as _, height as _));
+            c.signal::<GlobalRuntime>(Size::new(width as _, height as _));
         }
     }
 
     fn on_move(c: *const u8, x: i32, y: i32) {
         let c = c as *const Callback<Point>;
         if let Some(c) = unsafe { c.as_ref() } {
-            c.signal(Point::new(x as _, y as _));
+            c.signal::<GlobalRuntime>(Point::new(x as _, y as _));
         }
     }
 
     fn on_close(c: *const u8) -> bool {
         let c = c as *const Callback<()>;
         if let Some(c) = unsafe { c.as_ref() } {
-            if !c.signal(()) {
+            if !c.signal::<GlobalRuntime>(()) {
                 return true;
             }
         }
@@ -130,6 +129,12 @@ impl AsRawWindow for Window {
     }
 }
 
+impl AsWindow for Window {
+    fn as_window(&self) -> BorrowedWindow<'_> {
+        unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
+    }
+}
+
 impl Drop for Window {
     fn drop(&mut self) {
         unsafe {
@@ -148,7 +153,7 @@ impl_static_cast!(ffi::QMainWindow, ffi::QWidget);
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++-unwind" {
-        include!("winio/src/ui/qt/window.hpp");
+        include!("winio-ui-qt/src/ui/window.hpp");
 
         type QWidget = crate::ui::QWidget;
         type QMainWindow;

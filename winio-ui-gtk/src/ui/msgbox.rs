@@ -1,7 +1,7 @@
 use std::sync::LazyLock;
 
 use gtk4::glib::{GString, dgettext};
-use winio_handle::{AsRawWindow, AsWindow};
+use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
 struct PredefButtons {
@@ -79,7 +79,7 @@ async fn msgbox_custom(
     let dialog = builder.build();
 
     let res = dialog
-        .choose_future(parent.map(|w| w.as_window().as_raw_window()).as_ref())
+        .choose_future(parent.map(|w| w.as_window().to_gtk()).as_ref())
         .await
         .ok();
 

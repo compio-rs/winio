@@ -1,12 +1,11 @@
-use std::{cell::RefCell, future::Future, os::fd::OwnedFd, time::Duration};
+use std::{cell::RefCell, future::Future, os::fd::AsRawFd, time::Duration};
 
-use compio::driver::{AsRawFd, DriverType};
 use cxx::UniquePtr;
 
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++-unwind" {
-        include!("winio/src/runtime/qt.hpp");
+        include!("winio-ui-qt/src/runtime/qt.hpp");
 
         type WinioQtEventLoop;
 
@@ -21,37 +20,25 @@ mod ffi {
 }
 
 pub struct Runtime {
-    runtime: compio::runtime::Runtime,
-    #[cfg(target_os = "linux")]
-    efd: Option<OwnedFd>,
+    runtime: winio_pollable::Runtime,
     event_loop: RefCell<UniquePtr<ffi::WinioQtEventLoop>>,
+}
+
+impl Default for Runtime {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Runtime {
     pub fn new() -> Self {
-        let runtime = compio::runtime::Runtime::new().unwrap();
-        #[cfg(target_os = "linux")]
-        let (efd, poll_fd) = {
-            let efd = if DriverType::current() == DriverType::IoUring {
-                Some(super::iour::register_eventfd(runtime.as_raw_fd()).unwrap())
-            } else {
-                None
-            };
-            let poll_fd = efd
-                .as_ref()
-                .map(|f| f.as_raw_fd())
-                .unwrap_or_else(|| runtime.as_raw_fd());
-            (efd, poll_fd)
-        };
-        #[cfg(not(target_os = "linux"))]
+        let runtime = winio_pollable::Runtime::new().unwrap();
         let poll_fd = runtime.as_raw_fd();
         let args = std::env::args().collect::<Vec<_>>();
         let event_loop = RefCell::new(ffi::new_event_loop(args, poll_fd));
 
         Self {
             runtime,
-            #[cfg(target_os = "linux")]
-            efd,
             event_loop,
         }
     }
@@ -60,12 +47,12 @@ impl Runtime {
         self.event_loop.borrow_mut().pin_mut().setAppName(id);
     }
 
-    pub fn run(&self) {
+    pub(crate) fn run(&self) {
         self.runtime.run();
     }
 
     fn enter<T, F: FnOnce() -> T>(&self, f: F) -> T {
-        self.runtime.enter(|| super::RUNTIME.set(self, f))
+        self.runtime.enter(|| crate::RUNTIME.set(self, f))
     }
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
@@ -99,10 +86,7 @@ impl Runtime {
                     self.event_loop.borrow_mut().pin_mut().process();
                 }
 
-                #[cfg(target_os = "linux")]
-                if let Some(efd) = &self.efd {
-                    super::iour::eventfd_clear(efd.as_raw_fd()).ok();
-                }
+                self.runtime.clear().ok();
             }
         })
     }

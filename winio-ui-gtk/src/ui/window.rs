@@ -154,7 +154,7 @@ impl Window {
 
 impl AsRawWindow for Window {
     fn as_raw_window(&self) -> RawWindow {
-        self.window.clone()
+        RawWindow::Gtk(self.window.clone())
     }
 }
 

@@ -1,7 +1,7 @@
-use crate::{
-    AsRawWindow, AsWindow, Point, Size,
-    ui::{Widget, impl_static_cast},
-};
+use winio_handle::AsWindow;
+use winio_primitive::{Point, Size};
+
+use crate::ui::{Widget, impl_static_cast};
 
 #[derive(Debug)]
 pub struct Progress {
@@ -10,7 +10,7 @@ pub struct Progress {
 
 impl Progress {
     pub fn new(parent: impl AsWindow) -> Self {
-        let widget = unsafe { ffi::new_progress_bar(parent.as_window().as_raw_window()) };
+        let widget = unsafe { ffi::new_progress_bar(parent.as_window().as_qt()) };
         let mut widget = Widget::new(widget);
         widget.set_visible(true);
         Self { widget }
@@ -90,7 +90,7 @@ impl_static_cast!(ffi::QProgressBar, ffi::QWidget);
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++-unwind" {
-        include!("winio/src/ui/qt/progress.hpp");
+        include!("winio-ui-qt/src/ui/progress.hpp");
 
         type QWidget = crate::ui::QWidget;
         type QProgressBar;

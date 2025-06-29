@@ -1,0 +1,54 @@
+use std::path::PathBuf;
+
+fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+
+    let qbuild =
+        qt_build_utils::QtBuild::new(vec!["Core".into(), "Gui".into(), "Widgets".into()]).unwrap();
+
+    let major = qbuild.version().major;
+    if major != 5 && major != 6 {
+        panic!("Unsupported Qt version: {major}");
+    }
+    println!("cargo::rustc-check-cfg=cfg(qtver, values(\"5\", \"6\"))");
+    println!("cargo::rustc-cfg=qtver=\"{major}\"");
+
+    let sources = [
+        "src/runtime/qt",
+        "src/ui/common",
+        "src/ui/widget",
+        "src/ui/monitor",
+        "src/ui/msgbox",
+        "src/ui/filebox",
+        "src/ui/window",
+        "src/ui/button",
+        "src/ui/canvas",
+        "src/ui/edit",
+        "src/ui/label",
+        "src/ui/progress",
+        "src/ui/combo_box",
+        "src/ui/list_box",
+    ];
+
+    for s in sources {
+        println!("cargo:rerun-if-changed={s}.rs");
+        println!("cargo:rerun-if-changed={s}.hpp");
+        if PathBuf::from(format!("{s}.cpp")).exists() {
+            println!("cargo:rerun-if-changed={s}.cpp");
+        }
+    }
+
+    let inc = qbuild.include_paths();
+
+    let mut build = cxx_build::bridges(sources.map(|s| format!("{s}.rs")));
+    build
+        .std("c++17")
+        .files(sources.iter().filter_map(|s| {
+            let path = PathBuf::from(format!("{s}.cpp"));
+            if path.exists() { Some(path) } else { None }
+        }))
+        .includes(inc)
+        .cpp(true);
+    qbuild.cargo_link_libraries(&mut build);
+    build.compile("winio");
+}
