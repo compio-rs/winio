@@ -22,8 +22,6 @@ compio-log = { workspace = true }
 cfg-if = { workspace = true }
 futures-util = { workspace = true }
 image = { workspace = true, default-features = false }
-paste = { workspace = true }
-scoped-tls = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 winio-ui-win32 = { workspace = true }
