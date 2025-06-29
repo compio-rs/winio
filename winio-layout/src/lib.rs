@@ -1,6 +1,9 @@
+#[doc(hidden)]
+pub use paste::paste as __paste;
 use taffy::{Layout, NodeId, TaffyTree};
-
-use crate::{Margin, Point, Rect, Size};
+#[doc(hidden)]
+pub use winio_primitive::{HAlign, VAlign};
+use winio_primitive::{Margin, Point, Rect, Size};
 
 /// Trait for a widget to set visibility.
 pub trait Visible {
@@ -146,7 +149,7 @@ macro_rules! __layout_child {
                 }
             }
         }
-        impl $crate::elm::layout::LayoutChild for $name<'_> {
+        impl $crate::LayoutChild for $name<'_> {
             fn margin(&self) -> $crate::Margin {
                 self.margin
             }

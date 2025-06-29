@@ -2,9 +2,9 @@ use taffy::{
     NodeId, Style, TaffyTree,
     prelude::{auto, length, percent},
 };
+use winio_primitive::{HAlign, Margin, Orient, Point, Rect, Size, VAlign};
 
-use super::{layout_child, rect_t2e, render};
-use crate::{HAlign, Layoutable, Margin, Orient, Point, Rect, Size, VAlign};
+use crate::{Layoutable, layout_child, rect_t2e, render};
 
 layout_child! {
     /// Builder of a child for [`StackPanel`].

@@ -1,5 +1,5 @@
 [workspace]
-members = ["winio", "winio-primitive"]
+members = ["winio", "winio-primitive", "winio-layout"]
 
 resolver = "2"
 
@@ -12,6 +12,9 @@ repository = "https://github.com/compio-rs/winio"
 
 [workspace.dependencies]
 winio-primitive = { path = "winio-primitive", version = "0.1.0" }
+winio-layout = { path = "winio-layout", version = "0.1.0" }
+
+paste = "1.0"
 
 [profile.release]
 lto = true

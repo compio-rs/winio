@@ -1,4 +1,6 @@
-use crate::{Grid, HAlign, Layoutable, Orient, Point, Rect, Size, StackPanel, VAlign, layout};
+use winio_primitive::{HAlign, Orient, Point, Rect, Size, VAlign};
+
+use crate::{Grid, Layoutable, StackPanel, layout};
 
 #[derive(Debug, Clone)]
 struct MockChild {
