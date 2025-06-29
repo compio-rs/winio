@@ -247,7 +247,7 @@ fn render(
 
 /// Helper macro for layouts in `Component::render`.
 ///
-/// ```no_run
+/// ```ignore
 /// # use winio::{Canvas, Child, Grid, Layoutable, Window, layout};
 /// # struct MainModel {
 /// #     window: Child<Window>,

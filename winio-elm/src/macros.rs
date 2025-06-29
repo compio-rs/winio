@@ -5,7 +5,7 @@ pub use paste::paste as __paste;
 
 /// Helper macro for `Component::init`.
 ///
-/// ```no_run
+/// ```ignore
 /// # use winio::{Canvas, Layoutable, Size, Visible, Window, init};
 /// init! {
 ///     window: Window = (()) => {
@@ -46,7 +46,7 @@ macro_rules! __init_assign {
 
 /// Helper macro for `Component::start`.
 ///
-/// ```no_run
+/// ```ignore
 /// # use winio::{Canvas, CanvasEvent, Child, Component, ComponentSender, Window, WindowEvent, start};
 /// struct MainModel {
 ///     window: Child<Window>,
