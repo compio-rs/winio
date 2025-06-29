@@ -16,7 +16,7 @@ pub enum MessageBoxStyle {
 
 bitflags::bitflags! {
     /// The pre-defined message box buttons.
-    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
     pub struct MessageBoxButton: i32 {
         /// "Ok"
         const Ok     = 1 << 0;
