@@ -5,9 +5,9 @@ use std::{
 
 use compio::{fs::File, io::AsyncReadAtExt, runtime::spawn};
 use winio::{
-    App, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, Component, ComponentSender,
-    DrawingFontBuilder, FileBox, HAlign, Label, Layoutable, Orient, Point, Size, SolidColorBrush,
-    StackPanel, VAlign, Visible, Window, WindowEvent, init, layout, start,
+    App, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, ColorThemeExt, Component,
+    ComponentSender, DrawingFontBuilder, FileBox, HAlign, Label, Layoutable, Orient, Point, Size,
+    SolidColorBrush, StackPanel, VAlign, Visible, Window, WindowEvent, init, layout, start,
 };
 
 fn main() {

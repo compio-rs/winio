@@ -27,18 +27,16 @@ cfg_if::cfg_if! {
 pub use sys::*;
 
 mod canvas;
-mod drawing;
+mod ext;
 mod filebox;
-mod monitor;
 mod msgbox;
 mod window_handle;
 
 pub mod export {
     pub use super::{
         canvas::*,
-        drawing::*,
+        ext::*,
         filebox::*,
-        monitor::*,
         msgbox::*,
         sys::{Brush, Pen, RawWindow, accent_color},
         window_handle::*,

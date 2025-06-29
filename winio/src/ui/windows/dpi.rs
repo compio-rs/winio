@@ -7,7 +7,7 @@ use windows_sys::Win32::{
     },
 };
 
-use crate::ui::drawing::*;
+use crate::{Point, Rect, Size};
 
 #[inline]
 pub unsafe fn get_dpi_for_window(h_wnd: HWND) -> u32 {

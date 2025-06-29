@@ -44,13 +44,6 @@ pub enum ColorTheme {
     Dark,
 }
 
-impl ColorTheme {
-    /// Get the current color theme.
-    pub fn current() -> Self {
-        crate::ui::color_theme()
-    }
-}
-
 /// Orientation.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Orient {

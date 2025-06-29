@@ -1,4 +1,4 @@
-use crate::{Point, Rect, Size, ui::sys};
+use crate::{Point, Rect, Size};
 
 /// Represents the geometry of a monitor.
 #[derive(Debug, Clone, PartialEq)]
@@ -9,17 +9,12 @@ pub struct Monitor {
 }
 
 impl Monitor {
-    pub(crate) fn new(region: Rect, client: Rect, dpi: Size) -> Self {
+    pub fn new(region: Rect, client: Rect, dpi: Size) -> Self {
         Self {
             region,
             client,
             dpi,
         }
-    }
-
-    /// Retrieve all monitors.
-    pub fn all() -> Vec<Self> {
-        sys::monitor_get_all()
     }
 
     /// The physical region.

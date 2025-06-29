@@ -7,7 +7,7 @@ use compio::runtime::spawn_blocking;
 use image::{DynamicImage, ImageReader};
 use itertools::Itertools;
 use winio::{
-    App, BrushPen, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, Component,
+    App, BrushPen, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, ColorThemeExt, Component,
     ComponentSender, DrawingImage, Edit, FileBox, Layoutable, ListBox, ListBoxEvent,
     ListBoxMessage, ObservableVec, ObservableVecEvent, Orient, Point, Rect, Size, SolidColorBrush,
     StackPanel, Visible, Window, WindowEvent, init, layout, start,

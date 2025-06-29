@@ -3,10 +3,10 @@ use std::time::Duration;
 use compio::{runtime::spawn, time::interval};
 use compio_log::info;
 use winio::{
-    App, BrushPen, Canvas, CanvasEvent, Child, Color, ColorTheme, Component, ComponentSender,
-    CustomButton, DrawingFontBuilder, Grid, HAlign, Layoutable, MessageBox, MessageBoxButton,
-    MessageBoxResponse, MessageBoxStyle, Monitor, MouseButton, Point, Rect, Size, SolidColorBrush,
-    VAlign, Visible, Window, WindowEvent, init, layout, start,
+    App, BrushPen, Canvas, CanvasEvent, Child, Color, ColorTheme, ColorThemeExt, Component,
+    ComponentSender, CustomButton, DrawingFontBuilder, Grid, HAlign, Layoutable, MessageBox,
+    MessageBoxButton, MessageBoxResponse, MessageBoxStyle, Monitor, MonitorExt, MouseButton, Point,
+    Rect, Size, SolidColorBrush, VAlign, Visible, Window, WindowEvent, init, layout, start,
 };
 
 fn main() {

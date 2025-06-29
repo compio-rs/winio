@@ -6,6 +6,8 @@
 
 #[doc(no_inline)]
 pub use compio;
+#[doc(no_inline)]
+pub use winio_primitive::*;
 
 pub(crate) mod runtime;
 
