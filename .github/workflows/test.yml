@@ -45,7 +45,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt update
-          sudo apt install -y "${{ matrix.setup.deps }}"
+          sudo apt install -y ${{ matrix.setup.deps }}
       - uses: msys2/setup-msys2@v2
         if: ${{ endsWith(matrix.setup.target, 'gnullvm') }}
         with:
