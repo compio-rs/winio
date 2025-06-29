@@ -10,7 +10,7 @@ repository = { workspace = true }
 
 [dependencies]
 winio-primitive = { workspace = true }
-winio-handle = { workspace = true }
+winio-handle = { workspace = true, features = ["gtk"] }
 winio-callback = { workspace = true }
 winio-pollable = { workspace = true }
 
