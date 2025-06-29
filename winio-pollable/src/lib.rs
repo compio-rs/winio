@@ -34,7 +34,7 @@ impl Runtime {
 
     pub fn clear(&self) -> io::Result<()> {
         if let Some(efd) = &self.efd {
-            let mut buf = [0u8; 4];
+            let mut buf = [0u8; 8];
             rustix::io::read(efd, &mut buf)?;
         }
         Ok(())
