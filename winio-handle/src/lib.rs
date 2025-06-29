@@ -5,47 +5,37 @@
 
 use std::{marker::PhantomData, ops::Deref};
 
-/// Raw window handle.
-#[derive(Clone)]
-#[non_exhaustive]
-pub enum RawWindow {
-    /// Raw window handle.
-    #[cfg(windows)]
-    Win32(windows_sys::Win32::Foundation::HWND),
-    /// `NSWindow`.
-    #[cfg(target_os = "macos")]
-    AppKit(objc2::rc::Retained<objc2_app_kit::NSWindow>),
-    /// Pointer to `QWidget`.
-    #[cfg(all(not(any(windows, target_os = "macos")), feature = "qt"))]
-    Qt(*mut core::ffi::c_void),
-    /// GTK [`Window`].
-    ///
-    /// [`Window`]: gtk4::Window
-    #[cfg(all(not(any(windows, target_os = "macos")), feature = "gtk"))]
-    Gtk(gtk4::Window),
+cfg_if::cfg_if! {
+    if #[cfg(windows)] {
+        /// Raw window handle.
+        pub type RawWindow = windows_sys::Win32::Foundation::HWND;
+    } else if #[cfg(target_os = "macos")] {
+        /// [`NSWindow`].
+        ///
+        /// [`NSWindow`]: objc2_app_kit::NSWindow
+        pub type RawWindow = objc2::rc::Retained<objc2_app_kit::NSWindow>;
+    } else {
+        /// Raw window handle.
+        #[derive(Clone)]
+        #[non_exhaustive]
+        pub enum RawWindow {
+            /// Pointer to `QWidget`.
+            #[cfg(all(not(any(windows, target_os = "macos")), feature = "qt"))]
+            Qt(*mut core::ffi::c_void),
+            /// GTK [`Window`].
+            ///
+            /// [`Window`]: gtk4::Window
+            #[cfg(all(not(any(windows, target_os = "macos")), feature = "gtk"))]
+            Gtk(gtk4::Window),
+        }
+    }
 }
 
+#[allow(unreachable_patterns)]
+#[cfg(not(any(windows, target_os = "macos")))]
 impl RawWindow {
-    /// Get Win32 `HWND`.
-    #[cfg(windows)]
-    pub fn as_win32(&self) -> windows_sys::Win32::Foundation::HWND {
-        match self {
-            Self::Win32(w) => *w,
-            _ => panic!("unsupported handle type"),
-        }
-    }
-
-    /// Get AppKit `NSWindow`.
-    #[cfg(target_os = "macos")]
-    pub fn to_app_kit(&self) -> objc2::rc::Retained<objc2_app_kit::NSWindow> {
-        match self {
-            Self::AppKit(w) => w.clone(),
-            _ => panic!("unsupported handle type"),
-        }
-    }
-
     /// Get Qt `QWidget`.
-    #[cfg(all(not(any(windows, target_os = "macos")), feature = "qt"))]
+    #[cfg(feature = "qt")]
     pub fn as_qt<T>(&self) -> *mut T {
         match self {
             Self::Qt(w) => (*w).cast(),
@@ -54,7 +44,7 @@ impl RawWindow {
     }
 
     /// Get Gtk `Window`.
-    #[cfg(all(not(any(windows, target_os = "macos")), feature = "gtk"))]
+    #[cfg(feature = "gtk")]
     pub fn to_gtk(&self) -> gtk4::Window {
         match self {
             Self::Gtk(w) => w.clone(),

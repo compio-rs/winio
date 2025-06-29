@@ -17,5 +17,6 @@ winio-pollable = { workspace = true }
 image = { workspace = true, default-features = false }
 scoped-tls = { workspace = true }
 
+[target.'cfg(not(any(windows, target_os = "macos")))'.dependencies]
 gtk4 = { workspace = true, features = ["v4_14"] }
 pangocairo = "0.20"

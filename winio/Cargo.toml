@@ -126,9 +126,6 @@ image = { version = "0.25", default-features = false, features = [
 itertools = "0.14"
 tracing-subscriber = "0.3"
 
-[build-dependencies]
-embed-resource = "3"
-
 [features]
 default = ["qt", "win32-dark-mode"]
 gtk = ["dep:winio-ui-gtk"]

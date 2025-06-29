@@ -59,5 +59,8 @@ windows-numerics = "0.2"
 slim-detours-sys = { version = "0.3", optional = true }
 sync-unsafe-cell = { version = "0.1", optional = true }
 
+[build-dependencies]
+embed-resource = "3"
+
 [features]
 dark-mode = ["dep:slim-detours-sys", "dep:sync-unsafe-cell"]
