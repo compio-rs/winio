@@ -89,6 +89,3 @@ pub use check_box::*;
 
 mod radio_button;
 pub use radio_button::*;
-
-mod macros;
-pub use macros::*;

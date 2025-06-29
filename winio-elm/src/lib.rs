@@ -96,3 +96,6 @@ use channel::*;
 
 mod child;
 pub use child::*;
+
+mod macros;
+pub use macros::*;
