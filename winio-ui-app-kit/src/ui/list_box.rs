@@ -14,10 +14,13 @@ use objc2_foundation::{
     NSDictionary, NSIndexSet, NSInteger, NSNotification, NSObject, NSObjectProtocol, NSSize,
     NSString,
 };
+use winio_callback::Callback;
+use winio_handle::AsWindow;
+use winio_primitive::{Point, Size};
 
 use crate::{
-    AsWindow, Point, Size,
-    ui::{Callback, Widget, from_cgsize},
+    GlobalRuntime,
+    ui::{Widget, from_cgsize},
 };
 
 #[derive(Debug)]
@@ -151,6 +154,10 @@ impl ListBox {
         self.delegate.ivars().data.borrow().len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn clear(&mut self) {
         self.delegate.ivars().data.borrow_mut().clear();
         unsafe { self.table.reloadData() };
@@ -211,7 +218,7 @@ define_class! {
     unsafe impl NSTableViewDelegate for ListBoxDelegate {
         #[unsafe(method(tableViewSelectionDidChange:))]
         unsafe fn tableViewSelectionDidChange(&self, _notification: &NSNotification) {
-            self.ivars().select.signal(());
+            self.ivars().select.signal::<GlobalRuntime>(());
         }
     }
 
@@ -229,7 +236,7 @@ define_class! {
             _table_column: Option<&NSTableColumn>,
             row: NSInteger,
         ) -> Option<Retained<AnyObject>> {
-            self.ivars().data.borrow().get(row as usize).map(|s| Retained::cast_unchecked(NSString::from_str(&s)))
+            self.ivars().data.borrow().get(row as usize).map(|s| Retained::cast_unchecked(NSString::from_str(s)))
         }
     }
 }

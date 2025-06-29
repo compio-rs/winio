@@ -7,10 +7,13 @@ use objc2_app_kit::{
     NSComboBox, NSComboBoxDelegate, NSControlTextEditingDelegate, NSTextFieldDelegate,
 };
 use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString};
+use winio_callback::Callback;
+use winio_handle::AsWindow;
+use winio_primitive::{Point, Size};
 
 use crate::{
-    AsWindow, Point, Size,
-    ui::{Callback, Widget, from_nsstring},
+    GlobalRuntime,
+    ui::{Widget, from_nsstring},
 };
 
 #[derive(Debug)]
@@ -121,6 +124,10 @@ impl<const E: bool> ComboBoxImpl<E> {
         unsafe { self.view.numberOfItems() as _ }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn clear(&mut self) {
         unsafe {
             self.view.removeAllItems();
@@ -185,7 +192,7 @@ define_class! {
     unsafe impl NSControlTextEditingDelegate for ComboBoxDelegate {
         #[unsafe(method(controlTextDidChange:))]
         fn controlTextDidChange(&self, _notification: &NSNotification) {
-            self.ivars().changed.signal(());
+            self.ivars().changed.signal::<GlobalRuntime>(());
         }
     }
 
@@ -195,7 +202,7 @@ define_class! {
     unsafe impl NSComboBoxDelegate for ComboBoxDelegate {
         #[unsafe(method(comboBoxSelectionDidChange:))]
         unsafe fn comboBoxSelectionDidChange(&self, _notification: &NSNotification) {
-            self.ivars().select.signal(());
+            self.ivars().select.signal::<GlobalRuntime>(());
         }
     }
 }

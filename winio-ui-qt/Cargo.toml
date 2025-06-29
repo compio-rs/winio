@@ -15,7 +15,7 @@ winio-callback = { workspace = true }
 winio-pollable = { workspace = true }
 
 image = { workspace = true, default-features = false }
-local-sync = { version = "0.1" }
+local-sync = { workspace = true }
 scoped-tls = { workspace = true }
 
 cxx = { version = "1.0.160", features = ["c++17"] }

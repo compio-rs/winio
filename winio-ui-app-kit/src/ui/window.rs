@@ -12,11 +12,13 @@ use objc2_app_kit::{
 use objc2_foundation::{
     MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSPoint, NSRect, NSSize, NSString,
 };
+use winio_callback::Callback;
+use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
+use winio_primitive::{Point, Rect, Size};
 
-use super::{transform_cgrect, transform_rect};
 use crate::{
-    AsRawWindow, AsWindow, Point, RawWindow, Rect, Size,
-    ui::{Callback, from_cgsize, from_nsstring, to_cgsize},
+    GlobalRuntime,
+    ui::{from_cgsize, from_nsstring, to_cgsize, transform_cgrect, transform_rect},
 };
 
 #[derive(Debug)]
@@ -133,6 +135,12 @@ impl AsRawWindow for Window {
     }
 }
 
+impl AsWindow for Window {
+    fn as_window(&self) -> BorrowedWindow<'_> {
+        unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
+    }
+}
+
 #[derive(Debug, Default)]
 struct WindowDelegateIvars {
     did_resize: Callback,
@@ -162,17 +170,17 @@ define_class! {
     unsafe impl NSWindowDelegate for WindowDelegate {
         #[unsafe(method(windowDidResize:))]
         unsafe fn windowDidResize(&self, _notification: &NSNotification) {
-            self.ivars().did_resize.signal(());
+            self.ivars().did_resize.signal::<GlobalRuntime>(());
         }
 
         #[unsafe(method(windowDidMove:))]
         unsafe fn windowDidMove(&self, _notification: &NSNotification) {
-            self.ivars().did_move.signal(());
+            self.ivars().did_move.signal::<GlobalRuntime>(());
         }
 
         #[unsafe(method(windowShouldClose:))]
         unsafe fn windowShouldClose(&self, _sender: &NSWindow) -> bool {
-            self.ivars().should_close.signal(())
+            self.ivars().should_close.signal::<GlobalRuntime>(())
         }
     }
 }

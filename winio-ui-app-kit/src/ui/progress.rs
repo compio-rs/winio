@@ -1,8 +1,10 @@
 use objc2::rc::Retained;
 use objc2_app_kit::NSProgressIndicator;
 use objc2_foundation::MainThreadMarker;
+use winio_handle::AsWindow;
+use winio_primitive::{Point, Size};
 
-use crate::{AsWindow, Point, Size, ui::Widget};
+use crate::ui::Widget;
 
 #[derive(Debug)]
 pub struct Progress {

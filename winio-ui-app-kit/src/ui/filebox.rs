@@ -5,8 +5,9 @@ use objc2::rc::Retained;
 use objc2_app_kit::{NSModalResponseOK, NSOpenPanel, NSSavePanel};
 use objc2_foundation::{MainThreadMarker, NSArray, NSString};
 use objc2_uniform_type_identifiers::UTType;
+use winio_handle::{AsRawWindow, AsWindow};
 
-use crate::{AsRawWindow, AsWindow, ui::from_nsstring};
+use crate::ui::from_nsstring;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileFilter {

@@ -8,10 +8,13 @@ use objc2_app_kit::{
     NSTextFieldDelegate,
 };
 use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString};
+use winio_callback::Callback;
+use winio_handle::AsWindow;
+use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
-    AsWindow, HAlign, Point, Size,
-    ui::{Callback, Widget, from_nsstring},
+    GlobalRuntime,
+    ui::{Widget, from_nsstring},
 };
 
 #[derive(Debug)]
@@ -211,7 +214,7 @@ define_class! {
     unsafe impl NSControlTextEditingDelegate for EditDelegate {
         #[unsafe(method(controlTextDidChange:))]
         fn controlTextDidChange(&self, _notification: &NSNotification) {
-            self.ivars().changed.signal(());
+            self.ivars().changed.signal::<GlobalRuntime>(());
         }
     }
 

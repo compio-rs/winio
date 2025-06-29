@@ -1,0 +1,101 @@
+[package]
+name = "winio-ui-app-kit"
+version = "0.1.0"
+description = "AppKit backend for winio."
+edition = { workspace = true }
+authors = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+winio-primitive = { workspace = true }
+winio-handle = { workspace = true }
+winio-callback = { workspace = true }
+
+compio = { workspace = true }
+
+image = { workspace = true, default-features = false }
+local-sync = { workspace = true }
+scoped-tls = { workspace = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6"
+objc2 = { workspace = true }
+objc2-core-foundation = { version = "0.3", features = [
+    "CFCGTypes",
+    "CFFileDescriptor",
+    "CFRunLoop",
+] }
+objc2-core-graphics = { version = "0.3", features = ["CGColor", "CGPath"] }
+objc2-foundation = { version = "0.3", features = [
+    "NSAffineTransform",
+    "NSAttributedString",
+    "NSDate",
+    "NSDictionary",
+    "NSEnumerator",
+    "NSNotification",
+    "NSObjCRuntime",
+    "NSRunLoop",
+    "NSString",
+    "NSThread",
+    "NSURL",
+    "NSUserDefaults",
+] }
+objc2-app-kit = { workspace = true, features = [
+    "block2",
+    "objc2-core-foundation",
+    "objc2-quartz-core",
+    "objc2-uniform-type-identifiers",
+    "NSAlert",
+    "NSApplication",
+    "NSAttributedString",
+    "NSBitmapImageRep",
+    "NSButton",
+    "NSButtonCell",
+    "NSCell",
+    "NSColor",
+    "NSColorSpace",
+    "NSComboBox",
+    "NSControl",
+    "NSEvent",
+    "NSFont",
+    "NSFontDescriptor",
+    "NSGraphics",
+    "NSImage",
+    "NSImageRep",
+    "NSMatrix",
+    "NSOpenPanel",
+    "NSPanel",
+    "NSProgressIndicator",
+    "NSResponder",
+    "NSRunningApplication",
+    "NSSavePanel",
+    "NSScreen",
+    "NSScrollView",
+    "NSSecureTextField",
+    "NSStringDrawing",
+    "NSTableView",
+    "NSTableColumn",
+    "NSText",
+    "NSTextField",
+    "NSTrackingArea",
+    "NSView",
+    "NSWindow",
+    "NSWindowScripting",
+] }
+objc2-uniform-type-identifiers = { version = "0.3", features = ["UTType"] }
+objc2-quartz-core = { version = "0.3", features = [
+    "objc2-core-graphics",
+    "CALayer",
+    "CAGradientLayer",
+    "CAShapeLayer",
+    "CATextLayer",
+] }
+
+[features]
+objc-static = [
+    "objc2/unstable-static-class-inlined",
+    "objc2/unstable-static-sel-inlined",
+    "objc2-foundation/unstable-static-nsstring",
+]

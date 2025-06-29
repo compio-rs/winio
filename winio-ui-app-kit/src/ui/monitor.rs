@@ -1,11 +1,9 @@
 use objc2::{MainThreadMarker, rc::Retained};
 use objc2_app_kit::{NSDeviceResolution, NSScreen};
 use objc2_foundation::NSValue;
+use winio_primitive::{Monitor, Point, Rect, Size};
 
-use crate::{
-    Monitor, Point, Rect, Size,
-    ui::{from_cgsize, transform_cgrect},
-};
+use crate::ui::{from_cgsize, transform_cgrect};
 
 pub fn monitor_get_all() -> Vec<Monitor> {
     let mtm = MainThreadMarker::new().unwrap();

@@ -1,3 +1,7 @@
+use objc2::rc::autoreleasepool;
+use objc2_foundation::{NSPoint, NSRect, NSSize, NSString, NSUserDefaults, ns_string};
+use winio_primitive::{ColorTheme, Point, Rect, Size};
+
 mod canvas;
 pub use canvas::*;
 
@@ -36,15 +40,6 @@ pub use list_box::*;
 
 mod accent;
 pub use accent::*;
-
-/// [`NSWindow`].
-pub type RawWindow = Retained<NSWindow>;
-
-use objc2::rc::{Retained, autoreleasepool};
-use objc2_app_kit::NSWindow;
-use objc2_foundation::{NSPoint, NSRect, NSSize, NSString, NSUserDefaults, ns_string};
-
-use crate::{ColorTheme, Point, Rect, Size};
 
 pub fn color_theme() -> ColorTheme {
     unsafe {

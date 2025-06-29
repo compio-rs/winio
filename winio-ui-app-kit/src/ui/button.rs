@@ -7,10 +7,13 @@ use objc2_app_kit::{
     NSBezelStyle, NSButton, NSButtonType, NSControlStateValueOff, NSControlStateValueOn,
 };
 use objc2_foundation::{MainThreadMarker, NSObject, NSString};
+use winio_callback::Callback;
+use winio_handle::AsWindow;
+use winio_primitive::{Point, Size};
 
 use crate::{
-    AsWindow, Point, Size,
-    ui::{Callback, Widget, from_nsstring},
+    GlobalRuntime,
+    ui::{Widget, from_nsstring},
 };
 
 #[derive(Debug)]
@@ -271,7 +274,7 @@ define_class! {
 
         #[unsafe(method(onAction))]
         unsafe fn onAction(&self) {
-            self.ivars().action.signal(());
+            self.ivars().action.signal::<GlobalRuntime>(());
         }
     }
 }

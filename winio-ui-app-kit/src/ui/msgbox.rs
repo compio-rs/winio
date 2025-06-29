@@ -7,8 +7,8 @@ use objc2_app_kit::{
     NSAlert, NSAlertFirstButtonReturn, NSAlertStyle, NSImage, NSImageNameCaution, NSImageNameInfo,
 };
 use objc2_foundation::{MainThreadMarker, NSString, ns_string};
-
-use crate::{AsRawWindow, AsWindow, MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
+use winio_handle::{AsRawWindow, AsWindow};
+use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
 async fn msgbox_custom(
     parent: Option<impl AsWindow>,

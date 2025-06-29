@@ -1,6 +1,5 @@
 use objc2_app_kit::{NSColor, NSColorSpace};
-
-use crate::Color;
+use winio_primitive::Color;
 
 /// Get the accent color.
 pub fn accent_color() -> Option<Color> {

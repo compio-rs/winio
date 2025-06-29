@@ -1,11 +1,10 @@
 use objc2::rc::Retained;
 use objc2_app_kit::{NSTextAlignment, NSTextField};
 use objc2_foundation::{MainThreadMarker, NSString};
+use winio_handle::AsWindow;
+use winio_primitive::{HAlign, Point, Size};
 
-use crate::{
-    AsWindow, HAlign, Point, Size,
-    ui::{Widget, from_nsstring},
-};
+use crate::ui::{Widget, from_nsstring};
 
 #[derive(Debug)]
 pub struct Label {

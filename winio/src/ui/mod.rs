@@ -2,8 +2,7 @@ cfg_if::cfg_if! {
     if #[cfg(windows)] {
         use winio_ui_win32 as sys;
     } else if #[cfg(target_os = "macos")] {
-        #[path = "mac/mod.rs"]
-        mod sys;
+        use winio_ui_app_kit as sys;
     } else {
         #[cfg(any(
             all(not(feature = "gtk"), not(feature = "qt")),

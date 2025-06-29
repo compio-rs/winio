@@ -15,6 +15,12 @@ pub struct Runtime {
     ns_app: Retained<NSApplication>,
 }
 
+impl Default for Runtime {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Runtime {
     pub fn new() -> Self {
         let runtime = compio::runtime::Runtime::new().unwrap();
@@ -57,7 +63,7 @@ impl Runtime {
         }
     }
 
-    pub fn run(&self) {
+    pub(crate) fn run(&self) {
         self.runtime.run();
     }
 

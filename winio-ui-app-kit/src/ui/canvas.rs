@@ -23,13 +23,18 @@ use objc2_foundation::{
 use objc2_quartz_core::{
     CAGradientLayer, CALayer, CAShapeLayer, CATextLayer, kCAGradientLayerRadial,
 };
+use winio_callback::Callback;
+use winio_handle::AsWindow;
+use winio_primitive::{
+    BrushPen, Color, DrawingFont, GradientStop, HAlign, LinearGradientBrush, MouseButton, Point,
+    RadialGradientBrush, Rect, RectBox, RelativePoint, Size, SolidColorBrush, VAlign,
+};
 
 use crate::{
-    AsWindow, BrushPen, Color, DrawingFont, GradientStop, HAlign, LinearGradientBrush, MouseButton,
-    Point, RadialGradientBrush, Rect, RectBox, RelativePoint, Size, SolidColorBrush, VAlign,
+    GlobalRuntime,
     ui::{
-        Callback, Widget, from_cgsize, to_cgsize, transform_cgpoint, transform_cgrect,
-        transform_point, transform_rect,
+        Widget, from_cgsize, to_cgsize, transform_cgpoint, transform_cgrect, transform_point,
+        transform_rect,
     },
 };
 
@@ -159,22 +164,22 @@ define_class! {
 
         #[unsafe(method(mouseDown:))]
         unsafe fn mouseDown(&self, event: &NSEvent) {
-            self.ivars().mouse_down.signal(mouse_button(event));
+            self.ivars().mouse_down.signal::<GlobalRuntime>(mouse_button(event));
         }
 
         #[unsafe(method(mouseUp:))]
         unsafe fn mouseUp(&self, event: &NSEvent) {
-            self.ivars().mouse_up.signal(mouse_button(event));
+            self.ivars().mouse_up.signal::<GlobalRuntime>(mouse_button(event));
         }
 
         #[unsafe(method(mouseDragged:))]
         unsafe fn mouseDragged(&self, _event: &NSEvent) {
-            self.ivars().mouse_move.signal(());
+            self.ivars().mouse_move.signal::<GlobalRuntime>(());
         }
 
         #[unsafe(method(mouseMoved:))]
         unsafe fn mouseMoved(&self, _event: &NSEvent) {
-            self.ivars().mouse_move.signal(());
+            self.ivars().mouse_move.signal::<GlobalRuntime>(());
         }
     }
 }
