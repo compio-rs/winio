@@ -13,16 +13,15 @@ repository = { workspace = true }
 [dependencies]
 winio-primitive = { workspace = true }
 winio-layout = { workspace = true }
+winio-elm = { workspace = true }
 
 compio = "0.15.0"
 compio-log = "0.1.0"
 
 cfg-if = "1"
-futures-util = { version = "0.3", features = ["alloc"] }
 image = { version = "0.25", default-features = false }
 paste = { workspace = true }
 slab = "0.4"
-smallvec = "1"
 scoped-tls = "1.0"
 
 [target.'cfg(windows)'.dependencies]

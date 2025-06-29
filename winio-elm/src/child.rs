@@ -4,11 +4,11 @@ use std::{
 };
 
 use smallvec::SmallVec;
+use winio_layout::Layoutable;
+use winio_primitive::{Point, Rect, Size};
 
-use super::{ComponentMessage, Layoutable};
-use crate::{
-    AsRawWindow, AsWindow, BorrowedWindow, Component, ComponentSender, Point, RawWindow, Rect, Size,
-};
+use super::ComponentMessage;
+use crate::{Component, ComponentSender};
 
 /// Helper to embed one component into another. It handles different types of
 /// messages and events.

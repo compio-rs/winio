@@ -1,71 +1,8 @@
-use std::{future::Future, hint::unreachable_unchecked};
+use std::future::Future;
 
-use futures_util::FutureExt;
+use winio_primitive::{Point, Size};
 
-use crate::{Point, Size, runtime::Runtime};
-
-/// Foundamental GUI component.
-#[allow(async_fn_in_trait)]
-pub trait Component: Sized {
-    /// Initial parameter type.
-    type Init<'a>;
-    /// The input message type to update.
-    type Message;
-    /// The output event type to the parent.
-    type Event;
-
-    /// Create the initial component.
-    fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self;
-
-    /// Start the event listening.
-    async fn start(&mut self, sender: &ComponentSender<Self>) -> !;
-
-    /// Respond to the message.
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool;
-
-    /// Render the widgets.
-    fn render(&mut self, sender: &ComponentSender<Self>);
-}
-
-#[derive(Debug)]
-pub(crate) enum ComponentMessage<T: Component> {
-    Message(T::Message),
-    Event(T::Event),
-}
-
-/// Sender of input messages and output events.
-#[derive(Debug)]
-pub struct ComponentSender<T: Component>(Channel<ComponentMessage<T>>);
-
-impl<T: Component> ComponentSender<T> {
-    pub(crate) fn new() -> Self {
-        Self(Channel::new())
-    }
-
-    /// Post the message to the queue.
-    pub fn post(&self, message: T::Message) {
-        self.0.send(ComponentMessage::Message(message))
-    }
-
-    /// Post the event to the queue.
-    pub fn output(&self, event: T::Event) {
-        self.0.send(ComponentMessage::Event(event))
-    }
-
-    pub(crate) async fn wait(&self) {
-        self.0.wait().await
-    }
-
-    pub(crate) fn fetch_all(&self) -> impl IntoIterator<Item = ComponentMessage<T>> {
-        self.0.fetch_all()
-    }
-}
-
-impl<T: Component> Clone for ComponentSender<T> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
+use crate::runtime::Runtime;
 
 /// Root application, manages the async runtime.
 pub struct App {
@@ -139,15 +76,6 @@ fn approx_eq_size(s1: Size, s2: Size) -> bool {
 fn approx_eq(f1: f64, f2: f64) -> bool {
     (f1 - f2).abs() < 1.0
 }
-
-mod channel;
-pub(crate) use channel::*;
-
-mod child;
-pub use child::*;
-
-mod layout;
-pub use layout::*;
 
 mod collection;
 pub use collection::*;

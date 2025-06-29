@@ -1,0 +1,16 @@
+[package]
+name = "winio-elm"
+version = "0.1.0"
+description = "ELM framework for winio."
+edition = { workspace = true }
+authors = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+winio-primitive = { workspace = true }
+winio-layout = { workspace = true }
+
+futures-util = { version = "0.3", features = ["alloc"] }
+smallvec = "1"
