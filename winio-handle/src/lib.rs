@@ -1,6 +1,32 @@
-use std::marker::PhantomData;
+cfg_if::cfg_if! {
+    if #[cfg(windows)] {
+        /// Raw window handle.
+        pub type RawWindow = windows_sys::Win32::Foundation::HWND;
+    } else if #[cfg(target_os = "macos")] {
+        /// `NSWindow`.
+        pub type RawWindow = objc2::rc::Retained<objc2_app_kit::NSWindow>;
+    } else {
+        #[cfg(any(
+            all(not(feature = "gtk"), not(feature = "qt")),
+            all(feature = "gtk", feature = "qt")
+        ))]
+        compile_error!("You must choose only one of these features: [\"gtk\", \"qt\"]");
 
-use crate::ui::{RawWindow, Window};
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "qt")] {
+                /// Pointer to `QWidget`.
+                pub type RawWindow = *mut core::ffi::c_void;
+            } else {
+                /// GTK [`Window`].
+                ///
+                /// [`Window`]: gtk4::Window
+                pub type RawWindow = gtk4::Window;
+            }
+        }
+    }
+}
+
+use std::marker::PhantomData;
 
 /// A borrowed window handle.
 #[derive(Clone)]
@@ -57,12 +83,6 @@ pub trait AsWindow {
 impl AsWindow for BorrowedWindow<'_> {
     fn as_window(&self) -> BorrowedWindow<'_> {
         self.clone()
-    }
-}
-
-impl AsWindow for Window {
-    fn as_window(&self) -> BorrowedWindow<'_> {
-        unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
     }
 }
 

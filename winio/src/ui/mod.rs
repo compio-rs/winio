@@ -30,7 +30,6 @@ mod canvas;
 mod ext;
 mod filebox;
 mod msgbox;
-mod window_handle;
 
 pub mod export {
     pub use super::{
@@ -39,7 +38,6 @@ pub mod export {
         filebox::*,
         msgbox::*,
         sys::{Brush, Pen, RawWindow, accent_color},
-        window_handle::*,
     };
 }
 

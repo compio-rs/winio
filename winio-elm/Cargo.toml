@@ -11,6 +11,7 @@ repository = { workspace = true }
 [dependencies]
 winio-primitive = { workspace = true }
 winio-layout = { workspace = true }
+winio-handle = { workspace = true }
 
 futures-util = { version = "0.3", features = ["alloc"] }
 smallvec = "1"

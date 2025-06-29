@@ -4,6 +4,7 @@ use std::{
 };
 
 use smallvec::SmallVec;
+use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
 use winio_layout::Layoutable;
 use winio_primitive::{Point, Rect, Size};
 

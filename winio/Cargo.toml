@@ -18,7 +18,7 @@ winio-elm = { workspace = true }
 compio = "0.15.0"
 compio-log = "0.1.0"
 
-cfg-if = "1"
+cfg-if = { workspace = true }
 image = { version = "0.25", default-features = false }
 paste = { workspace = true }
 slab = "0.4"
@@ -26,7 +26,7 @@ scoped-tls = "1.0"
 
 [target.'cfg(windows)'.dependencies]
 widestring = "1"
-windows-sys = { version = "0.60", features = [
+windows-sys = { workspace = true, features = [
     "Win32_Foundation",
     "Win32_Globalization",
     "Win32_Graphics_Gdi",
@@ -64,7 +64,7 @@ sync-unsafe-cell = { version = "0.1", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6"
-objc2 = "0.6"
+objc2 = { workspace = true }
 objc2-core-foundation = { version = "0.3", features = [
     "CFCGTypes",
     "CFFileDescriptor",
@@ -85,7 +85,7 @@ objc2-foundation = { version = "0.3", features = [
     "NSURL",
     "NSUserDefaults",
 ] }
-objc2-app-kit = { version = "0.3", features = [
+objc2-app-kit = { workspace = true, features = [
     "block2",
     "objc2-core-foundation",
     "objc2-quartz-core",
@@ -141,7 +141,7 @@ local-sync = "0.1"
 libc = "0.2"
 
 [target.'cfg(not(any(windows, target_os = "macos")))'.dependencies]
-gtk4 = { version = "0.9", optional = true, features = ["v4_14"] }
+gtk4 = { workspace = true, optional = true, features = ["v4_14"] }
 pangocairo = { version = "0.20", optional = true }
 
 cxx = { version = "1.0.160", optional = true, features = ["c++17"] }
