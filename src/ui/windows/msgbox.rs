@@ -46,7 +46,7 @@ async fn msgbox_custom(
             hwndParent: parent_handle as _,
             hInstance: null_mut(),
             dwFlags: TDF_ALLOW_DIALOG_CANCELLATION | TDF_SIZE_TO_CONTENT,
-            dwCommonButtons: btns as _,
+            dwCommonButtons: btns.bits(),
             pszWindowTitle: title.as_ptr(),
             Anonymous1: TASKDIALOGCONFIG_0 {
                 pszMainIcon: match style {
@@ -133,7 +133,7 @@ impl MessageBox {
             title: U16CString::new(),
             instr: U16CString::new(),
             style: MessageBoxStyle::None,
-            btns: MessageBoxButton::None,
+            btns: MessageBoxButton::empty(),
             cbtns: vec![],
         }
     }

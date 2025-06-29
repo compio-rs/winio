@@ -1,5 +1,3 @@
-use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
-
 use crate::{MaybeBorrowedWindow, ui::sys};
 
 /// Style of message box.
@@ -16,60 +14,22 @@ pub enum MessageBoxStyle {
     Error,
 }
 
-/// The pre-defined message box buttons.
-#[repr(i32)]
-#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
-#[non_exhaustive]
-pub enum MessageBoxButton {
-    /// No pre-defined button.
-    #[default]
-    None   = 0,
-    /// "Ok"
-    Ok     = 1 << 0,
-    /// "Yes"
-    Yes    = 1 << 1,
-    /// "No"
-    No     = 1 << 2,
-    /// "Cancel"
-    Cancel = 1 << 3,
-    /// "Retry"
-    Retry  = 1 << 4,
-    /// "Close"
-    Close  = 1 << 5,
-}
-
-impl MessageBoxButton {
-    /// Check if it contains specific pre-defined button.
-    pub fn contains(&self, v: Self) -> bool {
-        *self & v == v
-    }
-}
-
-impl BitOr for MessageBoxButton {
-    type Output = MessageBoxButton;
-
-    fn bitor(self, rhs: Self) -> Self::Output {
-        unsafe { std::mem::transmute(self as i32 | rhs as i32) }
-    }
-}
-
-impl BitOrAssign for MessageBoxButton {
-    fn bitor_assign(&mut self, rhs: Self) {
-        *self = *self | rhs;
-    }
-}
-
-impl BitAnd for MessageBoxButton {
-    type Output = MessageBoxButton;
-
-    fn bitand(self, rhs: Self) -> Self::Output {
-        unsafe { std::mem::transmute(self as i32 & rhs as i32) }
-    }
-}
-
-impl BitAndAssign for MessageBoxButton {
-    fn bitand_assign(&mut self, rhs: Self) {
-        *self = *self & rhs;
+bitflags::bitflags! {
+    /// The pre-defined message box buttons.
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    pub struct MessageBoxButton: i32 {
+        /// "Ok"
+        const Ok     = 1 << 0;
+        /// "Yes"
+        const Yes    = 1 << 1;
+        /// "No"
+        const No     = 1 << 2;
+        /// "Cancel"
+        const Cancel = 1 << 3;
+        /// "Retry"
+        const Retry  = 1 << 4;
+        /// "Close"
+        const Close  = 1 << 5;
     }
 }
 
