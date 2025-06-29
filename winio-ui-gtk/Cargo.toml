@@ -14,6 +14,7 @@ winio-handle = { workspace = true, features = ["gtk"] }
 winio-callback = { workspace = true }
 winio-pollable = { workspace = true }
 
+inherit-methods-macro = { workspace = true }
 image = { workspace = true, default-features = false }
 scoped-tls = { workspace = true }
 

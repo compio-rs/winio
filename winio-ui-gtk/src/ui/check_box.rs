@@ -4,6 +4,7 @@ use gtk4::{
     glib::object::Cast,
     prelude::{CheckButtonExt, WidgetExt},
 };
+use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsWindow;
 use winio_primitive::{Point, Size};
@@ -17,6 +18,7 @@ pub struct CheckBox {
     handle: Widget,
 }
 
+#[inherit_methods(from = "self.handle")]
 impl CheckBox {
     pub(crate) fn new_impl(parent: impl AsWindow, radio: bool) -> Self {
         let widget = gtk4::CheckButton::new();
@@ -43,41 +45,23 @@ impl CheckBox {
         Self::new_impl(parent, false)
     }
 
-    pub fn is_visible(&self) -> bool {
-        self.handle.is_visible()
-    }
+    pub fn is_visible(&self) -> bool;
 
-    pub fn set_visible(&mut self, v: bool) {
-        self.handle.set_visible(v);
-    }
+    pub fn set_visible(&mut self, v: bool);
 
-    pub fn is_enabled(&self) -> bool {
-        self.handle.is_enabled()
-    }
+    pub fn is_enabled(&self) -> bool;
 
-    pub fn set_enabled(&mut self, v: bool) {
-        self.handle.set_enabled(v);
-    }
+    pub fn set_enabled(&mut self, v: bool);
 
-    pub fn preferred_size(&self) -> Size {
-        self.handle.preferred_size()
-    }
+    pub fn preferred_size(&self) -> Size;
 
-    pub fn loc(&self) -> Point {
-        self.handle.loc()
-    }
+    pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, p: Point) {
-        self.handle.set_loc(p);
-    }
+    pub fn set_loc(&mut self, p: Point);
 
-    pub fn size(&self) -> Size {
-        self.handle.size()
-    }
+    pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, s: Size) {
-        self.handle.set_size(s);
-    }
+    pub fn set_size(&mut self, s: Size);
 
     pub fn text(&self) -> String {
         self.widget
@@ -110,6 +94,7 @@ pub struct RadioButton {
     hidden: gtk4::CheckButton,
 }
 
+#[inherit_methods(from = "self.handle")]
 impl RadioButton {
     pub fn new(parent: impl AsWindow) -> Self {
         let handle = CheckBox::new_impl(parent.as_window(), true);
@@ -119,53 +104,29 @@ impl RadioButton {
         Self { handle, hidden }
     }
 
-    pub fn is_visible(&self) -> bool {
-        self.handle.is_visible()
-    }
+    pub fn is_visible(&self) -> bool;
 
-    pub fn set_visible(&mut self, v: bool) {
-        self.handle.set_visible(v);
-    }
+    pub fn set_visible(&mut self, v: bool);
 
-    pub fn is_enabled(&self) -> bool {
-        self.handle.is_enabled()
-    }
+    pub fn is_enabled(&self) -> bool;
 
-    pub fn set_enabled(&mut self, v: bool) {
-        self.handle.set_enabled(v);
-    }
+    pub fn set_enabled(&mut self, v: bool);
 
-    pub fn preferred_size(&self) -> Size {
-        self.handle.preferred_size()
-    }
+    pub fn preferred_size(&self) -> Size;
 
-    pub fn loc(&self) -> Point {
-        self.handle.loc()
-    }
+    pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, p: Point) {
-        self.handle.set_loc(p);
-    }
+    pub fn set_loc(&mut self, p: Point);
 
-    pub fn size(&self) -> Size {
-        self.handle.size()
-    }
+    pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, s: Size) {
-        self.handle.set_size(s);
-    }
+    pub fn set_size(&mut self, s: Size);
 
-    pub fn text(&self) -> String {
-        self.handle.text()
-    }
+    pub fn text(&self) -> String;
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.handle.set_text(s);
-    }
+    pub fn set_text(&mut self, s: impl AsRef<str>);
 
-    pub fn is_checked(&self) -> bool {
-        self.handle.is_checked()
-    }
+    pub fn is_checked(&self) -> bool;
 
     pub fn set_checked(&mut self, v: bool) {
         if v {
