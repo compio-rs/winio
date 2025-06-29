@@ -20,8 +20,9 @@ futures-util = { workspace = true }
 image = { workspace = true, default-features = false }
 scoped-tls = { workspace = true }
 slab = "0.4"
-
 widestring = "1"
+
+[target.'cfg(windows)'.dependencies]
 windows-sys = { workspace = true, features = [
     "Win32_Foundation",
     "Win32_Globalization",
