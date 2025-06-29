@@ -157,7 +157,7 @@ impl ListBoxMessage {
         }
     }
 
-    /// Retrive [`ComboBoxMessage`] from [`ObservableVecEvent`].
+    /// Retrive [`ListBoxMessage`] from [`ObservableVecEvent`].
     pub fn from_observable_vec_event<T: ToString>(e: ObservableVecEvent<T>) -> Self {
         Self::from_observable_vec_event_by(e, |v| v.to_string())
     }
