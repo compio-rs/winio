@@ -12,9 +12,7 @@ repository = { workspace = true }
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true }
 winio-callback = { workspace = true }
-
-compio = { workspace = true }
-compio-log = { workspace = true }
+winio-pollable = { workspace = true }
 
 image = { workspace = true, default-features = false }
 rustix = { workspace = true, features = ["event"] }

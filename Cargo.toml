@@ -6,6 +6,7 @@ members = [
     "winio-layout",
     "winio-handle",
     "winio-elm",
+    "winio-pollable",
     "winio-ui-win32",
     "winio-ui-gtk",
 ]
@@ -25,6 +26,7 @@ winio-callback = { path = "winio-callback", version = "0.1.0" }
 winio-layout = { path = "winio-layout", version = "0.1.0" }
 winio-handle = { path = "winio-handle", version = "0.1.0" }
 winio-elm = { path = "winio-elm", version = "0.1.0" }
+winio-pollable = { path = "winio-pollable", version = "0.1.0" }
 winio-ui-win32 = { path = "winio-ui-win32", version = "0.1.0" }
 winio-ui-gtk = { path = "winio-ui-gtk", version = "0.1.0" }
 

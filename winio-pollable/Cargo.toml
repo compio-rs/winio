@@ -1,0 +1,14 @@
+[package]
+name = "winio-pollable"
+version = "0.1.0"
+description = "A thin wrapper over compio-runtime to make it pollable."
+edition = { workspace = true }
+authors = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+compio = { workspace = true }
+
+rustix = { workspace = true, features = ["event"] }

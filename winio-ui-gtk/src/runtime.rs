@@ -1,16 +1,13 @@
-use std::{future::Future, os::fd::OwnedFd, time::Duration};
+use std::{future::Future, os::fd::AsRawFd, time::Duration};
 
-use compio::driver::AsRawFd;
 use gtk4::{
     gio::{self, prelude::ApplicationExt},
     glib::{ControlFlow, IOCondition, MainContext, timeout_add_local_once, unix_fd_add_local},
 };
 
 pub struct Runtime {
-    runtime: compio::runtime::Runtime,
+    runtime: winio_pollable::Runtime,
     app: gio::Application,
-    #[cfg(target_os = "linux")]
-    efd: Option<OwnedFd>,
     ctx: MainContext,
 }
 
@@ -22,34 +19,8 @@ impl Default for Runtime {
 
 impl Runtime {
     pub fn new() -> Self {
-        #[cfg(not(target_os = "linux"))]
-        let (runtime, efd, poll_fd) = {
-            let runtime = compio::runtime::Runtime::new().unwrap();
-            (runtime, None, runtime.as_raw_fd())
-        };
-
-        #[cfg(target_os = "linux")]
-        let (runtime, efd, poll_fd) = {
-            let efd = if compio::driver::DriverType::is_iouring() {
-                use rustix::event::{EventfdFlags, eventfd};
-                eventfd(0, EventfdFlags::CLOEXEC | EventfdFlags::NONBLOCK).ok()
-            } else {
-                None
-            };
-            let mut builder = compio::driver::ProactorBuilder::new();
-            if let Some(fd) = &efd {
-                builder.register_eventfd(fd.as_raw_fd());
-            }
-            let runtime = compio::runtime::RuntimeBuilder::new()
-                .with_proactor(builder)
-                .build()
-                .unwrap();
-            let poll_fd = efd
-                .as_ref()
-                .map(|f| f.as_raw_fd())
-                .unwrap_or_else(|| runtime.as_raw_fd());
-            (runtime, efd, poll_fd)
-        };
+        let runtime = winio_pollable::Runtime::new().unwrap();
+        let poll_fd = runtime.as_raw_fd();
         let ctx = MainContext::default();
         gtk4::init().unwrap();
         let app = gio::Application::new(None, gio::ApplicationFlags::FLAGS_NONE);
@@ -57,13 +28,7 @@ impl Runtime {
 
         unix_fd_add_local(poll_fd, IOCondition::IN, |_fd, _cond| ControlFlow::Continue);
 
-        Self {
-            runtime,
-            app,
-            #[cfg(target_os = "linux")]
-            efd,
-            ctx,
-        }
+        Self { runtime, app, ctx }
     }
 
     pub fn set_app_id(&mut self, name: &str) {
@@ -109,11 +74,7 @@ impl Runtime {
                     }
                 }
 
-                #[cfg(target_os = "linux")]
-                if let Some(efd) = &self.efd {
-                    let mut buf = [0u8; 4];
-                    rustix::io::read(efd, &mut buf).ok();
-                }
+                self.runtime.clear().ok();
             }
         })
     }
