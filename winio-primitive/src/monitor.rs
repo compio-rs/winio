@@ -9,6 +9,7 @@ pub struct Monitor {
 }
 
 impl Monitor {
+    /// Create a monitor geometry.
     pub fn new(region: Rect, client: Rect, dpi: Size) -> Self {
         Self {
             region,

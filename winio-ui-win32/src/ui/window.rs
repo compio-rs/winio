@@ -321,7 +321,7 @@ impl AsRawWindow for Widget {
     }
 }
 
-pub const WINDOW_CLASS_NAME: *const u16 = w!("XamlWindow");
+pub(crate) const WINDOW_CLASS_NAME: *const u16 = w!("XamlWindow");
 
 fn register() {
     unsafe {

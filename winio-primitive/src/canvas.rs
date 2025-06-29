@@ -3,6 +3,7 @@ use crate::{Color, RelativePoint, RelativeSize};
 /// Brush with single solid color.
 #[derive(Debug, Clone)]
 pub struct SolidColorBrush {
+    /// The color of the brush.
     pub color: Color,
 }
 
@@ -38,8 +39,11 @@ impl From<(Color, f64)> for GradientStop {
 /// Linear gradient brush.
 #[derive(Debug, Clone)]
 pub struct LinearGradientBrush {
+    /// The gradient stops.
     pub stops: Vec<GradientStop>,
+    /// The relative start position.
     pub start: RelativePoint,
+    /// The relative end position.
     pub end: RelativePoint,
 }
 
@@ -61,9 +65,13 @@ impl LinearGradientBrush {
 /// Radial gradient brush.
 #[derive(Debug, Clone)]
 pub struct RadialGradientBrush {
+    /// The gradient stops.
     pub stops: Vec<GradientStop>,
+    /// The relative origin position.
     pub origin: RelativePoint,
+    /// The relative center position.
     pub center: RelativePoint,
+    /// The relative radius.
     pub radius: RelativeSize,
 }
 
@@ -87,7 +95,9 @@ impl RadialGradientBrush {
 /// Pen with specified brush.
 #[derive(Debug, Clone)]
 pub struct BrushPen<B> {
+    /// The inner brush.
     pub brush: B,
+    /// The width of the pen.
     pub width: f64,
 }
 

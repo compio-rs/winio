@@ -1,3 +1,8 @@
+//! ELM primitives for winio.
+
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![warn(missing_docs)]
+
 use std::hint::unreachable_unchecked;
 
 use futures_util::FutureExt;
@@ -65,6 +70,7 @@ impl<T: Component> Clone for ComponentSender<T> {
     }
 }
 
+/// Runs a root component, and exits when the component outputs an event.
 pub async fn run<'a, T: Component>(init: impl Into<T::Init<'a>>) -> T::Event {
     let sender = ComponentSender::new();
     let mut model = T::init(init.into(), &sender);

@@ -1,3 +1,8 @@
+//! Layout primitives and containers.
+
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![warn(missing_docs)]
+
 #[doc(hidden)]
 pub use paste::paste as __paste;
 use taffy::{Layout, NodeId, TaffyTree};

@@ -1,3 +1,8 @@
+//! Window handle for winio.
+
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![warn(missing_docs)]
+
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
         /// Raw window handle.
