@@ -16,53 +16,17 @@ winio-layout = { workspace = true }
 winio-handle = { workspace = true }
 winio-elm = { workspace = true }
 
-compio = "0.15.0"
-compio-log = "0.1.0"
+compio = { workspace = true }
+compio-log = { workspace = true }
 
 cfg-if = { workspace = true }
 futures-util = { workspace = true }
-image = { version = "0.25", default-features = false }
+image = { workspace = true, default-features = false }
 paste = { workspace = true }
-slab = "0.4"
-scoped-tls = "1.0"
+scoped-tls = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
-widestring = "1"
-windows-sys = { workspace = true, features = [
-    "Win32_Foundation",
-    "Win32_Globalization",
-    "Win32_Graphics_Gdi",
-    "Win32_Graphics_Dwm",
-    "Win32_Networking_WinSock",
-    "Win32_Security",
-    "Win32_Storage_FileSystem",
-    "Win32_System_IO",
-    "Win32_System_LibraryLoader",
-    "Win32_System_SystemServices",
-    "Win32_System_Threading",
-    "Win32_System_WindowsProgramming",
-    "Win32_UI_Accessibility",
-    "Win32_UI_Controls",
-    "Win32_UI_HiDpi",
-    "Win32_UI_Input_KeyboardAndMouse",
-    "Win32_UI_Shell",
-    "Win32_UI_WindowsAndMessaging",
-] }
-windows = { version = "0.61", features = [
-    "Foundation_Numerics",
-    "UI_ViewManagement",
-    "Win32_Foundation",
-    "Win32_Graphics_Direct2D",
-    "Win32_Graphics_Direct2D_Common",
-    "Win32_Graphics_DirectWrite",
-    "Win32_Graphics_Dxgi_Common",
-    "Win32_System_Com",
-    "Win32_UI_Shell",
-    "Win32_UI_Shell_Common",
-] }
-windows-numerics = "0.2"
-slim-detours-sys = { version = "0.3", optional = true }
-sync-unsafe-cell = { version = "0.1", optional = true }
+winio-ui-win32 = { workspace = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6"
@@ -172,13 +136,13 @@ cxx-build = { version = "1.0.160", optional = true }
 qt-build-utils = { version = "0.7", optional = true }
 
 [features]
-default = ["qt", "windows-dark-mode"]
+default = ["qt", "win32-dark-mode"]
 gtk = ["dep:gtk4", "dep:pangocairo"]
 qt = ["dep:cxx", "dep:cxx-build", "dep:qt-build-utils", "dep:local-sync"]
 enable_log = ["compio/enable_log", "compio-log/enable_log"]
 
 nightly = ["compio/nightly", "cyper/nightly"]
-windows-dark-mode = ["dep:slim-detours-sys", "dep:sync-unsafe-cell"]
+win32-dark-mode = ["winio-ui-win32/dark-mode"]
 objc-static = [
     "objc2/unstable-static-class-inlined",
     "objc2/unstable-static-sel-inlined",

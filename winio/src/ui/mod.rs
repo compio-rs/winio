@@ -1,7 +1,6 @@
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
-        #[path = "windows/mod.rs"]
-        mod sys;
+        use winio_ui_win32 as sys;
     } else if #[cfg(target_os = "macos")] {
         #[path = "mac/mod.rs"]
         mod sys;

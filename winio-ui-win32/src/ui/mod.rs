@@ -1,3 +1,5 @@
+use winio_primitive::ColorTheme;
+
 pub(crate) mod darkmode;
 pub(crate) mod dpi;
 pub(crate) mod font;
@@ -43,8 +45,6 @@ pub use radio_button::*;
 
 mod accent;
 pub use accent::*;
-
-use crate::ColorTheme;
 
 pub fn color_theme() -> ColorTheme {
     unsafe {

@@ -5,6 +5,7 @@ members = [
     "winio-layout",
     "winio-handle",
     "winio-elm",
+    "winio-ui-win32",
 ]
 
 resolver = "2"
@@ -21,10 +22,16 @@ winio-primitive = { path = "winio-primitive", version = "0.1.0" }
 winio-layout = { path = "winio-layout", version = "0.1.0" }
 winio-handle = { path = "winio-handle", version = "0.1.0" }
 winio-elm = { path = "winio-elm", version = "0.1.0" }
+winio-ui-win32 = { path = "winio-ui-win32", version = "0.1.0" }
+
+compio = "0.15.0"
+compio-log = "0.1.0"
 
 cfg-if = "1"
 futures-util = "0.3"
+image = { version = "0.25", default-features = false }
 paste = "1.0"
+scoped-tls = "1.0"
 
 windows-sys = "0.60"
 

@@ -27,10 +27,10 @@ use windows_sys::{
     },
     w,
 };
-use winio_handle::{BorrowedWindow, RawWindow};
+use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
+use winio_primitive::{Point, Size};
 
 use crate::{
-    AsRawWindow, AsWindow, Point, Size,
     runtime::{WindowMessage, wait, window_proc},
     ui::{
         darkmode::{
@@ -41,7 +41,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct OwnedWindow(HWND);
+pub(crate) struct OwnedWindow(HWND);
 
 impl OwnedWindow {
     pub unsafe fn from_raw_window(h: HWND) -> Self {

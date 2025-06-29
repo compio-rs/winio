@@ -15,11 +15,10 @@ use windows_sys::Win32::{
         WindowsAndMessaging::{IDCANCEL, IDCLOSE, IDNO, IDOK, IDRETRY, IDYES},
     },
 };
+use winio_handle::{AsRawWindow, AsWindow};
+use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
-use crate::{
-    AsRawWindow, AsWindow, MessageBoxButton, MessageBoxResponse, MessageBoxStyle,
-    ui::darkmode::TASK_DIALOG_CALLBACK,
-};
+use crate::ui::darkmode::TASK_DIALOG_CALLBACK;
 
 async fn msgbox_custom(
     parent: Option<impl AsWindow>,

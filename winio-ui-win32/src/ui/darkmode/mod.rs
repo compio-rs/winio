@@ -21,7 +21,7 @@ use windows_sys::Win32::{
 use crate::ui::font::WinBrush;
 
 cfg_if::cfg_if! {
-    if #[cfg(feature = "windows-dark-mode")] {
+    if #[cfg(feature = "dark-mode")] {
         #[path = "hook.rs"]
         mod imp;
         pub use imp::*;

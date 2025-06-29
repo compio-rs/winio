@@ -1,27 +1,27 @@
 use windows_sys::Win32::UI::{
-    Controls::{BST_CHECKED, BST_UNCHECKED, WC_BUTTONW},
+    Controls::WC_BUTTONW,
     WindowsAndMessaging::{
-        BM_GETCHECK, BM_SETCHECK, BN_CLICKED, BS_CHECKBOX, SendMessageW, WM_COMMAND, WS_CHILD,
-        WS_TABSTOP, WS_VISIBLE,
+        BN_CLICKED, BS_PUSHBUTTON, WM_COMMAND, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
     },
 };
+use winio_handle::{AsRawWindow, AsWindow};
+use winio_primitive::{Point, Size};
 
 use crate::{
-    AsRawWindow, AsWindow, Point, Size,
     runtime::WindowMessageCommand,
     ui::{Widget, font::measure_string},
 };
 
 #[derive(Debug)]
-pub struct CheckBox {
+pub struct Button {
     handle: Widget,
 }
 
-impl CheckBox {
+impl Button {
     pub fn new(parent: impl AsWindow) -> Self {
         let mut handle = Widget::new(
             WC_BUTTONW,
-            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_CHECKBOX as u32,
+            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON as u32,
             0,
             parent.as_window().as_raw_window(),
         );
@@ -47,7 +47,7 @@ impl CheckBox {
 
     pub fn preferred_size(&self) -> Size {
         let s = measure_string(self.handle.as_raw_window(), &self.handle.text_u16());
-        Size::new(s.width + 18.0, s.height + 2.0)
+        Size::new(s.width + 4.0, s.height + 4.0)
     }
 
     pub fn loc(&self) -> Point {
@@ -74,28 +74,12 @@ impl CheckBox {
         self.handle.set_text(s)
     }
 
-    pub fn is_checked(&self) -> bool {
-        unsafe { SendMessageW(self.handle.as_raw_window(), BM_GETCHECK, 0, 0) == BST_CHECKED as _ }
-    }
-
-    pub fn set_checked(&self, v: bool) {
-        unsafe {
-            SendMessageW(
-                self.handle.as_raw_window(),
-                BM_SETCHECK,
-                if v { BST_CHECKED } else { BST_UNCHECKED } as _,
-                0,
-            )
-        };
-    }
-
     pub async fn wait_click(&self) {
         loop {
             let WindowMessageCommand {
                 message, handle, ..
             } = self.handle.wait_parent(WM_COMMAND).await.command();
             if std::ptr::eq(handle, self.handle.as_raw_window()) && (message == BN_CLICKED) {
-                self.set_checked(!self.is_checked());
                 break;
             }
         }

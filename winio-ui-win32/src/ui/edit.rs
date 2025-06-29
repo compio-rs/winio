@@ -11,11 +11,12 @@ use windows_sys::Win32::{
         },
     },
 };
+use winio_handle::{AsRawWindow, AsWindow, RawWindow};
+use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
-    AsRawWindow, AsWindow, HAlign, Point, RawWindow, Size,
     runtime::WindowMessageCommand,
-    ui::{Widget, font::measure_string, sys::fix_crlf},
+    ui::{Widget, fix_crlf, font::measure_string},
 };
 
 #[derive(Debug)]

@@ -15,8 +15,7 @@ use windows::{
     },
     core::{HRESULT, Interface, PCWSTR},
 };
-
-use crate::{AsRawWindow, AsWindow};
+use winio_handle::{AsRawWindow, AsWindow};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileFilter {

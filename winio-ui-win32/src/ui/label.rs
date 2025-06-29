@@ -8,11 +8,10 @@ use windows_sys::Win32::{
         WindowsAndMessaging::{WS_CHILD, WS_EX_TRANSPARENT, WS_VISIBLE},
     },
 };
+use winio_handle::{AsRawWindow, AsWindow};
+use winio_primitive::{HAlign, Point, Size};
 
-use crate::{
-    AsRawWindow, AsWindow, HAlign, Point, Size,
-    ui::{Widget, font::measure_string},
-};
+use crate::ui::{Widget, font::measure_string};
 
 #[derive(Debug)]
 pub struct Label {

@@ -3,7 +3,7 @@ use std::future::Future;
 use winio_elm::Component;
 use winio_primitive::{Point, Size};
 
-use crate::runtime::Runtime;
+use crate::ui::Runtime;
 
 /// Root application, manages the async runtime.
 pub struct App {

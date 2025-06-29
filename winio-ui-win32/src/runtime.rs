@@ -85,6 +85,12 @@ pub struct Runtime {
     registry: RefCell<HashMap<(HWND, u32), Slab<FutureState>>>,
 }
 
+impl Default for Runtime {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Runtime {
     pub fn new() -> Self {
         unsafe {
@@ -233,7 +239,7 @@ impl Runtime {
 
 /// # Safety
 /// The caller should ensure the handle valid.
-pub unsafe fn wait(handle: HWND, msg: u32) -> impl Future<Output = WindowMessage> {
+pub(crate) unsafe fn wait(handle: HWND, msg: u32) -> impl Future<Output = WindowMessage> {
     RUNTIME.with(|runtime| runtime.register_message(handle, msg))
 }
 

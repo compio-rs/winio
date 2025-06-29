@@ -6,8 +6,7 @@ use windows_sys::Win32::{
         WindowsAndMessaging::USER_DEFAULT_SCREEN_DPI,
     },
 };
-
-use crate::{Point, Rect, Size};
+use winio_primitive::{Point, Rect, Size};
 
 #[inline]
 pub unsafe fn get_dpi_for_window(h_wnd: HWND) -> u32 {

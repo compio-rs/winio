@@ -26,9 +26,9 @@ use windows_sys::Win32::{
         },
     },
 };
+use winio_primitive::Size;
 
 use super::dpi::DpiAware;
-use crate::Size;
 
 unsafe fn system_default_font() -> io::Result<LOGFONTW> {
     let mut ncm: NONCLIENTMETRICSW = unsafe { std::mem::zeroed() };

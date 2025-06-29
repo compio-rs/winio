@@ -15,8 +15,6 @@ pub use winio_layout::*;
 #[doc(no_inline)]
 pub use winio_primitive::*;
 
-pub(crate) mod runtime;
-
 pub(crate) mod ui;
 pub use ui::export::*;
 

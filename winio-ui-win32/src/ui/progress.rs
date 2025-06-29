@@ -8,8 +8,10 @@ use windows_sys::Win32::UI::{
         SM_CYVSCROLL, SendMessageW, USER_DEFAULT_SCREEN_DPI, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
     },
 };
+use winio_handle::{AsRawWindow, AsWindow};
+use winio_primitive::{Point, Size};
 
-use crate::{AsRawWindow, AsWindow, Point, Size, ui::Widget};
+use crate::ui::Widget;
 
 #[derive(Debug)]
 pub struct Progress {

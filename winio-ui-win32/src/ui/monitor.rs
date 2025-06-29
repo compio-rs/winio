@@ -12,8 +12,7 @@ use windows_sys::{
     },
     core::BOOL,
 };
-
-use crate::{Monitor, Point, Rect, Size};
+use winio_primitive::{Monitor, Point, Rect, Size};
 
 pub fn monitor_get_all() -> Vec<Monitor> {
     let mut res = vec![];

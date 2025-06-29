@@ -1,27 +1,28 @@
 use windows_sys::Win32::UI::{
     Controls::{BST_CHECKED, BST_UNCHECKED, WC_BUTTONW},
     WindowsAndMessaging::{
-        BM_GETCHECK, BM_SETCHECK, BN_CLICKED, BS_RADIOBUTTON, SendMessageW, WM_COMMAND, WS_CHILD,
+        BM_GETCHECK, BM_SETCHECK, BN_CLICKED, BS_CHECKBOX, SendMessageW, WM_COMMAND, WS_CHILD,
         WS_TABSTOP, WS_VISIBLE,
     },
 };
+use winio_handle::{AsRawWindow, AsWindow};
+use winio_primitive::{Point, Size};
 
 use crate::{
-    AsRawWindow, AsWindow, Point, Size,
     runtime::WindowMessageCommand,
     ui::{Widget, font::measure_string},
 };
 
 #[derive(Debug)]
-pub struct RadioButton {
+pub struct CheckBox {
     handle: Widget,
 }
 
-impl RadioButton {
+impl CheckBox {
     pub fn new(parent: impl AsWindow) -> Self {
         let mut handle = Widget::new(
             WC_BUTTONW,
-            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_RADIOBUTTON as u32,
+            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_CHECKBOX as u32,
             0,
             parent.as_window().as_raw_window(),
         );
@@ -95,7 +96,7 @@ impl RadioButton {
                 message, handle, ..
             } = self.handle.wait_parent(WM_COMMAND).await.command();
             if std::ptr::eq(handle, self.handle.as_raw_window()) && (message == BN_CLICKED) {
-                self.set_checked(true);
+                self.set_checked(!self.is_checked());
                 break;
             }
         }
