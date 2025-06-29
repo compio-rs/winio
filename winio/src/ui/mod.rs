@@ -36,7 +36,7 @@ pub mod export {
         ext::*,
         filebox::*,
         msgbox::*,
-        sys::{Brush, Pen, accent_color},
+        sys::{Brush, Pen},
     };
 }
 

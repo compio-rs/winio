@@ -1,11 +1,11 @@
 use winio::{
-    App, BrushPen, Button, ButtonEvent, Canvas, CheckBox, CheckBoxEvent, Child, Color, ColorTheme,
-    ColorThemeExt, ComboBox, ComboBoxEvent, ComboBoxMessage, Component, ComponentSender,
-    DrawingFontBuilder, Edit, Enable, GradientStop, Grid, HAlign, Label, Layoutable,
-    LinearGradientBrush, Margin, MessageBox, MessageBoxButton, ObservableVec, ObservableVecEvent,
-    Orient, Point, Progress, RadialGradientBrush, RadioButton, RadioButtonGroup, Rect,
-    RelativePoint, RelativeSize, Size, SolidColorBrush, StackPanel, TextBox, VAlign, Visible,
-    Window, WindowEvent, accent_color, init, layout, start,
+    App, BrushPen, Button, ButtonEvent, Canvas, CheckBox, CheckBoxEvent, Child, Color, ColorExt,
+    ColorTheme, ColorThemeExt, ComboBox, ComboBoxEvent, ComboBoxMessage, Component,
+    ComponentSender, DrawingFontBuilder, Edit, Enable, GradientStop, Grid, HAlign, Label,
+    Layoutable, LinearGradientBrush, Margin, MessageBox, MessageBoxButton, ObservableVec,
+    ObservableVecEvent, Orient, Point, Progress, RadialGradientBrush, RadioButton,
+    RadioButtonGroup, Rect, RelativePoint, RelativeSize, Size, SolidColorBrush, StackPanel,
+    TextBox, VAlign, Visible, Window, WindowEvent, init, layout, start,
 };
 
 fn main() {
@@ -330,7 +330,7 @@ impl Component for MainModel {
             [
                 GradientStop::new(Color::new(0xF5, 0xF5, 0xF5, 0xFF), 0.0),
                 GradientStop::new(
-                    accent_color().unwrap_or(Color::new(0xFF, 0xC0, 0xCB, 0xFF)),
+                    Color::accent().unwrap_or(Color::new(0xFF, 0xC0, 0xCB, 0xFF)),
                     1.0,
                 ),
             ],

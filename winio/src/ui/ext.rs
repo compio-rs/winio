@@ -1,4 +1,4 @@
-use crate::{ColorTheme, Monitor};
+use crate::{Color, ColorTheme, Monitor};
 
 /// Extension trait for [`Monitor`].
 pub trait MonitorExt: Sized {
@@ -21,5 +21,17 @@ pub trait ColorThemeExt {
 impl ColorThemeExt for ColorTheme {
     fn current() -> Self {
         crate::ui::color_theme()
+    }
+}
+
+/// Extension trait for [`Color`].
+pub trait ColorExt: Sized {
+    /// Get accent color.
+    fn accent() -> Option<Self>;
+}
+
+impl ColorExt for Color {
+    fn accent() -> Option<Self> {
+        crate::ui::accent_color()
     }
 }
