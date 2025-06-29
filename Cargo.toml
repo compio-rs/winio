@@ -2,6 +2,7 @@
 members = [
     "winio",
     "winio-primitive",
+    "winio-callback",
     "winio-layout",
     "winio-handle",
     "winio-elm",

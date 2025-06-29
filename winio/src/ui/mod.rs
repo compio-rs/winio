@@ -39,8 +39,3 @@ pub mod export {
         sys::{Brush, Pen},
     };
 }
-
-#[cfg(not(windows))]
-mod callback;
-#[cfg(not(windows))]
-pub(crate) use callback::*;

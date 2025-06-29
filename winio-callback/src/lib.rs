@@ -1,9 +1,25 @@
+//! A callback helper for async.
+
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![warn(missing_docs)]
+
 use std::{
     cell::RefCell,
     future::poll_fn,
     hint::unreachable_unchecked,
     task::{Poll, Waker},
 };
+
+/// An abstract for global runtime.
+pub trait Runnable {
+    /// It will be called if the callback is signaled, and there's a waker to be
+    /// waked.
+    fn run();
+}
+
+impl Runnable for () {
+    fn run() {}
+}
 
 #[derive(Debug)]
 enum WakerState<T> {
@@ -12,6 +28,7 @@ enum WakerState<T> {
     Signaled(T),
 }
 
+/// A callback type. It is usually signaled in a GUI widget callback.
 #[derive(Debug)]
 pub struct Callback<T = ()>(RefCell<WakerState<T>>);
 
@@ -22,11 +39,14 @@ impl<T> Default for Callback<T> {
 }
 
 impl<T> Callback<T> {
+    /// Create [`Callback`].
     pub fn new() -> Self {
         Self(RefCell::new(WakerState::Inactive))
     }
 
-    pub fn signal(&self, v: T) -> bool {
+    /// Signal the callback and try to run the runtime if there's a waker
+    /// waiting.
+    pub fn signal<R: Runnable>(&self, v: T) -> bool {
         let mut state = self.0.borrow_mut();
         match &*state {
             WakerState::Inactive => true,
@@ -38,13 +58,13 @@ impl<T> Callback<T> {
                 waker.wake_by_ref();
                 *state = WakerState::Signaled(v);
                 drop(state);
-                crate::runtime::RUNTIME.with(|runtime| runtime.run());
+                R::run();
                 false
             }
         }
     }
 
-    pub fn register(&self, waker: &Waker) -> Poll<T> {
+    pub(crate) fn register(&self, waker: &Waker) -> Poll<T> {
         let mut state = self.0.borrow_mut();
         match &*state {
             WakerState::Signaled(_) => {
@@ -64,6 +84,7 @@ impl<T> Callback<T> {
         }
     }
 
+    /// Wait for signal.
     pub async fn wait(&self) -> T {
         poll_fn(|cx| self.register(cx.waker())).await
     }
