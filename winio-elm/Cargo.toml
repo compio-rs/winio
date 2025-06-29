@@ -14,5 +14,6 @@ winio-layout = { workspace = true }
 winio-handle = { workspace = true }
 
 futures-util = { workspace = true, features = ["alloc"] }
+inherit-methods-macro = { workspace = true }
 paste = { workspace = true }
 smallvec = "1"

@@ -1,3 +1,4 @@
+use inherit_methods_macro::inherit_methods;
 use widestring::U16CString;
 use windows_sys::Win32::{
     Graphics::Gdi::InvalidateRect,
@@ -12,7 +13,7 @@ use windows_sys::Win32::{
     },
 };
 use winio_handle::{AsRawWindow, AsWindow};
-use winio_primitive::{Point, Size, inherit};
+use winio_primitive::{Point, Size};
 
 use crate::{
     runtime::WindowMessageCommand,
@@ -24,29 +25,8 @@ pub struct ComboBoxImpl<const E: bool> {
     handle: Widget,
 }
 
+#[inherit_methods(from = "self.handle")]
 impl<const E: bool> ComboBoxImpl<E> {
-    inherit! { handle,
-        pub fn is_visible(&self) -> bool;
-
-        pub fn set_visible(&mut self, v: bool);
-
-        pub fn is_enabled(&self) -> bool;
-
-        pub fn set_enabled(&mut self, v: bool);
-
-        pub fn loc(&self) -> Point;
-
-        pub fn set_loc(&mut self, p: Point);
-
-        pub fn size(&self) -> Size;
-
-        pub fn set_size(&mut self, v: Size);
-
-        pub fn text(&self) -> String;
-
-        pub fn set_text(&mut self, s: impl AsRef<str>);
-    }
-
     pub fn new(parent: impl AsWindow) -> Self {
         let mut style =
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | CBS_AUTOHSCROLL as u32 | CBS_HASSTRINGS as u32;
@@ -60,6 +40,14 @@ impl<const E: bool> ComboBoxImpl<E> {
         Self { handle }
     }
 
+    pub fn is_visible(&self) -> bool;
+
+    pub fn set_visible(&mut self, v: bool);
+
+    pub fn is_enabled(&self) -> bool;
+
+    pub fn set_enabled(&mut self, v: bool);
+
     pub fn preferred_size(&self) -> Size {
         let mut width = 0.0f64;
         for i in 0..self.len() {
@@ -69,6 +57,18 @@ impl<const E: bool> ComboBoxImpl<E> {
         }
         Size::new(width + 20.0, self.handle.size().height)
     }
+
+    pub fn loc(&self) -> Point;
+
+    pub fn set_loc(&mut self, p: Point);
+
+    pub fn size(&self) -> Size;
+
+    pub fn set_size(&mut self, v: Size);
+
+    pub fn text(&self) -> String;
+
+    pub fn set_text(&mut self, s: impl AsRef<str>);
 
     pub fn selection(&self) -> Option<usize> {
         let i = unsafe { SendMessageW(self.handle.as_raw_window(), CB_GETCURSEL, 0, 0) };

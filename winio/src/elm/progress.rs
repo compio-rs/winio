@@ -1,3 +1,5 @@
+use inherit_methods_macro::inherit_methods;
+
 use crate::{
     BorrowedWindow, Component, ComponentSender, Enable, Layoutable, Point, Size, Visible, ui,
 };
@@ -8,78 +10,52 @@ pub struct Progress {
     widget: ui::Progress,
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Progress {
     /// Value range.
-    pub fn range(&self) -> (usize, usize) {
-        self.widget.range()
-    }
+    pub fn range(&self) -> (usize, usize);
 
     /// Set the value range.
-    pub fn set_range(&mut self, min: usize, max: usize) {
-        self.widget.set_range(min, max);
-    }
+    pub fn set_range(&mut self, min: usize, max: usize);
 
     /// Current position.
-    pub fn pos(&self) -> usize {
-        self.widget.pos()
-    }
+    pub fn pos(&self) -> usize;
 
     /// Set current position.
-    pub fn set_pos(&mut self, pos: usize) {
-        self.widget.set_pos(pos);
-    }
+    pub fn set_pos(&mut self, pos: usize);
 
     /// Get if the progress bar is in indeterminate state.
-    pub fn is_indeterminate(&self) -> bool {
-        self.widget.is_indeterminate()
-    }
+    pub fn is_indeterminate(&self) -> bool;
 
     /// Set if the progress bar is in indeterminate state.
-    pub fn set_indeterminate(&mut self, v: bool) {
-        self.widget.set_indeterminate(v);
-    }
+    pub fn set_indeterminate(&mut self, v: bool);
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Visible for Progress {
-    fn is_visible(&self) -> bool {
-        self.widget.is_visible()
-    }
+    fn is_visible(&self) -> bool;
 
-    fn set_visible(&mut self, v: bool) {
-        self.widget.set_visible(v);
-    }
+    fn set_visible(&mut self, v: bool);
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Enable for Progress {
-    fn is_enabled(&self) -> bool {
-        self.widget.is_enabled()
-    }
+    fn is_enabled(&self) -> bool;
 
-    fn set_enabled(&mut self, v: bool) {
-        self.widget.set_enabled(v);
-    }
+    fn set_enabled(&mut self, v: bool);
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Layoutable for Progress {
-    fn loc(&self) -> Point {
-        self.widget.loc()
-    }
+    fn loc(&self) -> Point;
 
-    fn set_loc(&mut self, p: Point) {
-        self.widget.set_loc(p)
-    }
+    fn set_loc(&mut self, p: Point);
 
-    fn size(&self) -> Size {
-        self.widget.size()
-    }
+    fn size(&self) -> Size;
 
-    fn set_size(&mut self, v: Size) {
-        self.widget.set_size(v)
-    }
+    fn set_size(&mut self, v: Size);
 
-    fn preferred_size(&self) -> Size {
-        self.widget.preferred_size()
-    }
+    fn preferred_size(&self) -> Size;
 }
 
 /// Events of [`Progress`].

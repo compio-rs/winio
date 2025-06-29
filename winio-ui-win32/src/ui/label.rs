@@ -1,5 +1,6 @@
 use std::ptr::null;
 
+use inherit_methods_macro::inherit_methods;
 use windows_sys::Win32::{
     Graphics::Gdi::InvalidateRect,
     System::SystemServices::{SS_CENTER, SS_LEFT, SS_RIGHT},
@@ -9,7 +10,7 @@ use windows_sys::Win32::{
     },
 };
 use winio_handle::{AsRawWindow, AsWindow};
-use winio_primitive::{HAlign, Point, Size, inherit};
+use winio_primitive::{HAlign, Point, Size};
 
 use crate::ui::{Widget, font::measure_string};
 
@@ -18,27 +19,8 @@ pub struct Label {
     handle: Widget,
 }
 
+#[inherit_methods(from = "self.handle")]
 impl Label {
-    inherit! { handle,
-        pub fn is_visible(&self) -> bool;
-
-        pub fn set_visible(&mut self, v: bool);
-
-        pub fn is_enabled(&self) -> bool;
-
-        pub fn set_enabled(&mut self, v: bool);
-
-        pub fn loc(&self) -> Point;
-
-        pub fn set_loc(&mut self, p: Point);
-
-        pub fn size(&self) -> Size;
-
-        pub fn text(&self) -> String;
-
-        pub fn set_text(&mut self, s: impl AsRef<str>);
-    }
-
     pub fn new(parent: impl AsWindow) -> Self {
         let mut handle = Widget::new(
             WC_STATICW,
@@ -50,14 +32,32 @@ impl Label {
         Self { handle }
     }
 
+    pub fn is_visible(&self) -> bool;
+
+    pub fn set_visible(&mut self, v: bool);
+
+    pub fn is_enabled(&self) -> bool;
+
+    pub fn set_enabled(&mut self, v: bool);
+
     pub fn preferred_size(&self) -> Size {
         measure_string(self.handle.as_raw_window(), &self.handle.text_u16())
     }
+
+    pub fn loc(&self) -> Point;
+
+    pub fn set_loc(&mut self, p: Point);
+
+    pub fn size(&self) -> Size;
 
     pub fn set_size(&mut self, v: Size) {
         self.handle.set_size(v);
         unsafe { InvalidateRect(self.handle.as_raw_window(), null(), 1) };
     }
+
+    pub fn text(&self) -> String;
+
+    pub fn set_text(&mut self, s: impl AsRef<str>);
 
     pub fn halign(&self) -> HAlign {
         let style = self.handle.style();

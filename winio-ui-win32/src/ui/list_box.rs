@@ -1,3 +1,4 @@
+use inherit_methods_macro::inherit_methods;
 use widestring::U16CString;
 use windows_sys::Win32::UI::{
     Controls::WC_LISTBOXW,
@@ -9,7 +10,7 @@ use windows_sys::Win32::UI::{
     },
 };
 use winio_handle::{AsRawWindow, AsWindow};
-use winio_primitive::{Point, Size, inherit};
+use winio_primitive::{Point, Size};
 
 use crate::{
     runtime::WindowMessageCommand,
@@ -21,25 +22,8 @@ pub struct ListBox {
     handle: Widget,
 }
 
+#[inherit_methods(from = "self.handle")]
 impl ListBox {
-    inherit! { handle,
-        pub fn is_visible(&self) -> bool;
-
-        pub fn set_visible(&mut self, v: bool);
-
-        pub fn is_enabled(&self) -> bool;
-
-        pub fn set_enabled(&mut self, v: bool);
-
-        pub fn loc(&self) -> Point;
-
-        pub fn set_loc(&mut self, p: Point);
-
-        pub fn size(&self) -> Size;
-
-        pub fn set_size(&mut self, v: Size);
-    }
-
     pub fn new(parent: impl AsWindow) -> Self {
         let mut handle = Widget::new(
             WC_LISTBOXW,
@@ -59,6 +43,14 @@ impl ListBox {
         handle.set_size(handle.size_d2l((50, 14)));
         Self { handle }
     }
+
+    pub fn is_visible(&self) -> bool;
+
+    pub fn set_visible(&mut self, v: bool);
+
+    pub fn is_enabled(&self) -> bool;
+
+    pub fn set_enabled(&mut self, v: bool);
 
     pub fn preferred_size(&self) -> Size {
         let mut width = 0.0f64;
@@ -83,6 +75,14 @@ impl ListBox {
         }
         Size::new(width + 20.0, height)
     }
+
+    pub fn loc(&self) -> Point;
+
+    pub fn set_loc(&mut self, p: Point);
+
+    pub fn size(&self) -> Size;
+
+    pub fn set_size(&mut self, v: Size);
 
     pub fn is_selected(&self, i: usize) -> bool {
         unsafe { SendMessageW(self.handle.as_raw_window(), LB_GETSEL, i as _, 0) != 0 }

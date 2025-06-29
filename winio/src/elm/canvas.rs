@@ -1,3 +1,5 @@
+use inherit_methods_macro::inherit_methods;
+
 use crate::{
     BorrowedWindow, Component, ComponentSender, DrawingContext, Enable, Layoutable, MouseButton,
     Point, Size, Visible, ui,
@@ -16,42 +18,29 @@ impl Canvas {
     }
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Visible for Canvas {
-    fn is_visible(&self) -> bool {
-        self.widget.is_visible()
-    }
+    fn is_visible(&self) -> bool;
 
-    fn set_visible(&mut self, v: bool) {
-        self.widget.set_visible(v);
-    }
+    fn set_visible(&mut self, v: bool);
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Enable for Canvas {
-    fn is_enabled(&self) -> bool {
-        self.widget.is_enabled()
-    }
+    fn is_enabled(&self) -> bool;
 
-    fn set_enabled(&mut self, v: bool) {
-        self.widget.set_enabled(v);
-    }
+    fn set_enabled(&mut self, v: bool);
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Layoutable for Canvas {
-    fn loc(&self) -> Point {
-        self.widget.loc()
-    }
+    fn loc(&self) -> Point;
 
-    fn set_loc(&mut self, p: Point) {
-        self.widget.set_loc(p)
-    }
+    fn set_loc(&mut self, p: Point);
 
-    fn size(&self) -> Size {
-        self.widget.size()
-    }
+    fn size(&self) -> Size;
 
-    fn set_size(&mut self, v: Size) {
-        self.widget.set_size(v)
-    }
+    fn set_size(&mut self, v: Size);
 }
 
 /// Events of [`Canvas`].

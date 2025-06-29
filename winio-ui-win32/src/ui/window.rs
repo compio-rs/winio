@@ -5,6 +5,7 @@ use std::{
 };
 
 use compio::driver::syscall;
+use inherit_methods_macro::inherit_methods;
 use widestring::U16CString;
 use windows_sys::{
     Win32::{
@@ -28,7 +29,7 @@ use windows_sys::{
     w,
 };
 use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
-use winio_primitive::{Point, Size, inherit};
+use winio_primitive::{Point, Size};
 
 use crate::{
     runtime::{WindowMessage, wait, window_proc},
@@ -351,33 +352,8 @@ pub struct Window {
     handle: Widget,
 }
 
+#[inherit_methods(from = "self.handle")]
 impl Window {
-    inherit! { handle,
-        pub fn is_visible(&self) -> bool;
-
-        pub fn set_visible(&mut self, v: bool);
-
-        pub fn loc(&self) -> Point;
-
-        pub fn set_loc(&mut self, p: Point);
-
-        pub fn size(&self) -> Size;
-
-        pub fn set_size(&mut self, v: Size);
-
-        pub fn text(&self) -> String;
-
-        pub fn set_text(&mut self, s: impl AsRef<str>);
-
-        pub fn style(&self) -> u32;
-
-        pub fn set_style(&mut self, v: u32);
-
-        pub fn ex_style(&self) -> u32;
-
-        pub fn set_ex_style(&mut self, v: u32);
-    }
-
     pub fn new(parent: Option<impl AsWindow>) -> Self {
         register_once();
         let handle = if let Some(parent) = parent {
@@ -395,6 +371,18 @@ impl Window {
         this
     }
 
+    pub fn is_visible(&self) -> bool;
+
+    pub fn set_visible(&mut self, v: bool);
+
+    pub fn loc(&self) -> Point;
+
+    pub fn set_loc(&mut self, p: Point);
+
+    pub fn size(&self) -> Size;
+
+    pub fn set_size(&mut self, v: Size);
+
     pub fn client_size(&self) -> Size {
         let handle = self.as_raw_window();
         let mut rect = MaybeUninit::uninit();
@@ -403,6 +391,18 @@ impl Window {
         self.handle
             .size_d2l((rect.right - rect.left, rect.bottom - rect.top))
     }
+
+    pub fn text(&self) -> String;
+
+    pub fn set_text(&mut self, s: impl AsRef<str>);
+
+    pub fn style(&self) -> u32;
+
+    pub fn set_style(&mut self, v: u32);
+
+    pub fn ex_style(&self) -> u32;
+
+    pub fn set_ex_style(&mut self, v: u32);
 
     pub fn set_icon_by_id(&mut self, id: u16) {
         let icon = unsafe {

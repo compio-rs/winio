@@ -1,3 +1,5 @@
+use inherit_methods_macro::inherit_methods;
+
 use crate::{
     AsRawWindow, AsWindow, BorrowedWindow, Component, ComponentSender, Layoutable,
     MaybeBorrowedWindow, Point, RawWindow, Size, Visible, ui,
@@ -9,79 +11,54 @@ pub struct Window {
     widget: ui::Window,
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Window {
     /// The title.
-    pub fn text(&self) -> String {
-        self.widget.text()
-    }
+    pub fn text(&self) -> String;
 
     /// Set the title.
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.widget.set_text(s)
-    }
+    pub fn set_text(&mut self, s: impl AsRef<str>);
 
     /// The inner client size.
-    pub fn client_size(&self) -> Size {
-        self.widget.client_size()
-    }
+    pub fn client_size(&self) -> Size;
 
     /// Set window icon by resource ID.
     #[cfg(windows)]
-    pub fn set_icon_by_id(&mut self, id: u16) {
-        self.widget.set_icon_by_id(id);
-    }
+    pub fn set_icon_by_id(&mut self, id: u16);
 
     /// Get window style.
     #[cfg(windows)]
-    pub fn style(&self) -> u32 {
-        self.widget.style()
-    }
+    pub fn style(&self) -> u32;
 
     /// Set window style.
     #[cfg(windows)]
-    pub fn set_style(&mut self, s: u32) {
-        self.widget.set_style(s);
-    }
+    pub fn set_style(&mut self, s: u32);
 
     /// Get window extended style.
     #[cfg(windows)]
-    pub fn ex_style(&self) -> u32 {
-        self.widget.ex_style()
-    }
+    pub fn ex_style(&self) -> u32;
 
     /// Set window extended style.
     #[cfg(windows)]
-    pub fn set_ex_style(&mut self, s: u32) {
-        self.widget.set_ex_style(s);
-    }
+    pub fn set_ex_style(&mut self, s: u32);
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Visible for Window {
-    fn is_visible(&self) -> bool {
-        self.widget.is_visible()
-    }
+    fn is_visible(&self) -> bool;
 
-    fn set_visible(&mut self, v: bool) {
-        self.widget.set_visible(v);
-    }
+    fn set_visible(&mut self, v: bool);
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Layoutable for Window {
-    fn loc(&self) -> Point {
-        self.widget.loc()
-    }
+    fn loc(&self) -> Point;
 
-    fn set_loc(&mut self, p: Point) {
-        self.widget.set_loc(p)
-    }
+    fn set_loc(&mut self, p: Point);
 
-    fn size(&self) -> Size {
-        self.widget.size()
-    }
+    fn size(&self) -> Size;
 
-    fn set_size(&mut self, v: Size) {
-        self.widget.set_size(v)
-    }
+    fn set_size(&mut self, v: Size);
 }
 
 impl AsRawWindow for Window {

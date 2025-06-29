@@ -2,6 +2,7 @@ use std::mem::MaybeUninit;
 
 use futures_util::FutureExt;
 use image::{DynamicImage, Pixel, Rgba};
+use inherit_methods_macro::inherit_methods;
 use widestring::U16CString;
 use windows::{
     Win32::Graphics::{
@@ -48,7 +49,6 @@ use winio_handle::{AsRawWindow, AsWindow};
 use winio_primitive::{
     BrushPen, Color, DrawingFont, GradientStop, HAlign, LinearGradientBrush, MouseButton, Point,
     RadialGradientBrush, Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, VAlign, Vector,
-    inherit,
 };
 
 use crate::{
@@ -67,25 +67,8 @@ pub struct Canvas {
     target: ID2D1HwndRenderTarget,
 }
 
+#[inherit_methods(from = "self.handle")]
 impl Canvas {
-    inherit! { handle,
-        pub fn is_visible(&self) -> bool;
-
-        pub fn set_visible(&mut self, v: bool);
-
-        pub fn is_enabled(&self) -> bool;
-
-        pub fn set_enabled(&mut self, v: bool);
-
-        pub fn loc(&self) -> Point;
-
-        pub fn set_loc(&mut self, p: Point);
-
-        pub fn size(&self) -> Size;
-
-        pub fn set_size(&mut self, v: Size);
-    }
-
     pub fn new(parent: impl AsWindow) -> Self {
         let handle = Widget::new(
             WC_STATICW,
@@ -118,6 +101,22 @@ impl Canvas {
         };
         Self { handle, target }
     }
+
+    pub fn is_visible(&self) -> bool;
+
+    pub fn set_visible(&mut self, v: bool);
+
+    pub fn is_enabled(&self) -> bool;
+
+    pub fn set_enabled(&mut self, v: bool);
+
+    pub fn loc(&self) -> Point;
+
+    pub fn set_loc(&mut self, p: Point);
+
+    pub fn size(&self) -> Size;
+
+    pub fn set_size(&mut self, v: Size);
 
     pub fn context(&mut self) -> DrawingContext<'_> {
         unsafe {

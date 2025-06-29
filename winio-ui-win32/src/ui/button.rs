@@ -1,3 +1,4 @@
+use inherit_methods_macro::inherit_methods;
 use windows_sys::Win32::UI::{
     Controls::WC_BUTTONW,
     WindowsAndMessaging::{
@@ -5,7 +6,7 @@ use windows_sys::Win32::UI::{
     },
 };
 use winio_handle::{AsRawWindow, AsWindow};
-use winio_primitive::{Point, Size, inherit};
+use winio_primitive::{Point, Size};
 
 use crate::{
     runtime::WindowMessageCommand,
@@ -17,29 +18,8 @@ pub struct Button {
     handle: Widget,
 }
 
+#[inherit_methods(from = "self.handle")]
 impl Button {
-    inherit! { handle,
-        pub fn is_visible(&self) -> bool;
-
-        pub fn set_visible(&mut self, v: bool);
-
-        pub fn is_enabled(&self) -> bool;
-
-        pub fn set_enabled(&mut self, v: bool);
-
-        pub fn loc(&self) -> Point;
-
-        pub fn set_loc(&mut self, p: Point);
-
-        pub fn size(&self) -> Size;
-
-        pub fn set_size(&mut self, v: Size);
-
-        pub fn text(&self) -> String;
-
-        pub fn set_text(&mut self, s: impl AsRef<str>);
-    }
-
     pub fn new(parent: impl AsWindow) -> Self {
         let mut handle = Widget::new(
             WC_BUTTONW,
@@ -51,10 +31,30 @@ impl Button {
         Self { handle }
     }
 
+    pub fn is_visible(&self) -> bool;
+
+    pub fn set_visible(&mut self, v: bool);
+
+    pub fn is_enabled(&self) -> bool;
+
+    pub fn set_enabled(&mut self, v: bool);
+
     pub fn preferred_size(&self) -> Size {
         let s = measure_string(self.handle.as_raw_window(), &self.handle.text_u16());
         Size::new(s.width + 4.0, s.height + 4.0)
     }
+
+    pub fn loc(&self) -> Point;
+
+    pub fn set_loc(&mut self, p: Point);
+
+    pub fn size(&self) -> Size;
+
+    pub fn set_size(&mut self, v: Size);
+
+    pub fn text(&self) -> String;
+
+    pub fn set_text(&mut self, s: impl AsRef<str>);
 
     pub async fn wait_click(&self) {
         loop {

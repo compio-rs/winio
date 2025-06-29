@@ -1,3 +1,5 @@
+use inherit_methods_macro::inherit_methods;
+
 use crate::{
     BorrowedWindow, Component, ComponentSender, Enable, Layoutable, ObservableVecEvent, Point,
     Size, Visible, ui,
@@ -9,101 +11,63 @@ pub struct ListBox {
     widget: ui::ListBox,
 }
 
+#[inherit_methods(from = "self.widget")]
 impl ListBox {
     /// Get the selected state by index.
-    pub fn is_selected(&self, i: usize) -> bool {
-        self.widget.is_selected(i)
-    }
+    pub fn is_selected(&self, i: usize) -> bool;
 
     /// Set the selected state by index.
-    pub fn set_selected(&mut self, i: usize, v: bool) {
-        self.widget.set_selected(i, v);
-    }
+    pub fn set_selected(&mut self, i: usize, v: bool);
 
     /// The length of selection list.
-    pub fn len(&self) -> usize {
-        self.widget.len()
-    }
+    pub fn len(&self) -> usize;
 
     /// If the selection list is empty.
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
+    pub fn is_empty(&self) -> bool;
 
     /// Clear the selection list.
-    pub fn clear(&mut self) {
-        self.widget.clear();
-    }
+    pub fn clear(&mut self);
 
     /// Get the selection item by index.
-    pub fn get(&self, i: usize) -> String {
-        self.widget.get(i)
-    }
+    pub fn get(&self, i: usize) -> String;
 
     /// Set the selection item by index.
-    pub fn set(&mut self, i: usize, s: impl AsRef<str>) {
-        self.widget.set(i, s)
-    }
+    pub fn set(&mut self, i: usize, s: impl AsRef<str>);
 
     /// Insert the selection item by index.
-    pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
-        self.widget.insert(i, s);
-    }
+    pub fn insert(&mut self, i: usize, s: impl AsRef<str>);
 
     /// Remove the selection item by index.
-    pub fn remove(&mut self, i: usize) {
-        self.widget.remove(i);
-    }
+    pub fn remove(&mut self, i: usize);
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Visible for ListBox {
-    fn is_visible(&self) -> bool {
-        self.widget.is_visible()
-    }
+    fn is_visible(&self) -> bool;
 
-    fn set_visible(&mut self, v: bool) {
-        self.widget.set_visible(v);
-    }
+    fn set_visible(&mut self, v: bool);
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Enable for ListBox {
-    fn is_enabled(&self) -> bool {
-        self.widget.is_enabled()
-    }
+    fn is_enabled(&self) -> bool;
 
-    fn set_enabled(&mut self, v: bool) {
-        self.widget.set_enabled(v);
-    }
+    fn set_enabled(&mut self, v: bool);
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Layoutable for ListBox {
-    fn loc(&self) -> Point {
-        self.widget.loc()
-    }
+    fn loc(&self) -> Point;
 
-    fn set_loc(&mut self, p: Point) {
-        if !super::approx_eq_point(self.loc(), p) {
-            self.widget.set_loc(p);
-        }
-    }
+    fn set_loc(&mut self, p: Point);
 
-    fn size(&self) -> Size {
-        self.widget.size()
-    }
+    fn size(&self) -> Size;
 
-    fn set_size(&mut self, v: Size) {
-        if !super::approx_eq_size(self.size(), v) {
-            self.widget.set_size(v);
-        }
-    }
+    fn set_size(&mut self, v: Size);
 
-    fn preferred_size(&self) -> Size {
-        self.widget.preferred_size()
-    }
+    fn preferred_size(&self) -> Size;
 
-    fn min_size(&self) -> Size {
-        self.widget.min_size()
-    }
+    fn min_size(&self) -> Size;
 }
 
 /// Events of [`ListBox`].

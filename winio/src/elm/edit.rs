@@ -1,3 +1,5 @@
+use inherit_methods_macro::inherit_methods;
+
 use crate::{
     BorrowedWindow, Component, ComponentSender, Enable, HAlign, Layoutable, Point, Size, Visible,
     ui,
@@ -9,78 +11,52 @@ pub struct Edit {
     widget: ui::Edit,
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Edit {
     /// The text.
-    pub fn text(&self) -> String {
-        self.widget.text()
-    }
+    pub fn text(&self) -> String;
 
     /// Set the text.
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.widget.set_text(s)
-    }
+    pub fn set_text(&mut self, s: impl AsRef<str>);
 
     /// If the text input is password.
-    pub fn is_password(&self) -> bool {
-        self.widget.is_password()
-    }
+    pub fn is_password(&self) -> bool;
 
     /// Set if the text input is password.
-    pub fn set_password(&mut self, v: bool) {
-        self.widget.set_password(v);
-    }
+    pub fn set_password(&mut self, v: bool);
 
     /// The horizontal alignment.
-    pub fn halign(&self) -> HAlign {
-        self.widget.halign()
-    }
+    pub fn halign(&self) -> HAlign;
 
     /// Set the horizontal alignment.
-    pub fn set_halign(&mut self, align: HAlign) {
-        self.widget.set_halign(align);
-    }
+    pub fn set_halign(&mut self, align: HAlign);
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Visible for Edit {
-    fn is_visible(&self) -> bool {
-        self.widget.is_visible()
-    }
+    fn is_visible(&self) -> bool;
 
-    fn set_visible(&mut self, v: bool) {
-        self.widget.set_visible(v);
-    }
+    fn set_visible(&mut self, v: bool);
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Enable for Edit {
-    fn is_enabled(&self) -> bool {
-        self.widget.is_enabled()
-    }
+    fn is_enabled(&self) -> bool;
 
-    fn set_enabled(&mut self, v: bool) {
-        self.widget.set_enabled(v);
-    }
+    fn set_enabled(&mut self, v: bool);
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Layoutable for Edit {
-    fn loc(&self) -> Point {
-        self.widget.loc()
-    }
+    fn loc(&self) -> Point;
 
-    fn set_loc(&mut self, p: Point) {
-        self.widget.set_loc(p)
-    }
+    fn set_loc(&mut self, p: Point);
 
-    fn size(&self) -> Size {
-        self.widget.size()
-    }
+    fn size(&self) -> Size;
 
-    fn set_size(&mut self, v: Size) {
-        self.widget.set_size(v)
-    }
+    fn set_size(&mut self, v: Size);
 
-    fn preferred_size(&self) -> Size {
-        self.widget.preferred_size()
-    }
+    fn preferred_size(&self) -> Size;
 }
 
 /// Events of [`Edit`].

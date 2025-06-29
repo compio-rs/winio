@@ -1,5 +1,6 @@
 use std::ptr::null;
 
+use inherit_methods_macro::inherit_methods;
 use windows_sys::Win32::{
     Graphics::Gdi::InvalidateRect,
     UI::{
@@ -12,7 +13,7 @@ use windows_sys::Win32::{
     },
 };
 use winio_handle::{AsRawWindow, AsWindow, RawWindow};
-use winio_primitive::{HAlign, Point, Size, inherit};
+use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
     runtime::WindowMessageCommand,
@@ -24,29 +25,8 @@ struct EditImpl {
     handle: Widget,
 }
 
+#[inherit_methods(from = "self.handle")]
 impl EditImpl {
-    inherit! { handle,
-        pub fn is_visible(&self) -> bool;
-
-        pub fn set_visible(&mut self, v: bool);
-
-        pub fn is_enabled(&self) -> bool;
-
-        pub fn set_enabled(&mut self, v: bool);
-
-        pub fn loc(&self) -> Point;
-
-        pub fn set_loc(&mut self, p: Point);
-
-        pub fn size(&self) -> Size;
-
-        pub fn set_size(&mut self, v: Size);
-
-        pub fn text(&self) -> String;
-
-        pub fn set_text(&mut self, s: impl AsRef<str>);
-    }
-
     pub fn new(parent: impl AsWindow, style: u32) -> Self {
         let mut handle = Widget::new(
             WC_EDITW,
@@ -58,10 +38,30 @@ impl EditImpl {
         Self { handle }
     }
 
+    pub fn is_visible(&self) -> bool;
+
+    pub fn set_visible(&mut self, v: bool);
+
+    pub fn is_enabled(&self) -> bool;
+
+    pub fn set_enabled(&mut self, v: bool);
+
     pub fn preferred_size(&self) -> Size {
         let s = measure_string(self.handle.as_raw_window(), &self.handle.text_u16());
         Size::new(s.width + 8.0, s.height + 4.0)
     }
+
+    pub fn loc(&self) -> Point;
+
+    pub fn set_loc(&mut self, p: Point);
+
+    pub fn size(&self) -> Size;
+
+    pub fn set_size(&mut self, v: Size);
+
+    pub fn text(&self) -> String;
+
+    pub fn set_text(&mut self, s: impl AsRef<str>);
 
     pub fn halign(&self) -> HAlign {
         let style = self.handle.style() as i32;
@@ -109,35 +109,8 @@ pub struct Edit {
     pchar: u16,
 }
 
+#[inherit_methods(from = "self.handle")]
 impl Edit {
-    inherit! { handle,
-        pub fn is_visible(&self) -> bool;
-
-        pub fn set_visible(&mut self, v: bool);
-
-        pub fn is_enabled(&self) -> bool;
-
-        pub fn set_enabled(&mut self, v: bool);
-
-        pub fn preferred_size(&self) -> Size;
-
-        pub fn loc(&self) -> Point;
-
-        pub fn set_loc(&mut self, p: Point);
-
-        pub fn size(&self) -> Size;
-
-        pub fn set_size(&mut self, v: Size);
-
-        pub fn text(&self) -> String;
-
-        pub fn set_text(&mut self, s: impl AsRef<str>);
-
-        pub fn halign(&self) -> HAlign;
-
-        pub fn set_halign(&mut self, align: HAlign);
-    }
-
     pub fn new(parent: impl AsWindow) -> Self {
         let handle = EditImpl::new(
             parent,
@@ -156,6 +129,32 @@ impl Edit {
         unsafe { SendMessageW(handle.as_raw_window(), EM_SETPASSWORDCHAR, 0, 0) };
         Self { handle, pchar }
     }
+
+    pub fn is_visible(&self) -> bool;
+
+    pub fn set_visible(&mut self, v: bool);
+
+    pub fn is_enabled(&self) -> bool;
+
+    pub fn set_enabled(&mut self, v: bool);
+
+    pub fn preferred_size(&self) -> Size;
+
+    pub fn loc(&self) -> Point;
+
+    pub fn set_loc(&mut self, p: Point);
+
+    pub fn size(&self) -> Size;
+
+    pub fn set_size(&mut self, v: Size);
+
+    pub fn text(&self) -> String;
+
+    pub fn set_text(&mut self, s: impl AsRef<str>);
+
+    pub fn halign(&self) -> HAlign;
+
+    pub fn set_halign(&mut self, align: HAlign);
 
     pub fn is_password(&self) -> bool {
         unsafe { SendMessageW(self.handle.as_raw_window(), EM_GETPASSWORDCHAR, 0, 0) != 0 }
@@ -189,31 +188,8 @@ pub struct TextBox {
     handle: EditImpl,
 }
 
+#[inherit_methods(from = "self.handle")]
 impl TextBox {
-    inherit! { handle,
-        pub fn is_visible(&self) -> bool;
-
-        pub fn set_visible(&mut self, v: bool);
-
-        pub fn is_enabled(&self) -> bool;
-
-        pub fn set_enabled(&mut self, v: bool);
-
-        pub fn preferred_size(&self) -> Size;
-
-        pub fn loc(&self) -> Point;
-
-        pub fn set_loc(&mut self, p: Point);
-
-        pub fn size(&self) -> Size;
-
-        pub fn set_size(&mut self, v: Size);
-
-        pub fn halign(&self) -> HAlign;
-
-        pub fn set_halign(&mut self, align: HAlign);
-    }
-
     pub fn new(parent: impl AsWindow) -> Self {
         let handle = EditImpl::new(
             parent,
@@ -228,6 +204,24 @@ impl TextBox {
         Self { handle }
     }
 
+    pub fn is_visible(&self) -> bool;
+
+    pub fn set_visible(&mut self, v: bool);
+
+    pub fn is_enabled(&self) -> bool;
+
+    pub fn set_enabled(&mut self, v: bool);
+
+    pub fn preferred_size(&self) -> Size;
+
+    pub fn loc(&self) -> Point;
+
+    pub fn set_loc(&mut self, p: Point);
+
+    pub fn size(&self) -> Size;
+
+    pub fn set_size(&mut self, v: Size);
+
     pub fn text(&self) -> String {
         self.handle.text().replace("\r\n", "\n")
     }
@@ -235,6 +229,10 @@ impl TextBox {
     pub fn set_text(&mut self, s: impl AsRef<str>) {
         self.handle.set_text(fix_crlf(s.as_ref()))
     }
+
+    pub fn halign(&self) -> HAlign;
+
+    pub fn set_halign(&mut self, align: HAlign);
 
     pub async fn wait_change(&self) {
         self.handle.wait_change().await

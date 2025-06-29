@@ -1,3 +1,5 @@
+use inherit_methods_macro::inherit_methods;
+
 use crate::{
     BorrowedWindow, Component, ComponentSender, Enable, Layoutable, Point, Size, Visible, ui,
 };
@@ -8,68 +10,46 @@ pub struct RadioButton {
     widget: ui::RadioButton,
 }
 
+#[inherit_methods(from = "self.widget")]
 impl RadioButton {
     /// The text.
-    pub fn text(&self) -> String {
-        self.widget.text()
-    }
+    pub fn text(&self) -> String;
 
     /// Set the text.
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.widget.set_text(s)
-    }
+    pub fn set_text(&mut self, s: impl AsRef<str>);
 
     /// If the box is checked.
-    pub fn is_checked(&self) -> bool {
-        self.widget.is_checked()
-    }
+    pub fn is_checked(&self) -> bool;
 
     /// Set the checked state.
-    pub fn set_checked(&mut self, v: bool) {
-        self.widget.set_checked(v);
-    }
+    pub fn set_checked(&mut self, v: bool);
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Visible for RadioButton {
-    fn is_visible(&self) -> bool {
-        self.widget.is_visible()
-    }
+    fn is_visible(&self) -> bool;
 
-    fn set_visible(&mut self, v: bool) {
-        self.widget.set_visible(v);
-    }
+    fn set_visible(&mut self, v: bool);
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Enable for RadioButton {
-    fn is_enabled(&self) -> bool {
-        self.widget.is_enabled()
-    }
+    fn is_enabled(&self) -> bool;
 
-    fn set_enabled(&mut self, v: bool) {
-        self.widget.set_enabled(v);
-    }
+    fn set_enabled(&mut self, v: bool);
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Layoutable for RadioButton {
-    fn loc(&self) -> Point {
-        self.widget.loc()
-    }
+    fn loc(&self) -> Point;
 
-    fn set_loc(&mut self, p: Point) {
-        self.widget.set_loc(p)
-    }
+    fn set_loc(&mut self, p: Point);
 
-    fn size(&self) -> Size {
-        self.widget.size()
-    }
+    fn size(&self) -> Size;
 
-    fn set_size(&mut self, v: Size) {
-        self.widget.set_size(v)
-    }
+    fn set_size(&mut self, v: Size);
 
-    fn preferred_size(&self) -> Size {
-        self.widget.preferred_size()
-    }
+    fn preferred_size(&self) -> Size;
 }
 
 /// Events of [`RadioButton`].

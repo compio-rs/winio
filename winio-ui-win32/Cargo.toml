@@ -17,6 +17,7 @@ compio-log = { workspace = true }
 
 cfg-if = { workspace = true }
 futures-util = { workspace = true }
+inherit-methods-macro = { workspace = true }
 image = { workspace = true, default-features = false }
 scoped-tls = { workspace = true }
 slab = "0.4"
