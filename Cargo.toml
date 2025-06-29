@@ -23,6 +23,7 @@ winio-handle = { path = "winio-handle", version = "0.1.0" }
 winio-elm = { path = "winio-elm", version = "0.1.0" }
 
 cfg-if = "1"
+futures-util = "0.3"
 paste = "1.0"
 
 windows-sys = "0.60"

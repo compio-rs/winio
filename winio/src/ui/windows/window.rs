@@ -27,12 +27,12 @@ use windows_sys::{
     },
     w,
 };
+use winio_handle::{BorrowedWindow, RawWindow};
 
 use crate::{
     AsRawWindow, AsWindow, Point, Size,
     runtime::{WindowMessage, wait, window_proc},
     ui::{
-        RawWindow,
         darkmode::{
             PreferredAppMode, control_use_dark_mode, set_preferred_app_mode, window_use_dark_mode,
         },
@@ -467,6 +467,12 @@ impl Window {
 impl AsRawWindow for Window {
     fn as_raw_window(&self) -> RawWindow {
         self.handle.as_raw_window()
+    }
+}
+
+impl AsWindow for Window {
+    fn as_window(&self) -> BorrowedWindow<'_> {
+        unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
     }
 }
 

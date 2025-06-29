@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use crate::{MaybeBorrowedWindow, ui::sys};
+use winio_handle::MaybeBorrowedWindow;
+
+use crate::ui::sys;
 
 /// File open/save box.
 #[derive(Debug, Default, Clone)]

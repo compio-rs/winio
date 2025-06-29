@@ -1,5 +1,6 @@
 use std::future::Future;
 
+use winio_elm::Component;
 use winio_primitive::{Point, Size};
 
 use crate::runtime::Runtime;
@@ -37,31 +38,7 @@ impl App {
     /// Create and manage the component, till it posts an event. The application
     /// returns the first event from the component.
     pub fn run<'a, T: Component>(&mut self, init: impl Into<T::Init<'a>>) -> T::Event {
-        self.block_on(async {
-            let sender = ComponentSender::new();
-            let mut model = T::init(init.into(), &sender);
-            model.render(&sender);
-            'outer: loop {
-                let fut_start = model.start(&sender);
-                let fut_recv = sender.wait();
-                futures_util::select! {
-                    // SAFETY: never type
-                    _ = fut_start.fuse() => unsafe { unreachable_unchecked() },
-                    _ = fut_recv.fuse() => {
-                        let mut need_render = false;
-                        for msg in sender.fetch_all() {
-                            need_render |= match msg {
-                                ComponentMessage::Message(msg) => model.update(msg, &sender).await,
-                                ComponentMessage::Event(e) => break 'outer e,
-                            };
-                        }
-                        if need_render {
-                            model.render(&sender);
-                        }
-                    }
-                }
-            }
-        })
+        self.block_on(winio_elm::run::<T>(init))
     }
 }
 

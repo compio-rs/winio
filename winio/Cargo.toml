@@ -13,12 +13,14 @@ repository = { workspace = true }
 [dependencies]
 winio-primitive = { workspace = true }
 winio-layout = { workspace = true }
+winio-handle = { workspace = true }
 winio-elm = { workspace = true }
 
 compio = "0.15.0"
 compio-log = "0.1.0"
 
 cfg-if = { workspace = true }
+futures-util = { workspace = true }
 image = { version = "0.25", default-features = false }
 paste = { workspace = true }
 slab = "0.4"

@@ -13,5 +13,5 @@ winio-primitive = { workspace = true }
 winio-layout = { workspace = true }
 winio-handle = { workspace = true }
 
-futures-util = { version = "0.3", features = ["alloc"] }
+futures-util = { workspace = true, features = ["alloc"] }
 smallvec = "1"
