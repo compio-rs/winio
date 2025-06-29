@@ -5,11 +5,11 @@ use gtk4::{
     prelude::ListModelExt,
     subclass::prelude::ObjectSubclassExt,
 };
+use winio_callback::Callback;
+use winio_handle::AsWindow;
+use winio_primitive::{Point, Size};
 
-use crate::{
-    AsWindow, Point, Size,
-    ui::{Callback, Widget},
-};
+use crate::{GlobalRuntime, ui::Widget};
 
 #[derive(Debug)]
 pub struct ComboBoxImpl<const E: bool> {
@@ -32,7 +32,7 @@ impl<const E: bool> ComboBoxImpl<E> {
             let on_changed = Rc::downgrade(&on_changed);
             move |_| {
                 if let Some(on_changed) = on_changed.upgrade() {
-                    on_changed.signal(());
+                    on_changed.signal::<GlobalRuntime>(());
                 }
             }
         });
@@ -120,6 +120,10 @@ impl<const E: bool> ComboBoxImpl<E> {
 
     pub fn len(&self) -> usize {
         self.model.n_items() as _
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn clear(&mut self) {

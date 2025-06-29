@@ -1,8 +1,11 @@
 use std::rc::Rc;
 
 use gtk4::{glib::Propagation, prelude::*};
+use winio_callback::Callback;
+use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
+use winio_primitive::{ColorTheme, Point, Size};
 
-use crate::{AsRawWindow, AsWindow, ColorTheme, Point, RawWindow, Size, ui::Callback};
+use crate::GlobalRuntime;
 
 #[derive(Debug)]
 pub struct Window {
@@ -39,7 +42,7 @@ impl Window {
             let on_size = Rc::downgrade(&on_size);
             move |_| {
                 if let Some(on_size) = on_size.upgrade() {
-                    on_size.signal(());
+                    on_size.signal::<GlobalRuntime>(());
                 }
             }
         });
@@ -47,7 +50,7 @@ impl Window {
             let on_size = Rc::downgrade(&on_size);
             move |_| {
                 if let Some(on_size) = on_size.upgrade() {
-                    on_size.signal(());
+                    on_size.signal::<GlobalRuntime>(());
                 }
             }
         });
@@ -55,7 +58,7 @@ impl Window {
             let on_size = Rc::downgrade(&on_size);
             move |_, _| {
                 if let Some(on_size) = on_size.upgrade() {
-                    on_size.signal(());
+                    on_size.signal::<GlobalRuntime>(());
                 }
             }
         });
@@ -63,7 +66,7 @@ impl Window {
             let on_close = Rc::downgrade(&on_close);
             move |_| {
                 if let Some(on_close) = on_close.upgrade() {
-                    if !on_close.signal(()) {
+                    if !on_close.signal::<GlobalRuntime>(()) {
                         return Propagation::Stop;
                     }
                 }
@@ -152,5 +155,11 @@ impl Window {
 impl AsRawWindow for Window {
     fn as_raw_window(&self) -> RawWindow {
         self.window.clone()
+    }
+}
+
+impl AsWindow for Window {
+    fn as_window(&self) -> BorrowedWindow<'_> {
+        unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
     }
 }

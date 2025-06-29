@@ -107,8 +107,7 @@ local-sync = "0.1"
 libc = "0.2"
 
 [target.'cfg(not(any(windows, target_os = "macos")))'.dependencies]
-gtk4 = { workspace = true, optional = true, features = ["v4_14"] }
-pangocairo = { version = "0.20", optional = true }
+winio-ui-gtk = { workspace = true, optional = true }
 
 cxx = { version = "1.0.160", optional = true, features = ["c++17"] }
 local-sync = { version = "0.1", optional = true }
@@ -137,7 +136,7 @@ qt-build-utils = { version = "0.7", optional = true }
 
 [features]
 default = ["qt", "win32-dark-mode"]
-gtk = ["dep:gtk4", "dep:pangocairo"]
+gtk = ["dep:winio-ui-gtk"]
 qt = ["dep:cxx", "dep:cxx-build", "dep:qt-build-utils", "dep:local-sync"]
 enable_log = ["compio/enable_log", "compio-log/enable_log"]
 

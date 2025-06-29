@@ -1,6 +1,6 @@
 use std::{future::Future, os::fd::OwnedFd, time::Duration};
 
-use compio::driver::{AsRawFd, DriverType};
+use compio::driver::AsRawFd;
 use gtk4::{
     gio::{self, prelude::ApplicationExt},
     glib::{ControlFlow, IOCondition, MainContext, timeout_add_local_once, unix_fd_add_local},
@@ -14,24 +14,42 @@ pub struct Runtime {
     ctx: MainContext,
 }
 
+impl Default for Runtime {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Runtime {
     pub fn new() -> Self {
-        let runtime = compio::runtime::Runtime::new().unwrap();
+        #[cfg(not(target_os = "linux"))]
+        let (runtime, efd, poll_fd) = {
+            let runtime = compio::runtime::Runtime::new().unwrap();
+            (runtime, None, runtime.as_raw_fd())
+        };
+
         #[cfg(target_os = "linux")]
-        let (efd, poll_fd) = {
-            let efd = if DriverType::current() == DriverType::IoUring {
-                Some(super::iour::register_eventfd(runtime.as_raw_fd()).unwrap())
+        let (runtime, efd, poll_fd) = {
+            let efd = if compio::driver::DriverType::is_iouring() {
+                use rustix::event::{EventfdFlags, eventfd};
+                eventfd(0, EventfdFlags::CLOEXEC | EventfdFlags::NONBLOCK).ok()
             } else {
                 None
             };
+            let mut builder = compio::driver::ProactorBuilder::new();
+            if let Some(fd) = &efd {
+                builder.register_eventfd(fd.as_raw_fd());
+            }
+            let runtime = compio::runtime::RuntimeBuilder::new()
+                .with_proactor(builder)
+                .build()
+                .unwrap();
             let poll_fd = efd
                 .as_ref()
                 .map(|f| f.as_raw_fd())
                 .unwrap_or_else(|| runtime.as_raw_fd());
-            (efd, poll_fd)
+            (runtime, efd, poll_fd)
         };
-        #[cfg(not(target_os = "linux"))]
-        let poll_fd = runtime.as_raw_fd();
         let ctx = MainContext::default();
         gtk4::init().unwrap();
         let app = gio::Application::new(None, gio::ApplicationFlags::FLAGS_NONE);
@@ -52,7 +70,7 @@ impl Runtime {
         self.app.set_application_id(Some(name));
     }
 
-    pub fn run(&self) {
+    pub(crate) fn run(&self) {
         self.runtime.run();
     }
 
@@ -93,7 +111,8 @@ impl Runtime {
 
                 #[cfg(target_os = "linux")]
                 if let Some(efd) = &self.efd {
-                    super::iour::eventfd_clear(efd.as_raw_fd()).ok();
+                    let mut buf = [0u8; 4];
+                    rustix::io::read(efd, &mut buf).ok();
                 }
             }
         })

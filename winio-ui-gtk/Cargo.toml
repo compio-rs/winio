@@ -1,0 +1,24 @@
+[package]
+name = "winio-ui-gtk"
+version = "0.1.0"
+description = "GTK backend for winio."
+edition = { workspace = true }
+authors = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+winio-primitive = { workspace = true }
+winio-handle = { workspace = true }
+winio-callback = { workspace = true }
+
+compio = { workspace = true }
+compio-log = { workspace = true }
+
+image = { workspace = true, default-features = false }
+rustix = { workspace = true, features = ["event"] }
+scoped-tls = { workspace = true }
+
+gtk4 = { workspace = true, features = ["v4_14"] }
+pangocairo = "0.20"

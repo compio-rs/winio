@@ -1,8 +1,10 @@
 use std::{cell::Cell, rc::Rc, time::Duration};
 
 use gtk4::glib::{ControlFlow, SourceId, object::Cast};
+use winio_handle::AsWindow;
+use winio_primitive::{Point, Size};
 
-use crate::{AsWindow, Point, Size, ui::Widget};
+use crate::ui::Widget;
 
 #[derive(Debug)]
 pub struct Progress {

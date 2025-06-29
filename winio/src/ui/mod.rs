@@ -16,8 +16,7 @@ cfg_if::cfg_if! {
                 #[path = "qt/mod.rs"]
                 mod sys;
             } else {
-                #[path = "gtk/mod.rs"]
-                mod sys;
+                use winio_ui_gtk as sys;
             }
         }
     }

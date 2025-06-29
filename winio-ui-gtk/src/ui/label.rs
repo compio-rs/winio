@@ -1,40 +1,20 @@
-use std::rc::Rc;
+use gtk4::glib::object::Cast;
+use winio_handle::AsWindow;
+use winio_primitive::{HAlign, Point, Size};
 
-use gtk4::{
-    glib::object::Cast,
-    prelude::{EditableExt, EntryExt},
-};
-
-use crate::{
-    AsWindow, HAlign, Point, Size,
-    ui::{Callback, Widget},
-};
+use crate::ui::Widget;
 
 #[derive(Debug)]
-pub struct Edit {
-    on_changed: Rc<Callback<()>>,
-    widget: gtk4::Entry,
+pub struct Label {
+    widget: gtk4::Label,
     handle: Widget,
 }
 
-impl Edit {
+impl Label {
     pub fn new(parent: impl AsWindow) -> Self {
-        let widget = gtk4::Entry::new();
+        let widget = gtk4::Label::new(None);
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
-        let on_changed = Rc::new(Callback::new());
-        widget.connect_changed({
-            let on_changed = Rc::downgrade(&on_changed);
-            move |_| {
-                if let Some(on_changed) = on_changed.upgrade() {
-                    on_changed.signal(());
-                }
-            }
-        });
-        Self {
-            on_changed,
-            widget,
-            handle,
-        }
+        Self { widget, handle }
     }
 
     pub fn is_visible(&self) -> bool {
@@ -82,21 +62,8 @@ impl Edit {
         self.handle.reset_preferred_size();
     }
 
-    pub fn is_password(&self) -> bool {
-        !self.widget.is_visible()
-    }
-
-    pub fn set_password(&mut self, v: bool) {
-        self.widget.set_input_purpose(if v {
-            gtk4::InputPurpose::Password
-        } else {
-            gtk4::InputPurpose::FreeForm
-        });
-        self.widget.set_visibility(!v);
-    }
-
     pub fn halign(&self) -> HAlign {
-        let align = EditableExt::alignment(&self.widget);
+        let align = self.widget.xalign();
         if align == 0.0 {
             HAlign::Left
         } else if align == 1.0 {
@@ -112,10 +79,6 @@ impl Edit {
             HAlign::Right => 1.0,
             _ => 0.5,
         };
-        EditableExt::set_alignment(&self.widget, align);
-    }
-
-    pub async fn wait_change(&self) {
-        self.on_changed.wait().await
+        self.widget.set_xalign(align);
     }
 }

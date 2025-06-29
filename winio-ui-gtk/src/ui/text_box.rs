@@ -5,11 +5,11 @@ use gtk4::{
     glib::object::Cast,
     prelude::{TextBufferExt, TextViewExt},
 };
+use winio_callback::Callback;
+use winio_handle::AsWindow;
+use winio_primitive::{HAlign, Point, Size};
 
-use crate::{
-    AsWindow, HAlign, Point, Size,
-    ui::{Callback, Widget},
-};
+use crate::{GlobalRuntime, ui::Widget};
 
 #[derive(Debug)]
 pub struct TextBox {
@@ -33,7 +33,7 @@ impl TextBox {
             let on_changed = Rc::downgrade(&on_changed);
             move |_| {
                 if let Some(on_changed) = on_changed.upgrade() {
-                    on_changed.signal(());
+                    on_changed.signal::<GlobalRuntime>(());
                 }
             }
         });

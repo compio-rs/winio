@@ -1,11 +1,11 @@
 use std::cell::Cell;
 
 use gtk4::prelude::{Cast, FixedExt, GtkWindowExt, WidgetExt};
-
-use crate::{AsRawWindow, AsWindow, Point, Size};
+use winio_handle::{AsRawWindow, AsWindow};
+use winio_primitive::{Point, Size};
 
 #[derive(Debug)]
-pub struct Widget {
+pub(crate) struct Widget {
     widget: gtk4::Widget,
     preferred_size: Cell<Size>,
 }

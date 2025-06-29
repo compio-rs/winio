@@ -4,11 +4,11 @@ use gtk4::{
     glib::object::Cast,
     prelude::{CheckButtonExt, WidgetExt},
 };
+use winio_callback::Callback;
+use winio_handle::AsWindow;
+use winio_primitive::{Point, Size};
 
-use crate::{
-    AsWindow, Point, Size,
-    ui::{Callback, Widget},
-};
+use crate::{GlobalRuntime, ui::Widget};
 
 #[derive(Debug)]
 pub struct CheckBox {
@@ -27,7 +27,7 @@ impl CheckBox {
             move |widget| {
                 if let Some(on_click) = on_click.upgrade() {
                     if !radio || widget.is_active() {
-                        on_click.signal(());
+                        on_click.signal::<GlobalRuntime>(());
                     }
                 }
             }

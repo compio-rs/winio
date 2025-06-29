@@ -4,8 +4,7 @@ use gtk4::{
     gio::prelude::FileExt,
     glib::{GString, object::Cast},
 };
-
-use crate::{AsRawWindow, AsWindow};
+use winio_handle::{AsRawWindow, AsWindow};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileFilter {

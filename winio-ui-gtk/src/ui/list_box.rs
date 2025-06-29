@@ -5,10 +5,13 @@ use gtk4::{
     glib::object::Cast,
     prelude::{ListBoxRowExt, WidgetExt},
 };
+use winio_callback::Callback;
+use winio_handle::AsWindow;
+use winio_primitive::{Point, Size};
 
 use crate::{
-    AsWindow, Point, Size,
-    ui::{Callback, StringListModel, Widget},
+    GlobalRuntime,
+    ui::{StringListModel, Widget},
 };
 
 #[derive(Debug)]
@@ -36,7 +39,7 @@ impl ListBox {
             let on_changed = Rc::downgrade(&on_changed);
             move |_| {
                 if let Some(on_changed) = on_changed.upgrade() {
-                    on_changed.signal(());
+                    on_changed.signal::<GlobalRuntime>(());
                 }
             }
         });
@@ -111,6 +114,10 @@ impl ListBox {
 
     pub fn len(&self) -> usize {
         self.model.n_items() as _
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn clear(&mut self) {

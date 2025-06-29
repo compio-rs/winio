@@ -1,3 +1,14 @@
+use std::cell::Cell;
+
+use winio_primitive::ColorTheme;
+thread_local! {
+    pub(crate) static COLOR_THEME: Cell<ColorTheme> = const { Cell::new(ColorTheme::Light) };
+}
+
+pub fn color_theme() -> ColorTheme {
+    COLOR_THEME.get()
+}
+
 mod window;
 pub use window::*;
 
@@ -5,7 +16,7 @@ mod canvas;
 pub use canvas::*;
 
 mod widget;
-pub use widget::*;
+pub(crate) use widget::*;
 
 mod monitor;
 pub use monitor::*;
@@ -42,20 +53,3 @@ pub use check_box::*;
 
 mod accent;
 pub use accent::*;
-
-/// GTK [`Window`].
-///
-/// [`Window`]: gtk4::Window
-pub type RawWindow = gtk4::Window;
-
-use std::cell::Cell;
-
-use crate::ColorTheme;
-
-thread_local! {
-    pub(crate) static COLOR_THEME: Cell<ColorTheme> = const { Cell::new(ColorTheme::Light) };
-}
-
-pub fn color_theme() -> ColorTheme {
-    COLOR_THEME.get()
-}

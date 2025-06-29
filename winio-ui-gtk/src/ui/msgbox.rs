@@ -1,8 +1,8 @@
 use std::sync::LazyLock;
 
 use gtk4::glib::{GString, dgettext};
-
-use crate::{AsRawWindow, AsWindow, MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
+use winio_handle::{AsRawWindow, AsWindow};
+use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
 struct PredefButtons {
     ok: GString,

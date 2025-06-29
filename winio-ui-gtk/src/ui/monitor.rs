@@ -5,8 +5,7 @@ use gtk4::{
     },
     glib::object::Cast,
 };
-
-use crate::{Monitor, Point, Rect, Size};
+use winio_primitive::{Monitor, Point, Rect, Size};
 
 pub fn monitor_get_all() -> Vec<Monitor> {
     gdk::DisplayManager::get()

@@ -16,12 +16,14 @@ use gtk4::{
 };
 use image::DynamicImage;
 use pangocairo::functions::show_layout;
-
-use crate::{
-    AsWindow, BrushPen, DrawingFont, HAlign, LinearGradientBrush, MouseButton, Point,
-    RadialGradientBrush, Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, VAlign,
-    ui::{Callback, Widget},
+use winio_callback::Callback;
+use winio_handle::AsWindow;
+use winio_primitive::{
+    BrushPen, DrawingFont, HAlign, LinearGradientBrush, MouseButton, Point, RadialGradientBrush,
+    Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, VAlign,
 };
+
+use crate::{GlobalRuntime, ui::Widget};
 
 #[derive(Debug)]
 pub struct Canvas {
@@ -60,7 +62,7 @@ impl Canvas {
             let on_motion = Rc::downgrade(&on_motion);
             move |_, x, y| {
                 if let Some(on_motion) = on_motion.upgrade() {
-                    on_motion.signal(Point::new(x, y));
+                    on_motion.signal::<GlobalRuntime>(Point::new(x, y));
                 }
             }
         });
@@ -80,7 +82,8 @@ impl Canvas {
             let on_pressed = Rc::downgrade(&on_pressed);
             move |controller, _, _, _| {
                 if let Some(on_pressed) = on_pressed.upgrade() {
-                    on_pressed.signal(gtk_current_button(controller.current_button()));
+                    on_pressed
+                        .signal::<GlobalRuntime>(gtk_current_button(controller.current_button()));
                 }
             }
         });
@@ -88,7 +91,8 @@ impl Canvas {
             let on_released = Rc::downgrade(&on_released);
             move |controller, _, _, _| {
                 if let Some(on_released) = on_released.upgrade() {
-                    on_released.signal(gtk_current_button(controller.current_button()));
+                    on_released
+                        .signal::<GlobalRuntime>(gtk_current_button(controller.current_button()));
                 }
             }
         });
