@@ -6,7 +6,7 @@ use std::{
 use smallvec::SmallVec;
 use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
 use winio_layout::Layoutable;
-use winio_primitive::{Point, Rect, Size};
+use winio_primitive::{Point, Rect, Size, inherit};
 
 use super::ComponentMessage;
 use crate::{Component, ComponentSender};
@@ -151,35 +151,21 @@ impl<T: Component + Debug> Debug for Child<T> {
 }
 
 impl<T: Component + Layoutable> Layoutable for Child<T> {
-    fn loc(&self) -> Point {
-        self.model.loc()
-    }
+    inherit! { model,
+        fn loc(&self) -> Point;
 
-    fn set_loc(&mut self, p: Point) {
-        self.model.set_loc(p);
-    }
+        fn set_loc(&mut self, p: Point);
 
-    fn size(&self) -> Size {
-        self.model.size()
-    }
+        fn size(&self) -> Size;
 
-    fn set_size(&mut self, s: Size) {
-        self.model.set_size(s);
-    }
+        fn set_size(&mut self, s: Size);
 
-    fn rect(&self) -> Rect {
-        self.model.rect()
-    }
+        fn rect(&self) -> Rect;
 
-    fn set_rect(&mut self, r: Rect) {
-        self.model.set_rect(r);
-    }
+        fn set_rect(&mut self, r: Rect);
 
-    fn preferred_size(&self) -> Size {
-        self.model.preferred_size()
-    }
+        fn preferred_size(&self) -> Size;
 
-    fn min_size(&self) -> Size {
-        self.model.min_size()
+        fn min_size(&self) -> Size;
     }
 }
