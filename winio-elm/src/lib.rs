@@ -97,5 +97,8 @@ use channel::*;
 mod child;
 pub use child::*;
 
+mod collection;
+pub use collection::*;
+
 mod macros;
 pub use macros::*;

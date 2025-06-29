@@ -1,6 +1,6 @@
-use super::ObservableVecEvent;
 use crate::{
-    BorrowedWindow, Component, ComponentSender, Enable, Layoutable, Point, Size, Visible, ui,
+    BorrowedWindow, Component, ComponentSender, Enable, Layoutable, ObservableVecEvent, Point,
+    Size, Visible, ui,
 };
 
 /// A simple list box.

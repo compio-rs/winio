@@ -54,9 +54,6 @@ fn approx_eq(f1: f64, f2: f64) -> bool {
     (f1 - f2).abs() < 1.0
 }
 
-mod collection;
-pub use collection::*;
-
 mod window;
 pub use window::*;
 
