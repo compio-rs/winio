@@ -7,8 +7,8 @@ use windows_sys::Win32::{
         Controls::{EM_GETPASSWORDCHAR, EM_SETPASSWORDCHAR, ShowScrollBar, WC_EDITW},
         WindowsAndMessaging::{
             EN_UPDATE, ES_AUTOHSCROLL, ES_AUTOVSCROLL, ES_CENTER, ES_LEFT, ES_MULTILINE,
-            ES_PASSWORD, ES_RIGHT, SB_VERT, SendMessageW, WM_COMMAND, WS_CHILD, WS_EX_CLIENTEDGE,
-            WS_TABSTOP, WS_VISIBLE,
+            ES_PASSWORD, ES_RIGHT, SB_VERT, WM_COMMAND, WS_CHILD, WS_EX_CLIENTEDGE, WS_TABSTOP,
+            WS_VISIBLE,
         },
     },
 };
@@ -121,12 +121,11 @@ impl Edit {
                 | ES_AUTOHSCROLL as u32
                 | ES_PASSWORD as u32,
         );
-        let mut pchar =
-            unsafe { SendMessageW(handle.as_raw_window(), EM_GETPASSWORDCHAR, 0, 0) } as u16;
+        let mut pchar = handle.handle.send_message(EM_GETPASSWORDCHAR, 0, 0) as u16;
         if pchar == 0 {
-            pchar = '*' as u32 as _;
+            pchar = '*' as u16;
         }
-        unsafe { SendMessageW(handle.as_raw_window(), EM_SETPASSWORDCHAR, 0, 0) };
+        handle.handle.send_message(EM_SETPASSWORDCHAR, 0, 0);
         Self { handle, pchar }
     }
 
@@ -157,21 +156,16 @@ impl Edit {
     pub fn set_halign(&mut self, align: HAlign);
 
     pub fn is_password(&self) -> bool {
-        unsafe { SendMessageW(self.handle.as_raw_window(), EM_GETPASSWORDCHAR, 0, 0) != 0 }
+        self.handle.handle.send_message(EM_GETPASSWORDCHAR, 0, 0) != 0
     }
 
     pub fn set_password(&mut self, v: bool) {
-        unsafe {
-            if v {
-                SendMessageW(
-                    self.handle.as_raw_window(),
-                    EM_SETPASSWORDCHAR,
-                    self.pchar as _,
-                    0,
-                );
-            } else {
-                SendMessageW(self.handle.as_raw_window(), EM_SETPASSWORDCHAR, 0, 0);
-            }
+        if v {
+            self.handle
+                .handle
+                .send_message(EM_SETPASSWORDCHAR, self.pchar as _, 0);
+        } else {
+            self.handle.handle.send_message(EM_SETPASSWORDCHAR, 0, 0);
         }
         unsafe {
             InvalidateRect(self.handle.as_raw_window(), null(), 1);

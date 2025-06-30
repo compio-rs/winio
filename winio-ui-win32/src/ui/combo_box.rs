@@ -7,8 +7,8 @@ use windows_sys::Win32::{
         WindowsAndMessaging::{
             CB_DELETESTRING, CB_GETCOUNT, CB_GETCURSEL, CB_GETLBTEXT, CB_GETLBTEXTLEN,
             CB_INSERTSTRING, CB_RESETCONTENT, CB_SETCURSEL, CBN_EDITUPDATE, CBN_SELCHANGE,
-            CBS_AUTOHSCROLL, CBS_DROPDOWN, CBS_DROPDOWNLIST, CBS_HASSTRINGS, SendMessageW,
-            WM_COMMAND, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
+            CBS_AUTOHSCROLL, CBS_DROPDOWN, CBS_DROPDOWNLIST, CBS_HASSTRINGS, WM_COMMAND, WS_CHILD,
+            WS_TABSTOP, WS_VISIBLE,
         },
     },
 };
@@ -71,13 +71,13 @@ impl<const E: bool> ComboBoxImpl<E> {
     pub fn set_text(&mut self, s: impl AsRef<str>);
 
     pub fn selection(&self) -> Option<usize> {
-        let i = unsafe { SendMessageW(self.handle.as_raw_window(), CB_GETCURSEL, 0, 0) };
+        let i = self.handle.send_message(CB_GETCURSEL, 0, 0);
         if i < 0 { None } else { Some(i as _) }
     }
 
     pub fn set_selection(&mut self, i: Option<usize>) {
         let i = if let Some(i) = i { i as isize } else { -1 };
-        unsafe { SendMessageW(self.handle.as_raw_window(), CB_SETCURSEL, i as _, 0) };
+        self.handle.send_message(CB_SETCURSEL, i as _, 0);
     }
 
     pub async fn wait_select(&self) {
@@ -104,39 +104,27 @@ impl<const E: bool> ComboBoxImpl<E> {
 
     pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
         let s = U16CString::from_str_truncate(s);
-        unsafe {
-            SendMessageW(
-                self.handle.as_raw_window(),
-                CB_INSERTSTRING,
-                i as _,
-                s.as_ptr() as _,
-            )
-        };
+        self.handle
+            .send_message(CB_INSERTSTRING, i as _, s.as_ptr() as _);
     }
 
     pub fn remove(&mut self, i: usize) {
+        self.handle.send_message(CB_DELETESTRING, i as _, 0);
         unsafe {
-            SendMessageW(self.handle.as_raw_window(), CB_DELETESTRING, i as _, 0);
             InvalidateRect(self.handle.as_raw_window(), std::ptr::null(), 1);
         }
     }
 
     fn get_u16(&self, i: usize) -> U16CString {
-        let mut len =
-            unsafe { SendMessageW(self.handle.as_raw_window(), CB_GETLBTEXTLEN, i as _, 0) };
+        let mut len = self.handle.send_message(CB_GETLBTEXTLEN, i as _, 0);
         if len == 0 {
             return U16CString::new();
         }
         len += 1;
         let mut res: Vec<u16> = Vec::with_capacity(len as usize);
-        let len = unsafe {
-            SendMessageW(
-                self.handle.as_raw_window(),
-                CB_GETLBTEXT,
-                i as _,
-                res.as_mut_ptr() as _,
-            )
-        };
+        let len = self
+            .handle
+            .send_message(CB_GETLBTEXT, i as _, res.as_mut_ptr() as _);
         unsafe {
             res.set_len(len as usize + 1);
             U16CString::from_vec_unchecked(res)
@@ -153,7 +141,7 @@ impl<const E: bool> ComboBoxImpl<E> {
     }
 
     pub fn len(&self) -> usize {
-        unsafe { SendMessageW(self.handle.as_raw_window(), CB_GETCOUNT, 0, 0) as _ }
+        self.handle.send_message(CB_GETCOUNT, 0, 0) as _
     }
 
     pub fn is_empty(&self) -> bool {
@@ -161,7 +149,7 @@ impl<const E: bool> ComboBoxImpl<E> {
     }
 
     pub fn clear(&mut self) {
-        unsafe { SendMessageW(self.handle.as_raw_window(), CB_RESETCONTENT, 0, 0) };
+        self.handle.send_message(CB_RESETCONTENT, 0, 0);
     }
 }
 

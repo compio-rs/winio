@@ -2,8 +2,8 @@ use inherit_methods_macro::inherit_methods;
 use windows_sys::Win32::UI::{
     Controls::{BST_CHECKED, BST_UNCHECKED, WC_BUTTONW},
     WindowsAndMessaging::{
-        BM_GETCHECK, BM_SETCHECK, BN_CLICKED, BS_RADIOBUTTON, SendMessageW, WM_COMMAND, WS_CHILD,
-        WS_TABSTOP, WS_VISIBLE,
+        BM_GETCHECK, BM_SETCHECK, BN_CLICKED, BS_RADIOBUTTON, WM_COMMAND, WS_CHILD, WS_TABSTOP,
+        WS_VISIBLE,
     },
 };
 use winio_handle::{AsRawWindow, AsWindow};
@@ -58,18 +58,15 @@ impl RadioButton {
     pub fn set_text(&mut self, s: impl AsRef<str>);
 
     pub fn is_checked(&self) -> bool {
-        unsafe { SendMessageW(self.handle.as_raw_window(), BM_GETCHECK, 0, 0) == BST_CHECKED as _ }
+        self.handle.send_message(BM_GETCHECK, 0, 0) == BST_CHECKED as _
     }
 
     pub fn set_checked(&self, v: bool) {
-        unsafe {
-            SendMessageW(
-                self.handle.as_raw_window(),
-                BM_SETCHECK,
-                if v { BST_CHECKED } else { BST_UNCHECKED } as _,
-                0,
-            )
-        };
+        self.handle.send_message(
+            BM_SETCHECK,
+            if v { BST_CHECKED } else { BST_UNCHECKED } as _,
+            0,
+        );
     }
 
     pub async fn wait_click(&self) {

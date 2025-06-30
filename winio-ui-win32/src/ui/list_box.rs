@@ -6,7 +6,7 @@ use windows_sys::Win32::UI::{
         LB_DELETESTRING, LB_GETCOUNT, LB_GETSEL, LB_GETTEXT, LB_GETTEXTLEN, LB_INSERTSTRING,
         LB_RESETCONTENT, LB_SETSEL, LBN_SELCANCEL, LBN_SELCHANGE, LBS_DISABLENOSCROLL,
         LBS_HASSTRINGS, LBS_MULTIPLESEL, LBS_NOINTEGRALHEIGHT, LBS_NOTIFY, LBS_USETABSTOPS,
-        SendMessageW, WM_COMMAND, WS_CHILD, WS_TABSTOP, WS_VISIBLE, WS_VSCROLL,
+        WM_COMMAND, WS_CHILD, WS_TABSTOP, WS_VISIBLE, WS_VSCROLL,
     },
 };
 use winio_handle::{AsRawWindow, AsWindow};
@@ -85,18 +85,12 @@ impl ListBox {
     pub fn set_size(&mut self, v: Size);
 
     pub fn is_selected(&self, i: usize) -> bool {
-        unsafe { SendMessageW(self.handle.as_raw_window(), LB_GETSEL, i as _, 0) != 0 }
+        self.handle.send_message(LB_GETSEL, i as _, 0) != 0
     }
 
     pub fn set_selected(&mut self, i: usize, v: bool) {
-        unsafe {
-            SendMessageW(
-                self.handle.as_raw_window(),
-                LB_SETSEL,
-                if v { 1 } else { 0 },
-                i as _,
-            )
-        };
+        self.handle
+            .send_message(LB_SETSEL, if v { 1 } else { 0 }, i as _);
     }
 
     pub async fn wait_select(&self) {
@@ -114,38 +108,24 @@ impl ListBox {
 
     pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
         let s = U16CString::from_str_truncate(s);
-        unsafe {
-            SendMessageW(
-                self.handle.as_raw_window(),
-                LB_INSERTSTRING,
-                i as _,
-                s.as_ptr() as _,
-            )
-        };
+        self.handle
+            .send_message(LB_INSERTSTRING, i as _, s.as_ptr() as _);
     }
 
     pub fn remove(&mut self, i: usize) {
-        unsafe {
-            SendMessageW(self.handle.as_raw_window(), LB_DELETESTRING, i as _, 0);
-        }
+        self.handle.send_message(LB_DELETESTRING, i as _, 0);
     }
 
     fn get_u16(&self, i: usize) -> U16CString {
-        let mut len =
-            unsafe { SendMessageW(self.handle.as_raw_window(), LB_GETTEXTLEN, i as _, 0) };
+        let mut len = self.handle.send_message(LB_GETTEXTLEN, i as _, 0);
         if len == 0 {
             return U16CString::new();
         }
         len += 1;
         let mut res: Vec<u16> = Vec::with_capacity(len as usize);
-        let len = unsafe {
-            SendMessageW(
-                self.handle.as_raw_window(),
-                LB_GETTEXT,
-                i as _,
-                res.as_mut_ptr() as _,
-            )
-        };
+        let len = self
+            .handle
+            .send_message(LB_GETTEXT, i as _, res.as_mut_ptr() as _);
         unsafe {
             res.set_len(len as usize + 1);
             U16CString::from_vec_unchecked(res)
@@ -162,7 +142,7 @@ impl ListBox {
     }
 
     pub fn len(&self) -> usize {
-        unsafe { SendMessageW(self.handle.as_raw_window(), LB_GETCOUNT, 0, 0) as _ }
+        self.handle.send_message(LB_GETCOUNT, 0, 0) as _
     }
 
     pub fn is_empty(&self) -> bool {
@@ -170,6 +150,6 @@ impl ListBox {
     }
 
     pub fn clear(&mut self) {
-        unsafe { SendMessageW(self.handle.as_raw_window(), LB_RESETCONTENT, 0, 0) };
+        self.handle.send_message(LB_RESETCONTENT, 0, 0);
     }
 }

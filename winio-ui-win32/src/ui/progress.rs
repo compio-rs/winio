@@ -6,7 +6,7 @@ use windows_sys::Win32::UI::{
     },
     HiDpi::GetSystemMetricsForDpi,
     WindowsAndMessaging::{
-        SM_CYVSCROLL, SendMessageW, USER_DEFAULT_SCREEN_DPI, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
+        SM_CYVSCROLL, USER_DEFAULT_SCREEN_DPI, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
     },
 };
 use winio_handle::{AsRawWindow, AsWindow};
@@ -54,30 +54,21 @@ impl Progress {
     pub fn set_size(&mut self, v: Size);
 
     pub fn range(&self) -> (usize, usize) {
-        unsafe {
-            let min = SendMessageW(self.handle.as_raw_window(), PBM_GETRANGE, 1, 0) as usize;
-            let max = SendMessageW(self.handle.as_raw_window(), PBM_GETRANGE, 0, 0) as usize;
-            (min, max)
-        }
+        let min = self.handle.send_message(PBM_GETRANGE, 1, 0) as usize;
+        let max = self.handle.send_message(PBM_GETRANGE, 0, 0) as usize;
+        (min, max)
     }
 
     pub fn set_range(&mut self, min: usize, max: usize) {
-        unsafe {
-            SendMessageW(
-                self.handle.as_raw_window(),
-                PBM_SETRANGE32,
-                min as _,
-                max as _,
-            )
-        };
+        self.handle.send_message(PBM_SETRANGE32, min as _, max as _);
     }
 
     pub fn pos(&self) -> usize {
-        unsafe { SendMessageW(self.handle.as_raw_window(), PBM_GETPOS, 0, 0) as _ }
+        self.handle.send_message(PBM_GETPOS, 0, 0) as _
     }
 
     pub fn set_pos(&mut self, pos: usize) {
-        unsafe { SendMessageW(self.handle.as_raw_window(), PBM_SETPOS, pos as _, 0) };
+        self.handle.send_message(PBM_SETPOS, pos as _, 0);
     }
 
     pub fn is_indeterminate(&self) -> bool {
@@ -92,13 +83,7 @@ impl Progress {
             style &= !PBS_MARQUEE;
         }
         self.handle.set_style(style);
-        unsafe {
-            SendMessageW(
-                self.handle.as_raw_window(),
-                PBM_SETMARQUEE,
-                if v { 1 } else { 0 },
-                0,
-            )
-        };
+        self.handle
+            .send_message(PBM_SETMARQUEE, if v { 1 } else { 0 }, 0);
     }
 }

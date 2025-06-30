@@ -9,7 +9,7 @@ use inherit_methods_macro::inherit_methods;
 use widestring::U16CString;
 use windows_sys::{
     Win32::{
-        Foundation::{ERROR_INVALID_HANDLE, HWND, POINT, SetLastError},
+        Foundation::{ERROR_INVALID_HANDLE, HWND, LPARAM, LRESULT, POINT, SetLastError, WPARAM},
         Graphics::Gdi::{GetStockObject, MapWindowPoints, WHITE_BRUSH},
         System::LibraryLoader::GetModuleHandleW,
         UI::{
@@ -305,10 +305,12 @@ impl Widget {
         }
     }
 
+    pub fn send_message(&self, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+        unsafe { SendMessageW(self.as_raw_window(), msg, wparam as _, lparam) }
+    }
+
     pub fn set_icon(&mut self, icon: HICON) {
-        unsafe {
-            SendMessageW(self.as_raw_window(), WM_SETICON, ICON_BIG as _, icon as _);
-        }
+        self.send_message(WM_SETICON, ICON_BIG as _, icon as _);
     }
 }
 
