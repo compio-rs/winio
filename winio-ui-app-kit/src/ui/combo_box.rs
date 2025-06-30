@@ -1,0 +1,198 @@
+use inherit_methods_macro::inherit_methods;
+use objc2::{
+    DeclaredClass, MainThreadOnly, define_class, msg_send,
+    rc::{Allocated, Retained},
+    runtime::ProtocolObject,
+};
+use objc2_app_kit::{
+    NSComboBox, NSComboBoxDelegate, NSControlTextEditingDelegate, NSTextFieldDelegate,
+};
+use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString};
+use winio_callback::Callback;
+use winio_handle::AsWindow;
+use winio_primitive::{Point, Size};
+
+use crate::{
+    GlobalRuntime,
+    ui::{Widget, from_nsstring},
+};
+
+#[derive(Debug)]
+pub struct ComboBoxImpl<const E: bool> {
+    handle: Widget,
+    view: Retained<NSComboBox>,
+    delegate: Retained<ComboBoxDelegate>,
+}
+
+#[inherit_methods(from = "self.handle")]
+impl<const E: bool> ComboBoxImpl<E> {
+    pub fn new(parent: impl AsWindow) -> Self {
+        unsafe {
+            let mtm = MainThreadMarker::new().unwrap();
+
+            let view = NSComboBox::new(mtm);
+            view.setBezeled(true);
+            view.setDrawsBackground(E);
+            view.setEditable(E);
+            view.setSelectable(E);
+            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
+
+            let delegate = ComboBoxDelegate::new(mtm);
+            let del_obj = ProtocolObject::from_retained(delegate.clone());
+            view.setDelegate(Some(&del_obj));
+
+            Self {
+                handle,
+                view,
+                delegate,
+            }
+        }
+    }
+
+    pub fn is_visible(&self) -> bool;
+
+    pub fn set_visible(&mut self, v: bool);
+
+    pub fn is_enabled(&self) -> bool;
+
+    pub fn set_enabled(&mut self, v: bool);
+
+    pub fn preferred_size(&self) -> Size;
+
+    pub fn loc(&self) -> Point;
+
+    pub fn set_loc(&mut self, p: Point);
+
+    pub fn size(&self) -> Size;
+
+    pub fn set_size(&mut self, v: Size);
+
+    pub fn text(&self) -> String {
+        unsafe { from_nsstring(&self.view.stringValue()) }
+    }
+
+    pub fn set_text(&mut self, s: impl AsRef<str>) {
+        unsafe {
+            self.view.setStringValue(&NSString::from_str(s.as_ref()));
+        }
+    }
+
+    pub fn selection(&self) -> Option<usize> {
+        let index = unsafe { self.view.indexOfSelectedItem() };
+        if index < 0 { None } else { Some(index as _) }
+    }
+
+    pub fn set_selection(&mut self, i: Option<usize>) {
+        unsafe {
+            let old_sel = self.selection();
+            if i != old_sel {
+                if let Some(i) = self.selection() {
+                    self.view.deselectItemAtIndex(i as _);
+                }
+                if let Some(i) = i {
+                    self.view.selectItemAtIndex(i as _);
+                }
+            }
+        }
+    }
+
+    pub async fn wait_change(&self) {
+        self.delegate.ivars().changed.wait().await
+    }
+
+    pub async fn wait_select(&self) {
+        self.delegate.ivars().select.wait().await
+    }
+
+    pub fn len(&self) -> usize {
+        unsafe { self.view.numberOfItems() as _ }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn clear(&mut self) {
+        unsafe {
+            self.view.removeAllItems();
+        }
+    }
+
+    pub fn get(&self, i: usize) -> String {
+        unsafe {
+            let s = Retained::cast_unchecked(self.view.itemObjectValueAtIndex(i as _));
+            from_nsstring(&s)
+        }
+    }
+
+    pub fn set(&mut self, i: usize, s: impl AsRef<str>) {
+        self.remove(i);
+        self.insert(i, s);
+    }
+
+    pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
+        unsafe {
+            let s = NSString::from_str(s.as_ref());
+            self.view.insertItemWithObjectValue_atIndex(&s, i as _);
+        }
+    }
+
+    pub fn remove(&mut self, i: usize) {
+        unsafe {
+            self.view.removeItemAtIndex(i as _);
+        }
+    }
+}
+
+pub type ComboBox = ComboBoxImpl<false>;
+pub type ComboEntry = ComboBoxImpl<true>;
+
+#[derive(Debug, Default)]
+struct ComboBoxDelegateIvars {
+    changed: Callback,
+    select: Callback,
+}
+
+define_class! {
+    #[unsafe(super(NSObject))]
+    #[name = "WinioComboBoxDelegate"]
+    #[ivars = ComboBoxDelegateIvars]
+    #[thread_kind = MainThreadOnly]
+    #[derive(Debug)]
+    struct ComboBoxDelegate;
+
+    #[allow(non_snake_case)]
+    impl ComboBoxDelegate {
+        #[unsafe(method_id(init))]
+        fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
+            let this = this.set_ivars(ComboBoxDelegateIvars::default());
+            unsafe { msg_send![super(this), init] }
+        }
+    }
+
+    unsafe impl NSObjectProtocol for ComboBoxDelegate {}
+
+    #[allow(non_snake_case)]
+    unsafe impl NSControlTextEditingDelegate for ComboBoxDelegate {
+        #[unsafe(method(controlTextDidChange:))]
+        fn controlTextDidChange(&self, _notification: &NSNotification) {
+            self.ivars().changed.signal::<GlobalRuntime>(());
+        }
+    }
+
+    unsafe impl NSTextFieldDelegate for ComboBoxDelegate {}
+
+    #[allow(non_snake_case)]
+    unsafe impl NSComboBoxDelegate for ComboBoxDelegate {
+        #[unsafe(method(comboBoxSelectionDidChange:))]
+        unsafe fn comboBoxSelectionDidChange(&self, _notification: &NSNotification) {
+            self.ivars().select.signal::<GlobalRuntime>(());
+        }
+    }
+}
+
+impl ComboBoxDelegate {
+    pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
+        unsafe { msg_send![mtm.alloc::<Self>(), init] }
+    }
+}

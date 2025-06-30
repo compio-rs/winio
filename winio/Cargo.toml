@@ -1,0 +1,61 @@
+[package]
+name = "winio"
+version = "0.7.0"
+description = "Single-threaded async GUI runtime based on compio."
+categories = ["asynchronous", "gui"]
+keywords = ["async", "gui"]
+edition = { workspace = true }
+authors = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+winio-primitive = { workspace = true }
+winio-layout = { workspace = true }
+winio-handle = { workspace = true }
+winio-elm = { workspace = true, features = ["handle", "layout"] }
+
+compio = { workspace = true }
+compio-log = { workspace = true }
+
+cfg-if = { workspace = true }
+futures-util = { workspace = true }
+inherit-methods-macro = { workspace = true }
+image = { workspace = true, default-features = false }
+
+[target.'cfg(windows)'.dependencies]
+winio-ui-win32 = { workspace = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+winio-ui-app-kit = { workspace = true }
+
+[target.'cfg(not(any(windows, target_os = "macos")))'.dependencies]
+winio-ui-gtk = { workspace = true, optional = true }
+winio-ui-qt = { workspace = true, optional = true }
+
+[dev-dependencies]
+compio = { workspace = true, features = ["time", "rustls", "ring"] }
+cyper = { version = "0.4.0", default-features = false, features = [
+    "rustls",
+    "http2",
+    "http3-altsvc",
+] }
+
+dirs = "6.0"
+futures-util = { workspace = true }
+image = { workspace = true, default-features = false, features = [
+    "default-formats",
+] }
+itertools = "0.14"
+tracing-subscriber = "0.3"
+
+[features]
+default = ["qt", "win32-dark-mode"]
+gtk = ["dep:winio-ui-gtk"]
+qt = ["dep:winio-ui-qt"]
+enable_log = ["compio/enable_log", "compio-log/enable_log"]
+
+nightly = ["compio/nightly", "cyper/nightly"]
+win32-dark-mode = ["winio-ui-win32/dark-mode"]
+objc-static = ["winio-ui-app-kit/objc-static"]
