@@ -43,7 +43,6 @@ image = { version = "0.25", default-features = false }
 inherit-methods-macro = "0.1"
 local-sync = "0.1"
 paste = "1.0"
-rustix = "1"
 scoped-tls = "1.0"
 
 windows-sys = "0.60"

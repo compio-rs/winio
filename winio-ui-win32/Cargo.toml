@@ -8,7 +8,7 @@ readme = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 
-[dependencies]
+[target.'cfg(windows)'.dependencies]
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true }
 
@@ -23,7 +23,6 @@ scoped-tls = { workspace = true }
 slab = "0.4"
 widestring = "1"
 
-[target.'cfg(windows)'.dependencies]
 windows-sys = { workspace = true, features = [
     "Win32_Foundation",
     "Win32_Globalization",

@@ -11,4 +11,5 @@ repository = { workspace = true }
 [dependencies]
 compio = { workspace = true }
 
-rustix = { workspace = true, features = ["event"] }
+[target.'cfg(target_os = "linux")'.dependencies]
+rustix = { version = "1", features = ["event"] }

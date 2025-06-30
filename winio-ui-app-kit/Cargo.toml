@@ -8,7 +8,7 @@ readme = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 
-[dependencies]
+[target.'cfg(target_os = "macos")'.dependencies]
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true }
 winio-callback = { workspace = true }
@@ -20,7 +20,6 @@ image = { workspace = true, default-features = false }
 local-sync = { workspace = true }
 scoped-tls = { workspace = true }
 
-[target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6"
 objc2 = { workspace = true }
 objc2-core-foundation = { version = "0.3", features = [
