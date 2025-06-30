@@ -5,9 +5,10 @@
 
 use std::{
     cell::RefCell,
-    future::poll_fn,
+    future::Future,
     hint::unreachable_unchecked,
-    task::{Poll, Waker},
+    pin::Pin,
+    task::{Context, Poll, Waker},
 };
 
 /// An abstract for global runtime.
@@ -45,23 +46,23 @@ impl<T> Callback<T> {
     }
 
     /// Signal the callback and try to run the runtime if there's a waker
-    /// waiting.
+    /// waiting. Returns `true` if not handled.
     pub fn signal<R: Runnable>(&self, v: T) -> bool {
         let mut state = self.0.borrow_mut();
         match &*state {
-            WakerState::Inactive => true,
+            WakerState::Inactive => return true,
             WakerState::Signaled(_) => {
-                *state = WakerState::Signaled(v);
-                true
+                // If a state is signaled again, the runtime might be too busy
+                // to wake the waker. Just try to run it again.
             }
             WakerState::Active(waker) => {
                 waker.wake_by_ref();
-                *state = WakerState::Signaled(v);
-                drop(state);
-                R::run();
-                false
             }
         }
+        *state = WakerState::Signaled(v);
+        drop(state);
+        R::run();
+        false
     }
 
     pub(crate) fn register(&self, waker: &Waker) -> Poll<T> {
@@ -85,7 +86,24 @@ impl<T> Callback<T> {
     }
 
     /// Wait for signal.
-    pub async fn wait(&self) -> T {
-        poll_fn(|cx| self.register(cx.waker())).await
+    pub fn wait(&self) -> impl Future<Output = T> + '_ {
+        WaitFut(self)
+    }
+}
+
+struct WaitFut<'a, T>(&'a Callback<T>);
+
+impl<T> Future for WaitFut<'_, T> {
+    type Output = T;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        self.0.register(cx.waker())
+    }
+}
+
+impl<T> Drop for WaitFut<'_, T> {
+    fn drop(&mut self) {
+        // Deregister the waker.
+        *self.0.0.borrow_mut() = WakerState::Inactive;
     }
 }
