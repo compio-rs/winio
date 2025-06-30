@@ -3,10 +3,14 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+#[cfg(feature = "layout")]
 use inherit_methods_macro::inherit_methods;
 use smallvec::SmallVec;
+#[cfg(feature = "handle")]
 use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
+#[cfg(feature = "layout")]
 use winio_layout::Layoutable;
+#[cfg(feature = "layout")]
 use winio_primitive::{Point, Rect, Size};
 
 use super::ComponentMessage;
@@ -133,12 +137,14 @@ impl<T: Component> DerefMut for Child<T> {
     }
 }
 
+#[cfg(feature = "handle")]
 impl<T: AsRawWindow + Component> AsRawWindow for Child<T> {
     fn as_raw_window(&self) -> RawWindow {
         self.model.as_raw_window()
     }
 }
 
+#[cfg(feature = "handle")]
 impl<T: AsWindow + Component> AsWindow for Child<T> {
     fn as_window(&self) -> BorrowedWindow<'_> {
         self.model.as_window()
@@ -151,6 +157,7 @@ impl<T: Component + Debug> Debug for Child<T> {
     }
 }
 
+#[cfg(feature = "layout")]
 #[inherit_methods(from = "self.model")]
 impl<T: Component + Layoutable> Layoutable for Child<T> {
     fn loc(&self) -> Point;
