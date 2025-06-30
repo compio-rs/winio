@@ -3,6 +3,7 @@ use std::{mem::MaybeUninit, pin::Pin};
 use cxx::{ExternType, UniquePtr, type_id};
 pub(crate) use ffi::QWidget;
 use image::{DynamicImage, Pixel, Rgb, Rgba};
+use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsWindow;
 use winio_primitive::{
@@ -20,6 +21,7 @@ pub struct Canvas {
     widget: Widget<ffi::QWidget>,
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Canvas {
     pub fn new(parent: impl AsWindow) -> Self {
         let mut widget = unsafe { ffi::new_canvas(parent.as_window().as_qt()) };
@@ -52,37 +54,21 @@ impl Canvas {
         }
     }
 
-    pub fn is_visible(&self) -> bool {
-        self.widget.is_visible()
-    }
+    pub fn is_visible(&self) -> bool;
 
-    pub fn set_visible(&mut self, v: bool) {
-        self.widget.set_visible(v);
-    }
+    pub fn set_visible(&mut self, v: bool);
 
-    pub fn is_enabled(&self) -> bool {
-        self.widget.is_enabled()
-    }
+    pub fn is_enabled(&self) -> bool;
 
-    pub fn set_enabled(&mut self, v: bool) {
-        self.widget.set_enabled(v);
-    }
+    pub fn set_enabled(&mut self, v: bool);
 
-    pub fn loc(&self) -> Point {
-        self.widget.loc()
-    }
+    pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, p: Point) {
-        self.widget.set_loc(p);
-    }
+    pub fn set_loc(&mut self, p: Point);
 
-    pub fn size(&self) -> Size {
-        self.widget.size()
-    }
+    pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, s: Size) {
-        self.widget.set_size(s);
-    }
+    pub fn set_size(&mut self, s: Size);
 
     fn on_move(c: *const u8, x: i32, y: i32) {
         let c = c as *const Callback<Point>;

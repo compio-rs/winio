@@ -1,5 +1,6 @@
 use std::pin::Pin;
 
+use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsWindow;
 use winio_primitive::{Point, Size};
@@ -15,6 +16,7 @@ pub struct ListBox {
     widget: Widget<ffi::QListWidget>,
 }
 
+#[inherit_methods(from = "self.widget")]
 impl ListBox {
     pub fn new(parent: impl AsWindow) -> Self {
         let mut widget = unsafe { ffi::new_list_widget(parent.as_window().as_qt()) };
@@ -31,45 +33,25 @@ impl ListBox {
         Self { on_select, widget }
     }
 
-    pub fn is_visible(&self) -> bool {
-        self.widget.is_visible()
-    }
+    pub fn is_visible(&self) -> bool;
 
-    pub fn set_visible(&mut self, v: bool) {
-        self.widget.set_visible(v);
-    }
+    pub fn set_visible(&mut self, v: bool);
 
-    pub fn is_enabled(&self) -> bool {
-        self.widget.is_enabled()
-    }
+    pub fn is_enabled(&self) -> bool;
 
-    pub fn set_enabled(&mut self, v: bool) {
-        self.widget.set_enabled(v);
-    }
+    pub fn set_enabled(&mut self, v: bool);
 
-    pub fn preferred_size(&self) -> Size {
-        self.widget.preferred_size()
-    }
+    pub fn preferred_size(&self) -> Size;
 
-    pub fn min_size(&self) -> Size {
-        self.widget.min_size()
-    }
+    pub fn min_size(&self) -> Size;
 
-    pub fn loc(&self) -> Point {
-        self.widget.loc()
-    }
+    pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, p: Point) {
-        self.widget.set_loc(p);
-    }
+    pub fn set_loc(&mut self, p: Point);
 
-    pub fn size(&self) -> Size {
-        self.widget.size()
-    }
+    pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, s: Size) {
-        self.widget.set_size(s);
-    }
+    pub fn set_size(&mut self, s: Size);
 
     pub fn is_selected(&self, i: usize) -> bool {
         unsafe { self.widget.as_ref().item(i as _).as_ref() }

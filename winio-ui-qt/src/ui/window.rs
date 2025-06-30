@@ -1,5 +1,6 @@
 use std::ptr::null_mut;
 
+use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
 use winio_primitive::{Point, Size};
@@ -17,6 +18,7 @@ pub struct Window {
     widget: Widget<ffi::QMainWindow>,
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Window {
     pub fn new(parent: Option<impl AsWindow>) -> Self {
         let mut widget = unsafe {
@@ -50,41 +52,25 @@ impl Window {
         }
     }
 
-    pub fn is_visible(&self) -> bool {
-        self.widget.is_visible()
-    }
+    pub fn is_visible(&self) -> bool;
 
-    pub fn set_visible(&mut self, v: bool) {
-        self.widget.set_visible(v);
-    }
+    pub fn set_visible(&mut self, v: bool);
 
-    pub fn loc(&self) -> Point {
-        self.widget.loc()
-    }
+    pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, p: Point) {
-        self.widget.set_loc(p);
-    }
+    pub fn set_loc(&mut self, p: Point);
 
-    pub fn size(&self) -> Size {
-        self.widget.size()
-    }
+    pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, s: Size) {
-        self.widget.set_size(s);
-    }
+    pub fn set_size(&mut self, s: Size);
 
     pub fn client_size(&self) -> Size {
         self.widget.client_rect().size
     }
 
-    pub fn text(&self) -> String {
-        self.widget.text()
-    }
+    pub fn text(&self) -> String;
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.widget.set_text(s.as_ref());
-    }
+    pub fn set_text(&mut self, s: impl AsRef<str>);
 
     fn on_resize(c: *const u8, width: i32, height: i32) {
         let c = c as *const Callback<Size>;

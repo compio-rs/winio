@@ -104,8 +104,8 @@ where
         self.as_ref_qwidget().windowTitle().into()
     }
 
-    pub fn set_text(&mut self, s: &str) {
-        self.pin_mut_qwidget().setWindowTitle(&s.into());
+    pub fn set_text(&mut self, s: impl AsRef<str>) {
+        self.pin_mut_qwidget().setWindowTitle(&s.as_ref().into());
     }
 }
 
