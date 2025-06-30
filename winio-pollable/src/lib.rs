@@ -1,3 +1,10 @@
+//! A pollable runtime based on [`compio`]. It is just a compio runtime except
+//! Linux, where there is also an eventfd if the driver is io-uring. This crate
+//! ensures that the raw fd returned by [`RawFd::as_raw_fd`] is always actively
+//! pollable.
+
+#![warn(missing_docs)]
+
 #[cfg(target_os = "linux")]
 use std::os::fd::OwnedFd;
 use std::{
@@ -7,6 +14,9 @@ use std::{
 
 use compio::driver::{AsRawFd, RawFd};
 
+/// See [`Runtime`]
+///
+/// [`Runtime`]: compio::runtime::Runtime
 pub struct Runtime {
     runtime: compio::runtime::Runtime,
     #[cfg(target_os = "linux")]
@@ -15,6 +25,7 @@ pub struct Runtime {
 
 #[cfg(target_os = "linux")]
 impl Runtime {
+    /// Create [`Runtime`].
     pub fn new() -> io::Result<Self> {
         let efd = if compio::driver::DriverType::is_iouring() {
             use rustix::event::{EventfdFlags, eventfd};
@@ -32,6 +43,7 @@ impl Runtime {
         Ok(Self { runtime, efd })
     }
 
+    /// Clear the eventfd, if possible.
     pub fn clear(&self) -> io::Result<()> {
         if let Some(efd) = &self.efd {
             let mut buf = [0u8; 8];
@@ -43,12 +55,14 @@ impl Runtime {
 
 #[cfg(not(target_os = "linux"))]
 impl Runtime {
+    /// Create [`Runtime`].
     pub fn new() -> io::Result<Self> {
         Ok(Self {
             runtime: compio::runtime::Runtime::new()?,
         })
     }
 
+    /// Clear the eventfd, if possible.
     pub fn clear(&self) -> io::Result<()> {
         Ok(())
     }
