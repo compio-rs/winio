@@ -15,6 +15,7 @@ winio-callback = { workspace = true }
 
 compio = { workspace = true }
 
+inherit-methods-macro = { workspace = true }
 image = { workspace = true, default-features = false }
 local-sync = { workspace = true }
 scoped-tls = { workspace = true }

@@ -1,6 +1,7 @@
 use std::{ops::Deref, ptr::null};
 
 use image::DynamicImage;
+use inherit_methods_macro::inherit_methods;
 use objc2::{
     AllocAnyThread, DeclaredClass, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
@@ -44,6 +45,7 @@ pub struct Canvas {
     handle: Widget,
 }
 
+#[inherit_methods(from = "self.handle")]
 impl Canvas {
     pub fn new(parent: impl AsWindow) -> Self {
         let view = CanvasView::new(MainThreadMarker::new().unwrap());
@@ -52,37 +54,21 @@ impl Canvas {
         Self { view, handle }
     }
 
-    pub fn is_visible(&self) -> bool {
-        self.handle.is_visible()
-    }
+    pub fn is_visible(&self) -> bool;
 
-    pub fn set_visible(&mut self, v: bool) {
-        self.handle.set_visible(v);
-    }
+    pub fn set_visible(&mut self, v: bool);
 
-    pub fn is_enabled(&self) -> bool {
-        self.handle.is_enabled()
-    }
+    pub fn is_enabled(&self) -> bool;
 
-    pub fn set_enabled(&mut self, v: bool) {
-        self.handle.set_enabled(v);
-    }
+    pub fn set_enabled(&mut self, v: bool);
 
-    pub fn loc(&self) -> Point {
-        self.handle.loc()
-    }
+    pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, p: Point) {
-        self.handle.set_loc(p)
-    }
+    pub fn set_loc(&mut self, p: Point);
 
-    pub fn size(&self) -> Size {
-        self.handle.size()
-    }
+    pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, v: Size) {
-        self.handle.set_size(v)
-    }
+    pub fn set_size(&mut self, v: Size);
 
     pub fn context(&mut self) -> DrawingContext<'_> {
         unsafe fn clear_layer(layer: &CALayer) {
