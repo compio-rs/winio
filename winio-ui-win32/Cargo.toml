@@ -1,0 +1,67 @@
+[package]
+name = "winio-ui-win32"
+version = "0.1.0"
+description = "Win32 backend for winio."
+edition = { workspace = true }
+authors = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+winio-primitive = { workspace = true }
+winio-handle = { workspace = true }
+
+compio = { workspace = true }
+compio-log = { workspace = true }
+
+cfg-if = { workspace = true }
+futures-util = { workspace = true }
+inherit-methods-macro = { workspace = true }
+image = { workspace = true, default-features = false }
+scoped-tls = { workspace = true }
+slab = "0.4"
+widestring = "1"
+
+windows-sys = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_Globalization",
+    "Win32_Graphics_Gdi",
+    "Win32_Graphics_Dwm",
+    "Win32_Networking_WinSock",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_IO",
+    "Win32_System_LibraryLoader",
+    "Win32_System_SystemServices",
+    "Win32_System_Threading",
+    "Win32_System_WindowsProgramming",
+    "Win32_UI_Accessibility",
+    "Win32_UI_Controls",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+windows = { version = "0.61", features = [
+    "Foundation_Numerics",
+    "UI_ViewManagement",
+    "Win32_Foundation",
+    "Win32_Graphics_Direct2D",
+    "Win32_Graphics_Direct2D_Common",
+    "Win32_Graphics_DirectWrite",
+    "Win32_Graphics_Dxgi_Common",
+    "Win32_System_Com",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
+] }
+windows-numerics = "0.2"
+
+slim-detours-sys = { version = "0.3", optional = true }
+sync-unsafe-cell = { version = "0.1", optional = true }
+
+[build-dependencies]
+embed-resource = "3"
+
+[features]
+dark-mode = ["dep:slim-detours-sys", "dep:sync-unsafe-cell"]

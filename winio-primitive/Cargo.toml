@@ -1,0 +1,14 @@
+[package]
+name = "winio-primitive"
+version = "0.1.0"
+description = "Primitive types for winio."
+edition = { workspace = true }
+authors = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+bitflags = "2"
+euclid = "0.22"
+rgb = "0.8"

@@ -19,18 +19,14 @@ jobs:
       matrix:
         toolchain: ['nightly']
         setup:
-          - os: 'ubuntu-22.04'
-            deps: 'qtbase5-dev'
           - os: 'ubuntu-24.04'
-            deps: 'qtbase5-dev'
-          - os: 'ubuntu-22.04'
-            deps: 'qt6-base-dev'
+            deps: 'qtbase5-dev libgtk-4-dev'
           - os: 'ubuntu-24.04'
-            deps: 'qt6-base-dev'
+            deps: 'qt6-base-dev libgtk-4-dev'
           - os: 'ubuntu-24.04'
             features: 'gtk'
             no_default_features: true
-            deps: 'libgtk-4-dev'
+            deps: 'qt6-base-dev libgtk-4-dev'
           - os: 'windows-latest'
             target: 'x86_64-pc-windows-msvc'
           - os: 'windows-latest'
@@ -49,7 +45,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt update
-          sudo apt install -y "${{ matrix.setup.deps }}"
+          sudo apt install -y ${{ matrix.setup.deps }}
       - uses: msys2/setup-msys2@v2
         if: ${{ endsWith(matrix.setup.target, 'gnullvm') }}
         with:

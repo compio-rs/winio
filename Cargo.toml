@@ -1,189 +1,56 @@
-[package]
-name = "winio"
-version = "0.7.0-beta.2"
+[workspace]
+members = [
+    "winio",
+    "winio-primitive",
+    "winio-callback",
+    "winio-layout",
+    "winio-handle",
+    "winio-elm",
+    "winio-pollable",
+    "winio-ui-win32",
+    "winio-ui-gtk",
+    "winio-ui-qt",
+    "winio-ui-app-kit",
+]
+
+resolver = "2"
+
+[workspace.package]
 edition = "2021"
-description = "Single-threaded async GUI runtime based on compio."
-license = "MIT"
 authors = ["Berrysoft <Strawberry_Str@hotmail.com>"]
 readme = "README.md"
+license = "MIT"
 repository = "https://github.com/compio-rs/winio"
-categories = ["asynchronous", "gui"]
-keywords = ["async", "gui"]
 
-[dependencies]
+[workspace.dependencies]
+winio-primitive = { path = "winio-primitive", version = "0.1.0" }
+winio-callback = { path = "winio-callback", version = "0.1.0" }
+winio-layout = { path = "winio-layout", version = "0.1.0" }
+winio-handle = { path = "winio-handle", version = "0.1.0" }
+winio-elm = { path = "winio-elm", version = "0.1.0" }
+winio-pollable = { path = "winio-pollable", version = "0.1.0" }
+winio-ui-win32 = { path = "winio-ui-win32", version = "0.1.0" }
+winio-ui-gtk = { path = "winio-ui-gtk", version = "0.1.0" }
+winio-ui-qt = { path = "winio-ui-qt", version = "0.1.0" }
+winio-ui-app-kit = { path = "winio-ui-app-kit", version = "0.1.0" }
+
 compio = "0.15.0"
 compio-log = "0.1.0"
 
-bitflags = "2"
 cfg-if = "1"
-euclid = "0.22"
-futures-util = { version = "0.3", features = ["alloc"] }
-image = { version = "0.25", default-features = false }
-paste = "1.0"
-rgb = "0.8"
-slab = "0.4"
-smallvec = "1"
-scoped-tls = "1.0"
-taffy = "0.8"
-
-[target.'cfg(windows)'.dependencies]
-widestring = "1"
-windows-sys = { version = "0.60", features = [
-    "Win32_Foundation",
-    "Win32_Globalization",
-    "Win32_Graphics_Gdi",
-    "Win32_Graphics_Dwm",
-    "Win32_Networking_WinSock",
-    "Win32_Security",
-    "Win32_Storage_FileSystem",
-    "Win32_System_IO",
-    "Win32_System_LibraryLoader",
-    "Win32_System_SystemServices",
-    "Win32_System_Threading",
-    "Win32_System_WindowsProgramming",
-    "Win32_UI_Accessibility",
-    "Win32_UI_Controls",
-    "Win32_UI_HiDpi",
-    "Win32_UI_Input_KeyboardAndMouse",
-    "Win32_UI_Shell",
-    "Win32_UI_WindowsAndMessaging",
-] }
-windows = { version = "0.61", features = [
-    "Foundation_Numerics",
-    "UI_ViewManagement",
-    "Win32_Foundation",
-    "Win32_Graphics_Direct2D",
-    "Win32_Graphics_Direct2D_Common",
-    "Win32_Graphics_DirectWrite",
-    "Win32_Graphics_Dxgi_Common",
-    "Win32_System_Com",
-    "Win32_UI_Shell",
-    "Win32_UI_Shell_Common",
-] }
-windows-numerics = "0.2"
-slim-detours-sys = { version = "0.3", optional = true }
-sync-unsafe-cell = { version = "0.1", optional = true }
-
-[target.'cfg(target_os = "macos")'.dependencies]
-block2 = "0.6"
-objc2 = "0.6"
-objc2-core-foundation = { version = "0.3", features = [
-    "CFCGTypes",
-    "CFFileDescriptor",
-    "CFRunLoop",
-] }
-objc2-core-graphics = { version = "0.3", features = ["CGColor", "CGPath"] }
-objc2-foundation = { version = "0.3", features = [
-    "NSAffineTransform",
-    "NSAttributedString",
-    "NSDate",
-    "NSDictionary",
-    "NSEnumerator",
-    "NSNotification",
-    "NSObjCRuntime",
-    "NSRunLoop",
-    "NSString",
-    "NSThread",
-    "NSURL",
-    "NSUserDefaults",
-] }
-objc2-app-kit = { version = "0.3", features = [
-    "block2",
-    "objc2-core-foundation",
-    "objc2-quartz-core",
-    "objc2-uniform-type-identifiers",
-    "NSAlert",
-    "NSApplication",
-    "NSAttributedString",
-    "NSBitmapImageRep",
-    "NSButton",
-    "NSButtonCell",
-    "NSCell",
-    "NSColor",
-    "NSColorSpace",
-    "NSComboBox",
-    "NSControl",
-    "NSEvent",
-    "NSFont",
-    "NSFontDescriptor",
-    "NSGraphics",
-    "NSImage",
-    "NSImageRep",
-    "NSMatrix",
-    "NSOpenPanel",
-    "NSPanel",
-    "NSProgressIndicator",
-    "NSResponder",
-    "NSRunningApplication",
-    "NSSavePanel",
-    "NSScreen",
-    "NSScrollView",
-    "NSSecureTextField",
-    "NSStringDrawing",
-    "NSTableView",
-    "NSTableColumn",
-    "NSText",
-    "NSTextField",
-    "NSTrackingArea",
-    "NSView",
-    "NSWindow",
-    "NSWindowScripting",
-] }
-objc2-uniform-type-identifiers = { version = "0.3", features = ["UTType"] }
-objc2-quartz-core = { version = "0.3", features = [
-    "objc2-core-graphics",
-    "CALayer",
-    "CAGradientLayer",
-    "CAShapeLayer",
-    "CATextLayer",
-] }
-local-sync = "0.1"
-
-[target.'cfg(target_os = "linux")'.dependencies]
-libc = "0.2"
-
-[target.'cfg(not(any(windows, target_os = "macos")))'.dependencies]
-gtk4 = { version = "0.9", optional = true, features = ["v4_14"] }
-pangocairo = { version = "0.20", optional = true }
-
-cxx = { version = "1.0.160", optional = true, features = ["c++17"] }
-local-sync = { version = "0.1", optional = true }
-
-[dev-dependencies]
-compio = { version = "0.15.0", features = ["time", "rustls", "ring"] }
-cyper = { version = "0.4.0", default-features = false, features = [
-    "rustls",
-    "http2",
-    "http3-altsvc",
-] }
-
-dirs = "6.0"
 futures-util = "0.3"
-image = { version = "0.25", default-features = false, features = [
-    "default-formats",
-] }
-itertools = "0.14"
-tracing-subscriber = "0.3"
+image = { version = "0.25", default-features = false }
+inherit-methods-macro = "0.1"
+local-sync = "0.1"
+paste = "1.0"
+scoped-tls = "1.0"
 
-[build-dependencies]
-embed-resource = "3"
+windows-sys = "0.60"
 
-cxx-build = { version = "1.0.160", optional = true }
-qt-build-utils = { version = "0.7", optional = true }
+objc2 = "0.6"
+objc2-app-kit = "0.3"
 
-[features]
-default = ["qt", "windows-dark-mode"]
-gtk = ["dep:gtk4", "dep:pangocairo"]
-qt = ["dep:cxx", "dep:cxx-build", "dep:qt-build-utils", "dep:local-sync"]
-enable_log = ["compio/enable_log", "compio-log/enable_log"]
-
-nightly = ["compio/nightly", "cyper/nightly"]
-windows-dark-mode = ["dep:slim-detours-sys", "dep:sync-unsafe-cell"]
-objc-static = [
-    "objc2/unstable-static-class-inlined",
-    "objc2/unstable-static-sel-inlined",
-    "objc2-foundation/unstable-static-nsstring",
-]
+gtk4 = "0.9"
 
 [profile.release]
 lto = true

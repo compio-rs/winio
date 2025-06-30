@@ -1,0 +1,26 @@
+[package]
+name = "winio-ui-qt"
+version = "0.1.0"
+description = "Qt backend for winio."
+edition = { workspace = true }
+authors = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[target.'cfg(not(any(windows, target_os = "macos")))'.dependencies]
+winio-primitive = { workspace = true }
+winio-handle = { workspace = true, features = ["qt"] }
+winio-callback = { workspace = true }
+winio-pollable = { workspace = true }
+
+inherit-methods-macro = { workspace = true }
+image = { workspace = true, default-features = false }
+local-sync = { workspace = true }
+scoped-tls = { workspace = true }
+
+cxx = { version = "1.0.160", features = ["c++17"] }
+
+[build-dependencies]
+cxx-build = { version = "1.0.160" }
+qt-build-utils = { version = "0.7" }

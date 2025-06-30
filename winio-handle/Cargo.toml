@@ -1,0 +1,26 @@
+[package]
+name = "winio-handle"
+version = "0.1.0"
+description = "Window handle for winio."
+edition = { workspace = true }
+authors = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+cfg-if = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = ["Win32_Foundation"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = { workspace = true }
+objc2-app-kit = { workspace = true, features = ["NSWindow"] }
+
+[target.'cfg(not(any(windows, target_os = "macos")))'.dependencies]
+gtk4 = { workspace = true, optional = true }
+
+[features]
+qt = []
+gtk = ["dep:gtk4"]
