@@ -10,9 +10,7 @@ Winio follows ELM-like design, inspired by [`yew`](https://yew.rs/) and [`relm4`
 The application starts with a root `Component`:
 
 ```rust
-use winio::{
-    App, Child, Component, ComponentSender, Layoutable, Size, Visible, Window, WindowEvent,
-};
+use winio::prelude::*;
 
 fn main() {
     App::new("rs.compio.winio.example").run::<MainModel>(());
