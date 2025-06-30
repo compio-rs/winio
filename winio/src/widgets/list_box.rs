@@ -1,14 +1,15 @@
 use inherit_methods_macro::inherit_methods;
+use winio_elm::{Component, ComponentSender, ObservableVecEvent};
+use winio_handle::BorrowedWindow;
+use winio_layout::{Enable, Layoutable, Visible};
+use winio_primitive::{Point, Size};
 
-use crate::{
-    BorrowedWindow, Component, ComponentSender, Enable, Layoutable, ObservableVecEvent, Point,
-    Size, Visible, ui,
-};
+use crate::sys;
 
 /// A simple list box.
 #[derive(Debug)]
 pub struct ListBox {
-    widget: ui::ListBox,
+    widget: sys::ListBox,
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -133,7 +134,7 @@ impl Component for ListBox {
     type Message = ListBoxMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::ListBox::new(init);
+        let widget = sys::ListBox::new(init);
         Self { widget }
     }
 

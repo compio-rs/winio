@@ -1,14 +1,15 @@
 use inherit_methods_macro::inherit_methods;
+use winio_elm::{Component, ComponentSender, ObservableVecEvent};
+use winio_handle::BorrowedWindow;
+use winio_layout::{Enable, Layoutable, Visible};
+use winio_primitive::{Point, Size};
 
-use crate::{
-    BorrowedWindow, Component, ComponentSender, Enable, Layoutable, ObservableVecEvent, Point,
-    Size, Visible, ui,
-};
+use crate::sys;
 
 /// A simple combo box.
 #[derive(Debug)]
 pub struct ComboBox {
-    widget: ui::ComboBox,
+    widget: sys::ComboBox,
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -139,7 +140,7 @@ impl Component for ComboBox {
     type Message = ComboBoxMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::ComboBox::new(init);
+        let widget = sys::ComboBox::new(init);
         Self { widget }
     }
 
@@ -166,7 +167,7 @@ impl Component for ComboBox {
 /// A combo box with editable text box.
 #[derive(Debug)]
 pub struct ComboEntry {
-    widget: ui::ComboEntry,
+    widget: sys::ComboEntry,
 }
 
 impl ComboEntry {
@@ -283,7 +284,7 @@ impl Component for ComboEntry {
     type Message = ComboBoxMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::ComboEntry::new(init);
+        let widget = sys::ComboEntry::new(init);
         Self { widget }
     }
 

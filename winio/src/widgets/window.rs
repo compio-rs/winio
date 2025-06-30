@@ -1,14 +1,15 @@
 use inherit_methods_macro::inherit_methods;
+use winio_elm::{Component, ComponentSender};
+use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, MaybeBorrowedWindow, RawWindow};
+use winio_layout::{Layoutable, Visible};
+use winio_primitive::{Point, Size};
 
-use crate::{
-    AsRawWindow, AsWindow, BorrowedWindow, Component, ComponentSender, Layoutable,
-    MaybeBorrowedWindow, Point, RawWindow, Size, Visible, ui,
-};
+use crate::sys;
 
 /// A simple window.
 #[derive(Debug)]
 pub struct Window {
-    widget: ui::Window,
+    widget: sys::Window,
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -92,7 +93,7 @@ impl Component for Window {
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
         Self {
-            widget: ui::Window::new(init.0),
+            widget: sys::Window::new(init.0),
         }
     }
 

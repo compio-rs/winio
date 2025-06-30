@@ -1,13 +1,15 @@
 use inherit_methods_macro::inherit_methods;
+use winio_elm::{Component, ComponentSender};
+use winio_handle::BorrowedWindow;
+use winio_layout::{Enable, Layoutable, Visible};
+use winio_primitive::{Point, Size};
 
-use crate::{
-    BorrowedWindow, Component, ComponentSender, Enable, Layoutable, Point, Size, Visible, ui,
-};
+use crate::sys;
 
 /// A progress bar.
 #[derive(Debug)]
 pub struct Progress {
-    widget: ui::Progress,
+    widget: sys::Progress,
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -68,7 +70,7 @@ impl Component for Progress {
     type Message = ();
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::Progress::new(init);
+        let widget = sys::Progress::new(init);
         Self { widget }
     }
 

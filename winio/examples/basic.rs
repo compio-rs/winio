@@ -2,12 +2,7 @@ use std::time::Duration;
 
 use compio::{runtime::spawn, time::interval};
 use compio_log::info;
-use winio::{
-    App, BrushPen, Canvas, CanvasEvent, Child, Color, ColorTheme, ColorThemeExt, Component,
-    ComponentSender, CustomButton, DrawingFontBuilder, Grid, HAlign, Layoutable, MessageBox,
-    MessageBoxButton, MessageBoxResponse, MessageBoxStyle, Monitor, MonitorExt, MouseButton, Point,
-    Rect, Size, SolidColorBrush, VAlign, Visible, Window, WindowEvent, init, layout, start,
-};
+use winio::prelude::*;
 
 fn main() {
     #[cfg(feature = "enable_log")]

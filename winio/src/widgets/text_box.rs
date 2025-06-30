@@ -1,40 +1,50 @@
 use inherit_methods_macro::inherit_methods;
+use winio_elm::{Component, ComponentSender};
+use winio_handle::BorrowedWindow;
+use winio_layout::{Enable, Layoutable, Visible};
+use winio_primitive::{HAlign, Point, Size};
 
-use crate::{
-    BorrowedWindow, Component, ComponentSender, Enable, Layoutable, Point, Size, Visible, ui,
-};
+use crate::sys;
 
-/// A simple button.
+/// A simple multi-line text input box.
 #[derive(Debug)]
-pub struct Button {
-    widget: ui::Button,
+pub struct TextBox {
+    widget: sys::TextBox,
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Button {
+impl TextBox {
     /// The text.
     pub fn text(&self) -> String;
 
     /// Set the text.
+    ///
+    /// Lines are separated with `\n`. You don't need to handle CRLF.
     pub fn set_text(&mut self, s: impl AsRef<str>);
+
+    /// The horizontal alignment.
+    pub fn halign(&self) -> HAlign;
+
+    /// Set the horizontal alignment.
+    pub fn set_halign(&mut self, align: HAlign);
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Visible for Button {
+impl Visible for TextBox {
     fn is_visible(&self) -> bool;
 
     fn set_visible(&mut self, v: bool);
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Enable for Button {
+impl Enable for TextBox {
     fn is_enabled(&self) -> bool;
 
     fn set_enabled(&mut self, v: bool);
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Layoutable for Button {
+impl Layoutable for TextBox {
     fn loc(&self) -> Point;
 
     fn set_loc(&mut self, p: Point);
@@ -46,27 +56,27 @@ impl Layoutable for Button {
     fn preferred_size(&self) -> Size;
 }
 
-/// Events of [`Button`].
+/// Events of [`TextBox`].
 #[non_exhaustive]
-pub enum ButtonEvent {
-    /// The button has been clicked.
-    Click,
+pub enum TextBoxEvent {
+    /// The text has been changed.
+    Change,
 }
 
-impl Component for Button {
-    type Event = ButtonEvent;
+impl Component for TextBox {
+    type Event = TextBoxEvent;
     type Init<'a> = BorrowedWindow<'a>;
     type Message = ();
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::Button::new(init);
+        let widget = sys::TextBox::new(init);
         Self { widget }
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         loop {
-            self.widget.wait_click().await;
-            sender.output(ButtonEvent::Click);
+            self.widget.wait_change().await;
+            sender.output(TextBoxEvent::Change);
         }
     }
 

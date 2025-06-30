@@ -6,12 +6,7 @@ use std::{
 use compio::runtime::spawn_blocking;
 use image::{DynamicImage, ImageReader};
 use itertools::Itertools;
-use winio::{
-    App, BrushPen, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, ColorThemeExt, Component,
-    ComponentSender, DrawingImage, Edit, FileBox, Layoutable, ListBox, ListBoxEvent,
-    ListBoxMessage, ObservableVec, ObservableVecEvent, Orient, Point, Rect, Size, SolidColorBrush,
-    StackPanel, Visible, Window, WindowEvent, init, layout, start,
-};
+use winio::prelude::*;
 
 fn main() {
     #[cfg(feature = "enable_log")]
@@ -51,7 +46,7 @@ impl Component for MainModel {
     type Init<'a> = Option<PathBuf>;
     type Message = MainMessage;
 
-    fn init(path: Self::Init<'_>, sender: &winio::ComponentSender<Self>) -> Self {
+    fn init(path: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
         init! {
             window: Window = (()) => {
                 text: "Gallery example",
@@ -89,7 +84,7 @@ impl Component for MainModel {
         }
     }
 
-    async fn start(&mut self, sender: &winio::ComponentSender<Self>) -> ! {
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: MainMessage::Noop,
             self.window => {
@@ -108,11 +103,7 @@ impl Component for MainModel {
         }
     }
 
-    async fn update(
-        &mut self,
-        message: Self::Message,
-        sender: &winio::ComponentSender<Self>,
-    ) -> bool {
+    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
         futures_util::future::join3(
             self.window.update(),
             self.canvas.update(),
@@ -175,7 +166,7 @@ impl Component for MainModel {
         }
     }
 
-    fn render(&mut self, _sender: &winio::ComponentSender<Self>) {
+    fn render(&mut self, _sender: &ComponentSender<Self>) {
         let csize = self.window.client_size();
 
         {

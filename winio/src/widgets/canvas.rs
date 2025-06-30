@@ -1,14 +1,15 @@
 use inherit_methods_macro::inherit_methods;
+use winio_elm::{Component, ComponentSender};
+use winio_handle::BorrowedWindow;
+use winio_layout::{Enable, Layoutable, Visible};
+use winio_primitive::{MouseButton, Point, Size};
 
-use crate::{
-    BorrowedWindow, Component, ComponentSender, DrawingContext, Enable, Layoutable, MouseButton,
-    Point, Size, Visible, ui,
-};
+use crate::{sys, ui::DrawingContext};
 
 /// A simple drawing canvas.
 #[derive(Debug)]
 pub struct Canvas {
-    widget: ui::Canvas,
+    widget: sys::Canvas,
 }
 
 impl Canvas {
@@ -60,7 +61,7 @@ impl Component for Canvas {
     type Message = ();
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::Canvas::new(init);
+        let widget = sys::Canvas::new(init);
         Self { widget }
     }
 

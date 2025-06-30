@@ -1,55 +1,42 @@
 use inherit_methods_macro::inherit_methods;
+use winio_elm::{Component, ComponentSender};
+use winio_handle::BorrowedWindow;
+use winio_layout::{Enable, Layoutable, Visible};
+use winio_primitive::{Point, Size};
 
-use crate::{
-    BorrowedWindow, Component, ComponentSender, Enable, HAlign, Layoutable, Point, Size, Visible,
-    ui,
-};
+use crate::sys;
 
-/// A simple single-line label.
+/// A simple button.
 #[derive(Debug)]
-pub struct Label {
-    widget: ui::Label,
+pub struct Button {
+    widget: sys::Button,
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Label {
+impl Button {
     /// The text.
     pub fn text(&self) -> String;
 
     /// Set the text.
     pub fn set_text(&mut self, s: impl AsRef<str>);
-
-    /// The horizontal alignment.
-    pub fn halign(&self) -> HAlign;
-
-    /// Set the horizontal alignment.
-    pub fn set_halign(&mut self, align: HAlign);
-
-    /// If the label background is transparent.
-    #[cfg(windows)]
-    pub fn is_transparent(&self) -> bool;
-
-    /// Set if the label background is transparent.
-    #[cfg(windows)]
-    pub fn set_transparent(&mut self, v: bool);
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Visible for Label {
+impl Visible for Button {
     fn is_visible(&self) -> bool;
 
     fn set_visible(&mut self, v: bool);
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Enable for Label {
+impl Enable for Button {
     fn is_enabled(&self) -> bool;
 
     fn set_enabled(&mut self, v: bool);
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Layoutable for Label {
+impl Layoutable for Button {
     fn loc(&self) -> Point;
 
     fn set_loc(&mut self, p: Point);
@@ -61,22 +48,28 @@ impl Layoutable for Label {
     fn preferred_size(&self) -> Size;
 }
 
-/// Events of [`Label`].
+/// Events of [`Button`].
 #[non_exhaustive]
-pub enum LabelEvent {}
+pub enum ButtonEvent {
+    /// The button has been clicked.
+    Click,
+}
 
-impl Component for Label {
-    type Event = LabelEvent;
+impl Component for Button {
+    type Event = ButtonEvent;
     type Init<'a> = BorrowedWindow<'a>;
     type Message = ();
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::Label::new(init);
+        let widget = sys::Button::new(init);
         Self { widget }
     }
 
-    async fn start(&mut self, _sender: &ComponentSender<Self>) -> ! {
-        std::future::pending().await
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
+        loop {
+            self.widget.wait_click().await;
+            sender.output(ButtonEvent::Click);
+        }
     }
 
     async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {

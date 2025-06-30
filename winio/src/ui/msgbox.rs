@@ -1,6 +1,7 @@
 use winio_handle::MaybeBorrowedWindow;
+use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
-use crate::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle, ui::sys};
+use crate::sys;
 
 /// Message box.
 #[derive(Debug, Default, Clone)]

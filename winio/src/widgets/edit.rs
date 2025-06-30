@@ -1,25 +1,30 @@
 use inherit_methods_macro::inherit_methods;
+use winio_elm::{Component, ComponentSender};
+use winio_handle::BorrowedWindow;
+use winio_layout::{Enable, Layoutable, Visible};
+use winio_primitive::{HAlign, Point, Size};
 
-use crate::{
-    BorrowedWindow, Component, ComponentSender, Enable, HAlign, Layoutable, Point, Size, Visible,
-    ui,
-};
+use crate::sys;
 
-/// A simple multi-line text input box.
+/// A simple single-line text input box.
 #[derive(Debug)]
-pub struct TextBox {
-    widget: ui::TextBox,
+pub struct Edit {
+    widget: sys::Edit,
 }
 
 #[inherit_methods(from = "self.widget")]
-impl TextBox {
+impl Edit {
     /// The text.
     pub fn text(&self) -> String;
 
     /// Set the text.
-    ///
-    /// Lines are separated with `\n`. You don't need to handle CRLF.
     pub fn set_text(&mut self, s: impl AsRef<str>);
+
+    /// If the text input is password.
+    pub fn is_password(&self) -> bool;
+
+    /// Set if the text input is password.
+    pub fn set_password(&mut self, v: bool);
 
     /// The horizontal alignment.
     pub fn halign(&self) -> HAlign;
@@ -29,21 +34,21 @@ impl TextBox {
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Visible for TextBox {
+impl Visible for Edit {
     fn is_visible(&self) -> bool;
 
     fn set_visible(&mut self, v: bool);
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Enable for TextBox {
+impl Enable for Edit {
     fn is_enabled(&self) -> bool;
 
     fn set_enabled(&mut self, v: bool);
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Layoutable for TextBox {
+impl Layoutable for Edit {
     fn loc(&self) -> Point;
 
     fn set_loc(&mut self, p: Point);
@@ -55,27 +60,27 @@ impl Layoutable for TextBox {
     fn preferred_size(&self) -> Size;
 }
 
-/// Events of [`TextBox`].
+/// Events of [`Edit`].
 #[non_exhaustive]
-pub enum TextBoxEvent {
+pub enum EditEvent {
     /// The text has been changed.
     Change,
 }
 
-impl Component for TextBox {
-    type Event = TextBoxEvent;
+impl Component for Edit {
+    type Event = EditEvent;
     type Init<'a> = BorrowedWindow<'a>;
     type Message = ();
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::TextBox::new(init);
+        let widget = sys::Edit::new(init);
         Self { widget }
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         loop {
             self.widget.wait_change().await;
-            sender.output(TextBoxEvent::Change);
+            sender.output(EditEvent::Change);
         }
     }
 

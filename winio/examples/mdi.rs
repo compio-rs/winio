@@ -1,7 +1,4 @@
-use winio::{
-    App, CheckBox, CheckBoxEvent, Child, Component, ComponentSender, Layoutable, Point, Size,
-    Visible, Window, WindowEvent, init, start,
-};
+use winio::prelude::*;
 
 fn main() {
     #[cfg(feature = "enable_log")]

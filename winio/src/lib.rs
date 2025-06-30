@@ -7,18 +7,41 @@
 #[doc(no_inline)]
 pub use compio;
 #[doc(inline)]
-pub use winio_elm::{
-    Child, Component, ComponentSender, ObservableVec, ObservableVecEvent, init, start,
-};
+pub use winio_elm as elm;
 #[doc(inline)]
-pub use winio_handle::*;
+pub use winio_handle as handle;
 #[doc(inline)]
-pub use winio_layout::{Enable, Grid, Layoutable, StackPanel, Visible, layout};
+pub use winio_layout as layout;
 #[doc(inline)]
-pub use winio_primitive::*;
+pub use winio_primitive as primitive;
 
-pub(crate) mod ui;
-pub use ui::export::*;
+cfg_if::cfg_if! {
+    if #[cfg(windows)] {
+        use winio_ui_win32 as sys;
+    } else if #[cfg(target_os = "macos")] {
+        use winio_ui_app_kit as sys;
+    } else {
+        #[cfg(any(
+            all(not(feature = "gtk"), not(feature = "qt")),
+            all(feature = "gtk", feature = "qt")
+        ))]
+        compile_error!("You must choose only one of these features: [\"gtk\", \"qt\"]");
 
-mod elm;
-pub use elm::*;
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "qt")] {
+                use winio_ui_qt as sys;
+            } else {
+                use winio_ui_gtk as sys;
+            }
+        }
+    }
+}
+
+pub mod ui;
+
+pub mod widgets;
+
+/// For blanket imports.
+pub mod prelude {
+    pub use crate::{elm::*, handle::*, layout::*, primitive::*, ui::*, widgets::*};
+}

@@ -1,4 +1,4 @@
-use crate::{Color, ColorTheme, Monitor};
+use winio_primitive::{Color, ColorTheme, Monitor};
 
 /// Extension trait for [`Monitor`].
 pub trait MonitorExt: Sized {
@@ -8,7 +8,7 @@ pub trait MonitorExt: Sized {
 
 impl MonitorExt for Monitor {
     fn all() -> Vec<Self> {
-        crate::ui::monitor_get_all()
+        crate::sys::monitor_get_all()
     }
 }
 
@@ -20,7 +20,7 @@ pub trait ColorThemeExt {
 
 impl ColorThemeExt for ColorTheme {
     fn current() -> Self {
-        crate::ui::color_theme()
+        crate::sys::color_theme()
     }
 }
 
@@ -32,6 +32,6 @@ pub trait ColorExt: Sized {
 
 impl ColorExt for Color {
     fn accent() -> Option<Self> {
-        crate::ui::accent_color()
+        crate::sys::accent_color()
     }
 }

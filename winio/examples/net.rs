@@ -2,11 +2,7 @@ use std::time::Duration;
 
 use compio::{runtime::spawn, time::timeout};
 use cyper::Client;
-use winio::{
-    App, Button, ButtonEvent, Canvas, Child, Color, ColorTheme, ColorThemeExt, Component,
-    ComponentSender, DrawingFontBuilder, Edit, HAlign, Layoutable, Orient, Point, Size,
-    SolidColorBrush, StackPanel, VAlign, Visible, Window, WindowEvent, init, layout, start,
-};
+use winio::prelude::*;
 
 fn main() {
     #[cfg(feature = "enable_log")]
@@ -48,7 +44,7 @@ impl Component for MainModel {
     type Init<'a> = &'a str;
     type Message = MainMessage;
 
-    fn init(url: Self::Init<'_>, sender: &winio::ComponentSender<Self>) -> Self {
+    fn init(url: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
         init! {
             window: Window = (()) => {
                 text: "Networking example",
@@ -80,7 +76,7 @@ impl Component for MainModel {
         }
     }
 
-    async fn start(&mut self, sender: &winio::ComponentSender<Self>) -> ! {
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: MainMessage::Noop,
             self.window => {
@@ -94,11 +90,7 @@ impl Component for MainModel {
         }
     }
 
-    async fn update(
-        &mut self,
-        message: Self::Message,
-        sender: &winio::ComponentSender<Self>,
-    ) -> bool {
+    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
         futures_util::future::join4(
             self.window.update(),
             self.canvas.update(),
@@ -129,7 +121,7 @@ impl Component for MainModel {
         }
     }
 
-    fn render(&mut self, _sender: &winio::ComponentSender<Self>) {
+    fn render(&mut self, _sender: &ComponentSender<Self>) {
         let csize = self.window.client_size();
 
         {

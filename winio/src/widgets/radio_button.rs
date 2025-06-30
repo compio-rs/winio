@@ -1,13 +1,15 @@
 use inherit_methods_macro::inherit_methods;
+use winio_elm::{Component, ComponentSender};
+use winio_handle::BorrowedWindow;
+use winio_layout::{Enable, Layoutable, Visible};
+use winio_primitive::{Point, Size};
 
-use crate::{
-    BorrowedWindow, Component, ComponentSender, Enable, Layoutable, Point, Size, Visible, ui,
-};
+use crate::sys;
 
 /// A simple radio box. See [`RadioButtonGroup`] for making selection groups.
 #[derive(Debug)]
 pub struct RadioButton {
-    widget: ui::RadioButton,
+    widget: sys::RadioButton,
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -65,7 +67,7 @@ impl Component for RadioButton {
     type Message = ();
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = ui::RadioButton::new(init);
+        let widget = sys::RadioButton::new(init);
         Self { widget }
     }
 

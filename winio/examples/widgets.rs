@@ -1,12 +1,4 @@
-use winio::{
-    App, BrushPen, Button, ButtonEvent, Canvas, CheckBox, CheckBoxEvent, Child, Color, ColorExt,
-    ColorTheme, ColorThemeExt, ComboBox, ComboBoxEvent, ComboBoxMessage, Component,
-    ComponentSender, DrawingFontBuilder, Edit, Enable, GradientStop, Grid, HAlign, Label,
-    Layoutable, LinearGradientBrush, Margin, MessageBox, MessageBoxButton, ObservableVec,
-    ObservableVecEvent, Orient, Point, Progress, RadialGradientBrush, RadioButton,
-    RadioButtonGroup, Rect, RelativePoint, RelativeSize, Size, SolidColorBrush, StackPanel,
-    TextBox, VAlign, Visible, Window, WindowEvent, init, layout, start,
-};
+use winio::prelude::*;
 
 fn main() {
     #[cfg(feature = "enable_log")]

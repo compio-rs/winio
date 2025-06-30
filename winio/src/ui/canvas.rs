@@ -1,6 +1,17 @@
 use image::DynamicImage;
+use winio_primitive::{DrawingFont, Point, Rect, Size};
 
-use crate::{Brush, DrawingFont, Pen, Point, Rect, Size, ui::sys};
+use crate::sys;
+
+/// Drawing brush.
+pub trait Brush: sys::Brush {}
+
+impl<B: sys::Brush> Brush for B {}
+
+/// Drawing Pen.
+pub trait Pen: sys::Pen {}
+
+impl<P: sys::Pen> Pen for P {}
 
 /// Canvas compatible drawing image.
 pub struct DrawingImage(sys::DrawingImage);
