@@ -58,4 +58,5 @@ enable_log = ["compio/enable_log", "compio-log/enable_log"]
 
 nightly = ["compio/nightly", "cyper/nightly"]
 win32-dark-mode = ["winio-ui-win32/dark-mode"]
+win32-ignore-class-conflict = ["winio-ui-win32/ignore-class-conflict"]
 objc-static = ["winio-ui-app-kit/objc-static"]

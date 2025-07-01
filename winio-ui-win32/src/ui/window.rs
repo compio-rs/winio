@@ -7,11 +7,10 @@ use std::{
 use compio::driver::syscall;
 use inherit_methods_macro::inherit_methods;
 use widestring::{U16CStr, U16CString, u16cstr};
+#[cfg(feature = "ignore-class-conflict")]
+use windows_sys::Win32::Foundation::ERROR_CLASS_ALREADY_EXISTS;
 use windows_sys::Win32::{
-    Foundation::{
-        ERROR_CLASS_ALREADY_EXISTS, ERROR_INVALID_HANDLE, HWND, LPARAM, LRESULT, POINT,
-        SetLastError, WPARAM,
-    },
+    Foundation::{ERROR_INVALID_HANDLE, HWND, LPARAM, LRESULT, POINT, SetLastError, WPARAM},
     Graphics::Gdi::{GetStockObject, MapWindowPoints, WHITE_BRUSH},
     System::LibraryLoader::GetModuleHandleW,
     UI::{
@@ -343,6 +342,7 @@ fn register() {
     };
     match syscall!(BOOL, unsafe { RegisterClassExW(&cls) }) {
         Ok(_) => {}
+        #[cfg(feature = "ignore-class-conflict")]
         Err(e) if e.raw_os_error() == Some(ERROR_CLASS_ALREADY_EXISTS as _) => {
             // The class is already registered. We choose to ignore this error,
             // and hope that the class is still valid.
