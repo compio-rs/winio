@@ -10,9 +10,14 @@ use widestring::{U16CStr, U16CString, u16cstr};
 #[cfg(feature = "ignore-class-conflict")]
 use windows_sys::Win32::Foundation::ERROR_CLASS_ALREADY_EXISTS;
 use windows_sys::Win32::{
-    Foundation::{ERROR_INVALID_HANDLE, HWND, LPARAM, LRESULT, POINT, SetLastError, WPARAM},
+    Foundation::{
+        ERROR_INVALID_HANDLE, HMODULE, HWND, LPARAM, LRESULT, POINT, SetLastError, WPARAM,
+    },
     Graphics::Gdi::{GetStockObject, MapWindowPoints, WHITE_BRUSH},
-    System::LibraryLoader::GetModuleHandleW,
+    System::LibraryLoader::{
+        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        GetModuleHandleExW,
+    },
     UI::{
         Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled},
         WindowsAndMessaging::{
@@ -39,6 +44,19 @@ use crate::{
         get_u16c, with_u16c,
     },
 };
+
+/// Get the handle of the current executable or DLL.
+fn get_current_module_handle() -> HMODULE {
+    let mut module: HMODULE = null_mut();
+    _ = unsafe {
+        GetModuleHandleExW(
+            GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+            get_current_module_handle as *const _,
+            &mut module,
+        )
+    };
+    module
+}
 
 #[derive(Debug)]
 pub(crate) struct OwnedWindow(HWND);
@@ -82,7 +100,7 @@ impl Widget {
                 CW_USEDEFAULT,
                 parent,
                 null_mut(),
-                GetModuleHandleW(null()),
+                get_current_module_handle(),
                 null(),
             )
         };
@@ -332,7 +350,7 @@ fn register() {
         lpfnWndProc: Some(window_proc),
         cbClsExtra: 0,
         cbWndExtra: 0,
-        hInstance: unsafe { GetModuleHandleW(null()) },
+        hInstance: get_current_module_handle(),
         hIcon: null_mut(),
         hCursor: unsafe { LoadCursorW(null_mut(), IDC_ARROW) },
         hbrBackground: unsafe { GetStockObject(WHITE_BRUSH) },
@@ -340,7 +358,7 @@ fn register() {
         lpszClassName: WINDOW_CLASS_NAME.as_ptr(),
         hIconSm: null_mut(),
     };
-    match syscall!(BOOL, unsafe { RegisterClassExW(&cls) }) {
+    match syscall!(BOOL, RegisterClassExW(&cls)) {
         Ok(_) => {}
         #[cfg(feature = "ignore-class-conflict")]
         Err(e) if e.raw_os_error() == Some(ERROR_CLASS_ALREADY_EXISTS as _) => {
@@ -422,7 +440,7 @@ impl Window {
     pub fn set_icon_by_id(&mut self, id: u16) {
         let icon = unsafe {
             LoadImageW(
-                GetModuleHandleW(null()),
+                get_current_module_handle(),
                 id as _,
                 IMAGE_ICON,
                 0,
