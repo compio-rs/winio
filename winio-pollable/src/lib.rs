@@ -46,7 +46,7 @@ impl Runtime {
     }
 
     /// Clear the eventfd, if possible.
-    pub fn clear(&self) -> io::Result<()> {
+    pub(crate) fn clear(&self) -> io::Result<()> {
         if let Some(efd) = &self.efd {
             let mut buf = [0u8; 8];
             rustix::io::read(efd, &mut buf)?;
@@ -65,7 +65,7 @@ impl Runtime {
     }
 
     /// Clear the eventfd, if possible.
-    pub fn clear(&self) -> io::Result<()> {
+    pub(crate) fn clear(&self) -> io::Result<()> {
         Ok(())
     }
 }
@@ -95,6 +95,8 @@ impl Runtime {
             };
 
             poll(timeout);
+
+            self.clear().ok();
         }
     }
 }

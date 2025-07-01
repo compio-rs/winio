@@ -1,4 +1,4 @@
-use std::{cell::RefCell, future::Future, os::fd::AsRawFd, time::Duration};
+use std::{cell::RefCell, future::Future, os::fd::AsRawFd};
 
 use cxx::UniquePtr;
 
@@ -57,26 +57,7 @@ impl Runtime {
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
         self.enter(|| {
-            let mut result = None;
-            unsafe {
-                self.runtime
-                    .spawn_unchecked(async { result = Some(future.await) })
-            }
-            .detach();
-            loop {
-                self.runtime.poll_with(Some(Duration::ZERO));
-
-                let remaining_tasks = self.runtime.run();
-                if let Some(result) = result.take() {
-                    break result;
-                }
-
-                let timeout = if remaining_tasks {
-                    Some(Duration::ZERO)
-                } else {
-                    self.runtime.current_timeout()
-                };
-
+            self.runtime.block_on(future, |timeout| {
                 if let Some(timeout) = timeout {
                     self.event_loop
                         .borrow_mut()
@@ -85,9 +66,7 @@ impl Runtime {
                 } else {
                     self.event_loop.borrow_mut().pin_mut().process();
                 }
-
-                self.runtime.clear().ok();
-            }
+            })
         })
     }
 }
