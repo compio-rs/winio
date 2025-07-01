@@ -14,7 +14,7 @@ use winio_primitive::{Point, Size};
 
 use crate::{
     runtime::WindowMessageCommand,
-    ui::{Widget, font::measure_string, with_u16c},
+    ui::{Widget, font::measure_string, get_u16c, with_u16c},
 };
 
 #[derive(Debug)]
@@ -118,18 +118,12 @@ impl ListBox {
     }
 
     fn get_u16(&self, i: usize) -> U16CString {
-        let mut len = self.handle.send_message(LB_GETTEXTLEN, i as _, 0);
-        if len == 0 {
-            return U16CString::new();
-        }
-        len += 1;
-        let mut res: Vec<u16> = Vec::with_capacity(len as usize);
-        let len = self
-            .handle
-            .send_message(LB_GETTEXT, i as _, res.as_mut_ptr() as _);
+        let len = self.handle.send_message(LB_GETTEXTLEN, i as _, 0);
         unsafe {
-            res.set_len(len as usize + 1);
-            U16CString::from_vec_unchecked(res)
+            get_u16c(len as usize, |buf| {
+                self.handle
+                    .send_message(LB_GETTEXT, i as _, buf.as_mut_ptr() as _) as _
+            })
         }
     }
 

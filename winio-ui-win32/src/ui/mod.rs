@@ -1,4 +1,6 @@
-use widestring::U16CStr;
+use std::mem::MaybeUninit;
+
+use widestring::{U16CStr, U16CString};
 use winio_primitive::ColorTheme;
 
 pub(crate) mod darkmode;
@@ -84,5 +86,20 @@ fn with_u16c<T>(s: &str, f: impl FnOnce(&U16CStr) -> T) -> T {
     } else {
         let buf = s.encode_utf16().chain([0]).collect::<Vec<u16>>();
         f(U16CStr::from_slice_truncate(&buf).unwrap())
+    }
+}
+
+// Safety: `f` must fill the buffer with null-terminated UTF-16 data.
+#[inline]
+unsafe fn get_u16c(len: usize, f: impl FnOnce(&mut [MaybeUninit<u16>]) -> usize) -> U16CString {
+    if len == 0 {
+        return U16CString::new();
+    }
+    let mut buf = Vec::with_capacity(len + 1);
+    let len = f(buf.spare_capacity_mut());
+    debug_assert!(len < buf.capacity());
+    unsafe {
+        buf.set_len(len + 1);
+        U16CString::from_vec_unchecked(buf)
     }
 }

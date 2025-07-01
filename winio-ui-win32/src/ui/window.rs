@@ -38,7 +38,7 @@ use crate::{
             PreferredAppMode, control_use_dark_mode, set_preferred_app_mode, window_use_dark_mode,
         },
         dpi::{DpiAware, get_dpi_for_window},
-        with_u16c,
+        get_u16c, with_u16c,
     },
 };
 
@@ -251,16 +251,15 @@ impl Widget {
     pub fn text_u16(&self) -> U16CString {
         let handle = self.as_raw_window();
         let len = unsafe { GetWindowTextLengthW(handle) };
-        if len == 0 {
-            return U16CString::new();
-        };
-        let mut res: Vec<u16> = Vec::with_capacity(len as usize + 1);
-        syscall!(BOOL, unsafe {
-            GetWindowTextW(handle, res.as_mut_ptr(), res.capacity() as _)
-        })
-        .unwrap();
-        unsafe { res.set_len(len as usize + 1) };
-        unsafe { U16CString::from_vec_unchecked(res) }
+        unsafe {
+            get_u16c(len as usize, |buf| {
+                syscall!(
+                    BOOL,
+                    GetWindowTextW(handle, buf.as_mut_ptr().cast(), buf.len() as _)
+                )
+                .unwrap() as _
+            })
+        }
     }
 
     pub fn style(&self) -> u32 {

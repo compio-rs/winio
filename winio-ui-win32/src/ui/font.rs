@@ -125,7 +125,7 @@ pub fn measure_string(hwnd: HWND, s: &U16CStr) -> Size {
             )
             .unwrap();
         let layout = DWRITE_FACTORY
-            .CreateTextLayout(s.as_slice_with_nul(), &format, f32::MAX, f32::MAX)
+            .CreateTextLayout(s.as_slice(), &format, f32::MAX, f32::MAX)
             .unwrap();
         let mut metrics = MaybeUninit::uninit();
         layout.GetMetrics(metrics.as_mut_ptr()).unwrap();
