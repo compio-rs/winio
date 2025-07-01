@@ -38,6 +38,7 @@ use crate::{
             PreferredAppMode, control_use_dark_mode, set_preferred_app_mode, window_use_dark_mode,
         },
         dpi::{DpiAware, get_dpi_for_window},
+        with_u16c,
     },
 };
 
@@ -242,8 +243,9 @@ impl Widget {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
         let handle = self.as_raw_window();
-        let s = U16CString::from_str_truncate(s);
-        syscall!(BOOL, unsafe { SetWindowTextW(handle, s.as_ptr()) }).unwrap();
+        with_u16c(s.as_ref(), |s| {
+            syscall!(BOOL, unsafe { SetWindowTextW(handle, s.as_ptr()) }).unwrap();
+        });
     }
 
     pub fn text_u16(&self) -> U16CString {

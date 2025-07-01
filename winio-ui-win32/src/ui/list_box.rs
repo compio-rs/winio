@@ -14,7 +14,7 @@ use winio_primitive::{Point, Size};
 
 use crate::{
     runtime::WindowMessageCommand,
-    ui::{Widget, font::measure_string},
+    ui::{Widget, font::measure_string, with_u16c},
 };
 
 #[derive(Debug)]
@@ -107,9 +107,10 @@ impl ListBox {
     }
 
     pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
-        let s = U16CString::from_str_truncate(s);
-        self.handle
-            .send_message(LB_INSERTSTRING, i as _, s.as_ptr() as _);
+        with_u16c(s.as_ref(), |s| {
+            self.handle
+                .send_message(LB_INSERTSTRING, i as _, s.as_ptr() as _);
+        });
     }
 
     pub fn remove(&mut self, i: usize) {

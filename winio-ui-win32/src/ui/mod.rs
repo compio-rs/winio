@@ -1,3 +1,4 @@
+use widestring::U16CStr;
 use winio_primitive::ColorTheme;
 
 pub(crate) mod darkmode;
@@ -68,4 +69,20 @@ fn fix_crlf(s: &str) -> String {
     }
     // Safety: only ASCII operations
     unsafe { String::from_utf8_unchecked(v) }
+}
+
+#[inline]
+fn with_u16c<T>(s: &str, f: impl FnOnce(&U16CStr) -> T) -> T {
+    if s.len() < 32 {
+        // A UTF-8 string with length < 32 is guaranteed to fit in a
+        // `ArrayVec<u16, 32>`.
+        let buf = s
+            .encode_utf16()
+            .chain([0])
+            .collect::<compio::arrayvec::ArrayVec<u16, 32>>();
+        f(U16CStr::from_slice_truncate(&buf).unwrap())
+    } else {
+        let buf = s.encode_utf16().chain([0]).collect::<Vec<u16>>();
+        f(U16CStr::from_slice_truncate(&buf).unwrap())
+    }
 }

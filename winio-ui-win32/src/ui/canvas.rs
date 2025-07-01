@@ -3,7 +3,6 @@ use std::mem::MaybeUninit;
 use futures_util::FutureExt;
 use image::{DynamicImage, Pixel, Rgba};
 use inherit_methods_macro::inherit_methods;
-use widestring::U16CString;
 use windows::{
     Win32::Graphics::{
         Direct2D::{
@@ -53,7 +52,7 @@ use winio_primitive::{
 
 use crate::{
     RUNTIME,
-    ui::{Widget, darkmode::is_dark_mode_allowed_for_app, font::DWRITE_FACTORY},
+    ui::{Widget, darkmode::is_dark_mode_allowed_for_app, font::DWRITE_FACTORY, with_u16c},
 };
 
 #[inline]
@@ -296,32 +295,34 @@ impl DrawingContext<'_> {
 
     fn get_str_layout(&self, font: DrawingFont, pos: Point, s: &str) -> (Rect, IDWriteTextLayout) {
         unsafe {
-            let font_family = U16CString::from_str_truncate(font.family);
-            let format = DWRITE_FACTORY
-                .CreateTextFormat(
-                    windows::core::PCWSTR::from_raw(font_family.as_ptr()),
-                    None,
-                    if font.bold {
-                        DWRITE_FONT_WEIGHT_BOLD
-                    } else {
-                        DWRITE_FONT_WEIGHT_NORMAL
-                    },
-                    if font.italic {
-                        DWRITE_FONT_STYLE_ITALIC
-                    } else {
-                        DWRITE_FONT_STYLE_NORMAL
-                    },
-                    DWRITE_FONT_STRETCH_NORMAL,
-                    font.size as f32,
-                    windows::core::w!(""),
-                )
-                .unwrap();
+            let format = with_u16c(&font.family, |f| {
+                DWRITE_FACTORY
+                    .CreateTextFormat(
+                        windows::core::PCWSTR::from_raw(f.as_ptr()),
+                        None,
+                        if font.bold {
+                            DWRITE_FONT_WEIGHT_BOLD
+                        } else {
+                            DWRITE_FONT_WEIGHT_NORMAL
+                        },
+                        if font.italic {
+                            DWRITE_FONT_STYLE_ITALIC
+                        } else {
+                            DWRITE_FONT_STYLE_NORMAL
+                        },
+                        DWRITE_FONT_STRETCH_NORMAL,
+                        font.size as f32,
+                        windows::core::w!(""),
+                    )
+                    .unwrap()
+            });
             let size = self.target.GetSize();
             let mut rect = Rect::new(pos, pos.to_vector().to_size());
-            let s = U16CString::from_str_truncate(s);
-            let layout = DWRITE_FACTORY
-                .CreateTextLayout(s.as_slice_with_nul(), &format, size.width, size.height)
-                .unwrap();
+            let layout = with_u16c(s, |s| {
+                DWRITE_FACTORY
+                    .CreateTextLayout(s.as_slice(), &format, size.width, size.height)
+                    .unwrap()
+            });
             let mut metrics = MaybeUninit::uninit();
             layout.GetMetrics(metrics.as_mut_ptr()).unwrap();
             let metrics = metrics.assume_init();

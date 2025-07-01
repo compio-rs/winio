@@ -12,7 +12,7 @@ repository = { workspace = true }
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true }
 
-compio = { workspace = true }
+compio = { workspace = true, features = ["arrayvec"] }
 compio-log = { workspace = true }
 
 cfg-if = { workspace = true }
