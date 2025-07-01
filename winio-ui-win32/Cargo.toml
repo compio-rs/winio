@@ -65,4 +65,5 @@ sync-unsafe-cell = { version = "0.1", optional = true }
 embed-resource = "3"
 
 [features]
+ignore-class-conflict = []
 dark-mode = ["dep:slim-detours-sys", "dep:sync-unsafe-cell"]

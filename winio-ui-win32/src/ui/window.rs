@@ -6,27 +6,25 @@ use std::{
 
 use compio::driver::syscall;
 use inherit_methods_macro::inherit_methods;
-use widestring::U16CString;
-use windows_sys::{
-    Win32::{
-        Foundation::{ERROR_INVALID_HANDLE, HWND, LPARAM, LRESULT, POINT, SetLastError, WPARAM},
-        Graphics::Gdi::{GetStockObject, MapWindowPoints, WHITE_BRUSH},
-        System::LibraryLoader::GetModuleHandleW,
-        UI::{
-            Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled},
-            WindowsAndMessaging::{
-                CW_USEDEFAULT, CloseWindow, CreateWindowExW, DestroyWindow, GWL_EXSTYLE, GWL_STYLE,
-                GetClientRect, GetParent, GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW,
-                GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW, IMAGE_ICON,
-                IsWindowVisible, LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LR_SHARED, LoadCursorW,
-                LoadImageW, RegisterClassExW, SW_HIDE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE,
-                SWP_NOZORDER, SendMessageW, SetWindowLongPtrW, SetWindowPos, SetWindowTextW,
-                ShowWindow, WM_CLOSE, WM_MOVE, WM_SETICON, WM_SIZE, WNDCLASSEXW, WS_CHILDWINDOW,
-                WS_OVERLAPPEDWINDOW,
-            },
+use widestring::{U16CStr, U16CString, u16cstr};
+#[cfg(feature = "ignore-class-conflict")]
+use windows_sys::Win32::Foundation::ERROR_CLASS_ALREADY_EXISTS;
+use windows_sys::Win32::{
+    Foundation::{ERROR_INVALID_HANDLE, HWND, LPARAM, LRESULT, POINT, SetLastError, WPARAM},
+    Graphics::Gdi::{GetStockObject, MapWindowPoints, WHITE_BRUSH},
+    System::LibraryLoader::GetModuleHandleW,
+    UI::{
+        Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled},
+        WindowsAndMessaging::{
+            CW_USEDEFAULT, CloseWindow, CreateWindowExW, DestroyWindow, GWL_EXSTYLE, GWL_STYLE,
+            GetClientRect, GetParent, GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW,
+            GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW, IMAGE_ICON, IsWindowVisible,
+            LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LR_SHARED, LoadCursorW, LoadImageW, RegisterClassExW,
+            SW_HIDE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SendMessageW,
+            SetWindowLongPtrW, SetWindowPos, SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE,
+            WM_SETICON, WM_SIZE, WNDCLASSEXW, WS_CHILDWINDOW, WS_OVERLAPPEDWINDOW,
         },
     },
-    w,
 };
 use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
 use winio_primitive::{Point, Size};
@@ -321,7 +319,8 @@ impl AsRawWindow for Widget {
     }
 }
 
-pub(crate) const WINDOW_CLASS_NAME: *const u16 = w!("XamlWindow");
+pub(crate) const WINDOW_CLASS_NAME: &U16CStr =
+    u16cstr!(concat!("WinioWindowVersion", env!("CARGO_PKG_VERSION")));
 
 fn register() {
     unsafe {
@@ -338,10 +337,18 @@ fn register() {
         hCursor: unsafe { LoadCursorW(null_mut(), IDC_ARROW) },
         hbrBackground: unsafe { GetStockObject(WHITE_BRUSH) },
         lpszMenuName: null(),
-        lpszClassName: WINDOW_CLASS_NAME,
+        lpszClassName: WINDOW_CLASS_NAME.as_ptr(),
         hIconSm: null_mut(),
     };
-    syscall!(BOOL, unsafe { RegisterClassExW(&cls) }).unwrap();
+    match syscall!(BOOL, unsafe { RegisterClassExW(&cls) }) {
+        Ok(_) => {}
+        #[cfg(feature = "ignore-class-conflict")]
+        Err(e) if e.raw_os_error() == Some(ERROR_CLASS_ALREADY_EXISTS as _) => {
+            // The class is already registered. We choose to ignore this error,
+            // and hope that the class is still valid.
+        }
+        Err(e) => panic!("{e:?}"),
+    }
 }
 
 static REGISTER: Once = Once::new();
@@ -361,13 +368,18 @@ impl Window {
         register_once();
         let handle = if let Some(parent) = parent {
             Widget::new(
-                WINDOW_CLASS_NAME,
+                WINDOW_CLASS_NAME.as_ptr(),
                 WS_OVERLAPPEDWINDOW | WS_CHILDWINDOW,
                 0,
                 parent.as_window().as_raw_window(),
             )
         } else {
-            Widget::new(WINDOW_CLASS_NAME, WS_OVERLAPPEDWINDOW, 0, null_mut())
+            Widget::new(
+                WINDOW_CLASS_NAME.as_ptr(),
+                WS_OVERLAPPEDWINDOW,
+                0,
+                null_mut(),
+            )
         };
         let this = Self { handle };
         unsafe { window_use_dark_mode(this.as_raw_window()) };
