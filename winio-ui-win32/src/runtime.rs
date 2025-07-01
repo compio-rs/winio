@@ -6,7 +6,6 @@ use std::{
     pin::Pin,
     ptr::{null, null_mut},
     task::{Context, Poll, Waker},
-    time::Duration,
 };
 
 use compio::driver::AsRawFd;
@@ -80,7 +79,7 @@ impl Default for FutureState {
 }
 
 pub struct Runtime {
-    runtime: compio::runtime::Runtime,
+    runtime: winio_pollable::Runtime,
     d2d1: OnceCell<ID2D1Factory>,
     registry: RefCell<HashMap<(HWND, u32), Slab<FutureState>>>,
 }
@@ -97,7 +96,7 @@ impl Runtime {
             init_dark();
         }
 
-        let runtime = compio::runtime::Runtime::new().unwrap();
+        let runtime = winio_pollable::Runtime::new().unwrap();
 
         Self {
             runtime,
@@ -118,25 +117,7 @@ impl Runtime {
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
         self.enter(|| {
-            let mut result = None;
-            unsafe {
-                self.runtime
-                    .spawn_unchecked(async { result = Some(future.await) })
-            }
-            .detach();
-            loop {
-                self.runtime.poll_with(Some(Duration::ZERO));
-
-                let remaining_tasks = self.runtime.run();
-                if let Some(result) = result.take() {
-                    break result;
-                }
-
-                let timeout = if remaining_tasks {
-                    Some(Duration::ZERO)
-                } else {
-                    self.runtime.current_timeout()
-                };
+            self.runtime.block_on(future, |timeout| {
                 let timeout = match timeout {
                     Some(timeout) => timeout.as_millis() as u32,
                     None => INFINITE,
@@ -171,7 +152,7 @@ impl Runtime {
                         break;
                     }
                 }
-            }
+            })
         })
     }
 

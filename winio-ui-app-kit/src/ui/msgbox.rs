@@ -1,7 +1,7 @@
 use std::{cell::Cell, rc::Rc};
 
 use block2::StackBlock;
-use compio::buf::arrayvec::ArrayVec;
+use compio::arrayvec::ArrayVec;
 use objc2::rc::Retained;
 use objc2_app_kit::{
     NSAlert, NSAlertFirstButtonReturn, NSAlertStyle, NSImage, NSImageNameCaution, NSImageNameInfo,

@@ -8,8 +8,10 @@
 #[cfg(target_os = "linux")]
 use std::os::fd::OwnedFd;
 use std::{
+    future::Future,
     io,
     ops::{Deref, DerefMut},
+    time::Duration,
 };
 
 use compio::driver::{AsRawFd, RawFd};
@@ -44,7 +46,7 @@ impl Runtime {
     }
 
     /// Clear the eventfd, if possible.
-    pub fn clear(&self) -> io::Result<()> {
+    pub(crate) fn clear(&self) -> io::Result<()> {
         if let Some(efd) = &self.efd {
             let mut buf = [0u8; 8];
             rustix::io::read(efd, &mut buf)?;
@@ -63,8 +65,39 @@ impl Runtime {
     }
 
     /// Clear the eventfd, if possible.
-    pub fn clear(&self) -> io::Result<()> {
+    pub(crate) fn clear(&self) -> io::Result<()> {
         Ok(())
+    }
+}
+
+impl Runtime {
+    /// Block on the future till it completes. Users should enter the runtime
+    /// before calling this function, and poll the runtime themselves.
+    pub fn block_on<F: Future>(&self, future: F, poll: impl Fn(Option<Duration>)) -> F::Output {
+        let mut result = None;
+        unsafe {
+            self.runtime
+                .spawn_unchecked(async { result = Some(future.await) })
+        }
+        .detach();
+        loop {
+            self.runtime.poll_with(Some(Duration::ZERO));
+
+            let remaining_tasks = self.runtime.run();
+            if let Some(result) = result.take() {
+                break result;
+            }
+
+            let timeout = if remaining_tasks {
+                Some(Duration::ZERO)
+            } else {
+                self.runtime.current_timeout()
+            };
+
+            poll(timeout);
+
+            self.clear().ok();
+        }
     }
 }
 

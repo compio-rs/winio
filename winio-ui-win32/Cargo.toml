@@ -11,6 +11,7 @@ repository = { workspace = true }
 [target.'cfg(windows)'.dependencies]
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true }
+winio-pollable = { workspace = true }
 
 compio = { workspace = true, features = ["arrayvec"] }
 compio-log = { workspace = true }

@@ -1,4 +1,4 @@
-use std::{future::Future, os::fd::AsRawFd, time::Duration};
+use std::{future::Future, os::fd::AsRawFd};
 
 use gtk4::{
     gio::{self, prelude::ApplicationExt},
@@ -45,25 +45,7 @@ impl Runtime {
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
         self.enter(|| {
-            let mut result = None;
-            unsafe {
-                self.runtime
-                    .spawn_unchecked(async { result = Some(future.await) })
-            }
-            .detach();
-            loop {
-                self.runtime.poll_with(Some(Duration::ZERO));
-
-                let remaining_tasks = self.runtime.run();
-                if let Some(result) = result.take() {
-                    break result;
-                }
-
-                let timeout = if remaining_tasks {
-                    Some(Duration::ZERO)
-                } else {
-                    self.runtime.current_timeout()
-                };
+            self.runtime.block_on(future, |timeout| {
                 let source_id = timeout.map(|timeout| timeout_add_local_once(timeout, || {}));
 
                 self.ctx.iteration(true);
@@ -73,9 +55,7 @@ impl Runtime {
                         source_id.remove();
                     }
                 }
-
-                self.runtime.clear().ok();
-            }
+            })
         })
     }
 }

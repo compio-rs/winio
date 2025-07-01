@@ -10,7 +10,7 @@ use objc2_core_foundation::{
 use objc2_foundation::{MainThreadMarker, NSDate, NSDefaultRunLoopMode};
 
 pub struct Runtime {
-    runtime: compio::runtime::Runtime,
+    runtime: winio_pollable::Runtime,
     fd_source: CFRetained<CFFileDescriptor>,
     ns_app: Retained<NSApplication>,
 }
@@ -23,7 +23,7 @@ impl Default for Runtime {
 
 impl Runtime {
     pub fn new() -> Self {
-        let runtime = compio::runtime::Runtime::new().unwrap();
+        let runtime = winio_pollable::Runtime::new().unwrap();
 
         unsafe extern "C-unwind" fn callback(
             _fdref: *mut CFFileDescriptor,
@@ -73,25 +73,7 @@ impl Runtime {
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
         self.enter(|| {
-            let mut result = None;
-            unsafe {
-                self.runtime
-                    .spawn_unchecked(async { result = Some(future.await) })
-            }
-            .detach();
-            loop {
-                self.runtime.poll_with(Some(Duration::ZERO));
-
-                let remaining_tasks = self.runtime.run();
-                if let Some(result) = result.take() {
-                    break result;
-                }
-
-                let timeout = if remaining_tasks {
-                    Some(Duration::ZERO)
-                } else {
-                    self.runtime.current_timeout()
-                };
+            self.runtime.block_on(future, |timeout| {
                 self.fd_source
                     .enable_call_backs(kCFFileDescriptorReadCallBack);
                 CFRunLoop::run_in_mode(
@@ -114,7 +96,7 @@ impl Runtime {
                         }
                     }
                 }
-            }
+            })
         })
     }
 }

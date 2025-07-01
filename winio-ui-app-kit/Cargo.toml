@@ -12,8 +12,9 @@ repository = { workspace = true }
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true }
 winio-callback = { workspace = true }
+winio-pollable = { workspace = true }
 
-compio = { workspace = true }
+compio = { workspace = true, features = ["arrayvec"] }
 
 inherit-methods-macro = { workspace = true }
 image = { workspace = true, default-features = false }
