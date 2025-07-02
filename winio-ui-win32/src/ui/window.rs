@@ -7,8 +7,6 @@ use std::{
 use compio::driver::syscall;
 use inherit_methods_macro::inherit_methods;
 use widestring::{U16CStr, U16CString, u16cstr};
-#[cfg(feature = "ignore-class-conflict")]
-use windows_sys::Win32::Foundation::ERROR_CLASS_ALREADY_EXISTS;
 use windows_sys::Win32::{
     Foundation::{
         ERROR_INVALID_HANDLE, HMODULE, HWND, LPARAM, LRESULT, POINT, SetLastError, WPARAM,
@@ -48,7 +46,7 @@ use crate::{
 /// Get the handle of the current executable or DLL.
 fn get_current_module_handle() -> HMODULE {
     let mut module: HMODULE = null_mut();
-    _ = unsafe {
+    unsafe {
         GetModuleHandleExW(
             GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
             get_current_module_handle as *const _,
@@ -358,15 +356,7 @@ fn register() {
         lpszClassName: WINDOW_CLASS_NAME.as_ptr(),
         hIconSm: null_mut(),
     };
-    match syscall!(BOOL, RegisterClassExW(&cls)) {
-        Ok(_) => {}
-        #[cfg(feature = "ignore-class-conflict")]
-        Err(e) if e.raw_os_error() == Some(ERROR_CLASS_ALREADY_EXISTS as _) => {
-            // The class is already registered. We choose to ignore this error,
-            // and hope that the class is still valid.
-        }
-        Err(e) => panic!("{e:?}"),
-    }
+    syscall!(BOOL, RegisterClassExW(&cls)).unwrap();
 }
 
 static REGISTER: Once = Once::new();
