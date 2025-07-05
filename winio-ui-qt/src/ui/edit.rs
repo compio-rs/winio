@@ -117,6 +117,7 @@ pub struct TextBox {
     widget: Widget<ffi::QTextEdit>,
 }
 
+#[inherit_methods(from = "self.widget")]
 impl TextBox {
     pub fn new(parent: impl AsWindow) -> Self {
         let mut widget = unsafe { ffi::new_text_edit(parent.as_window().as_qt()) };
@@ -133,41 +134,23 @@ impl TextBox {
         Self { on_changed, widget }
     }
 
-    pub fn is_visible(&self) -> bool {
-        self.widget.is_visible()
-    }
+    pub fn is_visible(&self) -> bool;
 
-    pub fn set_visible(&mut self, v: bool) {
-        self.widget.set_visible(v);
-    }
+    pub fn set_visible(&mut self, v: bool);
 
-    pub fn is_enabled(&self) -> bool {
-        self.widget.is_enabled()
-    }
+    pub fn is_enabled(&self) -> bool;
 
-    pub fn set_enabled(&mut self, v: bool) {
-        self.widget.set_enabled(v);
-    }
+    pub fn set_enabled(&mut self, v: bool);
 
-    pub fn preferred_size(&self) -> Size {
-        self.widget.preferred_size()
-    }
+    pub fn preferred_size(&self) -> Size;
 
-    pub fn loc(&self) -> Point {
-        self.widget.loc()
-    }
+    pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, p: Point) {
-        self.widget.set_loc(p);
-    }
+    pub fn set_loc(&mut self, p: Point);
 
-    pub fn size(&self) -> Size {
-        self.widget.size()
-    }
+    pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, s: Size) {
-        self.widget.set_size(s);
-    }
+    pub fn set_size(&mut self, s: Size);
 
     pub fn text(&self) -> String {
         self.widget.as_ref().toPlainText().into()
