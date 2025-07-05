@@ -124,7 +124,7 @@ impl DrawGradientAction {
             } => {
                 CGContext::draw_linear_gradient(
                     Some(context),
-                    Some(&gradient),
+                    Some(gradient),
                     *start_point,
                     *end_point,
                     CGGradientDrawingOptions::all(),
@@ -139,7 +139,7 @@ impl DrawGradientAction {
             } => {
                 CGContext::draw_radial_gradient(
                     Some(context),
-                    Some(&gradient),
+                    Some(gradient),
                     *start_center,
                     *start_radius,
                     *end_center,
@@ -187,11 +187,11 @@ impl DrawAction {
                 Self::Path(path, color, width) => {
                     CGContext::add_path(Some(&context), Some(path));
                     if let Some(width) = width {
-                        CGContext::set_stroke_color_with_color(Some(&context), Some(&color));
+                        CGContext::set_stroke_color_with_color(Some(&context), Some(color));
                         CGContext::set_line_width(Some(&context), *width);
                         CGContext::stroke_path(Some(&context));
                     } else {
-                        CGContext::set_fill_color_with_color(Some(&context), Some(&color));
+                        CGContext::set_fill_color_with_color(Some(&context), Some(color));
                         CGContext::fill_path(Some(&context));
                     }
                 }
@@ -297,7 +297,7 @@ define_class! {
         #[unsafe(method(drawRect:))]
         unsafe fn drawRect(&self, rect: NSRect) {
             let ivars = self.ivars();
-            DrawAction::draw_rect(&*ivars.actions.borrow(), rect, ivars.size.get(), ivars.factor.get())
+            DrawAction::draw_rect(&ivars.actions.borrow(), rect, ivars.size.get(), ivars.factor.get())
         }
 
         #[unsafe(method(mouseDown:))]

@@ -55,7 +55,7 @@ impl Window {
 
             let delegate = WindowDelegate::new(mtm);
             let del_obj = ProtocolObject::from_ref(&*delegate);
-            wnd.setDelegate(Some(&del_obj));
+            wnd.setDelegate(Some(del_obj));
             wnd.setAcceptsMouseMovedEvents(true);
             wnd.makeKeyWindow();
             let mut this = Self { wnd, delegate };

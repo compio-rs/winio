@@ -44,7 +44,7 @@ impl TextBox {
 
             let delegate = TextBoxDelegate::new(mtm);
             let del_obj = ProtocolObject::from_ref(&*delegate);
-            text_view.setDelegate(Some(&del_obj));
+            text_view.setDelegate(Some(del_obj));
             Self {
                 handle,
                 text_view,

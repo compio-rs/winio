@@ -53,8 +53,8 @@ impl Edit {
 
             let delegate = EditDelegate::new(mtm);
             let del_obj = ProtocolObject::from_ref(&*delegate);
-            view.setDelegate(Some(&del_obj));
-            pview.setDelegate(Some(&del_obj));
+            view.setDelegate(Some(del_obj));
+            pview.setDelegate(Some(del_obj));
             Self {
                 handle,
                 phandle,

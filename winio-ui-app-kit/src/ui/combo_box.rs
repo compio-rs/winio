@@ -39,7 +39,7 @@ impl<const E: bool> ComboBoxImpl<E> {
 
             let delegate = ComboBoxDelegate::new(mtm);
             let del_obj = ProtocolObject::from_ref(&*delegate);
-            view.setDelegate(Some(&del_obj));
+            view.setDelegate(Some(del_obj));
 
             Self {
                 handle,

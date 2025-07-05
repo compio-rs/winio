@@ -56,9 +56,9 @@ impl ListBox {
 
             let delegate = ListBoxDelegate::new(mtm);
             let del_obj = ProtocolObject::from_ref(&*delegate);
-            table.setDelegate(Some(&del_obj));
+            table.setDelegate(Some(del_obj));
             let del_obj = ProtocolObject::from_ref(&*delegate);
-            table.setDataSource(Some(&del_obj));
+            table.setDataSource(Some(del_obj));
 
             Self {
                 handle,
