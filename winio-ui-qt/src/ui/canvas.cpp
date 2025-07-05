@@ -77,7 +77,7 @@ void painter_set_font(QPainter &p, rust::Str family, double size, bool italic,
                       bool bold) {
     auto font = QFont{QString::fromUtf8(family.data(), family.size()), -1,
                       bold ? QFont::Bold : QFont::Normal, italic};
-    font.setPixelSize((int)size);
+    font.setPixelSize(std::max((int)size, 1));
     p.setFont(font);
 }
 
