@@ -5,6 +5,7 @@ use std::{
     rc::Rc,
 };
 
+use compio_log::*;
 use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
 use objc2::{
@@ -178,6 +179,7 @@ impl DrawAction {
 
     unsafe fn draw_rect(actions: &[Self], _rect: NSRect, factor: f64) {
         let Some(ns_context) = NSGraphicsContext::currentContext() else {
+            error!("Cannot get current NSGraphicsContext");
             return;
         };
         let context = ns_context.CGContext();
@@ -226,6 +228,7 @@ impl DrawAction {
                         colorspace.as_deref(),
                         0,
                     ) else {
+                        error!("Cannot create CGBitmapContext");
                         continue;
                     };
 
