@@ -35,7 +35,7 @@ use winio_primitive::{
 };
 
 use crate::{
-    GlobalRuntime, to_cgsize,
+    GlobalRuntime,
     ui::{TollFreeBridge, Widget, from_cgsize, transform_cgpoint, transform_point, transform_rect},
 };
 
@@ -176,7 +176,7 @@ impl DrawAction {
         }
     }
 
-    unsafe fn draw_rect(actions: &[Self], _rect: NSRect, bound: Size, factor: f64) {
+    unsafe fn draw_rect(actions: &[Self], _rect: NSRect, factor: f64) {
         let Some(ns_context) = NSGraphicsContext::currentContext() else {
             return;
         };
@@ -219,17 +219,18 @@ impl DrawAction {
                     let colorspace = CGColorSpace::new_device_gray();
                     let Some(mask) = CGBitmapContextCreate(
                         null_mut(),
-                        (bound.width * factor) as _,
-                        (bound.height * factor) as _,
+                        (rect.size.width * factor) as _,
+                        (rect.size.height * factor) as _,
                         8,
-                        (bound.width * factor) as _,
+                        (rect.size.width * factor) as _,
                         colorspace.as_deref(),
                         0,
                     ) else {
                         continue;
                     };
 
-                    let text_path = CGPath::with_rect(*rect, null());
+                    let text_path =
+                        CGPath::with_rect(NSRect::new(NSPoint::ZERO, rect.size), null());
 
                     let framesetter = CTFramesetter::with_attributed_string(text.bridge());
                     let frame = framesetter.frame(CFRange::new(0, 0), &text_path, None);
@@ -238,11 +239,7 @@ impl DrawAction {
                     frame.draw(&mask);
 
                     let mask_image = CGBitmapContextCreateImage(Some(&mask));
-                    CGContext::clip_to_mask(
-                        Some(&context),
-                        NSRect::new(NSPoint::ZERO, to_cgsize(bound)),
-                        mask_image.as_deref(),
-                    );
+                    CGContext::clip_to_mask(Some(&context), *rect, mask_image.as_deref());
                     gradient.draw(&context);
                 }
                 Self::Image(image, rect, clip) => {
@@ -267,7 +264,6 @@ struct CanvasViewIvars {
     mouse_up: Callback<MouseButton>,
     mouse_move: Callback,
     actions: RefCell<Vec<DrawAction>>,
-    size: Cell<Size>,
     factor: Cell<f64>,
 }
 
@@ -295,7 +291,7 @@ define_class! {
         #[unsafe(method(drawRect:))]
         unsafe fn drawRect(&self, rect: NSRect) {
             let ivars = self.ivars();
-            DrawAction::draw_rect(&ivars.actions.borrow(), rect, ivars.size.get(), ivars.factor.get())
+            DrawAction::draw_rect(&ivars.actions.borrow(), rect, ivars.factor.get())
         }
 
         #[unsafe(method(mouseDown:))]
@@ -344,7 +340,6 @@ impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
         let ivars = self.canvas.view.ivars();
         std::mem::swap(&mut *ivars.actions.borrow_mut(), &mut self.actions);
-        ivars.size.set(self.canvas.size());
         ivars.factor.set(
             self.canvas
                 .view
