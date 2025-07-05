@@ -1,7 +1,11 @@
 use std::ffi::CStr;
 
-use objc2_core_foundation::{CFRange, CFString, CFStringBuiltInEncodings};
-use objc2_foundation::{NSPoint, NSRect, NSSize, NSString, NSUserDefaults, ns_string};
+use objc2_core_foundation::{
+    CFArray, CFAttributedString, CFRange, CFString, CFStringBuiltInEncodings,
+};
+use objc2_foundation::{
+    NSMutableAttributedString, NSPoint, NSRect, NSSize, NSString, NSUserDefaults, ns_string,
+};
 use winio_primitive::{ColorTheme, Point, Rect, Size};
 
 mod canvas;
@@ -94,9 +98,21 @@ pub(crate) fn transform_cgpoint(s: Size, p: NSPoint) -> Point {
     Point::new(p.x, s.height - p.y)
 }
 
+trait TollFreeBridge<T>: Sized {
+    fn bridge(&self) -> &T {
+        unsafe { &*(std::ptr::addr_of!(*self).cast::<T>()) }
+    }
+}
+
+impl TollFreeBridge<CFString> for NSString {}
+
+impl TollFreeBridge<CFAttributedString> for NSMutableAttributedString {}
+
+impl<T: ?Sized> TollFreeBridge<CFArray> for CFArray<T> {}
+
 #[inline]
 pub(crate) fn from_nsstring(s: &NSString) -> String {
-    let s = unsafe { &*(std::ptr::addr_of!(*s).cast::<CFString>()) };
+    let s = s.bridge();
     // UTF16 length
     let len = s.length() as usize;
     if len == 0 {

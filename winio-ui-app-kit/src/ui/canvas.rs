@@ -36,7 +36,7 @@ use winio_primitive::{
 
 use crate::{
     GlobalRuntime, to_cgsize,
-    ui::{Widget, from_cgsize, transform_cgpoint, transform_point, transform_rect},
+    ui::{TollFreeBridge, Widget, from_cgsize, transform_cgpoint, transform_point, transform_rect},
 };
 
 #[derive(Debug)]
@@ -210,8 +210,7 @@ impl DrawAction {
                 Self::Text(text, rect) => {
                     let text_path = CGPath::with_rect(*rect, null());
 
-                    let framesetter =
-                        CTFramesetter::with_attributed_string(&*std::ptr::addr_of!(**text).cast());
+                    let framesetter = CTFramesetter::with_attributed_string(text.bridge());
                     let frame = framesetter.frame(CFRange::new(0, 0), &text_path, None);
 
                     frame.draw(&context);
@@ -232,8 +231,7 @@ impl DrawAction {
 
                     let text_path = CGPath::with_rect(*rect, null());
 
-                    let framesetter =
-                        CTFramesetter::with_attributed_string(&*std::ptr::addr_of!(**text).cast());
+                    let framesetter = CTFramesetter::with_attributed_string(text.bridge());
                     let frame = framesetter.frame(CFRange::new(0, 0), &text_path, None);
 
                     CGContext::scale_ctm(Some(&mask), factor, factor);
@@ -790,12 +788,8 @@ unsafe fn create_gradient(stops: &[GradientStop]) -> CFRetained<CGGradient> {
         colors.append(cgcolor.as_ref());
         locs.push(stop.pos)
     }
-    CGGradient::with_colors(
-        None,
-        Some(&*std::ptr::addr_of!(**colors).cast()),
-        locs.as_ptr(),
-    )
-    .expect("cannot create CGGradient")
+    CGGradient::with_colors(None, Some(colors.bridge()), locs.as_ptr())
+        .expect("cannot create CGGradient")
 }
 
 fn linear_gradient(b: &LinearGradientBrush, rect: NSRect) -> DrawGradientAction {
