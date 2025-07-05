@@ -176,7 +176,7 @@ impl DrawAction {
         }
     }
 
-    unsafe fn draw_rect(actions: &[Self], _rect: NSRect, bound: Size) {
+    unsafe fn draw_rect(actions: &[Self], _rect: NSRect, bound: Size, factor: f64) {
         let Some(ns_context) = NSGraphicsContext::currentContext() else {
             return;
         };
@@ -220,10 +220,10 @@ impl DrawAction {
                     let colorspace = CGColorSpace::new_device_gray();
                     let Some(mask) = CGBitmapContextCreate(
                         null_mut(),
-                        bound.width as _,
-                        bound.height as _,
+                        (bound.width * factor) as _,
+                        (bound.height * factor) as _,
                         8,
-                        bound.width as _,
+                        (bound.width * factor) as _,
                         colorspace.as_deref(),
                         0,
                     ) else {
@@ -236,7 +236,7 @@ impl DrawAction {
                         CTFramesetter::with_attributed_string(&*std::ptr::addr_of!(**text).cast());
                     let frame = framesetter.frame(CFRange::new(0, 0), &text_path, None);
 
-                    CGContext::set_gray_fill_color(Some(&mask), 1.0, 1.0);
+                    CGContext::scale_ctm(Some(&mask), factor, factor);
                     frame.draw(&mask);
 
                     let mask_image = CGBitmapContextCreateImage(Some(&mask));
@@ -270,6 +270,7 @@ struct CanvasViewIvars {
     mouse_move: Callback,
     actions: RefCell<Vec<DrawAction>>,
     size: Cell<Size>,
+    factor: Cell<f64>,
 }
 
 define_class! {
@@ -295,7 +296,8 @@ define_class! {
 
         #[unsafe(method(drawRect:))]
         unsafe fn drawRect(&self, rect: NSRect) {
-            DrawAction::draw_rect(&*self.ivars().actions.borrow(), rect, self.ivars().size.get())
+            let ivars = self.ivars();
+            DrawAction::draw_rect(&*ivars.actions.borrow(), rect, ivars.size.get(), ivars.factor.get())
         }
 
         #[unsafe(method(mouseDown:))]
@@ -342,11 +344,16 @@ pub struct DrawingContext<'a> {
 
 impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
-        std::mem::swap(
-            &mut *self.canvas.view.ivars().actions.borrow_mut(),
-            &mut self.actions,
+        let ivars = self.canvas.view.ivars();
+        std::mem::swap(&mut *ivars.actions.borrow_mut(), &mut self.actions);
+        ivars.size.set(self.canvas.size());
+        ivars.factor.set(
+            self.canvas
+                .view
+                .window()
+                .map(|w| w.backingScaleFactor())
+                .unwrap_or(1.0),
         );
-        self.canvas.view.ivars().size.set(self.canvas.size());
         unsafe {
             self.canvas.view.setNeedsDisplay(true);
         }
