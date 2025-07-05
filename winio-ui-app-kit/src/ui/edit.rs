@@ -52,7 +52,7 @@ impl Edit {
                 Widget::from_nsview(parent.as_window(), Retained::cast_unchecked(pview.clone()));
 
             let delegate = EditDelegate::new(mtm);
-            let del_obj = ProtocolObject::from_retained(delegate.clone());
+            let del_obj = ProtocolObject::from_ref(&*delegate);
             view.setDelegate(Some(&del_obj));
             pview.setDelegate(Some(&del_obj));
             Self {

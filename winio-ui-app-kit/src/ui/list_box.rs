@@ -55,14 +55,10 @@ impl ListBox {
             let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
 
             let delegate = ListBoxDelegate::new(mtm);
-            {
-                let del_obj = ProtocolObject::from_retained(delegate.clone());
-                table.setDelegate(Some(&del_obj));
-            }
-            {
-                let del_obj = ProtocolObject::from_retained(delegate.clone());
-                table.setDataSource(Some(&del_obj));
-            }
+            let del_obj = ProtocolObject::from_ref(&*delegate);
+            table.setDelegate(Some(&del_obj));
+            let del_obj = ProtocolObject::from_ref(&*delegate);
+            table.setDataSource(Some(&del_obj));
 
             Self {
                 handle,

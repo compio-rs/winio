@@ -43,7 +43,7 @@ impl TextBox {
             let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
 
             let delegate = TextBoxDelegate::new(mtm);
-            let del_obj = ProtocolObject::from_retained(delegate.clone());
+            let del_obj = ProtocolObject::from_ref(&*delegate);
             text_view.setDelegate(Some(&del_obj));
             Self {
                 handle,

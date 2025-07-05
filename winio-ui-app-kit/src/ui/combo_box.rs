@@ -38,7 +38,7 @@ impl<const E: bool> ComboBoxImpl<E> {
             let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
 
             let delegate = ComboBoxDelegate::new(mtm);
-            let del_obj = ProtocolObject::from_retained(delegate.clone());
+            let del_obj = ProtocolObject::from_ref(&*delegate);
             view.setDelegate(Some(&del_obj));
 
             Self {
