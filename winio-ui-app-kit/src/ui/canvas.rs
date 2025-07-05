@@ -1,6 +1,5 @@
 use std::{
     cell::{Cell, RefCell},
-    ops::Deref,
     ptr::{null, null_mut},
     rc::Rc,
 };
@@ -18,11 +17,10 @@ use objc2_app_kit::{
     NSFontDescriptorSymbolicTraits, NSForegroundColorAttributeName, NSGraphicsContext, NSImage,
     NSView,
 };
-use objc2_core_foundation::{CFMutableArray, CFRange, CFRetained, CGAffineTransform};
+use objc2_core_foundation::{CFMutableArray, CFRange, CFRetained};
 use objc2_core_graphics::{
     CGAffineTransformMake, CGBitmapContextCreate, CGBitmapContextCreateImage, CGColor,
-    CGColorSpace, CGContext, CGGradient, CGGradientDrawingOptions,
-    CGMutablePath as CGMutablePathRaw, CGPath,
+    CGColorSpace, CGContext, CGGradient, CGGradientDrawingOptions, CGMutablePath, CGPath,
 };
 use objc2_core_text::CTFramesetter;
 use objc2_foundation::{
@@ -366,26 +364,26 @@ impl DrawingContext<'_> {
     }
 
     pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) {
-        self.draw(pen, path.to_cgpath())
+        self.draw(pen, path.0.clone());
     }
 
     pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) {
-        self.fill(brush, path.to_cgpath())
+        self.fill(brush, path.0.clone())
     }
 
     pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
         let path = path_arc(self.size, rect, start, end, false);
-        self.draw(pen, path.into_cgpath())
+        self.draw(pen, unsafe { CFRetained::cast_unchecked(path) })
     }
 
     pub fn draw_pie(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
         let path = path_arc(self.size, rect, start, end, true);
-        self.draw(pen, path.into_cgpath())
+        self.draw(pen, unsafe { CFRetained::cast_unchecked(path) })
     }
 
     pub fn fill_pie(&mut self, brush: impl Brush, rect: Rect, start: f64, end: f64) {
         let path = path_arc(self.size, rect, start, end, true);
-        self.fill(brush, path.into_cgpath())
+        self.fill(brush, unsafe { CFRetained::cast_unchecked(path) })
     }
 
     pub fn draw_ellipse(&mut self, pen: impl Pen, rect: Rect) {
@@ -400,7 +398,7 @@ impl DrawingContext<'_> {
 
     pub fn draw_line(&mut self, pen: impl Pen, start: Point, end: Point) {
         let path = path_line(self.size, start, end);
-        self.draw(pen, path.into_cgpath())
+        self.draw(pen, unsafe { CFRetained::cast_unchecked(path) })
     }
 
     pub fn draw_rect(&mut self, pen: impl Pen, rect: Rect) {
@@ -445,28 +443,28 @@ impl DrawingContext<'_> {
     }
 }
 
-pub struct DrawingPath(CFRetained<objc2_core_graphics::CGMutablePath>);
-
-impl DrawingPath {
-    fn to_cgpath(&self) -> CFRetained<CGPath> {
-        unsafe { CFRetained::cast_unchecked(self.0.clone()) }
-    }
-}
+pub struct DrawingPath(CFRetained<CGPath>);
 
 pub struct DrawingPathBuilder {
     size: Size,
-    path: CGMutablePath,
+    path: CFRetained<CGMutablePath>,
 }
 
 impl DrawingPathBuilder {
     fn new(size: Size, start: Point) -> Self {
-        let mut path = CGMutablePath::new();
-        path.move_to_point(None, transform_point(size, start));
-        Self { size, path }
+        unsafe {
+            let path = CGMutablePath::new();
+            let p = transform_point(size, start);
+            CGMutablePath::move_to_point(Some(&path), null(), p.x, p.y);
+            Self { size, path }
+        }
     }
 
     pub fn add_line(&mut self, p: Point) {
-        self.path.line_to_point(None, transform_point(self.size, p));
+        let p = transform_point(self.size, p);
+        unsafe {
+            CGMutablePath::add_line_to_point(Some(&self.path), null(), p.x, p.y);
+        }
     }
 
     pub fn add_arc(&mut self, center: Point, radius: Size, start: f64, end: f64, clockwise: bool) {
@@ -480,95 +478,28 @@ impl DrawingPathBuilder {
 
         self.add_line(startp);
         let center = transform_point(self.size, center);
-        self.path.add_arc(
-            Some(&transform),
-            NSPoint::new(center.x, center.y / rate),
-            radius.width,
-            -start,
-            -end,
-            clockwise,
-        );
-    }
-
-    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) {
-        self.path.add_curve(
-            None,
-            transform_point(self.size, p1),
-            transform_point(self.size, p2),
-            transform_point(self.size, p3),
-        );
-    }
-
-    pub fn build(mut self, close: bool) -> DrawingPath {
-        if close {
-            self.path.close();
-        }
-        DrawingPath(self.path.0)
-    }
-}
-
-#[inline]
-fn to_ptr<T>(v: Option<&T>) -> *const T {
-    match v {
-        Some(p) => p,
-        None => null(),
-    }
-}
-
-#[repr(transparent)]
-struct CGMutablePath(CFRetained<CGMutablePathRaw>);
-
-impl CGMutablePath {
-    pub fn new() -> Self {
-        Self(unsafe { CGMutablePathRaw::new() })
-    }
-
-    pub fn move_to_point(&mut self, transform: Option<&CGAffineTransform>, p: NSPoint) {
         unsafe {
-            CGMutablePathRaw::move_to_point(Some(&self.0), to_ptr(transform), p.x, p.y);
-        }
-    }
-
-    pub fn line_to_point(&mut self, transform: Option<&CGAffineTransform>, p: NSPoint) {
-        unsafe {
-            CGMutablePathRaw::add_line_to_point(Some(&self.0), to_ptr(transform), p.x, p.y);
-        }
-    }
-
-    pub fn add_arc(
-        &mut self,
-        transform: Option<&CGAffineTransform>,
-        center: NSPoint,
-        radius: f64,
-        start: f64,
-        end: f64,
-        clockwise: bool,
-    ) {
-        unsafe {
-            CGMutablePathRaw::add_arc(
-                Some(&self.0),
-                to_ptr(transform),
+            CGMutablePath::add_arc(
+                Some(&self.path),
+                &transform,
                 center.x,
-                center.y,
-                radius,
-                start,
-                end,
+                center.y / rate,
+                radius.width,
+                -start,
+                -end,
                 clockwise,
             );
         }
     }
 
-    pub fn add_curve(
-        &mut self,
-        transform: Option<&CGAffineTransform>,
-        p1: NSPoint,
-        p2: NSPoint,
-        p3: NSPoint,
-    ) {
+    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) {
+        let p1 = transform_point(self.size, p1);
+        let p2 = transform_point(self.size, p2);
+        let p3 = transform_point(self.size, p3);
         unsafe {
-            CGMutablePathRaw::add_curve_to_point(
-                Some(&self.0),
-                to_ptr(transform),
+            CGMutablePath::add_curve_to_point(
+                Some(&self.path),
+                null(),
                 p1.x,
                 p1.y,
                 p2.x,
@@ -579,26 +510,17 @@ impl CGMutablePath {
         }
     }
 
-    pub fn close(&mut self) {
+    pub fn build(self, close: bool) -> DrawingPath {
         unsafe {
-            CGMutablePathRaw::close_subpath(Some(&self.0));
+            if close {
+                CGMutablePath::close_subpath(Some(&self.path));
+            }
+            DrawingPath(CFRetained::cast_unchecked(self.path))
         }
     }
-
-    pub fn into_cgpath(self) -> CFRetained<CGPath> {
-        unsafe { CFRetained::cast_unchecked(self.0) }
-    }
 }
 
-impl Deref for CGMutablePath {
-    type Target = CGPath;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-fn path_arc(s: Size, rect: Rect, start: f64, end: f64, pie: bool) -> CGMutablePath {
+fn path_arc(s: Size, rect: Rect, start: f64, end: f64, pie: bool) -> CFRetained<CGMutablePath> {
     let radius = rect.size / 2.0;
     let centerp = Point::new(rect.origin.x + radius.width, rect.origin.y + radius.height);
     let startp = Point::new(
@@ -609,25 +531,31 @@ fn path_arc(s: Size, rect: Rect, start: f64, end: f64, pie: bool) -> CGMutablePa
     let rate = radius.height / radius.width;
     let transform = unsafe { CGAffineTransformMake(1.0, 0.0, 0.0, rate, 0.0, 0.0) };
 
-    let mut path = CGMutablePath::new();
-    if pie {
-        path.move_to_point(None, transform_point(s, centerp));
-        path.line_to_point(None, transform_point(s, startp));
-    } else {
-        path.move_to_point(None, transform_point(s, startp));
+    unsafe {
+        let path = CGMutablePath::new();
+        let centerp = transform_point(s, centerp);
+        let startp = transform_point(s, startp);
+        if pie {
+            CGMutablePath::move_to_point(Some(&path), null(), centerp.x, centerp.y);
+            CGMutablePath::add_line_to_point(Some(&path), null(), startp.x, startp.y / rate);
+        } else {
+            CGMutablePath::move_to_point(Some(&path), null(), startp.x, startp.y);
+        }
+        CGMutablePath::add_arc(
+            Some(&path),
+            &transform,
+            centerp.x,
+            centerp.y / rate,
+            radius.width,
+            -start,
+            -end,
+            true,
+        );
+        if pie {
+            CGMutablePath::close_subpath(Some(&path));
+        }
+        path
     }
-    path.add_arc(
-        Some(&transform),
-        transform_point(s, centerp),
-        radius.width,
-        -start,
-        -end,
-        true,
-    );
-    if pie {
-        path.close();
-    }
-    path
 }
 
 fn path_ellipse(s: Size, rect: Rect) -> CFRetained<CGPath> {
@@ -635,11 +563,15 @@ fn path_ellipse(s: Size, rect: Rect) -> CFRetained<CGPath> {
     unsafe { CGPath::with_ellipse_in_rect(rect, null()) }
 }
 
-fn path_line(s: Size, start: Point, end: Point) -> CGMutablePath {
-    let mut path = CGMutablePath::new();
-    path.move_to_point(None, transform_point(s, start));
-    path.line_to_point(None, transform_point(s, end));
-    path
+fn path_line(s: Size, start: Point, end: Point) -> CFRetained<CGMutablePath> {
+    unsafe {
+        let path = CGMutablePath::new();
+        let p = transform_point(s, start);
+        CGMutablePath::move_to_point(Some(&path), null(), p.x, p.y);
+        let p = transform_point(s, end);
+        CGMutablePath::add_line_to_point(Some(&path), null(), p.x, p.y);
+        path
+    }
 }
 
 fn path_rect(s: Size, rect: Rect) -> CFRetained<CGPath> {
