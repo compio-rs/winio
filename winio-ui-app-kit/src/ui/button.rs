@@ -84,6 +84,7 @@ pub struct CheckBox {
     handle: Button,
 }
 
+#[inherit_methods(from = "self.handle")]
 impl CheckBox {
     pub fn new(parent: impl AsWindow) -> Self {
         let handle = Button::new(parent);
@@ -94,49 +95,27 @@ impl CheckBox {
         Self { handle }
     }
 
-    pub fn is_visible(&self) -> bool {
-        self.handle.is_visible()
-    }
+    pub fn is_visible(&self) -> bool;
 
-    pub fn set_visible(&mut self, v: bool) {
-        self.handle.set_visible(v);
-    }
+    pub fn set_visible(&mut self, v: bool);
 
-    pub fn is_enabled(&self) -> bool {
-        self.handle.is_enabled()
-    }
+    pub fn is_enabled(&self) -> bool;
 
-    pub fn set_enabled(&mut self, v: bool) {
-        self.handle.set_enabled(v);
-    }
+    pub fn set_enabled(&mut self, v: bool);
 
-    pub fn preferred_size(&self) -> Size {
-        self.handle.preferred_size()
-    }
+    pub fn preferred_size(&self) -> Size;
 
-    pub fn loc(&self) -> Point {
-        self.handle.loc()
-    }
+    pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, p: Point) {
-        self.handle.set_loc(p)
-    }
+    pub fn set_loc(&mut self, p: Point);
 
-    pub fn size(&self) -> Size {
-        self.handle.size()
-    }
+    pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, v: Size) {
-        self.handle.set_size(v)
-    }
+    pub fn set_size(&mut self, v: Size);
 
-    pub fn text(&self) -> String {
-        self.handle.text()
-    }
+    pub fn text(&self) -> String;
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.handle.set_text(s);
-    }
+    pub fn set_text(&mut self, s: impl AsRef<str>);
 
     pub fn is_checked(&self) -> bool {
         unsafe { self.handle.view.state() == NSControlStateValueOn }
@@ -162,6 +141,7 @@ pub struct RadioButton {
     handle: Button,
 }
 
+#[inherit_methods(from = "self.handle")]
 impl RadioButton {
     pub fn new(parent: impl AsWindow) -> Self {
         let handle = Button::new(parent);
@@ -172,49 +152,27 @@ impl RadioButton {
         Self { handle }
     }
 
-    pub fn is_visible(&self) -> bool {
-        self.handle.is_visible()
-    }
+    pub fn is_visible(&self) -> bool;
 
-    pub fn set_visible(&mut self, v: bool) {
-        self.handle.set_visible(v);
-    }
+    pub fn set_visible(&mut self, v: bool);
 
-    pub fn is_enabled(&self) -> bool {
-        self.handle.is_enabled()
-    }
+    pub fn is_enabled(&self) -> bool;
 
-    pub fn set_enabled(&mut self, v: bool) {
-        self.handle.set_enabled(v);
-    }
+    pub fn set_enabled(&mut self, v: bool);
 
-    pub fn preferred_size(&self) -> Size {
-        self.handle.preferred_size()
-    }
+    pub fn preferred_size(&self) -> Size;
 
-    pub fn loc(&self) -> Point {
-        self.handle.loc()
-    }
+    pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, p: Point) {
-        self.handle.set_loc(p)
-    }
+    pub fn set_loc(&mut self, p: Point);
 
-    pub fn size(&self) -> Size {
-        self.handle.size()
-    }
+    pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, v: Size) {
-        self.handle.set_size(v)
-    }
+    pub fn set_size(&mut self, v: Size);
 
-    pub fn text(&self) -> String {
-        self.handle.text()
-    }
+    pub fn text(&self) -> String;
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.handle.set_text(s);
-    }
+    pub fn set_text(&mut self, s: impl AsRef<str>);
 
     pub fn is_checked(&self) -> bool {
         unsafe { self.handle.view.state() == NSControlStateValueOn }
