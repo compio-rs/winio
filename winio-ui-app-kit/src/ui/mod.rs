@@ -1,11 +1,7 @@
 use std::ffi::CStr;
 
-use objc2_core_foundation::{
-    CFArray, CFAttributedString, CFRange, CFString, CFStringBuiltInEncodings,
-};
-use objc2_foundation::{
-    NSMutableAttributedString, NSPoint, NSRect, NSSize, NSString, NSUserDefaults, ns_string,
-};
+use objc2_core_foundation::{CFArray, CFRange, CFString, CFStringBuiltInEncodings};
+use objc2_foundation::{NSPoint, NSRect, NSSize, NSString, NSUserDefaults, ns_string};
 use winio_primitive::{ColorTheme, Point, Rect, Size};
 
 mod canvas;
@@ -105,8 +101,6 @@ trait TollFreeBridge<T>: Sized {
 }
 
 impl TollFreeBridge<CFString> for NSString {}
-
-impl TollFreeBridge<CFAttributedString> for NSMutableAttributedString {}
 
 impl<T: ?Sized> TollFreeBridge<CFArray> for CFArray<T> {}
 

@@ -12,20 +12,22 @@ use objc2::{
     rc::{Allocated, Retained},
 };
 use objc2_app_kit::{
-    NSAttributedStringNSStringDrawing, NSBitmapFormat, NSBitmapImageRep, NSColor,
-    NSDeviceRGBColorSpace, NSEvent, NSEventType, NSFont, NSFontAttributeName, NSFontDescriptor,
-    NSFontDescriptorSymbolicTraits, NSForegroundColorAttributeName, NSGraphicsContext, NSImage,
-    NSView,
+    NSBitmapFormat, NSBitmapImageRep, NSDeviceRGBColorSpace, NSEvent, NSEventType,
+    NSGraphicsContext, NSImage, NSView,
 };
-use objc2_core_foundation::{CFMutableArray, CFRange, CFRetained};
+use objc2_core_foundation::{
+    CFMutableArray, CFMutableAttributedString, CFRange, CFRetained, kCFAllocatorDefault,
+};
 use objc2_core_graphics::{
     CGAffineTransformMake, CGBitmapContextCreate, CGBitmapContextCreateImage, CGColor,
     CGColorSpace, CGContext, CGGradient, CGGradientDrawingOptions, CGMutablePath, CGPath,
+    kCGColorWhite,
 };
-use objc2_core_text::CTFramesetter;
-use objc2_foundation::{
-    MainThreadMarker, NSDictionary, NSMutableAttributedString, NSPoint, NSRange, NSRect, NSString,
+use objc2_core_text::{
+    CTFont, CTFontDescriptor, CTFontSymbolicTraits, CTFramesetter, kCTFontAttributeName,
+    kCTForegroundColorAttributeName,
 };
+use objc2_foundation::{MainThreadMarker, NSPoint, NSRect, NSSize, NSString};
 use winio_callback::Callback;
 use winio_handle::AsWindow;
 use winio_primitive::{
@@ -155,9 +157,9 @@ impl DrawGradientAction {
 pub enum DrawAction {
     Path(CFRetained<CGPath>, CFRetained<CGColor>, Option<f64>),
     GradientPath(CFRetained<CGPath>, DrawGradientAction, Option<f64>),
-    Text(Retained<NSMutableAttributedString>, NSRect),
+    Text(CFRetained<CFMutableAttributedString>, NSRect),
     GradientText(
-        Retained<NSMutableAttributedString>,
+        CFRetained<CFMutableAttributedString>,
         DrawGradientAction,
         NSRect,
     ),
@@ -210,7 +212,7 @@ impl DrawAction {
                 Self::Text(text, rect) => {
                     let text_path = CGPath::with_rect(*rect, null());
 
-                    let framesetter = CTFramesetter::with_attributed_string(text.bridge());
+                    let framesetter = CTFramesetter::with_attributed_string(text);
                     let frame = framesetter.frame(CFRange::new(0, 0), &text_path, None);
 
                     frame.draw(&context);
@@ -233,7 +235,7 @@ impl DrawAction {
                     let text_path =
                         CGPath::with_rect(NSRect::new(NSPoint::ZERO, rect.size), null());
 
-                    let framesetter = CTFramesetter::with_attributed_string(text.bridge());
+                    let framesetter = CTFramesetter::with_attributed_string(text);
                     let frame = framesetter.frame(CFRange::new(0, 0), &text_path, None);
 
                     CGContext::scale_ctm(Some(&mask), factor, factor);
@@ -437,7 +439,7 @@ impl DrawingContext<'_> {
     }
 
     pub fn draw_str(&mut self, brush: impl Brush, font: DrawingFont, pos: Point, text: &str) {
-        let (astr, rect) = measure_str(font, pos, text);
+        let (astr, rect) = measure_str(font, pos, text, self.size);
         let rect = transform_rect(self.size, rect);
         self.actions.push(brush.create_text_action(astr, rect))
     }
@@ -603,9 +605,18 @@ fn measure_str(
     font: DrawingFont,
     pos: Point,
     text: &str,
-) -> (Retained<NSMutableAttributedString>, Rect) {
+    bound: Size,
+) -> (CFRetained<CFMutableAttributedString>, Rect) {
     let astr = create_attr_str(&font, text);
-    let size = from_cgsize(unsafe { astr.size() });
+    let framesetter = unsafe { CTFramesetter::with_attributed_string(&astr) };
+    let size = from_cgsize(unsafe {
+        framesetter.suggest_frame_size_with_constraints(
+            CFRange::new(0, 0),
+            None,
+            NSSize::new(bound.width, bound.height + font.size),
+            null_mut(),
+        )
+    });
     let mut x = pos.x;
     let mut y = pos.y;
     match font.halign {
@@ -621,34 +632,42 @@ fn measure_str(
     (astr, Rect::new(Point::new(x, y), size))
 }
 
-fn create_attr_str(font: &DrawingFont, text: &str) -> Retained<NSMutableAttributedString> {
+fn create_attr_str(font: &DrawingFont, text: &str) -> CFRetained<CFMutableAttributedString> {
     unsafe {
-        let mut fontdes = NSFontDescriptor::fontDescriptorWithName_size(
-            &NSString::from_str(&font.family),
+        let mut fontdes = CTFontDescriptor::with_name_and_size(
+            NSString::from_str(&font.family).bridge(),
             font.size,
         );
 
-        let mut traits = NSFontDescriptorSymbolicTraits::empty();
+        let mut traits = CTFontSymbolicTraits::empty();
         if font.italic {
-            traits |= NSFontDescriptorSymbolicTraits::TraitItalic;
+            traits |= CTFontSymbolicTraits::TraitItalic;
         }
         if font.bold {
-            traits |= NSFontDescriptorSymbolicTraits::TraitBold;
+            traits |= CTFontSymbolicTraits::TraitBold;
         }
         if !traits.is_empty() {
-            fontdes = fontdes.fontDescriptorWithSymbolicTraits(traits);
+            fontdes = fontdes
+                .copy_with_symbolic_traits(traits, traits)
+                .unwrap_or(fontdes);
         }
 
-        let nfont = NSFont::fontWithDescriptor_size(&fontdes, font.size).unwrap();
+        let nfont = CTFont::with_font_descriptor(&fontdes, font.size, null());
 
-        NSMutableAttributedString::initWithString_attributes(
-            NSMutableAttributedString::alloc(),
-            &NSString::from_str(text),
-            Some(&NSDictionary::from_slices(
-                &[NSFontAttributeName],
-                &[nfont.as_ref()],
-            )),
-        )
+        let astr = CFMutableAttributedString::new(kCFAllocatorDefault, 0);
+        let text = NSString::from_str(text);
+        CFMutableAttributedString::replace_string(
+            astr.as_deref(),
+            CFRange::new(0, 0),
+            Some(text.bridge()),
+        );
+        CFMutableAttributedString::set_attribute(
+            astr.as_deref(),
+            CFRange::new(0, text.length() as _),
+            Some(kCTFontAttributeName),
+            Some(&nfont),
+        );
+        astr.expect("cannot create CFMutableAttributedString")
     }
 }
 
@@ -679,7 +698,7 @@ pub trait Brush {
     #[doc(hidden)]
     fn create_text_action(
         &self,
-        text: Retained<NSMutableAttributedString>,
+        text: CFRetained<CFMutableAttributedString>,
         rect: NSRect,
     ) -> DrawAction;
 }
@@ -691,7 +710,7 @@ impl<B: Brush> Brush for &'_ B {
 
     fn create_text_action(
         &self,
-        text: Retained<NSMutableAttributedString>,
+        text: CFRetained<CFMutableAttributedString>,
         rect: NSRect,
     ) -> DrawAction {
         (**self).create_text_action(text, rect)
@@ -705,20 +724,16 @@ impl Brush for SolidColorBrush {
 
     fn create_text_action(
         &self,
-        text: Retained<NSMutableAttributedString>,
+        text: CFRetained<CFMutableAttributedString>,
         rect: NSRect,
     ) -> DrawAction {
         unsafe {
-            let color = NSColor::colorWithRed_green_blue_alpha(
-                self.color.r as f64 / 255.0,
-                self.color.g as f64 / 255.0,
-                self.color.b as f64 / 255.0,
-                self.color.a as f64 / 255.0,
-            );
-            text.addAttribute_value_range(
-                NSForegroundColorAttributeName,
-                color.as_ref(),
-                NSRange::new(0, text.length() as _),
+            let color = to_cgcolor(self.color);
+            CFMutableAttributedString::set_attribute(
+                Some(&text),
+                CFRange::new(0, text.length()),
+                Some(kCTForegroundColorAttributeName),
+                Some(&color),
             );
             DrawAction::Text(text, rect)
         }
@@ -754,15 +769,16 @@ impl Brush for LinearGradientBrush {
 
     fn create_text_action(
         &self,
-        text: Retained<NSMutableAttributedString>,
+        text: CFRetained<CFMutableAttributedString>,
         rect: NSRect,
     ) -> DrawAction {
         unsafe {
-            let color = NSColor::whiteColor();
-            text.addAttribute_value_range(
-                NSForegroundColorAttributeName,
-                color.as_ref(),
-                NSRange::new(0, text.length() as _),
+            let color = CGColor::constant_color(Some(kCGColorWhite));
+            CFMutableAttributedString::set_attribute(
+                Some(&text),
+                CFRange::new(0, text.length()),
+                Some(kCTForegroundColorAttributeName),
+                color.as_ref().map(|c| c.as_ref()),
             );
             DrawAction::GradientText(text, linear_gradient(self, rect), rect)
         }
@@ -788,15 +804,16 @@ impl Brush for RadialGradientBrush {
 
     fn create_text_action(
         &self,
-        text: Retained<NSMutableAttributedString>,
+        text: CFRetained<CFMutableAttributedString>,
         rect: NSRect,
     ) -> DrawAction {
         unsafe {
-            let color = NSColor::whiteColor();
-            text.addAttribute_value_range(
-                NSForegroundColorAttributeName,
-                color.as_ref(),
-                NSRange::new(0, text.length() as _),
+            let color = CGColor::constant_color(Some(kCGColorWhite));
+            CFMutableAttributedString::set_attribute(
+                Some(&text),
+                CFRange::new(0, text.length()),
+                Some(kCTForegroundColorAttributeName),
+                color.as_ref().map(|c| c.as_ref()),
             );
             DrawAction::GradientText(text, radial_gradient(self, rect), rect)
         }
