@@ -337,6 +337,7 @@ impl DrawingContext<'_> {
             desp.set_weight(Weight::Bold);
         }
         layout.set_font_description(Some(&desp));
+        layout.set_width(self.canvas.widget.width() * PANGO_SCALE);
 
         let (width, height) = layout.pixel_size();
         let (width, height) = (width as f64, height as f64);
