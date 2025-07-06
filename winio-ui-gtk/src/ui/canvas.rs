@@ -127,11 +127,12 @@ impl Canvas {
     pub fn set_size(&mut self, s: Size);
 
     pub fn context(&mut self) -> DrawingContext<'_> {
-        let mut surface = self.surface.borrow_mut();
-        *surface = RecordingSurface::create(Content::ColorAlpha, None).unwrap();
+        let surface = RecordingSurface::create(Content::ColorAlpha, None).unwrap();
+        let ctx = Context::new(&surface).unwrap();
         DrawingContext {
-            ctx: Context::new(&*surface).unwrap(),
-            widget: &mut self.widget,
+            surface: Some(surface),
+            ctx,
+            canvas: self,
         }
     }
 
@@ -149,8 +150,9 @@ impl Canvas {
 }
 
 pub struct DrawingContext<'a> {
+    surface: Option<RecordingSurface>,
     ctx: Context,
-    widget: &'a mut gtk4::DrawingArea,
+    canvas: &'a mut Canvas,
 }
 
 #[inline]
@@ -325,7 +327,7 @@ impl DrawingContext<'_> {
     }
 
     pub fn draw_str(&mut self, brush: impl Brush, font: DrawingFont, pos: Point, text: &str) {
-        let layout = self.widget.create_pango_layout(Some(text));
+        let layout = self.canvas.widget.create_pango_layout(Some(text));
         let mut desp = FontDescription::from_string(&font.family);
         desp.set_size((font.size / 1.33) as i32 * PANGO_SCALE);
         if font.italic {
@@ -391,7 +393,8 @@ impl DrawingContext<'_> {
 
 impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
-        self.widget.queue_draw();
+        *self.canvas.surface.borrow_mut() = self.surface.take().unwrap();
+        self.canvas.widget.queue_draw();
     }
 }
 
