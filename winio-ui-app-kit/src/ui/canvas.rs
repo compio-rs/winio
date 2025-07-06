@@ -71,7 +71,7 @@ impl Canvas {
     pub fn context(&mut self) -> DrawingContext<'_> {
         DrawingContext {
             size: self.size(),
-            actions: vec![],
+            actions: self.view.ivars().take_buffer(),
             canvas: self,
         }
     }
@@ -265,7 +265,22 @@ struct CanvasViewIvars {
     mouse_up: Callback<MouseButton>,
     mouse_move: Callback,
     actions: RefCell<Vec<DrawAction>>,
+    // A buffer for actions, to avoid frequent allocations.
+    actions_buf: RefCell<Vec<DrawAction>>,
     factor: Cell<f64>,
+}
+
+impl CanvasViewIvars {
+    pub fn take_buffer(&self) -> Vec<DrawAction> {
+        std::mem::take(&mut self.actions_buf.borrow_mut())
+    }
+
+    pub fn swap_buffer(&self, buf: &mut Vec<DrawAction>) {
+        std::mem::swap::<Vec<DrawAction>>(&mut self.actions.borrow_mut(), buf);
+        let mut actions_buf = self.actions_buf.borrow_mut();
+        std::mem::swap::<Vec<DrawAction>>(&mut actions_buf, buf);
+        actions_buf.clear();
+    }
 }
 
 define_class! {
@@ -340,7 +355,7 @@ pub struct DrawingContext<'a> {
 impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
         let ivars = self.canvas.view.ivars();
-        std::mem::swap(&mut *ivars.actions.borrow_mut(), &mut self.actions);
+        ivars.swap_buffer(&mut self.actions);
         ivars.factor.set(
             self.canvas
                 .view
