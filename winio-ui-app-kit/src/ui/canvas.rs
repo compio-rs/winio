@@ -13,7 +13,7 @@ use objc2::{
 };
 use objc2_app_kit::{
     NSBitmapFormat, NSBitmapImageRep, NSDeviceRGBColorSpace, NSEvent, NSEventType,
-    NSGraphicsContext, NSImage, NSView,
+    NSGraphicsContext, NSView,
 };
 use objc2_core_foundation::{
     CFMutableArray, CFMutableAttributedString, CFRange, CFRetained, kCFAllocatorDefault,
@@ -246,10 +246,7 @@ impl DrawAction {
                     gradient.draw(&context);
                 }
                 Self::Image(image, rect, clip) => {
-                    let ns_image = NSImage::initWithSize(NSImage::alloc(), image.rep.size());
-                    ns_image.addRepresentation(&image.rep);
-                    let cg_image =
-                        ns_image.CGImageForProposedRect_context_hints(null_mut(), None, None);
+                    let cg_image = image.rep.CGImage();
                     if let Some(clip) = clip {
                         CGContext::clip_to_rect(Some(&context), *clip);
                     }
@@ -885,7 +882,7 @@ impl DrawingImage {
                     alpha,
                     false,
                     NSDeviceRGBColorSpace,
-                    NSBitmapFormat(0),
+                    NSBitmapFormat::empty(),
                     (spp as u32 * width) as _,
                     spp * 8,
                 )
