@@ -157,12 +157,8 @@ impl DrawGradientAction {
 pub enum DrawAction {
     Path(CFRetained<CGPath>, CFRetained<CGColor>, Option<f64>),
     GradientPath(CFRetained<CGPath>, DrawGradientAction, Option<f64>),
-    Text(CFRetained<CFMutableAttributedString>, NSRect),
-    GradientText(
-        CFRetained<CFMutableAttributedString>,
-        DrawGradientAction,
-        NSRect,
-    ),
+    Text(CFRetained<CTFramesetter>, NSRect),
+    GradientText(CFRetained<CTFramesetter>, DrawGradientAction, NSRect),
     Image(DrawingImage, NSRect, Option<NSRect>),
 }
 
@@ -209,15 +205,14 @@ impl DrawAction {
                         gradient.draw(&context);
                     }
                 }
-                Self::Text(text, rect) => {
+                Self::Text(framesetter, rect) => {
                     let text_path = CGPath::with_rect(*rect, null());
 
-                    let framesetter = CTFramesetter::with_attributed_string(text);
                     let frame = framesetter.frame(CFRange::new(0, 0), &text_path, None);
 
                     frame.draw(&context);
                 }
-                Self::GradientText(text, gradient, rect) => {
+                Self::GradientText(framesetter, gradient, rect) => {
                     let colorspace = CGColorSpace::new_device_gray();
                     let Some(mask) = CGBitmapContextCreate(
                         null_mut(),
@@ -235,7 +230,6 @@ impl DrawAction {
                     let text_path =
                         CGPath::with_rect(NSRect::new(NSPoint::ZERO, rect.size), null());
 
-                    let framesetter = CTFramesetter::with_attributed_string(text);
                     let frame = framesetter.frame(CFRange::new(0, 0), &text_path, None);
 
                     CGContext::scale_ctm(Some(&mask), factor, factor);
@@ -436,9 +430,10 @@ impl DrawingContext<'_> {
     }
 
     pub fn draw_str(&mut self, brush: impl Brush, font: DrawingFont, pos: Point, text: &str) {
-        let (astr, rect) = measure_str(font, pos, text, self.size);
+        let (framesetter, rect) = measure_str(font, &brush.text_color(), pos, text, self.size);
         let rect = transform_rect(self.size, rect);
-        self.actions.push(brush.create_text_action(astr, rect))
+        self.actions
+            .push(brush.create_text_action(framesetter, rect))
     }
 
     pub fn create_image(&self, image: DynamicImage) -> DrawingImage {
@@ -600,11 +595,12 @@ fn path_round_rect(s: Size, rect: Rect, round: Size) -> CFRetained<CGPath> {
 
 fn measure_str(
     font: DrawingFont,
+    color: &CGColor,
     pos: Point,
     text: &str,
     bound: Size,
-) -> (CFRetained<CFMutableAttributedString>, Rect) {
-    let astr = create_attr_str(&font, text);
+) -> (CFRetained<CTFramesetter>, Rect) {
+    let astr = create_attr_str(&font, color, text);
     let framesetter = unsafe { CTFramesetter::with_attributed_string(&astr) };
     let size = from_cgsize(unsafe {
         framesetter.suggest_frame_size_with_constraints(
@@ -626,10 +622,14 @@ fn measure_str(
         VAlign::Bottom => y -= size.height,
         _ => {}
     }
-    (astr, Rect::new(Point::new(x, y), size))
+    (framesetter, Rect::new(Point::new(x, y), size))
 }
 
-fn create_attr_str(font: &DrawingFont, text: &str) -> CFRetained<CFMutableAttributedString> {
+fn create_attr_str(
+    font: &DrawingFont,
+    color: &CGColor,
+    text: &str,
+) -> CFRetained<CFMutableAttributedString> {
     unsafe {
         let mut fontdes = CTFontDescriptor::with_name_and_size(
             NSString::from_str(&font.family).bridge(),
@@ -664,6 +664,12 @@ fn create_attr_str(font: &DrawingFont, text: &str) -> CFRetained<CFMutableAttrib
             Some(kCTFontAttributeName),
             Some(&nfont),
         );
+        CFMutableAttributedString::set_attribute(
+            astr.as_deref(),
+            CFRange::new(0, text.length() as _),
+            Some(kCTForegroundColorAttributeName),
+            Some(color),
+        );
         astr.expect("cannot create CFMutableAttributedString")
     }
 }
@@ -693,9 +699,12 @@ pub trait Brush {
     fn create_action(&self, path: CFRetained<CGPath>) -> DrawAction;
 
     #[doc(hidden)]
+    fn text_color(&self) -> CFRetained<CGColor>;
+
+    #[doc(hidden)]
     fn create_text_action(
         &self,
-        text: CFRetained<CFMutableAttributedString>,
+        framesetter: CFRetained<CTFramesetter>,
         rect: NSRect,
     ) -> DrawAction;
 }
@@ -705,12 +714,16 @@ impl<B: Brush> Brush for &'_ B {
         (**self).create_action(path)
     }
 
+    fn text_color(&self) -> CFRetained<CGColor> {
+        (**self).text_color()
+    }
+
     fn create_text_action(
         &self,
-        text: CFRetained<CFMutableAttributedString>,
+        framesetter: CFRetained<CTFramesetter>,
         rect: NSRect,
     ) -> DrawAction {
-        (**self).create_text_action(text, rect)
+        (**self).create_text_action(framesetter, rect)
     }
 }
 
@@ -719,21 +732,16 @@ impl Brush for SolidColorBrush {
         DrawAction::Path(path, to_cgcolor(self.color), None)
     }
 
+    fn text_color(&self) -> CFRetained<CGColor> {
+        to_cgcolor(self.color)
+    }
+
     fn create_text_action(
         &self,
-        text: CFRetained<CFMutableAttributedString>,
+        framesetter: CFRetained<CTFramesetter>,
         rect: NSRect,
     ) -> DrawAction {
-        unsafe {
-            let color = to_cgcolor(self.color);
-            CFMutableAttributedString::set_attribute(
-                Some(&text),
-                CFRange::new(0, text.length()),
-                Some(kCTForegroundColorAttributeName),
-                Some(&color),
-            );
-            DrawAction::Text(text, rect)
-        }
+        DrawAction::Text(framesetter, rect)
     }
 }
 
@@ -764,21 +772,16 @@ impl Brush for LinearGradientBrush {
         DrawAction::GradientPath(path, linear_gradient(self, rect), None)
     }
 
+    fn text_color(&self) -> CFRetained<CGColor> {
+        unsafe { CGColor::constant_color(Some(kCGColorWhite)).unwrap() }
+    }
+
     fn create_text_action(
         &self,
-        text: CFRetained<CFMutableAttributedString>,
+        framesetter: CFRetained<CTFramesetter>,
         rect: NSRect,
     ) -> DrawAction {
-        unsafe {
-            let color = CGColor::constant_color(Some(kCGColorWhite));
-            CFMutableAttributedString::set_attribute(
-                Some(&text),
-                CFRange::new(0, text.length()),
-                Some(kCTForegroundColorAttributeName),
-                color.as_ref().map(|c| c.as_ref()),
-            );
-            DrawAction::GradientText(text, linear_gradient(self, rect), rect)
-        }
+        DrawAction::GradientText(framesetter, linear_gradient(self, rect), rect)
     }
 }
 
@@ -799,21 +802,16 @@ impl Brush for RadialGradientBrush {
         DrawAction::GradientPath(path, radial_gradient(self, rect), None)
     }
 
+    fn text_color(&self) -> CFRetained<CGColor> {
+        unsafe { CGColor::constant_color(Some(kCGColorWhite)).unwrap() }
+    }
+
     fn create_text_action(
         &self,
-        text: CFRetained<CFMutableAttributedString>,
+        framesetter: CFRetained<CTFramesetter>,
         rect: NSRect,
     ) -> DrawAction {
-        unsafe {
-            let color = CGColor::constant_color(Some(kCGColorWhite));
-            CFMutableAttributedString::set_attribute(
-                Some(&text),
-                CFRange::new(0, text.length()),
-                Some(kCTForegroundColorAttributeName),
-                color.as_ref().map(|c| c.as_ref()),
-            );
-            DrawAction::GradientText(text, radial_gradient(self, rect), rect)
-        }
+        DrawAction::GradientText(framesetter, radial_gradient(self, rect), rect)
     }
 }
 
