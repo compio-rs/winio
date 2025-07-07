@@ -269,10 +269,15 @@ impl CanvasViewIvars {
     }
 
     pub fn swap_buffer(&self, buf: &mut Vec<DrawAction>) {
-        std::mem::swap::<Vec<DrawAction>>(&mut self.actions.borrow_mut(), buf);
-        let mut actions_buf = self.actions_buf.borrow_mut();
-        std::mem::swap::<Vec<DrawAction>>(&mut actions_buf, buf);
-        actions_buf.clear();
+        {
+            let mut actions = self.actions.borrow_mut();
+            std::mem::swap::<Vec<DrawAction>>(&mut actions, buf);
+        }
+        {
+            let mut actions_buf = self.actions_buf.borrow_mut();
+            std::mem::swap::<Vec<DrawAction>>(&mut actions_buf, buf);
+            actions_buf.clear();
+        }
     }
 }
 
