@@ -119,3 +119,6 @@ pub use list_box::*;
 
 mod filebox;
 pub use filebox::*;
+
+mod msgbox;
+pub use msgbox::*;
