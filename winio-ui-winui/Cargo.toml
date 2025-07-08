@@ -1,0 +1,32 @@
+[package]
+name = "winio-ui-winui"
+version = "0.1.0"
+description = "WinUI backend for winio."
+edition = { workspace = true }
+authors = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+winio-primitive = { workspace = true }
+winio-handle = { workspace = true }
+winio-pollable = { workspace = true }
+
+compio = { workspace = true }
+compio-log = { workspace = true }
+
+scoped-tls = { workspace = true }
+
+winui3 = { path = "../../winui3-rs/winui3", features = [
+    "native",
+    "XamlApp",
+    "UI_Composition",
+    "UI_Dispatching",
+    "UI_Windowing",
+] }
+windows-sys = { workspace = true, features = ["Win32_System_Threading"] }
+windows = { workspace = true, features = [
+    "Foundation",
+    "Foundation_Collections",
+] }

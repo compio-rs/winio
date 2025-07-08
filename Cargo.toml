@@ -8,6 +8,7 @@ members = [
     "winio-elm",
     "winio-pollable",
     "winio-ui-win32",
+    "winio-ui-winui",
     "winio-ui-gtk",
     "winio-ui-qt",
     "winio-ui-app-kit",
@@ -46,6 +47,7 @@ paste = "1.0"
 scoped-tls = "1.0"
 
 windows-sys = "0.60"
+windows = "0.61"
 
 objc2 = "0.6"
 objc2-app-kit = "0.3"

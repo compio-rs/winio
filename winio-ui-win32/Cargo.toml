@@ -44,7 +44,7 @@ windows-sys = { workspace = true, features = [
     "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
 ] }
-windows = { version = "0.61", features = [
+windows = { workspace = true, features = [
     "Foundation_Numerics",
     "UI_ViewManagement",
     "Win32_Foundation",
