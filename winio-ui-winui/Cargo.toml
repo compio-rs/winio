@@ -17,6 +17,7 @@ winio-pollable = { workspace = true }
 compio = { workspace = true }
 compio-log = { workspace = true }
 
+inherit-methods-macro = { workspace = true }
 scoped-tls = { workspace = true }
 send_wrapper = "0.6"
 
@@ -25,6 +26,7 @@ winui3 = { workspace = true, features = [
     "UI_Composition",
     "UI_Dispatching",
     "UI_Windowing",
+    "UI_Xaml_Controls_Primitives",
 ] }
 windows-sys = { workspace = true, features = ["Win32_System_Threading"] }
 windows = { workspace = true, features = [

@@ -16,6 +16,7 @@ use crate::{
     to_graphics_sizei32,
 };
 
+#[derive(Debug)]
 pub struct Window {
     on_changed: SendWrapper<Rc<Callback<Option<AppWindowChangedEventArgs>>>>,
     on_close: SendWrapper<Rc<Callback>>,
@@ -114,7 +115,7 @@ impl Window {
     }
 
     pub fn text(&self) -> String {
-        self.handle.Title().unwrap().to_string()
+        self.handle.Title().unwrap().to_string_lossy()
     }
 
     pub fn set_text(&mut self, text: &str) {

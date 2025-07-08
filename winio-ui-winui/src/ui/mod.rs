@@ -1,4 +1,8 @@
-use windows::Graphics::{PointInt32, SizeInt32};
+use windows::{
+    Foundation::{IReference, PropertyValue},
+    Graphics::{PointInt32, SizeInt32},
+    core::{HSTRING, Interface},
+};
 use winio_primitive::{Point, Size};
 
 pub(crate) fn from_graphics_pointi32(p: PointInt32) -> Point {
@@ -23,5 +27,19 @@ pub(crate) fn to_graphics_sizei32(s: Size) -> SizeInt32 {
     }
 }
 
+pub(crate) fn from_foundation_size(s: windows::Foundation::Size) -> Size {
+    Size::new(s.Width as _, s.Height as _)
+}
+
+pub(crate) fn hstring_ref(text: &HSTRING) -> IReference<HSTRING> {
+    PropertyValue::CreateString(text).unwrap().cast().unwrap()
+}
+
 mod window;
 pub use window::*;
+
+mod widget;
+pub(crate) use widget::*;
+
+mod button;
+pub use button::*;
