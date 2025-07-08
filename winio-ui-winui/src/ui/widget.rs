@@ -7,11 +7,11 @@ use crate::ui::Convertible;
 
 #[derive(Debug)]
 pub(crate) struct Widget {
-    handle: MUXC::Control,
+    handle: MUX::FrameworkElement,
 }
 
 impl Widget {
-    pub fn new(parent: impl AsWindow, handle: MUXC::Control) -> Self {
+    pub fn new(parent: impl AsWindow, handle: MUX::FrameworkElement) -> Self {
         let parent = parent.as_window();
         let window = parent.as_winui();
         let canvas = window.Content().unwrap().cast::<MUXC::Canvas>().unwrap();
@@ -34,11 +34,17 @@ impl Widget {
     }
 
     pub fn is_enabled(&self) -> bool {
-        self.handle.IsEnabled().unwrap()
+        if let Ok(handle) = self.handle.cast::<MUXC::Control>() {
+            handle.IsEnabled().unwrap()
+        } else {
+            true
+        }
     }
 
     pub fn set_enabled(&self, enabled: bool) {
-        self.handle.SetIsEnabled(enabled).unwrap();
+        if let Ok(handle) = self.handle.cast::<MUXC::Control>() {
+            handle.SetIsEnabled(enabled).unwrap();
+        }
     }
 
     pub fn preferred_size(&self) -> winio_primitive::Size {

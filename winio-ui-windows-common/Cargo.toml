@@ -13,11 +13,19 @@ winio-primitive = { workspace = true }
 
 compio = { workspace = true }
 
+image = { workspace = true, default-features = false }
 widestring = { workspace = true }
 
-windows = { workspace = true, features = ["UI_ViewManagement"] }
+windows = { workspace = true, features = [
+    "UI_ViewManagement",
+    "Win32_Graphics_Direct2D",
+    "Win32_Graphics_Direct2D_Common",
+    "Win32_Graphics_DirectWrite",
+    "Win32_Graphics_Dxgi_Common",
+] }
 windows-sys = { workspace = true, features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
     "Win32_UI",
 ] }
+windows-numerics = "0.2"

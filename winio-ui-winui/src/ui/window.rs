@@ -115,8 +115,8 @@ impl Window {
         self.handle.Title().unwrap().to_string_lossy()
     }
 
-    pub fn set_text(&mut self, text: &str) {
-        self.handle.SetTitle(&text.into()).unwrap();
+    pub fn set_text(&mut self, text: impl AsRef<str>) {
+        self.handle.SetTitle(&text.as_ref().into()).unwrap();
     }
 
     pub fn set_icon_by_id(&mut self, id: u16) {

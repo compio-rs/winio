@@ -14,3 +14,6 @@ pub use msgbox::*;
 
 mod monitor;
 pub use monitor::*;
+
+mod canvas;
+pub use canvas::*;

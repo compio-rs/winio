@@ -57,7 +57,6 @@ windows = { workspace = true, features = [
     "Win32_UI_Shell",
     "Win32_UI_Shell_Common",
 ] }
-windows-numerics = "0.2"
 
 slim-detours-sys = { version = "0.3", optional = true }
 sync-unsafe-cell = { version = "0.1", optional = true }

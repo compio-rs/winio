@@ -18,12 +18,14 @@ winio-ui-windows-common = { workspace = true }
 compio = { workspace = true }
 compio-log = { workspace = true }
 
+image = { workspace = true, default-features = false }
 inherit-methods-macro = { workspace = true }
 scoped-tls = { workspace = true }
 send_wrapper = "0.6"
 widestring = { workspace = true }
 
 winui3 = { workspace = true, features = [
+    "native",
     "XamlApp",
     "UI_Composition",
     "UI_Dispatching",
@@ -35,4 +37,8 @@ windows = { workspace = true, features = [
     "Foundation",
     "Foundation_Collections",
     "Graphics",
+    "Win32_Graphics_Direct2D",
+    "Win32_Graphics_Direct3D",
+    "Win32_Graphics_Direct3D11",
+    "Win32_Graphics_Dxgi",
 ] }

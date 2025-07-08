@@ -1,10 +1,26 @@
-use std::{future::Future, time::Duration};
+use std::{cell::OnceCell, future::Future, ptr::null_mut, time::Duration};
 
 use compio::driver::AsRawFd;
 use compio_log::*;
 use windows::{
     Foundation::Uri,
-    core::{Ref, Result, h},
+    Win32::{
+        Foundation::HMODULE,
+        Graphics::{
+            Direct2D::{
+                D2D1_DEVICE_CONTEXT_OPTIONS_NONE, D2D1_FACTORY_TYPE_SINGLE_THREADED,
+                D2D1CreateDevice, D2D1CreateFactory, ID2D1Device, ID2D1DeviceContext, ID2D1Factory,
+                ID2D1Factory2,
+            },
+            Direct3D::{D3D_DRIVER_TYPE_HARDWARE, D3D_FEATURE_LEVEL_11_1},
+            Direct3D11::{
+                D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_SDK_VERSION, D3D11CreateDevice,
+                ID3D11Device, ID3D11DeviceContext,
+            },
+            Dxgi::IDXGIDevice,
+        },
+    },
+    core::{Interface, Ref, Result, h},
 };
 use windows_sys::Win32::System::Threading::{INFINITE, WaitForSingleObject};
 use winui3::{
@@ -28,6 +44,10 @@ pub struct Runtime {
     runtime: compio::runtime::Runtime,
     #[allow(dead_code)]
     winui_dependency: PackageDependency,
+    d3d11: OnceCell<(ID3D11Device, ID3D11DeviceContext)>,
+    d2d1: OnceCell<ID2D1Factory>,
+    d2d1_device: OnceCell<ID2D1Device>,
+    d2d1_context: OnceCell<ID2D1DeviceContext>,
 }
 
 impl Default for Runtime {
@@ -49,7 +69,65 @@ impl Runtime {
         Self {
             runtime,
             winui_dependency,
+            d3d11: OnceCell::new(),
+            d2d1: OnceCell::new(),
+            d2d1_device: OnceCell::new(),
+            d2d1_context: OnceCell::new(),
         }
+    }
+
+    fn d3d11(&self) -> &(ID3D11Device, ID3D11DeviceContext) {
+        self.d3d11.get_or_init(|| unsafe {
+            let mut device = None;
+            let mut context = None;
+            D3D11CreateDevice(
+                None,
+                D3D_DRIVER_TYPE_HARDWARE,
+                HMODULE(null_mut()),
+                D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+                Some(&[D3D_FEATURE_LEVEL_11_1]),
+                D3D11_SDK_VERSION,
+                Some(&mut device),
+                None,
+                Some(&mut context),
+            )
+            .unwrap();
+            (device.unwrap(), context.unwrap())
+        })
+    }
+
+    pub(crate) fn d3d11_device(&self) -> &ID3D11Device {
+        &self.d3d11().0
+    }
+
+    pub(crate) fn d3d11_context(&self) -> &ID3D11DeviceContext {
+        &self.d3d11().1
+    }
+
+    pub(crate) fn d2d1(&self) -> &ID2D1Factory {
+        self.d2d1.get_or_init(|| unsafe {
+            D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None).unwrap()
+        })
+    }
+
+    pub(crate) fn d2d1_device(&self) -> &ID2D1Device {
+        self.d2d1_device.get_or_init(|| unsafe {
+            let device = self.d3d11_device().cast::<IDXGIDevice>().unwrap();
+            self.d2d1()
+                .cast::<ID2D1Factory2>()
+                .unwrap()
+                .CreateDevice(&device)
+                .unwrap()
+                .into()
+        })
+    }
+
+    pub(crate) fn d2d1_context(&self) -> &ID2D1DeviceContext {
+        self.d2d1_context.get_or_init(|| unsafe {
+            self.d2d1_device()
+                .CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE)
+                .unwrap()
+        })
     }
 
     pub(crate) fn run(&self) -> bool {

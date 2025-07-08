@@ -125,6 +125,9 @@ pub use combo_box::*;
 mod list_box;
 pub use list_box::*;
 
+mod canvas;
+pub use canvas::*;
+
 mod filebox;
 pub use filebox::*;
 
