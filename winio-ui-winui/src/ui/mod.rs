@@ -107,3 +107,6 @@ pub use edit::*;
 
 mod label;
 pub use label::*;
+
+mod progress;
+pub use progress::*;
