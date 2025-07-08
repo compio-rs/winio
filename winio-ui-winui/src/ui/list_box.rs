@@ -9,7 +9,9 @@ use windows::{
 use winio_callback::Callback;
 use winio_handle::AsWindow;
 use winio_primitive::{Point, Size};
-use winui3::Microsoft::UI::Xaml::Controls::{self as MUXC, SelectionChangedEventHandler};
+use winui3::Microsoft::UI::Xaml::Controls::{
+    self as MUXC, SelectionChangedEventHandler, SelectionMode,
+};
 
 use crate::{GlobalRuntime, Widget, ui::ToIReference};
 
@@ -24,6 +26,7 @@ pub struct ListBox {
 impl ListBox {
     pub fn new(parent: impl AsWindow) -> Self {
         let list_box = MUXC::ListBox::new().unwrap();
+        list_box.SetSelectionMode(SelectionMode::Multiple).unwrap();
         let on_select = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_select = on_select.clone();
@@ -51,6 +54,8 @@ impl ListBox {
 
     pub fn preferred_size(&self) -> Size;
 
+    pub fn min_size(&self) -> Size;
+
     pub fn loc(&self) -> Point;
 
     pub fn set_loc(&mut self, p: Point);
@@ -59,14 +64,28 @@ impl ListBox {
 
     pub fn set_size(&mut self, v: Size);
 
-    pub fn selection(&self) -> Option<usize> {
-        let i = self.list_box.SelectedIndex().unwrap();
-        if i < 0 { None } else { Some(i as usize) }
+    pub fn is_selected(&self, i: usize) -> bool {
+        self.list_box
+            .Items()
+            .unwrap()
+            .GetAt(i as _)
+            .unwrap()
+            .cast::<MUXC::ListBoxItem>()
+            .unwrap()
+            .IsSelected()
+            .unwrap()
     }
 
-    pub fn set_selection(&mut self, i: Option<usize>) {
-        let i = if let Some(i) = i { i as i32 } else { -1 };
-        self.list_box.SetSelectedIndex(i).unwrap();
+    pub fn set_selected(&mut self, i: usize, v: bool) {
+        self.list_box
+            .Items()
+            .unwrap()
+            .GetAt(i as _)
+            .unwrap()
+            .cast::<MUXC::ListBoxItem>()
+            .unwrap()
+            .SetIsSelected(v)
+            .unwrap();
     }
 
     pub async fn wait_select(&self) {

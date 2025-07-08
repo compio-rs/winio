@@ -29,3 +29,6 @@ windows-sys = { workspace = true, features = [
     "Win32_UI",
 ] }
 windows-numerics = "0.2"
+
+[build-dependencies]
+embed-resource = "3"

@@ -47,8 +47,14 @@ impl Widget {
         }
     }
 
-    pub fn preferred_size(&self) -> winio_primitive::Size {
+    pub fn preferred_size(&self) -> Size {
         Size::from_native(self.handle.DesiredSize().unwrap())
+    }
+
+    pub fn min_size(&self) -> Size {
+        let width = self.handle.MinWidth().unwrap();
+        let height = self.handle.MinHeight().unwrap();
+        Size::new(width, height)
     }
 
     pub fn loc(&self) -> Point {
