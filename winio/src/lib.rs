@@ -17,7 +17,19 @@ pub use winio_primitive as primitive;
 
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
-        use winio_ui_win32 as sys;
+        #[cfg(any(
+            all(not(feature = "win32"), not(feature = "winui")),
+            all(feature = "win32", feature = "winui")
+        ))]
+        compile_error!("You must choose only one of these features: [\"win32\", \"winui\"]");
+
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "winui")] {
+                use winio_ui_winui as sys;
+            } else {
+                use winio_ui_win32 as sys;
+            }
+        }
     } else if #[cfg(target_os = "macos")] {
         use winio_ui_app_kit as sys;
     } else {

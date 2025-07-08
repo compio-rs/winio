@@ -25,7 +25,8 @@ inherit-methods-macro = { workspace = true }
 image = { workspace = true, default-features = false }
 
 [target.'cfg(windows)'.dependencies]
-winio-ui-win32 = { workspace = true }
+winio-ui-win32 = { workspace = true, optional = true }
+winio-ui-winui = { workspace = true, optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 winio-ui-app-kit = { workspace = true }
@@ -51,7 +52,9 @@ itertools = "0.14"
 tracing-subscriber = "0.3"
 
 [features]
-default = ["qt", "win32-dark-mode"]
+default = ["qt", "winui"]
+win32 = ["dep:winio-ui-win32"]
+winui = ["dep:winio-ui-winui"]
 gtk = ["dep:winio-ui-gtk"]
 qt = ["dep:winio-ui-qt"]
 enable_log = ["compio/enable_log", "compio-log/enable_log"]

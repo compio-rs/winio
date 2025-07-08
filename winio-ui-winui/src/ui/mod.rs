@@ -3,8 +3,8 @@ use windows::{
     Graphics::{PointInt32, SizeInt32},
     core::{HSTRING, Interface, RuntimeType},
 };
-use winio_primitive::{HAlign, Point, Size};
-use winui3::Microsoft::UI::Xaml::TextAlignment;
+use winio_primitive::{ColorTheme, HAlign, Point, Size};
+use winui3::Microsoft::UI::Xaml::{Application, TextAlignment};
 
 trait Convertible<T> {
     fn from_native(native: T) -> Self;
@@ -87,6 +87,13 @@ impl ToIReference for bool {
     }
 }
 
+pub fn color_theme() -> ColorTheme {
+    match Application::Current().unwrap().RequestedTheme().unwrap().0 {
+        1 => ColorTheme::Dark,
+        _ => ColorTheme::Light,
+    }
+}
+
 mod window;
 pub use window::*;
 
@@ -122,3 +129,6 @@ pub use filebox::*;
 
 mod msgbox;
 pub use msgbox::*;
+
+mod accent;
+pub use accent::*;
