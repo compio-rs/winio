@@ -159,7 +159,7 @@ impl Runtime {
 fn resume_foreground<T: Send + 'static>(
     dispatcher: &DispatcherQueue,
     mut f: impl (FnMut() -> T) + Send + 'static,
-) -> T {
+) -> Option<T> {
     let (tx, rx) = std::sync::mpsc::sync_channel(1);
     dispatcher
         .TryEnqueue(&DispatcherQueueHandler::new(move || {
@@ -167,7 +167,7 @@ fn resume_foreground<T: Send + 'static>(
             Ok(())
         }))
         .unwrap();
-    rx.recv().unwrap()
+    rx.recv().ok()
 }
 
 fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> {
@@ -209,6 +209,9 @@ fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> 
                     })
                 }
             });
+            let Some(timeout) = timeout else {
+                break;
+            };
             let timeout = match timeout {
                 Some(timeout) => timeout.as_millis() as u32,
                 None => INFINITE,

@@ -2,6 +2,7 @@ use std::rc::Rc;
 
 use send_wrapper::SendWrapper;
 use windows::{Foundation::TypedEventHandler, core::Ref};
+use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
 use winio_callback::Callback;
 use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
 use winio_primitive::{Point, Size};
@@ -15,7 +16,8 @@ use crate::{GlobalRuntime, ui::Convertible};
 
 #[derive(Debug)]
 pub struct Window {
-    on_changed: SendWrapper<Rc<Callback<Option<AppWindowChangedEventArgs>>>>,
+    on_size: SendWrapper<Rc<Callback>>,
+    on_move: SendWrapper<Rc<Callback>>,
     on_close: SendWrapper<Rc<Callback>>,
     handle: MUX::Window,
     app_window: AppWindow,
@@ -56,13 +58,22 @@ impl Window {
                 ))
                 .unwrap();
         }
-        let on_changed = SendWrapper::new(Rc::new(Callback::new()));
+        let on_size = SendWrapper::new(Rc::new(Callback::new()));
+        let on_move = SendWrapper::new(Rc::new(Callback::new()));
         {
-            let on_changed = on_changed.clone();
+            let on_size = on_size.clone();
+            let on_move = on_move.clone();
             app_window
                 .Changed(&TypedEventHandler::new(
                     move |_, args: Ref<AppWindowChangedEventArgs>| {
-                        on_changed.signal::<GlobalRuntime>(args.clone());
+                        if let Some(args) = args.as_ref() {
+                            if args.DidPositionChange()? {
+                                on_move.signal::<GlobalRuntime>(());
+                            }
+                            if args.DidSizeChange()? {
+                                on_size.signal::<GlobalRuntime>(());
+                            }
+                        }
                         Ok(())
                     },
                 ))
@@ -70,7 +81,8 @@ impl Window {
         }
 
         Self {
-            on_changed,
+            on_size,
+            on_move,
             on_close,
             handle,
             app_window,
@@ -91,24 +103,40 @@ impl Window {
         }
     }
 
+    fn dpi(&self) -> u32 {
+        if let Ok(id) = self.app_window.Id() {
+            unsafe { GetDpiForWindow(id.Value as _) }
+        } else {
+            96
+        }
+    }
+
+    fn scale(&self) -> f64 {
+        self.dpi() as f64 / 96.0
+    }
+
     pub fn loc(&self) -> Point {
-        Point::from_native(self.app_window.Position().unwrap())
+        Point::from_native(self.app_window.Position().unwrap()) / self.scale()
     }
 
     pub fn set_loc(&mut self, p: Point) {
-        self.app_window.Move(p.to_native()).unwrap();
+        self.app_window
+            .Move((p * self.scale()).to_native())
+            .unwrap();
     }
 
     pub fn size(&self) -> Size {
-        Size::from_native(self.app_window.Size().unwrap())
+        Size::from_native(self.app_window.Size().unwrap()) / self.scale()
     }
 
     pub fn set_size(&mut self, s: Size) {
-        self.app_window.Resize(s.to_native()).unwrap();
+        self.app_window
+            .Resize((s * self.scale()).to_native())
+            .unwrap();
     }
 
     pub fn client_size(&self) -> Size {
-        Size::from_native(self.app_window.ClientSize().unwrap())
+        Size::from_native(self.app_window.ClientSize().unwrap()) / self.scale()
     }
 
     pub fn text(&self) -> String {
@@ -126,25 +154,11 @@ impl Window {
     }
 
     pub async fn wait_size(&self) {
-        loop {
-            let args = self.on_changed.wait().await;
-            if let Some(args) = args {
-                if args.DidSizeChange().unwrap() {
-                    break;
-                }
-            }
-        }
+        self.on_size.wait().await
     }
 
     pub async fn wait_move(&self) {
-        loop {
-            let args = self.on_changed.wait().await;
-            if let Some(args) = args {
-                if args.DidPositionChange().unwrap() {
-                    break;
-                }
-            }
-        }
+        self.on_move.wait().await
     }
 
     pub async fn wait_close(&self) {
