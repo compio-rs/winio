@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
 use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
@@ -6,10 +6,12 @@ use send_wrapper::SendWrapper;
 use windows::{
     Win32::Graphics::{
         Direct2D::ID2D1RenderTarget,
+        DirectWrite::{DWRITE_FACTORY_TYPE_SHARED, DWriteCreateFactory, IDWriteFactory},
         Dxgi::{
             Common::{DXGI_ALPHA_MODE_PREMULTIPLIED, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_SAMPLE_DESC},
-            DXGI_SCALING_STRETCH, DXGI_SWAP_CHAIN_DESC1, DXGI_SWAP_EFFECT_FLIP_DISCARD,
-            DXGI_USAGE_RENDER_TARGET_OUTPUT, IDXGIDevice, IDXGIFactory2, IDXGISwapChain1,
+            DXGI_PRESENT, DXGI_SCALING_STRETCH, DXGI_SWAP_CHAIN_DESC1,
+            DXGI_SWAP_EFFECT_FLIP_DISCARD, DXGI_USAGE_RENDER_TARGET_OUTPUT, IDXGIDevice,
+            IDXGIFactory2, IDXGISwapChain1,
         },
     },
     core::{BOOL, Interface},
@@ -26,6 +28,7 @@ use crate::{RUNTIME, Widget};
 
 #[derive(Debug)]
 pub struct Canvas {
+    dwrite: IDWriteFactory,
     handle: Widget,
     panel: MUXC::SwapChainPanel,
     swap_chain: SendWrapper<Rc<RefCell<Option<IDXGISwapChain1>>>>,
@@ -34,6 +37,7 @@ pub struct Canvas {
 #[inherit_methods(from = "self.handle")]
 impl Canvas {
     pub fn new(parent: impl AsWindow) -> Self {
+        let dwrite = unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).unwrap() };
         let panel = MUXC::SwapChainPanel::new().unwrap();
         let native = SendWrapper::new(panel.cast::<ISwapChainPanelNative>().unwrap());
         let chain = SendWrapper::new(Rc::new(RefCell::new(None)));
@@ -72,6 +76,7 @@ impl Canvas {
             }))
             .unwrap();
         Self {
+            dwrite,
             handle: Widget::new(parent, panel.cast().unwrap()),
             panel,
             swap_chain: chain,
@@ -97,7 +102,12 @@ impl Canvas {
     pub fn set_size(&mut self, v: Size);
 
     pub fn context(&mut self) -> DrawingContext<'_> {
-        todo!()
+        let context = RUNTIME.with(|runtime| runtime.d2d1_context().clone());
+        unsafe {
+            context.BeginDraw();
+            context.Clear(None);
+        }
+        DrawingContext::new(&self.dwrite, &context, self.swap_chain.clone())
     }
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
@@ -115,13 +125,36 @@ impl Canvas {
 
 pub struct DrawingContext<'a> {
     ctx: winio_ui_windows_common::DrawingContext,
-    canvas: &'a mut Canvas,
+    swap_chain: SendWrapper<Rc<RefCell<Option<IDXGISwapChain1>>>>,
+    _p: PhantomData<&'a mut Canvas>,
+}
+
+impl Drop for DrawingContext<'_> {
+    fn drop(&mut self) {
+        if let Some(chain) = self.swap_chain.borrow().as_ref() {
+            unsafe {
+                chain.Present(1, DXGI_PRESENT(0)).unwrap();
+            }
+        }
+    }
 }
 
 #[inherit_methods(from = "self.ctx")]
 impl DrawingContext<'_> {
-    fn new(target: &ID2D1RenderTarget) -> Self {
-        todo!()
+    fn new(
+        dwrite: &IDWriteFactory,
+        target: &ID2D1RenderTarget,
+        swap_chain: SendWrapper<Rc<RefCell<Option<IDXGISwapChain1>>>>,
+    ) -> Self {
+        RUNTIME.with(|runtime| Self {
+            ctx: winio_ui_windows_common::DrawingContext::new(
+                runtime.d2d1().clone(),
+                dwrite.clone(),
+                target.clone(),
+            ),
+            swap_chain,
+            _p: PhantomData,
+        })
     }
 
     pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath);
