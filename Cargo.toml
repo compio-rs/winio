@@ -48,6 +48,7 @@ scoped-tls = "1.0"
 
 windows-sys = "0.60"
 windows = "0.61"
+winui3 = { path = "../winui3-rs/winui3" }
 
 objc2 = "0.6"
 objc2-app-kit = "0.3"

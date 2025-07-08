@@ -10,7 +10,7 @@ repository = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 winio-primitive = { workspace = true }
-winio-handle = { workspace = true }
+winio-handle = { workspace = true, features = ["winui"] }
 winio-pollable = { workspace = true }
 
 compio = { workspace = true }
@@ -18,7 +18,7 @@ compio-log = { workspace = true }
 
 scoped-tls = { workspace = true }
 
-winui3 = { path = "../../winui3-rs/winui3", features = [
+winui3 = { workspace = true, features = [
     "native",
     "XamlApp",
     "UI_Composition",

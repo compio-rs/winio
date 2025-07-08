@@ -8,7 +8,16 @@ use std::{marker::PhantomData, ops::Deref};
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
         /// Raw window handle.
-        pub type RawWindow = windows_sys::Win32::Foundation::HWND;
+        #[derive(Clone)]
+        #[non_exhaustive]
+        pub enum RawWindow {
+            /// Win32 `HWND`.
+            #[cfg(feature = "win32")]
+            Win32(windows_sys::Win32::Foundation::HWND),
+            /// WinUI `Window`.
+            #[cfg(feature = "winui")]
+            WinUI(winui3::Microsoft::UI::Xaml::Window),
+        }
     } else if #[cfg(target_os = "macos")] {
         /// [`NSWindow`].
         ///
@@ -27,6 +36,28 @@ cfg_if::cfg_if! {
             /// [`Window`]: gtk4::Window
             #[cfg(all(not(any(windows, target_os = "macos")), feature = "gtk"))]
             Gtk(gtk4::Window),
+        }
+    }
+}
+
+#[allow(unreachable_patterns)]
+#[cfg(windows)]
+impl RawWindow {
+    /// Get Win32 `HWND`.
+    #[cfg(feature = "win32")]
+    pub fn as_win32(&self) -> windows_sys::Win32::Foundation::HWND {
+        match self {
+            Self::Win32(hwnd) => *hwnd,
+            _ => panic!("unsupported handle type"),
+        }
+    }
+
+    /// Get WinUI `Window`.
+    #[cfg(feature = "winui")]
+    pub fn as_winui(&self) -> &winui3::Microsoft::UI::Xaml::Window {
+        match self {
+            Self::WinUI(window) => window,
+            _ => panic!("unsupported handle type"),
         }
     }
 }

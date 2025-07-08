@@ -73,7 +73,7 @@ impl Canvas {
             WC_STATICW,
             WS_CHILD | WS_VISIBLE | SS_OWNERDRAW,
             0,
-            parent.as_window().as_raw_window(),
+            parent.as_window().as_win32(),
         );
         let target = unsafe {
             d2d1(|d2d| {
@@ -90,7 +90,7 @@ impl Canvas {
                         minLevel: D2D1_FEATURE_LEVEL_DEFAULT,
                     },
                     &D2D1_HWND_RENDER_TARGET_PROPERTIES {
-                        hwnd: windows::Win32::Foundation::HWND(handle.as_raw_window()),
+                        hwnd: windows::Win32::Foundation::HWND(handle.as_raw_window().as_win32()),
                         pixelSize: D2D_SIZE_U::default(),
                         presentOptions: D2D1_PRESENT_OPTIONS_NONE,
                     },

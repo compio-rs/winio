@@ -15,7 +15,7 @@ use windows::{
     },
     core::{HRESULT, Interface, PCWSTR},
 };
-use winio_handle::{AsRawWindow, AsWindow};
+use winio_handle::AsWindow;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileFilter {
@@ -61,7 +61,7 @@ impl FileBox {
     }
 
     pub async fn open(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
-        let parent = parent.map(|p| p.as_window().as_raw_window() as isize);
+        let parent = parent.map(|p| p.as_window().as_win32() as isize);
         compio::runtime::spawn_blocking(move || unsafe {
             let parent = parent.map(|w| HWND(w as _));
             filebox(
@@ -80,7 +80,7 @@ impl FileBox {
     }
 
     pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Vec<PathBuf> {
-        let parent = parent.map(|p| p.as_window().as_raw_window() as isize);
+        let parent = parent.map(|p| p.as_window().as_win32() as isize);
         compio::runtime::spawn_blocking(move || unsafe {
             let parent = parent.map(|w| HWND(w as _));
             filebox(
@@ -99,7 +99,7 @@ impl FileBox {
     }
 
     pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
-        let parent = parent.map(|p| p.as_window().as_raw_window() as isize);
+        let parent = parent.map(|p| p.as_window().as_win32() as isize);
         compio::runtime::spawn_blocking(move || unsafe {
             let parent = parent.map(|w| HWND(w as _));
             filebox(
@@ -118,7 +118,7 @@ impl FileBox {
     }
 
     pub async fn save(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
-        let parent = parent.map(|p| p.as_window().as_raw_window() as isize);
+        let parent = parent.map(|p| p.as_window().as_win32() as isize);
         compio::runtime::spawn_blocking(move || unsafe {
             let parent = parent.map(|w| HWND(w as _));
             filebox(

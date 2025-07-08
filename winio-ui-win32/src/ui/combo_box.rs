@@ -35,7 +35,7 @@ impl<const E: bool> ComboBoxImpl<E> {
         } else {
             style |= CBS_DROPDOWNLIST as u32;
         }
-        let mut handle = Widget::new(WC_COMBOBOXW, style, 0, parent.as_window().as_raw_window());
+        let mut handle = Widget::new(WC_COMBOBOXW, style, 0, parent.as_window().as_win32());
         handle.set_size(handle.size_d2l((50, 14)));
         Self { handle }
     }
@@ -52,7 +52,7 @@ impl<const E: bool> ComboBoxImpl<E> {
         let mut width = 0.0f64;
         for i in 0..self.len() {
             let data = self.get_u16(i);
-            let s = measure_string(self.handle.as_raw_window(), &data);
+            let s = measure_string(self.handle.as_raw_window().as_win32(), &data);
             width = width.max(s.width);
         }
         Size::new(width + 20.0, self.handle.size().height)
@@ -85,7 +85,9 @@ impl<const E: bool> ComboBoxImpl<E> {
             let WindowMessageCommand {
                 message, handle, ..
             } = self.handle.wait_parent(WM_COMMAND).await.command();
-            if std::ptr::eq(handle, self.handle.as_raw_window()) && (message == CBN_SELCHANGE) {
+            if std::ptr::eq(handle, self.handle.as_raw_window().as_win32())
+                && (message == CBN_SELCHANGE)
+            {
                 break;
             }
         }
@@ -96,7 +98,9 @@ impl<const E: bool> ComboBoxImpl<E> {
             let WindowMessageCommand {
                 message, handle, ..
             } = self.handle.wait_parent(WM_COMMAND).await.command();
-            if std::ptr::eq(handle, self.handle.as_raw_window()) && (message == CBN_EDITUPDATE) {
+            if std::ptr::eq(handle, self.handle.as_raw_window().as_win32())
+                && (message == CBN_EDITUPDATE)
+            {
                 break;
             }
         }
@@ -112,7 +116,7 @@ impl<const E: bool> ComboBoxImpl<E> {
     pub fn remove(&mut self, i: usize) {
         self.handle.send_message(CB_DELETESTRING, i as _, 0);
         unsafe {
-            InvalidateRect(self.handle.as_raw_window(), std::ptr::null(), 1);
+            InvalidateRect(self.handle.as_raw_window().as_win32(), std::ptr::null(), 1);
         }
     }
 

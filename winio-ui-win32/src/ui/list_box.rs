@@ -38,7 +38,7 @@ impl ListBox {
                 | LBS_DISABLENOSCROLL as u32
                 | LBS_NOINTEGRALHEIGHT as u32,
             0,
-            parent.as_window().as_raw_window(),
+            parent.as_window().as_win32(),
         );
         handle.set_size(handle.size_d2l((50, 14)));
         Self { handle }
@@ -57,7 +57,7 @@ impl ListBox {
         let mut height = 0.0f64;
         for i in 0..self.len() {
             let data = self.get_u16(i);
-            let s = measure_string(self.handle.as_raw_window(), &data);
+            let s = measure_string(self.handle.as_raw_window().as_win32(), &data);
             width = width.max(s.width);
             height += s.height;
         }
@@ -69,7 +69,7 @@ impl ListBox {
         let mut height = 0.0f64;
         for i in 0..self.len() {
             let data = self.get_u16(i);
-            let s = measure_string(self.handle.as_raw_window(), &data);
+            let s = measure_string(self.handle.as_raw_window().as_win32(), &data);
             width = width.max(s.width);
             height = height.max(s.height);
         }
@@ -98,7 +98,7 @@ impl ListBox {
             let WindowMessageCommand {
                 message, handle, ..
             } = self.handle.wait_parent(WM_COMMAND).await.command();
-            if std::ptr::eq(handle, self.handle.as_raw_window())
+            if std::ptr::eq(handle, self.handle.as_raw_window().as_win32())
                 && (message == LBN_SELCHANGE || message == LBN_SELCANCEL)
             {
                 break;

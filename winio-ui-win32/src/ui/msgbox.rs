@@ -15,7 +15,7 @@ use windows_sys::Win32::{
         WindowsAndMessaging::{IDCANCEL, IDCLOSE, IDNO, IDOK, IDRETRY, IDYES},
     },
 };
-use winio_handle::{AsRawWindow, AsWindow};
+use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
 use crate::ui::darkmode::TASK_DIALOG_CALLBACK;
@@ -30,7 +30,7 @@ async fn msgbox_custom(
     cbtns: Vec<CustomButton>,
 ) -> MessageBoxResponse {
     let parent_handle = parent
-        .map(|p| p.as_window().as_raw_window() as isize)
+        .map(|p| p.as_window().as_win32() as isize)
         .unwrap_or_default();
     let (res, result) = compio::runtime::spawn_blocking(move || {
         let cbtn_ptrs = cbtns
