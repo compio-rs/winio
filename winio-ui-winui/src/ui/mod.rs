@@ -4,6 +4,7 @@ use windows::{
     core::{HSTRING, Interface, RuntimeType},
 };
 use winio_primitive::{HAlign, Point, Size};
+use winui3::Microsoft::UI::Xaml::TextAlignment;
 
 trait Convertible<T> {
     fn from_native(native: T) -> Self;
@@ -103,4 +104,6 @@ pub use radio_button::*;
 
 mod edit;
 pub use edit::*;
-use winui3::Microsoft::UI::Xaml::TextAlignment;
+
+mod label;
+pub use label::*;
