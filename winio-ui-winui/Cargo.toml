@@ -11,15 +11,16 @@ repository = { workspace = true }
 [target.'cfg(windows)'.dependencies]
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true, features = ["winui"] }
+winio-callback = { workspace = true }
 winio-pollable = { workspace = true }
 
 compio = { workspace = true }
 compio-log = { workspace = true }
 
 scoped-tls = { workspace = true }
+send_wrapper = "0.6"
 
 winui3 = { workspace = true, features = [
-    "native",
     "XamlApp",
     "UI_Composition",
     "UI_Dispatching",
@@ -29,4 +30,5 @@ windows-sys = { workspace = true, features = ["Win32_System_Threading"] }
 windows = { workspace = true, features = [
     "Foundation",
     "Foundation_Collections",
+    "Graphics",
 ] }
