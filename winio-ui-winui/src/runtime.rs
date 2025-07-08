@@ -140,36 +140,6 @@ impl Runtime {
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
         self.enter(|| {
-            let dispatcher = DispatcherQueue::GetForCurrentThread().unwrap();
-            let handle = self.runtime.as_raw_fd();
-
-            std::thread::spawn(move || {
-                loop {
-                    let timeout = resume_foreground(&dispatcher, {
-                        move || {
-                            RUNTIME.with(|runtime| {
-                                runtime.runtime.poll_with(Some(Duration::ZERO));
-                                let remaining_tasks = runtime.run();
-                                if remaining_tasks {
-                                    Some(Duration::ZERO)
-                                } else {
-                                    runtime.runtime.current_timeout()
-                                }
-                            })
-                        }
-                    });
-                    let timeout = match timeout {
-                        Some(timeout) => timeout.as_millis() as u32,
-                        None => INFINITE,
-                    };
-                    debug!("before WaitForSingleObject");
-                    unsafe {
-                        WaitForSingleObject(handle as _, timeout);
-                    }
-                    debug!("after WaitForSingleObject");
-                }
-            });
-
             let mut result = None;
             unsafe {
                 self.runtime.spawn_unchecked(async {
@@ -220,6 +190,36 @@ fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> 
             Ok(())
         },
     )))?;
+
+    let dispatcher = DispatcherQueue::GetForCurrentThread().unwrap();
+    let handle = RUNTIME.with(|runtime| runtime.runtime.as_raw_fd());
+
+    std::thread::spawn(move || {
+        loop {
+            let timeout = resume_foreground(&dispatcher, {
+                move || {
+                    RUNTIME.with(|runtime| {
+                        runtime.runtime.poll_with(Some(Duration::ZERO));
+                        let remaining_tasks = runtime.run();
+                        if remaining_tasks {
+                            Some(Duration::ZERO)
+                        } else {
+                            runtime.runtime.current_timeout()
+                        }
+                    })
+                }
+            });
+            let timeout = match timeout {
+                Some(timeout) => timeout.as_millis() as u32,
+                None => INFINITE,
+            };
+            debug!("before WaitForSingleObject");
+            unsafe {
+                WaitForSingleObject(handle as _, timeout);
+            }
+            debug!("after WaitForSingleObject");
+        }
+    });
 
     Ok(())
 }
