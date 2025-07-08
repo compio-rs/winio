@@ -2,20 +2,20 @@ use inherit_methods_macro::inherit_methods;
 use windows::core::{HSTRING, Interface};
 use winio_handle::AsWindow;
 use winio_primitive::{HAlign, Point, Size};
-use winui3::Microsoft::UI::Xaml::Controls as WUXC;
+use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
 use crate::{Widget, ui::Convertible};
 
 #[derive(Debug)]
 pub struct Label {
     handle: Widget,
-    label: WUXC::TextBlock,
+    label: MUXC::TextBlock,
 }
 
 #[inherit_methods(from = "self.handle")]
 impl Label {
     pub fn new(parent: impl AsWindow) -> Self {
-        let label = WUXC::TextBlock::new().unwrap();
+        let label = MUXC::TextBlock::new().unwrap();
         Self {
             handle: Widget::new(parent, label.cast().unwrap()),
             label,

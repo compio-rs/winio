@@ -9,7 +9,7 @@ use windows::{
 use winio_callback::Callback;
 use winio_handle::AsWindow;
 use winio_primitive::{Point, Size};
-use winui3::Microsoft::UI::Xaml::Controls::{self as WUXC, SelectionChangedEventHandler};
+use winui3::Microsoft::UI::Xaml::Controls::{self as MUXC, SelectionChangedEventHandler};
 
 use crate::{GlobalRuntime, Widget, ui::ToIReference};
 
@@ -17,13 +17,13 @@ use crate::{GlobalRuntime, Widget, ui::ToIReference};
 pub struct ListBox {
     on_select: SendWrapper<Rc<Callback<()>>>,
     handle: Widget,
-    list_box: WUXC::ListBox,
+    list_box: MUXC::ListBox,
 }
 
 #[inherit_methods(from = "self.handle")]
 impl ListBox {
     pub fn new(parent: impl AsWindow) -> Self {
-        let list_box = WUXC::ListBox::new().unwrap();
+        let list_box = MUXC::ListBox::new().unwrap();
         let on_select = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_select = on_select.clone();
@@ -78,7 +78,7 @@ impl ListBox {
     }
 
     pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
-        let item = WUXC::ListBoxItem::new().unwrap();
+        let item = MUXC::ListBoxItem::new().unwrap();
         item.SetContent(&HSTRING::from(s.as_ref()).to_reference())
             .unwrap();
         self.list_box
@@ -94,7 +94,7 @@ impl ListBox {
 
     pub fn get(&self, i: usize) -> String {
         let item = self.list_box.Items().unwrap().GetAt(i as _).unwrap();
-        item.cast::<WUXC::ListBoxItem>()
+        item.cast::<MUXC::ListBoxItem>()
             .unwrap()
             .Content()
             .unwrap()
@@ -107,7 +107,7 @@ impl ListBox {
 
     pub fn set(&mut self, i: usize, s: impl AsRef<str>) {
         let item = self.list_box.Items().unwrap().GetAt(i as _).unwrap();
-        item.cast::<WUXC::ListBoxItem>()
+        item.cast::<MUXC::ListBoxItem>()
             .unwrap()
             .SetContent(&HSTRING::from(s.as_ref()).to_reference())
             .unwrap();

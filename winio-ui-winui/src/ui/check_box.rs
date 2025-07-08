@@ -9,7 +9,7 @@ use windows::{
 use winio_callback::Callback;
 use winio_handle::AsWindow;
 use winio_primitive::{Point, Size};
-use winui3::Microsoft::UI::Xaml::{Controls as WUXC, RoutedEventHandler};
+use winui3::Microsoft::UI::Xaml::{Controls as MUXC, RoutedEventHandler};
 
 use crate::{GlobalRuntime, Widget, ui::ToIReference};
 
@@ -17,13 +17,13 @@ use crate::{GlobalRuntime, Widget, ui::ToIReference};
 pub struct CheckBox {
     on_click: SendWrapper<Rc<Callback>>,
     handle: Widget,
-    button: WUXC::CheckBox,
+    button: MUXC::CheckBox,
 }
 
 #[inherit_methods(from = "self.handle")]
 impl CheckBox {
     pub fn new(parent: impl AsWindow) -> Self {
-        let button = WUXC::CheckBox::new().unwrap();
+        let button = MUXC::CheckBox::new().unwrap();
         let on_click = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_click = on_click.clone();

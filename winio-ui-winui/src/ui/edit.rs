@@ -7,7 +7,7 @@ use winio_callback::Callback;
 use winio_handle::AsWindow;
 use winio_primitive::{HAlign, Point, Size};
 use winui3::Microsoft::UI::Xaml::{
-    Controls::{self as WUXC, ScrollBarVisibility, ScrollViewer, TextChangedEventHandler},
+    Controls::{self as MUXC, ScrollBarVisibility, ScrollViewer, TextChangedEventHandler},
     RoutedEventHandler, TextWrapping, Visibility,
 };
 
@@ -18,15 +18,15 @@ pub struct Edit {
     on_change: SendWrapper<Rc<Callback>>,
     handle: Widget,
     phandle: Widget,
-    text_box: WUXC::TextBox,
-    password_box: WUXC::PasswordBox,
+    text_box: MUXC::TextBox,
+    password_box: MUXC::PasswordBox,
     password: bool,
 }
 
 impl Edit {
     pub fn new(parent: impl AsWindow) -> Self {
-        let text_box = WUXC::TextBox::new().unwrap();
-        let password_box = WUXC::PasswordBox::new().unwrap();
+        let text_box = MUXC::TextBox::new().unwrap();
+        let password_box = MUXC::PasswordBox::new().unwrap();
         password_box.SetVisibility(Visibility::Collapsed).unwrap();
 
         let on_change = SendWrapper::new(Rc::new(Callback::new()));
@@ -164,13 +164,13 @@ impl Edit {
 pub struct TextBox {
     on_change: SendWrapper<Rc<Callback>>,
     handle: Widget,
-    text_box: WUXC::TextBox,
+    text_box: MUXC::TextBox,
 }
 
 #[inherit_methods(from = "self.handle")]
 impl TextBox {
     pub fn new(parent: impl AsWindow) -> Self {
-        let text_box = WUXC::TextBox::new().unwrap();
+        let text_box = MUXC::TextBox::new().unwrap();
         text_box.SetAcceptsReturn(true).unwrap();
         text_box.SetTextWrapping(TextWrapping::Wrap).unwrap();
         ScrollViewer::SetVerticalScrollBarVisibility2(&text_box, ScrollBarVisibility::Auto)

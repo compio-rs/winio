@@ -8,7 +8,7 @@ use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::{
     IconId,
     Windowing::{AppWindow, AppWindowChangedEventArgs, TitleBarTheme},
-    Xaml::{self as WUX, Controls as WUXC},
+    Xaml::{self as MUX, Controls as MUXC},
 };
 
 use crate::{GlobalRuntime, ui::Convertible};
@@ -17,15 +17,15 @@ use crate::{GlobalRuntime, ui::Convertible};
 pub struct Window {
     on_changed: SendWrapper<Rc<Callback<Option<AppWindowChangedEventArgs>>>>,
     on_close: SendWrapper<Rc<Callback>>,
-    handle: WUX::Window,
+    handle: MUX::Window,
     app_window: AppWindow,
     #[allow(dead_code)]
-    canvas: WUXC::Canvas,
+    canvas: MUXC::Canvas,
 }
 
 impl Window {
     pub fn new(_parent: Option<impl AsWindow>) -> Self {
-        let handle = WUX::Window::new().unwrap();
+        let handle = MUX::Window::new().unwrap();
 
         let app_window = handle.AppWindow().unwrap();
         let titlebar = app_window.TitleBar().unwrap();
@@ -33,12 +33,12 @@ impl Window {
             .SetPreferredTheme(TitleBarTheme::UseDefaultAppMode)
             .unwrap();
 
-        let canvas = WUXC::Canvas::new().unwrap();
+        let canvas = MUXC::Canvas::new().unwrap();
         canvas
-            .SetVerticalAlignment(WUX::VerticalAlignment::Stretch)
+            .SetVerticalAlignment(MUX::VerticalAlignment::Stretch)
             .unwrap();
         canvas
-            .SetHorizontalAlignment(WUX::HorizontalAlignment::Stretch)
+            .SetHorizontalAlignment(MUX::HorizontalAlignment::Stretch)
             .unwrap();
 
         handle.SetContent(&canvas).unwrap();
@@ -48,7 +48,7 @@ impl Window {
             let on_close = on_close.clone();
             handle
                 .Closed(&TypedEventHandler::new(
-                    move |_, args: Ref<WUX::WindowEventArgs>| {
+                    move |_, args: Ref<MUX::WindowEventArgs>| {
                         let handled = on_close.signal::<GlobalRuntime>(());
                         args.unwrap().SetHandled(handled).unwrap();
                         Ok(())
