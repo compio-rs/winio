@@ -1,26 +1,14 @@
-use windows::core::HSTRING;
+use widestring::U16CString;
 use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
-
-async fn msgbox_custom(
-    parent: Option<impl AsWindow>,
-    msg: HSTRING,
-    title: HSTRING,
-    instr: HSTRING,
-    style: MessageBoxStyle,
-    btns: MessageBoxButton,
-    cbtns: Vec<CustomButton>,
-) -> MessageBoxResponse {
-    let parent = parent.map(|p| p.as_window().as_winui().clone());
-
-    todo!()
-}
+pub use winio_ui_windows_common::CustomButton;
+use winio_ui_windows_common::msgbox;
 
 #[derive(Debug, Clone)]
 pub struct MessageBox {
-    msg: HSTRING,
-    title: HSTRING,
-    instr: HSTRING,
+    msg: U16CString,
+    title: U16CString,
+    instr: U16CString,
     style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
@@ -35,9 +23,9 @@ impl Default for MessageBox {
 impl MessageBox {
     pub fn new() -> Self {
         Self {
-            msg: HSTRING::new(),
-            title: HSTRING::new(),
-            instr: HSTRING::new(),
+            msg: U16CString::new(),
+            title: U16CString::new(),
+            instr: U16CString::new(),
             style: MessageBoxStyle::None,
             btns: MessageBoxButton::empty(),
             cbtns: vec![],
@@ -45,22 +33,34 @@ impl MessageBox {
     }
 
     pub async fn show(self, parent: Option<impl AsWindow>) -> MessageBoxResponse {
-        msgbox_custom(
-            parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
+        let parent = parent.and_then(|parent| {
+            Some(
+                parent
+                    .as_window()
+                    .as_winui()
+                    .AppWindow()
+                    .ok()?
+                    .Id()
+                    .ok()?
+                    .Value as _,
+            )
+        });
+        msgbox(
+            parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns, None,
         )
         .await
     }
 
     pub fn message(&mut self, msg: &str) {
-        self.msg = HSTRING::from(msg);
+        self.msg = U16CString::from_str_truncate(msg);
     }
 
     pub fn title(&mut self, title: &str) {
-        self.title = HSTRING::from(title);
+        self.title = U16CString::from_str_truncate(title);
     }
 
     pub fn instruction(&mut self, instr: &str) {
-        self.instr = HSTRING::from(instr);
+        self.instr = U16CString::from_str_truncate(instr);
     }
 
     pub fn style(&mut self, style: MessageBoxStyle) {
@@ -77,20 +77,5 @@ impl MessageBox {
 
     pub fn custom_buttons(&mut self, btn: impl IntoIterator<Item = CustomButton>) {
         self.cbtns.extend(btn);
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct CustomButton {
-    pub result: u16,
-    pub text: HSTRING,
-}
-
-impl CustomButton {
-    pub fn new(result: u16, text: &str) -> Self {
-        Self {
-            result,
-            text: HSTRING::from(text),
-        }
     }
 }

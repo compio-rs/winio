@@ -2,6 +2,7 @@ use std::mem::MaybeUninit;
 
 use widestring::{U16CStr, U16CString};
 use winio_primitive::ColorTheme;
+pub use winio_ui_windows_common::{accent_color, monitor_get_all};
 
 pub(crate) mod darkmode;
 pub(crate) mod dpi;
@@ -9,9 +10,6 @@ pub(crate) mod font;
 
 mod filebox;
 pub use filebox::*;
-
-mod monitor;
-pub use monitor::*;
 
 mod msgbox;
 pub use msgbox::*;
@@ -45,9 +43,6 @@ pub use check_box::*;
 
 mod radio_button;
 pub use radio_button::*;
-
-mod accent;
-pub use accent::*;
 
 pub fn color_theme() -> ColorTheme {
     unsafe {

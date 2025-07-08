@@ -12,6 +12,7 @@ repository = { workspace = true }
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true, features = ["win32"] }
 winio-pollable = { workspace = true }
+winio-ui-windows-common = { workspace = true }
 
 compio = { workspace = true, features = ["arrayvec"] }
 compio-log = { workspace = true }
@@ -22,7 +23,7 @@ inherit-methods-macro = { workspace = true }
 image = { workspace = true, default-features = false }
 scoped-tls = { workspace = true }
 slab = "0.4"
-widestring = "1"
+widestring = { workspace = true }
 
 windows-sys = { workspace = true, features = [
     "Win32_Foundation",

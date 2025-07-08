@@ -7,6 +7,7 @@ members = [
     "winio-handle",
     "winio-elm",
     "winio-pollable",
+    "winio-ui-windows-common",
     "winio-ui-win32",
     "winio-ui-winui",
     "winio-ui-gtk",
@@ -30,6 +31,7 @@ winio-layout = { path = "winio-layout", version = "0.1.0" }
 winio-handle = { path = "winio-handle", version = "0.1.0" }
 winio-elm = { path = "winio-elm", version = "0.1.0" }
 winio-pollable = { path = "winio-pollable", version = "0.1.0" }
+winio-ui-windows-common = { path = "winio-ui-windows-common", version = "0.1.0" }
 winio-ui-win32 = { path = "winio-ui-win32", version = "0.1.0" }
 winio-ui-winui = { path = "winio-ui-winui", version = "0.1.0" }
 winio-ui-gtk = { path = "winio-ui-gtk", version = "0.1.0" }
@@ -46,6 +48,7 @@ inherit-methods-macro = "0.1"
 local-sync = "0.1"
 paste = "1.0"
 scoped-tls = "1.0"
+widestring = "1"
 
 windows-sys = "0.60"
 windows = "0.61"

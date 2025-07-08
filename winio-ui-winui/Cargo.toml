@@ -13,6 +13,7 @@ winio-primitive = { workspace = true }
 winio-handle = { workspace = true, features = ["winui"] }
 winio-callback = { workspace = true }
 winio-pollable = { workspace = true }
+winio-ui-windows-common = { workspace = true }
 
 compio = { workspace = true }
 compio-log = { workspace = true }
@@ -20,6 +21,7 @@ compio-log = { workspace = true }
 inherit-methods-macro = { workspace = true }
 scoped-tls = { workspace = true }
 send_wrapper = "0.6"
+widestring = { workspace = true }
 
 winui3 = { workspace = true, features = [
     "XamlApp",

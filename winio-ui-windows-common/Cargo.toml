@@ -1,0 +1,23 @@
+[package]
+name = "winio-ui-windows-common"
+version = "0.1.0"
+description = "Windows common methods for winio."
+edition = { workspace = true }
+authors = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+winio-primitive = { workspace = true }
+
+compio = { workspace = true }
+
+widestring = { workspace = true }
+
+windows = { workspace = true, features = ["UI_ViewManagement"] }
+windows-sys = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_UI",
+] }
