@@ -11,12 +11,7 @@ use winui3::Microsoft::UI::{
     Xaml::{self as WUX, Controls as WUXC},
 };
 
-use crate::{
-    GlobalRuntime,
-    ui::{
-        from_graphics_pointi32, from_graphics_sizei32, to_graphics_pointi32, to_graphics_sizei32,
-    },
-};
+use crate::{GlobalRuntime, ui::Convertible};
 
 #[derive(Debug)]
 pub struct Window {
@@ -97,23 +92,23 @@ impl Window {
     }
 
     pub fn loc(&self) -> Point {
-        from_graphics_pointi32(self.app_window.Position().unwrap())
+        Point::from_native(self.app_window.Position().unwrap())
     }
 
     pub fn set_loc(&mut self, p: Point) {
-        self.app_window.Move(to_graphics_pointi32(p)).unwrap();
+        self.app_window.Move(p.to_native()).unwrap();
     }
 
     pub fn size(&self) -> Size {
-        from_graphics_sizei32(self.app_window.Size().unwrap())
+        Size::from_native(self.app_window.Size().unwrap())
     }
 
     pub fn set_size(&mut self, s: Size) {
-        self.app_window.Resize(to_graphics_sizei32(s)).unwrap();
+        self.app_window.Resize(s.to_native()).unwrap();
     }
 
     pub fn client_size(&self) -> Size {
-        from_graphics_sizei32(self.app_window.ClientSize().unwrap())
+        Size::from_native(self.app_window.ClientSize().unwrap())
     }
 
     pub fn text(&self) -> String {

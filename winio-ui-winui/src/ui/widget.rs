@@ -3,7 +3,7 @@ use winio_handle::AsWindow;
 use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::{Xaml as WUX, Xaml::Controls as WUXC};
 
-use crate::ui::from_foundation_size;
+use crate::ui::Convertible;
 
 #[derive(Debug)]
 pub(crate) struct Widget {
@@ -42,7 +42,7 @@ impl Widget {
     }
 
     pub fn preferred_size(&self) -> winio_primitive::Size {
-        from_foundation_size(self.handle.DesiredSize().unwrap())
+        Size::from_native(self.handle.DesiredSize().unwrap())
     }
 
     pub fn loc(&self) -> Point {
