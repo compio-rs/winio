@@ -12,8 +12,10 @@ use winui3::Microsoft::UI::{
 };
 
 use crate::{
-    GlobalRuntime, from_graphics_pointi32, from_graphics_sizei32, to_graphics_pointi32,
-    to_graphics_sizei32,
+    GlobalRuntime,
+    ui::{
+        from_graphics_pointi32, from_graphics_sizei32, to_graphics_pointi32, to_graphics_sizei32,
+    },
 };
 
 #[derive(Debug)]

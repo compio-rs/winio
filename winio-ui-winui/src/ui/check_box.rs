@@ -14,16 +14,16 @@ use winui3::Microsoft::UI::Xaml::{Controls as WUXC, RoutedEventHandler};
 use crate::{GlobalRuntime, Widget, ui::ToIReference};
 
 #[derive(Debug)]
-pub struct Button {
+pub struct CheckBox {
     on_click: SendWrapper<Rc<Callback>>,
     handle: Widget,
-    button: WUXC::Button,
+    button: WUXC::CheckBox,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl Button {
+impl CheckBox {
     pub fn new(parent: impl AsWindow) -> Self {
-        let button = WUXC::Button::new().unwrap();
+        let button = WUXC::CheckBox::new().unwrap();
         let on_click = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_click = on_click.clone();
@@ -74,6 +74,18 @@ impl Button {
         self.button
             .SetContent(&HSTRING::from(s.as_ref()).to_reference())
             .unwrap();
+    }
+
+    pub fn is_checked(&self) -> bool {
+        self.button
+            .IsChecked()
+            .unwrap()
+            .GetBoolean()
+            .unwrap_or_default()
+    }
+
+    pub fn set_checked(&mut self, v: bool) {
+        self.button.SetIsChecked(&v.to_reference()).unwrap();
     }
 
     pub async fn wait_click(&self) {
