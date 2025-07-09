@@ -72,7 +72,7 @@ impl Widget {
                 .MeasureOverride(Size::new(f64::MAX, f64::MAX).to_native())
                 .unwrap(),
         );
-        self.preferred_size().max(size)
+        self.preferred_size().max(size).max(Size::new(50.0, 32.0))
     }
 
     pub fn min_size(&self) -> Size {
