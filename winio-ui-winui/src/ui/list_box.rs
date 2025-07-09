@@ -52,7 +52,26 @@ impl ListBox {
 
     pub fn set_enabled(&mut self, v: bool);
 
-    pub fn preferred_size(&self) -> Size;
+    pub fn preferred_size(&self) -> Size {
+        let mut size = self.handle.preferred_size();
+        for i in 0..self.len() {
+            let item = self.list_box.Items().unwrap().GetAt(i as _).unwrap();
+            size = size.max(
+                self.handle.preferred_size_with_text(
+                    &item
+                        .cast::<MUXC::ListBoxItem>()
+                        .unwrap()
+                        .Content()
+                        .unwrap()
+                        .cast::<IReference<HSTRING>>()
+                        .unwrap()
+                        .Value()
+                        .unwrap(),
+                ),
+            )
+        }
+        size
+    }
 
     pub fn min_size(&self) -> Size;
 
