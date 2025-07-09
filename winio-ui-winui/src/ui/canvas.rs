@@ -10,10 +10,15 @@ use windows::{
                 Common::{D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_PIXEL_FORMAT},
                 D2D1_BITMAP_OPTIONS_CANNOT_DRAW, D2D1_BITMAP_OPTIONS_TARGET,
                 D2D1_BITMAP_PROPERTIES1, D2D1_DEVICE_CONTEXT_OPTIONS_NONE,
-                D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1CreateFactory, ID2D1Bitmap1, ID2D1Device,
-                ID2D1DeviceContext, ID2D1Factory, ID2D1Factory2, ID2D1RenderTarget,
+                D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE,
+                D2D1CreateFactory, ID2D1Bitmap1, ID2D1Device, ID2D1DeviceContext, ID2D1Factory,
+                ID2D1Factory2, ID2D1RenderTarget,
             },
-            Direct3D::{D3D_DRIVER_TYPE_HARDWARE, D3D_FEATURE_LEVEL_11_1},
+            Direct3D::{
+                D3D_DRIVER_TYPE_HARDWARE, D3D_FEATURE_LEVEL_9_1, D3D_FEATURE_LEVEL_9_2,
+                D3D_FEATURE_LEVEL_9_3, D3D_FEATURE_LEVEL_10_0, D3D_FEATURE_LEVEL_10_1,
+                D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_11_1,
+            },
             Direct3D11::{
                 D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_SDK_VERSION, D3D11CreateDevice,
                 ID3D11Device, ID3D11DeviceContext,
@@ -23,18 +28,23 @@ use windows::{
                 Common::{
                     DXGI_ALPHA_MODE_PREMULTIPLIED, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_SAMPLE_DESC,
                 },
-                DXGI_PRESENT, DXGI_SCALING_STRETCH, DXGI_SWAP_CHAIN_DESC1, DXGI_SWAP_CHAIN_FLAG,
-                DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, DXGI_USAGE_RENDER_TARGET_OUTPUT, IDXGIDevice1,
-                IDXGIFactory2, IDXGISurface, IDXGISwapChain1,
+                DXGI_MATRIX_3X2_F, DXGI_PRESENT, DXGI_SCALING_STRETCH, DXGI_SWAP_CHAIN_DESC1,
+                DXGI_SWAP_CHAIN_FLAG, DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL,
+                DXGI_USAGE_RENDER_TARGET_OUTPUT, IDXGIDevice1, IDXGIFactory2, IDXGISurface,
+                IDXGISwapChain1, IDXGISwapChain2,
             },
         },
     },
     core::{BOOL, Interface},
 };
+use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
 use winio_handle::AsWindow;
 use winio_primitive::{DrawingFont, MouseButton, Point, Rect, Size};
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
-use winui3::{ISwapChainPanelNative, Microsoft::UI::Xaml::Controls as MUXC};
+use winui3::{
+    ISwapChainPanelNative,
+    Microsoft::UI::{Windowing::AppWindow, Xaml::Controls as MUXC},
+};
 
 use crate::Widget;
 
@@ -43,6 +53,7 @@ use crate::Widget;
 pub struct Canvas {
     handle: Widget,
     panel: MUXC::SwapChainPanel,
+    app_window: AppWindow,
     dwrite: IDWriteFactory,
     d3d11_device: ID3D11Device,
     d3d11_context: ID3D11DeviceContext,
@@ -65,7 +76,15 @@ impl Canvas {
                 D3D_DRIVER_TYPE_HARDWARE,
                 HMODULE(null_mut()),
                 D3D11_CREATE_DEVICE_BGRA_SUPPORT,
-                Some(&[D3D_FEATURE_LEVEL_11_1]),
+                Some(&[
+                    D3D_FEATURE_LEVEL_11_1,
+                    D3D_FEATURE_LEVEL_11_0,
+                    D3D_FEATURE_LEVEL_10_1,
+                    D3D_FEATURE_LEVEL_10_0,
+                    D3D_FEATURE_LEVEL_9_3,
+                    D3D_FEATURE_LEVEL_9_2,
+                    D3D_FEATURE_LEVEL_9_1,
+                ]),
                 D3D11_SDK_VERSION,
                 Some(&mut device),
                 None,
@@ -106,9 +125,11 @@ impl Canvas {
                 .unwrap();
             dxdi_device.SetMaximumFrameLatency(1).unwrap();
             native.SetSwapChain(&swap_chain).unwrap();
+            let app_window = parent.as_window().as_winui().AppWindow().unwrap();
             Self {
                 handle: Widget::new(parent, panel.cast().unwrap()),
                 panel,
+                app_window,
                 dwrite,
                 d3d11_device,
                 d3d11_context,
@@ -118,6 +139,14 @@ impl Canvas {
                 bitmap: None,
                 swap_chain,
             }
+        }
+    }
+
+    fn dpi(&self) -> u32 {
+        if let Ok(id) = self.app_window.Id() {
+            unsafe { GetDpiForWindow(id.Value as _) }
+        } else {
+            96
         }
     }
 
@@ -147,14 +176,27 @@ impl Canvas {
             self.d3d11_context.OMSetRenderTargets(None, None);
             self.d3d11_context.Flush();
             let size = self.size();
+            let dpi = self.dpi() as f32;
+            let scalex = self.panel.CompositionScaleX().unwrap();
+            let scaley = self.panel.CompositionScaleY().unwrap();
             self.swap_chain
                 .ResizeBuffers(
                     2,
-                    size.width as _,
-                    size.height as _,
+                    (size.width as f32 * dpi / 96.0 * scalex) as _,
+                    (size.height as f32 * dpi / 96.0 * scaley) as _,
                     DXGI_FORMAT_B8G8R8A8_UNORM,
                     DXGI_SWAP_CHAIN_FLAG(0),
                 )
+                .unwrap();
+            let matrix = DXGI_MATRIX_3X2_F {
+                _11: 1.0 / scalex / (dpi / 96.0),
+                _22: 1.0 / scaley / (dpi / 96.0),
+                ..Default::default()
+            };
+            self.swap_chain
+                .cast::<IDXGISwapChain2>()
+                .unwrap()
+                .SetMatrixTransform(&matrix)
                 .unwrap();
             let buffer: IDXGISurface = self.swap_chain.GetBuffer(0).unwrap();
             let props = D2D1_BITMAP_PROPERTIES1 {
@@ -162,8 +204,8 @@ impl Canvas {
                     format: DXGI_FORMAT_B8G8R8A8_UNORM,
                     alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
                 },
-                dpiX: 96.0,
-                dpiY: 96.0,
+                dpiX: dpi * scalex,
+                dpiY: dpi * scaley,
                 bitmapOptions: D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
                 colorContext: ManuallyDrop::new(None),
             };
@@ -171,6 +213,8 @@ impl Canvas {
                 .CreateBitmapFromDxgiSurface(&buffer, Some(&props))
                 .unwrap();
             context.SetTarget(&bitmap);
+            context.SetDpi(dpi * scalex, dpi * scaley);
+            context.SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
             self.bitmap = Some(bitmap);
             context.BeginDraw();
             context.Clear(None);
