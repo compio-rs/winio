@@ -1,17 +1,32 @@
-use std::{cell::RefCell, marker::PhantomData, rc::Rc};
+use std::{marker::PhantomData, mem::ManuallyDrop, ptr::null_mut};
 
 use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
-use send_wrapper::SendWrapper;
 use windows::{
-    Win32::Graphics::{
-        Direct2D::ID2D1RenderTarget,
-        DirectWrite::{DWRITE_FACTORY_TYPE_SHARED, DWriteCreateFactory, IDWriteFactory},
-        Dxgi::{
-            Common::{DXGI_ALPHA_MODE_PREMULTIPLIED, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_SAMPLE_DESC},
-            DXGI_PRESENT, DXGI_SCALING_STRETCH, DXGI_SWAP_CHAIN_DESC1,
-            DXGI_SWAP_EFFECT_FLIP_DISCARD, DXGI_USAGE_RENDER_TARGET_OUTPUT, IDXGIDevice,
-            IDXGIFactory2, IDXGISwapChain1,
+    Win32::{
+        Foundation::HMODULE,
+        Graphics::{
+            Direct2D::{
+                Common::{D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_PIXEL_FORMAT},
+                D2D1_BITMAP_OPTIONS_CANNOT_DRAW, D2D1_BITMAP_OPTIONS_TARGET,
+                D2D1_BITMAP_PROPERTIES1, D2D1_DEVICE_CONTEXT_OPTIONS_NONE,
+                D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1CreateFactory, ID2D1Bitmap1, ID2D1Device,
+                ID2D1DeviceContext, ID2D1Factory, ID2D1Factory2, ID2D1RenderTarget,
+            },
+            Direct3D::{D3D_DRIVER_TYPE_HARDWARE, D3D_FEATURE_LEVEL_11_1},
+            Direct3D11::{
+                D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_SDK_VERSION, D3D11CreateDevice,
+                ID3D11Device, ID3D11DeviceContext,
+            },
+            DirectWrite::{DWRITE_FACTORY_TYPE_SHARED, DWriteCreateFactory, IDWriteFactory},
+            Dxgi::{
+                Common::{
+                    DXGI_ALPHA_MODE_PREMULTIPLIED, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_SAMPLE_DESC,
+                },
+                DXGI_PRESENT, DXGI_SCALING_STRETCH, DXGI_SWAP_CHAIN_DESC1, DXGI_SWAP_CHAIN_FLAG,
+                DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, DXGI_USAGE_RENDER_TARGET_OUTPUT, IDXGIDevice1,
+                IDXGIFactory2, IDXGISurface, IDXGISwapChain1,
+            },
         },
     },
     core::{BOOL, Interface},
@@ -19,67 +34,90 @@ use windows::{
 use winio_handle::AsWindow;
 use winio_primitive::{DrawingFont, MouseButton, Point, Rect, Size};
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
-use winui3::{
-    ISwapChainPanelNative,
-    Microsoft::UI::Xaml::{Controls as MUXC, RoutedEventHandler},
-};
+use winui3::{ISwapChainPanelNative, Microsoft::UI::Xaml::Controls as MUXC};
 
-use crate::{RUNTIME, Widget};
+use crate::Widget;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct Canvas {
-    dwrite: IDWriteFactory,
     handle: Widget,
     panel: MUXC::SwapChainPanel,
-    swap_chain: SendWrapper<Rc<RefCell<Option<IDXGISwapChain1>>>>,
+    dwrite: IDWriteFactory,
+    d3d11_device: ID3D11Device,
+    d3d11_context: ID3D11DeviceContext,
+    d2d1: ID2D1Factory2,
+    d2d1_device: ID2D1Device,
+    d2d1_context: ID2D1DeviceContext,
+    bitmap: Option<ID2D1Bitmap1>,
+    swap_chain: IDXGISwapChain1,
 }
 
 #[inherit_methods(from = "self.handle")]
 impl Canvas {
     pub fn new(parent: impl AsWindow) -> Self {
         let dwrite = unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).unwrap() };
-        let panel = MUXC::SwapChainPanel::new().unwrap();
-        let native = SendWrapper::new(panel.cast::<ISwapChainPanelNative>().unwrap());
-        let chain = SendWrapper::new(Rc::new(RefCell::new(None)));
-        panel
-            .Loaded(&RoutedEventHandler::new({
-                let chain = chain.clone();
-                move |_, _| {
-                    let desc = DXGI_SWAP_CHAIN_DESC1 {
-                        Width: 0,
-                        Height: 0,
-                        Format: DXGI_FORMAT_B8G8R8A8_UNORM,
-                        Stereo: BOOL(0),
-                        SampleDesc: DXGI_SAMPLE_DESC {
-                            Count: 1,
-                            Quality: 0,
-                        },
-                        BufferUsage: DXGI_USAGE_RENDER_TARGET_OUTPUT,
-                        BufferCount: 2,
-                        Scaling: DXGI_SCALING_STRETCH,
-                        SwapEffect: DXGI_SWAP_EFFECT_FLIP_DISCARD,
-                        AlphaMode: DXGI_ALPHA_MODE_PREMULTIPLIED,
-                        Flags: 0,
-                    };
-                    unsafe {
-                        let device =
-                            RUNTIME.with(|runtime| runtime.d3d11_device().cast::<IDXGIDevice>())?;
-                        let adapter = device.GetAdapter()?;
-                        let factory = adapter.GetParent::<IDXGIFactory2>()?;
-                        let swap_chain =
-                            factory.CreateSwapChainForComposition(&device, &desc, None)?;
-                        native.SetSwapChain(&swap_chain)?;
-                        *chain.borrow_mut() = Some(swap_chain);
-                    }
-                    Ok(())
-                }
-            }))
+        unsafe {
+            let mut device = None;
+            let mut context = None;
+            D3D11CreateDevice(
+                None,
+                D3D_DRIVER_TYPE_HARDWARE,
+                HMODULE(null_mut()),
+                D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+                Some(&[D3D_FEATURE_LEVEL_11_1]),
+                D3D11_SDK_VERSION,
+                Some(&mut device),
+                None,
+                Some(&mut context),
+            )
             .unwrap();
-        Self {
-            dwrite,
-            handle: Widget::new(parent, panel.cast().unwrap()),
-            panel,
-            swap_chain: chain,
+            let d3d11_device = device.unwrap();
+            let dxdi_device = d3d11_device.cast::<IDXGIDevice1>().unwrap();
+            let d3d11_context = context.unwrap();
+            let d2d1: ID2D1Factory2 =
+                D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None).unwrap();
+            let d2d1_device: ID2D1Device = d2d1.CreateDevice(&dxdi_device).unwrap().into();
+            let d2d1_context = d2d1_device
+                .CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE)
+                .unwrap();
+            let panel = MUXC::SwapChainPanel::new().unwrap();
+            let native = panel.cast::<ISwapChainPanelNative>().unwrap();
+            let desc = DXGI_SWAP_CHAIN_DESC1 {
+                Width: 100,
+                Height: 100,
+                Format: DXGI_FORMAT_B8G8R8A8_UNORM,
+                Stereo: BOOL(0),
+                SampleDesc: DXGI_SAMPLE_DESC {
+                    Count: 1,
+                    Quality: 0,
+                },
+                BufferUsage: DXGI_USAGE_RENDER_TARGET_OUTPUT,
+                BufferCount: 2,
+                Scaling: DXGI_SCALING_STRETCH,
+                SwapEffect: DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL,
+                AlphaMode: DXGI_ALPHA_MODE_PREMULTIPLIED,
+                Flags: 0,
+            };
+            let adapter = dxdi_device.GetAdapter().unwrap();
+            let factory = adapter.GetParent::<IDXGIFactory2>().unwrap();
+            let swap_chain = factory
+                .CreateSwapChainForComposition(&dxdi_device, &desc, None)
+                .unwrap();
+            dxdi_device.SetMaximumFrameLatency(1).unwrap();
+            native.SetSwapChain(&swap_chain).unwrap();
+            Self {
+                handle: Widget::new(parent, panel.cast().unwrap()),
+                panel,
+                dwrite,
+                d3d11_device,
+                d3d11_context,
+                d2d1,
+                d2d1_device,
+                d2d1_context,
+                bitmap: None,
+                swap_chain,
+            }
         }
     }
 
@@ -102,12 +140,42 @@ impl Canvas {
     pub fn set_size(&mut self, v: Size);
 
     pub fn context(&mut self) -> DrawingContext<'_> {
-        let context = RUNTIME.with(|runtime| runtime.d2d1_context().clone());
+        let context = &self.d2d1_context;
         unsafe {
+            context.SetTarget(None);
+            self.bitmap = None;
+            self.d3d11_context.OMSetRenderTargets(None, None);
+            self.d3d11_context.Flush();
+            let size = self.size();
+            self.swap_chain
+                .ResizeBuffers(
+                    2,
+                    size.width as _,
+                    size.height as _,
+                    DXGI_FORMAT_B8G8R8A8_UNORM,
+                    DXGI_SWAP_CHAIN_FLAG(0),
+                )
+                .unwrap();
+            let buffer: IDXGISurface = self.swap_chain.GetBuffer(0).unwrap();
+            let props = D2D1_BITMAP_PROPERTIES1 {
+                pixelFormat: D2D1_PIXEL_FORMAT {
+                    format: DXGI_FORMAT_B8G8R8A8_UNORM,
+                    alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
+                },
+                dpiX: 96.0,
+                dpiY: 96.0,
+                bitmapOptions: D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+                colorContext: ManuallyDrop::new(None),
+            };
+            let bitmap = context
+                .CreateBitmapFromDxgiSurface(&buffer, Some(&props))
+                .unwrap();
+            context.SetTarget(&bitmap);
+            self.bitmap = Some(bitmap);
             context.BeginDraw();
             context.Clear(None);
         }
-        DrawingContext::new(&self.dwrite, &context, self.swap_chain.clone())
+        DrawingContext::new(&self.dwrite, &self.d2d1, context, &self.swap_chain)
     }
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
@@ -125,16 +193,15 @@ impl Canvas {
 
 pub struct DrawingContext<'a> {
     ctx: winio_ui_windows_common::DrawingContext,
-    swap_chain: SendWrapper<Rc<RefCell<Option<IDXGISwapChain1>>>>,
+    swap_chain: IDXGISwapChain1,
     _p: PhantomData<&'a mut Canvas>,
 }
 
 impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
-        if let Some(chain) = self.swap_chain.borrow().as_ref() {
-            unsafe {
-                chain.Present(1, DXGI_PRESENT(0)).unwrap();
-            }
+        unsafe {
+            self.ctx.render_target().EndDraw(None, None).unwrap();
+            self.swap_chain.Present(1, DXGI_PRESENT(0)).unwrap();
         }
     }
 }
@@ -143,18 +210,19 @@ impl Drop for DrawingContext<'_> {
 impl DrawingContext<'_> {
     fn new(
         dwrite: &IDWriteFactory,
+        d2d1: &ID2D1Factory,
         target: &ID2D1RenderTarget,
-        swap_chain: SendWrapper<Rc<RefCell<Option<IDXGISwapChain1>>>>,
+        swap_chain: &IDXGISwapChain1,
     ) -> Self {
-        RUNTIME.with(|runtime| Self {
+        Self {
             ctx: winio_ui_windows_common::DrawingContext::new(
-                runtime.d2d1().clone(),
+                d2d1.clone(),
                 dwrite.clone(),
                 target.clone(),
             ),
-            swap_chain,
+            swap_chain: swap_chain.clone(),
             _p: PhantomData,
-        })
+        }
     }
 
     pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath);

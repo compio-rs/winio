@@ -1,13 +1,16 @@
+use std::cell::Cell;
+
 use windows::core::Interface;
 use winio_handle::AsWindow;
 use winio_primitive::{Point, Size};
-use winui3::Microsoft::UI::{Xaml as MUX, Xaml::Controls as MUXC};
+use winui3::Microsoft::UI::Xaml::{self as MUX, Controls as MUXC};
 
 use crate::ui::Convertible;
 
 #[derive(Debug)]
 pub(crate) struct Widget {
     handle: MUX::FrameworkElement,
+    preferred_size: Cell<Size>,
 }
 
 impl Widget {
@@ -16,7 +19,10 @@ impl Widget {
         let window = parent.as_winui();
         let canvas = window.Content().unwrap().cast::<MUXC::Canvas>().unwrap();
         canvas.Children().unwrap().Append(&handle).unwrap();
-        Self { handle }
+        Self {
+            handle,
+            preferred_size: Cell::new(Size::new(f64::MAX, f64::MAX)),
+        }
     }
 
     pub fn is_visible(&self) -> bool {
@@ -48,7 +54,13 @@ impl Widget {
     }
 
     pub fn preferred_size(&self) -> Size {
-        Size::from_native(self.handle.DesiredSize().unwrap())
+        self.handle
+            .Measure(Size::new(f64::MAX, f64::MAX).to_native())
+            .unwrap();
+        let size = Size::from_native(self.handle.DesiredSize().unwrap());
+        let preferred_size = self.preferred_size.get().min(size).max(self.min_size());
+        self.preferred_size.set(preferred_size);
+        preferred_size
     }
 
     pub fn min_size(&self) -> Size {

@@ -176,6 +176,14 @@ pub struct DrawingContext<'a> {
     _p: PhantomData<&'a mut Canvas>,
 }
 
+impl Drop for DrawingContext<'_> {
+    fn drop(&mut self) {
+        unsafe {
+            self.ctx.render_target().EndDraw(None, None).unwrap();
+        }
+    }
+}
+
 #[inherit_methods(from = "self.ctx")]
 impl DrawingContext<'_> {
     fn new(target: &ID2D1RenderTarget) -> Self {

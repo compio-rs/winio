@@ -110,6 +110,10 @@ impl DrawingContext {
         }
     }
 
+    pub fn render_target(&self) -> &ID2D1RenderTarget {
+        &self.target
+    }
+
     #[inline]
     fn get_brush(&self, brush: impl Brush, rect: Rect) -> ID2D1Brush {
         brush.create(&self.target, to_trans(rect))
@@ -370,12 +374,6 @@ impl DrawingContext {
 
     pub fn create_path_builder(&self, start: Point) -> DrawingPathBuilder {
         DrawingPathBuilder::new(&self.d2d, start)
-    }
-}
-
-impl Drop for DrawingContext {
-    fn drop(&mut self) {
-        unsafe { self.target.EndDraw(None, None) }.unwrap();
     }
 }
 
