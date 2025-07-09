@@ -82,10 +82,13 @@ fn resume_foreground<T: Send + 'static>(
     dispatcher: &DispatcherQueue,
     mut f: impl (FnMut() -> T) + Send + 'static,
 ) -> Option<T> {
-    let (tx, rx) = std::sync::mpsc::sync_channel(1);
+    let (tx, rx) = oneshot::channel();
+    let mut tx = Some(tx);
     dispatcher
         .TryEnqueue(&DispatcherQueueHandler::new(move || {
-            tx.send(f()).unwrap();
+            if let Some(tx) = tx.take() {
+                tx.send(f()).ok();
+            }
             Ok(())
         }))
         .unwrap();
