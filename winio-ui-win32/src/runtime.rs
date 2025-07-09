@@ -89,9 +89,7 @@ impl Default for Runtime {
 
 impl Runtime {
     pub fn new() -> Self {
-        unsafe {
-            init_dark();
-        }
+        init_dark();
 
         let runtime = winio_pollable::Runtime::new().unwrap();
 

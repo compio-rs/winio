@@ -338,9 +338,7 @@ pub(crate) const WINDOW_CLASS_NAME: &U16CStr =
     u16cstr!(concat!("WinioWindowVersion", env!("CARGO_PKG_VERSION")));
 
 fn register() {
-    unsafe {
-        set_preferred_app_mode(PreferredAppMode::AllowDark);
-    }
+    set_preferred_app_mode(PreferredAppMode::AllowDark);
     let cls = WNDCLASSEXW {
         cbSize: std::mem::size_of::<WNDCLASSEXW>() as _,
         style: 0,

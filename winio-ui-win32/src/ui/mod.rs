@@ -44,12 +44,10 @@ mod radio_button;
 pub use radio_button::*;
 
 pub fn color_theme() -> ColorTheme {
-    unsafe {
-        if winio_ui_windows_common::is_dark_mode_allowed_for_app() {
-            ColorTheme::Dark
-        } else {
-            ColorTheme::Light
-        }
+    if winio_ui_windows_common::is_dark_mode_allowed_for_app() {
+        ColorTheme::Dark
+    } else {
+        ColorTheme::Light
     }
 }
 

@@ -75,38 +75,45 @@ unsafe fn get_nt_build() -> u32 {
     build
 }
 
-pub unsafe fn set_preferred_app_mode(m: PreferredAppMode) -> PreferredAppMode {
-    let build = get_nt_build();
-    if build < 18362 {
-        if AllowDarkModeForApp(m == PreferredAppMode::AllowDark || m == PreferredAppMode::ForceDark)
-        {
-            PreferredAppMode::AllowDark
+pub fn set_preferred_app_mode(m: PreferredAppMode) -> PreferredAppMode {
+    unsafe {
+        let build = get_nt_build();
+        if build < 18362 {
+            if AllowDarkModeForApp(
+                m == PreferredAppMode::AllowDark || m == PreferredAppMode::ForceDark,
+            ) {
+                PreferredAppMode::AllowDark
+            } else {
+                PreferredAppMode::Default
+            }
         } else {
-            PreferredAppMode::Default
+            SetPreferredAppMode(m)
         }
-    } else {
-        SetPreferredAppMode(m)
     }
 }
 
-pub unsafe fn is_dark_mode_allowed_for_app() -> bool {
-    let mut hc: HIGHCONTRASTW = std::mem::zeroed();
-    hc.cbSize = size_of::<HIGHCONTRASTW>() as u32;
-    if SystemParametersInfoW(
-        SPI_GETHIGHCONTRAST,
-        hc.cbSize,
-        std::ptr::addr_of_mut!(hc).cast(),
-        0,
-    ) == 0
-    {
-        return false;
+pub fn is_dark_mode_allowed_for_app() -> bool {
+    unsafe {
+        let mut hc: HIGHCONTRASTW = std::mem::zeroed();
+        hc.cbSize = size_of::<HIGHCONTRASTW>() as u32;
+        if SystemParametersInfoW(
+            SPI_GETHIGHCONTRAST,
+            hc.cbSize,
+            std::ptr::addr_of_mut!(hc).cast(),
+            0,
+        ) == 0
+        {
+            return false;
+        }
+        ((hc.dwFlags & HCF_HIGHCONTRASTON) == 0) && ShouldAppsUseDarkMode()
     }
-    ((hc.dwFlags & HCF_HIGHCONTRASTON) == 0) && ShouldAppsUseDarkMode()
 }
 
 const DWMWA_USE_IMMERSIVE_DARK_MODE: u32 = 0x13;
 const DWMWA_USE_IMMERSIVE_DARK_MODE_V2: u32 = 0x14;
 
+/// # Safety
+/// `h_wnd` should be valid.
 pub unsafe fn window_use_dark_mode(h_wnd: HWND) -> HRESULT {
     let set_dark_mode = is_dark_mode_allowed_for_app();
     let brush = if set_dark_mode {
@@ -208,15 +215,17 @@ unsafe fn detour_hooks() -> [DETOUR_INLINE_HOOK; 4] {
     ]
 }
 
-unsafe fn detour_attach() {
-    let mut hooks = detour_hooks();
-    SlimDetoursInlineHooks(1, hooks.len() as _, hooks.as_mut_ptr());
+fn detour_attach() {
+    unsafe {
+        let mut hooks = detour_hooks();
+        SlimDetoursInlineHooks(1, hooks.len() as _, hooks.as_mut_ptr());
+    }
 }
 
 static DETOUR_GUARD: Once = Once::new();
 
-pub unsafe fn init_dark() {
-    DETOUR_GUARD.call_once(|| detour_attach());
+pub fn init_dark() {
+    DETOUR_GUARD.call_once(detour_attach);
 }
 
 unsafe extern "system" fn dark_get_theme_color(
@@ -364,9 +373,11 @@ unsafe extern "system" fn task_dialog_callback(
     S_OK
 }
 
-pub const TASK_DIALOG_CALLBACK: PFTASKDIALOGCALLBACK = Some(task_dialog_callback);
+pub(crate) const TASK_DIALOG_CALLBACK: PFTASKDIALOGCALLBACK = Some(task_dialog_callback);
 
-// MISC: If in task dialog, set lparam to 1.
+/// MISC: If in task dialog, set lparam to 1.
+/// # Safety
+/// `handle` should be valid.
 pub unsafe fn children_refresh_dark_mode(handle: HWND, lparam: LPARAM) {
     unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
         control_use_dark_mode(hwnd, lparam != 0);
@@ -378,6 +389,8 @@ pub unsafe fn children_refresh_dark_mode(handle: HWND, lparam: LPARAM) {
     EnumChildWindows(handle, Some(enum_callback), lparam);
 }
 
+/// # Safety
+/// `hwnd` should be valid.
 pub unsafe fn control_use_dark_mode(hwnd: HWND, misc_task_dialog: bool) {
     let mut class = [0u16; MAX_CLASS_NAME as usize];
     GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);

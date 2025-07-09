@@ -7,7 +7,7 @@ use windows::{
     core::{Ref, Result, h},
 };
 use windows_sys::Win32::System::Threading::{INFINITE, WaitForSingleObject};
-use winio_ui_windows_common::init_dark;
+use winio_ui_windows_common::{PreferredAppMode, init_dark, set_preferred_app_mode};
 use winui3::{
     ApartmentType,
     Microsoft::UI::{
@@ -45,9 +45,8 @@ impl Runtime {
 
         debug!("WinUI initialized: {winui_dependency:?}");
 
-        unsafe {
-            init_dark();
-        }
+        init_dark();
+        set_preferred_app_mode(PreferredAppMode::AllowDark);
 
         let runtime = compio::runtime::Runtime::new().unwrap();
 
