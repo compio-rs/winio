@@ -8,7 +8,7 @@ use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
 use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::{
     IconId,
-    Windowing::{AppWindow, AppWindowChangedEventArgs, TitleBarTheme},
+    Windowing::{AppWindow, AppWindowChangedEventArgs, AppWindowClosingEventArgs, TitleBarTheme},
     Xaml::{self as MUX, Controls as MUXC},
 };
 
@@ -48,11 +48,11 @@ impl Window {
         let on_close = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_close = on_close.clone();
-            handle
-                .Closed(&TypedEventHandler::new(
-                    move |_, args: Ref<MUX::WindowEventArgs>| {
-                        let handled = on_close.signal::<GlobalRuntime>(());
-                        args.unwrap().SetHandled(handled).unwrap();
+            app_window
+                .Closing(&TypedEventHandler::new(
+                    move |_, args: Ref<AppWindowClosingEventArgs>| {
+                        let handled = !on_close.signal::<GlobalRuntime>(());
+                        args.unwrap().SetCancel(handled).unwrap();
                         Ok(())
                     },
                 ))
