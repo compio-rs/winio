@@ -8,14 +8,8 @@ use compio::driver::syscall;
 use inherit_methods_macro::inherit_methods;
 use widestring::{U16CStr, U16CString, u16cstr};
 use windows_sys::Win32::{
-    Foundation::{
-        ERROR_INVALID_HANDLE, HMODULE, HWND, LPARAM, LRESULT, POINT, SetLastError, WPARAM,
-    },
+    Foundation::{ERROR_INVALID_HANDLE, HWND, LPARAM, LRESULT, POINT, SetLastError, WPARAM},
     Graphics::Gdi::{GetStockObject, MapWindowPoints, WHITE_BRUSH},
-    System::LibraryLoader::{
-        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-        GetModuleHandleExW,
-    },
     UI::{
         Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled},
         WindowsAndMessaging::{
@@ -32,7 +26,8 @@ use windows_sys::Win32::{
 use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{
-    PreferredAppMode, control_use_dark_mode, set_preferred_app_mode, window_use_dark_mode,
+    PreferredAppMode, control_use_dark_mode, get_current_module_handle, set_preferred_app_mode,
+    window_use_dark_mode,
 };
 
 use crate::{
@@ -42,19 +37,6 @@ use crate::{
         get_u16c, with_u16c,
     },
 };
-
-/// Get the handle of the current executable or DLL.
-fn get_current_module_handle() -> HMODULE {
-    let mut module: HMODULE = null_mut();
-    unsafe {
-        GetModuleHandleExW(
-            GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-            get_current_module_handle as *const _,
-            &mut module,
-        )
-    };
-    module
-}
 
 #[derive(Debug)]
 pub(crate) struct OwnedWindow(HWND);

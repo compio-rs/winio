@@ -2,10 +2,14 @@ use std::rc::Rc;
 
 use send_wrapper::SendWrapper;
 use windows::{Foundation::TypedEventHandler, core::Ref};
-use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
+use windows_sys::Win32::UI::{
+    HiDpi::GetDpiForWindow,
+    WindowsAndMessaging::{IMAGE_ICON, LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LR_SHARED, LoadImageW},
+};
 use winio_callback::Callback;
 use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
 use winio_primitive::{Point, Size};
+use winio_ui_windows_common::get_current_module_handle;
 use winui3::Microsoft::UI::{
     IconId,
     Windowing::{AppWindow, AppWindowChangedEventArgs, AppWindowClosingEventArgs, TitleBarTheme},
@@ -158,8 +162,21 @@ impl Window {
     }
 
     pub fn set_icon_by_id(&mut self, id: u16) {
+        let icon = unsafe {
+            LoadImageW(
+                get_current_module_handle(),
+                id as _,
+                IMAGE_ICON,
+                0,
+                0,
+                LR_DEFAULTCOLOR | LR_DEFAULTSIZE | LR_SHARED,
+            )
+        };
+        if icon.is_null() {
+            panic!("{:?}", std::io::Error::last_os_error());
+        }
         self.app_window
-            .SetIconWithIconId(IconId { Value: id as _ })
+            .SetIconWithIconId(IconId { Value: icon as _ })
             .unwrap();
     }
 

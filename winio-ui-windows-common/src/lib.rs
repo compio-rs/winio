@@ -33,3 +33,6 @@ pub use canvas::*;
 
 mod darkmode;
 pub use darkmode::*;
+
+mod resource;
+pub use resource::*;
