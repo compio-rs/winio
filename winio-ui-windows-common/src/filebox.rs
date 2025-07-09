@@ -31,7 +31,7 @@ impl FileFilter {
     }
 }
 
-pub unsafe fn filebox(
+pub fn filebox(
     parent: Option<HWND>,
     title: U16CString,
     filename: U16CString,
@@ -42,82 +42,88 @@ pub unsafe fn filebox(
 ) -> FileBoxInner {
     let init = CoInitialize::init();
 
-    let handle: IFileDialog = if open {
-        CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER).unwrap()
-    } else {
-        CoCreateInstance(&FileSaveDialog, None, CLSCTX_INPROC_SERVER).unwrap()
-    };
+    unsafe {
+        let handle: IFileDialog = if open {
+            CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER).unwrap()
+        } else {
+            CoCreateInstance(&FileSaveDialog, None, CLSCTX_INPROC_SERVER).unwrap()
+        };
 
-    if !title.is_empty() {
-        handle.SetTitle(PCWSTR(title.as_ptr())).unwrap();
+        if !title.is_empty() {
+            handle.SetTitle(PCWSTR(title.as_ptr())).unwrap();
+        }
+        if !filename.is_empty() {
+            handle.SetFileName(PCWSTR(filename.as_ptr())).unwrap();
+        }
+
+        let types = filters
+            .iter()
+            .map(|filter| COMDLG_FILTERSPEC {
+                pszName: PCWSTR(filter.name.as_ptr()),
+                pszSpec: PCWSTR(filter.pattern.as_ptr()),
+            })
+            .collect::<Vec<_>>();
+        handle.SetFileTypes(&types).unwrap();
+
+        if multiple {
+            debug_assert!(open, "Cannot save to multiple targets.");
+
+            let mut opts = handle.GetOptions().unwrap();
+            opts |= FOS_ALLOWMULTISELECT;
+            handle.SetOptions(opts).unwrap();
+        }
+
+        if folder {
+            debug_assert!(open, "Cannot save to a folder.");
+
+            let mut opts = handle.GetOptions().unwrap();
+            opts |= FOS_PICKFOLDERS;
+            handle.SetOptions(opts).unwrap();
+        }
+
+        let handle = match handle.Show(parent) {
+            Ok(()) => Some(handle),
+            Err(e) if e.code() == HRESULT::from(ERROR_CANCELLED) => None,
+            Err(e) => panic!("{e:?}"),
+        };
+
+        FileBoxInner(handle, init)
     }
-    if !filename.is_empty() {
-        handle.SetFileName(PCWSTR(filename.as_ptr())).unwrap();
-    }
-
-    let types = filters
-        .iter()
-        .map(|filter| COMDLG_FILTERSPEC {
-            pszName: PCWSTR(filter.name.as_ptr()),
-            pszSpec: PCWSTR(filter.pattern.as_ptr()),
-        })
-        .collect::<Vec<_>>();
-    handle.SetFileTypes(&types).unwrap();
-
-    if multiple {
-        debug_assert!(open, "Cannot save to multiple targets.");
-
-        let mut opts = handle.GetOptions().unwrap();
-        opts |= FOS_ALLOWMULTISELECT;
-        handle.SetOptions(opts).unwrap();
-    }
-
-    if folder {
-        debug_assert!(open, "Cannot save to a folder.");
-
-        let mut opts = handle.GetOptions().unwrap();
-        opts |= FOS_PICKFOLDERS;
-        handle.SetOptions(opts).unwrap();
-    }
-
-    let handle = match handle.Show(parent) {
-        Ok(()) => Some(handle),
-        Err(e) if e.code() == HRESULT::from(ERROR_CANCELLED) => None,
-        Err(e) => panic!("{e:?}"),
-    };
-
-    FileBoxInner(handle, init)
 }
 
 pub struct FileBoxInner(Option<IFileDialog>, CoInitialize);
 
 impl FileBoxInner {
-    pub unsafe fn result(self) -> Option<PathBuf> {
+    pub fn result(self) -> Option<PathBuf> {
         if let Some(dialog) = self.0 {
-            let item = dialog.GetResult().unwrap();
-            let name_ptr = item.GetDisplayName(SIGDN_FILESYSPATH).unwrap();
-            let name_ptr = CoTaskMemPtr(name_ptr.0);
-            let name = U16CStr::from_ptr_str(name_ptr.0).to_os_string();
-            Some(PathBuf::from(name))
+            unsafe {
+                let item = dialog.GetResult().unwrap();
+                let name_ptr = item.GetDisplayName(SIGDN_FILESYSPATH).unwrap();
+                let name_ptr = CoTaskMemPtr(name_ptr.0);
+                let name = U16CStr::from_ptr_str(name_ptr.0).to_os_string();
+                Some(PathBuf::from(name))
+            }
         } else {
             None
         }
     }
 
-    pub unsafe fn results(self) -> Vec<PathBuf> {
+    pub fn results(self) -> Vec<PathBuf> {
         if let Some(dialog) = self.0 {
-            let handle: IFileOpenDialog = dialog.cast().unwrap();
-            let results = handle.GetResults().unwrap();
-            let count = results.GetCount().unwrap();
-            let mut names = vec![];
-            for i in 0..count {
-                let item = results.GetItemAt(i).unwrap();
-                let name_ptr = item.GetDisplayName(SIGDN_FILESYSPATH).unwrap();
-                let name_ptr = CoTaskMemPtr(name_ptr.0);
-                let name = U16CStr::from_ptr_str(name_ptr.0).to_os_string();
-                names.push(PathBuf::from(name));
+            unsafe {
+                let handle: IFileOpenDialog = dialog.cast().unwrap();
+                let results = handle.GetResults().unwrap();
+                let count = results.GetCount().unwrap();
+                let mut names = vec![];
+                for i in 0..count {
+                    let item = results.GetItemAt(i).unwrap();
+                    let name_ptr = item.GetDisplayName(SIGDN_FILESYSPATH).unwrap();
+                    let name_ptr = CoTaskMemPtr(name_ptr.0);
+                    let name = U16CStr::from_ptr_str(name_ptr.0).to_os_string();
+                    names.push(PathBuf::from(name));
+                }
+                names
             }
-            names
         } else {
             vec![]
         }

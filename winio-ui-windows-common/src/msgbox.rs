@@ -17,6 +17,7 @@ use windows_sys::Win32::{
 };
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
+#[allow(clippy::too_many_arguments)]
 pub async fn msgbox(
     parent: Option<HWND>,
     msg: U16CString,

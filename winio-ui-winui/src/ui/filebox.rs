@@ -36,7 +36,7 @@ impl FileBox {
 
     pub async fn open(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
         let parent = parent.map(|p| p.as_window().as_winui().clone());
-        compio::runtime::spawn_blocking(move || unsafe {
+        compio::runtime::spawn_blocking(move || {
             let parent = parent.and_then(|w| Some(HWND(w.AppWindow().ok()?.Id().ok()?.Value as _)));
             filebox(
                 parent,
@@ -55,7 +55,7 @@ impl FileBox {
 
     pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Vec<PathBuf> {
         let parent = parent.map(|p| p.as_window().as_winui().clone());
-        compio::runtime::spawn_blocking(move || unsafe {
+        compio::runtime::spawn_blocking(move || {
             let parent = parent.and_then(|w| Some(HWND(w.AppWindow().ok()?.Id().ok()?.Value as _)));
             filebox(
                 parent,
@@ -74,7 +74,7 @@ impl FileBox {
 
     pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
         let parent = parent.map(|p| p.as_window().as_winui().clone());
-        compio::runtime::spawn_blocking(move || unsafe {
+        compio::runtime::spawn_blocking(move || {
             let parent = parent.and_then(|w| Some(HWND(w.AppWindow().ok()?.Id().ok()?.Value as _)));
             filebox(
                 parent,
@@ -93,7 +93,7 @@ impl FileBox {
 
     pub async fn save(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
         let parent = parent.map(|p| p.as_window().as_winui().clone());
-        compio::runtime::spawn_blocking(move || unsafe {
+        compio::runtime::spawn_blocking(move || {
             let parent = parent.and_then(|w| Some(HWND(w.AppWindow().ok()?.Id().ok()?.Value as _)));
             filebox(
                 parent,
