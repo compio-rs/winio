@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, mem::ManuallyDrop, ptr::null_mut, rc::Rc};
+use std::{cell::Cell, marker::PhantomData, mem::ManuallyDrop, ptr::null_mut, rc::Rc};
 
 use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
@@ -46,7 +46,7 @@ pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathB
 use winui3::{
     ISwapChainPanelNative,
     Microsoft::UI::{
-        Input::PointerDeviceType,
+        Input::{PointerDeviceType, PointerPointProperties},
         Windowing::AppWindow,
         Xaml::{
             Controls::{self as MUXC, SwapChainPanel},
@@ -74,6 +74,7 @@ pub struct Canvas {
     d2d1_context: ID2D1DeviceContext,
     bitmap: Option<ID2D1Bitmap1>,
     swap_chain: IDXGISwapChain1,
+    mouse_button_cache: SendWrapper<Rc<Cell<MouseButton>>>,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -140,15 +141,21 @@ impl Canvas {
 
             let app_window = parent.as_window().as_winui().AppWindow().unwrap();
 
+            let mouse_button_cache = SendWrapper::new(Rc::new(Cell::new(MouseButton::Other)));
             let on_press = SendWrapper::new(Rc::new(Callback::new()));
             {
                 let on_press = on_press.clone();
-                let panel_w = panel.downgrade().unwrap();
+                let mouse_button_cache = mouse_button_cache.clone();
                 panel
-                    .PointerPressed(&PointerEventHandler::new(move |_, args| {
+                    .PointerPressed(&PointerEventHandler::new(move |sender, args| {
                         if let Some(args) = args.as_ref() {
-                            if let Some(panel) = panel_w.upgrade() {
-                                on_press.signal::<GlobalRuntime>(mouse_button(args, &panel));
+                            if let Some(panel) = sender
+                                .as_ref()
+                                .and_then(|sender| sender.cast::<SwapChainPanel>().ok())
+                            {
+                                let mouse = mouse_button(&panel, args);
+                                mouse_button_cache.set(mouse);
+                                on_press.signal::<GlobalRuntime>(mouse);
                             }
                         }
                         Ok(())
@@ -158,14 +165,12 @@ impl Canvas {
             let on_release = SendWrapper::new(Rc::new(Callback::new()));
             {
                 let on_release = on_release.clone();
-                let panel_w = panel.downgrade().unwrap();
+                let mouse_button_cache = mouse_button_cache.clone();
                 panel
-                    .PointerReleased(&PointerEventHandler::new(move |_, args| {
-                        if let Some(args) = args.as_ref() {
-                            if let Some(panel) = panel_w.upgrade() {
-                                on_release.signal::<GlobalRuntime>(mouse_button(args, &panel));
-                            }
-                        }
+                    .PointerReleased(&PointerEventHandler::new(move |_, _| {
+                        let mouse = mouse_button_cache.get();
+                        on_release.signal::<GlobalRuntime>(mouse);
+                        mouse_button_cache.set(MouseButton::Other);
                         Ok(())
                     }))
                     .unwrap();
@@ -173,11 +178,13 @@ impl Canvas {
             let on_move = SendWrapper::new(Rc::new(Callback::new()));
             {
                 let on_move = on_move.clone();
-                let panel_w = panel.downgrade().unwrap();
                 panel
-                    .PointerReleased(&PointerEventHandler::new(move |_, args| {
+                    .PointerMoved(&PointerEventHandler::new(move |sender, args| {
                         if let Some(args) = args.as_ref() {
-                            if let Some(panel) = panel_w.upgrade() {
+                            if let Some(panel) = sender
+                                .as_ref()
+                                .and_then(|sender| sender.cast::<SwapChainPanel>().ok())
+                            {
                                 let point = args.GetCurrentPoint(&panel).unwrap();
                                 on_move.signal::<GlobalRuntime>(Point::from_native(
                                     point.Position().unwrap(),
@@ -204,6 +211,7 @@ impl Canvas {
                 d2d1_context,
                 bitmap: None,
                 swap_chain,
+                mouse_button_cache,
             }
         }
     }
@@ -301,20 +309,24 @@ impl Canvas {
     }
 }
 
-fn mouse_button(args: &PointerRoutedEventArgs, panel: &SwapChainPanel) -> MouseButton {
+fn mouse_button(panel: &SwapChainPanel, args: &PointerRoutedEventArgs) -> MouseButton {
     let pointer = args.Pointer().unwrap();
     if pointer.PointerDeviceType() == Ok(PointerDeviceType::Mouse) {
         let pt = args.GetCurrentPoint(panel).unwrap();
         let props = pt.Properties().unwrap();
-        if props.IsLeftButtonPressed().unwrap_or_default() {
-            MouseButton::Left
-        } else if props.IsRightButtonPressed().unwrap_or_default() {
-            MouseButton::Right
-        } else if props.IsMiddleButtonPressed().unwrap_or_default() {
-            MouseButton::Middle
-        } else {
-            MouseButton::Other
-        }
+        mouse_button_from_point(&props)
+    } else {
+        MouseButton::Other
+    }
+}
+
+fn mouse_button_from_point(props: &PointerPointProperties) -> MouseButton {
+    if props.IsLeftButtonPressed().unwrap_or_default() {
+        MouseButton::Left
+    } else if props.IsRightButtonPressed().unwrap_or_default() {
+        MouseButton::Right
+    } else if props.IsMiddleButtonPressed().unwrap_or_default() {
+        MouseButton::Middle
     } else {
         MouseButton::Other
     }
