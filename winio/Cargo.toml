@@ -52,7 +52,7 @@ itertools = "0.14"
 tracing-subscriber = "0.3"
 
 [features]
-default = ["qt", "winui"]
+default = ["qt", "winui", "win32-dark-mode"]
 win32 = ["dep:winio-ui-win32"]
 winui = ["dep:winio-ui-winui"]
 gtk = ["dep:winio-ui-gtk"]
@@ -60,5 +60,5 @@ qt = ["dep:winio-ui-qt"]
 enable_log = ["compio/enable_log", "compio-log/enable_log"]
 
 nightly = ["compio/nightly", "cyper/nightly"]
-win32-dark-mode = ["winio-ui-win32/dark-mode"]
+win32-dark-mode = ["winio-ui-win32/dark-mode", "winio-ui-winui/win32-dark-mode"]
 objc-static = ["winio-ui-app-kit/objc-static"]

@@ -6,7 +6,7 @@ use windows_sys::{
     core::HRESULT,
 };
 
-use crate::ui::darkmode::PreferredAppMode;
+use super::PreferredAppMode;
 
 pub unsafe fn is_dark_mode_allowed_for_app() -> bool {
     false

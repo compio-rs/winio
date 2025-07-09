@@ -4,7 +4,6 @@ use widestring::{U16CStr, U16CString};
 use winio_primitive::ColorTheme;
 pub use winio_ui_windows_common::{accent_color, monitor_get_all};
 
-pub(crate) mod darkmode;
 pub(crate) mod dpi;
 pub(crate) mod font;
 
@@ -46,7 +45,7 @@ pub use radio_button::*;
 
 pub fn color_theme() -> ColorTheme {
     unsafe {
-        if darkmode::is_dark_mode_allowed_for_app() {
+        if winio_ui_windows_common::is_dark_mode_allowed_for_app() {
             ColorTheme::Dark
         } else {
             ColorTheme::Light

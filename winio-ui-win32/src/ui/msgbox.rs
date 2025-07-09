@@ -4,8 +4,6 @@ use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 pub use winio_ui_windows_common::CustomButton;
 use winio_ui_windows_common::msgbox;
 
-use crate::darkmode::TASK_DIALOG_CALLBACK;
-
 #[derive(Debug, Clone)]
 pub struct MessageBox {
     msg: U16CString,
@@ -37,14 +35,7 @@ impl MessageBox {
     pub async fn show(self, parent: Option<impl AsWindow>) -> MessageBoxResponse {
         let parent = parent.map(|parent| parent.as_window().as_win32());
         msgbox(
-            parent,
-            self.msg,
-            self.title,
-            self.instr,
-            self.style,
-            self.btns,
-            self.cbtns,
-            TASK_DIALOG_CALLBACK,
+            parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )
         .await
     }

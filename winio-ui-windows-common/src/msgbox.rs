@@ -8,14 +8,16 @@ use windows_sys::Win32::{
     Foundation::{E_INVALIDARG, E_OUTOFMEMORY, HWND, S_OK},
     UI::{
         Controls::{
-            PFTASKDIALOGCALLBACK, TASKDIALOG_BUTTON, TASKDIALOGCONFIG, TASKDIALOGCONFIG_0,
-            TASKDIALOGCONFIG_1, TD_ERROR_ICON, TD_INFORMATION_ICON, TD_WARNING_ICON,
-            TDF_ALLOW_DIALOG_CANCELLATION, TDF_SIZE_TO_CONTENT, TaskDialogIndirect,
+            TASKDIALOG_BUTTON, TASKDIALOGCONFIG, TASKDIALOGCONFIG_0, TASKDIALOGCONFIG_1,
+            TD_ERROR_ICON, TD_INFORMATION_ICON, TD_WARNING_ICON, TDF_ALLOW_DIALOG_CANCELLATION,
+            TDF_SIZE_TO_CONTENT, TaskDialogIndirect,
         },
         WindowsAndMessaging::{IDCANCEL, IDCLOSE, IDNO, IDOK, IDRETRY, IDYES},
     },
 };
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
+
+use crate::darkmode::TASK_DIALOG_CALLBACK;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn msgbox(
@@ -26,7 +28,6 @@ pub async fn msgbox(
     style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
-    callback: PFTASKDIALOGCALLBACK,
 ) -> MessageBoxResponse {
     let parent_handle = parent.map(|p| p as isize).unwrap_or_default();
     let (res, result) = compio::runtime::spawn_blocking(move || {
@@ -72,7 +73,7 @@ pub async fn msgbox(
                 hFooterIcon: null_mut(),
             },
             pszFooter: null(),
-            pfCallback: callback,
+            pfCallback: TASK_DIALOG_CALLBACK,
             lpCallbackData: 0,
             cxWidth: 0,
         };

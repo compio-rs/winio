@@ -29,16 +29,13 @@ use windows_sys::{
     },
     core::BOOL,
 };
+use winio_ui_windows_common::{
+    children_refresh_dark_mode, control_color_edit, control_color_static, init_dark,
+    is_dark_mode_allowed_for_app, window_use_dark_mode,
+};
 
 use super::RUNTIME;
-use crate::ui::{
-    darkmode::{
-        children_refresh_dark_mode, control_color_edit, control_color_static, init_dark,
-        is_dark_mode_allowed_for_app, window_use_dark_mode,
-    },
-    dpi::get_dpi_for_window,
-    font::default_font,
-};
+use crate::ui::{dpi::get_dpi_for_window, font::default_font};
 
 #[derive(Clone, Copy)]
 pub(crate) struct WindowMessage {

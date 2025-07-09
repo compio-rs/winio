@@ -17,7 +17,7 @@ use windows::{
 };
 use windows_sys::Win32::{
     Foundation::HWND,
-    Graphics::Gdi::{CreateFontIndirectW, DeleteObject, GetObjectW, HFONT, HGDIOBJ, LOGFONTW},
+    Graphics::Gdi::{CreateFontIndirectW, DeleteObject, GetObjectW, HFONT, LOGFONTW},
     UI::{
         HiDpi::{GetDpiForWindow, SystemParametersInfoForDpi},
         WindowsAndMessaging::{
@@ -75,17 +75,6 @@ pub fn default_font(dpi: u32) -> HFONT {
         },
     }
 }
-
-pub(crate) struct WinBrush(pub HGDIOBJ);
-
-impl Drop for WinBrush {
-    fn drop(&mut self) {
-        unsafe { DeleteObject(self.0) };
-    }
-}
-
-unsafe impl Send for WinBrush {}
-unsafe impl Sync for WinBrush {}
 
 pub static DWRITE_FACTORY: LazyLock<IDWriteFactory> =
     LazyLock::new(|| unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).unwrap() });

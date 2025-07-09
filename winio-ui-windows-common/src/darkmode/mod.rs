@@ -5,8 +5,8 @@ use windows_sys::Win32::{
     Foundation::{COLORREF, HWND, LRESULT},
     Globalization::{CSTR_EQUAL, CompareStringW, LOCALE_ALL, NORM_IGNORECASE},
     Graphics::Gdi::{
-        BLACK_BRUSH, CreateSolidBrush, GetStockObject, HDC, NULL_BRUSH, ScreenToClient, SetBkColor,
-        SetBkMode, SetTextColor, TRANSPARENT, WHITE_BRUSH,
+        BLACK_BRUSH, CreateSolidBrush, DeleteObject, GetStockObject, HDC, HGDIOBJ, NULL_BRUSH,
+        ScreenToClient, SetBkColor, SetBkMode, SetTextColor, TRANSPARENT, WHITE_BRUSH,
     },
     System::SystemServices::MAX_CLASS_NAME,
     UI::{
@@ -18,7 +18,16 @@ use windows_sys::Win32::{
     },
 };
 
-use crate::ui::font::WinBrush;
+pub struct WinBrush(pub HGDIOBJ);
+
+impl Drop for WinBrush {
+    fn drop(&mut self) {
+        unsafe { DeleteObject(self.0) };
+    }
+}
+
+unsafe impl Send for WinBrush {}
+unsafe impl Sync for WinBrush {}
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "dark-mode")] {

@@ -17,3 +17,6 @@ pub use monitor::*;
 
 mod canvas;
 pub use canvas::*;
+
+mod darkmode;
+pub use darkmode::*;

@@ -7,6 +7,7 @@ use windows::{
     core::{Ref, Result, h},
 };
 use windows_sys::Win32::System::Threading::{INFINITE, WaitForSingleObject};
+use winio_ui_windows_common::init_dark;
 use winui3::{
     ApartmentType,
     Microsoft::UI::{
@@ -43,6 +44,10 @@ impl Runtime {
         let winui_dependency = winui3::bootstrap::PackageDependency::initialize().unwrap();
 
         debug!("WinUI initialized: {winui_dependency:?}");
+
+        unsafe {
+            init_dark();
+        }
 
         let runtime = compio::runtime::Runtime::new().unwrap();
 

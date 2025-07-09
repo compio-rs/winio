@@ -25,11 +25,12 @@ use windows_sys::Win32::{
 };
 use winio_handle::{AsRawWindow, AsWindow};
 use winio_primitive::{DrawingFont, MouseButton, Point, Rect, Size};
+use winio_ui_windows_common::is_dark_mode_allowed_for_app;
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 
 use crate::{
     RUNTIME,
-    ui::{Widget, darkmode::is_dark_mode_allowed_for_app, font::DWRITE_FACTORY},
+    ui::{Widget, font::DWRITE_FACTORY},
 };
 
 #[inline]

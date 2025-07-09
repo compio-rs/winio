@@ -17,7 +17,6 @@ winio-ui-windows-common = { workspace = true }
 compio = { workspace = true, features = ["arrayvec"] }
 compio-log = { workspace = true }
 
-cfg-if = { workspace = true }
 futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true, default-features = false }
@@ -58,8 +57,5 @@ windows = { workspace = true, features = [
     "Win32_UI_Shell_Common",
 ] }
 
-slim-detours-sys = { version = "0.3", optional = true }
-sync-unsafe-cell = { version = "0.1", optional = true }
-
 [features]
-dark-mode = ["dep:slim-detours-sys", "dep:sync-unsafe-cell"]
+dark-mode = ["winio-ui-windows-common/dark-mode"]

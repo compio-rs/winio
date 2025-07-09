@@ -44,10 +44,7 @@ use windows_sys::{
     w,
 };
 
-use crate::ui::{
-    darkmode::{PreferredAppMode, WHITE, u16_string_eq_ignore_case},
-    font::WinBrush,
-};
+use super::{PreferredAppMode, WHITE, WinBrush, u16_string_eq_ignore_case};
 
 #[link(name = "ntdll")]
 extern "system" {

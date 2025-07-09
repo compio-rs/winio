@@ -46,7 +46,7 @@ impl MessageBox {
             )
         });
         msgbox(
-            parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns, None,
+            parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )
         .await
     }

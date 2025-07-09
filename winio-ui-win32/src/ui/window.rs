@@ -31,13 +31,13 @@ use windows_sys::Win32::{
 };
 use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
 use winio_primitive::{Point, Size};
+use winio_ui_windows_common::{
+    PreferredAppMode, control_use_dark_mode, set_preferred_app_mode, window_use_dark_mode,
+};
 
 use crate::{
     runtime::{WindowMessage, wait, window_proc},
     ui::{
-        darkmode::{
-            PreferredAppMode, control_use_dark_mode, set_preferred_app_mode, window_use_dark_mode,
-        },
         dpi::{DpiAware, get_dpi_for_window},
         get_u16c, with_u16c,
     },
