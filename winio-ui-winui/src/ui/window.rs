@@ -9,7 +9,7 @@ use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::{
     IconId,
     Windowing::{AppWindow, AppWindowChangedEventArgs, AppWindowClosingEventArgs, TitleBarTheme},
-    Xaml::{self as MUX, Controls as MUXC},
+    Xaml::{self as MUX, Controls as MUXC, RoutedEventHandler},
 };
 
 use crate::{GlobalRuntime, ui::Convertible};
@@ -51,8 +51,10 @@ impl Window {
             app_window
                 .Closing(&TypedEventHandler::new(
                     move |_, args: Ref<AppWindowClosingEventArgs>| {
-                        let handled = !on_close.signal::<GlobalRuntime>(());
-                        args.unwrap().SetCancel(handled).unwrap();
+                        if let Some(args) = args.as_ref() {
+                            let handled = !on_close.signal::<GlobalRuntime>(());
+                            args.SetCancel(handled).unwrap();
+                        }
                         Ok(())
                     },
                 ))
@@ -79,6 +81,15 @@ impl Window {
                 ))
                 .unwrap();
         }
+        {
+            let on_size = on_size.clone();
+            canvas
+                .Loaded(&RoutedEventHandler::new(move |_, _| {
+                    on_size.signal::<GlobalRuntime>(());
+                    Ok(())
+                }))
+                .unwrap();
+        }
 
         Self {
             on_size,
@@ -96,7 +107,6 @@ impl Window {
 
     pub fn set_visible(&self, v: bool) {
         if v {
-            self.handle.Activate().unwrap();
             self.app_window.Show().unwrap();
         } else {
             self.app_window.Hide().unwrap();
