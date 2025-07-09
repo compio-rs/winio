@@ -8,7 +8,7 @@ use windows::{
         Foundation::HMODULE,
         Graphics::{
             Direct2D::{
-                Common::{D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_PIXEL_FORMAT},
+                Common::{D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_COLOR_F, D2D1_PIXEL_FORMAT},
                 D2D1_BITMAP_OPTIONS_CANNOT_DRAW, D2D1_BITMAP_OPTIONS_TARGET,
                 D2D1_BITMAP_PROPERTIES1, D2D1_DEVICE_CONTEXT_OPTIONS_NONE,
                 D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE,
@@ -42,6 +42,7 @@ use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
 use winio_callback::Callback;
 use winio_handle::AsWindow;
 use winio_primitive::{DrawingFont, MouseButton, Point, Rect, Size};
+use winio_ui_windows_common::is_dark_mode_allowed_for_app;
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 use winui3::{
     ISwapChainPanelNative,
@@ -291,7 +292,21 @@ impl Canvas {
             context.SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
             self.bitmap = Some(bitmap);
             context.BeginDraw();
-            context.Clear(None);
+            context.Clear(Some(&if is_dark_mode_allowed_for_app() {
+                D2D1_COLOR_F {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 1.0,
+                }
+            } else {
+                D2D1_COLOR_F {
+                    r: 1.0,
+                    g: 1.0,
+                    b: 1.0,
+                    a: 1.0,
+                }
+            }));
         }
         DrawingContext::new(&self.dwrite, &self.d2d1, context, &self.swap_chain)
     }
