@@ -10,6 +10,7 @@ repository = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 winio-primitive = { workspace = true }
+winio-handle = { workspace = true }
 
 compio = { workspace = true }
 
@@ -43,4 +44,6 @@ sync-unsafe-cell = { version = "0.1", optional = true }
 embed-resource = "3"
 
 [features]
+win32 = ["winio-handle/win32"]
+winui = ["winio-handle/winui"]
 dark-mode = ["dep:slim-detours-sys", "dep:sync-unsafe-cell"]

@@ -15,12 +15,12 @@ use windows_sys::Win32::{
         WindowsAndMessaging::{IDCANCEL, IDCLOSE, IDNO, IDOK, IDRETRY, IDYES},
     },
 };
+use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
-use crate::darkmode::TASK_DIALOG_CALLBACK;
+use crate::{darkmode::TASK_DIALOG_CALLBACK, parent_handle};
 
-#[allow(clippy::too_many_arguments)]
-pub async fn msgbox(
+async fn msgbox(
     parent: Option<HWND>,
     msg: U16CString,
     title: U16CString,
@@ -104,6 +104,71 @@ pub async fn msgbox(
             std::io::Error::from(std::io::ErrorKind::InvalidInput)
         ),
         _ => panic!("{:?}", std::io::Error::from_raw_os_error(res)),
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct MessageBox {
+    msg: U16CString,
+    title: U16CString,
+    instr: U16CString,
+    style: MessageBoxStyle,
+    btns: MessageBoxButton,
+    cbtns: Vec<CustomButton>,
+}
+
+impl Default for MessageBox {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl MessageBox {
+    pub fn new() -> Self {
+        Self {
+            msg: U16CString::new(),
+            title: U16CString::new(),
+            instr: U16CString::new(),
+            style: MessageBoxStyle::None,
+            btns: MessageBoxButton::empty(),
+            cbtns: vec![],
+        }
+    }
+
+    pub async fn show(self, parent: Option<impl AsWindow>) -> MessageBoxResponse {
+        let parent = parent_handle(parent);
+        msgbox(
+            parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
+        )
+        .await
+    }
+
+    pub fn message(&mut self, msg: &str) {
+        self.msg = U16CString::from_str_truncate(msg);
+    }
+
+    pub fn title(&mut self, title: &str) {
+        self.title = U16CString::from_str_truncate(title);
+    }
+
+    pub fn instruction(&mut self, instr: &str) {
+        self.instr = U16CString::from_str_truncate(instr);
+    }
+
+    pub fn style(&mut self, style: MessageBoxStyle) {
+        self.style = style;
+    }
+
+    pub fn buttons(&mut self, btns: MessageBoxButton) {
+        self.btns = btns;
+    }
+
+    pub fn custom_button(&mut self, btn: CustomButton) {
+        self.cbtns.push(btn);
+    }
+
+    pub fn custom_buttons(&mut self, btn: impl IntoIterator<Item = CustomButton>) {
+        self.cbtns.extend(btn);
     }
 }
 
