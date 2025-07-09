@@ -49,7 +49,18 @@ impl Button {
 
     pub fn set_enabled(&mut self, v: bool);
 
-    pub fn preferred_size(&self) -> Size;
+    pub fn preferred_size(&self) -> Size {
+        self.handle.preferred_size_with_text(
+            &self
+                .button
+                .Content()
+                .unwrap()
+                .cast::<IReference<HSTRING>>()
+                .unwrap()
+                .Value()
+                .unwrap(),
+        )
+    }
 
     pub fn loc(&self) -> Point;
 

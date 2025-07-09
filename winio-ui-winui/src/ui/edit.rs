@@ -87,7 +87,12 @@ impl Edit {
     }
 
     pub fn preferred_size(&self) -> Size {
-        self.handle.preferred_size()
+        if self.password {
+            &self.phandle
+        } else {
+            &self.handle
+        }
+        .preferred_size()
     }
 
     pub fn loc(&self) -> Point {

@@ -182,8 +182,8 @@ impl Canvas {
             self.swap_chain
                 .ResizeBuffers(
                     2,
-                    (size.width as f32 * dpi / 96.0 * scalex) as _,
-                    (size.height as f32 * dpi / 96.0 * scaley) as _,
+                    (size.width as f32 * dpi / 96.0 * scalex).max(1.0) as _,
+                    (size.height as f32 * dpi / 96.0 * scaley).max(1.0) as _,
                     DXGI_FORMAT_B8G8R8A8_UNORM,
                     DXGI_SWAP_CHAIN_FLAG(0),
                 )

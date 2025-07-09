@@ -1,6 +1,6 @@
 use std::cell::Cell;
 
-use windows::core::Interface;
+use windows::core::{HSTRING, Interface};
 use winio_handle::AsWindow;
 use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::Xaml::{self as MUX, Controls as MUXC};
@@ -54,13 +54,25 @@ impl Widget {
     }
 
     pub fn preferred_size(&self) -> Size {
-        self.handle
-            .Measure(Size::new(f64::MAX, f64::MAX).to_native())
-            .unwrap();
-        let size = Size::from_native(self.handle.DesiredSize().unwrap());
+        let size = Size::from_native(
+            self.handle
+                .MeasureOverride(Size::new(f64::MAX, f64::MAX).to_native())
+                .unwrap(),
+        );
         let preferred_size = self.preferred_size.get().min(size).max(self.min_size());
         self.preferred_size.set(preferred_size);
         preferred_size
+    }
+
+    pub fn preferred_size_with_text(&self, text: &HSTRING) -> Size {
+        let block = MUXC::TextBlock::new().unwrap();
+        block.SetText(text).unwrap();
+        let size = Size::from_native(
+            self.handle
+                .MeasureOverride(Size::new(f64::MAX, f64::MAX).to_native())
+                .unwrap(),
+        );
+        self.preferred_size().max(size)
     }
 
     pub fn min_size(&self) -> Size {
