@@ -22,11 +22,16 @@ windows = { workspace = true, features = [
     "Win32_Graphics_Direct2D_Common",
     "Win32_Graphics_DirectWrite",
     "Win32_Graphics_Dxgi_Common",
+    "Win32_System_Com",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
 ] }
 windows-sys = { workspace = true, features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
     "Win32_UI",
+    "Win32_UI_Controls",
+    "Win32_UI_WindowsAndMessaging",
 ] }
 windows-numerics = "0.2"
 
