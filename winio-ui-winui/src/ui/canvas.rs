@@ -1,7 +1,8 @@
-use std::{marker::PhantomData, mem::ManuallyDrop, ptr::null_mut};
+use std::{marker::PhantomData, mem::ManuallyDrop, ptr::null_mut, rc::Rc};
 
 use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
+use send_wrapper::SendWrapper;
 use windows::{
     Win32::{
         Foundation::HMODULE,
@@ -38,19 +39,30 @@ use windows::{
     core::{BOOL, Interface},
 };
 use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
+use winio_callback::Callback;
 use winio_handle::AsWindow;
 use winio_primitive::{DrawingFont, MouseButton, Point, Rect, Size};
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 use winui3::{
     ISwapChainPanelNative,
-    Microsoft::UI::{Windowing::AppWindow, Xaml::Controls as MUXC},
+    Microsoft::UI::{
+        Input::PointerDeviceType,
+        Windowing::AppWindow,
+        Xaml::{
+            Controls::{self as MUXC, SwapChainPanel},
+            Input::{PointerEventHandler, PointerRoutedEventArgs},
+        },
+    },
 };
 
-use crate::Widget;
+use crate::{GlobalRuntime, Widget, ui::Convertible};
 
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct Canvas {
+    on_press: SendWrapper<Rc<Callback<MouseButton>>>,
+    on_release: SendWrapper<Rc<Callback<MouseButton>>>,
+    on_move: SendWrapper<Rc<Callback<Point>>>,
     handle: Widget,
     panel: MUXC::SwapChainPanel,
     app_window: AppWindow,
@@ -125,8 +137,62 @@ impl Canvas {
                 .unwrap();
             dxdi_device.SetMaximumFrameLatency(1).unwrap();
             native.SetSwapChain(&swap_chain).unwrap();
+
             let app_window = parent.as_window().as_winui().AppWindow().unwrap();
+
+            let on_press = SendWrapper::new(Rc::new(Callback::new()));
+            {
+                let on_press = on_press.clone();
+                let panel_w = panel.downgrade().unwrap();
+                panel
+                    .PointerPressed(&PointerEventHandler::new(move |_, args| {
+                        if let Some(args) = args.as_ref() {
+                            if let Some(panel) = panel_w.upgrade() {
+                                on_press.signal::<GlobalRuntime>(mouse_button(args, &panel));
+                            }
+                        }
+                        Ok(())
+                    }))
+                    .unwrap();
+            }
+            let on_release = SendWrapper::new(Rc::new(Callback::new()));
+            {
+                let on_release = on_release.clone();
+                let panel_w = panel.downgrade().unwrap();
+                panel
+                    .PointerReleased(&PointerEventHandler::new(move |_, args| {
+                        if let Some(args) = args.as_ref() {
+                            if let Some(panel) = panel_w.upgrade() {
+                                on_release.signal::<GlobalRuntime>(mouse_button(args, &panel));
+                            }
+                        }
+                        Ok(())
+                    }))
+                    .unwrap();
+            }
+            let on_move = SendWrapper::new(Rc::new(Callback::new()));
+            {
+                let on_move = on_move.clone();
+                let panel_w = panel.downgrade().unwrap();
+                panel
+                    .PointerReleased(&PointerEventHandler::new(move |_, args| {
+                        if let Some(args) = args.as_ref() {
+                            if let Some(panel) = panel_w.upgrade() {
+                                let point = args.GetCurrentPoint(&panel).unwrap();
+                                on_move.signal::<GlobalRuntime>(Point::from_native(
+                                    point.Position().unwrap(),
+                                ));
+                            }
+                        }
+                        Ok(())
+                    }))
+                    .unwrap();
+            }
+
             Self {
+                on_press,
+                on_release,
+                on_move,
                 handle: Widget::new(parent, panel.cast().unwrap()),
                 panel,
                 app_window,
@@ -223,15 +289,34 @@ impl Canvas {
     }
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
-        std::future::pending().await
+        self.on_press.wait().await
     }
 
     pub async fn wait_mouse_up(&self) -> MouseButton {
-        std::future::pending().await
+        self.on_release.wait().await
     }
 
     pub async fn wait_mouse_move(&self) -> Point {
-        std::future::pending().await
+        self.on_move.wait().await
+    }
+}
+
+fn mouse_button(args: &PointerRoutedEventArgs, panel: &SwapChainPanel) -> MouseButton {
+    let pointer = args.Pointer().unwrap();
+    if pointer.PointerDeviceType() == Ok(PointerDeviceType::Mouse) {
+        let pt = args.GetCurrentPoint(panel).unwrap();
+        let props = pt.Properties().unwrap();
+        if props.IsLeftButtonPressed().unwrap_or_default() {
+            MouseButton::Left
+        } else if props.IsRightButtonPressed().unwrap_or_default() {
+            MouseButton::Right
+        } else if props.IsMiddleButtonPressed().unwrap_or_default() {
+            MouseButton::Middle
+        } else {
+            MouseButton::Other
+        }
+    } else {
+        MouseButton::Other
     }
 }
 

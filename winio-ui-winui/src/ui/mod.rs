@@ -51,6 +51,19 @@ impl Convertible<windows::Foundation::Size> for Size {
     }
 }
 
+impl Convertible<windows::Foundation::Point> for Point {
+    fn from_native(native: windows::Foundation::Point) -> Self {
+        Point::new(native.X as _, native.Y as _)
+    }
+
+    fn to_native(self) -> windows::Foundation::Point {
+        windows::Foundation::Point {
+            X: self.x as _,
+            Y: self.y as _,
+        }
+    }
+}
+
 impl Convertible<TextAlignment> for HAlign {
     fn from_native(native: TextAlignment) -> Self {
         match native {

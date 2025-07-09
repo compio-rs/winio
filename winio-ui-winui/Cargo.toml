@@ -32,6 +32,7 @@ winui3 = { workspace = true, features = [
     "UI_Dispatching",
     "UI_Windowing",
     "UI_Xaml_Controls_Primitives",
+    "UI_Xaml_Input",
 ] }
 windows-sys = { workspace = true, features = [
     "Win32_System_Threading",
