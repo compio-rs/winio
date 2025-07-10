@@ -104,12 +104,16 @@ impl Canvas {
     pub fn context(&mut self) -> DrawingContext<'_> {
         unsafe {
             let size = self.handle.size_l2d(self.handle.size());
-            self.target
-                .Resize(&D2D_SIZE_U {
+            loop {
+                match self.target.Resize(&D2D_SIZE_U {
                     width: size.0 as u32,
                     height: size.1 as u32,
-                })
-                .unwrap();
+                }) {
+                    Ok(()) => break,
+                    Err(e) if e.code() == D2DERR_RECREATE_TARGET => self.handle_lost(),
+                    Err(e) => panic!("{e:?}"),
+                }
+            }
             self.target.BeginDraw();
             self.target.Clear(Some(&if is_dark_mode_allowed_for_app() {
                 D2D1_COLOR_F {
@@ -126,8 +130,12 @@ impl Canvas {
                     a: 1.0,
                 }
             }));
-            DrawingContext::new(self)
         }
+        DrawingContext::new(self)
+    }
+
+    fn handle_lost(&mut self) {
+        self.target = create_target(self.handle.as_raw_window().as_win32());
     }
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
@@ -188,10 +196,7 @@ impl Drop for DrawingContext<'_> {
         unsafe {
             match self.ctx.render_target().EndDraw(None, None) {
                 Ok(()) => {}
-                Err(e) if e.code() == D2DERR_RECREATE_TARGET => {
-                    self.canvas.target =
-                        create_target(self.canvas.handle.as_raw_window().as_win32())
-                }
+                Err(e) if e.code() == D2DERR_RECREATE_TARGET => self.canvas.handle_lost(),
                 Err(e) => panic!("{e:?}"),
             }
         }
