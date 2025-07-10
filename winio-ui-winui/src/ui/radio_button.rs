@@ -2,10 +2,7 @@ use std::rc::Rc;
 
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
-use windows::{
-    Foundation::IReference,
-    core::{HSTRING, Interface},
-};
+use windows::core::{HSTRING, Interface};
 use winio_callback::Callback;
 use winio_handle::AsWindow;
 use winio_primitive::{Point, Size};
@@ -18,6 +15,7 @@ pub struct RadioButton {
     on_click: SendWrapper<Rc<Callback>>,
     handle: Widget,
     button: MUXC::RadioButton,
+    text: MUXC::TextBlock,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -34,10 +32,13 @@ impl RadioButton {
                 }))
                 .unwrap();
         }
+        let text = MUXC::TextBlock::new().unwrap();
+        button.SetContent(&text).unwrap();
         Self {
             on_click,
             handle: Widget::new(parent, button.cast().unwrap()),
             button,
+            text,
         }
     }
 
@@ -49,18 +50,7 @@ impl RadioButton {
 
     pub fn set_enabled(&mut self, v: bool);
 
-    pub fn preferred_size(&self) -> Size {
-        self.handle.preferred_size_with_text(
-            &self
-                .button
-                .Content()
-                .unwrap()
-                .cast::<IReference<HSTRING>>()
-                .unwrap()
-                .Value()
-                .unwrap(),
-        )
-    }
+    pub fn preferred_size(&self) -> Size;
 
     pub fn loc(&self) -> Point;
 
@@ -71,20 +61,11 @@ impl RadioButton {
     pub fn set_size(&mut self, v: Size);
 
     pub fn text(&self) -> String {
-        self.button
-            .Content()
-            .unwrap()
-            .cast::<IReference<HSTRING>>()
-            .unwrap()
-            .Value()
-            .unwrap()
-            .to_string_lossy()
+        self.text.Text().unwrap().to_string_lossy()
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.button
-            .SetContent(&HSTRING::from(s.as_ref()).to_reference())
-            .unwrap();
+        self.text.SetText(&HSTRING::from(s.as_ref())).unwrap()
     }
 
     pub fn is_checked(&self) -> bool {

@@ -50,10 +50,7 @@ impl<const E: bool> ComboBoxImpl<E> {
 
     pub fn set_enabled(&mut self, v: bool);
 
-    pub fn preferred_size(&self) -> Size {
-        self.handle
-            .preferred_size_with_text(&self.combo_box.Text().unwrap())
-    }
+    pub fn preferred_size(&self) -> Size;
 
     pub fn loc(&self) -> Point;
 

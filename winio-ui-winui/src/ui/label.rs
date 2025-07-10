@@ -30,9 +30,7 @@ impl Label {
 
     pub fn set_enabled(&mut self, v: bool);
 
-    pub fn preferred_size(&self) -> Size {
-        self.handle.preferred_size_no_cache()
-    }
+    pub fn preferred_size(&self) -> Size;
 
     pub fn loc(&self) -> Point;
 

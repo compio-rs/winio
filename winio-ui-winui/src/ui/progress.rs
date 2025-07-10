@@ -30,7 +30,10 @@ impl Progress {
 
     pub fn set_enabled(&mut self, v: bool);
 
-    pub fn preferred_size(&self) -> Size;
+    pub fn preferred_size(&self) -> Size {
+        let size = self.handle.preferred_size();
+        Size::new(0.0, size.height)
+    }
 
     pub fn loc(&self) -> Point;
 

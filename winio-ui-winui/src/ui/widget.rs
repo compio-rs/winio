@@ -1,6 +1,4 @@
-use std::cell::Cell;
-
-use windows::core::{HSTRING, Interface};
+use windows::core::Interface;
 use winio_handle::AsWindow;
 use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::Xaml::{self as MUX, Controls as MUXC};
@@ -10,19 +8,21 @@ use crate::ui::Convertible;
 #[derive(Debug)]
 pub(crate) struct Widget {
     handle: MUX::FrameworkElement,
-    preferred_size: Cell<Size>,
 }
 
 impl Widget {
     pub fn new(parent: impl AsWindow, handle: MUX::FrameworkElement) -> Self {
         let parent = parent.as_window();
         let window = parent.as_winui();
+        handle
+            .SetHorizontalAlignment(MUX::HorizontalAlignment::Center)
+            .unwrap();
+        handle
+            .SetVerticalAlignment(MUX::VerticalAlignment::Center)
+            .unwrap();
         let canvas = window.Content().unwrap().cast::<MUXC::Canvas>().unwrap();
         canvas.Children().unwrap().Append(&handle).unwrap();
-        Self {
-            handle,
-            preferred_size: Cell::new(Size::new(f64::MAX, f64::MAX)),
-        }
+        Self { handle }
     }
 
     pub fn is_visible(&self) -> bool {
@@ -54,30 +54,11 @@ impl Widget {
     }
 
     pub fn preferred_size(&self) -> Size {
-        let size = self.preferred_size_no_cache();
-        let preferred_size = self.preferred_size.get().min(size);
-        self.preferred_size.set(preferred_size);
-        preferred_size
-    }
-
-    pub fn preferred_size_no_cache(&self) -> Size {
         Size::from_native(
             self.handle
-                .MeasureOverride(Size::new(f64::MAX, f64::MAX).to_native())
+                .MeasureOverride(Size::new(f64::INFINITY, f64::INFINITY).to_native())
                 .unwrap(),
         )
-        .max(self.min_size())
-    }
-
-    pub fn preferred_size_with_text(&self, text: &HSTRING) -> Size {
-        let block = MUXC::TextBlock::new().unwrap();
-        block.SetText(text).unwrap();
-        let size = Size::from_native(
-            self.handle
-                .MeasureOverride(Size::new(f64::MAX, f64::MAX).to_native())
-                .unwrap(),
-        );
-        self.preferred_size().max(size).max(Size::new(50.0, 32.0))
     }
 
     pub fn min_size(&self) -> Size {

@@ -233,7 +233,9 @@ impl Canvas {
 
     pub fn set_enabled(&mut self, v: bool);
 
-    pub fn preferred_size(&self) -> Size;
+    pub fn preferred_size(&self) -> Size {
+        Size::zero()
+    }
 
     pub fn loc(&self) -> Point;
 
