@@ -1,9 +1,12 @@
-use std::{future::Future, time::Duration};
+use std::{cell::OnceCell, future::Future, time::Duration};
 
 use compio::driver::AsRawFd;
 use compio_log::*;
 use windows::{
     Foundation::Uri,
+    Win32::Graphics::Direct2D::{
+        D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1CreateFactory, ID2D1Factory2,
+    },
     core::{Ref, Result, h},
 };
 use windows_sys::Win32::System::Threading::{INFINITE, WaitForSingleObject};
@@ -29,6 +32,7 @@ pub struct Runtime {
     runtime: compio::runtime::Runtime,
     #[allow(dead_code)]
     winui_dependency: PackageDependency,
+    d2d1: OnceCell<ID2D1Factory2>,
 }
 
 impl Default for Runtime {
@@ -53,7 +57,14 @@ impl Runtime {
         Self {
             runtime,
             winui_dependency,
+            d2d1: OnceCell::new(),
         }
+    }
+
+    pub(crate) fn d2d1(&self) -> &ID2D1Factory2 {
+        self.d2d1.get_or_init(|| unsafe {
+            D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None).unwrap()
+        })
     }
 
     pub(crate) fn run(&self) -> bool {

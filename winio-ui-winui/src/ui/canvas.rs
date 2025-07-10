@@ -11,9 +11,8 @@ use windows::{
                 Common::{D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_COLOR_F, D2D1_PIXEL_FORMAT},
                 D2D1_BITMAP_OPTIONS_CANNOT_DRAW, D2D1_BITMAP_OPTIONS_TARGET,
                 D2D1_BITMAP_PROPERTIES1, D2D1_DEVICE_CONTEXT_OPTIONS_NONE,
-                D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE,
-                D2D1CreateFactory, ID2D1Bitmap1, ID2D1Device, ID2D1DeviceContext, ID2D1Factory,
-                ID2D1Factory2, ID2D1RenderTarget,
+                D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE, ID2D1Bitmap1, ID2D1Device, ID2D1DeviceContext,
+                ID2D1Factory, ID2D1Factory2, ID2D1RenderTarget,
             },
             Direct3D::{
                 D3D_DRIVER_TYPE_HARDWARE, D3D_FEATURE_LEVEL_9_1, D3D_FEATURE_LEVEL_9_2,
@@ -56,7 +55,12 @@ use winui3::{
     },
 };
 
-use crate::{GlobalRuntime, Widget, ui::Convertible};
+use crate::{GlobalRuntime, RUNTIME, Widget, ui::Convertible};
+
+#[inline]
+fn d2d1<T>(f: impl FnOnce(&ID2D1Factory2) -> T) -> T {
+    RUNTIME.with(|runtime| f(runtime.d2d1()))
+}
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -70,7 +74,6 @@ pub struct Canvas {
     dwrite: IDWriteFactory,
     d3d11_device: ID3D11Device,
     d3d11_context: ID3D11DeviceContext,
-    d2d1: ID2D1Factory2,
     d2d1_device: ID2D1Device,
     d2d1_context: ID2D1DeviceContext,
     bitmap: Option<ID2D1Bitmap1>,
@@ -108,9 +111,8 @@ impl Canvas {
             let d3d11_device = device.unwrap();
             let dxdi_device = d3d11_device.cast::<IDXGIDevice1>().unwrap();
             let d3d11_context = context.unwrap();
-            let d2d1: ID2D1Factory2 =
-                D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None).unwrap();
-            let d2d1_device: ID2D1Device = d2d1.CreateDevice(&dxdi_device).unwrap().into();
+            let d2d1_device: ID2D1Device =
+                d2d1(|d2d1| d2d1.CreateDevice(&dxdi_device).unwrap().into());
             let d2d1_context = d2d1_device
                 .CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE)
                 .unwrap();
@@ -207,7 +209,6 @@ impl Canvas {
                 dwrite,
                 d3d11_device,
                 d3d11_context,
-                d2d1,
                 d2d1_device,
                 d2d1_context,
                 bitmap: None,
@@ -310,7 +311,7 @@ impl Canvas {
                 }
             }));
         }
-        DrawingContext::new(&self.dwrite, &self.d2d1, context, &self.swap_chain)
+        DrawingContext::new(&self.dwrite, context, &self.swap_chain)
     }
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
@@ -368,13 +369,15 @@ impl Drop for DrawingContext<'_> {
 impl DrawingContext<'_> {
     fn new(
         dwrite: &IDWriteFactory,
-        d2d1: &ID2D1Factory,
         target: &ID2D1RenderTarget,
         swap_chain: &IDXGISwapChain1,
     ) -> Self {
         Self {
             ctx: winio_ui_windows_common::DrawingContext::new(
-                d2d1.clone(),
+                d2d1(|d2d1| {
+                    let d2d1: &ID2D1Factory = d2d1;
+                    d2d1.clone()
+                }),
                 dwrite.clone(),
                 target.clone(),
             ),
