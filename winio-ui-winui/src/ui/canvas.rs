@@ -12,7 +12,7 @@ use windows::{
                 D2D1_BITMAP_OPTIONS_CANNOT_DRAW, D2D1_BITMAP_OPTIONS_TARGET,
                 D2D1_BITMAP_PROPERTIES1, D2D1_DEVICE_CONTEXT_OPTIONS_NONE,
                 D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE, ID2D1Bitmap1, ID2D1Device, ID2D1DeviceContext,
-                ID2D1Factory, ID2D1Factory2, ID2D1RenderTarget,
+                ID2D1Factory2,
             },
             Direct3D::{
                 D3D_DRIVER_TYPE_HARDWARE, D3D_FEATURE_LEVEL_9_1, D3D_FEATURE_LEVEL_9_2,
@@ -413,15 +413,9 @@ impl<'a> DrawingContext<'a> {
     fn new(canvas: &'a mut Canvas) -> Self {
         Self {
             ctx: winio_ui_windows_common::DrawingContext::new(
-                d2d1(|d2d1| {
-                    let d2d1: &ID2D1Factory = d2d1;
-                    d2d1.clone()
-                }),
+                d2d1(|d2d1| d2d1.clone().into()),
                 canvas.dwrite.clone(),
-                {
-                    let target: &ID2D1RenderTarget = &canvas.swap_chain.d2d1_context;
-                    target.clone()
-                },
+                canvas.swap_chain.d2d1_context.clone().into(),
             ),
             canvas,
         }

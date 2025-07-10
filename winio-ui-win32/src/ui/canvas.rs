@@ -9,7 +9,7 @@ use windows::Win32::{
             D2D1_FEATURE_LEVEL_DEFAULT, D2D1_HWND_RENDER_TARGET_PROPERTIES,
             D2D1_PRESENT_OPTIONS_NONE, D2D1_RENDER_TARGET_PROPERTIES,
             D2D1_RENDER_TARGET_TYPE_HARDWARE, D2D1_RENDER_TARGET_USAGE_NONE, ID2D1Factory,
-            ID2D1HwndRenderTarget, ID2D1RenderTarget,
+            ID2D1HwndRenderTarget,
         },
         Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM,
     },
@@ -209,10 +209,7 @@ impl<'a> DrawingContext<'a> {
             ctx: winio_ui_windows_common::DrawingContext::new(
                 d2d1(|f| f.clone()),
                 DWRITE_FACTORY.clone(),
-                {
-                    let target: &ID2D1RenderTarget = &canvas.target;
-                    target.clone()
-                },
+                canvas.target.clone().into(),
             ),
             canvas,
         }
