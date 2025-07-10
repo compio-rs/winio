@@ -1,6 +1,9 @@
-use std::mem::MaybeUninit;
+use std::{
+    cell::{Ref, RefCell},
+    mem::MaybeUninit,
+};
 
-use image::{DynamicImage, Pixel, Rgba};
+use image::{DynamicImage, Pixel, Rgba, RgbaImage};
 use widestring::U16CString;
 use windows::{
     Win32::Graphics::{
@@ -363,7 +366,7 @@ impl DrawingContext {
         unsafe {
             let clip = clip.map(rect_f);
             self.target.DrawBitmap(
-                &image.0,
+                &*image.get_bitmap(&self.target),
                 Some(&rect_f(rect)),
                 1.0,
                 D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR,
@@ -576,7 +579,11 @@ impl<B: Brush> Pen for BrushPen<B> {
     }
 }
 
-pub struct DrawingImage(ID2D1Bitmap);
+pub struct DrawingImage {
+    image: RgbaImage,
+    target: RefCell<ID2D1RenderTarget>,
+    bitmap: RefCell<ID2D1Bitmap>,
+}
 
 impl DrawingImage {
     fn new(target: &ID2D1RenderTarget, image: DynamicImage) -> Self {
@@ -584,6 +591,15 @@ impl DrawingImage {
             DynamicImage::ImageRgba8(image) => image,
             _ => image.into_rgba8(),
         };
+        let bitmap = Self::create_bitmap(target, &image);
+        Self {
+            image,
+            target: RefCell::new(target.clone()),
+            bitmap: RefCell::new(bitmap),
+        }
+    }
+
+    fn create_bitmap(target: &ID2D1RenderTarget, image: &RgbaImage) -> ID2D1Bitmap {
         let mut dpix = 0.0;
         let mut dpiy = 0.0;
         unsafe { target.GetDpi(&mut dpix, &mut dpiy) };
@@ -595,7 +611,7 @@ impl DrawingImage {
             dpiX: dpix,
             dpiY: dpiy,
         };
-        let bitmap = unsafe {
+        unsafe {
             target
                 .CreateBitmap(
                     D2D_SIZE_U {
@@ -607,12 +623,23 @@ impl DrawingImage {
                     &prop,
                 )
                 .unwrap()
-        };
-        Self(bitmap)
+        }
+    }
+
+    fn recreate(&self, target: &ID2D1RenderTarget) {
+        *self.bitmap.borrow_mut() = Self::create_bitmap(target, &self.image);
+        *self.target.borrow_mut() = target.clone();
+    }
+
+    pub fn get_bitmap(&self, target: &ID2D1RenderTarget) -> Ref<'_, ID2D1Bitmap> {
+        if self.target.borrow().as_raw() != target.as_raw() {
+            self.recreate(target);
+        }
+        self.bitmap.borrow()
     }
 
     pub fn size(&self) -> Size {
-        let size = unsafe { self.0.GetSize() };
+        let size = unsafe { self.bitmap.borrow().GetSize() };
         Size::new(size.width as _, size.height as _)
     }
 }
