@@ -1,19 +1,21 @@
-use std::marker::PhantomData;
-
 use futures_util::FutureExt;
 use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
-use windows::Win32::Graphics::{
-    Direct2D::{
-        Common::{D2D_SIZE_U, D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_COLOR_F, D2D1_PIXEL_FORMAT},
-        D2D1_FEATURE_LEVEL_DEFAULT, D2D1_HWND_RENDER_TARGET_PROPERTIES, D2D1_PRESENT_OPTIONS_NONE,
-        D2D1_RENDER_TARGET_PROPERTIES, D2D1_RENDER_TARGET_TYPE_HARDWARE,
-        D2D1_RENDER_TARGET_USAGE_NONE, ID2D1Factory, ID2D1HwndRenderTarget, ID2D1RenderTarget,
+use windows::Win32::{
+    Foundation::D2DERR_RECREATE_TARGET,
+    Graphics::{
+        Direct2D::{
+            Common::{D2D_SIZE_U, D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_COLOR_F, D2D1_PIXEL_FORMAT},
+            D2D1_FEATURE_LEVEL_DEFAULT, D2D1_HWND_RENDER_TARGET_PROPERTIES,
+            D2D1_PRESENT_OPTIONS_NONE, D2D1_RENDER_TARGET_PROPERTIES,
+            D2D1_RENDER_TARGET_TYPE_HARDWARE, D2D1_RENDER_TARGET_USAGE_NONE, ID2D1Factory,
+            ID2D1HwndRenderTarget, ID2D1RenderTarget,
+        },
+        Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM,
     },
-    Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM,
 };
 use windows_sys::Win32::{
-    Foundation::LPARAM,
+    Foundation::{HWND, LPARAM},
     System::SystemServices::SS_OWNERDRAW,
     UI::{
         Controls::WC_STATICW,
@@ -38,6 +40,32 @@ fn d2d1<T>(f: impl FnOnce(&ID2D1Factory) -> T) -> T {
     RUNTIME.with(|runtime| f(runtime.d2d1()))
 }
 
+fn create_target(handle: HWND) -> ID2D1HwndRenderTarget {
+    unsafe {
+        d2d1(|d2d| {
+            d2d.CreateHwndRenderTarget(
+                &D2D1_RENDER_TARGET_PROPERTIES {
+                    r#type: D2D1_RENDER_TARGET_TYPE_HARDWARE,
+                    pixelFormat: D2D1_PIXEL_FORMAT {
+                        format: DXGI_FORMAT_B8G8R8A8_UNORM,
+                        alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
+                    },
+                    dpiX: 0.0,
+                    dpiY: 0.0,
+                    usage: D2D1_RENDER_TARGET_USAGE_NONE,
+                    minLevel: D2D1_FEATURE_LEVEL_DEFAULT,
+                },
+                &D2D1_HWND_RENDER_TARGET_PROPERTIES {
+                    hwnd: windows::Win32::Foundation::HWND(handle),
+                    pixelSize: D2D_SIZE_U::default(),
+                    presentOptions: D2D1_PRESENT_OPTIONS_NONE,
+                },
+            )
+            .unwrap()
+        })
+    }
+}
+
 #[derive(Debug)]
 pub struct Canvas {
     handle: Widget,
@@ -53,29 +81,7 @@ impl Canvas {
             0,
             parent.as_window().as_win32(),
         );
-        let target = unsafe {
-            d2d1(|d2d| {
-                d2d.CreateHwndRenderTarget(
-                    &D2D1_RENDER_TARGET_PROPERTIES {
-                        r#type: D2D1_RENDER_TARGET_TYPE_HARDWARE,
-                        pixelFormat: D2D1_PIXEL_FORMAT {
-                            format: DXGI_FORMAT_B8G8R8A8_UNORM,
-                            alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
-                        },
-                        dpiX: 0.0,
-                        dpiY: 0.0,
-                        usage: D2D1_RENDER_TARGET_USAGE_NONE,
-                        minLevel: D2D1_FEATURE_LEVEL_DEFAULT,
-                    },
-                    &D2D1_HWND_RENDER_TARGET_PROPERTIES {
-                        hwnd: windows::Win32::Foundation::HWND(handle.as_raw_window().as_win32()),
-                        pixelSize: D2D_SIZE_U::default(),
-                        presentOptions: D2D1_PRESENT_OPTIONS_NONE,
-                    },
-                )
-                .unwrap()
-            })
-        };
+        let target = create_target(handle.as_raw_window().as_win32());
         Self { handle, target }
     }
 
@@ -120,7 +126,7 @@ impl Canvas {
                     a: 1.0,
                 }
             }));
-            DrawingContext::new(&self.target)
+            DrawingContext::new(self)
         }
     }
 
@@ -174,30 +180,42 @@ impl Canvas {
 
 pub struct DrawingContext<'a> {
     ctx: winio_ui_windows_common::DrawingContext,
-    _p: PhantomData<&'a mut Canvas>,
+    canvas: &'a mut Canvas,
 }
 
 impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
         unsafe {
-            self.ctx.render_target().EndDraw(None, None).unwrap();
+            match self.ctx.render_target().EndDraw(None, None) {
+                Ok(()) => {}
+                Err(e) if e.code() == D2DERR_RECREATE_TARGET => {
+                    self.canvas.target =
+                        create_target(self.canvas.handle.as_raw_window().as_win32())
+                }
+                Err(e) => panic!("{e:?}"),
+            }
+        }
+    }
+}
+
+impl<'a> DrawingContext<'a> {
+    fn new(canvas: &'a mut Canvas) -> Self {
+        Self {
+            ctx: winio_ui_windows_common::DrawingContext::new(
+                d2d1(|f| f.clone()),
+                DWRITE_FACTORY.clone(),
+                {
+                    let target: &ID2D1RenderTarget = &canvas.target;
+                    target.clone()
+                },
+            ),
+            canvas,
         }
     }
 }
 
 #[inherit_methods(from = "self.ctx")]
 impl DrawingContext<'_> {
-    fn new(target: &ID2D1RenderTarget) -> Self {
-        Self {
-            ctx: winio_ui_windows_common::DrawingContext::new(
-                d2d1(|f| f.clone()),
-                DWRITE_FACTORY.clone(),
-                target.clone(),
-            ),
-            _p: PhantomData,
-        }
-    }
-
     pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath);
 
     pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath);
