@@ -54,14 +54,19 @@ impl Widget {
     }
 
     pub fn preferred_size(&self) -> Size {
-        let size = Size::from_native(
+        let size = self.preferred_size_no_cache();
+        let preferred_size = self.preferred_size.get().min(size);
+        self.preferred_size.set(preferred_size);
+        preferred_size
+    }
+
+    pub fn preferred_size_no_cache(&self) -> Size {
+        Size::from_native(
             self.handle
                 .MeasureOverride(Size::new(f64::MAX, f64::MAX).to_native())
                 .unwrap(),
-        );
-        let preferred_size = self.preferred_size.get().min(size).max(self.min_size());
-        self.preferred_size.set(preferred_size);
-        preferred_size
+        )
+        .max(self.min_size())
     }
 
     pub fn preferred_size_with_text(&self, text: &HSTRING) -> Size {
