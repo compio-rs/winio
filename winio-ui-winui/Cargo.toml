@@ -1,6 +1,6 @@
 [package]
 name = "winio-ui-winui"
-version = "0.1.0"
+version = "0.1.1"
 description = "WinUI backend for winio."
 edition = { workspace = true }
 authors = { workspace = true }
@@ -12,7 +12,6 @@ repository = { workspace = true }
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true, features = ["winui"] }
 winio-callback = { workspace = true }
-winio-pollable = { workspace = true }
 winio-ui-windows-common = { workspace = true, features = ["winui"] }
 
 compio = { workspace = true }
