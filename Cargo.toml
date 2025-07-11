@@ -28,7 +28,7 @@ repository = "https://github.com/compio-rs/winio"
 winio-primitive = { path = "winio-primitive", version = "0.1.0" }
 winio-callback = { path = "winio-callback", version = "0.1.0" }
 winio-layout = { path = "winio-layout", version = "0.1.0" }
-winio-handle = { path = "winio-handle", version = "0.1.0" }
+winio-handle = { path = "winio-handle", version = "0.1.1" }
 winio-elm = { path = "winio-elm", version = "0.1.0" }
 winio-pollable = { path = "winio-pollable", version = "0.1.0" }
 winio-ui-windows-common = { path = "winio-ui-windows-common", version = "0.1.0" }
