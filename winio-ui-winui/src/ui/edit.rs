@@ -140,14 +140,16 @@ impl Edit {
                 self.password_box
                     .SetPassword(&self.text_box.Text().unwrap())
                     .unwrap();
+                self.phandle.set_visible(self.handle.is_visible());
+                self.handle.set_visible(false);
             } else {
                 self.text_box
                     .SetText(&self.password_box.Password().unwrap())
                     .unwrap();
+                self.handle.set_visible(self.phandle.is_visible());
+                self.phandle.set_visible(false);
             }
             self.password = v;
-            self.phandle.set_visible(v);
-            self.handle.set_visible(!v);
         }
     }
 
