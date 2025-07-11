@@ -69,7 +69,7 @@ fn rect_f(r: Rect) -> D2D_RECT_F {
     }
 }
 
-pub fn gradient_stop(s: &GradientStop) -> D2D1_GRADIENT_STOP {
+fn gradient_stop(s: &GradientStop) -> D2D1_GRADIENT_STOP {
     D2D1_GRADIENT_STOP {
         position: s.pos as f32,
         color: color_f(s.color),
