@@ -33,6 +33,11 @@ jobs:
             target: 'i686-pc-windows-msvc'
           - os: 'windows-latest'
             target: 'x86_64-pc-windows-gnullvm'
+            features: 'win32'
+            no_default_features: true
+          - os: 'windows-latest'
+            target: 'x86_64-pc-windows-msvc'
+            features: 'winui,win32-dark-mode'
             no_default_features: true
           - os: 'macos-13'
           - os: 'macos-14'
