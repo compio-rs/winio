@@ -148,11 +148,11 @@ impl Edit {
             unsafe {
                 if v {
                     self.pview.setStringValue(&self.view.stringValue());
-                    self.pview.setHidden(self.view.hidden());
+                    self.pview.setHidden(self.view.isHidden());
                     self.view.setHidden(true);
                 } else {
                     self.view.setStringValue(&self.pview.stringValue());
-                    self.view.setHidden(self.pview.hidden());
+                    self.view.setHidden(self.pview.isHidden());
                     self.pview.setHidden(true);
                 }
             }
