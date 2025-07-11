@@ -2,19 +2,12 @@ use std::mem::MaybeUninit;
 
 use widestring::{U16CStr, U16CString};
 use winio_primitive::ColorTheme;
+pub use winio_ui_windows_common::{
+    CustomButton, FileBox, FileFilter, MessageBox, accent_color, monitor_get_all,
+};
 
-pub(crate) mod darkmode;
 pub(crate) mod dpi;
 pub(crate) mod font;
-
-mod filebox;
-pub use filebox::*;
-
-mod monitor;
-pub use monitor::*;
-
-mod msgbox;
-pub use msgbox::*;
 
 mod window;
 pub use window::*;
@@ -46,16 +39,11 @@ pub use check_box::*;
 mod radio_button;
 pub use radio_button::*;
 
-mod accent;
-pub use accent::*;
-
 pub fn color_theme() -> ColorTheme {
-    unsafe {
-        if darkmode::is_dark_mode_allowed_for_app() {
-            ColorTheme::Dark
-        } else {
-            ColorTheme::Light
-        }
+    if winio_ui_windows_common::is_dark_mode_allowed_for_app() {
+        ColorTheme::Dark
+    } else {
+        ColorTheme::Light
     }
 }
 

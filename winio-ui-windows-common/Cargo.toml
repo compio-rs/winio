@@ -1,0 +1,55 @@
+[package]
+name = "winio-ui-windows-common"
+version = "0.1.0"
+description = "Windows common methods for winio."
+edition = { workspace = true }
+authors = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+winio-primitive = { workspace = true }
+winio-handle = { workspace = true }
+
+compio = { workspace = true }
+
+cfg-if = { workspace = true }
+image = { workspace = true, default-features = false }
+widestring = { workspace = true }
+
+windows = { workspace = true, features = [
+    "UI_ViewManagement",
+    "Win32_Graphics_Direct2D",
+    "Win32_Graphics_Direct2D_Common",
+    "Win32_Graphics_DirectWrite",
+    "Win32_Graphics_Dxgi_Common",
+    "Win32_System_Com",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
+] }
+windows-sys = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_Globalization",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Gdi",
+    "Win32_System_LibraryLoader",
+    "Win32_System_SystemServices",
+    "Win32_UI",
+    "Win32_UI_Accessibility",
+    "Win32_UI_Controls",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+windows-numerics = "0.2"
+
+slim-detours-sys = { version = "0.3", optional = true }
+sync-unsafe-cell = { version = "0.1", optional = true }
+
+[build-dependencies]
+embed-resource = "3"
+
+[features]
+win32 = ["winio-handle/win32"]
+winui = ["winio-handle/winui"]
+dark-mode = ["dep:slim-detours-sys", "dep:sync-unsafe-cell"]

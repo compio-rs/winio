@@ -28,19 +28,19 @@ impl Window {
     pub fn set_icon_by_id(&mut self, id: u16);
 
     /// Get window style.
-    #[cfg(windows)]
+    #[cfg(all(windows, feature = "win32"))]
     pub fn style(&self) -> u32;
 
     /// Set window style.
-    #[cfg(windows)]
+    #[cfg(all(windows, feature = "win32"))]
     pub fn set_style(&mut self, s: u32);
 
     /// Get window extended style.
-    #[cfg(windows)]
+    #[cfg(all(windows, feature = "win32"))]
     pub fn ex_style(&self) -> u32;
 
     /// Set window extended style.
-    #[cfg(windows)]
+    #[cfg(all(windows, feature = "win32"))]
     pub fn set_ex_style(&mut self, s: u32);
 }
 

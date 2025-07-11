@@ -1,0 +1,53 @@
+[package]
+name = "winio-ui-winui"
+version = "0.1.0"
+description = "WinUI backend for winio."
+edition = { workspace = true }
+authors = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+winio-primitive = { workspace = true }
+winio-handle = { workspace = true, features = ["winui"] }
+winio-callback = { workspace = true }
+winio-pollable = { workspace = true }
+winio-ui-windows-common = { workspace = true, features = ["winui"] }
+
+compio = { workspace = true }
+compio-runtime = { workspace = true, features = ["notify-always"] }
+compio-log = { workspace = true }
+
+image = { workspace = true, default-features = false }
+inherit-methods-macro = { workspace = true }
+oneshot = { version = "0.1", default-features = false, features = ["std"] }
+scoped-tls = { workspace = true }
+send_wrapper = "0.6"
+widestring = { workspace = true }
+
+winui3 = { workspace = true, features = [
+    "native",
+    "XamlApp",
+    "UI_Composition",
+    "UI_Dispatching",
+    "UI_Windowing",
+    "UI_Xaml_Controls_Primitives",
+    "UI_Xaml_Input",
+] }
+windows-sys = { workspace = true, features = [
+    "Win32_System_Threading",
+    "Win32_UI_HiDpi",
+] }
+windows = { workspace = true, features = [
+    "Foundation",
+    "Foundation_Collections",
+    "Graphics",
+    "Win32_Graphics_Direct2D",
+    "Win32_Graphics_Direct3D",
+    "Win32_Graphics_Direct3D11",
+    "Win32_Graphics_Dxgi",
+] }
+
+[features]
+win32-dark-mode = ["winio-ui-windows-common/dark-mode"]

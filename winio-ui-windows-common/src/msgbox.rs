@@ -5,7 +5,7 @@ use std::{
 
 use widestring::U16CString;
 use windows_sys::Win32::{
-    Foundation::{E_INVALIDARG, E_OUTOFMEMORY, S_OK},
+    Foundation::{E_INVALIDARG, E_OUTOFMEMORY, HWND, S_OK},
     UI::{
         Controls::{
             TASKDIALOG_BUTTON, TASKDIALOGCONFIG, TASKDIALOGCONFIG_0, TASKDIALOGCONFIG_1,
@@ -15,13 +15,13 @@ use windows_sys::Win32::{
         WindowsAndMessaging::{IDCANCEL, IDCLOSE, IDNO, IDOK, IDRETRY, IDYES},
     },
 };
-use winio_handle::{AsRawWindow, AsWindow};
+use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
-use crate::ui::darkmode::TASK_DIALOG_CALLBACK;
+use crate::{darkmode::TASK_DIALOG_CALLBACK, parent_handle};
 
-async fn msgbox_custom(
-    parent: Option<impl AsWindow>,
+async fn msgbox(
+    parent: Option<HWND>,
     msg: U16CString,
     title: U16CString,
     instr: U16CString,
@@ -29,9 +29,7 @@ async fn msgbox_custom(
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
 ) -> MessageBoxResponse {
-    let parent_handle = parent
-        .map(|p| p.as_window().as_raw_window() as isize)
-        .unwrap_or_default();
+    let parent_handle = parent.map(|p| p as isize).unwrap_or_default();
     let (res, result) = compio::runtime::spawn_blocking(move || {
         let cbtn_ptrs = cbtns
             .iter()
@@ -138,7 +136,8 @@ impl MessageBox {
     }
 
     pub async fn show(self, parent: Option<impl AsWindow>) -> MessageBoxResponse {
-        msgbox_custom(
+        let parent = parent_handle(parent);
+        msgbox(
             parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )
         .await

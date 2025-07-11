@@ -26,7 +26,7 @@ impl Label {
             WC_STATICW,
             WS_CHILD | WS_VISIBLE | SS_LEFT,
             0,
-            parent.as_window().as_raw_window(),
+            parent.as_window().as_win32(),
         );
         handle.set_size(handle.size_d2l((100, 50)));
         Self { handle }
@@ -41,7 +41,10 @@ impl Label {
     pub fn set_enabled(&mut self, v: bool);
 
     pub fn preferred_size(&self) -> Size {
-        measure_string(self.handle.as_raw_window(), &self.handle.text_u16())
+        measure_string(
+            self.handle.as_raw_window().as_win32(),
+            &self.handle.text_u16(),
+        )
     }
 
     pub fn loc(&self) -> Point;
@@ -52,7 +55,7 @@ impl Label {
 
     pub fn set_size(&mut self, v: Size) {
         self.handle.set_size(v);
-        unsafe { InvalidateRect(self.handle.as_raw_window(), null(), 1) };
+        unsafe { InvalidateRect(self.handle.as_raw_window().as_win32(), null(), 1) };
     }
 
     pub fn text(&self) -> String;

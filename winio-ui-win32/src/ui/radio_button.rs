@@ -26,7 +26,7 @@ impl RadioButton {
             WC_BUTTONW,
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_RADIOBUTTON as u32,
             0,
-            parent.as_window().as_raw_window(),
+            parent.as_window().as_win32(),
         );
         handle.set_size(handle.size_d2l((50, 14)));
         Self { handle }
@@ -41,7 +41,10 @@ impl RadioButton {
     pub fn set_enabled(&mut self, v: bool);
 
     pub fn preferred_size(&self) -> Size {
-        let s = measure_string(self.handle.as_raw_window(), &self.handle.text_u16());
+        let s = measure_string(
+            self.handle.as_raw_window().as_win32(),
+            &self.handle.text_u16(),
+        );
         Size::new(s.width + 18.0, s.height + 2.0)
     }
 
@@ -74,7 +77,9 @@ impl RadioButton {
             let WindowMessageCommand {
                 message, handle, ..
             } = self.handle.wait_parent(WM_COMMAND).await.command();
-            if std::ptr::eq(handle, self.handle.as_raw_window()) && (message == BN_CLICKED) {
+            if std::ptr::eq(handle, self.handle.as_raw_window().as_win32())
+                && (message == BN_CLICKED)
+            {
                 self.set_checked(true);
                 break;
             }

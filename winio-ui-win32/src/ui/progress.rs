@@ -9,7 +9,7 @@ use windows_sys::Win32::UI::{
         SM_CYVSCROLL, USER_DEFAULT_SCREEN_DPI, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
     },
 };
-use winio_handle::{AsRawWindow, AsWindow};
+use winio_handle::AsWindow;
 use winio_primitive::{Point, Size};
 
 use crate::ui::Widget;
@@ -26,7 +26,7 @@ impl Progress {
             PROGRESS_CLASSW,
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | PBS_SMOOTHREVERSE,
             0,
-            parent.as_window().as_raw_window(),
+            parent.as_window().as_win32(),
         );
         handle.set_size(handle.size_d2l((100, 15)));
         Self { handle }

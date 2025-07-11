@@ -32,7 +32,7 @@ impl EditImpl {
             WC_EDITW,
             style,
             WS_EX_CLIENTEDGE,
-            parent.as_window().as_raw_window(),
+            parent.as_window().as_win32(),
         );
         handle.set_size(handle.size_d2l((100, 50)));
         Self { handle }
@@ -47,7 +47,10 @@ impl EditImpl {
     pub fn set_enabled(&mut self, v: bool);
 
     pub fn preferred_size(&self) -> Size {
-        let s = measure_string(self.handle.as_raw_window(), &self.handle.text_u16());
+        let s = measure_string(
+            self.handle.as_raw_window().as_win32(),
+            &self.handle.text_u16(),
+        );
         Size::new(s.width + 8.0, s.height + 4.0)
     }
 
@@ -90,7 +93,9 @@ impl EditImpl {
             let WindowMessageCommand {
                 message, handle, ..
             } = self.handle.wait_parent(WM_COMMAND).await.command();
-            if std::ptr::eq(handle, self.handle.as_raw_window()) && (message == EN_UPDATE) {
+            if std::ptr::eq(handle, self.handle.as_raw_window().as_win32())
+                && (message == EN_UPDATE)
+            {
                 break;
             }
         }
@@ -168,7 +173,7 @@ impl Edit {
             self.handle.handle.send_message(EM_SETPASSWORDCHAR, 0, 0);
         }
         unsafe {
-            InvalidateRect(self.handle.as_raw_window(), null(), 1);
+            InvalidateRect(self.handle.as_raw_window().as_win32(), null(), 1);
         }
     }
 
@@ -194,7 +199,7 @@ impl TextBox {
                 | ES_MULTILINE as u32
                 | ES_AUTOVSCROLL as u32,
         );
-        unsafe { ShowScrollBar(handle.as_raw_window(), SB_VERT, 1) };
+        unsafe { ShowScrollBar(handle.as_raw_window().as_win32(), SB_VERT, 1) };
         Self { handle }
     }
 

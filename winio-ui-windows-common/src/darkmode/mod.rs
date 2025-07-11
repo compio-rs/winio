@@ -5,8 +5,8 @@ use windows_sys::Win32::{
     Foundation::{COLORREF, HWND, LRESULT},
     Globalization::{CSTR_EQUAL, CompareStringW, LOCALE_ALL, NORM_IGNORECASE},
     Graphics::Gdi::{
-        BLACK_BRUSH, CreateSolidBrush, GetStockObject, HDC, NULL_BRUSH, ScreenToClient, SetBkColor,
-        SetBkMode, SetTextColor, TRANSPARENT, WHITE_BRUSH,
+        BLACK_BRUSH, CreateSolidBrush, DeleteObject, GetStockObject, HDC, HGDIOBJ, NULL_BRUSH,
+        ScreenToClient, SetBkColor, SetBkMode, SetTextColor, TRANSPARENT, WHITE_BRUSH,
     },
     System::SystemServices::MAX_CLASS_NAME,
     UI::{
@@ -18,7 +18,16 @@ use windows_sys::Win32::{
     },
 };
 
-use crate::ui::font::WinBrush;
+pub struct WinBrush(pub HGDIOBJ);
+
+impl Drop for WinBrush {
+    fn drop(&mut self) {
+        unsafe { DeleteObject(self.0) };
+    }
+}
+
+unsafe impl Send for WinBrush {}
+unsafe impl Sync for WinBrush {}
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "dark-mode")] {
@@ -62,6 +71,9 @@ const BLACK: COLORREF = 0x00000000;
 static EDIT_NORMAL_BACK: LazyLock<WinBrush> =
     LazyLock::new(|| WinBrush(unsafe { CreateSolidBrush(0x00212121) }));
 
+/// # Safety
+/// It should only be called inside an wndproc, and `hwnd` & `hdc` should be
+/// valid.
 pub unsafe fn control_color_static(hwnd: HWND, hdc: HDC) -> LRESULT {
     let dark = is_dark_mode_allowed_for_app();
 
@@ -88,6 +100,9 @@ pub unsafe fn control_color_static(hwnd: HWND, hdc: HDC) -> LRESULT {
     res as _
 }
 
+/// # Safety
+/// It should only be called inside an wndproc, and `hparent` & `hwnd` & `hdc`
+/// should be valid.
 pub unsafe fn control_color_edit(hparent: HWND, hwnd: HWND, hdc: HDC) -> Option<LRESULT> {
     if is_dark_mode_allowed_for_app() {
         let mut class = [0u16; MAX_CLASS_NAME as usize];
