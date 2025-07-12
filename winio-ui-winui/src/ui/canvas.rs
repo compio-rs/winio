@@ -37,7 +37,6 @@ use windows::{
     },
     core::{BOOL, Interface, Result},
 };
-use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
 use winio_callback::Callback;
 use winio_handle::AsWindow;
 use winio_primitive::{DrawingFont, MouseButton, Point, Rect, Size};
@@ -47,7 +46,6 @@ use winui3::{
     ISwapChainPanelNative,
     Microsoft::UI::{
         Input::{PointerDeviceType, PointerPointProperties},
-        Windowing::AppWindow,
         Xaml::{
             Controls::{self as MUXC, SwapChainPanel},
             Input::{PointerEventHandler, PointerRoutedEventArgs},
@@ -154,7 +152,9 @@ impl SwapChain {
         }
     }
 
-    pub fn begin_draw(&mut self, size: Size, dpi: f32, scalex: f32, scaley: f32) -> Result<()> {
+    pub fn begin_draw(&mut self, size: Size, scalex: f32, scaley: f32) -> Result<()> {
+        const DPI: f32 = 96.0;
+
         let context = &self.d2d1_context;
         unsafe {
             context.SetTarget(None);
@@ -163,14 +163,14 @@ impl SwapChain {
             self.d3d11_context.Flush();
             self.swap_chain.ResizeBuffers(
                 2,
-                (size.width as f32 * dpi / 96.0 * scalex).max(1.0) as _,
-                (size.height as f32 * dpi / 96.0 * scaley).max(1.0) as _,
+                (size.width as f32 * scalex).max(1.0) as _,
+                (size.height as f32 * scaley).max(1.0) as _,
                 DXGI_FORMAT_B8G8R8A8_UNORM,
                 DXGI_SWAP_CHAIN_FLAG(0),
             )?;
             let matrix = DXGI_MATRIX_3X2_F {
-                _11: 1.0 / scalex / (dpi / 96.0),
-                _22: 1.0 / scaley / (dpi / 96.0),
+                _11: 1.0 / scalex,
+                _22: 1.0 / scaley,
                 ..Default::default()
             };
             self.swap_chain
@@ -182,14 +182,14 @@ impl SwapChain {
                     format: DXGI_FORMAT_B8G8R8A8_UNORM,
                     alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
                 },
-                dpiX: dpi * scalex,
-                dpiY: dpi * scaley,
+                dpiX: DPI * scalex,
+                dpiY: DPI * scaley,
                 bitmapOptions: D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
                 colorContext: ManuallyDrop::new(None),
             };
             let bitmap = context.CreateBitmapFromDxgiSurface(&buffer, Some(&props))?;
             context.SetTarget(&bitmap);
-            context.SetDpi(dpi * scalex, dpi * scaley);
+            context.SetDpi(DPI * scalex, DPI * scaley);
             context.SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
             self.bitmap = Some(bitmap);
             context.BeginDraw();
@@ -228,7 +228,6 @@ pub struct Canvas {
     on_move: SendWrapper<Rc<Callback<Point>>>,
     handle: Widget,
     panel: MUXC::SwapChainPanel,
-    app_window: AppWindow,
     dwrite: IDWriteFactory,
     swap_chain: SwapChain,
 }
@@ -240,8 +239,6 @@ impl Canvas {
         let panel = MUXC::SwapChainPanel::new().unwrap();
         let swap_chain = SwapChain::new();
         swap_chain.set_to_panel(&panel);
-
-        let app_window = parent.as_window().as_winui().AppWindow().unwrap();
 
         let mouse_button_cache = SendWrapper::new(Rc::new(Cell::new(MouseButton::Other)));
         let on_press = SendWrapper::new(Rc::new(Callback::new()));
@@ -304,17 +301,8 @@ impl Canvas {
             on_move,
             handle: Widget::new(parent, panel.cast().unwrap()),
             panel,
-            app_window,
             dwrite,
             swap_chain,
-        }
-    }
-
-    fn dpi(&self) -> u32 {
-        if let Ok(id) = self.app_window.Id() {
-            unsafe { GetDpiForWindow(id.Value as _) }
-        } else {
-            96
         }
     }
 
@@ -340,11 +328,10 @@ impl Canvas {
 
     pub fn context(&mut self) -> DrawingContext<'_> {
         let size = self.size();
-        let dpi = self.dpi() as f32;
         let scalex = self.panel.CompositionScaleX().unwrap();
         let scaley = self.panel.CompositionScaleY().unwrap();
         loop {
-            match self.swap_chain.begin_draw(size, dpi, scalex, scaley) {
+            match self.swap_chain.begin_draw(size, scalex, scaley) {
                 Ok(()) => break,
                 Err(e) if is_lost(&e) => self.handle_lost(),
                 Err(e) => panic!("{e:}"),
