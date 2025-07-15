@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use compio::{fs::File, io::AsyncReadAtExt, runtime::spawn};
+use compio::{fs::File, io::AsyncReadAtExt, runtime::spawn, BufResult};
 use winio::prelude::*;
 
 fn main() {
@@ -164,7 +164,7 @@ impl Component for MainModel {
 
 async fn read_file(path: impl AsRef<Path>) -> io::Result<String> {
     let file = File::open(path).await?;
-    let (_, buffer) = file.read_to_end_at(vec![], 0).await?;
+    let BufResult(_, buffer) = file.read_to_end_at(vec![], 0).await;
     String::from_utf8(buffer).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
 }
 

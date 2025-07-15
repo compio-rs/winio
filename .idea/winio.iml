@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="EMPTY_MODULE" version="4">
+  <component name="NewModuleRootManager">
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/winio-callback/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/winio-elm/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/winio-handle/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/winio-layout/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/winio-pollable/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/winio-primitive/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/winio-ui-app-kit/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/winio-ui-gtk/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/winio-ui-qt/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/winio-ui-win32/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/winio-ui-windows-common/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/winio-ui-winui/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/winio/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/winio/src" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/target" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+</module>
