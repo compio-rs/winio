@@ -5,9 +5,7 @@ use windows_sys::Win32::UI::{
         PBS_SMOOTHREVERSE, PROGRESS_CLASSW,
     },
     HiDpi::GetSystemMetricsForDpi,
-    WindowsAndMessaging::{
-        SM_CYVSCROLL, USER_DEFAULT_SCREEN_DPI, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
-    },
+    WindowsAndMessaging::{SM_CYVSCROLL, USER_DEFAULT_SCREEN_DPI, WS_CHILD, WS_VISIBLE},
 };
 use winio_handle::AsWindow;
 use winio_primitive::{Point, Size};
@@ -24,7 +22,7 @@ impl Progress {
     pub fn new(parent: impl AsWindow) -> Self {
         let mut handle = Widget::new(
             PROGRESS_CLASSW,
-            WS_CHILD | WS_VISIBLE | WS_TABSTOP | PBS_SMOOTHREVERSE,
+            WS_CHILD | WS_VISIBLE | PBS_SMOOTHREVERSE,
             0,
             parent.as_window().as_win32(),
         );

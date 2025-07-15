@@ -1,5 +1,5 @@
 use std::{
-    cell::{OnceCell, RefCell},
+    cell::{Cell, OnceCell, RefCell},
     collections::HashMap,
     future::Future,
     mem::MaybeUninit,
@@ -19,12 +19,16 @@ use windows_sys::{
         Foundation::{HANDLE, HWND, LPARAM, LRESULT, RECT, WAIT_FAILED, WPARAM},
         Graphics::Gdi::{BLACK_BRUSH, GetStockObject, HDC, InvalidateRect},
         System::Threading::INFINITE,
-        UI::WindowsAndMessaging::{
-            DefWindowProcW, DispatchMessageW, EnumChildWindows, MWMO_ALERTABLE,
-            MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW, QS_ALLINPUT,
-            SWP_NOACTIVATE, SWP_NOZORDER, SendMessageW, SetWindowPos, TranslateMessage, WM_CREATE,
-            WM_CTLCOLORBTN, WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC, WM_DPICHANGED,
-            WM_SETFONT, WM_SETTINGCHANGE,
+        UI::{
+            Input::KeyboardAndMouse::{GetFocus, SetFocus},
+            WindowsAndMessaging::{
+                DefWindowProcW, DispatchMessageW, EnumChildWindows, GA_ROOT, GetAncestor,
+                IsDialogMessageW, MWMO_ALERTABLE, MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx,
+                PM_REMOVE, PeekMessageW, QS_ALLINPUT, SWP_NOACTIVATE, SWP_NOZORDER, SendMessageW,
+                SetWindowPos, TranslateMessage, WA_INACTIVE, WM_ACTIVATE, WM_CREATE,
+                WM_CTLCOLORBTN, WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC,
+                WM_DPICHANGED, WM_SETFOCUS, WM_SETFONT, WM_SETTINGCHANGE,
+            },
         },
     },
     core::BOOL,
@@ -140,8 +144,12 @@ impl Runtime {
                     if res != 0 {
                         let msg = unsafe { msg.assume_init() };
                         unsafe {
-                            TranslateMessage(&msg);
-                            DispatchMessageW(&msg);
+                            let root = GetAncestor(msg.hwnd, GA_ROOT);
+                            let handled = !root.is_null() && (IsDialogMessageW(root, &msg) != 0);
+                            if !handled {
+                                TranslateMessage(&msg);
+                                DispatchMessageW(&msg);
+                            }
                         }
                     } else {
                         break;
@@ -219,6 +227,10 @@ pub(crate) unsafe fn wait(handle: HWND, msg: u32) -> impl Future<Output = Window
     RUNTIME.with(|runtime| runtime.register_message(handle, msg))
 }
 
+thread_local! {
+    static FOCUS: Cell<HWND> = const { Cell::new(null_mut()) };
+}
+
 pub(crate) unsafe extern "system" fn window_proc(
     handle: HWND,
     msg: u32,
@@ -236,6 +248,20 @@ pub(crate) unsafe extern "system" fn window_proc(
     } else {
         // These messages need special return values.
         match msg {
+            WM_ACTIVATE => {
+                let state = (wparam & 0xFFFF) as u32;
+                if state == WA_INACTIVE {
+                    FOCUS.set(GetFocus());
+                }
+                return 0;
+            }
+            WM_SETFOCUS => {
+                let focus = FOCUS.get();
+                if !focus.is_null() {
+                    SetFocus(focus);
+                }
+                return 0;
+            }
             WM_SETTINGCHANGE => {
                 window_use_dark_mode(handle);
                 children_refresh_dark_mode(handle, 0);
