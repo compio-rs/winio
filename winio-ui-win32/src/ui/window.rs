@@ -19,7 +19,8 @@ use windows_sys::Win32::{
             LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LR_SHARED, LoadCursorW, LoadImageW, RegisterClassExW,
             SW_HIDE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SendMessageW,
             SetWindowLongPtrW, SetWindowPos, SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE,
-            WM_SETICON, WM_SIZE, WNDCLASSEXW, WS_CHILDWINDOW, WS_OVERLAPPEDWINDOW,
+            WM_SETICON, WM_SIZE, WNDCLASSEXW, WS_CHILDWINDOW, WS_EX_CONTROLPARENT,
+            WS_OVERLAPPEDWINDOW,
         },
     },
 };
@@ -357,14 +358,14 @@ impl Window {
             Widget::new(
                 WINDOW_CLASS_NAME.as_ptr(),
                 WS_OVERLAPPEDWINDOW | WS_CHILDWINDOW,
-                0,
+                WS_EX_CONTROLPARENT,
                 parent.as_window().as_win32(),
             )
         } else {
             Widget::new(
                 WINDOW_CLASS_NAME.as_ptr(),
                 WS_OVERLAPPEDWINDOW,
-                0,
+                WS_EX_CONTROLPARENT,
                 null_mut(),
             )
         };
