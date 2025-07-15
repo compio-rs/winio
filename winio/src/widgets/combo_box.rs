@@ -170,103 +170,75 @@ pub struct ComboEntry {
     widget: sys::ComboEntry,
 }
 
+#[inherit_methods(from = "self.widget")]
 impl ComboEntry {
     /// The text.
-    pub fn text(&self) -> String {
-        self.widget.text()
-    }
+    pub fn text(&self) -> String;
 
     /// Set the text.
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.widget.set_text(s)
-    }
+    pub fn set_text(&mut self, s: impl AsRef<str>);
 
     /// The selection index.
-    pub fn selection(&self) -> Option<usize> {
-        self.widget.selection()
-    }
+    pub fn selection(&self) -> Option<usize>;
 
     /// Set or cancel the selection.
-    pub fn set_selection(&mut self, i: Option<usize>) {
-        self.widget.set_selection(i)
-    }
+    pub fn set_selection(&mut self, i: Option<usize>);
 
     /// The length of selection list.
-    pub fn len(&self) -> usize {
-        self.widget.len()
-    }
+    pub fn len(&self) -> usize;
 
     /// If the selection list is empty.
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
+    pub fn is_empty(&self) -> bool;
 
     /// Clear the selection list.
-    pub fn clear(&mut self) {
-        self.widget.clear();
-    }
+    pub fn clear(&mut self);
 
     /// Get the selection item by index.
-    pub fn get(&self, i: usize) -> String {
-        self.widget.get(i)
-    }
+    pub fn get(&self, i: usize) -> String;
 
     /// Set the selection item by index.
-    pub fn set(&mut self, i: usize, s: impl AsRef<str>) {
-        self.widget.set(i, s)
-    }
+    pub fn set(&mut self, i: usize, s: impl AsRef<str>);
 
     /// Insert the selection item by index.
-    pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
-        self.widget.insert(i, s);
-    }
+    pub fn insert(&mut self, i: usize, s: impl AsRef<str>);
 
     /// Remove the selection item by index.
-    pub fn remove(&mut self, i: usize) {
-        self.widget.remove(i);
-    }
+    pub fn remove(&mut self, i: usize);
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Visible for ComboEntry {
-    fn is_visible(&self) -> bool {
-        self.widget.is_visible()
-    }
+    fn is_visible(&self) -> bool;
 
-    fn set_visible(&mut self, v: bool) {
-        self.widget.set_visible(v);
-    }
+    fn set_visible(&mut self, v: bool);
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Enable for ComboEntry {
-    fn is_enabled(&self) -> bool {
-        self.widget.is_enabled()
-    }
+    fn is_enabled(&self) -> bool;
 
-    fn set_enabled(&mut self, v: bool) {
-        self.widget.set_enabled(v);
-    }
+    fn set_enabled(&mut self, v: bool);
 }
 
+#[inherit_methods(from = "self.widget")]
 impl Layoutable for ComboEntry {
-    fn loc(&self) -> Point {
-        self.widget.loc()
-    }
+    fn loc(&self) -> Point;
 
     fn set_loc(&mut self, p: Point) {
-        self.widget.set_loc(p)
+        if !super::approx_eq_point(self.loc(), p) {
+            self.widget.set_loc(p);
+        }
     }
 
-    fn size(&self) -> Size {
-        self.widget.size()
-    }
+    fn size(&self) -> Size;
 
     fn set_size(&mut self, v: Size) {
-        self.widget.set_size(v)
+        if !super::approx_eq_size(self.size(), v) {
+            self.widget.set_size(v);
+        }
     }
 
-    fn preferred_size(&self) -> Size {
-        self.widget.preferred_size()
-    }
+    fn preferred_size(&self) -> Size;
 }
 
 /// Events of [`ComboEntry`].
