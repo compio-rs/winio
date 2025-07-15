@@ -1,14 +1,15 @@
-use std::ptr::null;
+use std::{cell::Cell, ptr::null};
 
 use inherit_methods_macro::inherit_methods;
 use windows_sys::Win32::{
+    Foundation::{HWND, LPARAM, LRESULT, WPARAM},
     Graphics::Gdi::InvalidateRect,
     UI::{
         Controls::{EM_GETPASSWORDCHAR, EM_SETPASSWORDCHAR, ShowScrollBar, WC_EDITW},
         WindowsAndMessaging::{
-            EN_UPDATE, ES_AUTOHSCROLL, ES_AUTOVSCROLL, ES_CENTER, ES_LEFT, ES_MULTILINE,
-            ES_PASSWORD, ES_RIGHT, SB_VERT, WM_COMMAND, WS_CHILD, WS_EX_CLIENTEDGE, WS_TABSTOP,
-            WS_VISIBLE,
+            DLGC_WANTALLKEYS, EN_UPDATE, ES_AUTOHSCROLL, ES_AUTOVSCROLL, ES_CENTER, ES_LEFT,
+            ES_MULTILINE, ES_PASSWORD, ES_RIGHT, GWLP_WNDPROC, SB_VERT, SetWindowLongPtrW,
+            WM_COMMAND, WM_GETDLGCODE, WNDPROC, WS_CHILD, WS_EX_CLIENTEDGE, WS_TABSTOP, WS_VISIBLE,
         },
     },
 };
@@ -200,6 +201,14 @@ impl TextBox {
                 | ES_AUTOVSCROLL as u32,
         );
         unsafe { ShowScrollBar(handle.as_raw_window().as_win32(), SB_VERT, 1) };
+        let old_proc = unsafe {
+            SetWindowLongPtrW(
+                handle.as_raw_window().as_win32(),
+                GWLP_WNDPROC,
+                multiline_edit_wnd_proc as usize as _,
+            )
+        } as usize;
+        OLD_WND_PROC.set(unsafe { std::mem::transmute::<usize, WNDPROC>(old_proc) });
         Self { handle }
     }
 
@@ -236,4 +245,21 @@ impl TextBox {
     pub async fn wait_change(&self) {
         self.handle.wait_change().await
     }
+}
+
+thread_local! {
+    static OLD_WND_PROC: Cell<WNDPROC> = Cell::new(None);
+}
+
+unsafe extern "system" fn multiline_edit_wnd_proc(
+    hwnd: HWND,
+    umsg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
+    let mut res = OLD_WND_PROC.get().unwrap()(hwnd, umsg, wparam, lparam);
+    if umsg == WM_GETDLGCODE {
+        res &= !(DLGC_WANTALLKEYS as isize);
+    }
+    res
 }
