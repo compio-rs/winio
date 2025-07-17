@@ -8,22 +8,22 @@ use winio_primitive::{Point, Rect, Size};
 
 use crate::sys;
 
-/// Tooltip helper for widgets.
-pub struct Tooltip<T: Component> {
-    widget: sys::Tooltip<Child<T>>,
+/// Tool tip helper for widgets.
+pub struct ToolTip<T: Component + AsWidget> {
+    widget: sys::ToolTip<Child<T>>,
 }
 
 #[inherit_methods(from = "self.widget")]
-impl<T: Component> Tooltip<T> {
-    /// The tooltip text.
+impl<T: Component + AsWidget> ToolTip<T> {
+    /// The tool tip text.
     pub fn tooltip(&self) -> String;
 
-    /// Set the tooltip text.
+    /// Set the tool tip text.
     pub fn set_tooltip(&mut self, s: impl AsRef<str>);
 }
 
-/// Message of tooltip.
-pub enum TooltipMessage<T: Component> {
+/// Message of [`ToolTip`].
+pub enum ToolTipMessage<T: Component> {
     /// Noop message. It does nothing.
     Noop,
     /// Message of the inner widget.
@@ -32,20 +32,20 @@ pub enum TooltipMessage<T: Component> {
     Event(T::Event),
 }
 
-impl<T: Component + AsWidget> Component for Tooltip<T> {
+impl<T: Component + AsWidget> Component for ToolTip<T> {
     type Event = T::Event;
     type Init<'a> = T::Init<'a>;
-    type Message = TooltipMessage<T>;
+    type Message = ToolTipMessage<T>;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = sys::Tooltip::new(Child::init(init));
+        let widget = sys::ToolTip::new(Child::init(init));
         Self { widget }
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        start! {sender, default: TooltipMessage::Noop,
+        start! {sender, default: ToolTipMessage::Noop,
             self.widget => {
-                |e| Some(TooltipMessage::Event(e))
+                |e| Some(ToolTipMessage::Event(e))
             }
         }
     }
@@ -53,11 +53,11 @@ impl<T: Component + AsWidget> Component for Tooltip<T> {
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
         let mut need_render = self.widget.update().await;
         match message {
-            TooltipMessage::Noop => {}
-            TooltipMessage::Message(m) => {
+            ToolTipMessage::Noop => {}
+            ToolTipMessage::Message(m) => {
                 need_render |= self.widget.emit(m).await;
             }
-            TooltipMessage::Event(e) => {
+            ToolTipMessage::Event(e) => {
                 sender.output(e);
             }
         }
@@ -70,7 +70,7 @@ impl<T: Component + AsWidget> Component for Tooltip<T> {
 }
 
 #[inherit_methods(from = "self.widget")]
-impl<T: Component + Layoutable> Layoutable for Tooltip<T> {
+impl<T: Component + AsWidget + Layoutable> Layoutable for ToolTip<T> {
     fn loc(&self) -> Point;
 
     fn set_loc(&mut self, p: Point);
@@ -88,19 +88,19 @@ impl<T: Component + Layoutable> Layoutable for Tooltip<T> {
     fn min_size(&self) -> Size;
 }
 
-impl<T: AsRawWidget + Component> AsRawWidget for Tooltip<T> {
+impl<T: AsRawWidget + Component + AsWidget> AsRawWidget for ToolTip<T> {
     fn as_raw_widget(&self) -> RawWidget {
         self.widget.as_raw_widget()
     }
 }
 
-impl<T: AsWidget + Component> AsWidget for Tooltip<T> {
+impl<T: AsWidget + Component + AsWidget> AsWidget for ToolTip<T> {
     fn as_widget(&self) -> BorrowedWidget<'_> {
         self.widget.as_widget()
     }
 }
 
-impl<T: Component> Deref for Tooltip<T> {
+impl<T: Component + AsWidget> Deref for ToolTip<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -108,7 +108,7 @@ impl<T: Component> Deref for Tooltip<T> {
     }
 }
 
-impl<T: Component> DerefMut for Tooltip<T> {
+impl<T: Component + AsWidget> DerefMut for ToolTip<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }

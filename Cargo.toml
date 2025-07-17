@@ -63,3 +63,6 @@ gtk4 = "0.9"
 [profile.release]
 lto = true
 codegen-units = 1
+
+[patch.'crates-io']
+winio-winui3 = { path = "../winui3-rs/winui3" }

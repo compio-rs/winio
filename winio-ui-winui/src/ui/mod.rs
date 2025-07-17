@@ -142,3 +142,6 @@ pub use list_box::*;
 
 mod canvas;
 pub use canvas::*;
+
+mod tooltip;
+pub use tooltip::*;

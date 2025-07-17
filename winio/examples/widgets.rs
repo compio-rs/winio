@@ -24,9 +24,9 @@ struct MainModel {
     r2: Child<RadioButton>,
     r3: Child<RadioButton>,
     rindex: usize,
-    push_button: Child<Tooltip<Button>>,
-    pop_button: Child<Tooltip<Button>>,
-    show_button: Child<Tooltip<Button>>,
+    push_button: Child<ToolTip<Button>>,
+    pop_button: Child<ToolTip<Button>>,
+    show_button: Child<ToolTip<Button>>,
     progress: Child<Progress>,
     mltext: Child<TextBox>,
 }
@@ -96,14 +96,14 @@ impl Component for MainModel {
             r3: RadioButton = (&window) => {
                 text: "╠╠╠"
             },
-            push_button: Tooltip<Button> = (&window) => {
+            push_button: ToolTip<Button> = (&window) => {
                 text: "Push",
             },
-            pop_button: Tooltip<Button> = (&window) => {
+            pop_button: ToolTip<Button> = (&window) => {
                 text: "Pop",
                 tooltip: "Pop the last entry in the combo box."
             },
-            show_button: Tooltip<Button> = (&window) => {
+            show_button: ToolTip<Button> = (&window) => {
                 text: "Show",
                 tooltip: "Show the current selection in the combo box."
             },
