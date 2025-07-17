@@ -80,3 +80,5 @@ impl Label {
         }
     }
 }
+
+winio_handle::impl_as_widget!(Label, handle);

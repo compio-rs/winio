@@ -188,6 +188,8 @@ impl Edit {
     }
 }
 
+winio_handle::impl_as_widget!(Edit, handle);
+
 #[derive(Debug, Default)]
 struct EditDelegateIvars {
     changed: Callback,

@@ -98,6 +98,8 @@ impl Canvas {
     }
 }
 
+winio_handle::impl_as_widget!(Canvas, handle);
+
 #[derive(Debug)]
 #[doc(hidden)]
 pub enum DrawGradientAction {
