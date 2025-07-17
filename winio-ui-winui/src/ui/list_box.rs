@@ -144,3 +144,5 @@ impl ListBox {
         self.list_box.Items().unwrap().Clear().unwrap();
     }
 }
+
+winio_handle::impl_as_widget!(ListBox, handle);

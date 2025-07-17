@@ -84,3 +84,5 @@ impl CheckBox {
         self.on_click.wait().await
     }
 }
+
+winio_handle::impl_as_widget!(CheckBox, handle);

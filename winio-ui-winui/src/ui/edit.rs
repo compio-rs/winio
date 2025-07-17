@@ -164,6 +164,8 @@ impl Edit {
     }
 }
 
+winio_handle::impl_as_widget!(Edit, handle);
+
 #[derive(Debug)]
 pub struct TextBox {
     on_change: SendWrapper<Rc<Callback>>,
@@ -234,3 +236,5 @@ impl TextBox {
         self.on_change.wait().await
     }
 }
+
+winio_handle::impl_as_widget!(TextBox, handle);

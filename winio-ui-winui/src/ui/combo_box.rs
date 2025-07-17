@@ -137,3 +137,6 @@ impl<const E: bool> ComboBoxImpl<E> {
 
 pub type ComboBox = ComboBoxImpl<false>;
 pub type ComboEntry = ComboBoxImpl<true>;
+
+winio_handle::impl_as_widget!(ComboBox, handle);
+winio_handle::impl_as_widget!(ComboEntry, handle);
