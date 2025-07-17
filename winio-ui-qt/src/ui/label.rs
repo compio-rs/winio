@@ -74,6 +74,8 @@ impl Label {
     }
 }
 
+winio_handle::impl_as_widget!(Label, widget);
+
 impl_static_cast!(ffi::QLabel, ffi::QWidget);
 
 #[cxx::bridge]

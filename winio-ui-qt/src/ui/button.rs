@@ -95,6 +95,10 @@ pub type Button = ButtonImpl<ffi::QPushButton>;
 pub type CheckBox = ButtonImpl<ffi::QCheckBox>;
 pub type RadioButton = ButtonImpl<ffi::QRadioButton>;
 
+winio_handle::impl_as_widget!(Button, widget);
+winio_handle::impl_as_widget!(CheckBox, widget);
+winio_handle::impl_as_widget!(RadioButton, widget);
+
 impl Button {
     pub fn new(parent: impl AsWindow) -> Self {
         let widget = unsafe { ffi::new_push_button(parent.as_window().as_qt()) };

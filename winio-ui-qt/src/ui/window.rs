@@ -2,7 +2,7 @@ use std::ptr::null_mut;
 
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
+use winio_handle::AsWindow;
 use winio_primitive::{Point, Size};
 
 use crate::{
@@ -109,17 +109,7 @@ impl Window {
     }
 }
 
-impl AsRawWindow for Window {
-    fn as_raw_window(&self) -> RawWindow {
-        self.widget.as_raw_window()
-    }
-}
-
-impl AsWindow for Window {
-    fn as_window(&self) -> BorrowedWindow<'_> {
-        unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
-    }
-}
+winio_handle::impl_as_window!(Window, widget);
 
 impl Drop for Window {
     fn drop(&mut self) {

@@ -134,6 +134,9 @@ impl<const E: bool> ComboBoxImpl<E> {
 pub type ComboBox = ComboBoxImpl<false>;
 pub type ComboEntry = ComboBoxImpl<true>;
 
+winio_handle::impl_as_widget!(ComboBox, widget);
+winio_handle::impl_as_widget!(ComboEntry, widget);
+
 impl_static_cast!(ffi::QComboBox, ffi::QWidget);
 
 #[cxx::bridge]
