@@ -157,3 +157,22 @@ impl<'a, T: AsWidget + ?Sized> From<&'a T> for BorrowedWidget<'a> {
         value.as_widget()
     }
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! impl_as_widget {
+    ($t:ty, $inner:ident) => {
+        impl $crate::AsRawWidget for $t {
+            fn as_raw_widget(&self) -> $crate::RawWidget {
+                self.$inner.as_raw_widget()
+            }
+        }
+        impl $crate::AsWidget for $t {
+            fn as_widget(&self) -> $crate::BorrowedWidget<'_> {
+                unsafe {
+                    $crate::BorrowedWidget::borrow_raw($crate::AsRawWidget::as_raw_widget(self))
+                }
+            }
+        }
+    };
+}

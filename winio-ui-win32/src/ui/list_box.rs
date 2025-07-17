@@ -148,3 +148,5 @@ impl ListBox {
         self.handle.send_message(LB_RESETCONTENT, 0, 0);
     }
 }
+
+winio_handle::impl_as_widget!(ListBox, handle);

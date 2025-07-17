@@ -178,3 +178,22 @@ impl From<()> for MaybeBorrowedWindow<'_> {
         Self(None)
     }
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! impl_as_window {
+    ($t:ty, $inner:ident) => {
+        impl $crate::AsRawWindow for $t {
+            fn as_raw_window(&self) -> $crate::RawWindow {
+                self.$inner.as_raw_window()
+            }
+        }
+        impl $crate::AsWindow for $t {
+            fn as_window(&self) -> $crate::BorrowedWindow<'_> {
+                unsafe {
+                    $crate::BorrowedWindow::borrow_raw($crate::AsRawWindow::as_raw_window(self))
+                }
+            }
+        }
+    };
+}

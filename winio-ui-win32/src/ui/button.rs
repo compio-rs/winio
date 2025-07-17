@@ -72,3 +72,5 @@ impl Button {
         }
     }
 }
+
+winio_handle::impl_as_widget!(Button, handle);

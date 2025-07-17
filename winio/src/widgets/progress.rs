@@ -84,3 +84,5 @@ impl Component for Progress {
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
+
+winio_handle::impl_as_widget!(Progress, widget);

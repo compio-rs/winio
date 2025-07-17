@@ -186,6 +186,8 @@ impl Canvas {
     }
 }
 
+winio_handle::impl_as_widget!(Canvas, handle);
+
 pub struct DrawingContext<'a> {
     ctx: winio_ui_windows_common::DrawingContext,
     canvas: &'a mut Canvas,

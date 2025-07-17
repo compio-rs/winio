@@ -164,6 +164,8 @@ impl Component for ComboBox {
     fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
 
+winio_handle::impl_as_widget!(ComboBox, widget);
+
 /// A combo box with editable text box.
 #[derive(Debug)]
 pub struct ComboEntry {
@@ -288,3 +290,5 @@ impl Component for ComboEntry {
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
+
+winio_handle::impl_as_widget!(ComboEntry, widget);
