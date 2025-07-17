@@ -53,7 +53,7 @@ widestring = "1"
 
 windows-sys = "0.60"
 windows = "0.61"
-winui3 = { version = "0.1", package = "winio-winui3" }
+winui3 = { version = "0.1.1", package = "winio-winui3" }
 
 objc2 = "0.6"
 objc2-app-kit = "0.3"
@@ -63,6 +63,3 @@ gtk4 = "0.9"
 [profile.release]
 lto = true
 codegen-units = 1
-
-[patch.'crates-io']
-winio-winui3 = { path = "../winui3-rs/winui3" }
