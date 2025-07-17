@@ -19,4 +19,4 @@ image = { workspace = true, default-features = false }
 scoped-tls = { workspace = true }
 
 gtk4 = { workspace = true, features = ["v4_14"] }
-pangocairo = "0.20"
+pangocairo = "0.21"

@@ -58,7 +58,7 @@ winui3 = { version = "0.1.1", package = "winio-winui3" }
 objc2 = "0.6"
 objc2-app-kit = "0.3"
 
-gtk4 = "0.9"
+gtk4 = "0.10"
 
 [profile.release]
 lto = true
