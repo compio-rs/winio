@@ -53,3 +53,6 @@ pub use check_box::*;
 
 mod accent;
 pub use accent::*;
+
+mod tooltip;
+pub use tooltip::*;
