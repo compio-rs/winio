@@ -39,6 +39,9 @@ pub use check_box::*;
 mod radio_button;
 pub use radio_button::*;
 
+mod tooltip;
+pub use tooltip::*;
+
 pub fn color_theme() -> ColorTheme {
     if winio_ui_windows_common::is_dark_mode_allowed_for_app() {
         ColorTheme::Dark
