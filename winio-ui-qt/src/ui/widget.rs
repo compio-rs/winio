@@ -198,5 +198,7 @@ mod ffi {
         fn setEnabled(self: Pin<&mut QWidget>, v: bool);
         fn windowTitle(self: &QWidget) -> QString;
         fn setWindowTitle(self: Pin<&mut QWidget>, s: &QString);
+        fn toolTip(self: &QWidget) -> QString;
+        fn setToolTip(self: Pin<&mut QWidget>, s: &QString);
     }
 }
