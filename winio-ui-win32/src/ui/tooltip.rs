@@ -12,7 +12,7 @@ use winio_handle::{AsRawWidget, AsWidget};
 
 use crate::Widget;
 
-pub struct ToolTip<T> {
+pub struct ToolTip<T: AsWidget> {
     inner: T,
     handle: Widget,
     info: TTTOOLINFOW,
@@ -40,9 +40,7 @@ impl<T: AsWidget> ToolTip<T> {
             text: U16CString::new(),
         }
     }
-}
 
-impl<T> ToolTip<T> {
     pub fn tooltip(&self) -> String {
         self.text.to_string_lossy()
     }
@@ -70,7 +68,7 @@ impl<T> ToolTip<T> {
     }
 }
 
-impl<T> Drop for ToolTip<T> {
+impl<T: AsWidget> Drop for ToolTip<T> {
     fn drop(&mut self) {
         unsafe {
             self.delete();
@@ -79,7 +77,7 @@ impl<T> Drop for ToolTip<T> {
     }
 }
 
-impl<T> Deref for ToolTip<T> {
+impl<T: AsWidget> Deref for ToolTip<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -87,7 +85,7 @@ impl<T> Deref for ToolTip<T> {
     }
 }
 
-impl<T> DerefMut for ToolTip<T> {
+impl<T: AsWidget> DerefMut for ToolTip<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
