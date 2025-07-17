@@ -1,7 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Child, Component, ComponentSender, start};
+use winio_elm::{Component, ComponentSender};
 use winio_handle::{AsRawWidget, AsWidget, BorrowedWidget, RawWidget};
 use winio_layout::Layoutable;
 use winio_primitive::{Point, Rect, Size};
@@ -10,7 +10,7 @@ use crate::sys;
 
 /// Tool tip helper for widgets.
 pub struct ToolTip<T: Component + AsWidget> {
-    widget: sys::ToolTip<Child<T>>,
+    widget: sys::ToolTip<T>,
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -22,50 +22,26 @@ impl<T: Component + AsWidget> ToolTip<T> {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>);
 }
 
-/// Message of [`ToolTip`].
-pub enum ToolTipMessage<T: Component> {
-    /// Noop message. It does nothing.
-    Noop,
-    /// Message of the inner widget.
-    Message(T::Message),
-    /// Event of the inner widget.
-    Event(T::Event),
-}
-
 impl<T: Component + AsWidget> Component for ToolTip<T> {
     type Event = T::Event;
     type Init<'a> = T::Init<'a>;
-    type Message = ToolTipMessage<T>;
+    type Message = T::Message;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = sys::ToolTip::new(Child::init(init));
+    fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+        let widget = sys::ToolTip::new(T::init(init, sender.cast()));
         Self { widget }
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        start! {sender, default: ToolTipMessage::Noop,
-            self.widget => {
-                |e| Some(ToolTipMessage::Event(e))
-            }
-        }
+        self.widget.start(sender.cast()).await
     }
 
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
-        let mut need_render = self.widget.update().await;
-        match message {
-            ToolTipMessage::Noop => {}
-            ToolTipMessage::Message(m) => {
-                need_render |= self.widget.emit(m).await;
-            }
-            ToolTipMessage::Event(e) => {
-                sender.output(e);
-            }
-        }
-        need_render
+        self.widget.update(message, sender.cast()).await
     }
 
-    fn render(&mut self, _sender: &ComponentSender<Self>) {
-        self.widget.render();
+    fn render(&mut self, sender: &ComponentSender<Self>) {
+        self.widget.render(sender.cast());
     }
 }
 

@@ -174,12 +174,7 @@ impl Component for MainModel {
     }
 
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
-        futures_util::join!(
-            self.window.update(),
-            self.push_button.update(),
-            self.pop_button.update(),
-            self.show_button.update(),
-        );
+        futures_util::future::join(self.window.update(), self.canvas.update()).await;
         match message {
             MainMessage::Noop => false,
             MainMessage::Close => {
