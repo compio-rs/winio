@@ -56,3 +56,5 @@ impl Label {
         self.label.SetTextAlignment(align.to_native()).unwrap();
     }
 }
+
+winio_handle::impl_as_widget!(Label, handle);

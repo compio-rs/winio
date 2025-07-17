@@ -98,3 +98,5 @@ impl Drop for Progress {
         self.timer.take().unwrap().remove();
     }
 }
+
+winio_handle::impl_as_widget!(Progress, handle);

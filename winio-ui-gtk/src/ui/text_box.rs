@@ -100,3 +100,5 @@ impl TextBox {
         self.on_changed.wait().await
     }
 }
+
+winio_handle::impl_as_widget!(TextBox, handle);

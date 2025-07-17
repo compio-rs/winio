@@ -31,18 +31,24 @@ pub trait Component: Sized {
 }
 
 #[derive(Debug)]
-pub(crate) enum ComponentMessage<T: Component> {
-    Message(T::Message),
-    Event(T::Event),
+pub(crate) enum ComponentMessage<M, E> {
+    Message(M),
+    Event(E),
 }
 
 /// Sender of input messages and output events.
 #[derive(Debug)]
-pub struct ComponentSender<T: Component>(Channel<ComponentMessage<T>>);
+#[repr(transparent)]
+pub struct ComponentSender<T: Component>(Channel<ComponentMessage<T::Message, T::Event>>);
 
 impl<T: Component> ComponentSender<T> {
     pub(crate) fn new() -> Self {
         Self(Channel::new())
+    }
+
+    pub(crate) fn from_ref(c: &Channel<ComponentMessage<T::Message, T::Event>>) -> &Self {
+        // Safety: repr(transparent)
+        unsafe { std::mem::transmute(c) }
     }
 
     /// Post the message to the queue.
@@ -59,8 +65,18 @@ impl<T: Component> ComponentSender<T> {
         self.0.wait().await
     }
 
-    pub(crate) fn fetch_all(&self) -> impl IntoIterator<Item = ComponentMessage<T>> {
+    pub(crate) fn fetch_all(
+        &self,
+    ) -> impl IntoIterator<Item = ComponentMessage<T::Message, T::Event>> {
         self.0.fetch_all()
+    }
+
+    /// Cast the sender for a different component type with the same message and
+    /// event types.
+    pub fn cast<U: Component<Message = T::Message, Event = T::Event>>(
+        &self,
+    ) -> &ComponentSender<U> {
+        ComponentSender::from_ref(&self.0)
     }
 }
 

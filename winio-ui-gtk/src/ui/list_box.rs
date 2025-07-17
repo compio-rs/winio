@@ -128,3 +128,5 @@ impl ListBox {
         self.handle.reset_preferred_size();
     }
 }
+
+winio_handle::impl_as_widget!(ListBox, handle);

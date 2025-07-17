@@ -149,6 +149,8 @@ impl Canvas {
     }
 }
 
+winio_handle::impl_as_widget!(Canvas, handle);
+
 pub struct DrawingContext<'a> {
     surface: Option<RecordingSurface>,
     ctx: Context,

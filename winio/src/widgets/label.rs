@@ -86,3 +86,5 @@ impl Component for Label {
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
+
+winio_handle::impl_as_widget!(Label, widget);

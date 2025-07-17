@@ -7,7 +7,10 @@ use std::{
 use inherit_methods_macro::inherit_methods;
 use smallvec::SmallVec;
 #[cfg(feature = "handle")]
-use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
+use winio_handle::{
+    AsRawWidget, AsRawWindow, AsWidget, AsWindow, BorrowedWidget, BorrowedWindow, RawWidget,
+    RawWindow,
+};
 #[cfg(feature = "layout")]
 use winio_layout::Layoutable;
 #[cfg(feature = "layout")]
@@ -148,6 +151,20 @@ impl<T: AsRawWindow + Component> AsRawWindow for Child<T> {
 impl<T: AsWindow + Component> AsWindow for Child<T> {
     fn as_window(&self) -> BorrowedWindow<'_> {
         self.model.as_window()
+    }
+}
+
+#[cfg(feature = "handle")]
+impl<T: AsRawWidget + Component> AsRawWidget for Child<T> {
+    fn as_raw_widget(&self) -> RawWidget {
+        self.model.as_raw_widget()
+    }
+}
+
+#[cfg(feature = "handle")]
+impl<T: AsWidget + Component> AsWidget for Child<T> {
+    fn as_widget(&self) -> BorrowedWidget<'_> {
+        self.model.as_widget()
     }
 }
 

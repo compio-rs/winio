@@ -84,3 +84,5 @@ impl RadioButton {
         self.on_click.wait().await
     }
 }
+
+winio_handle::impl_as_widget!(RadioButton, handle);

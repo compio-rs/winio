@@ -1,6 +1,6 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
-use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, MaybeBorrowedWindow, RawWindow};
+use winio_handle::MaybeBorrowedWindow;
 use winio_layout::{Layoutable, Visible};
 use winio_primitive::{Point, Size};
 
@@ -62,18 +62,6 @@ impl Layoutable for Window {
     fn set_size(&mut self, v: Size);
 }
 
-impl AsRawWindow for Window {
-    fn as_raw_window(&self) -> RawWindow {
-        self.widget.as_raw_window()
-    }
-}
-
-impl AsWindow for Window {
-    fn as_window(&self) -> BorrowedWindow<'_> {
-        self.widget.as_window()
-    }
-}
-
 /// Events of [`Window`].
 #[non_exhaustive]
 pub enum WindowEvent {
@@ -127,3 +115,5 @@ impl Component for Window {
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
+
+winio_handle::impl_as_window!(Window, widget);

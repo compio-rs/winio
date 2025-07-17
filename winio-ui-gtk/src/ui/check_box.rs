@@ -88,6 +88,8 @@ impl CheckBox {
     }
 }
 
+winio_handle::impl_as_widget!(CheckBox, handle);
+
 #[derive(Debug)]
 pub struct RadioButton {
     handle: CheckBox,
@@ -140,3 +142,5 @@ impl RadioButton {
         self.handle.wait_click().await
     }
 }
+
+winio_handle::impl_as_widget!(RadioButton, handle);

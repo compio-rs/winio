@@ -70,3 +70,5 @@ impl Progress {
         self.progress_bar.SetIsIndeterminate(indeterminate).unwrap();
     }
 }
+
+winio_handle::impl_as_widget!(Progress, handle);

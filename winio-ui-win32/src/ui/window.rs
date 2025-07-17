@@ -24,7 +24,7 @@ use windows_sys::Win32::{
         },
     },
 };
-use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
+use winio_handle::{AsRawWidget, AsRawWindow, AsWindow, RawWidget, RawWindow};
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{
     PreferredAppMode, control_use_dark_mode, get_current_module_handle, set_preferred_app_mode,
@@ -57,6 +57,12 @@ impl Drop for OwnedWindow {
 impl AsRawWindow for OwnedWindow {
     fn as_raw_window(&self) -> RawWindow {
         RawWindow::Win32(self.0)
+    }
+}
+
+impl AsRawWidget for OwnedWindow {
+    fn as_raw_widget(&self) -> RawWidget {
+        RawWidget::Win32(self.0)
     }
 }
 
@@ -317,6 +323,12 @@ impl AsRawWindow for Widget {
     }
 }
 
+impl AsRawWidget for Widget {
+    fn as_raw_widget(&self) -> RawWidget {
+        self.0.as_raw_widget()
+    }
+}
+
 pub(crate) const WINDOW_CLASS_NAME: &U16CStr =
     u16cstr!(concat!("WinioWindowVersion", env!("CARGO_PKG_VERSION")));
 
@@ -437,17 +449,7 @@ impl Window {
     }
 }
 
-impl AsRawWindow for Window {
-    fn as_raw_window(&self) -> RawWindow {
-        self.handle.as_raw_window()
-    }
-}
-
-impl AsWindow for Window {
-    fn as_window(&self) -> BorrowedWindow<'_> {
-        unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
-    }
-}
+winio_handle::impl_as_window!(Window, handle);
 
 impl Drop for Window {
     fn drop(&mut self) {

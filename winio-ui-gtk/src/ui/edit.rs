@@ -103,3 +103,5 @@ impl Edit {
         self.on_changed.wait().await
     }
 }
+
+winio_handle::impl_as_widget!(Edit, handle);

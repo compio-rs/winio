@@ -70,3 +70,5 @@ impl Button {
         self.on_click.wait().await
     }
 }
+
+winio_handle::impl_as_widget!(Button, handle);

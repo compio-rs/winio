@@ -43,6 +43,9 @@ pub use list_box::*;
 mod accent;
 pub use accent::*;
 
+mod tooltip;
+pub use tooltip::*;
+
 pub fn color_theme() -> ColorTheme {
     unsafe {
         let osx_mode =

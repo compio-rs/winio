@@ -13,7 +13,7 @@ use objc2_foundation::{
     MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSPoint, NSRect, NSSize, NSString,
 };
 use winio_callback::Callback;
-use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
+use winio_handle::{AsRawWidget, AsRawWindow, AsWindow, BorrowedWindow, RawWidget, RawWindow};
 use winio_primitive::{Point, Rect, Size};
 
 use crate::{
@@ -271,5 +271,11 @@ impl Widget {
         unsafe {
             self.view.setFrame(frame);
         }
+    }
+}
+
+impl AsRawWidget for Widget {
+    fn as_raw_widget(&self) -> RawWidget {
+        self.view.clone()
     }
 }

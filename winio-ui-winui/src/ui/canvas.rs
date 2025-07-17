@@ -358,6 +358,8 @@ impl Canvas {
     }
 }
 
+winio_handle::impl_as_widget!(Canvas, handle);
+
 fn mouse_button(panel: &SwapChainPanel, args: &PointerRoutedEventArgs) -> MouseButton {
     let pointer = args.Pointer().unwrap();
     if pointer.PointerDeviceType() == Ok(PointerDeviceType::Mouse) {

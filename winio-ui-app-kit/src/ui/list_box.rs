@@ -169,6 +169,8 @@ impl ListBox {
     }
 }
 
+winio_handle::impl_as_widget!(ListBox, handle);
+
 #[derive(Debug, Default)]
 struct ListBoxDelegateIvars {
     select: Callback,

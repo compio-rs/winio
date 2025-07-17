@@ -86,3 +86,5 @@ impl CheckBox {
         }
     }
 }
+
+winio_handle::impl_as_widget!(CheckBox, handle);

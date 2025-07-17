@@ -93,3 +93,5 @@ impl Label {
         self.handle.set_ex_style(style);
     }
 }
+
+winio_handle::impl_as_widget!(Label, handle);

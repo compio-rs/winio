@@ -112,6 +112,8 @@ impl Canvas {
     }
 }
 
+winio_handle::impl_as_widget!(Canvas, widget);
+
 pub struct DrawingContext<'a> {
     painter: UniquePtr<ffi::QPainter>,
     size: Size,
