@@ -7,7 +7,7 @@
 
 STATIC_CAST_ASSERT(QComboBox, QWidget);
 
-std::unique_ptr<QComboBox> new_combo_box(QWidget *parent, bool editable);
+std::unique_ptr<QComboBox> new_combo_box(QWidget *parent);
 void combo_box_connect_changed(QComboBox &w, callback_fn_t<void()> callback,
                                std::uint8_t const *data);
 void combo_box_connect_select(QComboBox &w, callback_fn_t<void()> callback,
