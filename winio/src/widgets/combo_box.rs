@@ -20,6 +20,12 @@ impl ComboBox {
     /// Set or cancel the selection.
     pub fn set_selection(&mut self, i: Option<usize>);
 
+    /// If the combo box is editable.
+    pub fn is_editable(&self) -> bool;
+
+    /// Set if the combo box is editable.
+    pub fn set_editable(&mut self, v: bool);
+
     /// The length of selection list.
     pub fn len(&self) -> usize;
 
@@ -82,6 +88,8 @@ impl Layoutable for ComboBox {
 pub enum ComboBoxEvent {
     /// The selection has changed.
     Select,
+    /// The text has been changed.
+    Change,
 }
 
 /// Messages of [`ComboBox`].
@@ -145,134 +153,16 @@ impl Component for ComboBox {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        loop {
-            self.widget.wait_select().await;
-            sender.output(ComboBoxEvent::Select);
-        }
-    }
-
-    async fn update(&mut self, message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
-        match message {
-            ComboBoxMessage::Insert { at, value } => self.insert(at, value),
-            ComboBoxMessage::Remove { at } => self.remove(at),
-            ComboBoxMessage::Replace { at, value } => self.set(at, value),
-            ComboBoxMessage::Clear => self.clear(),
-        }
-        true
-    }
-
-    fn render(&mut self, _sender: &ComponentSender<Self>) {}
-}
-
-winio_handle::impl_as_widget!(ComboBox, widget);
-
-/// A combo box with editable text box.
-#[derive(Debug)]
-pub struct ComboEntry {
-    widget: sys::ComboEntry,
-}
-
-#[inherit_methods(from = "self.widget")]
-impl ComboEntry {
-    /// The text.
-    pub fn text(&self) -> String;
-
-    /// Set the text.
-    pub fn set_text(&mut self, s: impl AsRef<str>);
-
-    /// The selection index.
-    pub fn selection(&self) -> Option<usize>;
-
-    /// Set or cancel the selection.
-    pub fn set_selection(&mut self, i: Option<usize>);
-
-    /// The length of selection list.
-    pub fn len(&self) -> usize;
-
-    /// If the selection list is empty.
-    pub fn is_empty(&self) -> bool;
-
-    /// Clear the selection list.
-    pub fn clear(&mut self);
-
-    /// Get the selection item by index.
-    pub fn get(&self, i: usize) -> String;
-
-    /// Set the selection item by index.
-    pub fn set(&mut self, i: usize, s: impl AsRef<str>);
-
-    /// Insert the selection item by index.
-    pub fn insert(&mut self, i: usize, s: impl AsRef<str>);
-
-    /// Remove the selection item by index.
-    pub fn remove(&mut self, i: usize);
-}
-
-#[inherit_methods(from = "self.widget")]
-impl Visible for ComboEntry {
-    fn is_visible(&self) -> bool;
-
-    fn set_visible(&mut self, v: bool);
-}
-
-#[inherit_methods(from = "self.widget")]
-impl Enable for ComboEntry {
-    fn is_enabled(&self) -> bool;
-
-    fn set_enabled(&mut self, v: bool);
-}
-
-#[inherit_methods(from = "self.widget")]
-impl Layoutable for ComboEntry {
-    fn loc(&self) -> Point;
-
-    fn set_loc(&mut self, p: Point) {
-        if !super::approx_eq_point(self.loc(), p) {
-            self.widget.set_loc(p);
-        }
-    }
-
-    fn size(&self) -> Size;
-
-    fn set_size(&mut self, v: Size) {
-        if !super::approx_eq_size(self.size(), v) {
-            self.widget.set_size(v);
-        }
-    }
-
-    fn preferred_size(&self) -> Size;
-}
-
-/// Events of [`ComboEntry`].
-#[non_exhaustive]
-pub enum ComboEntryEvent {
-    /// The selection has changed.
-    Select,
-    /// The text has been changed.
-    Change,
-}
-
-impl Component for ComboEntry {
-    type Event = ComboEntryEvent;
-    type Init<'a> = BorrowedWindow<'a>;
-    type Message = ComboBoxMessage;
-
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = sys::ComboEntry::new(init);
-        Self { widget }
-    }
-
-    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         let fut_select = async {
             loop {
                 self.widget.wait_select().await;
-                sender.output(ComboEntryEvent::Select);
+                sender.output(ComboBoxEvent::Select);
             }
         };
         let fut_change = async {
             loop {
                 self.widget.wait_change().await;
-                sender.output(ComboEntryEvent::Change);
+                sender.output(ComboBoxEvent::Change);
             }
         };
         futures_util::future::join(fut_select, fut_change).await.0
@@ -291,4 +181,4 @@ impl Component for ComboEntry {
     fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
 
-winio_handle::impl_as_widget!(ComboEntry, widget);
+winio_handle::impl_as_widget!(ComboBox, widget);

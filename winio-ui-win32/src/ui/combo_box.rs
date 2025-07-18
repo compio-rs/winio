@@ -12,7 +12,7 @@ use windows_sys::Win32::{
         },
     },
 };
-use winio_handle::{AsRawWindow, AsWindow};
+use winio_handle::{AsRawWidget, AsRawWindow, AsWidget, AsWindow, BorrowedWidget, RawWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{
@@ -21,19 +21,18 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct ComboBoxImpl<const E: bool> {
+struct ComboBoxImpl {
     handle: Widget,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl<const E: bool> ComboBoxImpl<E> {
-    pub fn new(parent: impl AsWindow) -> Self {
-        let mut style =
-            WS_TABSTOP | WS_VISIBLE | WS_CHILD | CBS_AUTOHSCROLL as u32 | CBS_HASSTRINGS as u32;
-        if E {
+impl ComboBoxImpl {
+    pub fn new(parent: impl AsWindow, editable: bool) -> Self {
+        let mut style = WS_TABSTOP | WS_CHILD | CBS_AUTOHSCROLL as u32 | CBS_HASSTRINGS as u32;
+        if editable {
             style |= CBS_DROPDOWN as u32;
         } else {
-            style |= CBS_DROPDOWNLIST as u32;
+            style |= WS_VISIBLE | CBS_DROPDOWNLIST as u32;
         }
         let mut handle = Widget::new(WC_COMBOBOXW, style, 0, parent.as_window().as_win32());
         handle.set_size(handle.size_d2l((50, 14)));
@@ -152,8 +151,205 @@ impl<const E: bool> ComboBoxImpl<E> {
     }
 }
 
-pub type ComboBox = ComboBoxImpl<false>;
-pub type ComboEntry = ComboBoxImpl<true>;
+impl AsRawWidget for ComboBoxImpl {
+    fn as_raw_widget(&self) -> RawWidget {
+        self.handle.as_raw_widget()
+    }
+}
 
-winio_handle::impl_as_widget!(ComboBox, handle);
-winio_handle::impl_as_widget!(ComboEntry, handle);
+#[derive(Debug)]
+pub struct ComboBox {
+    handle: ComboBoxImpl,
+    ehandle: ComboBoxImpl,
+    editable: bool,
+}
+
+impl ComboBox {
+    pub fn new(parent: impl AsWindow) -> Self {
+        let parent = parent.as_window();
+        let handle = ComboBoxImpl::new(&parent, false);
+        let ehandle = ComboBoxImpl::new(&parent, true);
+        Self {
+            handle,
+            ehandle,
+            editable: false,
+        }
+    }
+
+    pub fn is_visible(&self) -> bool {
+        if self.editable {
+            &self.ehandle
+        } else {
+            &self.handle
+        }
+        .is_visible()
+    }
+
+    pub fn set_visible(&mut self, v: bool) {
+        if self.editable {
+            &mut self.ehandle
+        } else {
+            &mut self.handle
+        }
+        .set_visible(v);
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.handle.is_enabled()
+    }
+
+    pub fn set_enabled(&mut self, v: bool) {
+        self.handle.set_enabled(v);
+        self.ehandle.set_enabled(v);
+    }
+
+    pub fn preferred_size(&self) -> Size {
+        self.handle.preferred_size()
+    }
+
+    pub fn loc(&self) -> Point {
+        self.handle.loc()
+    }
+
+    pub fn set_loc(&mut self, p: Point) {
+        self.handle.set_loc(p);
+        self.ehandle.set_loc(p);
+    }
+
+    pub fn size(&self) -> Size {
+        self.handle.size()
+    }
+
+    pub fn set_size(&mut self, v: Size) {
+        self.handle.set_size(v);
+        self.ehandle.set_size(v);
+    }
+
+    pub fn text(&self) -> String {
+        if self.editable {
+            &self.ehandle
+        } else {
+            &self.handle
+        }
+        .text()
+    }
+
+    pub fn set_text(&mut self, s: impl AsRef<str>) {
+        if self.editable {
+            &mut self.ehandle
+        } else {
+            &mut self.handle
+        }
+        .set_text(s);
+    }
+
+    pub fn selection(&self) -> Option<usize> {
+        if self.editable {
+            &self.ehandle
+        } else {
+            &self.handle
+        }
+        .selection()
+    }
+
+    pub fn set_selection(&mut self, i: Option<usize>) {
+        if self.editable {
+            &mut self.ehandle
+        } else {
+            &mut self.handle
+        }
+        .set_selection(i);
+    }
+
+    pub fn is_editable(&self) -> bool {
+        self.editable
+    }
+
+    pub fn set_editable(&mut self, v: bool) {
+        if self.editable != v {
+            if v {
+                self.ehandle.set_text(self.handle.text());
+                self.ehandle.set_selection(self.handle.selection());
+                self.ehandle.set_visible(self.handle.is_visible());
+                self.handle.set_visible(false);
+            } else {
+                self.handle.set_text(self.ehandle.text());
+                self.handle.set_selection(self.ehandle.selection());
+                self.handle.set_visible(self.ehandle.is_visible());
+                self.ehandle.set_visible(false);
+            }
+            self.editable = v;
+        }
+    }
+
+    pub async fn wait_select(&self) {
+        if self.editable {
+            &self.ehandle
+        } else {
+            &self.handle
+        }
+        .wait_select()
+        .await
+    }
+
+    pub async fn wait_change(&self) {
+        if self.editable {
+            &self.ehandle
+        } else {
+            &self.handle
+        }
+        .wait_change()
+        .await
+    }
+
+    pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
+        let s = s.as_ref();
+        self.handle.insert(i, s);
+        self.ehandle.insert(i, s);
+    }
+
+    pub fn remove(&mut self, i: usize) {
+        self.handle.remove(i);
+        self.ehandle.remove(i);
+    }
+
+    pub fn get(&self, i: usize) -> String {
+        self.handle.get(i)
+    }
+
+    pub fn set(&mut self, i: usize, s: impl AsRef<str>) {
+        let s = s.as_ref();
+        self.handle.set(i, s);
+        self.ehandle.set(i, s);
+    }
+
+    pub fn len(&self) -> usize {
+        self.handle.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.handle.is_empty()
+    }
+
+    pub fn clear(&mut self) {
+        self.handle.clear();
+        self.ehandle.clear();
+    }
+}
+
+impl AsRawWidget for ComboBox {
+    fn as_raw_widget(&self) -> RawWidget {
+        if self.editable {
+            &self.ehandle
+        } else {
+            &self.handle
+        }
+        .as_raw_widget()
+    }
+}
+
+impl AsWidget for ComboBox {
+    fn as_widget(&self) -> BorrowedWidget<'_> {
+        unsafe { BorrowedWidget::borrow_raw(self.as_raw_widget()) }
+    }
+}
