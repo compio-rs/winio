@@ -3,7 +3,7 @@ use objc2::{
     DefinedClass, MainThreadMarker, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
 };
-use objc2_app_kit::{NSEvent, NSScroller};
+use objc2_app_kit::{NSControlSize, NSEvent, NSScroller, NSScrollerStyle};
 use objc2_foundation::{NSPoint, NSRect, NSSize};
 use winio_callback::Callback;
 use winio_handle::{AsRawWidget, AsWidget, AsWindow, BorrowedWidget, RawWidget};
@@ -187,10 +187,17 @@ impl ScrollBar {
     }
 
     pub fn preferred_size(&self) -> Size {
+        let width = unsafe {
+            NSScroller::scrollerWidthForControlSize_scrollerStyle(
+                NSControlSize::Regular,
+                NSScrollerStyle::Overlay,
+                MainThreadMarker::new().unwrap(),
+            )
+        };
         if self.vertical {
-            Size::new(20.0, 0.0)
+            Size::new(width, 0.0)
         } else {
-            Size::new(0.0, 20.0)
+            Size::new(0.0, width)
         }
     }
 
