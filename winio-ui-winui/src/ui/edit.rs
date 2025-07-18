@@ -4,7 +4,7 @@ use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows::core::{HSTRING, Interface};
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::{AsRawWidget, AsWidget, AsWindow, BorrowedWidget, RawWidget};
 use winio_primitive::{HAlign, Point, Size};
 use winui3::Microsoft::UI::Xaml::{
     Controls::{self as MUXC, ScrollBarVisibility, ScrollViewer, TextChangedEventHandler},
@@ -164,7 +164,22 @@ impl Edit {
     }
 }
 
-winio_handle::impl_as_widget!(Edit, handle);
+impl AsRawWidget for Edit {
+    fn as_raw_widget(&self) -> RawWidget {
+        if self.password {
+            &self.phandle
+        } else {
+            &self.handle
+        }
+        .as_raw_widget()
+    }
+}
+
+impl AsWidget for Edit {
+    fn as_widget(&self) -> BorrowedWidget<'_> {
+        unsafe { BorrowedWidget::borrow_raw(self.as_raw_widget()) }
+    }
+}
 
 #[derive(Debug)]
 pub struct TextBox {

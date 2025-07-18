@@ -32,7 +32,6 @@ impl<T: AsWidget> ToolTip<T> {
         info.cbSize = std::mem::size_of::<TTTOOLINFOW>() as _;
         info.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
         info.hwnd = parent;
-        info.uId = inner.as_widget().as_win32() as _;
         Self {
             inner,
             handle,
@@ -51,6 +50,7 @@ impl<T: AsWidget> ToolTip<T> {
         if self.text.is_empty() {
             self.delete();
         } else {
+            self.info.uId = self.inner.as_widget().as_win32() as _;
             self.info.lpszText = self.text.as_mut_ptr();
             if add_new {
                 self.handle
