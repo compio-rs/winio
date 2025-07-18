@@ -53,7 +53,7 @@ widestring = "1"
 
 windows-sys = "0.60"
 windows = "0.61"
-winui3 = { version = "0.1.1", package = "winio-winui3" }
+winui3 = { version = "0.1.2", package = "winio-winui3" }
 
 objc2 = "0.6"
 objc2-app-kit = "0.3"
