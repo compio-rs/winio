@@ -65,7 +65,7 @@ impl ScrollBar {
     pub fn range(&self) -> (usize, usize) {
         let max = self.widget.as_ref().maximum();
         let min = self.widget.as_ref().minimum();
-        ((max as usize) + self.page(), min as _)
+        (min as _, max as usize + self.page())
     }
 
     pub fn set_range(&mut self, min: usize, max: usize) {
