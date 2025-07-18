@@ -20,12 +20,48 @@ fn main() {
 struct MainModel {
     window: Child<Window>,
     canvas: Child<Canvas>,
+    scrollbar: Child<ScrollBar>,
     button: Child<Button>,
     entry: Child<Edit>,
     list: Child<ObservableVec<String>>,
     listbox: Child<ListBox>,
     images: Vec<DynamicImage>,
     sel_images: BTreeMap<usize, Option<DrawingImage>>,
+}
+
+const MAX_COLUMN: usize = 3;
+
+impl MainModel {
+    fn update_scrollbar(&mut self) {
+        let pos = self.scrollbar.pos();
+
+        let size = self.canvas.size();
+        let occupy_width = size.width / (MAX_COLUMN as f64);
+        let content_width = occupy_width - 10.0;
+        let content_height: f64 = self
+            .sel_images
+            .keys()
+            .chunks(MAX_COLUMN)
+            .into_iter()
+            .map(|images| {
+                (images
+                    .map(|i| {
+                        let image = &self.images[*i];
+                        let image_size = Size::new(image.width() as _, image.height() as _);
+                        (image_size.height
+                            * (content_width / image_size.width.max(image_size.height)))
+                            as usize
+                    })
+                    .max()
+                    .unwrap_or_default() as f64)
+                    .min(content_width)
+                    + 10.0
+            })
+            .sum();
+        self.scrollbar.set_range(0, content_height as _);
+        self.scrollbar.set_page(size.height as _);
+        self.scrollbar.set_pos(pos);
+    }
 }
 
 #[derive(Debug)]
@@ -53,6 +89,9 @@ impl Component for MainModel {
                 size: Size::new(800.0, 600.0),
             },
             canvas: Canvas = (&window),
+            scrollbar: ScrollBar = (&window) => {
+                orient: Orient::Vertical,
+            },
             button: Button = (&window) => {
                 text: "...",
             },
@@ -75,6 +114,7 @@ impl Component for MainModel {
         Self {
             window,
             canvas,
+            scrollbar,
             button,
             entry,
             list,
@@ -99,6 +139,9 @@ impl Component for MainModel {
             },
             self.listbox => {
                 ListBoxEvent::Select => MainMessage::Select,
+            },
+            self.scrollbar => {
+                ScrollBarEvent::Change => MainMessage::Redraw,
             }
         }
     }
@@ -110,6 +153,7 @@ impl Component for MainModel {
             self.button.update(),
         )
         .await;
+        self.update_scrollbar();
         match message {
             MainMessage::Noop => false,
             MainMessage::Close => {
@@ -179,6 +223,7 @@ impl Component for MainModel {
                 StackPanel::new(Orient::Horizontal),
                 self.listbox,
                 self.canvas => { grow: true },
+                self.scrollbar,
             };
             let mut root_panel = layout! {
                 StackPanel::new(Orient::Vertical),
@@ -187,6 +232,8 @@ impl Component for MainModel {
             };
             root_panel.set_size(csize);
         }
+
+        let pos = self.scrollbar.pos();
 
         let size = self.canvas.size();
         let mut ctx = self.canvas.context();
@@ -198,7 +245,6 @@ impl Component for MainModel {
         });
         let pen = BrushPen::new(&brush, 1.0);
 
-        const MAX_COLUMN: usize = 3;
         let occupy_width = size.width / (MAX_COLUMN as f64);
         let content_width = occupy_width - 10.0;
         for (i, image) in self.sel_images.iter_mut() {
@@ -231,7 +277,7 @@ impl Component for MainModel {
             let c = i % MAX_COLUMN;
             let r = i / MAX_COLUMN;
             let x = c as f64 * occupy_width + 5.0;
-            let y = content_heights[..r].iter().map(|h| h + 10.0).sum::<f64>() + 5.0;
+            let y = content_heights[..r].iter().map(|h| h + 10.0).sum::<f64>() + 5.0 - pos as f64;
             let content_height = content_heights[r];
             let rect = Rect::new(Point::new(x, y), Size::new(content_width, content_height));
             let rate = (content_width / image_size.width).min(content_height / image_size.height);
