@@ -31,6 +31,8 @@ impl Window {
         super::COLOR_THEME.set(theme);
 
         let swindow = gtk4::ScrolledWindow::new();
+        swindow.set_hscrollbar_policy(gtk4::PolicyType::External);
+        swindow.set_vscrollbar_policy(gtk4::PolicyType::External);
         let fixed = gtk4::Fixed::new();
         window.set_child(Some(&swindow));
         swindow.set_child(Some(&fixed));
