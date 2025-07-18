@@ -32,11 +32,9 @@ impl TextBox {
         let buffer = widget.buffer();
         let on_changed = Rc::new(Callback::new());
         buffer.connect_changed({
-            let on_changed = Rc::downgrade(&on_changed);
+            let on_changed = on_changed.clone();
             move |_| {
-                if let Some(on_changed) = on_changed.upgrade() {
-                    on_changed.signal::<GlobalRuntime>(());
-                }
+                on_changed.signal::<GlobalRuntime>(());
             }
         });
         Self {

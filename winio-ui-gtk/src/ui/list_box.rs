@@ -43,11 +43,9 @@ impl ListBox {
         let handle = Widget::new(parent, unsafe { swindow.clone().unsafe_cast() });
         let on_changed = Rc::new(Callback::new());
         widget.connect_selected_rows_changed({
-            let on_changed = Rc::downgrade(&on_changed);
+            let on_changed = on_changed.clone();
             move |_| {
-                if let Some(on_changed) = on_changed.upgrade() {
-                    on_changed.signal::<GlobalRuntime>(());
-                }
+                on_changed.signal::<GlobalRuntime>(());
             }
         });
         Self {
