@@ -1,4 +1,10 @@
-use std::{cell::OnceCell, future::Future, time::Duration};
+use std::{
+    cell::OnceCell,
+    future::Future,
+    os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle, RawHandle},
+    ptr::null,
+    time::Duration,
+};
 
 use compio::driver::AsRawFd;
 use compio_log::*;
@@ -9,7 +15,10 @@ use windows::{
     },
     core::{Ref, Result, h},
 };
-use windows_sys::Win32::System::Threading::{INFINITE, WaitForSingleObject};
+use windows_sys::Win32::{
+    Foundation::{WAIT_FAILED, WAIT_OBJECT_0},
+    System::Threading::{CreateEventW, INFINITE, SetEvent, WaitForMultipleObjects},
+};
 use winio_ui_windows_common::{PreferredAppMode, init_dark, set_preferred_app_mode};
 use winui3::{
     ApartmentType,
@@ -30,6 +39,7 @@ use crate::RUNTIME;
 
 pub struct Runtime {
     runtime: compio::runtime::Runtime,
+    shutdown_event: OwnedHandle,
     #[allow(dead_code)]
     winui_dependency: PackageDependency,
     d2d1: OnceCell<ID2D1Factory2>,
@@ -54,8 +64,15 @@ impl Runtime {
 
         let runtime = compio::runtime::Runtime::new().unwrap();
 
+        let event = unsafe { CreateEventW(null(), 0, 0, null()) };
+        if event.is_null() {
+            panic!("{:?}", std::io::Error::last_os_error());
+        }
+        let shutdown_event = unsafe { OwnedHandle::from_raw_handle(event) };
+
         Self {
             runtime,
+            shutdown_event,
             winui_dependency,
             d2d1: OnceCell::new(),
         }
@@ -87,6 +104,10 @@ impl Runtime {
             .detach();
 
             Application::Start(&ApplicationInitializationCallback::new(app_start)).unwrap();
+
+            unsafe {
+                SetEvent(self.shutdown_event.as_raw_handle());
+            }
 
             result.unwrap()
         })
@@ -132,9 +153,14 @@ fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> 
     )))?;
 
     let dispatcher = DispatcherQueue::GetForCurrentThread().unwrap();
-    let handle = RUNTIME.with(|runtime| runtime.runtime.as_raw_fd());
+    let (handle, shutdown_event) = RUNTIME.with(|runtime| {
+        (
+            runtime.runtime.as_raw_fd(),
+            runtime.shutdown_event.as_raw_fd(),
+        )
+    });
 
-    std::thread::spawn(move || {
+    compio::runtime::spawn_blocking(move || {
         loop {
             let timeout = resume_foreground(&dispatcher, {
                 move || {
@@ -152,17 +178,22 @@ fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> 
             let Some(timeout) = timeout else {
                 break;
             };
+            debug!("waiting in {timeout:?}");
             let timeout = match timeout {
                 Some(timeout) => timeout.as_millis() as u32,
                 None => INFINITE,
             };
-            debug!("before WaitForSingleObject");
-            unsafe {
-                WaitForSingleObject(handle as _, timeout);
+            let handles = [shutdown_event as RawHandle, handle as RawHandle];
+            let res = unsafe { WaitForMultipleObjects(2, handles.as_ptr(), 0, timeout) };
+            if res == WAIT_OBJECT_0 {
+                break;
+            } else if res == WAIT_FAILED {
+                panic!("{:?}", std::io::Error::last_os_error());
             }
-            debug!("after WaitForSingleObject");
         }
-    });
+        debug!("exit polling thread");
+    })
+    .detach();
 
     Ok(())
 }
