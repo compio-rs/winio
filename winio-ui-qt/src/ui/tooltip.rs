@@ -5,31 +5,31 @@ use std::{
 
 use winio_handle::AsWidget;
 
-use crate::QWidget;
+use crate::{QString, QWidget};
 
 pub struct ToolTip<T: AsWidget> {
     inner: T,
+    text: QString,
 }
 
 impl<T: AsWidget> ToolTip<T> {
     pub fn new(inner: T) -> Self {
-        Self { inner }
-    }
-
-    fn as_ref_qwidget(&self) -> &QWidget {
-        unsafe { &*self.inner.as_widget().as_qt::<QWidget>() }
-    }
-
-    fn pin_mut_qwidget(&mut self) -> Pin<&mut QWidget> {
-        unsafe { Pin::new_unchecked(&mut *self.inner.as_widget().as_qt::<QWidget>()) }
+        Self {
+            inner,
+            text: QString::from(String::new()),
+        }
     }
 
     pub fn tooltip(&self) -> String {
-        self.as_ref_qwidget().toolTip().into()
+        (&self.text).into()
     }
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) {
-        self.pin_mut_qwidget().setToolTip(&s.as_ref().into());
+        self.text = s.as_ref().into();
+        for w in self.inner.iter_widgets() {
+            let w = unsafe { Pin::new_unchecked(&mut *w.as_qt::<QWidget>()) };
+            w.setToolTip(&self.text);
+        }
     }
 }
 
