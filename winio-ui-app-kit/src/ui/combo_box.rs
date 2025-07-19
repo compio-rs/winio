@@ -32,6 +32,9 @@ impl ComboBox {
 
             let view = NSComboBox::new(mtm);
             view.setBezeled(true);
+            view.setDrawsBackground(false);
+            view.setEditable(false);
+            view.setSelectable(false);
             let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
 
             let delegate = ComboBoxDelegate::new(mtm);
