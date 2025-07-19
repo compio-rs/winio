@@ -75,6 +75,7 @@ enum MainMessage {
     Append(PathBuf, DynamicImage),
     List(ObservableVecEvent<String>),
     Select,
+    Wheel(MouseWheel),
 }
 
 impl Component for MainModel {
@@ -130,6 +131,9 @@ impl Component for MainModel {
             self.window => {
                 WindowEvent::Close => MainMessage::Close,
                 WindowEvent::Resize => MainMessage::Redraw,
+            },
+            self.canvas => {
+                CanvasEvent::MouseWheel(w) => MainMessage::Wheel(w),
             },
             self.button => {
                 ButtonEvent::Click => MainMessage::ChooseFolder,
@@ -207,6 +211,14 @@ impl Component for MainModel {
                 }
                 true
             }
+            MainMessage::Wheel(w) => match w {
+                MouseWheel::Horizontal(_) => false,
+                MouseWheel::Vertical(delta) => {
+                    let pos = self.scrollbar.pos();
+                    self.scrollbar.set_pos((pos as isize - delta) as usize);
+                    true
+                }
+            },
         }
     }
 

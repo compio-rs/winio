@@ -1,3 +1,6 @@
+use std::ptr::null_mut;
+
+use compio::driver::syscall;
 use futures_util::FutureExt;
 use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
@@ -15,18 +18,19 @@ use windows::Win32::{
     },
 };
 use windows_sys::Win32::{
-    Foundation::{HWND, LPARAM},
+    Foundation::{HWND, LPARAM, POINT},
+    Graphics::Gdi::MapWindowPoints,
     System::SystemServices::SS_OWNERDRAW,
     UI::{
         Controls::WC_STATICW,
         WindowsAndMessaging::{
-            WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE,
-            WM_RBUTTONDOWN, WM_RBUTTONUP, WS_CHILD, WS_VISIBLE,
+            GetParent, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEHWHEEL,
+            WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_RBUTTONDOWN, WM_RBUTTONUP, WS_CHILD, WS_VISIBLE,
         },
     },
 };
 use winio_handle::{AsRawWindow, AsWindow};
-use winio_primitive::{DrawingFont, MouseButton, Point, Rect, Size};
+use winio_primitive::{DrawingFont, MouseButton, MouseWheel, Orient, Point, Rect, Size};
 use winio_ui_windows_common::is_dark_mode_allowed_for_app;
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 
@@ -145,7 +149,7 @@ impl Canvas {
                 msg = self.handle.wait_parent(WM_RBUTTONDOWN).fuse() => (msg, MouseButton::Right),
                 msg = self.handle.wait_parent(WM_MBUTTONDOWN).fuse() => (msg, MouseButton::Middle),
             };
-            if self.is_in(msg.lparam).is_some() {
+            if self.is_in(msg.lparam, false).is_some() {
                 break b;
             }
         }
@@ -158,7 +162,7 @@ impl Canvas {
                 msg = self.handle.wait_parent(WM_RBUTTONUP).fuse() => (msg, MouseButton::Right),
                 msg = self.handle.wait_parent(WM_MBUTTONUP).fuse() => (msg, MouseButton::Middle),
             };
-            if self.is_in(msg.lparam).is_some() {
+            if self.is_in(msg.lparam, false).is_some() {
                 break b;
             }
         }
@@ -167,19 +171,43 @@ impl Canvas {
     pub async fn wait_mouse_move(&self) -> Point {
         loop {
             let msg = self.handle.wait_parent(WM_MOUSEMOVE).await;
-            if let Some(p) = self.is_in(msg.lparam) {
+            if let Some(p) = self.is_in(msg.lparam, false) {
                 break p;
             }
         }
     }
 
-    fn is_in(&self, lparam: LPARAM) -> Option<Point> {
-        let (x, y) = ((lparam & 0xFFFF) as i32, (lparam >> 16) as i32);
-        let p = self.handle.point_d2l((x, y));
-        let loc = self.loc();
+    pub async fn wait_mouse_wheel(&self) -> MouseWheel {
+        let (msg, orient) = loop {
+            let (msg, orient) = futures_util::select! {
+                msg = self.handle.wait_parent(WM_MOUSEWHEEL).fuse() => (msg, Orient::Vertical),
+                msg = self.handle.wait_parent(WM_MOUSEHWHEEL).fuse() => (msg, Orient::Horizontal),
+            };
+            if self.is_in(msg.lparam, true).is_some() {
+                break (msg, orient);
+            }
+        };
+        let delta = ((msg.wparam >> 16) & 0xFFFF) as i16 as isize;
+        match orient {
+            Orient::Vertical => MouseWheel::Vertical(delta),
+            Orient::Horizontal => MouseWheel::Horizontal(delta),
+        }
+    }
+
+    fn is_in(&self, lparam: LPARAM, screen: bool) -> Option<Point> {
+        let (x, y) = ((lparam & 0xFFFF) as i32, ((lparam >> 16) & 0xFFFF) as i32);
+        let mut p = POINT { x, y };
+        let handle = self.handle.as_raw_window().as_win32();
+        let parent = if screen {
+            null_mut()
+        } else {
+            unsafe { GetParent(handle) }
+        };
+        syscall!(BOOL, MapWindowPoints(parent, handle, &mut p, 1)).unwrap();
+        let p = self.handle.point_d2l((p.x, p.y));
         let size = self.size();
-        if Rect::new(loc, size).contains(p) {
-            Some((p - loc).to_point())
+        if p.x >= 0.0 && p.x <= size.width && p.y >= 0.0 && p.y <= size.height {
+            Some(p)
         } else {
             None
         }
