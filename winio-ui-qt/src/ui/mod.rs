@@ -37,6 +37,9 @@ pub use combo_box::*;
 mod list_box;
 pub use list_box::*;
 
+mod scroll_bar;
+pub use scroll_bar::*;
+
 mod tooltip;
 pub use tooltip::*;
 

@@ -61,11 +61,9 @@ impl Canvas {
 
         let controller = EventControllerMotion::new();
         controller.connect_motion({
-            let on_motion = Rc::downgrade(&on_motion);
+            let on_motion = on_motion.clone();
             move |_, x, y| {
-                if let Some(on_motion) = on_motion.upgrade() {
-                    on_motion.signal::<GlobalRuntime>(Point::new(x, y));
-                }
+                on_motion.signal::<GlobalRuntime>(Point::new(x, y));
             }
         });
         widget.add_controller(controller);
@@ -81,21 +79,16 @@ impl Canvas {
 
         let controller = GestureClick::new();
         controller.connect_pressed({
-            let on_pressed = Rc::downgrade(&on_pressed);
+            let on_pressed = on_pressed.clone();
             move |controller, _, _, _| {
-                if let Some(on_pressed) = on_pressed.upgrade() {
-                    on_pressed
-                        .signal::<GlobalRuntime>(gtk_current_button(controller.current_button()));
-                }
+                on_pressed.signal::<GlobalRuntime>(gtk_current_button(controller.current_button()));
             }
         });
         controller.connect_released({
-            let on_released = Rc::downgrade(&on_released);
+            let on_released = on_released.clone();
             move |controller, _, _, _| {
-                if let Some(on_released) = on_released.upgrade() {
-                    on_released
-                        .signal::<GlobalRuntime>(gtk_current_button(controller.current_button()));
-                }
+                on_released
+                    .signal::<GlobalRuntime>(gtk_current_button(controller.current_button()));
             }
         });
         widget.add_controller(controller);

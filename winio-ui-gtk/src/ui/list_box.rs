@@ -18,6 +18,8 @@ use crate::{
 #[derive(Debug)]
 pub struct ListBox {
     on_changed: Rc<Callback<()>>,
+    #[allow(dead_code)]
+    swindow: gtk4::ScrolledWindow,
     model: StringListModel,
     widget: gtk4::ListBox,
     handle: Widget,
@@ -26,6 +28,8 @@ pub struct ListBox {
 #[inherit_methods(from = "self.handle")]
 impl ListBox {
     pub fn new(parent: impl AsWindow) -> Self {
+        let swindow = gtk4::ScrolledWindow::new();
+        swindow.set_hscrollbar_policy(gtk4::PolicyType::Never);
         let model = StringListModel::new();
         let widget = gtk4::ListBox::new();
         widget.bind_model(Some(&model), |obj| {
@@ -35,18 +39,18 @@ impl ListBox {
             unsafe { label.unsafe_cast() }
         });
         widget.set_selection_mode(gtk4::SelectionMode::Multiple);
-        let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
+        swindow.set_child(Some(&widget));
+        let handle = Widget::new(parent, unsafe { swindow.clone().unsafe_cast() });
         let on_changed = Rc::new(Callback::new());
         widget.connect_selected_rows_changed({
-            let on_changed = Rc::downgrade(&on_changed);
+            let on_changed = on_changed.clone();
             move |_| {
-                if let Some(on_changed) = on_changed.upgrade() {
-                    on_changed.signal::<GlobalRuntime>(());
-                }
+                on_changed.signal::<GlobalRuntime>(());
             }
         });
         Self {
             on_changed,
+            swindow,
             model,
             widget,
             handle,
@@ -64,7 +68,8 @@ impl ListBox {
     pub fn preferred_size(&self) -> Size;
 
     pub fn min_size(&self) -> Size {
-        self.preferred_size()
+        let size = self.preferred_size();
+        Size::new(size.width, 0.0)
     }
 
     pub fn loc(&self) -> Point;

@@ -15,12 +15,11 @@ use windows_sys::Win32::{
         WindowsAndMessaging::{
             CW_USEDEFAULT, CloseWindow, CreateWindowExW, DestroyWindow, GWL_EXSTYLE, GWL_STYLE,
             GetClientRect, GetParent, GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW,
-            GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW, IMAGE_ICON, IsWindowVisible,
-            LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LR_SHARED, LoadCursorW, LoadImageW, RegisterClassExW,
-            SW_HIDE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SendMessageW,
-            SetWindowLongPtrW, SetWindowPos, SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE,
-            WM_SETICON, WM_SIZE, WNDCLASSEXW, WS_CHILDWINDOW, WS_EX_CONTROLPARENT,
-            WS_OVERLAPPEDWINDOW,
+            GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW, IMAGE_ICON, LR_DEFAULTCOLOR,
+            LR_DEFAULTSIZE, LR_SHARED, LoadCursorW, LoadImageW, RegisterClassExW, SW_HIDE, SW_SHOW,
+            SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SendMessageW, SetWindowLongPtrW, SetWindowPos,
+            SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE, WM_SETICON, WM_SIZE, WNDCLASSEXW,
+            WS_CHILDWINDOW, WS_EX_CONTROLPARENT, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
         },
     },
 };
@@ -217,7 +216,7 @@ impl Widget {
     }
 
     pub fn is_visible(&self) -> bool {
-        unsafe { IsWindowVisible(self.as_raw_window().as_win32()) != 0 }
+        (self.style() & WS_VISIBLE) != 0
     }
 
     pub fn set_visible(&mut self, v: bool) {
