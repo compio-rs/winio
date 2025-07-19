@@ -16,7 +16,9 @@ impl<T: AsWidget> ToolTip<T> {
         let handle = MUXC::ToolTip::new().unwrap();
         let text = MUXC::TextBlock::new().unwrap();
         handle.SetContent(&text).unwrap();
-        MUXC::ToolTipService::SetToolTip(inner.as_widget().as_winui(), &handle).unwrap();
+        for w in inner.iter_widgets() {
+            MUXC::ToolTipService::SetToolTip(w.as_winui(), &handle).unwrap();
+        }
         Self {
             inner,
             handle,
@@ -35,7 +37,9 @@ impl<T: AsWidget> ToolTip<T> {
 
 impl<T: AsWidget> Drop for ToolTip<T> {
     fn drop(&mut self) {
-        MUXC::ToolTipService::SetToolTip(self.inner.as_widget().as_winui(), None).unwrap();
+        for w in self.inner.iter_widgets() {
+            MUXC::ToolTipService::SetToolTip(w.as_winui(), None).unwrap();
+        }
     }
 }
 
