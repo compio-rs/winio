@@ -32,7 +32,7 @@ use winio_callback::Callback;
 use winio_handle::AsWindow;
 use winio_primitive::{
     BrushPen, Color, DrawingFont, GradientStop, HAlign, LinearGradientBrush, MouseButton, Point,
-    RadialGradientBrush, Rect, RelativePoint, Size, SolidColorBrush, VAlign,
+    RadialGradientBrush, Rect, RelativePoint, Size, SolidColorBrush, VAlign, Vector,
 };
 
 use crate::{
@@ -95,6 +95,10 @@ impl Canvas {
                 transform_cgpoint(self.size(), p)
             })
             .unwrap()
+    }
+
+    pub async fn wait_mouse_wheel(&self) -> Vector {
+        self.view.ivars().mouse_scroll.wait().await
     }
 }
 
@@ -259,6 +263,7 @@ struct CanvasViewIvars {
     mouse_down: Callback<MouseButton>,
     mouse_up: Callback<MouseButton>,
     mouse_move: Callback,
+    mouse_scroll: Callback<Vector>,
     actions: RefCell<Vec<DrawAction>>,
     // A buffer for actions, to avoid frequent allocations.
     actions_buf: RefCell<Vec<DrawAction>>,
@@ -328,6 +333,15 @@ define_class! {
         #[unsafe(method(mouseMoved:))]
         unsafe fn mouseMoved(&self, _event: &NSEvent) {
             self.ivars().mouse_move.signal::<GlobalRuntime>(());
+        }
+
+        #[unsafe(method(scrollWheel:))]
+        unsafe fn scrollWheel(&self, event: &NSEvent) {
+            if event.r#type() == NSEventType::ScrollWheel {
+                self.ivars().mouse_scroll.signal::<GlobalRuntime>(
+                    Vector::new(event.scrollingDeltaX(), event.scrollingDeltaY())
+                );
+            }
         }
     }
 }
