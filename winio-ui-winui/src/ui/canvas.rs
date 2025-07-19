@@ -39,7 +39,7 @@ use windows::{
 };
 use winio_callback::Callback;
 use winio_handle::AsWindow;
-use winio_primitive::{DrawingFont, MouseButton, Point, Rect, Size};
+use winio_primitive::{DrawingFont, MouseButton, MouseWheel, Point, Rect, Size};
 use winio_ui_windows_common::is_dark_mode_allowed_for_app;
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 use winui3::{
@@ -226,6 +226,7 @@ pub struct Canvas {
     on_press: SendWrapper<Rc<Callback<MouseButton>>>,
     on_release: SendWrapper<Rc<Callback<MouseButton>>>,
     on_move: SendWrapper<Rc<Callback<Point>>>,
+    on_wheel: SendWrapper<Rc<Callback<MouseWheel>>>,
     handle: Widget,
     panel: MUXC::SwapChainPanel,
     dwrite: IDWriteFactory,
@@ -294,11 +295,37 @@ impl Canvas {
                 }))
                 .unwrap();
         }
+        let on_wheel = SendWrapper::new(Rc::new(Callback::new()));
+        {
+            let on_wheel = on_wheel.clone();
+            panel
+                .PointerWheelChanged(&PointerEventHandler::new(move |sender, args| {
+                    if let Some(args) = args.as_ref() {
+                        if let Some(panel) = sender
+                            .as_ref()
+                            .and_then(|sender| sender.cast::<SwapChainPanel>().ok())
+                        {
+                            let point = args.GetCurrentPoint(&panel).unwrap();
+                            let props = point.Properties().unwrap();
+                            let delta = props.MouseWheelDelta().unwrap();
+                            let horz = props.IsHorizontalMouseWheel().unwrap();
+                            on_wheel.signal::<GlobalRuntime>(if horz {
+                                MouseWheel::Horizontal(delta as _)
+                            } else {
+                                MouseWheel::Vertical(delta as _)
+                            });
+                        }
+                    }
+                    Ok(())
+                }))
+                .unwrap();
+        }
 
         Self {
             on_press,
             on_release,
             on_move,
+            on_wheel,
             handle: Widget::new(parent, panel.cast().unwrap()),
             panel,
             dwrite,
@@ -355,6 +382,10 @@ impl Canvas {
 
     pub async fn wait_mouse_move(&self) -> Point {
         self.on_move.wait().await
+    }
+
+    pub async fn wait_mouse_wheel(&self) -> MouseWheel {
+        self.on_wheel.wait().await
     }
 }
 

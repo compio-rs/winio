@@ -215,7 +215,8 @@ impl Component for MainModel {
                 MouseWheel::Horizontal(_) => false,
                 MouseWheel::Vertical(delta) => {
                     let pos = self.scrollbar.pos();
-                    self.scrollbar.set_pos((pos as isize - delta) as usize);
+                    self.scrollbar
+                        .set_pos((pos as isize).saturating_sub(delta).max(0) as usize);
                     true
                 }
             },
