@@ -1,4 +1,7 @@
-use std::ops::{Deref, DerefMut};
+use std::{
+    fmt::Debug,
+    ops::{Deref, DerefMut},
+};
 
 use widestring::U16CString;
 use windows_sys::Win32::UI::{
@@ -12,7 +15,6 @@ use winio_handle::{AsRawWidget, AsWidget};
 
 use crate::Widget;
 
-#[derive(Debug)]
 pub struct ToolTip<T: AsWidget> {
     inner: T,
     handle: Widget,
@@ -79,6 +81,16 @@ impl<T: AsWidget> Drop for ToolTip<T> {
         unsafe {
             DestroyWindow(self.handle.as_raw_widget().as_win32());
         }
+    }
+}
+
+impl<T: AsWidget + Debug> Debug for ToolTip<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ToolTip")
+            .field("inner", &self.inner)
+            .field("handle", &self.handle)
+            .field("text", &self.text)
+            .finish()
     }
 }
 
