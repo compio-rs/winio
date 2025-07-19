@@ -7,7 +7,7 @@ use windows_sys::Win32::UI::{
         SIF_TRACKPOS, WM_HSCROLL, WM_VSCROLL, WS_CHILD, WS_VISIBLE,
     },
 };
-use winio_handle::{AsRawWidget, AsWidget, AsWindow, BorrowedWidget, RawWidget};
+use winio_handle::{AsRawWidget, AsWindow, RawWidget};
 use winio_primitive::{Orient, Point, Size};
 
 use crate::Widget;
@@ -255,10 +255,10 @@ impl AsRawWidget for ScrollBar {
         }
         .as_raw_widget()
     }
-}
 
-impl AsWidget for ScrollBar {
-    fn as_widget(&self) -> BorrowedWidget<'_> {
-        unsafe { BorrowedWidget::borrow_raw(self.as_raw_widget()) }
+    fn iter_raw_widgets(&self) -> impl Iterator<Item = RawWidget> {
+        [self.handle.as_raw_widget(), self.vhandle.as_raw_widget()].into_iter()
     }
 }
+
+winio_handle::impl_as_widget!(ScrollBar);

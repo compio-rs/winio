@@ -4,6 +4,7 @@ use windows::core::HSTRING;
 use winio_handle::AsWidget;
 use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
+#[derive(Debug)]
 pub struct ToolTip<T: AsWidget> {
     inner: T,
     #[allow(dead_code)]
@@ -16,7 +17,9 @@ impl<T: AsWidget> ToolTip<T> {
         let handle = MUXC::ToolTip::new().unwrap();
         let text = MUXC::TextBlock::new().unwrap();
         handle.SetContent(&text).unwrap();
-        MUXC::ToolTipService::SetToolTip(inner.as_widget().as_winui(), &handle).unwrap();
+        for w in inner.iter_widgets() {
+            MUXC::ToolTipService::SetToolTip(w.as_winui(), &handle).unwrap();
+        }
         Self {
             inner,
             handle,
@@ -30,12 +33,6 @@ impl<T: AsWidget> ToolTip<T> {
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) {
         self.text.SetText(&HSTRING::from(s.as_ref())).unwrap()
-    }
-}
-
-impl<T: AsWidget> Drop for ToolTip<T> {
-    fn drop(&mut self) {
-        MUXC::ToolTipService::SetToolTip(self.inner.as_widget().as_winui(), None).unwrap();
     }
 }
 

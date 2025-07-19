@@ -1,46 +1,38 @@
 use std::ops::{Deref, DerefMut};
 
+use objc2::rc::Retained;
 use objc2_foundation::NSString;
 use winio_handle::{AsRawWidget, AsWidget};
 
 use crate::from_nsstring;
 
+#[derive(Debug)]
 pub struct ToolTip<T: AsWidget> {
     inner: T,
+    text: Option<Retained<NSString>>,
 }
 
 impl<T: AsWidget> ToolTip<T> {
     pub fn new(inner: T) -> Self {
-        Self { inner }
+        Self { inner, text: None }
     }
 
     pub fn tooltip(&self) -> String {
-        let view = self.inner.as_widget().as_raw_widget();
-        unsafe {
-            view.toolTip()
-                .map(|s| from_nsstring(&s))
-                .unwrap_or_default()
-        }
+        self.text.as_deref().map(from_nsstring).unwrap_or_default()
     }
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) {
-        let view = self.inner.as_widget().as_raw_widget();
         let s = s.as_ref();
-        unsafe {
-            if s.is_empty() {
-                view.setToolTip(None);
-            } else {
-                view.setToolTip(Some(&NSString::from_str(s)));
+        self.text = if s.is_empty() {
+            None
+        } else {
+            Some(NSString::from_str(s))
+        };
+        for handle in self.inner.iter_widgets() {
+            let view = handle.as_raw_widget();
+            unsafe {
+                view.setToolTip(self.text.as_deref());
             }
-        }
-    }
-}
-
-impl<T: AsWidget> Drop for ToolTip<T> {
-    fn drop(&mut self) {
-        let view = self.inner.as_widget().as_raw_widget();
-        unsafe {
-            view.setToolTip(None);
         }
     }
 }

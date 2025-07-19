@@ -12,7 +12,7 @@ use windows_sys::Win32::{
         },
     },
 };
-use winio_handle::{AsRawWidget, AsRawWindow, AsWidget, AsWindow, BorrowedWidget, RawWidget};
+use winio_handle::{AsRawWidget, AsRawWindow, AsWindow, RawWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{
@@ -346,10 +346,10 @@ impl AsRawWidget for ComboBox {
         }
         .as_raw_widget()
     }
-}
 
-impl AsWidget for ComboBox {
-    fn as_widget(&self) -> BorrowedWidget<'_> {
-        unsafe { BorrowedWidget::borrow_raw(self.as_raw_widget()) }
+    fn iter_raw_widgets(&self) -> impl Iterator<Item = RawWidget> {
+        [self.handle.as_raw_widget(), self.ehandle.as_raw_widget()].into_iter()
     }
 }
+
+winio_handle::impl_as_widget!(ComboBox);

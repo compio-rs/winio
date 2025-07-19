@@ -3,34 +3,32 @@ use std::ops::{Deref, DerefMut};
 use gtk4::prelude::WidgetExt;
 use winio_handle::AsWidget;
 
+#[derive(Debug)]
 pub struct ToolTip<T: AsWidget> {
     inner: T,
+    text: String,
 }
 
 impl<T: AsWidget> ToolTip<T> {
     pub fn new(inner: T) -> Self {
-        Self { inner }
+        Self {
+            inner,
+            text: String::new(),
+        }
     }
 
     pub fn tooltip(&self) -> String {
-        let widget = self.inner.as_widget().to_gtk();
-        widget
-            .tooltip_text()
-            .map(|s| s.to_string())
-            .unwrap_or_default()
+        self.text.clone()
     }
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) {
-        let widget = self.inner.as_widget().to_gtk();
         let s = s.as_ref();
-        widget.set_tooltip_text(if s.is_empty() { None } else { Some(s) });
-    }
-}
-
-impl<T: AsWidget> Drop for ToolTip<T> {
-    fn drop(&mut self) {
-        let widget = self.inner.as_widget().to_gtk();
-        widget.set_tooltip_text(None);
+        self.text = s.to_string();
+        let s = if s.is_empty() { None } else { Some(s) };
+        for w in self.inner.iter_widgets() {
+            let widget = w.to_gtk();
+            widget.set_tooltip_text(s);
+        }
     }
 }
 

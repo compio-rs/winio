@@ -2,7 +2,7 @@ use std::{marker::PhantomData, ops::Deref};
 
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
-        /// Raw window handle.
+        /// Raw widget handle.
         #[derive(Clone)]
         #[non_exhaustive]
         pub enum RawWidget {
@@ -19,7 +19,7 @@ cfg_if::cfg_if! {
         /// [`NSView`]: objc2_app_kit::NSView
         pub type RawWidget = objc2::rc::Retained<objc2_app_kit::NSView>;
     } else {
-        /// Raw window handle.
+        /// Raw widget handle.
         #[derive(Clone)]
         #[non_exhaustive]
         pub enum RawWidget {
@@ -79,7 +79,7 @@ impl RawWidget {
     }
 }
 
-/// A borrowed window handle.
+/// A borrowed widget handle.
 #[derive(Clone)]
 pub struct BorrowedWidget<'a> {
     handle: RawWidget,
@@ -89,7 +89,7 @@ pub struct BorrowedWidget<'a> {
 impl BorrowedWidget<'_> {
     /// # Safety
     ///
-    /// The window must remain valid for the duration of the returned
+    /// The widget must remain valid for the duration of the returned
     /// [`BorrowedWidget`].
     pub unsafe fn borrow_raw(handle: RawWidget) -> Self {
         Self {
@@ -107,10 +107,17 @@ impl Deref for BorrowedWidget<'_> {
     }
 }
 
-/// Trait to exact the raw window handle.
+/// Trait to exact the raw widget handle.
 pub trait AsRawWidget {
-    /// Get the raw window handle.
+    /// Get the raw widget handle.
     fn as_raw_widget(&self) -> RawWidget;
+
+    /// Iterate all raw widget handles.
+    ///
+    /// This is useful for widgets that are implemented by multiple raw widgets.
+    fn iter_raw_widgets(&self) -> impl Iterator<Item = RawWidget> {
+        std::iter::once(self.as_raw_widget())
+    }
 }
 
 impl AsRawWidget for RawWidget {
@@ -131,12 +138,21 @@ impl<T: AsRawWidget> AsRawWidget for &'_ T {
     fn as_raw_widget(&self) -> RawWidget {
         (**self).as_raw_widget()
     }
+
+    fn iter_raw_widgets(&self) -> impl Iterator<Item = RawWidget> {
+        (**self).iter_raw_widgets()
+    }
 }
 
-/// Trait to borrow the window handle.
+/// Trait to borrow the widget handle.
 pub trait AsWidget {
-    /// Get the window handle.
+    /// Get the widget handle.
     fn as_widget(&self) -> BorrowedWidget<'_>;
+
+    /// Iterate all widget handles. See [`AsRawWidget::iter_raw_widgets`].
+    fn iter_widgets(&self) -> impl Iterator<Item = BorrowedWidget<'_>> {
+        std::iter::once(self.as_widget())
+    }
 }
 
 impl AsWidget for BorrowedWidget<'_> {
@@ -149,6 +165,11 @@ impl<T: AsWidget + ?Sized> AsWidget for &T {
     #[inline]
     fn as_widget(&self) -> BorrowedWidget<'_> {
         T::as_widget(self)
+    }
+
+    #[inline]
+    fn iter_widgets(&self) -> impl Iterator<Item = BorrowedWidget<'_>> {
+        T::iter_widgets(self)
     }
 }
 
@@ -171,6 +192,22 @@ macro_rules! impl_as_widget {
             fn as_widget(&self) -> $crate::BorrowedWidget<'_> {
                 unsafe {
                     $crate::BorrowedWidget::borrow_raw($crate::AsRawWidget::as_raw_widget(self))
+                }
+            }
+        }
+    };
+    ($t:ty) => {
+        impl $crate::AsWidget for $t {
+            fn as_widget(&self) -> $crate::BorrowedWidget<'_> {
+                unsafe {
+                    $crate::BorrowedWidget::borrow_raw($crate::AsRawWidget::as_raw_widget(self))
+                }
+            }
+
+            fn iter_widgets(&self) -> impl core::iter::Iterator<Item = $crate::BorrowedWidget<'_>> {
+                unsafe {
+                    $crate::AsRawWidget::iter_raw_widgets(self)
+                        .map(|w| $crate::BorrowedWidget::borrow_raw(w))
                 }
             }
         }
