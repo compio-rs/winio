@@ -152,7 +152,7 @@ fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> 
         },
     )))?;
 
-    let dispatcher = DispatcherQueue::GetForCurrentThread().unwrap();
+    let dispatcher = DispatcherQueue::GetForCurrentThread()?;
     let (handle, shutdown_event) = RUNTIME.with(|runtime| {
         (
             runtime.runtime.as_raw_fd(),
