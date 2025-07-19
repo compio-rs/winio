@@ -186,12 +186,3 @@ pub enum MouseButton {
     /// Other buttons.
     Other,
 }
-
-/// Represents the mouse wheel delta.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub enum MouseWheel {
-    /// Horizontal delta. Positive is right.
-    Horizontal(isize),
-    /// Vertical delta. Positive is forward (up, away from the user).
-    Vertical(isize),
-}

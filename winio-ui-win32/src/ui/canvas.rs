@@ -30,7 +30,7 @@ use windows_sys::Win32::{
     },
 };
 use winio_handle::{AsRawWindow, AsWindow};
-use winio_primitive::{DrawingFont, MouseButton, MouseWheel, Orient, Point, Rect, Size};
+use winio_primitive::{DrawingFont, MouseButton, Orient, Point, Rect, Size, Vector};
 use winio_ui_windows_common::is_dark_mode_allowed_for_app;
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 
@@ -177,7 +177,7 @@ impl Canvas {
         }
     }
 
-    pub async fn wait_mouse_wheel(&self) -> MouseWheel {
+    pub async fn wait_mouse_wheel(&self) -> Vector {
         let (msg, orient) = loop {
             let (msg, orient) = futures_util::select! {
                 msg = self.handle.wait_parent(WM_MOUSEWHEEL).fuse() => (msg, Orient::Vertical),
@@ -189,8 +189,8 @@ impl Canvas {
         };
         let delta = ((msg.wparam >> 16) & 0xFFFF) as i16 as isize;
         match orient {
-            Orient::Vertical => MouseWheel::Vertical(delta),
-            Orient::Horizontal => MouseWheel::Horizontal(delta),
+            Orient::Vertical => Vector::new(0.0, delta as _),
+            Orient::Horizontal => Vector::new(delta as _, 0.0),
         }
     }
 

@@ -75,7 +75,7 @@ enum MainMessage {
     Append(PathBuf, DynamicImage),
     List(ObservableVecEvent<String>),
     Select,
-    Wheel(MouseWheel),
+    Wheel(Vector),
 }
 
 impl Component for MainModel {
@@ -211,15 +211,13 @@ impl Component for MainModel {
                 }
                 true
             }
-            MainMessage::Wheel(w) => match w {
-                MouseWheel::Horizontal(_) => false,
-                MouseWheel::Vertical(delta) => {
-                    let pos = self.scrollbar.pos();
-                    self.scrollbar
-                        .set_pos((pos as isize).saturating_sub(delta).max(0) as usize);
-                    true
-                }
-            },
+            MainMessage::Wheel(w) => {
+                let delta = w.y;
+                let pos = self.scrollbar.pos();
+                self.scrollbar
+                    .set_pos((pos as f64 - delta).max(0.0) as usize);
+                true
+            }
         }
     }
 

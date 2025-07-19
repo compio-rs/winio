@@ -2,7 +2,7 @@ use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedWindow;
 use winio_layout::{Enable, Layoutable, Visible};
-use winio_primitive::{MouseButton, MouseWheel, Point, Size};
+use winio_primitive::{MouseButton, Point, Size, Vector};
 
 use crate::{sys, ui::DrawingContext};
 
@@ -54,7 +54,9 @@ pub enum CanvasEvent {
     /// The mouse button released.
     MouseUp(MouseButton),
     /// The mouse wheel rotated.
-    MouseWheel(MouseWheel),
+    /// * `x`: Positive is right.
+    /// * `y`: Positive is up/forward.
+    MouseWheel(Vector),
 }
 
 impl Component for Canvas {

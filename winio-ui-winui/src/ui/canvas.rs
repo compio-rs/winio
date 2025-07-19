@@ -39,7 +39,7 @@ use windows::{
 };
 use winio_callback::Callback;
 use winio_handle::AsWindow;
-use winio_primitive::{DrawingFont, MouseButton, MouseWheel, Point, Rect, Size};
+use winio_primitive::{DrawingFont, MouseButton, Point, Rect, Size, Vector};
 use winio_ui_windows_common::is_dark_mode_allowed_for_app;
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 use winui3::{
@@ -226,7 +226,7 @@ pub struct Canvas {
     on_press: SendWrapper<Rc<Callback<MouseButton>>>,
     on_release: SendWrapper<Rc<Callback<MouseButton>>>,
     on_move: SendWrapper<Rc<Callback<Point>>>,
-    on_wheel: SendWrapper<Rc<Callback<MouseWheel>>>,
+    on_wheel: SendWrapper<Rc<Callback<Vector>>>,
     handle: Widget,
     panel: MUXC::SwapChainPanel,
     dwrite: IDWriteFactory,
@@ -306,12 +306,10 @@ impl Canvas {
                             let point = args.GetCurrentPoint(&panel)?;
                             let props = point.Properties()?;
                             let delta = props.MouseWheelDelta()?;
-                            let horz = props.IsHorizontalMouseWheel()?;
-                            on_wheel.signal::<GlobalRuntime>(if horz {
-                                MouseWheel::Horizontal(delta as _)
-                            } else {
-                                MouseWheel::Vertical(delta as _)
-                            });
+                            let orient = props.Orientation()? / 180.0 * std::f32::consts::PI;
+                            let deltay = orient.cos() as f64 * delta as f64;
+                            let deltax = -orient.sin() as f64 * delta as f64;
+                            on_wheel.signal::<GlobalRuntime>(Vector::new(deltax, deltay));
                         }
                     }
                     Ok(())
@@ -382,7 +380,7 @@ impl Canvas {
         self.on_move.wait().await
     }
 
-    pub async fn wait_mouse_wheel(&self) -> MouseWheel {
+    pub async fn wait_mouse_wheel(&self) -> Vector {
         self.on_wheel.wait().await
     }
 }
