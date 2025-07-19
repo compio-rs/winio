@@ -9,7 +9,7 @@ use objc2_app_kit::{
 };
 use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString};
 use winio_callback::Callback;
-use winio_handle::{AsRawWidget, AsWidget, AsWindow, BorrowedWidget, RawWidget};
+use winio_handle::{AsRawWidget, AsWindow, RawWidget};
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
@@ -197,13 +197,13 @@ impl AsRawWidget for Edit {
         }
         .as_raw_widget()
     }
-}
 
-impl AsWidget for Edit {
-    fn as_widget(&self) -> BorrowedWidget<'_> {
-        unsafe { BorrowedWidget::borrow_raw(self.as_raw_widget()) }
+    fn iter_raw_widgets(&self) -> impl Iterator<Item = RawWidget> {
+        [self.handle.as_raw_widget(), self.phandle.as_raw_widget()].into_iter()
     }
 }
+
+winio_handle::impl_as_widget!(Edit);
 
 #[derive(Debug, Default)]
 struct EditDelegateIvars {
