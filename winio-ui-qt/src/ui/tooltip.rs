@@ -7,6 +7,7 @@ use winio_handle::AsWidget;
 
 use crate::{QString, QWidget};
 
+#[derive(Debug)]
 pub struct ToolTip<T: AsWidget> {
     inner: T,
     text: QString,

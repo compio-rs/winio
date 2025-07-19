@@ -9,6 +9,7 @@ use winio_primitive::{Point, Rect, Size};
 use crate::sys;
 
 /// Tool tip helper for widgets.
+#[derive(Debug)]
 pub struct ToolTip<T: Component + AsWidget> {
     widget: sys::ToolTip<T>,
 }

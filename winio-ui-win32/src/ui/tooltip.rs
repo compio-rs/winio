@@ -12,6 +12,7 @@ use winio_handle::{AsRawWidget, AsWidget};
 
 use crate::Widget;
 
+#[derive(Debug)]
 pub struct ToolTip<T: AsWidget> {
     inner: T,
     handle: Widget,
@@ -76,7 +77,6 @@ impl<T: AsWidget> ToolTip<T> {
 impl<T: AsWidget> Drop for ToolTip<T> {
     fn drop(&mut self) {
         unsafe {
-            self.delete();
             DestroyWindow(self.handle.as_raw_widget().as_win32());
         }
     }

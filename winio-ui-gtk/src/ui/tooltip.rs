@@ -3,6 +3,7 @@ use std::ops::{Deref, DerefMut};
 use gtk4::prelude::WidgetExt;
 use winio_handle::AsWidget;
 
+#[derive(Debug)]
 pub struct ToolTip<T: AsWidget> {
     inner: T,
     text: String,

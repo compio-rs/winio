@@ -6,6 +6,7 @@ use winio_handle::{AsRawWidget, AsWidget};
 
 use crate::from_nsstring;
 
+#[derive(Debug)]
 pub struct ToolTip<T: AsWidget> {
     inner: T,
     text: Option<Retained<NSString>>,
@@ -31,17 +32,6 @@ impl<T: AsWidget> ToolTip<T> {
             let view = handle.as_raw_widget();
             unsafe {
                 view.setToolTip(self.text.as_deref());
-            }
-        }
-    }
-}
-
-impl<T: AsWidget> Drop for ToolTip<T> {
-    fn drop(&mut self) {
-        for handle in self.inner.iter_widgets() {
-            let view = handle.as_raw_widget();
-            unsafe {
-                view.setToolTip(None);
             }
         }
     }
