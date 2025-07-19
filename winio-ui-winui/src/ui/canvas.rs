@@ -253,7 +253,7 @@ impl Canvas {
                             .as_ref()
                             .and_then(|sender| sender.cast::<SwapChainPanel>().ok())
                         {
-                            let mouse = mouse_button(&panel, args);
+                            let mouse = mouse_button(&panel, args)?;
                             mouse_button_cache.set(mouse);
                             on_press.signal::<GlobalRuntime>(mouse);
                         }
@@ -285,10 +285,8 @@ impl Canvas {
                             .as_ref()
                             .and_then(|sender| sender.cast::<SwapChainPanel>().ok())
                         {
-                            let point = args.GetCurrentPoint(&panel).unwrap();
-                            on_move.signal::<GlobalRuntime>(Point::from_native(
-                                point.Position().unwrap(),
-                            ));
+                            let point = args.GetCurrentPoint(&panel)?;
+                            on_move.signal::<GlobalRuntime>(Point::from_native(point.Position()?));
                         }
                     }
                     Ok(())
@@ -305,10 +303,10 @@ impl Canvas {
                             .as_ref()
                             .and_then(|sender| sender.cast::<SwapChainPanel>().ok())
                         {
-                            let point = args.GetCurrentPoint(&panel).unwrap();
-                            let props = point.Properties().unwrap();
-                            let delta = props.MouseWheelDelta().unwrap();
-                            let horz = props.IsHorizontalMouseWheel().unwrap();
+                            let point = args.GetCurrentPoint(&panel)?;
+                            let props = point.Properties()?;
+                            let delta = props.MouseWheelDelta()?;
+                            let horz = props.IsHorizontalMouseWheel()?;
                             on_wheel.signal::<GlobalRuntime>(if horz {
                                 MouseWheel::Horizontal(delta as _)
                             } else {
@@ -391,27 +389,28 @@ impl Canvas {
 
 winio_handle::impl_as_widget!(Canvas, handle);
 
-fn mouse_button(panel: &SwapChainPanel, args: &PointerRoutedEventArgs) -> MouseButton {
-    let pointer = args.Pointer().unwrap();
+fn mouse_button(panel: &SwapChainPanel, args: &PointerRoutedEventArgs) -> Result<MouseButton> {
+    let pointer = args.Pointer()?;
     if pointer.PointerDeviceType() == Ok(PointerDeviceType::Mouse) {
-        let pt = args.GetCurrentPoint(panel).unwrap();
-        let props = pt.Properties().unwrap();
+        let pt = args.GetCurrentPoint(panel)?;
+        let props = pt.Properties()?;
         mouse_button_from_point(&props)
     } else {
-        MouseButton::Other
+        Ok(MouseButton::Other)
     }
 }
 
-fn mouse_button_from_point(props: &PointerPointProperties) -> MouseButton {
-    if props.IsLeftButtonPressed().unwrap_or_default() {
+fn mouse_button_from_point(props: &PointerPointProperties) -> Result<MouseButton> {
+    let res = if props.IsLeftButtonPressed()? {
         MouseButton::Left
-    } else if props.IsRightButtonPressed().unwrap_or_default() {
+    } else if props.IsRightButtonPressed()? {
         MouseButton::Right
-    } else if props.IsMiddleButtonPressed().unwrap_or_default() {
+    } else if props.IsMiddleButtonPressed()? {
         MouseButton::Middle
     } else {
         MouseButton::Other
-    }
+    };
+    Ok(res)
 }
 
 pub struct DrawingContext<'a> {
