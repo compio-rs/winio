@@ -21,7 +21,7 @@ winio-callback = { workspace = true }
 winio-handle = {workspace = true}
 winio-pollable = { workspace = true }
 
-compio = { workspace = true, features = [] }
+compio = { workspace = true }
 compio-log = { workspace = true }
 
 inherit-methods-macro = { workspace = true }
