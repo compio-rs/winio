@@ -64,14 +64,23 @@ impl Progress {
         self.handle.set_size(s);
     }
 
-    pub fn range(&self) -> (usize, usize) {
-        (self.min, self.max)
+    pub fn minimum(&self) -> usize {
+        self.min
     }
 
-    pub fn set_range(&mut self, min: usize, max: usize) {
+    pub fn maximum(&self) -> usize {
+        self.max
+    }
+
+    pub fn set_minimum(&mut self, v: usize) {
         let pos = self.pos();
-        self.min = min;
-        self.max = max;
+        self.min = v;
+        self.set_pos(pos);
+    }
+
+    pub fn set_maximum(&mut self, v: usize) {
+        let pos = self.pos();
+        self.max = v;
         self.set_pos(pos);
     }
 
