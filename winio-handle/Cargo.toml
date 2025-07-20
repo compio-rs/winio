@@ -21,7 +21,10 @@ winui3 = { workspace = true, optional = true, features = ["UI_Xaml"] }
 objc2 = { workspace = true }
 objc2-app-kit = { workspace = true, features = ["NSWindow"] }
 
-[target.'cfg(not(any(windows, target_os = "macos")))'.dependencies]
+[target.'cfg(target_os = "android")'.dependencies]
+jni.workspace = true
+
+[target.'cfg(not(any(windows, target_os = "macos", target_os = "android")))'.dependencies]
 gtk4 = { workspace = true, optional = true }
 
 [features]

@@ -13,6 +13,8 @@ members = [
     "winio-ui-gtk",
     "winio-ui-qt",
     "winio-ui-app-kit",
+    "winio-ui-android",
+    "mobile-examples/android"
 ]
 
 resolver = "2"
@@ -32,6 +34,7 @@ winio-handle = { path = "winio-handle", version = "0.1.1" }
 winio-elm = { path = "winio-elm", version = "0.1.0" }
 winio-pollable = { path = "winio-pollable", version = "0.1.0" }
 winio-ui-windows-common = { path = "winio-ui-windows-common", version = "0.1.0" }
+winio-ui-android = { path = "winio-ui-android", version = "0.1.0" }
 winio-ui-win32 = { path = "winio-ui-win32", version = "0.1.1" }
 winio-ui-winui = { path = "winio-ui-winui", version = "0.1.0" }
 winio-ui-gtk = { path = "winio-ui-gtk", version = "0.1.1" }
@@ -55,10 +58,12 @@ windows-sys = "0.60"
 windows = "0.61"
 winui3 = { version = "0.1", package = "winio-winui3" }
 
+jni = "0.21.1"
+
 objc2 = "0.6"
 objc2-app-kit = "0.3"
 
-gtk4 = "0.9"
+gtk4 = "0.10.0"
 
 [profile.release]
 lto = true

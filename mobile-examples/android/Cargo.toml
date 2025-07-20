@@ -1,0 +1,40 @@
+[package]
+name = "winio-android-example"
+version = "0.1.0"
+edition.workspace = true
+
+[package.metadata.android]
+apk_name = "winio-example"
+use_aapt2 = true
+application.has_code = false
+
+[[package.metadata.android.application.activity]]
+name = "android.app.NativeActivity"
+
+[[package.metadata.android.application.activity.meta_data]]
+name="android.app.lib_name"
+value="winio_android_example"
+
+[[package.metadata.android.application.activity.intent_filter]]
+actions = ["android.intent.action.VIEW", "android.intent.action.MAIN"]
+categories = ["android.intent.category.LAUNCHER"]
+
+[lib]
+path = "main.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+futures-util.workspace = true
+
+[target.'cfg(target_os = "android")'.dependencies]
+ndk-glue = "0.7.0"
+mobile-entry-point = "0.1.1"
+
+[dependencies.winio]
+path = "../../winio"
+
+[features]
+default = ["enable_log", "hello"]
+enable_log = []
+hello = []
+widgets = []
