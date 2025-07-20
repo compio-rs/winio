@@ -14,11 +14,17 @@ pub struct Progress {
 
 #[inherit_methods(from = "self.widget")]
 impl Progress {
-    /// Value range.
-    pub fn range(&self) -> (usize, usize);
+    /// Value minimum.
+    pub fn minimum(&self) -> usize;
 
-    /// Set the value range.
-    pub fn set_range(&mut self, range: (usize, usize));
+    /// Set value minimum.
+    pub fn set_minimum(&mut self, v: usize);
+
+    /// Value maximum.
+    pub fn maximum(&self) -> usize;
+
+    /// Set value maximum.
+    pub fn set_maximum(&mut self, v: usize);
 
     /// Current position.
     pub fn pos(&self) -> usize;

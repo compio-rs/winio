@@ -35,7 +35,8 @@ impl Component for MainModel {
                 size: Size::new(800.0, 600.0),
             },
             slider: Slider = (&window) => {
-                range: (0, 100),
+                minimum: 0,
+                maximum: 100,
                 pos: 100,
                 freq: 20,
             },

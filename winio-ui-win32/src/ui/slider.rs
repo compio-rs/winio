@@ -56,16 +56,20 @@ impl SliderImpl {
 
     pub fn set_size(&mut self, v: Size);
 
-    pub fn range(&self) -> (usize, usize) {
-        let min = self.handle.send_message(TBM_GETRANGEMIN, 0, 0);
-        let max = self.handle.send_message(TBM_GETRANGEMAX, 0, 0);
-        (min as _, max as _)
+    pub fn minimum(&self) -> usize {
+        self.handle.send_message(TBM_GETRANGEMIN, 0, 0) as _
     }
 
-    pub fn set_range(&mut self, min: usize, max: usize) {
-        self.handle.send_message(TBM_SETRANGEMIN, 0, min as _);
-        // only redraw when both values are set
-        self.handle.send_message(TBM_SETRANGEMAX, 1, max as _);
+    pub fn set_minimum(&mut self, v: usize) {
+        self.handle.send_message(TBM_SETRANGEMIN, 1, v as _);
+    }
+
+    pub fn maximum(&self) -> usize {
+        self.handle.send_message(TBM_GETRANGEMAX, 0, 0) as _
+    }
+
+    pub fn set_maximum(&mut self, v: usize) {
+        self.handle.send_message(TBM_SETRANGEMAX, 1, v as _);
     }
 
     pub fn freq(&self) -> usize {
@@ -190,13 +194,22 @@ impl Slider {
         }
     }
 
-    pub fn range(&self) -> (usize, usize) {
-        self.handle.range()
+    pub fn minimum(&self) -> usize {
+        self.handle.minimum()
     }
 
-    pub fn set_range(&mut self, (min, max): (usize, usize)) {
-        self.handle.set_range(min, max);
-        self.vhandle.set_range(min, max);
+    pub fn set_minimum(&mut self, v: usize) {
+        self.handle.set_minimum(v);
+        self.vhandle.set_minimum(v);
+    }
+
+    pub fn maximum(&self) -> usize {
+        self.handle.maximum()
+    }
+
+    pub fn set_maximum(&mut self, v: usize) {
+        self.handle.set_maximum(v);
+        self.vhandle.set_maximum(v);
     }
 
     pub fn freq(&self) -> usize {

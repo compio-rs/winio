@@ -20,11 +20,17 @@ impl Slider {
     /// Set the orientation.
     pub fn set_orient(&mut self, v: Orient);
 
-    /// The range of the slider.
-    pub fn range(&self) -> (usize, usize);
+    /// Value minimum.
+    pub fn minimum(&self) -> usize;
 
-    /// Set the range of the slider.
-    pub fn set_range(&mut self, range: (usize, usize));
+    /// Set value minimum.
+    pub fn set_minimum(&mut self, v: usize);
+
+    /// Value maximum.
+    pub fn maximum(&self) -> usize;
+
+    /// Set value maximum.
+    pub fn set_maximum(&mut self, v: usize);
 
     /// The tick frequency.
     pub fn freq(&self) -> usize;
