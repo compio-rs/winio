@@ -24,7 +24,7 @@ impl ScrollBar {
     pub fn range(&self) -> (usize, usize);
 
     /// Set the range of the scroll bar.
-    pub fn set_range(&mut self, min: usize, max: usize);
+    pub fn set_range(&mut self, range: (usize, usize));
 
     /// The page size.
     pub fn page(&self) -> usize;

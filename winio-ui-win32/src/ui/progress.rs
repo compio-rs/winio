@@ -57,7 +57,7 @@ impl Progress {
         (min, max)
     }
 
-    pub fn set_range(&mut self, min: usize, max: usize) {
+    pub fn set_range(&mut self, (min, max): (usize, usize)) {
         self.handle.send_message(PBM_SETRANGE32, min as _, max as _);
     }
 

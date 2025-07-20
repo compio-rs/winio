@@ -35,12 +35,12 @@ impl Component for MainModel {
                 size: Size::new(800.0, 600.0),
             },
             slider: Slider = (&window) => {
+                range: (0, 100),
                 pos: 100,
                 freq: 20,
             },
             volume_label: Label = (&window),
         }
-        slider.set_range(0, 100);
         sender.post(MainMessage::Volume);
 
         window.show();

@@ -18,7 +18,7 @@ impl Progress {
     pub fn range(&self) -> (usize, usize);
 
     /// Set the value range.
-    pub fn set_range(&mut self, min: usize, max: usize);
+    pub fn set_range(&mut self, range: (usize, usize));
 
     /// Current position.
     pub fn pos(&self) -> usize;

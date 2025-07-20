@@ -58,7 +58,7 @@ impl MainModel {
                     + 10.0
             })
             .sum();
-        self.scrollbar.set_range(0, content_height as _);
+        self.scrollbar.set_range((0, content_height as _));
         self.scrollbar.set_page(size.height as _);
         self.scrollbar.set_pos(pos);
     }

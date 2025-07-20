@@ -209,7 +209,7 @@ impl ScrollBar {
         self.handle.range()
     }
 
-    pub fn set_range(&mut self, min: usize, max: usize) {
+    pub fn set_range(&mut self, (min, max): (usize, usize)) {
         self.handle.set_range(min, max);
         self.vhandle.set_range(min, max);
     }

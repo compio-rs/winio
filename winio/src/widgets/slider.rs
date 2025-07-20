@@ -24,7 +24,7 @@ impl Slider {
     pub fn range(&self) -> (usize, usize);
 
     /// Set the range of the slider.
-    pub fn set_range(&mut self, min: usize, max: usize);
+    pub fn set_range(&mut self, range: (usize, usize));
 
     /// The tick frequency.
     pub fn freq(&self) -> usize;
