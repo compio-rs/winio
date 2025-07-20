@@ -1,20 +1,25 @@
 use inherit_methods_macro::inherit_methods;
-use windows_sys::Win32::UI::{
-    Controls::{
-        TBM_GETRANGEMAX, TBM_GETRANGEMIN, TBM_SETPAGESIZE, TBM_SETPOSNOTIFY, TBM_SETRANGEMAX,
-        TBM_SETRANGEMIN, TBS_AUTOTICKS, TBS_BOTH, TBS_HORZ, TBS_TOOLTIPS, TBS_VERT,
-        TRACKBAR_CLASSW,
+use windows_sys::Win32::{
+    Foundation::HWND,
+    UI::{
+        Controls::{
+            TBM_GETRANGEMAX, TBM_GETRANGEMIN, TBM_GETTOOLTIPS, TBM_SETPOSNOTIFY, TBM_SETRANGEMAX,
+            TBM_SETRANGEMIN, TBM_SETTICFREQ, TBS_AUTOTICKS, TBS_BOTH, TBS_HORZ, TBS_TOOLTIPS,
+            TBS_VERT, TRACKBAR_CLASSW,
+        },
+        WindowsAndMessaging::{WM_HSCROLL, WM_USER, WM_VSCROLL, WS_CHILD, WS_TABSTOP, WS_VISIBLE},
     },
-    WindowsAndMessaging::{WM_HSCROLL, WM_USER, WM_VSCROLL, WS_CHILD, WS_TABSTOP, WS_VISIBLE},
 };
 use winio_handle::{AsRawWidget, AsWindow, RawWidget};
 use winio_primitive::{Orient, Point, Size};
+use winio_ui_windows_common::control_use_dark_mode;
 
 use crate::Widget;
 
 #[derive(Debug)]
 struct SliderImpl {
     handle: Widget,
+    freq: usize,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -27,8 +32,12 @@ impl SliderImpl {
             parent.as_window().as_win32(),
         );
         handle.set_size(handle.size_d2l((50, 14)));
-        handle.send_message(TBM_SETPAGESIZE, 0, 1);
-        Self { handle }
+        let tooltip_handle = handle.send_message(TBM_GETTOOLTIPS, 0, 0) as HWND;
+        unsafe {
+            control_use_dark_mode(tooltip_handle, false);
+            crate::runtime::refresh_font(tooltip_handle);
+        }
+        Self { handle, freq: 1 }
     }
 
     pub fn is_visible(&self) -> bool;
@@ -57,6 +66,15 @@ impl SliderImpl {
         self.handle.send_message(TBM_SETRANGEMIN, 0, min as _);
         // only redraw when both values are set
         self.handle.send_message(TBM_SETRANGEMAX, 1, max as _);
+    }
+
+    pub fn freq(&self) -> usize {
+        self.freq
+    }
+
+    pub fn set_freq(&mut self, v: usize) {
+        self.freq = v;
+        self.handle.send_message(TBM_SETTICFREQ, v, 0);
     }
 
     pub fn pos(&self) -> usize {
@@ -124,9 +142,9 @@ impl Slider {
 
     pub fn preferred_size(&self) -> Size {
         if self.vertical {
-            Size::new(30.0, 0.0)
+            Size::new(40.0, 0.0)
         } else {
-            Size::new(0.0, 30.0)
+            Size::new(0.0, 40.0)
         }
     }
 
@@ -179,6 +197,15 @@ impl Slider {
     pub fn set_range(&mut self, min: usize, max: usize) {
         self.handle.set_range(min, max);
         self.vhandle.set_range(min, max);
+    }
+
+    pub fn freq(&self) -> usize {
+        self.handle.freq()
+    }
+
+    pub fn set_freq(&mut self, v: usize) {
+        self.handle.set_freq(v);
+        self.vhandle.set_freq(v);
     }
 
     pub fn pos(&self) -> usize {
