@@ -8,28 +8,27 @@ use winio_handle::AsWindow;
 use winio_primitive::{Orient, Point, Size};
 use winui3::Microsoft::UI::Xaml::Controls::{
     self as MUXC,
-    Primitives::{ScrollEventHandler, ScrollingIndicatorMode},
+    Primitives::{RangeBaseValueChangedEventHandler, TickPlacement},
 };
 
 use crate::{GlobalRuntime, Widget, ui::Convertible};
 
 #[derive(Debug)]
-pub struct ScrollBar {
+pub struct Slider {
     on_scroll: SendWrapper<Rc<Callback>>,
     handle: Widget,
-    bar: MUXC::Primitives::ScrollBar,
+    bar: MUXC::Slider,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl ScrollBar {
+impl Slider {
     pub fn new(parent: impl AsWindow) -> Self {
-        let bar = MUXC::Primitives::ScrollBar::new().unwrap();
-        bar.SetIndicatorMode(ScrollingIndicatorMode::MouseIndicator)
-            .unwrap();
+        let bar = MUXC::Slider::new().unwrap();
+        bar.SetTickPlacement(TickPlacement::Outside).unwrap();
         let on_scroll = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_scroll = on_scroll.clone();
-            bar.Scroll(&ScrollEventHandler::new(move |_, _| {
+            bar.ValueChanged(&RangeBaseValueChangedEventHandler::new(move |_, _| {
                 on_scroll.signal::<GlobalRuntime>(());
                 Ok(())
             }))
@@ -91,12 +90,12 @@ impl ScrollBar {
         self.bar.SetMaximum(v as _).unwrap()
     }
 
-    pub fn page(&self) -> usize {
-        self.bar.ViewportSize().unwrap() as _
+    pub fn freq(&self) -> usize {
+        self.bar.TickFrequency().unwrap() as _
     }
 
-    pub fn set_page(&mut self, v: usize) {
-        self.bar.SetViewportSize(v as _).unwrap();
+    pub fn set_freq(&mut self, v: usize) {
+        self.bar.SetTickFrequency(v as _).unwrap();
     }
 
     pub fn pos(&self) -> usize {
@@ -112,4 +111,4 @@ impl ScrollBar {
     }
 }
 
-winio_handle::impl_as_widget!(ScrollBar, handle);
+winio_handle::impl_as_widget!(Slider, handle);
