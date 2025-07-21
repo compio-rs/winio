@@ -107,6 +107,7 @@ impl Component for MainModel {
                 if let Some(p) = FileBox::new()
                     .title("Open media file")
                     .add_filter(("MP4 video", "*.mp4"))
+                    .add_filter(("All files", "*.*"))
                     .open(&self.window)
                     .await
                 {
