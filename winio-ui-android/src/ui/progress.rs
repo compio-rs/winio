@@ -1,10 +1,12 @@
 use {
-    winio_handle::AsWindow,
+    winio_handle::{AsWindow, RawWidget, impl_as_widget},
     winio_primitive::{Point, Size},
 };
 
 #[derive(Debug)]
-pub struct Progress;
+pub struct Progress {
+    inner: RawWidget,
+}
 
 impl Progress {
     pub fn range(&self) -> (usize, usize) {
@@ -74,3 +76,5 @@ impl Progress {
         todo!()
     }
 }
+
+impl_as_widget!(Progress, inner);

@@ -1,34 +1,47 @@
 use {
     winio_handle::{AsWindow, RawWidget, impl_as_widget},
-    winio_primitive::{Point, Size},
+    winio_primitive::{Orient, Point, Size},
 };
 
 #[derive(Debug)]
-pub struct CheckBox {
+pub struct ScrollBar {
     inner: RawWidget,
 }
 
-impl CheckBox {
-    pub async fn wait_click(&self) {
+impl ScrollBar {
+    pub async fn wait_change(&self) {
         todo!()
     }
 
-    pub fn text(&self) -> String {
+    pub fn orient(&self) -> Orient {
         todo!()
     }
 
-    pub fn set_text<S>(&mut self, _s: S)
-    where
-        S: AsRef<str>,
-    {
+    pub fn set_orient(&mut self, _v: Orient) {
         todo!()
     }
 
-    pub fn is_checked(&self) -> bool {
+    pub fn set_range(&mut self, _min: usize, _max: usize) {
         todo!()
     }
 
-    pub fn set_checked(&self, _v: bool) {
+    pub fn range(&self) -> (usize, usize) {
+        todo!()
+    }
+
+    pub fn page(&self) -> usize {
+        todo!()
+    }
+
+    pub fn set_page(&mut self, _v: usize) {
+        todo!()
+    }
+
+    pub fn pos(&self) -> usize {
+        todo!()
+    }
+
+    pub fn set_pos(&mut self, _v: usize) {
         todo!()
     }
 
@@ -37,6 +50,10 @@ impl CheckBox {
     }
 
     pub fn set_visible(&mut self, _v: bool) {
+        todo!()
+    }
+
+    pub fn is_enabled(&self) -> bool {
         todo!()
     }
 
@@ -64,10 +81,6 @@ impl CheckBox {
         todo!()
     }
 
-    pub fn is_enabled(&self) -> bool {
-        todo!()
-    }
-
     pub fn new<W>(_parent: W) -> Self
     where
         W: AsWindow,
@@ -76,4 +89,4 @@ impl CheckBox {
     }
 }
 
-impl_as_widget!(CheckBox, inner);
+impl_as_widget!(ScrollBar, inner);

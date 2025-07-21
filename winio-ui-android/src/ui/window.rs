@@ -2,78 +2,42 @@
 
 use {
     super::super::RUNTIME,
-    jni::objects::{GlobalRef, JString},
+    jni::objects::JString,
     winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow},
     winio_primitive::{Point, Size},
 };
 
-/// Represents a window rendered by an Android FrameLayout.
 #[derive(Debug)]
 pub struct Window {
-    /// Global reference to the FrameLayout Java object
-    frame_layout: GlobalRef,
-    /// Global reference to the TextView Java object
-    title_view: GlobalRef,
-    /// Location of the window
-    loc: Point,
-    /// Size of the window
-    size: Size,
+    inner: RawWindow,
 }
 
+//noinspection SpellCheckingInspection
 impl Window {
-    pub fn new<W>(_parent: Option<W>) -> Self
+    pub fn new<W>(parent: Option<W>) -> Self
     where
         W: AsWindow,
     {
-        // Create FrameLayout via JNI
-        let (frame_layout, title_view) = RUNTIME.with(|rt| {
+        let inner = RUNTIME.with(|rt| {
             rt.vm_exec(|mut env, act| {
-                // 创建 FrameLayout
-                let frame_class = env.find_class("android/widget/FrameLayout")?;
-                let frame_obj = env.new_object(
-                    frame_class,
-                    "(Landroid/content/Context;)V",
-                    &[(&act).into()],
-                )?;
-                let frame_global = env.new_global_ref(&frame_obj)?;
-                // 创建 TextView
-                let text_class = env.find_class("android/widget/TextView")?;
-                let text_obj =
-                    env.new_object(text_class, "(Landroid/content/Context;)V", &[(&act).into()])?;
-                let text_global = env.new_global_ref(&text_obj)?;
-                // 设置 TextView 布局参数（宽度MATCH_PARENT，高度WRAP_CONTENT）
-                let lp_class = env.find_class("android/widget/FrameLayout$LayoutParams")?;
-                let match_parent = env.get_static_field(&lp_class, "MATCH_PARENT", "I")?.i()?;
-                let wrap_content = env.get_static_field(&lp_class, "WRAP_CONTENT", "I")?.i()?;
-                let lp_obj = env.new_object(
-                    lp_class,
-                    "(II)V",
-                    &[match_parent.into(), wrap_content.into()],
-                )?;
-                env.call_method(
-                    &text_obj,
-                    "setLayoutParams",
-                    "(Landroid/view/ViewGroup$LayoutParams;)V",
-                    &[(&lp_obj).into()],
-                )?;
-                // 添加 TextView 到 FrameLayout
-                env.call_method(
-                    frame_obj,
-                    "addView",
-                    "(Landroid/view/View;)V",
-                    &[(&text_obj).into()],
-                )?;
-                Ok((frame_global, text_global))
+                let class = env.find_class("rs/compio/winio/Window")?;
+                let obj = if let Some(ref parent) = parent {
+                    env.new_object(
+                        class,
+                        "(Landroid/content/Context;Lrs/compio/winio/Window;)V",
+                        &[(&act).into(), parent.as_window().as_obj().into()],
+                    )
+                } else {
+                    env.new_object(class, "(Landroid/content/Context;)V", &[(&act).into()])
+                }?;
+                let global = env.new_global_ref(&obj)?;
+
+                Ok(global)
             })
             .unwrap()
         });
 
-        Self {
-            frame_layout,
-            title_view,
-            loc: Default::default(),
-            size: Default::default(),
-        }
+        Self { inner }
     }
 
     pub async fn wait_close(&self) {
@@ -91,18 +55,12 @@ impl Window {
     pub fn text(&self) -> String {
         // 获取 TextView 的文本
         RUNTIME.with(|rt| {
-            let title_view = self.title_view.clone();
+            let w = self.inner.clone();
             rt.vm_exec(|mut env, _act| {
-                let jstr = env.call_method(
-                    title_view.as_obj(),
-                    "getText",
-                    "()Ljava/lang/CharSequence;",
-                    &[],
-                )?;
+                let jstr =
+                    env.call_method(w.as_obj(), "getText", "()Ljava/lang/CharSequence;", &[])?;
                 let obj = jstr.l()?;
-                let str_obj = env.call_method(obj, "toString", "()Ljava/lang/String;", &[])?;
-                let jstr2 = str_obj.l()?;
-                let rust_str: String = env.get_string(&JString::from(jstr2))?.into();
+                let rust_str: String = env.get_string(&JString::from(obj))?.into();
                 Ok(rust_str)
             })
             .unwrap()
@@ -114,11 +72,11 @@ impl Window {
         S: AsRef<str>,
     {
         RUNTIME.with(|rt| {
-            let title_view = self.title_view.clone();
+            let w = self.inner.clone();
             rt.vm_exec(|mut env, _act| {
                 let text = env.new_string(title.as_ref())?;
                 env.call_method(
-                    title_view.as_obj(),
+                    w.as_obj(),
                     "setText",
                     "(Ljava/lang/CharSequence;)V",
                     &[(&text).into()],
@@ -133,7 +91,7 @@ impl Window {
     pub fn client_size(&self) -> Size {
         // 获取 FrameLayout 的宽高
         RUNTIME.with(|rt| {
-            let frame_layout = self.frame_layout.clone();
+            let frame_layout = self.inner.clone();
             rt.vm_exec(|mut env, _act| {
                 let width = env
                     .call_method(frame_layout.as_obj(), "getWidth", "()I", &[])?
@@ -150,7 +108,7 @@ impl Window {
     pub fn is_visible(&self) -> bool {
         // 查询 FrameLayout 的可见性
         RUNTIME.with(|rt| {
-            let frame_layout = self.frame_layout.clone();
+            let frame_layout = self.inner.clone();
             rt.vm_exec(|mut env, _act| {
                 let vis = env
                     .call_method(frame_layout.as_obj(), "getVisibility", "()I", &[])?
@@ -161,18 +119,11 @@ impl Window {
         })
     }
 
-    pub fn set_visible(&mut self, v: bool) {
-        // 设置 FrameLayout 的可见性
+    pub fn set_visible(&mut self, visible: bool) {
         RUNTIME.with(|rt| {
-            let frame_layout = self.frame_layout.clone();
+            let w = self.inner.clone();
             rt.vm_exec(|mut env, _act| {
-                let vis = if v { 0 } else { 4 }; // View.VISIBLE = 0, View.INVISIBLE = 4
-                env.call_method(
-                    frame_layout.as_obj(),
-                    "setVisibility",
-                    "(I)V",
-                    &[vis.into()],
-                )?;
+                env.call_method(w.as_obj(), "setVisible", "(Z)V", &[visible.into()])?;
                 Ok(())
             })
             .unwrap();
@@ -180,33 +131,50 @@ impl Window {
     }
 
     pub fn loc(&self) -> Point {
-        self.loc
+        todo!()
     }
 
-    pub fn set_loc(&mut self, p: Point) {
-        self.loc = p;
-        // Optionally update Java side position
+    pub fn set_loc(&mut self, Point { x, y, .. }: Point) {
+        RUNTIME.with(|rt| {
+            let w = self.inner.clone();
+            rt.vm_exec(|mut env, _act| {
+                env.call_method(w.as_obj(), "setLoc", "(FF)V", &[x.into(), y.into()])?;
+                Ok(())
+            })
+            .unwrap();
+        });
     }
 
     pub fn size(&self) -> Size {
-        self.size
+        todo!()
     }
 
-    pub fn set_size(&mut self, v: Size) {
-        self.size = v;
-        // Optionally update Java side size
+    pub fn set_size(&mut self, Size { width, height, .. }: Size) {
+        RUNTIME.with(|rt| {
+            let w = self.inner.clone();
+            rt.vm_exec(|mut env, _act| {
+                env.call_method(
+                    w.as_obj(),
+                    "setSize",
+                    "(FF)V",
+                    &[width.into(), height.into()],
+                )?;
+                Ok(())
+            })
+            .unwrap();
+        });
     }
 }
 
 impl AsRawWindow for Window {
     fn as_raw_window(&self) -> RawWindow {
         // Return pointer or handle to FrameLayout
-        self.frame_layout.clone()
+        self.inner.clone()
     }
 }
 
 impl AsWindow for Window {
     fn as_window(&self) -> BorrowedWindow<'_> {
-        unsafe { BorrowedWindow::borrow_raw(self.frame_layout.clone()) }
+        unsafe { BorrowedWindow::borrow_raw(self.inner.clone()) }
     }
 }

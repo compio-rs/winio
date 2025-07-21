@@ -1,10 +1,12 @@
 use {
-    winio_handle::AsWindow,
+    winio_handle::{AsWindow, RawWidget, impl_as_widget},
     winio_primitive::{Point, Size},
 };
 
 #[derive(Debug)]
-pub struct RadioButton;
+pub struct RadioButton {
+    inner: RawWidget,
+}
 
 impl RadioButton {
     pub async fn wait_click(&self) {
@@ -73,3 +75,5 @@ impl RadioButton {
         todo!()
     }
 }
+
+impl_as_widget!(RadioButton, inner);

@@ -1,10 +1,12 @@
 use {
-    winio_handle::AsWindow,
+    winio_handle::{AsWindow, RawWidget, impl_as_widget},
     winio_primitive::{Point, Size},
 };
 
 #[derive(Debug)]
-pub struct Button;
+pub struct Button {
+    inner: RawWidget,
+}
 
 impl Button {
     pub async fn wait_click(&self) {
@@ -65,3 +67,5 @@ impl Button {
         todo!()
     }
 }
+
+impl_as_widget!(Button, inner);

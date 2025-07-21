@@ -13,13 +13,16 @@ mod monitor;
 mod msgbox;
 mod progress;
 mod radio_button;
+mod scroll_bar;
 mod text_box;
+mod tooltip;
 mod window;
 
 use winio_primitive::ColorTheme;
 pub use {
     accent::*, button::*, canvas::*, check_box::*, combo_box::*, edit::*, filebox::*, label::*,
-    list_box::*, monitor::*, msgbox::*, progress::*, radio_button::*, text_box::*, window::*,
+    list_box::*, monitor::*, msgbox::*, progress::*, radio_button::*, scroll_bar::*, text_box::*,
+    tooltip::*, window::*,
 };
 
 pub fn color_theme() -> ColorTheme {

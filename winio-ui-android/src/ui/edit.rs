@@ -1,10 +1,12 @@
 use {
-    winio_handle::AsWindow,
+    winio_handle::{AsWindow,RawWidget,impl_as_widget},
     winio_primitive::{HAlign, Point, Size},
 };
 
 #[derive(Debug)]
-pub struct Edit;
+pub struct Edit {
+    inner: RawWidget
+}
 
 impl Edit {
     pub async fn wait_change(&self) {
@@ -30,10 +32,12 @@ impl Edit {
         todo!()
     }
 
+    //noinspection SpellCheckingInspection
     pub fn halign(&self) -> HAlign {
         todo!()
     }
 
+    //noinspection SpellCheckingInspection
     pub fn set_halign(&mut self, _align: HAlign) {
         todo!()
     }
@@ -81,3 +85,5 @@ impl Edit {
         todo!()
     }
 }
+
+impl_as_widget!(Edit, inner);

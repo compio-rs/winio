@@ -1,10 +1,10 @@
 use {
     image::DynamicImage,
     std::marker::PhantomData,
-    winio_handle::AsWindow,
+    winio_handle::{AsWindow, RawWidget, impl_as_widget},
     winio_primitive::{
         BrushPen, DrawingFont, LinearGradientBrush, MouseButton, Point, RadialGradientBrush, Rect,
-        Size, SolidColorBrush,
+        Size, SolidColorBrush, Vector,
     },
 };
 
@@ -175,7 +175,9 @@ impl DrawingPathBuilder {
 }
 
 #[derive(Debug)]
-pub struct Canvas;
+pub struct Canvas {
+    inner: RawWidget,
+}
 
 impl Canvas {
     pub async fn wait_mouse_move(&self) -> Point {
@@ -187,6 +189,10 @@ impl Canvas {
     }
 
     pub async fn wait_mouse_up(&self) -> MouseButton {
+        todo!()
+    }
+
+    pub async fn wait_mouse_wheel(&self) -> Vector {
         todo!()
     }
 
@@ -233,3 +239,5 @@ impl Canvas {
         todo!()
     }
 }
+
+impl_as_widget!(Canvas, inner);

@@ -1,10 +1,12 @@
 use {
-    winio_handle::AsWindow,
+    winio_handle::{AsWindow, RawWidget, impl_as_widget},
     winio_primitive::{HAlign, Point, Size},
 };
 
 #[derive(Debug)]
-pub struct TextBox;
+pub struct TextBox {
+    inner: RawWidget,
+}
 
 impl TextBox {
     pub async fn wait_change(&self) {
@@ -22,10 +24,12 @@ impl TextBox {
         todo!()
     }
 
+    //noinspection SpellCheckingInspection
     pub fn halign(&self) -> HAlign {
         todo!()
     }
 
+    //noinspection SpellCheckingInspection
     pub fn set_halign(&mut self, _align: HAlign) {
         todo!()
     }
@@ -73,3 +77,5 @@ impl TextBox {
         todo!()
     }
 }
+
+impl_as_widget!(TextBox, inner);

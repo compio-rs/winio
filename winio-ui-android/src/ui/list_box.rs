@@ -1,10 +1,12 @@
 use {
-    winio_handle::AsWindow,
+    winio_handle::{AsWindow, RawWidget, impl_as_widget},
     winio_primitive::{Point, Size},
 };
 
 #[derive(Debug)]
-pub struct ListBox;
+pub struct ListBox {
+    inner: RawWidget,
+}
 
 impl ListBox {
     pub async fn wait_select(&self) {
@@ -100,3 +102,5 @@ impl ListBox {
         todo!()
     }
 }
+
+impl_as_widget!(ListBox, inner);

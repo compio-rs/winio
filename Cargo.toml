@@ -13,12 +13,13 @@ members = [
     "winio-ui-gtk",
     "winio-ui-qt",
     "winio-ui-app-kit",
+    "winio-ui-android",
+    "mobile-examples/android"
 ]
-
-resolver = "2"
+resolver = "3"
 
 [workspace.package]
-edition = "2021"
+edition = "2024"
 authors = ["Berrysoft <Strawberry_Str@hotmail.com>"]
 readme = "README.md"
 license = "MIT"
@@ -37,11 +38,13 @@ winio-ui-winui = { path = "winio-ui-winui", version = "0.1.2" }
 winio-ui-gtk = { path = "winio-ui-gtk", version = "0.1.2" }
 winio-ui-qt = { path = "winio-ui-qt", version = "0.1.2" }
 winio-ui-app-kit = { path = "winio-ui-app-kit", version = "0.1.4" }
+winio-ui-android = { path = "winio-ui-android", version = "0.1.0" }
 
 compio = "0.15.0"
 compio-runtime = "0.8.1"
 compio-log = "0.1.0"
 
+jni = "0.21.1"
 cfg-if = "1"
 futures-util = "0.3"
 image = { version = "0.25", default-features = false }

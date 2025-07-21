@@ -1,15 +1,15 @@
 use {
     super::super::RUNTIME,
-    jni::objects::GlobalRef,
-    winio_handle::AsWindow,
+    winio_handle::{AsWindow, RawWidget, impl_as_widget},
     winio_primitive::{HAlign, Point, Size},
 };
 
 #[derive(Debug)]
 pub struct Label {
-    tv: GlobalRef,
+    inner: RawWidget,
 }
 
+//noinspection SpellCheckingInspection
 impl Label {
     pub fn text(&self) -> String {
         todo!()
@@ -20,7 +20,7 @@ impl Label {
         S: AsRef<str>,
     {
         RUNTIME.with(|rt| {
-            let view = self.tv.clone();
+            let view = self.inner.clone();
             rt.vm_exec(|mut env, _act| {
                 let text = env.new_string(text.as_ref())?;
                 env.call_method(
@@ -43,7 +43,7 @@ impl Label {
     pub fn set_halign(&mut self, align: HAlign) {
         // 通过JNI设置TextView的文本对齐方式
         RUNTIME.with(|rt| {
-            let view = self.tv.clone();
+            let view = self.inner.clone();
             rt.vm_exec(|mut env, _act| {
                 let gravity = match align {
                     HAlign::Left => 3,                     // Gravity.LEFT
@@ -89,11 +89,10 @@ impl Label {
         let (width, height) = (size.width as i32, size.height as i32);
         // 通过JNI设置TextView的宽高
         RUNTIME.with(|rt| {
-            let view = self.tv.clone();
+            let view = self.inner.clone();
             rt.vm_exec(|mut env, _act| {
                 let lp_class = env.find_class("android/widget/FrameLayout$LayoutParams")?;
-                let lp_obj =
-                    env.new_object(lp_class, "(II)V", &[width.into(), height.into()])?;
+                let lp_obj = env.new_object(lp_class, "(II)V", &[width.into(), height.into()])?;
                 env.call_method(
                     view.as_obj(),
                     "setLayoutParams",
@@ -132,6 +131,8 @@ impl Label {
             .unwrap()
         });
 
-        Self { tv }
+        Self { inner: tv }
     }
 }
+
+impl_as_widget!(Label, inner);
