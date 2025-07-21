@@ -1,3 +1,6 @@
+use std::path::PathBuf;
+
+use url::Url;
 use winio::prelude::*;
 
 fn main() {
@@ -24,6 +27,8 @@ enum MainMessage {
     Close,
     Redraw,
     Volume,
+    ChooseFile,
+    OpenFile(PathBuf),
 }
 
 impl Component for MainModel {
@@ -77,6 +82,9 @@ impl Component for MainModel {
             self.volume_slider => {
                 SliderEvent::Change => MainMessage::Volume,
             },
+            self.browse_button => {
+                ButtonEvent::Click => MainMessage::ChooseFile,
+            }
         }
     }
 
@@ -90,8 +98,28 @@ impl Component for MainModel {
             }
             MainMessage::Redraw => true,
             MainMessage::Volume => {
-                self.volume_label
-                    .set_text(self.volume_slider.pos().to_string());
+                let pos = self.volume_slider.pos();
+                self.volume_label.set_text(pos.to_string());
+                self.media.set_volume(pos as f64 / 100.0);
+                true
+            }
+            MainMessage::ChooseFile => {
+                if let Some(p) = FileBox::new()
+                    .title("Open media file")
+                    .add_filter(("MP4 video", "*.mp4"))
+                    .open(&self.window)
+                    .await
+                {
+                    sender.post(MainMessage::OpenFile(p));
+                }
+                false
+            }
+            MainMessage::OpenFile(p) => {
+                let url = Url::from_file_path(&p).unwrap();
+                self.media.set_url(url.as_str());
+                self.volume_slider.enable();
+                self.time_slider.enable();
+                self.media.play();
                 true
             }
         }
