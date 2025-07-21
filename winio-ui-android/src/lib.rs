@@ -10,5 +10,3 @@ pub use runtime::*;
 
 mod ui;
 pub use ui::*;
-
-pub use android_activity::AndroidApp;

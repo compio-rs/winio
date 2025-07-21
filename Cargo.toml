@@ -50,6 +50,7 @@ futures-util = "0.3"
 image = { version = "0.25", default-features = false }
 inherit-methods-macro = "0.1"
 local-sync = "0.1"
+log = "0.4.27"
 paste = "1.0"
 scoped-tls = "1.0"
 widestring = "1"

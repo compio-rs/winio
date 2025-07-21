@@ -11,10 +11,11 @@ repository = { workspace = true }
 [dependencies]
 
 [target.'cfg(target_os = "android")'.dependencies]
-android-activity = { version = "0.6.0", features = ["native-activity"] }
+log.workspace = true
 jni.workspace = true
 image = { workspace = true, default-features = false }
 futures-util = "0.3.31"
+libc = "1.0.0-alpha.1"
 
 winio-primitive = { workspace = true }
 winio-callback = { workspace = true }
@@ -22,7 +23,6 @@ winio-handle = { workspace = true }
 winio-pollable = { workspace = true }
 
 compio = { workspace = true }
-compio-log = { workspace = true }
 
 inherit-methods-macro = { workspace = true }
 

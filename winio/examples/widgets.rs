@@ -1,8 +1,7 @@
 use winio::prelude::*;
 
-#[cfg(not(target_os = "android"))]
-fn main() {
-    #[cfg(feature = "enable_log")]
+pub(crate) fn main() {
+    #[cfg(all(feature = "enable_log", not(target_os = "android")))]
     tracing_subscriber::fmt()
         .with_max_level(compio_log::Level::INFO)
         .init();

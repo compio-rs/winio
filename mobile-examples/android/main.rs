@@ -6,22 +6,18 @@ mod hello;
 #[path = "../../winio/examples/widgets.rs"]
 mod widgets;
 
-#[cfg(feature = "hello")]
-use hello::*;
-
-#[cfg(feature = "widgets")]
-use widgets::*;
-
-use winio::prelude::*;
 
 #[unsafe(no_mangle)]
-fn android_main(app: AndroidApp) {
-    #[cfg(debug_assertions)]
-    unsafe {
-        std::env::set_var("RUST_BACKTRACE", "full");
-    }
+fn main() {
+    #[cfg(feature = "enable_log")]
+    android_logger::init_once(
+        android_logger::Config::default()
+            .with_tag("winio")
+            .with_max_level(log::LevelFilter::Info),
+    );
+    #[cfg(feature = "hello")]
+    hello::main();
+    #[cfg(feature = "widgets")]
+    widgets::main();
 
-    App::new("rs.compio.winio.widgets")
-        .set_android_app(app)
-        .run::<MainModel>(());
 }

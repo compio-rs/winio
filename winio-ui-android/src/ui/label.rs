@@ -1,5 +1,4 @@
 use {
-    super::super::RUNTIME,
     winio_handle::{AsWindow, RawWidget, impl_as_widget},
     winio_primitive::{HAlign, Point, Size},
 };
@@ -15,46 +14,19 @@ impl Label {
         todo!()
     }
 
-    pub fn set_text<S>(&mut self, text: S)
+    pub fn set_text<S>(&mut self, _text: S)
     where
         S: AsRef<str>,
     {
-        RUNTIME.with(|rt| {
-            let view = self.inner.clone();
-            rt.vm_exec(|mut env, _act| {
-                let text = env.new_string(text.as_ref())?;
-                env.call_method(
-                    view.as_obj(),
-                    "setText",
-                    "(Ljava/lang/CharSequence;)V",
-                    &[(&text).into()],
-                )?;
-
-                Ok(())
-            })
-            .unwrap();
-        });
+        todo!()
     }
 
     pub fn halign(&self) -> HAlign {
         todo!()
     }
 
-    pub fn set_halign(&mut self, align: HAlign) {
-        // 通过JNI设置TextView的文本对齐方式
-        RUNTIME.with(|rt| {
-            let view = self.inner.clone();
-            rt.vm_exec(|mut env, _act| {
-                let gravity = match align {
-                    HAlign::Left => 3,                     // Gravity.LEFT
-                    HAlign::Center | HAlign::Stretch => 1, // Gravity.CENTER_HORIZONTAL
-                    HAlign::Right => 5,                    // Gravity.RIGHT
-                };
-                env.call_method(view.as_obj(), "setGravity", "(I)V", &[gravity.into()])?;
-                Ok(())
-            })
-            .unwrap();
-        });
+    pub fn set_halign(&mut self, _align: HAlign) {
+        todo!()
     }
 
     pub fn is_visible(&self) -> bool {
@@ -85,53 +57,19 @@ impl Label {
         todo!()
     }
 
-    pub fn set_size(&mut self, size: Size) {
-        let (width, height) = (size.width as i32, size.height as i32);
-        // 通过JNI设置TextView的宽高
-        RUNTIME.with(|rt| {
-            let view = self.inner.clone();
-            rt.vm_exec(|mut env, _act| {
-                let lp_class = env.find_class("android/widget/FrameLayout$LayoutParams")?;
-                let lp_obj = env.new_object(lp_class, "(II)V", &[width.into(), height.into()])?;
-                env.call_method(
-                    view.as_obj(),
-                    "setLayoutParams",
-                    "(Landroid/view/ViewGroup$LayoutParams;)V",
-                    &[(&lp_obj).into()],
-                )?;
-
-                Ok(())
-            })
-            .unwrap();
-        });
+    pub fn set_size(&mut self, _size: Size) {
+        todo!()
     }
 
     pub fn preferred_size(&self) -> Size {
         todo!()
     }
 
-    pub fn new<W>(parent: W) -> Self
+    pub fn new<W>(_parent: W) -> Self
     where
         W: AsWindow,
     {
-        let parent = parent.as_window();
-        let tv = RUNTIME.with(|rt| {
-            rt.vm_exec(|mut env, act| {
-                let tv_class = env.find_class("android/widget/TextView")?;
-                let tv_obj =
-                    env.new_object(tv_class, "(Landroid/content/Context;)V", &[(&act).into()])?;
-                env.call_method(
-                    &*parent,
-                    "addView",
-                    "(Landroid/view/View;)V",
-                    &[(&tv_obj).into()],
-                )?;
-                env.new_global_ref(&tv_obj)
-            })
-            .unwrap()
-        });
-
-        Self { inner: tv }
+        todo!()
     }
 }
 

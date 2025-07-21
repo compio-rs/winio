@@ -40,6 +40,10 @@ fn main() {
                 eprintln!("{}", line);
             });
             exit(output.status.code().unwrap_or_default());
+        } else if !output.stdout.is_empty() {
+            GBK.decode(&output.stdout).0.lines().for_each(|line| {
+                eprintln!("{}", line);
+            });
         }
     }
 }
