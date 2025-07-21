@@ -5,7 +5,7 @@ use objc2::{
     sel,
 };
 use objc2_app_kit::NSSlider;
-use objc2_foundation::NSObject;
+use objc2_foundation::{NSObject, NSString};
 use winio_callback::Callback;
 use winio_handle::AsWindow;
 use winio_primitive::{Orient, Point, Size};
@@ -116,10 +116,19 @@ impl Slider {
         unsafe {
             self.view.setDoubleValue(pos as _);
         }
+        self.reset_tooltip();
+    }
+
+    fn reset_tooltip(&self) {
+        unsafe {
+            self.view
+                .setToolTip(Some(&NSString::from_str(&self.pos().to_string())))
+        }
     }
 
     pub async fn wait_change(&self) {
-        self.delegate.ivars().action.wait().await
+        self.delegate.ivars().action.wait().await;
+        self.reset_tooltip();
     }
 }
 
