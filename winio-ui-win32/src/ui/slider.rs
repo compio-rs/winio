@@ -1,49 +1,43 @@
 use inherit_methods_macro::inherit_methods;
-use objc2::{
-    DefinedClass, MainThreadMarker, MainThreadOnly, define_class, msg_send,
-    rc::{Allocated, Retained},
+use windows_sys::Win32::{
+    Foundation::HWND,
+    UI::{
+        Controls::{
+            TBM_GETRANGEMAX, TBM_GETRANGEMIN, TBM_GETTOOLTIPS, TBM_SETPOSNOTIFY, TBM_SETRANGEMAX,
+            TBM_SETRANGEMIN, TBM_SETTICFREQ, TBS_AUTOTICKS, TBS_BOTH, TBS_HORZ, TBS_TOOLTIPS,
+            TBS_VERT, TRACKBAR_CLASSW,
+        },
+        WindowsAndMessaging::{WM_HSCROLL, WM_USER, WM_VSCROLL, WS_CHILD, WS_TABSTOP, WS_VISIBLE},
+    },
 };
-use objc2_app_kit::{NSControlSize, NSEvent, NSScroller, NSScrollerStyle};
-use objc2_foundation::{NSPoint, NSRect, NSSize};
-use winio_callback::Callback;
 use winio_handle::{AsRawWidget, AsWindow, RawWidget};
 use winio_primitive::{Orient, Point, Size};
+use winio_ui_windows_common::control_use_dark_mode;
 
-use crate::{GlobalRuntime, ui::Widget};
+use crate::Widget;
 
 #[derive(Debug)]
-struct ScrollBarImpl {
+struct SliderImpl {
     handle: Widget,
-    view: Retained<CustomScroller>,
-    min: usize,
-    max: usize,
+    freq: usize,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl ScrollBarImpl {
-    pub fn new(parent: impl AsWindow, vertical: bool) -> Self {
+impl SliderImpl {
+    pub fn new(parent: impl AsWindow, style: u32) -> Self {
+        let mut handle = Widget::new(
+            TRACKBAR_CLASSW,
+            WS_CHILD | WS_TABSTOP | TBS_AUTOTICKS | TBS_BOTH | TBS_TOOLTIPS | style,
+            0,
+            parent.as_window().as_win32(),
+        );
+        handle.set_size(handle.size_d2l((50, 14)));
+        let tooltip_handle = handle.send_message(TBM_GETTOOLTIPS, 0, 0) as HWND;
         unsafe {
-            let mtm = MainThreadMarker::new().unwrap();
-
-            let view = CustomScroller::new(
-                mtm,
-                if vertical {
-                    NSRect::new(NSPoint::ZERO, NSSize::new(10.0, 20.0))
-                } else {
-                    NSRect::new(NSPoint::ZERO, NSSize::new(20.0, 10.0))
-                },
-            );
-            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
-
-            view.setEnabled(true);
-
-            Self {
-                handle,
-                view,
-                min: 0,
-                max: 0,
-            }
+            control_use_dark_mode(tooltip_handle, false);
+            crate::runtime::refresh_font(tooltip_handle);
         }
+        Self { handle, freq: 1 }
     }
 
     pub fn is_visible(&self) -> bool;
@@ -63,106 +57,59 @@ impl ScrollBarImpl {
     pub fn set_size(&mut self, v: Size);
 
     pub fn minimum(&self) -> usize {
-        self.min
+        self.handle.send_message(TBM_GETRANGEMIN, 0, 0) as _
     }
 
     pub fn set_minimum(&mut self, v: usize) {
-        let pos = self.pos();
-        self.min = v;
-        self.set_pos(pos);
+        self.handle.send_message(TBM_SETRANGEMIN, 1, v as _);
     }
 
     pub fn maximum(&self) -> usize {
-        self.max
+        self.handle.send_message(TBM_GETRANGEMAX, 0, 0) as _
     }
 
     pub fn set_maximum(&mut self, v: usize) {
-        let pos = self.pos();
-        self.max = v;
-        self.set_pos(pos);
+        self.handle.send_message(TBM_SETRANGEMAX, 1, v as _);
     }
 
-    pub fn page(&self) -> usize {
-        (unsafe { self.view.knobProportion() } * (self.max - self.min) as f64) as usize
+    pub fn freq(&self) -> usize {
+        self.freq
     }
 
-    pub fn set_page(&mut self, v: usize) {
-        unsafe {
-            self.view
-                .setKnobProportion(v as f64 / ((self.max - self.min) as f64));
-        }
+    pub fn set_freq(&mut self, v: usize) {
+        self.freq = v;
+        self.handle.send_message(TBM_SETTICFREQ, v, 0);
     }
 
     pub fn pos(&self) -> usize {
-        (unsafe { self.view.doubleValue() } * (self.max - self.page() - self.min) as f64) as usize
+        // Why is it not in `windows-sys`?
+        const TBM_GETPOS: u32 = WM_USER;
+        self.handle.send_message(TBM_GETPOS, 0, 0) as _
     }
 
     pub fn set_pos(&mut self, v: usize) {
-        unsafe {
-            self.view
-                .setDoubleValue(v as f64 / ((self.max - self.page() - self.min) as f64));
-        }
-    }
-
-    pub async fn wait_change(&self) {
-        self.view.ivars().on_move.wait().await
+        self.handle.send_message(TBM_SETPOSNOTIFY, 0, v as _);
     }
 }
 
-impl AsRawWidget for ScrollBarImpl {
+impl AsRawWidget for SliderImpl {
     fn as_raw_widget(&self) -> RawWidget {
         self.handle.as_raw_widget()
     }
 }
 
-#[derive(Debug, Default)]
-struct CustomScrollerIvars {
-    on_move: Callback,
-}
-
-define_class! {
-    #[unsafe(super(NSScroller))]
-    #[name = "WinioCustomScroller"]
-    #[ivars = CustomScrollerIvars]
-    #[thread_kind = MainThreadOnly]
-    #[derive(Debug)]
-    struct CustomScroller;
-
-    #[allow(non_snake_case)]
-    impl CustomScroller {
-        #[unsafe(method_id(initWithFrame:))]
-        fn initWithFrame(this: Allocated<Self>, frame: NSRect) -> Option<Retained<Self>> {
-            let this = this.set_ivars(CustomScrollerIvars::default());
-            unsafe { msg_send![super(this), initWithFrame: frame] }
-        }
-
-        #[unsafe(method(trackKnob:))]
-        unsafe fn trackKnob(&self, event: &NSEvent) {
-            let () = unsafe { msg_send![super(self), trackKnob:event] };
-            self.ivars().on_move.signal::<GlobalRuntime>(());
-        }
-    }
-}
-
-impl CustomScroller {
-    pub fn new(mtm: MainThreadMarker, frame: NSRect) -> Retained<Self> {
-        unsafe { msg_send![mtm.alloc::<Self>(), initWithFrame: frame] }
-    }
-}
-
 #[derive(Debug)]
-pub struct ScrollBar {
-    handle: ScrollBarImpl,
-    vhandle: ScrollBarImpl,
+pub struct Slider {
+    handle: SliderImpl,
+    vhandle: SliderImpl,
     vertical: bool,
 }
 
-impl ScrollBar {
+impl Slider {
     pub fn new(parent: impl AsWindow) -> Self {
         let parent = parent.as_window();
-        let handle = ScrollBarImpl::new(&parent, false);
-        let mut vhandle = ScrollBarImpl::new(&parent, true);
-        vhandle.set_visible(false);
+        let handle = SliderImpl::new(&parent, WS_VISIBLE | TBS_HORZ);
+        let vhandle = SliderImpl::new(&parent, TBS_VERT);
         Self {
             handle,
             vhandle,
@@ -198,17 +145,10 @@ impl ScrollBar {
     }
 
     pub fn preferred_size(&self) -> Size {
-        let width = unsafe {
-            NSScroller::scrollerWidthForControlSize_scrollerStyle(
-                NSControlSize::Regular,
-                NSScrollerStyle::Overlay,
-                MainThreadMarker::new().unwrap(),
-            )
-        };
         if self.vertical {
-            Size::new(width, 0.0)
+            Size::new(40.0, 0.0)
         } else {
-            Size::new(0.0, width)
+            Size::new(0.0, 40.0)
         }
     }
 
@@ -272,13 +212,13 @@ impl ScrollBar {
         self.vhandle.set_maximum(v);
     }
 
-    pub fn page(&self) -> usize {
-        self.handle.page()
+    pub fn freq(&self) -> usize {
+        self.handle.freq()
     }
 
-    pub fn set_page(&mut self, v: usize) {
-        self.handle.set_page(v);
-        self.vhandle.set_page(v);
+    pub fn set_freq(&mut self, v: usize) {
+        self.handle.set_freq(v);
+        self.vhandle.set_freq(v);
     }
 
     pub fn pos(&self) -> usize {
@@ -297,16 +237,14 @@ impl ScrollBar {
 
     pub async fn wait_change(&self) {
         if self.vertical {
-            &self.vhandle
+            self.vhandle.handle.wait_parent(WM_VSCROLL).await;
         } else {
-            &self.handle
+            self.handle.handle.wait_parent(WM_HSCROLL).await;
         }
-        .wait_change()
-        .await
     }
 }
 
-impl AsRawWidget for ScrollBar {
+impl AsRawWidget for Slider {
     fn as_raw_widget(&self) -> RawWidget {
         if self.vertical {
             &self.vhandle
@@ -321,4 +259,4 @@ impl AsRawWidget for ScrollBar {
     }
 }
 
-winio_handle::impl_as_widget!(ScrollBar);
+winio_handle::impl_as_widget!(Slider);

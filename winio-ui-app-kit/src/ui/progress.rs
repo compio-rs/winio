@@ -48,14 +48,23 @@ impl Progress {
 
     pub fn set_size(&mut self, v: Size);
 
-    pub fn range(&self) -> (usize, usize) {
-        unsafe { (self.view.minValue() as _, self.view.maxValue() as _) }
+    pub fn minimum(&self) -> usize {
+        unsafe { self.view.minValue() as _ }
     }
 
-    pub fn set_range(&mut self, min: usize, max: usize) {
+    pub fn set_minimum(&mut self, v: usize) {
         unsafe {
-            self.view.setMinValue(min as _);
-            self.view.setMaxValue(max as _);
+            self.view.setMinValue(v as _);
+        }
+    }
+
+    pub fn maximum(&self) -> usize {
+        unsafe { self.view.maxValue() as _ }
+    }
+
+    pub fn set_maximum(&mut self, v: usize) {
+        unsafe {
+            self.view.setMaxValue(v as _);
         }
     }
 
