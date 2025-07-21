@@ -62,13 +62,24 @@ impl ScrollBarImpl {
 
     pub fn set_size(&mut self, v: Size);
 
-    pub fn range(&self) -> (usize, usize) {
-        (self.min, self.max)
+    pub fn minimum(&self) -> usize {
+        self.min
     }
 
-    pub fn set_range(&mut self, min: usize, max: usize) {
-        self.min = min;
-        self.max = max;
+    pub fn set_minimum(&mut self, v: usize) {
+        let pos = self.pos();
+        self.min = v;
+        self.set_pos(pos);
+    }
+
+    pub fn maximum(&self) -> usize {
+        self.max
+    }
+
+    pub fn set_maximum(&mut self, v: usize) {
+        let pos = self.pos();
+        self.max = v;
+        self.set_pos(pos);
     }
 
     pub fn page(&self) -> usize {
@@ -243,13 +254,22 @@ impl ScrollBar {
         }
     }
 
-    pub fn range(&self) -> (usize, usize) {
-        self.handle.range()
+    pub fn minimum(&self) -> usize {
+        self.handle.minimum()
     }
 
-    pub fn set_range(&mut self, min: usize, max: usize) {
-        self.handle.set_range(min, max);
-        self.vhandle.set_range(min, max);
+    pub fn set_minimum(&mut self, v: usize) {
+        self.handle.set_minimum(v);
+        self.vhandle.set_minimum(v);
+    }
+
+    pub fn maximum(&self) -> usize {
+        self.handle.maximum()
+    }
+
+    pub fn set_maximum(&mut self, v: usize) {
+        self.handle.set_maximum(v);
+        self.vhandle.set_maximum(v);
     }
 
     pub fn page(&self) -> usize {
