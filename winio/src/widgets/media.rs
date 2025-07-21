@@ -47,7 +47,7 @@ impl Media {
     /// Volume.
     pub fn volume(&self) -> f64;
 
-    /// Set the volume.
+    /// Set the volume. The value should between 0.0 to 1.0.
     pub fn set_volume(&mut self, v: f64);
 
     /// If the player is muted.

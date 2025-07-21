@@ -6,12 +6,15 @@ fn main() {
         .with_max_level(compio_log::Level::INFO)
         .init();
 
-    App::new("rs.compio.winio.slider").run::<MainModel>(());
+    App::new("rs.compio.winio.media").run::<MainModel>(());
 }
 
 struct MainModel {
     window: Child<Window>,
-    slider: Child<Slider>,
+    media: Child<Media>,
+    browse_button: Child<Button>,
+    time_slider: Child<Slider>,
+    volume_slider: Child<Slider>,
     volume_label: Child<Label>,
 }
 
@@ -34,7 +37,15 @@ impl Component for MainModel {
                 text: "Media example",
                 size: Size::new(800.0, 600.0),
             },
-            slider: Slider = (&window) => {
+            media: Media = (&window),
+            browse_button: Button = (&window) => {
+                text: "..."
+            },
+            time_slider: Slider = (&window) => {
+                enabled: false
+            },
+            volume_slider: Slider = (&window) => {
+                enabled: false,
                 minimum: 0,
                 maximum: 100,
                 pos: 100,
@@ -48,7 +59,10 @@ impl Component for MainModel {
 
         Self {
             window,
-            slider,
+            media,
+            browse_button,
+            time_slider,
+            volume_slider,
             volume_label,
         }
     }
@@ -60,7 +74,7 @@ impl Component for MainModel {
                 WindowEvent::Close => MainMessage::Close,
                 WindowEvent::Resize => MainMessage::Redraw,
             },
-            self.slider => {
+            self.volume_slider => {
                 SliderEvent::Change => MainMessage::Volume,
             },
         }
@@ -76,7 +90,8 @@ impl Component for MainModel {
             }
             MainMessage::Redraw => true,
             MainMessage::Volume => {
-                self.volume_label.set_text(self.slider.pos().to_string());
+                self.volume_label
+                    .set_text(self.volume_slider.pos().to_string());
                 true
             }
         }
@@ -87,13 +102,18 @@ impl Component for MainModel {
 
         let csize = self.window.client_size();
         {
+            let margin = Margin::new_all_same(4.0);
+
             let mut bottom_bar = layout! {
                 StackPanel::new(Orient::Horizontal),
-                self.slider => { grow: true },
-                self.volume_label => { valign: VAlign::Center },
+                self.time_slider   => { margin: margin, grow: true },
+                self.volume_slider => { margin: margin, width: 200.0 },
+                self.volume_label  => { margin: margin, valign: VAlign::Center, halign: HAlign::Left, width: 20.0 },
+                self.browse_button => { margin: margin }
             };
             let mut grid = layout! {
                 Grid::from_str("1*", "1*,auto").unwrap(),
+                self.media => { column: 0, row: 0 },
                 bottom_bar => { column: 0, row: 1 },
             };
             grid.set_size(csize);
