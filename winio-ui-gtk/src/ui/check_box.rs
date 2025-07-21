@@ -25,12 +25,10 @@ impl CheckBox {
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
         let on_click = Rc::new(Callback::new());
         widget.connect_toggled({
-            let on_click = Rc::downgrade(&on_click);
+            let on_click = on_click.clone();
             move |widget| {
-                if let Some(on_click) = on_click.upgrade() {
-                    if !radio || widget.is_active() {
-                        on_click.signal::<GlobalRuntime>(());
-                    }
+                if !radio || widget.is_active() {
+                    on_click.signal::<GlobalRuntime>(());
                 }
             }
         });
@@ -88,6 +86,8 @@ impl CheckBox {
     }
 }
 
+winio_handle::impl_as_widget!(CheckBox, handle);
+
 #[derive(Debug)]
 pub struct RadioButton {
     handle: CheckBox,
@@ -140,3 +140,5 @@ impl RadioButton {
         self.handle.wait_click().await
     }
 }
+
+winio_handle::impl_as_widget!(RadioButton, handle);

@@ -157,3 +157,5 @@ impl Component for ListBox {
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
+
+winio_handle::impl_as_widget!(ListBox, widget);

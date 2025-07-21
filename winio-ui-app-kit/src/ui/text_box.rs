@@ -126,6 +126,8 @@ impl TextBox {
     }
 }
 
+winio_handle::impl_as_widget!(TextBox, handle);
+
 #[derive(Debug, Default)]
 struct TextBoxDelegateIvars {
     changed: Callback,

@@ -15,16 +15,15 @@ use windows_sys::Win32::{
         WindowsAndMessaging::{
             CW_USEDEFAULT, CloseWindow, CreateWindowExW, DestroyWindow, GWL_EXSTYLE, GWL_STYLE,
             GetClientRect, GetParent, GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW,
-            GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW, IMAGE_ICON, IsWindowVisible,
-            LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LR_SHARED, LoadCursorW, LoadImageW, RegisterClassExW,
-            SW_HIDE, SW_SHOW, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SendMessageW,
-            SetWindowLongPtrW, SetWindowPos, SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE,
-            WM_SETICON, WM_SIZE, WNDCLASSEXW, WS_CHILDWINDOW, WS_EX_CONTROLPARENT,
-            WS_OVERLAPPEDWINDOW,
+            GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW, IMAGE_ICON, LR_DEFAULTCOLOR,
+            LR_DEFAULTSIZE, LR_SHARED, LoadCursorW, LoadImageW, RegisterClassExW, SW_HIDE, SW_SHOW,
+            SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SendMessageW, SetWindowLongPtrW, SetWindowPos,
+            SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE, WM_SETICON, WM_SIZE, WNDCLASSEXW,
+            WS_CHILDWINDOW, WS_EX_CONTROLPARENT, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
         },
     },
 };
-use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
+use winio_handle::{AsRawWidget, AsRawWindow, AsWindow, RawWidget, RawWindow};
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{
     PreferredAppMode, control_use_dark_mode, get_current_module_handle, set_preferred_app_mode,
@@ -57,6 +56,12 @@ impl Drop for OwnedWindow {
 impl AsRawWindow for OwnedWindow {
     fn as_raw_window(&self) -> RawWindow {
         RawWindow::Win32(self.0)
+    }
+}
+
+impl AsRawWidget for OwnedWindow {
+    fn as_raw_widget(&self) -> RawWidget {
+        RawWidget::Win32(self.0)
     }
 }
 
@@ -211,7 +216,7 @@ impl Widget {
     }
 
     pub fn is_visible(&self) -> bool {
-        unsafe { IsWindowVisible(self.as_raw_window().as_win32()) != 0 }
+        (self.style() & WS_VISIBLE) != 0
     }
 
     pub fn set_visible(&mut self, v: bool) {
@@ -314,6 +319,12 @@ impl Widget {
 impl AsRawWindow for Widget {
     fn as_raw_window(&self) -> RawWindow {
         self.0.as_raw_window()
+    }
+}
+
+impl AsRawWidget for Widget {
+    fn as_raw_widget(&self) -> RawWidget {
+        self.0.as_raw_widget()
     }
 }
 
@@ -437,17 +448,7 @@ impl Window {
     }
 }
 
-impl AsRawWindow for Window {
-    fn as_raw_window(&self) -> RawWindow {
-        self.handle.as_raw_window()
-    }
-}
-
-impl AsWindow for Window {
-    fn as_window(&self) -> BorrowedWindow<'_> {
-        unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
-    }
-}
+winio_handle::impl_as_window!(Window, handle);
 
 impl Drop for Window {
     fn drop(&mut self) {

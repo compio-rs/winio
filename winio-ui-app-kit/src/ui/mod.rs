@@ -40,8 +40,14 @@ pub use combo_box::*;
 mod list_box;
 pub use list_box::*;
 
+mod scroll_bar;
+pub use scroll_bar::*;
+
 mod accent;
 pub use accent::*;
+
+mod tooltip;
+pub use tooltip::*;
 
 pub fn color_theme() -> ColorTheme {
     unsafe {

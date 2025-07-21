@@ -8,7 +8,7 @@ use winio_callback::Callback;
 use winio_handle::AsWindow;
 use winio_primitive::{
     BrushPen, Color, DrawingFont, HAlign, LinearGradientBrush, MouseButton, Point,
-    RadialGradientBrush, Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, VAlign,
+    RadialGradientBrush, Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, VAlign, Vector,
 };
 
 use crate::{GlobalRuntime, ui::Widget};
@@ -18,6 +18,7 @@ pub struct Canvas {
     on_move: Box<Callback<Point>>,
     on_press: Box<Callback<MouseButton>>,
     on_release: Box<Callback<MouseButton>>,
+    on_wheel: Box<Callback<Vector>>,
     widget: Widget<ffi::QWidget>,
 }
 
@@ -29,6 +30,7 @@ impl Canvas {
         let on_move = Box::new(Callback::new());
         let on_press = Box::new(Callback::new());
         let on_release = Box::new(Callback::new());
+        let on_wheel = Box::new(Callback::new());
         unsafe {
             ffi::canvas_register_move_event(
                 widget.pin_mut(),
@@ -45,11 +47,17 @@ impl Canvas {
                 Self::on_release,
                 on_release.as_ref() as *const _ as _,
             );
+            ffi::canvas_register_wheel_event(
+                widget.pin_mut(),
+                Self::on_wheel,
+                on_wheel.as_ref() as *const _ as _,
+            );
         }
         Self {
             on_move,
             on_press,
             on_release,
+            on_wheel,
             widget: Widget::new(widget),
         }
     }
@@ -91,6 +99,13 @@ impl Canvas {
         }
     }
 
+    fn on_wheel(c: *const u8, x: i32, y: i32) {
+        let c = c as *const Callback<Vector>;
+        if let Some(c) = unsafe { c.as_ref() } {
+            c.signal::<GlobalRuntime>(Vector::new(x as _, y as _));
+        }
+    }
+
     pub fn context(&mut self) -> DrawingContext<'_> {
         DrawingContext {
             painter: ffi::canvas_new_painter(self.widget.pin_mut()),
@@ -110,7 +125,13 @@ impl Canvas {
     pub async fn wait_mouse_move(&self) -> Point {
         self.on_move.wait().await
     }
+
+    pub async fn wait_mouse_wheel(&self) -> Vector {
+        self.on_wheel.wait().await
+    }
 }
+
+winio_handle::impl_as_widget!(Canvas, widget);
 
 pub struct DrawingContext<'a> {
     painter: UniquePtr<ffi::QPainter>,
@@ -680,6 +701,11 @@ mod ffi {
         unsafe fn canvas_register_release_event(
             w: Pin<&mut QWidget>,
             callback: unsafe fn(*const u8, QtMouseButton),
+            data: *const u8,
+        );
+        unsafe fn canvas_register_wheel_event(
+            w: Pin<&mut QWidget>,
+            callback: unsafe fn(*const u8, i32, i32),
             data: *const u8,
         );
 

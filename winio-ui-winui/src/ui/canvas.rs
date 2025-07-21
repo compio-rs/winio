@@ -39,7 +39,7 @@ use windows::{
 };
 use winio_callback::Callback;
 use winio_handle::AsWindow;
-use winio_primitive::{DrawingFont, MouseButton, Point, Rect, Size};
+use winio_primitive::{DrawingFont, MouseButton, Point, Rect, Size, Vector};
 use winio_ui_windows_common::is_dark_mode_allowed_for_app;
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 use winui3::{
@@ -226,6 +226,7 @@ pub struct Canvas {
     on_press: SendWrapper<Rc<Callback<MouseButton>>>,
     on_release: SendWrapper<Rc<Callback<MouseButton>>>,
     on_move: SendWrapper<Rc<Callback<Point>>>,
+    on_wheel: SendWrapper<Rc<Callback<Vector>>>,
     handle: Widget,
     panel: MUXC::SwapChainPanel,
     dwrite: IDWriteFactory,
@@ -252,7 +253,7 @@ impl Canvas {
                             .as_ref()
                             .and_then(|sender| sender.cast::<SwapChainPanel>().ok())
                         {
-                            let mouse = mouse_button(&panel, args);
+                            let mouse = mouse_button(&panel, args)?;
                             mouse_button_cache.set(mouse);
                             on_press.signal::<GlobalRuntime>(mouse);
                         }
@@ -284,10 +285,31 @@ impl Canvas {
                             .as_ref()
                             .and_then(|sender| sender.cast::<SwapChainPanel>().ok())
                         {
-                            let point = args.GetCurrentPoint(&panel).unwrap();
-                            on_move.signal::<GlobalRuntime>(Point::from_native(
-                                point.Position().unwrap(),
-                            ));
+                            let point = args.GetCurrentPoint(&panel)?;
+                            on_move.signal::<GlobalRuntime>(Point::from_native(point.Position()?));
+                        }
+                    }
+                    Ok(())
+                }))
+                .unwrap();
+        }
+        let on_wheel = SendWrapper::new(Rc::new(Callback::new()));
+        {
+            let on_wheel = on_wheel.clone();
+            panel
+                .PointerWheelChanged(&PointerEventHandler::new(move |sender, args| {
+                    if let Some(args) = args.as_ref() {
+                        if let Some(panel) = sender
+                            .as_ref()
+                            .and_then(|sender| sender.cast::<SwapChainPanel>().ok())
+                        {
+                            let point = args.GetCurrentPoint(&panel)?;
+                            let props = point.Properties()?;
+                            let delta = props.MouseWheelDelta()?;
+                            let orient = props.Orientation()? / 180.0 * std::f32::consts::PI;
+                            let deltay = orient.cos() as f64 * delta as f64;
+                            let deltax = -orient.sin() as f64 * delta as f64;
+                            on_wheel.signal::<GlobalRuntime>(Vector::new(deltax, deltay));
                         }
                     }
                     Ok(())
@@ -299,6 +321,7 @@ impl Canvas {
             on_press,
             on_release,
             on_move,
+            on_wheel,
             handle: Widget::new(parent, panel.cast().unwrap()),
             panel,
             dwrite,
@@ -356,29 +379,36 @@ impl Canvas {
     pub async fn wait_mouse_move(&self) -> Point {
         self.on_move.wait().await
     }
-}
 
-fn mouse_button(panel: &SwapChainPanel, args: &PointerRoutedEventArgs) -> MouseButton {
-    let pointer = args.Pointer().unwrap();
-    if pointer.PointerDeviceType() == Ok(PointerDeviceType::Mouse) {
-        let pt = args.GetCurrentPoint(panel).unwrap();
-        let props = pt.Properties().unwrap();
-        mouse_button_from_point(&props)
-    } else {
-        MouseButton::Other
+    pub async fn wait_mouse_wheel(&self) -> Vector {
+        self.on_wheel.wait().await
     }
 }
 
-fn mouse_button_from_point(props: &PointerPointProperties) -> MouseButton {
-    if props.IsLeftButtonPressed().unwrap_or_default() {
+winio_handle::impl_as_widget!(Canvas, handle);
+
+fn mouse_button(panel: &SwapChainPanel, args: &PointerRoutedEventArgs) -> Result<MouseButton> {
+    let pointer = args.Pointer()?;
+    if pointer.PointerDeviceType() == Ok(PointerDeviceType::Mouse) {
+        let pt = args.GetCurrentPoint(panel)?;
+        let props = pt.Properties()?;
+        mouse_button_from_point(&props)
+    } else {
+        Ok(MouseButton::Other)
+    }
+}
+
+fn mouse_button_from_point(props: &PointerPointProperties) -> Result<MouseButton> {
+    let res = if props.IsLeftButtonPressed()? {
         MouseButton::Left
-    } else if props.IsRightButtonPressed().unwrap_or_default() {
+    } else if props.IsRightButtonPressed()? {
         MouseButton::Right
-    } else if props.IsMiddleButtonPressed().unwrap_or_default() {
+    } else if props.IsMiddleButtonPressed()? {
         MouseButton::Middle
     } else {
         MouseButton::Other
-    }
+    };
+    Ok(res)
 }
 
 pub struct DrawingContext<'a> {

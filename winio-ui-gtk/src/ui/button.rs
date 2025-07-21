@@ -22,11 +22,9 @@ impl Button {
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
         let on_click = Rc::new(Callback::new());
         widget.connect_clicked({
-            let on_click = Rc::downgrade(&on_click);
+            let on_click = on_click.clone();
             move |_| {
-                if let Some(on_click) = on_click.upgrade() {
-                    on_click.signal::<GlobalRuntime>(());
-                }
+                on_click.signal::<GlobalRuntime>(());
             }
         });
         Self {
@@ -70,3 +68,5 @@ impl Button {
         self.on_click.wait().await
     }
 }
+
+winio_handle::impl_as_widget!(Button, handle);

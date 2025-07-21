@@ -14,17 +14,16 @@ use winui3::Microsoft::UI::Xaml::Controls::{self as MUXC, SelectionChangedEventH
 use crate::{GlobalRuntime, Widget, ui::ToIReference};
 
 #[derive(Debug)]
-pub struct ComboBoxImpl<const E: bool> {
+pub struct ComboBox {
     on_select: SendWrapper<Rc<Callback<()>>>,
     handle: Widget,
     combo_box: MUXC::ComboBox,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl<const E: bool> ComboBoxImpl<E> {
+impl ComboBox {
     pub fn new(parent: impl AsWindow) -> Self {
         let combo_box = MUXC::ComboBox::new().unwrap();
-        combo_box.SetIsEditable(E).unwrap();
         let on_select = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_select = on_select.clone();
@@ -76,6 +75,14 @@ impl<const E: bool> ComboBoxImpl<E> {
     pub fn set_selection(&mut self, i: Option<usize>) {
         let i = if let Some(i) = i { i as i32 } else { -1 };
         self.combo_box.SetSelectedIndex(i).unwrap();
+    }
+
+    pub fn is_editable(&self) -> bool {
+        self.combo_box.IsEditable().unwrap()
+    }
+
+    pub fn set_editable(&self, v: bool) {
+        self.combo_box.SetIsEditable(v).unwrap();
     }
 
     pub async fn wait_select(&self) {
@@ -135,5 +142,4 @@ impl<const E: bool> ComboBoxImpl<E> {
     }
 }
 
-pub type ComboBox = ComboBoxImpl<false>;
-pub type ComboEntry = ComboBoxImpl<true>;
+winio_handle::impl_as_widget!(ComboBox, handle);

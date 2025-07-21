@@ -2,7 +2,7 @@ use std::{fmt::Debug, mem::ManuallyDrop, pin::Pin};
 
 use cxx::{ExternType, UniquePtr, memory::UniquePtrTarget, type_id};
 pub use ffi::is_dark;
-use winio_handle::{AsRawWindow, RawWindow};
+use winio_handle::{AsRawWidget, AsRawWindow, RawWidget, RawWindow};
 use winio_primitive::{Point, Rect, Size};
 
 use crate::ui::StaticCastTo;
@@ -122,6 +122,19 @@ where
     }
 }
 
+impl<T> AsRawWidget for Widget<T>
+where
+    T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
+{
+    fn as_raw_widget(&self) -> RawWidget {
+        RawWidget::Qt(
+            (self.as_ref_qwidget() as *const ffi::QWidget)
+                .cast_mut()
+                .cast(),
+        )
+    }
+}
+
 impl<T> Debug for Widget<T>
 where
     T: UniquePtrTarget,
@@ -185,5 +198,7 @@ mod ffi {
         fn setEnabled(self: Pin<&mut QWidget>, v: bool);
         fn windowTitle(self: &QWidget) -> QString;
         fn setWindowTitle(self: Pin<&mut QWidget>, s: &QString);
+        fn toolTip(self: &QWidget) -> QString;
+        fn setToolTip(self: Pin<&mut QWidget>, s: &QString);
     }
 }

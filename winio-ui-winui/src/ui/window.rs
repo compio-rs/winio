@@ -57,7 +57,7 @@ impl Window {
                     move |_, args: Ref<AppWindowClosingEventArgs>| {
                         if let Some(args) = args.as_ref() {
                             let handled = !on_close.signal::<GlobalRuntime>(());
-                            args.SetCancel(handled).unwrap();
+                            args.SetCancel(handled)?;
                         }
                         Ok(())
                     },

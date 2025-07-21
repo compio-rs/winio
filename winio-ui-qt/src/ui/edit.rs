@@ -111,6 +111,8 @@ impl Edit {
     }
 }
 
+winio_handle::impl_as_widget!(Edit, widget);
+
 #[derive(Debug)]
 pub struct TextBox {
     on_changed: Box<Callback>,
@@ -200,6 +202,8 @@ impl TextBox {
         self.on_changed.wait().await
     }
 }
+
+winio_handle::impl_as_widget!(TextBox, widget);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]

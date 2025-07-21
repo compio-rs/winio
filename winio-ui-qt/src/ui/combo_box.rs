@@ -9,16 +9,16 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct ComboBoxImpl<const E: bool> {
+pub struct ComboBox {
     on_changed: Box<Callback>,
     on_select: Box<Callback>,
     widget: Widget<ffi::QComboBox>,
 }
 
 #[inherit_methods(from = "self.widget")]
-impl<const E: bool> ComboBoxImpl<E> {
+impl ComboBox {
     pub fn new(parent: impl AsWindow) -> Self {
-        let mut widget = unsafe { ffi::new_combo_box(parent.as_window().as_qt(), E) };
+        let mut widget = unsafe { ffi::new_combo_box(parent.as_window().as_qt()) };
         let on_changed = Box::new(Callback::new());
         let on_select = Box::new(Callback::new());
         unsafe {
@@ -78,6 +78,14 @@ impl<const E: bool> ComboBoxImpl<E> {
         self.widget.pin_mut().setCurrentIndex(i);
     }
 
+    pub fn is_editable(&self) -> bool {
+        self.widget.as_ref().isEditable()
+    }
+
+    pub fn set_editable(&mut self, v: bool) {
+        self.widget.pin_mut().setEditable(v);
+    }
+
     fn on_select(c: *const u8) {
         let c = c as *const Callback<()>;
         if let Some(c) = unsafe { c.as_ref() } {
@@ -131,8 +139,7 @@ impl<const E: bool> ComboBoxImpl<E> {
     }
 }
 
-pub type ComboBox = ComboBoxImpl<false>;
-pub type ComboEntry = ComboBoxImpl<true>;
+winio_handle::impl_as_widget!(ComboBox, widget);
 
 impl_static_cast!(ffi::QComboBox, ffi::QWidget);
 
@@ -145,7 +152,7 @@ mod ffi {
         type QComboBox;
         type QString = crate::ui::QString;
 
-        unsafe fn new_combo_box(parent: *mut QWidget, editable: bool) -> UniquePtr<QComboBox>;
+        unsafe fn new_combo_box(parent: *mut QWidget) -> UniquePtr<QComboBox>;
         unsafe fn combo_box_connect_changed(
             w: Pin<&mut QComboBox>,
             callback: unsafe fn(*const u8),
@@ -162,6 +169,9 @@ mod ffi {
 
         fn currentIndex(self: &QComboBox) -> i32;
         fn setCurrentIndex(self: Pin<&mut QComboBox>, i: i32);
+
+        fn isEditable(self: &QComboBox) -> bool;
+        fn setEditable(self: Pin<&mut QComboBox>, v: bool);
 
         fn combo_box_insert(w: Pin<&mut QComboBox>, i: i32, s: &QString);
         fn removeItem(self: Pin<&mut QComboBox>, i: i32);

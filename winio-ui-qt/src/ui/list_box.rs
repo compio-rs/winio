@@ -116,6 +116,8 @@ impl ListBox {
     }
 }
 
+winio_handle::impl_as_widget!(ListBox, widget);
+
 impl_static_cast!(ffi::QListWidget, ffi::QWidget);
 
 #[cxx::bridge]

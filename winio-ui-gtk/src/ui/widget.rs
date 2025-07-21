@@ -1,7 +1,7 @@
 use std::cell::Cell;
 
 use gtk4::prelude::{Cast, FixedExt, GtkWindowExt, WidgetExt};
-use winio_handle::AsWindow;
+use winio_handle::{AsRawWidget, AsWindow, RawWidget};
 use winio_primitive::{Point, Size};
 
 #[derive(Debug)]
@@ -76,5 +76,11 @@ impl Widget {
 
     pub fn set_size(&mut self, s: Size) {
         self.widget.set_size_request(s.width as _, s.height as _)
+    }
+}
+
+impl AsRawWidget for Widget {
+    fn as_raw_widget(&self) -> RawWidget {
+        RawWidget::Gtk(self.widget.clone())
     }
 }

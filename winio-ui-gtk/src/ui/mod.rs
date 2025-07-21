@@ -51,5 +51,11 @@ pub use list_box::*;
 mod check_box;
 pub use check_box::*;
 
+mod scroll_bar;
+pub use scroll_bar::*;
+
 mod accent;
 pub use accent::*;
+
+mod tooltip;
+pub use tooltip::*;
