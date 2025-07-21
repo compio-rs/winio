@@ -114,6 +114,7 @@ impl Runtime {
         self.runtime.enter(|| RUNTIME.set(self, f))
     }
 
+    //noinspection SpellCheckingInspection
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
         self.enter(|| {
             self.runtime.block_on(future, |timeout| {
@@ -224,67 +225,68 @@ impl Runtime {
 /// # Safety
 /// The caller should ensure the handle valid.
 pub(crate) unsafe fn wait(handle: HWND, msg: u32) -> impl Future<Output = WindowMessage> {
-    RUNTIME.with(|runtime| runtime.register_message(handle, msg))
+    unsafe { RUNTIME.with(|runtime| runtime.register_message(handle, msg)) }
 }
 
 thread_local! {
     static FOCUS: Cell<HWND> = const { Cell::new(null_mut()) };
 }
 
+//noinspection SpellCheckingInspection
 pub(crate) unsafe extern "system" fn window_proc(
     handle: HWND,
     msg: u32,
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
-    trace!("window_proc: {:p}, {}, {}, {}", handle, msg, wparam, lparam);
-    let res = RUNTIME.with(|runtime| {
-        let res = runtime.set_current_msg(handle, msg, wparam, lparam);
-        runtime.runtime.run();
-        res
-    });
-    if res {
-        0
-    } else {
-        // These messages need special return values.
-        match msg {
-            WM_ACTIVATE => {
-                let state = (wparam & 0xFFFF) as u32;
-                if state == WA_INACTIVE {
-                    FOCUS.set(GetFocus());
+    unsafe {
+        trace!("window_proc: {:p}, {}, {}, {}", handle, msg, wparam, lparam);
+        let res = RUNTIME.with(|runtime| {
+            let res = runtime.set_current_msg(handle, msg, wparam, lparam);
+            runtime.runtime.run();
+            res
+        });
+        if res {
+            0
+        } else {
+            // These messages need special return values.
+            match msg {
+                WM_ACTIVATE => {
+                    let state = (wparam & 0xFFFF) as u32;
+                    if state == WA_INACTIVE {
+                        FOCUS.set(GetFocus());
+                    }
+                    return 0;
                 }
-                return 0;
-            }
-            WM_SETFOCUS => {
-                let focus = FOCUS.get();
-                if !focus.is_null() {
-                    SetFocus(focus);
+                WM_SETFOCUS => {
+                    let focus = FOCUS.get();
+                    if !focus.is_null() {
+                        SetFocus(focus);
+                    }
+                    return 0;
                 }
-                return 0;
-            }
-            WM_SETTINGCHANGE => {
-                window_use_dark_mode(handle);
-                children_refresh_dark_mode(handle, 0);
-                InvalidateRect(handle, null(), 1);
-            }
-            WM_CTLCOLORSTATIC => {
-                return control_color_static(lparam as HWND, wparam as HDC);
-            }
-            WM_CTLCOLORBTN => {
-                if is_dark_mode_allowed_for_app() {
-                    return GetStockObject(BLACK_BRUSH) as _;
+                WM_SETTINGCHANGE => {
+                    window_use_dark_mode(handle);
+                    children_refresh_dark_mode(handle, 0);
+                    InvalidateRect(handle, null(), 1);
                 }
-            }
-            WM_CTLCOLOREDIT | WM_CTLCOLORLISTBOX => {
-                if let Some(res) = control_color_edit(handle, lparam as HWND, wparam as HDC) {
-                    return res;
+                WM_CTLCOLORSTATIC => {
+                    return control_color_static(lparam as HWND, wparam as HDC);
                 }
-            }
-            WM_CREATE => {
-                refresh_font(handle);
-            }
-            WM_DPICHANGED => {
-                unsafe {
+                WM_CTLCOLORBTN => {
+                    if is_dark_mode_allowed_for_app() {
+                        return GetStockObject(BLACK_BRUSH) as _;
+                    }
+                }
+                WM_CTLCOLOREDIT | WM_CTLCOLORLISTBOX => {
+                    if let Some(res) = control_color_edit(handle, lparam as HWND, wparam as HDC) {
+                        return res;
+                    }
+                }
+                WM_CREATE => {
+                    refresh_font(handle);
+                }
+                WM_DPICHANGED => {
                     let new_rect = lparam as *const RECT;
                     if let Some(new_rect) = new_rect.as_ref() {
                         SetWindowPos(
@@ -297,25 +299,29 @@ pub(crate) unsafe extern "system" fn window_proc(
                             SWP_NOZORDER | SWP_NOACTIVATE,
                         );
                     }
+                    refresh_font(handle);
                 }
-                refresh_font(handle);
+                _ => {}
             }
-            _ => {}
+            DefWindowProcW(handle, msg, wparam, lparam)
         }
-        DefWindowProcW(handle, msg, wparam, lparam)
     }
 }
 
 pub(crate) unsafe fn refresh_font(handle: HWND) {
-    let font = default_font(get_dpi_for_window(handle));
+    unsafe {
+        let font = default_font(get_dpi_for_window(handle));
 
-    unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
-        SendMessageW(hwnd, WM_SETFONT, lparam as _, 1);
-        EnumChildWindows(hwnd, Some(enum_callback), lparam);
-        1
+        unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
+            unsafe {
+                SendMessageW(hwnd, WM_SETFONT, lparam as _, 1);
+                EnumChildWindows(hwnd, Some(enum_callback), lparam);
+                1
+            }
+        }
+
+        enum_callback(handle, font as _);
     }
-
-    enum_callback(handle, font as _);
 }
 
 struct MsgFuture {

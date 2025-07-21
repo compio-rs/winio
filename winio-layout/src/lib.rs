@@ -124,7 +124,7 @@ fn offset(mut a: Rect, offset: Point) -> Rect {
 }
 
 macro_rules! __layout_child {
-    ($(#[$sm:meta])* struct $name:ident { $($(#[$m:meta])* $f:ident: $t:ty = $e:expr),*$(,)? }) => {
+    ($(#[$sm:meta])* struct $name:ident { $($(#[$m:meta])* $f:ident: $t:ty = $e:expr_2021),*$(,)? }) => {
         struct $name<'a> {
             widget: &'a mut dyn $crate::Layoutable,
             width: Option<f64>,
@@ -266,7 +266,7 @@ fn render(
 /// ```
 #[macro_export]
 macro_rules! layout {
-    ($root:expr, $($e:expr $(=>  { $($t:tt)* })?),+$(,)?) => {{
+    ($root:expr_2021, $($e:expr_2021 $(=>  { $($t:tt)* })?),+$(,)?) => {{
         #[allow(unused_mut)]
         let mut root = $root;
         $(
@@ -279,10 +279,10 @@ macro_rules! layout {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! __layout_push {
-    ($root:expr, $e:expr,) => {
+    ($root:expr_2021, $e:expr_2021,) => {
         $root.push($e).finish();
     };
-    ($root:expr, $e:expr, $($(#[$me:meta])* $p:ident : $v:expr),+$(,)?) => {
+    ($root:expr_2021, $e:expr_2021, $($(#[$me:meta])* $p:ident : $v:expr_2021),+$(,)?) => {
         let builder = $root.push($e);
         $(
             $(#[$me])*

@@ -256,10 +256,10 @@ unsafe extern "system" fn multiline_edit_wnd_proc(
     umsg: u32,
     wparam: WPARAM,
     lparam: LPARAM,
-) -> LRESULT {
+) -> LRESULT { unsafe {
     let mut res = OLD_WND_PROC.get().unwrap()(hwnd, umsg, wparam, lparam);
     if umsg == WM_GETDLGCODE {
         res &= !(DLGC_WANTALLKEYS as isize);
     }
     res
-}
+}}

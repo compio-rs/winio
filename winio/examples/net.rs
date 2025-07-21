@@ -167,13 +167,13 @@ impl Component for MainModel {
 async fn fetch(client: Client, url: String, sender: ComponentSender<MainModel>) {
     sender.post(MainMessage::Fetch(FetchStatus::Loading));
     let status =
-        if let Ok(res) = timeout(Duration::from_secs(8), client.get(url).unwrap().send()).await {
+        match timeout(Duration::from_secs(8), client.get(url).unwrap().send()).await { Ok(res) => {
             match res {
                 Ok(response) => FetchStatus::Complete(response.text().await.unwrap()),
                 Err(e) => FetchStatus::Error(format!("{e:?}")),
             }
-        } else {
+        } _ => {
             FetchStatus::Timedout
-        };
+        }};
     sender.post(MainMessage::Fetch(status));
 }

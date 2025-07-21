@@ -19,7 +19,7 @@ pub use paste::paste as __paste;
 #[macro_export]
 macro_rules! init {
     () => {};
-    ($($name:ident : $t:ty = ($init:expr) $(=> { $($a:tt)* } )?),+$(,)?) => {
+    ($($name:ident : $t:ty = ($init:expr_2021) $(=> { $($a:tt)* } )?),+$(,)?) => {
         $(
             #[allow(unused_mut)]
             let mut $name = $crate::Child::<$t>::init($init);
@@ -34,7 +34,7 @@ macro_rules! init {
 #[doc(hidden)]
 macro_rules! __init_assign {
     ($name:ident, ) => {};
-    ($name:ident, $($(#[$m:meta])* $prop:ident : $value:expr),+$(,)?) => {
+    ($name:ident, $($(#[$m:meta])* $prop:ident : $value:expr_2021),+$(,)?) => {
         $(
             $(#[$m])*
             $crate::__paste! {
@@ -79,12 +79,12 @@ macro_rules! __init_assign {
 /// ```
 #[macro_export]
 macro_rules! start {
-    ($sender:expr, default: $noop:expr $(,)?) => {
+    ($sender:expr_2021, default: $noop:expr_2021 $(,)?) => {
         let _sender = $sender;
         let _default = $noop;
         ::core::future::pending().await
     };
-    ($sender:expr, default: $noop:expr, $($(#[$m:meta])* $w:expr => { $($t:tt)* }),+$(,)?) => {
+    ($sender:expr_2021, default: $noop:expr_2021, $($(#[$m:meta])* $w:expr_2021 => { $($t:tt)* }),+$(,)?) => {
         #[allow(unreachable_code)]
         $crate::__join!($(
             $(#[$m])*
@@ -103,8 +103,8 @@ macro_rules! __start_map {
     () => {
         |_| None
     };
-    ($f:expr) => { $f };
-    ($($(#[$me:meta])* $e:pat => $m:expr),+$(,)?) => {
+    ($f:expr_2021) => { $f };
+    ($($(#[$me:meta])* $e:pat => $m:expr_2021),+$(,)?) => {
         |e| match e {
             $(
                 $(#[$me])*

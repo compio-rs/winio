@@ -59,7 +59,7 @@ impl<T: Component> ComponentSender<T> {
         self.0.wait().await
     }
 
-    pub(crate) fn fetch_all(&self) -> impl IntoIterator<Item = ComponentMessage<T>> {
+    pub(crate) fn fetch_all(&self) -> impl IntoIterator<Item = ComponentMessage<T>> + use<T> {
         self.0.fetch_all()
     }
 }
