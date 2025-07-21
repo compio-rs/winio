@@ -32,6 +32,9 @@ objc2-app-kit = { workspace = true, features = [
     "objc2-uniform-type-identifiers",
 ] }
 objc2-uniform-type-identifiers = "0.3"
+objc2-av-kit = "0.3"
+objc2-av-foundation = { version = "0.3", features = ["objc2-core-media"] }
+objc2-core-media = "0.3"
 
 [features]
 objc-static = [

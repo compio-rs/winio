@@ -46,6 +46,9 @@ pub use scroll_bar::*;
 mod slider;
 pub use slider::*;
 
+mod media;
+pub use media::*;
+
 mod accent;
 pub use accent::*;
 
