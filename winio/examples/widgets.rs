@@ -25,9 +25,9 @@ pub(crate) struct MainModel {
     r2: Child<RadioButton>,
     r3: Child<RadioButton>,
     rindex: usize,
-    push_button: Child<Button>,
-    pop_button: Child<Button>,
-    show_button: Child<Button>,
+    push_button: Child<ToolTip<Button>>,
+    pop_button: Child<ToolTip<Button>>,
+    show_button: Child<ToolTip<Button>>,
     progress: Child<Progress>,
     mltext: Child<TextBox>,
 }
@@ -51,7 +51,7 @@ impl Component for MainModel {
     type Init<'a> = ();
     type Message = MainMessage;
 
-    fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+    fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
         init! {
             window: Window = (()) => {
                 text: "Widgets example",
@@ -97,14 +97,16 @@ impl Component for MainModel {
             r3: RadioButton = (&window) => {
                 text: "╠╠╠"
             },
-            push_button: Button = (&window) => {
+            push_button: ToolTip<Button> = (&window) => {
                 text: "Push",
             },
-            pop_button: Button = (&window) => {
+            pop_button: ToolTip<Button> = (&window) => {
                 text: "Pop",
+                tooltip: "Pop the last entry in the combo box."
             },
-            show_button: Button = (&window) => {
+            show_button: ToolTip<Button> = (&window) => {
                 text: "Show",
+                tooltip: "Show the current selection in the combo box."
             },
             progress: Progress = (&window) => {
                 indeterminate: true,
@@ -114,6 +116,7 @@ impl Component for MainModel {
             },
         }
 
+        sender.post(MainMessage::RSelect(0));
         window.show();
 
         Self {
@@ -212,6 +215,15 @@ impl Component for MainModel {
             }
             MainMessage::RSelect(i) => {
                 self.rindex = i;
+                let text = match self.rindex {
+                    0 => &self.r1,
+                    1 => &self.r2,
+                    2 => &self.r3,
+                    _ => unreachable!(),
+                }
+                .text();
+                self.push_button
+                    .set_tooltip(format!("Push \"{text}\" to the back of the combo box."));
                 false
             }
             MainMessage::Show => {

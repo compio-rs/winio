@@ -3,11 +3,11 @@ use windows::{
     Graphics::{PointInt32, SizeInt32},
     core::{HSTRING, Interface, RuntimeType},
 };
-use winio_primitive::{ColorTheme, HAlign, Point, Size};
+use winio_primitive::{ColorTheme, HAlign, Orient, Point, Size};
 pub use winio_ui_windows_common::{
     CustomButton, FileBox, FileFilter, MessageBox, accent_color, monitor_get_all,
 };
-use winui3::Microsoft::UI::Xaml::{Application, TextAlignment};
+use winui3::Microsoft::UI::Xaml::{Application, Controls::Orientation, TextAlignment};
 
 trait Convertible<T> {
     fn from_native(native: T) -> Self;
@@ -87,6 +87,23 @@ impl Convertible<TextAlignment> for HAlign {
     }
 }
 
+impl Convertible<Orientation> for Orient {
+    fn from_native(native: Orientation) -> Self {
+        match native {
+            Orientation::Horizontal => Orient::Horizontal,
+            Orientation::Vertical => Orient::Vertical,
+            _ => unreachable!(),
+        }
+    }
+
+    fn to_native(self) -> Orientation {
+        match self {
+            Orient::Horizontal => Orientation::Horizontal,
+            Orient::Vertical => Orientation::Vertical,
+        }
+    }
+}
+
 trait ToIReference: RuntimeType {
     fn to_reference(&self) -> IReference<Self>;
 }
@@ -142,3 +159,9 @@ pub use list_box::*;
 
 mod canvas;
 pub use canvas::*;
+
+mod scroll_bar;
+pub use scroll_bar::*;
+
+mod tooltip;
+pub use tooltip::*;

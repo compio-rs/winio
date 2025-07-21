@@ -1,10 +1,8 @@
 #include "combo_box.hpp"
 #include <QComboBox>
 
-std::unique_ptr<QComboBox> new_combo_box(QWidget *parent, bool editable) {
-    auto combo = std::make_unique<QComboBox>(parent);
-    combo->setEditable(editable);
-    return combo;
+std::unique_ptr<QComboBox> new_combo_box(QWidget *parent) {
+    return std::make_unique<QComboBox>(parent);
 }
 
 void combo_box_connect_changed(QComboBox &w, callback_fn_t<void()> callback,

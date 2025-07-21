@@ -1,6 +1,6 @@
 [package]
 name = "winio-ui-gtk"
-version = "0.1.1"
+version = "0.1.2"
 description = "GTK backend for winio."
 edition = { workspace = true }
 authors = { workspace = true }
@@ -19,4 +19,4 @@ image = { workspace = true, default-features = false }
 scoped-tls = { workspace = true }
 
 gtk4 = { workspace = true, features = ["v4_14"] }
-pangocairo = "0.20"
+pangocairo = "0.21"

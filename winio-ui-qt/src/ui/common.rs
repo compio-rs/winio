@@ -1,4 +1,4 @@
-use std::{mem::MaybeUninit, pin::Pin};
+use std::{fmt::Debug, mem::MaybeUninit, pin::Pin};
 
 use cxx::{ExternType, type_id};
 
@@ -46,6 +46,12 @@ impl From<&QString> for String {
         String::from_utf16_lossy(unsafe {
             std::slice::from_raw_parts(value.utf16(), ffi::string_len(value))
         })
+    }
+}
+
+impl Debug for QString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        String::from(self).fmt(f)
     }
 }
 

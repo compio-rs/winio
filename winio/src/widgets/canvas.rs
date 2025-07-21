@@ -2,7 +2,7 @@ use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedWindow;
 use winio_layout::{Enable, Layoutable, Visible};
-use winio_primitive::{MouseButton, Point, Size};
+use winio_primitive::{MouseButton, Point, Size, Vector};
 
 use crate::{sys, ui::DrawingContext};
 
@@ -53,6 +53,10 @@ pub enum CanvasEvent {
     MouseDown(MouseButton),
     /// The mouse button released.
     MouseUp(MouseButton),
+    /// The mouse wheel rotated.
+    /// * `x`: Positive is right.
+    /// * `y`: Positive is up/forward.
+    MouseWheel(Vector),
 }
 
 impl Component for Canvas {
@@ -84,7 +88,13 @@ impl Component for Canvas {
                 sender.output(CanvasEvent::MouseUp(b));
             }
         };
-        futures_util::future::join3(fut_move, fut_down, fut_up)
+        let fut_wheel = async {
+            loop {
+                let w = self.widget.wait_mouse_wheel().await;
+                sender.output(CanvasEvent::MouseWheel(w));
+            }
+        };
+        futures_util::future::join4(fut_move, fut_down, fut_up, fut_wheel)
             .await
             .0
     }
@@ -95,3 +105,5 @@ impl Component for Canvas {
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
+
+winio_handle::impl_as_widget!(Canvas, widget);

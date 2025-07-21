@@ -85,6 +85,8 @@ impl Component for RadioButton {
     fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
 
+winio_handle::impl_as_widget!(RadioButton, widget);
+
 /// A group of [`RadioButton`]. Only one of them could be checked.
 pub struct RadioButtonGroup<T> {
     radios: T,

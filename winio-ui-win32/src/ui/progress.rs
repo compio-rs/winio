@@ -85,3 +85,5 @@ impl Progress {
             .send_message(PBM_SETMARQUEE, if v { 1 } else { 0 }, 0);
     }
 }
+
+winio_handle::impl_as_widget!(Progress, handle);

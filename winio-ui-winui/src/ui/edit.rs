@@ -4,7 +4,7 @@ use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows::core::{HSTRING, Interface};
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::{AsRawWidget, AsWindow, RawWidget};
 use winio_primitive::{HAlign, Point, Size};
 use winui3::Microsoft::UI::Xaml::{
     Controls::{self as MUXC, ScrollBarVisibility, ScrollViewer, TextChangedEventHandler},
@@ -164,6 +164,23 @@ impl Edit {
     }
 }
 
+impl AsRawWidget for Edit {
+    fn as_raw_widget(&self) -> RawWidget {
+        if self.password {
+            &self.phandle
+        } else {
+            &self.handle
+        }
+        .as_raw_widget()
+    }
+
+    fn iter_raw_widgets(&self) -> impl Iterator<Item = RawWidget> {
+        [self.handle.as_raw_widget(), self.phandle.as_raw_widget()].into_iter()
+    }
+}
+
+winio_handle::impl_as_widget!(Edit);
+
 #[derive(Debug)]
 pub struct TextBox {
     on_change: SendWrapper<Rc<Callback>>,
@@ -234,3 +251,5 @@ impl TextBox {
         self.on_change.wait().await
     }
 }
+
+winio_handle::impl_as_widget!(TextBox, handle);

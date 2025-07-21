@@ -37,6 +37,12 @@ pub use combo_box::*;
 mod list_box;
 pub use list_box::*;
 
+mod scroll_bar;
+pub use scroll_bar::*;
+
+mod tooltip;
+pub use tooltip::*;
+
 pub(crate) trait StaticCastTo<T> {
     fn static_cast(&self) -> &T;
     fn static_cast_mut(self: Pin<&mut Self>) -> Pin<&mut T>;

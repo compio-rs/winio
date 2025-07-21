@@ -25,11 +25,9 @@ impl Edit {
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
         let on_changed = Rc::new(Callback::new());
         widget.connect_changed({
-            let on_changed = Rc::downgrade(&on_changed);
+            let on_changed = on_changed.clone();
             move |_| {
-                if let Some(on_changed) = on_changed.upgrade() {
-                    on_changed.signal::<GlobalRuntime>(());
-                }
+                on_changed.signal::<GlobalRuntime>(());
             }
         });
         Self {
@@ -103,3 +101,5 @@ impl Edit {
         self.on_changed.wait().await
     }
 }
+
+winio_handle::impl_as_widget!(Edit, handle);

@@ -32,6 +32,7 @@ fn main() {
             "src/ui/progress",
             "src/ui/combo_box",
             "src/ui/list_box",
+            "src/ui/scroll_bar",
         ];
 
         for s in sources {

@@ -13,7 +13,7 @@ use windows_sys::Win32::{
         },
     },
 };
-use winio_handle::{AsRawWindow, AsWindow, RawWindow};
+use winio_handle::{AsRawWidget, AsRawWindow, AsWindow};
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
@@ -103,11 +103,7 @@ impl EditImpl {
     }
 }
 
-impl AsRawWindow for EditImpl {
-    fn as_raw_window(&self) -> RawWindow {
-        self.handle.as_raw_window()
-    }
-}
+winio_handle::impl_as_widget!(EditImpl, handle);
 
 #[derive(Debug)]
 pub struct Edit {
@@ -174,7 +170,7 @@ impl Edit {
             self.handle.handle.send_message(EM_SETPASSWORDCHAR, 0, 0);
         }
         unsafe {
-            InvalidateRect(self.handle.as_raw_window().as_win32(), null(), 1);
+            InvalidateRect(self.handle.as_raw_widget().as_win32(), null(), 1);
         }
     }
 
@@ -182,6 +178,8 @@ impl Edit {
         self.handle.wait_change().await
     }
 }
+
+winio_handle::impl_as_widget!(Edit, handle);
 
 #[derive(Debug)]
 pub struct TextBox {
@@ -200,10 +198,10 @@ impl TextBox {
                 | ES_MULTILINE as u32
                 | ES_AUTOVSCROLL as u32,
         );
-        unsafe { ShowScrollBar(handle.as_raw_window().as_win32(), SB_VERT, 1) };
+        unsafe { ShowScrollBar(handle.as_raw_widget().as_win32(), SB_VERT, 1) };
         let old_proc = unsafe {
             SetWindowLongPtrW(
-                handle.as_raw_window().as_win32(),
+                handle.as_raw_widget().as_win32(),
                 GWLP_WNDPROC,
                 multiline_edit_wnd_proc as usize as _,
             )
@@ -246,6 +244,8 @@ impl TextBox {
         self.handle.wait_change().await
     }
 }
+
+winio_handle::impl_as_widget!(TextBox, handle);
 
 thread_local! {
     static OLD_WND_PROC: Cell<WNDPROC> = Cell::new(None);

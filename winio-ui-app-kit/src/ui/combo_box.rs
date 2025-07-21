@@ -18,23 +18,23 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct ComboBoxImpl<const E: bool> {
+pub struct ComboBox {
     handle: Widget,
     view: Retained<NSComboBox>,
     delegate: Retained<ComboBoxDelegate>,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl<const E: bool> ComboBoxImpl<E> {
+impl ComboBox {
     pub fn new(parent: impl AsWindow) -> Self {
         unsafe {
             let mtm = MainThreadMarker::new().unwrap();
 
             let view = NSComboBox::new(mtm);
             view.setBezeled(true);
-            view.setDrawsBackground(E);
-            view.setEditable(E);
-            view.setSelectable(E);
+            view.setDrawsBackground(false);
+            view.setEditable(false);
+            view.setSelectable(false);
             let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
 
             let delegate = ComboBoxDelegate::new(mtm);
@@ -96,6 +96,18 @@ impl<const E: bool> ComboBoxImpl<E> {
         }
     }
 
+    pub fn is_editable(&self) -> bool {
+        unsafe { self.view.isEditable() }
+    }
+
+    pub fn set_editable(&mut self, v: bool) {
+        unsafe {
+            self.view.setDrawsBackground(v);
+            self.view.setEditable(v);
+            self.view.setSelectable(v);
+        }
+    }
+
     pub async fn wait_change(&self) {
         self.delegate.ivars().changed.wait().await
     }
@@ -144,8 +156,7 @@ impl<const E: bool> ComboBoxImpl<E> {
     }
 }
 
-pub type ComboBox = ComboBoxImpl<false>;
-pub type ComboEntry = ComboBoxImpl<true>;
+winio_handle::impl_as_widget!(ComboBox, handle);
 
 #[derive(Debug, Default)]
 struct ComboBoxDelegateIvars {

@@ -1,5 +1,5 @@
 use windows::core::Interface;
-use winio_handle::AsWindow;
+use winio_handle::{AsRawWidget, AsWindow, RawWidget};
 use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::Xaml::{self as MUX, Controls as MUXC};
 
@@ -87,5 +87,11 @@ impl Widget {
     pub fn set_size(&mut self, v: Size) {
         self.handle.SetWidth(v.width).unwrap();
         self.handle.SetHeight(v.height).unwrap();
+    }
+}
+
+impl AsRawWidget for Widget {
+    fn as_raw_widget(&self) -> RawWidget {
+        RawWidget::WinUI(self.handle.clone())
     }
 }

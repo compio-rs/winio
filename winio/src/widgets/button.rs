@@ -78,3 +78,5 @@ impl Component for Button {
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
+
+winio_handle::impl_as_widget!(Button, widget);

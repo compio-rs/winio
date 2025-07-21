@@ -66,3 +66,5 @@ impl Label {
         self.widget.set_xalign(align);
     }
 }
+
+winio_handle::impl_as_widget!(Label, handle);

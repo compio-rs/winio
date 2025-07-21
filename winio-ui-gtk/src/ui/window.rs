@@ -31,6 +31,8 @@ impl Window {
         super::COLOR_THEME.set(theme);
 
         let swindow = gtk4::ScrolledWindow::new();
+        swindow.set_hscrollbar_policy(gtk4::PolicyType::External);
+        swindow.set_vscrollbar_policy(gtk4::PolicyType::External);
         let fixed = gtk4::Fixed::new();
         window.set_child(Some(&swindow));
         swindow.set_child(Some(&fixed));
@@ -39,36 +41,28 @@ impl Window {
         let on_close = Rc::new(Callback::new());
 
         window.connect_default_width_notify({
-            let on_size = Rc::downgrade(&on_size);
+            let on_size = on_size.clone();
             move |_| {
-                if let Some(on_size) = on_size.upgrade() {
-                    on_size.signal::<GlobalRuntime>(());
-                }
+                on_size.signal::<GlobalRuntime>(());
             }
         });
         window.connect_default_height_notify({
-            let on_size = Rc::downgrade(&on_size);
+            let on_size = on_size.clone();
             move |_| {
-                if let Some(on_size) = on_size.upgrade() {
-                    on_size.signal::<GlobalRuntime>(());
-                }
+                on_size.signal::<GlobalRuntime>(());
             }
         });
         window.connect_state_flags_changed({
-            let on_size = Rc::downgrade(&on_size);
+            let on_size = on_size.clone();
             move |_, _| {
-                if let Some(on_size) = on_size.upgrade() {
-                    on_size.signal::<GlobalRuntime>(());
-                }
+                on_size.signal::<GlobalRuntime>(());
             }
         });
         window.connect_close_request({
-            let on_close = Rc::downgrade(&on_close);
+            let on_close = on_close.clone();
             move |_| {
-                if let Some(on_close) = on_close.upgrade() {
-                    if !on_close.signal::<GlobalRuntime>(()) {
-                        return Propagation::Stop;
-                    }
+                if !on_close.signal::<GlobalRuntime>(()) {
+                    return Propagation::Stop;
                 }
                 Propagation::Proceed
             }

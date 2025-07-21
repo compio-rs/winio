@@ -5,12 +5,13 @@ use std::{
 };
 
 use gtk4::{
-    EventControllerMotion, GestureClick,
+    EventControllerMotion, EventControllerScroll, EventControllerScrollFlags, GestureClick,
     cairo::{
         Content, Context, Format, ImageSurface, LinearGradient, Matrix, RadialGradient,
         RecordingSurface,
     },
-    glib::object::Cast,
+    gdk::ScrollUnit,
+    glib::{Propagation, object::Cast},
     pango::{FontDescription, SCALE as PANGO_SCALE, Style, Weight},
     prelude::{DrawingAreaExtManual, GestureSingleExt, WidgetExt},
 };
@@ -21,7 +22,7 @@ use winio_callback::Callback;
 use winio_handle::AsWindow;
 use winio_primitive::{
     BrushPen, DrawingFont, HAlign, LinearGradientBrush, MouseButton, Point, RadialGradientBrush,
-    Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, VAlign,
+    Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, VAlign, Vector,
 };
 
 use crate::{GlobalRuntime, ui::Widget};
@@ -31,6 +32,7 @@ pub struct Canvas {
     on_motion: Rc<Callback<Point>>,
     on_pressed: Rc<Callback<MouseButton>>,
     on_released: Rc<Callback<MouseButton>>,
+    on_scroll: Rc<Callback<Vector>>,
     widget: gtk4::DrawingArea,
     handle: Widget,
     surface: Rc<RefCell<RecordingSurface>>,
@@ -45,6 +47,7 @@ impl Canvas {
         let on_motion = Rc::new(Callback::new());
         let on_pressed = Rc::new(Callback::new());
         let on_released = Rc::new(Callback::new());
+        let on_scroll = Rc::new(Callback::new());
 
         let surface = Rc::new(RefCell::new(
             RecordingSurface::create(Content::ColorAlpha, None).unwrap(),
@@ -61,11 +64,9 @@ impl Canvas {
 
         let controller = EventControllerMotion::new();
         controller.connect_motion({
-            let on_motion = Rc::downgrade(&on_motion);
+            let on_motion = on_motion.clone();
             move |_, x, y| {
-                if let Some(on_motion) = on_motion.upgrade() {
-                    on_motion.signal::<GlobalRuntime>(Point::new(x, y));
-                }
+                on_motion.signal::<GlobalRuntime>(Point::new(x, y));
             }
         });
         widget.add_controller(controller);
@@ -81,21 +82,30 @@ impl Canvas {
 
         let controller = GestureClick::new();
         controller.connect_pressed({
-            let on_pressed = Rc::downgrade(&on_pressed);
+            let on_pressed = on_pressed.clone();
             move |controller, _, _, _| {
-                if let Some(on_pressed) = on_pressed.upgrade() {
-                    on_pressed
-                        .signal::<GlobalRuntime>(gtk_current_button(controller.current_button()));
-                }
+                on_pressed.signal::<GlobalRuntime>(gtk_current_button(controller.current_button()));
             }
         });
         controller.connect_released({
-            let on_released = Rc::downgrade(&on_released);
+            let on_released = on_released.clone();
             move |controller, _, _, _| {
-                if let Some(on_released) = on_released.upgrade() {
-                    on_released
-                        .signal::<GlobalRuntime>(gtk_current_button(controller.current_button()));
-                }
+                on_released
+                    .signal::<GlobalRuntime>(gtk_current_button(controller.current_button()));
+            }
+        });
+        widget.add_controller(controller);
+
+        let controller = EventControllerScroll::new(EventControllerScrollFlags::BOTH_AXES);
+        controller.connect_scroll({
+            let on_scroll = on_scroll.clone();
+            move |controller, dx, dy| {
+                let scale = match controller.unit() {
+                    ScrollUnit::Wheel => 120.0,
+                    _ => 1.0,
+                };
+                on_scroll.signal::<GlobalRuntime>(Vector::new(dx, -dy) * scale);
+                Propagation::Stop
             }
         });
         widget.add_controller(controller);
@@ -104,6 +114,7 @@ impl Canvas {
             on_motion,
             on_pressed,
             on_released,
+            on_scroll,
             widget,
             handle,
             surface,
@@ -147,7 +158,13 @@ impl Canvas {
     pub async fn wait_mouse_move(&self) -> Point {
         self.on_motion.wait().await
     }
+
+    pub async fn wait_mouse_wheel(&self) -> Vector {
+        self.on_scroll.wait().await
+    }
 }
+
+winio_handle::impl_as_widget!(Canvas, handle);
 
 pub struct DrawingContext<'a> {
     surface: Option<RecordingSurface>,

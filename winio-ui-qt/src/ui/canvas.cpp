@@ -42,6 +42,15 @@ void WinioCanvas::mouseReleaseEvent(QMouseEvent *event) {
     }
 }
 
+void WinioCanvas::wheelEvent(QWheelEvent *event) {
+    if (m_wheel_callback) {
+        auto &[callback, data] = *m_wheel_callback;
+        auto delta = event->angleDelta();
+        int sign = event->inverted() ? -1 : 1;
+        callback(data, -delta.x() * sign, delta.y() * sign);
+    }
+}
+
 std::unique_ptr<QWidget> new_canvas(QWidget *parent) {
     return std::make_unique<WinioCanvas>(parent);
 }
@@ -64,6 +73,13 @@ void canvas_register_release_event(QWidget &w,
                                    callback_fn_t<void(QtMouseButton)> callback,
                                    std::uint8_t const *data) {
     static_cast<WinioCanvas &>(w).m_release_callback =
+        std::make_tuple(std::move(callback), data);
+}
+
+void canvas_register_wheel_event(QWidget &w,
+                                 callback_fn_t<void(int, int)> callback,
+                                 std::uint8_t const *data) {
+    static_cast<WinioCanvas &>(w).m_wheel_callback =
         std::make_tuple(std::move(callback), data);
 }
 

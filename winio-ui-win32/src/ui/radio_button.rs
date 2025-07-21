@@ -86,3 +86,5 @@ impl RadioButton {
         }
     }
 }
+
+winio_handle::impl_as_widget!(RadioButton, handle);

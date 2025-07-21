@@ -13,7 +13,7 @@ use winio_primitive::{Point, Size};
 use crate::{GlobalRuntime, ui::Widget};
 
 #[derive(Debug)]
-pub struct ComboBoxImpl<const E: bool> {
+pub struct ComboBox {
     on_changed: Rc<Callback<()>>,
     model: StringListModel,
     widget: gtk4::DropDown,
@@ -21,21 +21,16 @@ pub struct ComboBoxImpl<const E: bool> {
 }
 
 #[inherit_methods(from = "self.handle")]
-impl<const E: bool> ComboBoxImpl<E> {
+impl ComboBox {
     pub fn new(parent: impl AsWindow) -> Self {
         let model = StringListModel::new();
         let widget = gtk4::DropDown::new(Some(model.clone()), gtk4::Expression::NONE);
-        if E {
-            widget.set_enable_search(true);
-        }
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
         let on_changed = Rc::new(Callback::new());
         widget.connect_selected_notify({
-            let on_changed = Rc::downgrade(&on_changed);
+            let on_changed = on_changed.clone();
             move |_| {
-                if let Some(on_changed) = on_changed.upgrade() {
-                    on_changed.signal::<GlobalRuntime>(());
-                }
+                on_changed.signal::<GlobalRuntime>(());
             }
         });
         Self {
@@ -94,6 +89,14 @@ impl<const E: bool> ComboBoxImpl<E> {
             .set_selected(i.map(|i| i as u32).unwrap_or(gtk4::INVALID_LIST_POSITION));
     }
 
+    pub fn is_editable(&self) -> bool {
+        self.widget.enables_search()
+    }
+
+    pub fn set_editable(&mut self, v: bool) {
+        self.widget.set_enable_search(v);
+    }
+
     pub async fn wait_change(&self) {
         self.on_changed.wait().await
     }
@@ -135,8 +138,7 @@ impl<const E: bool> ComboBoxImpl<E> {
     }
 }
 
-pub type ComboBox = ComboBoxImpl<false>;
-pub type ComboEntry = ComboBoxImpl<true>;
+winio_handle::impl_as_widget!(ComboBox, handle);
 
 mod imp {
     use std::cell::RefCell;

@@ -84,3 +84,5 @@ impl Progress {
         }
     }
 }
+
+winio_handle::impl_as_widget!(Progress, handle);
