@@ -1,13 +1,14 @@
 use std::time::Duration;
 
+use compio_log::error;
 use inherit_methods_macro::inherit_methods;
 use windows::{
     Win32::{
         Media::MediaFoundation::{
             CLSID_MFMediaEngineClassFactory, IMFMediaEngine, IMFMediaEngineClassFactory,
             IMFMediaEngineNotify, IMFMediaEngineNotify_Impl, MF_MEDIA_ENGINE_CALLBACK,
-            MF_MEDIA_ENGINE_PLAYBACK_HWND, MF_VERSION, MFCreateAttributes, MFSTARTUP_FULL,
-            MFShutdown, MFStartup,
+            MF_MEDIA_ENGINE_EVENT_ERROR, MF_MEDIA_ENGINE_PLAYBACK_HWND, MF_VERSION,
+            MFCreateAttributes, MFSTARTUP_FULL, MFShutdown, MFStartup,
         },
         System::Com::{
             CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx,
@@ -176,7 +177,10 @@ impl Drop for MFGuard {
 struct MediaNotify {}
 
 impl IMFMediaEngineNotify_Impl for MediaNotify_Impl {
-    fn EventNotify(&self, _event: u32, _param1: usize, _param2: u32) -> Result<()> {
+    fn EventNotify(&self, event: u32, _param1: usize, _param2: u32) -> Result<()> {
+        if event == MF_MEDIA_ENGINE_EVENT_ERROR.0 as _ {
+            error!("MFMediaEngine error: code {_param1}, HRESULT {_param2}");
+        }
         Ok(())
     }
 }
