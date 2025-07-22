@@ -1,28 +1,26 @@
 use {
-    winio_handle::{AsWindow, RawWidget, impl_as_widget},
+    super::BaseWidget,
+    inherit_methods_macro::inherit_methods,
+    winio_handle::{AsWindow, impl_as_widget},
     winio_primitive::{Point, Size},
 };
 
 #[derive(Debug)]
 pub struct Button {
-    inner: RawWidget,
+    inner: BaseWidget,
 }
 
+#[inherit_methods(from = "self.inner")]
 impl Button {
     pub async fn wait_click(&self) {
         todo!()
     }
 
-    pub fn text(&self) -> String {
-        todo!()
-    }
+    pub fn text(&self) -> String;
 
-    pub fn set_text<S>(&mut self, _s: S)
+    pub fn set_text<S>(&mut self, _text: S)
     where
-        S: AsRef<str>,
-    {
-        todo!()
-    }
+        S: AsRef<str>;
 
     pub fn is_visible(&self) -> bool {
         todo!()
@@ -48,13 +46,9 @@ impl Button {
         todo!()
     }
 
-    pub fn size(&self) -> Size {
-        todo!()
-    }
+    pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, _v: Size) {
-        todo!()
-    }
+    pub fn set_size(&mut self, v: Size);
 
     pub fn preferred_size(&self) -> Size {
         todo!()

@@ -2,31 +2,57 @@ use {
     super::BaseWidget,
     inherit_methods_macro::inherit_methods,
     winio_handle::{AsWindow, impl_as_widget},
-    winio_primitive::{Point, Size},
+    winio_primitive::{Orient, Point, Size},
 };
 
 #[derive(Debug)]
-pub struct RadioButton {
+pub struct Slider {
     inner: BaseWidget,
 }
 
 #[inherit_methods(from = "self.inner")]
-impl RadioButton {
-    pub async fn wait_click(&self) {
+impl Slider {
+    pub async fn wait_change(&self) {
         todo!()
     }
 
-    pub fn text(&self) -> String;
-
-    pub fn set_text<S>(&mut self, _text: S)
-    where
-        S: AsRef<str>;
-
-    pub fn is_checked(&self) -> bool {
+    pub fn orient(&self) -> Orient {
         todo!()
     }
 
-    pub fn set_checked(&self, _v: bool) {
+    pub fn set_orient(&mut self, _v: Orient) {
+        todo!()
+    }
+
+    pub fn minimum(&self) -> usize {
+        todo!()
+    }
+
+    pub fn set_minimum(&mut self, _v: usize) {
+        todo!()
+    }
+
+    pub fn maximum(&self) -> usize {
+        todo!()
+    }
+
+    pub fn set_maximum(&mut self, _v: usize) {
+        todo!()
+    }
+
+    pub fn freq(&self) -> usize {
+        todo!()
+    }
+
+    pub fn set_freq(&mut self, _v: usize) {
+        todo!()
+    }
+
+    pub fn pos(&self) -> usize {
+        todo!()
+    }
+
+    pub fn set_pos(&mut self, _pos: usize) {
         todo!()
     }
 
@@ -70,4 +96,4 @@ impl RadioButton {
     }
 }
 
-impl_as_widget!(RadioButton, inner);
+impl_as_widget!(Slider, inner);

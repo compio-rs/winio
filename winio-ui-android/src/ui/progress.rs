@@ -1,13 +1,16 @@
 use {
-    winio_handle::{AsWindow, RawWidget, impl_as_widget},
+    super::BaseWidget,
+    inherit_methods_macro::inherit_methods,
+    winio_handle::{AsWindow, impl_as_widget},
     winio_primitive::{Point, Size},
 };
 
 #[derive(Debug)]
 pub struct Progress {
-    inner: RawWidget,
+    inner: BaseWidget,
 }
 
+#[inherit_methods(from = "self.inner")]
 impl Progress {
     pub fn range(&self) -> (usize, usize) {
         todo!()
@@ -57,15 +60,27 @@ impl Progress {
         todo!()
     }
 
-    pub fn size(&self) -> Size {
-        todo!()
-    }
+    pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, _v: Size) {
-        todo!()
-    }
+    pub fn set_size(&mut self, v: Size);
 
     pub fn preferred_size(&self) -> Size {
+        todo!()
+    }
+
+    pub fn minimum(&self) -> usize {
+        todo!()
+    }
+
+    pub fn set_minimum(&mut self, _v: usize) {
+        todo!()
+    }
+
+    pub fn maximum(&self) -> usize {
+        todo!()
+    }
+
+    pub fn set_maximum(&mut self, _v: usize) {
         todo!()
     }
 

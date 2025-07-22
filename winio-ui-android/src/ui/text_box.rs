@@ -1,28 +1,26 @@
+use crate::BaseWidget;
 use {
-    winio_handle::{AsWindow, RawWidget, impl_as_widget},
+    inherit_methods_macro::inherit_methods,
+    winio_handle::{AsWindow, impl_as_widget},
     winio_primitive::{HAlign, Point, Size},
 };
 
 #[derive(Debug)]
 pub struct TextBox {
-    inner: RawWidget,
+    inner: BaseWidget,
 }
 
+#[inherit_methods(from = "self.inner")]
 impl TextBox {
     pub async fn wait_change(&self) {
         todo!()
     }
 
-    pub fn text(&self) -> String {
-        todo!()
-    }
+    pub fn text(&self) -> String;
 
-    pub fn set_text<S>(&mut self, _s: S)
+    pub fn set_text<S>(&mut self, _text: S)
     where
-        S: AsRef<str>,
-    {
-        todo!()
-    }
+        S: AsRef<str>;
 
     //noinspection SpellCheckingInspection
     pub fn halign(&self) -> HAlign {
@@ -58,13 +56,9 @@ impl TextBox {
         todo!()
     }
 
-    pub fn size(&self) -> Size {
-        todo!()
-    }
+    pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, _v: Size) {
-        todo!()
-    }
+    pub fn set_size(&mut self, v: Size);
 
     pub fn preferred_size(&self) -> Size {
         todo!()

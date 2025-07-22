@@ -1,13 +1,16 @@
 use {
-    winio_handle::{AsWindow, RawWidget, impl_as_widget},
+    super::BaseWidget,
+    inherit_methods_macro::inherit_methods,
+    winio_handle::{AsWindow, impl_as_widget},
     winio_primitive::{Point, Size},
 };
 
 #[derive(Debug)]
 pub struct ListBox {
-    inner: RawWidget,
+    inner: BaseWidget,
 }
 
+#[inherit_methods(from = "self.inner")]
 impl ListBox {
     pub async fn wait_select(&self) {
         todo!()
@@ -79,13 +82,9 @@ impl ListBox {
         todo!()
     }
 
-    pub fn size(&self) -> Size {
-        todo!()
-    }
+    pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, _v: Size) {
-        todo!()
-    }
+    pub fn set_size(&mut self, v: Size);
 
     pub fn preferred_size(&self) -> Size {
         todo!()

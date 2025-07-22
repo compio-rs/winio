@@ -15,6 +15,7 @@ mod msgbox;
 mod progress;
 mod radio_button;
 mod scroll_bar;
+mod slider;
 mod text_box;
 mod tooltip;
 mod widget;
@@ -24,7 +25,7 @@ use winio_primitive::ColorTheme;
 pub use {
     accent::*, activity::*, button::*, canvas::*, check_box::*, combo_box::*, edit::*, filebox::*,
     label::*, list_box::*, monitor::*, msgbox::*, progress::*, radio_button::*, scroll_bar::*,
-    text_box::*, tooltip::*, widget::*, window::*,
+    slider::*, text_box::*, tooltip::*, widget::*, window::*,
 };
 
 pub fn color_theme() -> ColorTheme {
