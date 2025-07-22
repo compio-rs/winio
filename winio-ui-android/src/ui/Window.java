@@ -1,8 +1,10 @@
 package rs.compio.winio;
 
+import android.app.Activity;
 import android.content.Context;
 import android.util.AttributeSet;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
@@ -29,6 +31,19 @@ public class Window extends FrameLayout {
                 LayoutParams.WRAP_CONTENT
             );
             addView(titleView, params);
+            parent.addView(this);
+            return;
+        }
+
+        if (getContext() instanceof Activity) {
+            Activity activity = (Activity) getContext();
+            View decorView = activity.getWindow().getDecorView();
+            ViewGroup rootView = (ViewGroup) decorView.findViewById(android.R.id.content);
+            setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ));
+            rootView.addView(this);
         }
     }
 
@@ -62,14 +77,23 @@ public class Window extends FrameLayout {
     }
 
     // Public API methods
-    public void setTitle(CharSequence title) {
+    public void setText(CharSequence text) {
         if (titleView != null) {
-            titleView.setText(title);
+            titleView.setText(text);
+        } else if (getContext() instanceof Activity) {
+            Activity activity = (Activity) getContext();
+            activity.setTitle(text);
         }
     }
 
-    public CharSequence getTitle() {
-        return titleView != null ? titleView.getText() : "";
+    public CharSequence getText() {
+        if (titleView != null)
+            return titleView.getText();
+        if (getContext() instanceof Activity) {
+            Activity activity = (Activity) getContext();
+            return activity.getTitle();
+        }
+        return "";
     }
 
     public void setVisible(boolean visible) {
@@ -83,6 +107,14 @@ public class Window extends FrameLayout {
     public void setLoc(float x, float y) {
     }
 
-    public void setSize(int width, int height) {
+    public void setSize(double width, double height) {
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams((int)width, (int)height);
+        setLayoutParams(params);
+    }
+
+    public double[] getSize() {
+        double w = getWidth();
+        double h = getHeight();
+        return new double[]{w, h};
     }
 }

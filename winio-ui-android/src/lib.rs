@@ -5,6 +5,9 @@
 
 scoped_tls::scoped_thread_local!(pub(crate) static RUNTIME: Runtime);
 
+mod convert;
+pub use convert::*;
+
 mod runtime;
 pub use runtime::*;
 

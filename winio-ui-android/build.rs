@@ -45,5 +45,7 @@ fn main() {
                 eprintln!("{}", line);
             });
         }
+
+        println!("cargo:rerun-if-changed=src/ui");
     }
 }

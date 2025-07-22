@@ -13,14 +13,6 @@ public class Activity extends android.app.Activity {
      */
     public static final String META_DATA_LIB_NAME = "android.app.lib_name";
 
-    /**
-     * Optional meta-that can be in the manifest for this component, specifying
-     * the name of the main entry point for this native activity in the
-     * {@link #META_DATA_LIB_NAME} native code.  If not specified,
-     * "ANativeActivity_onCreate" is used.
-     */
-    public static final String META_DATA_FUNC_NAME = "android.app.func_name";
-
     private static boolean isLibLoaded = false;
 
     private void load() {
@@ -39,6 +31,7 @@ public class Activity extends android.app.Activity {
         }
 
         System.loadLibrary(libName);
+
         isLibLoaded = true;
     }
 
@@ -91,6 +84,10 @@ public class Activity extends android.app.Activity {
         super.onConfigurationChanged(newConfig);
     }
 
+    public void runOnUiThread(long id) {
+        runOnUiThread(()->on_run_ui_thread(id));
+    }
+    
     private native void on_create();
     private native void on_destroy();
     private native void on_start();
@@ -99,4 +96,5 @@ public class Activity extends android.app.Activity {
     private native void on_resume();
     private native void on_low_memory();
     private native void on_configuration_changed(Configuration newConfig);
+    private native void on_run_ui_thread(long id);
 }

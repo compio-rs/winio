@@ -1,25 +1,25 @@
 use {
-    winio_handle::{AsWindow, RawWidget, impl_as_widget},
+    super::{BaseWidget, vm_exec_on_ui_thread},
+    inherit_methods_macro::inherit_methods,
+    winio_handle::{AsRawWindow, AsWindow, impl_as_widget},
     winio_primitive::{HAlign, Point, Size},
 };
 
 #[derive(Debug)]
 pub struct Label {
-    inner: RawWidget,
+    inner: BaseWidget,
 }
 
 //noinspection SpellCheckingInspection
+#[inherit_methods(from = "self.inner")]
 impl Label {
-    pub fn text(&self) -> String {
-        todo!()
-    }
+    const WIDGET_CLASS: &'static str = "rs/compio/winio/Label";
+
+    pub fn text(&self) -> String;
 
     pub fn set_text<S>(&mut self, _text: S)
     where
-        S: AsRef<str>,
-    {
-        todo!()
-    }
+        S: AsRef<str>;
 
     pub fn halign(&self) -> HAlign {
         todo!()
@@ -53,23 +53,31 @@ impl Label {
         todo!()
     }
 
-    pub fn size(&self) -> Size {
-        todo!()
-    }
+    pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, _size: Size) {
-        todo!()
-    }
+    pub fn set_size(&mut self, size: Size);
 
     pub fn preferred_size(&self) -> Size {
         todo!()
     }
 
-    pub fn new<W>(_parent: W) -> Self
+    pub fn new<W>(parent: W) -> Self
     where
         W: AsWindow,
     {
-        todo!()
+        let parent = parent.as_window().as_raw_window();
+        let inner = vm_exec_on_ui_thread(move |mut env, _| {
+            let widget = env.new_object(
+                Self::WIDGET_CLASS,
+                "(Lrs/compio/winio/Window;)V",
+                &[parent.as_obj().into()],
+            )?;
+            env.new_global_ref(widget)
+        })
+        .unwrap()
+        .into();
+
+        Self { inner }
     }
 }
 

@@ -53,6 +53,7 @@ local-sync = "0.1"
 log = "0.4.27"
 paste = "1.0"
 scoped-tls = "1.0"
+oneshot = { version = "0.1.11",default-features = false }
 widestring = "1"
 
 windows-sys = "0.60"

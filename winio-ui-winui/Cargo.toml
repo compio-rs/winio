@@ -20,7 +20,7 @@ compio-log = { workspace = true }
 
 image = { workspace = true, default-features = false }
 inherit-methods-macro = { workspace = true }
-oneshot = { version = "0.1", default-features = false, features = ["std"] }
+oneshot = {workspace = true, features = ["std"] }
 scoped-tls = { workspace = true }
 send_wrapper = "0.6"
 widestring = { workspace = true }

@@ -1,4 +1,8 @@
-use {super::RUNTIME, std::future::Future, winio_pollable::Runtime as PollableRuntime};
+use {
+    super::{RUNTIME, wait_activity_available},
+    std::{future::Future, thread::sleep, time::Duration},
+    winio_pollable::Runtime as PollableRuntime,
+};
 
 pub struct Runtime {
     inner: PollableRuntime,
@@ -22,6 +26,11 @@ impl Runtime {
     }
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        self.enter(|| self.inner.block_on(future, |_timeout| {}))
+        self.enter(|| {
+            wait_activity_available();
+            self.inner.block_on(future, |timeout| {
+                sleep(timeout.unwrap_or_else(|| Duration::from_millis(10)));
+            })
+        })
     }
 }
