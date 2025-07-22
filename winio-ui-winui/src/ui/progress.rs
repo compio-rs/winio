@@ -43,15 +43,20 @@ impl Progress {
 
     pub fn set_size(&mut self, v: Size);
 
-    pub fn range(&self) -> (usize, usize) {
-        let min = self.progress_bar.Minimum().unwrap() as usize;
-        let max = self.progress_bar.Maximum().unwrap() as usize;
-        (min, max)
+    pub fn minimum(&self) -> usize {
+        self.progress_bar.Minimum().unwrap() as usize
     }
 
-    pub fn set_range(&mut self, min: usize, max: usize) {
-        self.progress_bar.SetMinimum(min as f64).unwrap();
-        self.progress_bar.SetMaximum(max as f64).unwrap();
+    pub fn set_minimum(&mut self, v: usize) {
+        self.progress_bar.SetMinimum(v as _).unwrap();
+    }
+
+    pub fn maximum(&self) -> usize {
+        self.progress_bar.Maximum().unwrap() as usize
+    }
+
+    pub fn set_maximum(&mut self, v: usize) {
+        self.progress_bar.SetMaximum(v as _).unwrap()
     }
 
     pub fn pos(&self) -> usize {

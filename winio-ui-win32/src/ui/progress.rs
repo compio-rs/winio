@@ -51,14 +51,22 @@ impl Progress {
 
     pub fn set_size(&mut self, v: Size);
 
-    pub fn range(&self) -> (usize, usize) {
-        let min = self.handle.send_message(PBM_GETRANGE, 1, 0) as usize;
-        let max = self.handle.send_message(PBM_GETRANGE, 0, 0) as usize;
-        (min, max)
+    pub fn minimum(&self) -> usize {
+        self.handle.send_message(PBM_GETRANGE, 1, 0) as usize
     }
 
-    pub fn set_range(&mut self, min: usize, max: usize) {
-        self.handle.send_message(PBM_SETRANGE32, min as _, max as _);
+    pub fn maximum(&self) -> usize {
+        self.handle.send_message(PBM_GETRANGE, 0, 0) as usize
+    }
+
+    pub fn set_minimum(&mut self, v: usize) {
+        self.handle
+            .send_message(PBM_SETRANGE32, v as _, self.maximum() as _);
+    }
+
+    pub fn set_maximum(&mut self, v: usize) {
+        self.handle
+            .send_message(PBM_SETRANGE32, self.minimum() as _, v as _);
     }
 
     pub fn pos(&self) -> usize {

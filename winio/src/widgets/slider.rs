@@ -2,18 +2,24 @@ use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedWindow;
 use winio_layout::{Enable, Layoutable, Visible};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Orient, Point, Size};
 
 use crate::sys;
 
-/// A progress bar.
+/// A simple button.
 #[derive(Debug)]
-pub struct Progress {
-    widget: sys::Progress,
+pub struct Slider {
+    widget: sys::Slider,
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Progress {
+impl Slider {
+    /// The orientation.
+    pub fn orient(&self) -> Orient;
+
+    /// Set the orientation.
+    pub fn set_orient(&mut self, v: Orient);
+
     /// Value minimum.
     pub fn minimum(&self) -> usize;
 
@@ -26,35 +32,35 @@ impl Progress {
     /// Set value maximum.
     pub fn set_maximum(&mut self, v: usize);
 
-    /// Current position.
+    /// The tick frequency.
+    pub fn freq(&self) -> usize;
+
+    /// Set the tick frequency.
+    pub fn set_freq(&mut self, v: usize);
+
+    /// The position.
     pub fn pos(&self) -> usize;
 
-    /// Set current position.
-    pub fn set_pos(&mut self, pos: usize);
-
-    /// Get if the progress bar is in indeterminate state.
-    pub fn is_indeterminate(&self) -> bool;
-
-    /// Set if the progress bar is in indeterminate state.
-    pub fn set_indeterminate(&mut self, v: bool);
+    /// Set the position.
+    pub fn set_pos(&mut self, v: usize);
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Visible for Progress {
+impl Visible for Slider {
     fn is_visible(&self) -> bool;
 
     fn set_visible(&mut self, v: bool);
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Enable for Progress {
+impl Enable for Slider {
     fn is_enabled(&self) -> bool;
 
     fn set_enabled(&mut self, v: bool);
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Layoutable for Progress {
+impl Layoutable for Slider {
     fn loc(&self) -> Point;
 
     fn set_loc(&mut self, p: Point);
@@ -66,22 +72,28 @@ impl Layoutable for Progress {
     fn preferred_size(&self) -> Size;
 }
 
-/// Events of [`Progress`].
+/// Events of [`Slider`].
 #[non_exhaustive]
-pub enum ProgressEvent {}
+pub enum SliderEvent {
+    /// The position of slider has changed.
+    Change,
+}
 
-impl Component for Progress {
-    type Event = ProgressEvent;
+impl Component for Slider {
+    type Event = SliderEvent;
     type Init<'a> = BorrowedWindow<'a>;
     type Message = ();
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = sys::Progress::new(init);
+        let widget = sys::Slider::new(init);
         Self { widget }
     }
 
-    async fn start(&mut self, _sender: &ComponentSender<Self>) -> ! {
-        std::future::pending().await
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
+        loop {
+            self.widget.wait_change().await;
+            sender.output(SliderEvent::Change);
+        }
     }
 
     async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
@@ -91,4 +103,4 @@ impl Component for Progress {
     fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
 
-winio_handle::impl_as_widget!(Progress, widget);
+winio_handle::impl_as_widget!(Slider, widget);

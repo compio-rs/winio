@@ -163,5 +163,8 @@ pub use canvas::*;
 mod scroll_bar;
 pub use scroll_bar::*;
 
+mod slider;
+pub use slider::*;
+
 mod tooltip;
 pub use tooltip::*;
