@@ -82,13 +82,9 @@ impl ComboBox {
         todo!()
     }
 
-    pub fn loc(&self) -> Point {
-        todo!()
-    }
+    pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, _p: Point) {
-        todo!()
-    }
+    pub fn set_loc(&mut self, p: Point);
 
     pub fn size(&self) -> Size;
 

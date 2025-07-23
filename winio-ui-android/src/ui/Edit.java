@@ -1,15 +1,29 @@
 package rs.compio.winio;
 
-import android.widget.TextView;
+import android.text.InputType;
+import android.widget.EditText;
 
-public class Label extends TextView {
+public class Edit extends EditText {
     private Widget w;
 
-    Label(Window parent) {
+    Edit(Window parent) {
         super(parent.getContext());
         parent.addView(this);
         this.w = new Widget(this);
         setHAlign(Widget.HALIGN_LEFT);
+    }
+
+    public void setPassword(boolean password) {
+        if (password) {
+            setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        } else {
+            setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_NORMAL);
+        }
+    }
+
+    public boolean isPassword() {
+        int type = getInputType();
+        return (type & InputType.TYPE_TEXT_VARIATION_PASSWORD) == InputType.TYPE_TEXT_VARIATION_PASSWORD;
     }
 
     public void setHAlign(int align) {
@@ -41,7 +55,7 @@ public class Label extends TextView {
         double lineHeight = getLineHeight() + getLineSpacingExtra();
         double lines = getLineCount();
         double height = lines * lineHeight;
-        return new double[]{width, height};
+        return new double[]{width + 8.0, height + 4.0};
     }
 
     public void setLoc(double x, double y) {

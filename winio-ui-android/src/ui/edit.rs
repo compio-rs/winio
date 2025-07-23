@@ -1,3 +1,4 @@
+use crate::vm_exec_on_ui_thread;
 use {
     super::BaseWidget,
     inherit_methods_macro::inherit_methods,
@@ -12,6 +13,8 @@ pub struct Edit {
 
 #[inherit_methods(from = "self.inner")]
 impl Edit {
+    const WIDGET_CLASS: &'static str = "rs/compio/winio/Edit";
+
     pub async fn wait_change(&self) {
         todo!()
     }
@@ -23,22 +26,27 @@ impl Edit {
         S: AsRef<str>;
 
     pub fn is_password(&self) -> bool {
-        todo!()
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "isPassword", "()[D", &[])?.z()
+        })
+        .unwrap()
     }
 
-    pub fn set_password(&mut self, _v: bool) {
-        todo!()
+    pub fn set_password(&mut self, password: bool) {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "setPassword", "(Z)V", &[password.into()])?
+                .v()
+        })
+        .unwrap();
     }
 
     //noinspection SpellCheckingInspection
-    pub fn halign(&self) -> HAlign {
-        todo!()
-    }
+    pub fn halign(&self) -> HAlign;
 
     //noinspection SpellCheckingInspection
-    pub fn set_halign(&mut self, _align: HAlign) {
-        todo!()
-    }
+    pub fn set_halign(&mut self, align: HAlign);
 
     pub fn is_visible(&self) -> bool;
 
@@ -52,27 +60,27 @@ impl Edit {
         todo!()
     }
 
-    pub fn loc(&self) -> Point {
-        todo!()
-    }
+    pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, _p: Point) {
-        todo!()
-    }
+    pub fn set_loc(&mut self, p: Point);
 
     pub fn size(&self) -> Size;
 
     pub fn set_size(&mut self, v: Size);
 
-    pub fn preferred_size(&self) -> Size {
-        todo!()
-    }
+    pub fn preferred_size(&self) -> Size;
 
-    pub fn new<W>(_parent: W) -> Self
+    pub fn new<W>(parent: W) -> Self
     where
         W: AsWindow,
     {
-        todo!()
+        BaseWidget::create(parent.as_window(), Self::WIDGET_CLASS)
+    }
+}
+
+impl From<BaseWidget> for Edit {
+    fn from(value: BaseWidget) -> Self {
+        Self { inner: value }
     }
 }
 

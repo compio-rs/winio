@@ -12,8 +12,10 @@ pub struct Button {
 
 #[inherit_methods(from = "self.inner")]
 impl Button {
+    const WIDGET_CLASS: &'static str = "rs/compio/winio/Button";
+
     pub async fn wait_click(&self) {
-        todo!()
+        std::future::pending::<()>().await;
     }
 
     pub fn text(&self) -> String;
@@ -34,27 +36,27 @@ impl Button {
         todo!()
     }
 
-    pub fn loc(&self) -> Point {
-        todo!()
-    }
+    pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, _p: Point) {
-        todo!()
-    }
+    pub fn set_loc(&mut self, p: Point);
 
     pub fn size(&self) -> Size;
 
     pub fn set_size(&mut self, v: Size);
 
-    pub fn preferred_size(&self) -> Size {
-        todo!()
-    }
+    pub fn preferred_size(&self) -> Size;
 
-    pub fn new<W>(_parent: W) -> Self
+    pub fn new<W>(parent: W) -> Self
     where
         W: AsWindow,
     {
-        todo!()
+        BaseWidget::create(parent.as_window(), Self::WIDGET_CLASS)
+    }
+}
+
+impl From<BaseWidget> for Button {
+    fn from(value: BaseWidget) -> Self {
+        Self { inner: value }
     }
 }
 

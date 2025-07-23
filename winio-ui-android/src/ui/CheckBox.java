@@ -1,23 +1,20 @@
 package rs.compio.winio;
 
-import android.widget.TextView;
-
-public class Label extends TextView {
+public class CheckBox extends android.widget.CheckBox {
     private Widget w;
 
-    Label(Window parent) {
+    CheckBox(Window parent) {
         super(parent.getContext());
         parent.addView(this);
         this.w = new Widget(this);
-        setHAlign(Widget.HALIGN_LEFT);
     }
 
-    public void setHAlign(int align) {
-        this.w.setHAlign(align);
+    public void setChecked(boolean checked) {
+        super.setChecked(checked);
     }
 
-    public int getHAlign() {
-        return this.w.getHAlign();
+    public boolean isChecked() {
+        return super.isChecked();
     }
 
     public void setVisible(boolean visible) {
@@ -32,16 +29,12 @@ public class Label extends TextView {
         this.w.setSize(width, height);
     }
 
-    public double[] getSize() {
-        return this.w.getSize();
-    }
-
     public double[] getPreferredSize() {
         double width = getPaint().measureText(getText().toString());
         double lineHeight = getLineHeight() + getLineSpacingExtra();
         double lines = getLineCount();
         double height = lines * lineHeight;
-        return new double[]{width, height};
+        return new double[]{width + 18.0, height + 2.0};
     }
 
     public void setLoc(double x, double y) {

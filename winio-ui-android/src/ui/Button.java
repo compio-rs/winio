@@ -2,22 +2,13 @@ package rs.compio.winio;
 
 import android.widget.TextView;
 
-public class Label extends TextView {
+public class Button extends android.widget.Button {
     private Widget w;
 
-    Label(Window parent) {
+    Button(Window parent) {
         super(parent.getContext());
         parent.addView(this);
         this.w = new Widget(this);
-        setHAlign(Widget.HALIGN_LEFT);
-    }
-
-    public void setHAlign(int align) {
-        this.w.setHAlign(align);
-    }
-
-    public int getHAlign() {
-        return this.w.getHAlign();
     }
 
     public void setVisible(boolean visible) {
@@ -41,7 +32,7 @@ public class Label extends TextView {
         double lineHeight = getLineHeight() + getLineSpacingExtra();
         double lines = getLineCount();
         double height = lines * lineHeight;
-        return new double[]{width, height};
+        return new double[]{width + 4.0, height + 4.0};
     }
 
     public void setLoc(double x, double y) {

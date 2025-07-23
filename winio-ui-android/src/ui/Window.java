@@ -60,17 +60,9 @@ public class Window extends FrameLayout {
 
     private native void on_closed();
 
-    // Called from native code
-    @SuppressWarnings("unused") // Called from JNI
-    private void onWindowMoved(int x, int y) {
-        // Handle window moved event
-    }
+    private native void on_moved(int x, int y);
 
-    // Called from native code
-    @SuppressWarnings("unused") // Called from JNI
-    private void onWindowResized(int width, int height) {
-        // Handle window resized event
-    }
+    private native void on_resized(int width, int height);
 
     // Public API methods
     public void setText(CharSequence text) {
@@ -100,9 +92,6 @@ public class Window extends FrameLayout {
         return getVisibility() == View.VISIBLE;
     }
 
-    public void setLoc(float x, float y) {
-    }
-
     public void setSize(double width, double height) {
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams((int)width, (int)height);
         setLayoutParams(params);
@@ -122,5 +111,16 @@ public class Window extends FrameLayout {
             titleHeight = titleView.getHeight();
         }
         return new double[]{width, height - titleHeight};
+    }
+
+    public void setLoc(double x, double y) {
+        setX((float) x);
+        setY((float) y);
+    }
+
+    public double[] getLoc() {
+        double x = getX();
+        double y = getY();
+        return new double[]{x,y};
     }
 }

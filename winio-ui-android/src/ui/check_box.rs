@@ -12,6 +12,8 @@ pub struct CheckBox {
 
 #[inherit_methods(from = "self.inner")]
 impl CheckBox {
+    const WIDGET_CLASS: &'static str = "rs/compio/winio/CheckBox";
+
     pub async fn wait_click(&self) {
         todo!()
     }
@@ -38,31 +40,31 @@ impl CheckBox {
         todo!()
     }
 
-    pub fn loc(&self) -> Point {
-        todo!()
-    }
+    pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, _p: Point) {
-        todo!()
-    }
+    pub fn set_loc(&mut self, p: Point);
 
     pub fn size(&self) -> Size;
 
     pub fn set_size(&mut self, v: Size);
 
-    pub fn preferred_size(&self) -> Size {
-        todo!()
-    }
+    pub fn preferred_size(&self) -> Size;
 
     pub fn is_enabled(&self) -> bool {
         todo!()
     }
 
-    pub fn new<W>(_parent: W) -> Self
+    pub fn new<W>(parent: W) -> Self
     where
         W: AsWindow,
     {
-        todo!()
+        BaseWidget::create(parent.as_window(), Self::WIDGET_CLASS)
+    }
+}
+
+impl From<BaseWidget> for CheckBox {
+    fn from(value: BaseWidget) -> Self {
+        Self { inner: value }
     }
 }
 

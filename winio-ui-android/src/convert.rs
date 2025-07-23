@@ -4,7 +4,7 @@ use {
         errors::Result,
         objects::{JDoubleArray, JObject, JString},
     },
-    winio_primitive::Size,
+    winio_primitive::{Point, Size},
 };
 
 pub trait JObjectExt<O> {
@@ -31,6 +31,20 @@ impl<'a> JObjectExt<Size> for JObject<'a> {
         Ok(Size {
             width: buf[0],
             height: buf[1],
+            _unit: Default::default(),
+        })
+    }
+}
+
+impl<'a> JObjectExt<Point> for JObject<'a> {
+    fn to(self, env: &mut JNIEnv) -> Result<Point> {
+        let a = JDoubleArray::from(self);
+        let mut buf = [0f64; 2];
+        env.get_double_array_region(a, 0, &mut buf)?;
+
+        Ok(Point {
+            x: buf[0],
+            y: buf[1],
             _unit: Default::default(),
         })
     }
