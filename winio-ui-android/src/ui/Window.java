@@ -2,6 +2,7 @@ package rs.compio.winio;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.view.View;
 import android.view.ViewGroup;
@@ -31,18 +32,17 @@ public class Window extends FrameLayout {
                 LayoutParams.WRAP_CONTENT
             );
             addView(titleView, params);
-            parent.addView(this);
-            return;
         }
-
-        if (getContext() instanceof Activity) {
+        setLayoutParams(new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+        if (this.parent != null)
+            parent.addView(this);
+        else if (getContext() instanceof Activity) {
             Activity activity = (Activity) getContext();
             View decorView = activity.getWindow().getDecorView();
             ViewGroup rootView = (ViewGroup) decorView.findViewById(android.R.id.content);
-            setLayoutParams(new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ));
             rootView.addView(this);
         }
     }
@@ -50,19 +50,15 @@ public class Window extends FrameLayout {
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
-        // Additional setup when view is attached to window
     }
 
     @Override
     protected void onDetachedFromWindow() {
+        on_closed();
         super.onDetachedFromWindow();
     }
 
-    // Called from native code
-    @SuppressWarnings("unused") // Called from JNI
-    private void onWindowClosed() {
-        // Handle window closed event
-    }
+    private native void on_closed();
 
     // Called from native code
     @SuppressWarnings("unused") // Called from JNI
@@ -97,10 +93,10 @@ public class Window extends FrameLayout {
     }
 
     public void setVisible(boolean visible) {
-
+        setVisibility(visible?View.VISIBLE:View.INVISIBLE);
     }
 
-    public boolean getVisible() {
+    public boolean isVisible() {
         return getVisibility() == View.VISIBLE;
     }
 
@@ -116,5 +112,15 @@ public class Window extends FrameLayout {
         double w = getWidth();
         double h = getHeight();
         return new double[]{w, h};
+    }
+
+    public double[] getClientSize() {
+        double width = getWidth();
+        double height = getHeight();
+        double titleHeight = 0;
+        if (titleView != null && titleView.getVisibility() == VISIBLE) {
+            titleHeight = titleView.getHeight();
+        }
+        return new double[]{width, height - titleHeight};
     }
 }

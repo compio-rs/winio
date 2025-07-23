@@ -1,9 +1,9 @@
 use {
+    super::BaseWidget,
     image::DynamicImage,
+    inherit_methods_macro::inherit_methods,
     std::marker::PhantomData,
     winio_handle::{AsWindow, impl_as_widget},
-    super::BaseWidget,
-    inherit_methods_macro::inherit_methods,
     winio_primitive::{
         BrushPen, DrawingFont, LinearGradientBrush, MouseButton, Point, RadialGradientBrush, Rect,
         Size, SolidColorBrush, Vector,
@@ -203,13 +203,9 @@ impl Canvas {
         todo!()
     }
 
-    pub fn is_visible(&self) -> bool {
-        todo!()
-    }
+    pub fn is_visible(&self) -> bool;
 
-    pub fn set_visible(&mut self, _v: bool) {
-        todo!()
-    }
+    pub fn set_visible(&mut self, visible: bool);
 
     pub fn is_enabled(&self) -> bool {
         todo!()

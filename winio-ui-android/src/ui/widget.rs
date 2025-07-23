@@ -1,5 +1,5 @@
 use {
-    super::{super::JObjectExt, vm_exec_on_ui_thread},
+    super::{super::JObjectExt, vm_exec, vm_exec_on_ui_thread},
     std::ops::Deref,
     winio_handle::RawWidget,
     winio_primitive::Size,
@@ -15,9 +15,18 @@ impl BaseWidget {
         Self { inner }
     }
 
+    pub(crate) fn hash_code(&self) -> i32 {
+        vm_exec(|mut env, _| {
+            env.call_method(self.inner.as_obj(), "hashCode", "()I", &[])?
+                .i()
+        })
+        .unwrap()
+    }
+
     pub(crate) fn size(&self) -> Size {
-        vm_exec_on_ui_thread(|mut env, act| {
-            env.call_method(act.as_obj(), "getSize", "()[D", &[])?
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "getSize", "()[D", &[])?
                 .l()?
                 .to(&mut env)
         })
@@ -32,16 +41,33 @@ impl BaseWidget {
                 "setSize",
                 "(DD)V",
                 &[size.width.into(), size.height.into()],
-            )?;
+            )?
+            .v()
+        })
+        .unwrap();
+    }
 
-            Ok(())
+    pub(crate) fn is_visible(&self) -> bool {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "isVisible", "()[D", &[])?.z()
+        })
+        .unwrap()
+    }
+
+    pub(crate) fn set_visible(&mut self, visible: bool) {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "setVisible", "(Z)V", &[visible.into()])?
+                .v()
         })
         .unwrap();
     }
 
     pub(crate) fn text(&self) -> String {
-        vm_exec_on_ui_thread(|mut env, act| {
-            env.call_method(act.as_obj(), "getText", "()Ljava/lang/CharSequence;", &[])?
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "getText", "()Ljava/lang/CharSequence;", &[])?
                 .l()?
                 .to(&mut env)
         })
@@ -61,9 +87,8 @@ impl BaseWidget {
                 "setText",
                 "(Ljava/lang/CharSequence;)V",
                 &[(&text).into()],
-            )?;
-
-            Ok(())
+            )?
+            .v()
         })
         .unwrap();
     }

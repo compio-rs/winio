@@ -13,14 +13,13 @@ use {
         fs::File,
         io::{BufRead, BufReader},
         os::{raw::c_void, unix::prelude::*},
-        sync::{Condvar, LazyLock, Mutex, OnceLock},
+        sync::{LazyLock, Mutex, OnceLock},
         thread::spawn,
     },
 };
 
 static JAVA_VM: OnceLock<JavaVM> = OnceLock::new();
 static ACTIVITY: Mutex<Option<GlobalRef>> = Mutex::new(None);
-static ACTIVITY_AVAILABLE: Condvar = Condvar::new();
 static UI_THREAD_PENDINGS: LazyLock<Mutex<HashMap<i64, Box<dyn FnOnce() + Send + Sync>>>> =
     LazyLock::new(Default::default);
 
@@ -37,6 +36,10 @@ pub enum ActivityMessage {
     RunUiThread(i64),
 }
 
+unsafe extern "system" {
+    fn main();
+}
+
 fn handle_message(activity: JObject, message: ActivityMessage) {
     match message {
         ActivityMessage::Created => {
@@ -46,7 +49,8 @@ fn handle_message(activity: JObject, message: ActivityMessage) {
                 && let Ok(act) = env.new_global_ref(activity)
             {
                 lock.replace(act);
-                ACTIVITY_AVAILABLE.notify_one();
+                drop(lock);
+                spawn(|| unsafe { main() });
             }
         }
 
@@ -154,11 +158,6 @@ pub unsafe extern "C" fn JNI_OnLoad(vm: JavaVM, _: *mut c_void) -> jint {
         }
     });
 
-    unsafe extern "system" {
-        fn main();
-    }
-    spawn(|| unsafe { main() });
-
     JNI_VERSION_1_6
 }
 
@@ -216,11 +215,4 @@ where
         }
         rx.recv().unwrap()
     })
-}
-
-pub fn wait_activity_available() {
-    if let Ok(mut lock) = ACTIVITY.lock() {
-        lock = ACTIVITY_AVAILABLE.wait(lock).unwrap();
-        drop(lock);
-    }
 }

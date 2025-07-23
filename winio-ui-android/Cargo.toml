@@ -23,7 +23,7 @@ winio-handle = { workspace = true }
 winio-pollable = { workspace = true }
 
 compio = { workspace = true }
-oneshot = {workspace = true,features = ["std"]}
+oneshot = {workspace = true,features = ["default"]}
 
 inherit-methods-macro = { workspace = true }
 

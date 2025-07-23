@@ -1,5 +1,5 @@
 use {
-    super::{RUNTIME, wait_activity_available},
+    super::RUNTIME,
     std::{future::Future, thread::sleep, time::Duration},
     winio_pollable::Runtime as PollableRuntime,
 };
@@ -27,7 +27,6 @@ impl Runtime {
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
         self.enter(|| {
-            wait_activity_available();
             self.inner.block_on(future, |timeout| {
                 sleep(timeout.unwrap_or_else(|| Duration::from_millis(10)));
             })

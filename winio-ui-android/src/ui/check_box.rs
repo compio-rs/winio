@@ -30,13 +30,9 @@ impl CheckBox {
         todo!()
     }
 
-    pub fn is_visible(&self) -> bool {
-        todo!()
-    }
+    pub fn is_visible(&self) -> bool;
 
-    pub fn set_visible(&mut self, _v: bool) {
-        todo!()
-    }
+    pub fn set_visible(&mut self, visible: bool);
 
     pub fn set_enabled(&mut self, _v: bool) {
         todo!()
