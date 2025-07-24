@@ -47,5 +47,6 @@ fn main() {
         }
 
         println!("cargo:rerun-if-changed=src/ui");
+        println!("cargo:rerun-if-env-changed=CARGO_APK2_ARTIFACT");
     }
 }

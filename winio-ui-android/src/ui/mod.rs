@@ -7,6 +7,7 @@ mod canvas;
 mod check_box;
 mod combo_box;
 mod edit;
+mod event;
 mod filebox;
 mod label;
 mod list_box;

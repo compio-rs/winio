@@ -9,6 +9,7 @@ public class Button extends android.widget.Button {
         super(parent.getContext());
         parent.addView(this);
         this.w = new Widget(this);
+        this.setOnClickListener((v) -> on_clicked());
     }
 
     public void setVisible(boolean visible) {
@@ -42,4 +43,6 @@ public class Button extends android.widget.Button {
     public double[] getLoc() {
         return this.w.getLoc();
     }
+
+    private native void on_clicked();
 }

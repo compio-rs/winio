@@ -5,9 +5,9 @@ Install [cargo-apk2](https://github.com/mzdk100/cargo-apk2):
 cargo install cargo-apk2
 ```
 
-**Note**: Currently, only the cargo-apk2 (version >= 1.2.0) tool is supported for building.
+**Note**: Currently, only the cargo-apk2 (version >= 1.2.1) tool is supported for building.
 
 ```shell
 adb logcat -c
-cargo apk2 run -p winio-android-example
+cargo apk2 run --example hello
 ```

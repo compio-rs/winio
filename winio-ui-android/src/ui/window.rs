@@ -1,20 +1,27 @@
 //! Android window widget, based on JNI and FrameLayout
 
 use {
-    super::{super::JObjectExt, BaseWidget, vm_exec_on_ui_thread},
-    inherit_methods_macro::inherit_methods,
-    jni::{JNIEnv, objects::JObject},
-    oneshot::{Sender, channel},
-    std::{
-        collections::HashMap,
-        sync::{LazyLock, Mutex},
+    super::{
+        super::{JObjectExt, define_event, recv_event},
+        BaseWidget, vm_exec_on_ui_thread,
     },
+    inherit_methods_macro::inherit_methods,
     winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow},
     winio_primitive::{Point, Size},
 };
 
-static WAIT_FOR_WINDOW_CLOSING: LazyLock<Mutex<HashMap<i32, Vec<Sender<()>>>>> =
-    LazyLock::new(Default::default);
+define_event!(
+    WAIT_FOR_WINDOW_CLOSING,
+    Java_rs_compio_winio_Window_on_1closed
+);
+define_event!(
+    WAIT_FOR_WINDOW_MOVING,
+    Java_rs_compio_winio_Window_on_1moved
+);
+define_event!(
+    WAIT_FOR_WINDOW_SIZING,
+    Java_rs_compio_winio_Window_on_1sized
+);
 
 #[derive(Debug)]
 pub struct Window {
@@ -53,25 +60,15 @@ impl Window {
     }
 
     pub async fn wait_close(&self) {
-        if let Ok(mut lock) = WAIT_FOR_WINDOW_CLOSING.lock() {
-            let (tx, rx) = channel();
-            let hash_code = self.inner.hash_code();
-            if let Some(senders) = lock.get_mut(&hash_code) {
-                senders.push(tx);
-            } else {
-                lock.insert(hash_code, vec![tx]);
-            }
-            drop(lock);
-            let _ = rx.await;
-        }
+        recv_event!(self, WAIT_FOR_WINDOW_CLOSING)
     }
 
     pub async fn wait_move(&self) {
-        std::future::pending().await
+        recv_event!(self, WAIT_FOR_WINDOW_MOVING)
     }
 
     pub async fn wait_size(&self) {
-        std::future::pending().await
+        recv_event!(self, WAIT_FOR_WINDOW_SIZING)
     }
 
     pub fn client_size(&self) -> Size {
@@ -113,23 +110,5 @@ impl AsRawWindow for Window {
 impl AsWindow for Window {
     fn as_window(&self) -> BorrowedWindow<'_> {
         unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
-    }
-}
-
-#[allow(non_snake_case)]
-#[unsafe(no_mangle)]
-extern "C" fn Java_rs_compio_winio_Window_on_1closed(env: JNIEnv, window: JObject) {
-    let Ok(w) = env.new_global_ref(window) else {
-        return;
-    };
-    let w: BaseWidget = w.into();
-
-    if let Ok(mut lock) = WAIT_FOR_WINDOW_CLOSING.lock()
-        && let Some(mut senders) = lock.remove(&w.hash_code())
-    {
-        drop(lock);
-        while let Some(sender) = senders.pop() {
-            let _ = sender.send(());
-        }
     }
 }

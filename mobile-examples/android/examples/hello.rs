@@ -1,21 +1,24 @@
+#![no_main]
+
 use winio::prelude::*;
 
-pub(crate) fn main() {
-    #[cfg(all(feature = "enable_log", not(target_os = "android")))]
-    tracing_subscriber::fmt()
-        .with_max_level(compio_log::Level::INFO)
-        .init();
-
+#[unsafe(no_mangle)]
+fn main() {
+    android_logger::init_once(
+        android_logger::Config::default()
+            .with_tag("winio")
+            .with_max_level(log::LevelFilter::Info),
+    );
     App::new("rs.compio.winio.widgets").run::<MainModel>(());
 }
 
-pub(crate) struct MainModel {
+pub struct MainModel {
     window: Child<Window>,
     text: Child<Label>,
 }
 
 #[derive(Debug)]
-pub(crate) enum MainMessage {
+pub enum MainMessage {
     Noop,
     Close,
     Redraw,

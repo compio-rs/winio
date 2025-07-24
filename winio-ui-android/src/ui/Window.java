@@ -19,7 +19,7 @@ public class Window extends FrameLayout {
 
     public Window(Context context, Window parent) {
         super(context, null, 0);
-        this.parent = null;
+        this.parent = parent;
         init();
     }
 

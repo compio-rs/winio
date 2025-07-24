@@ -4,7 +4,7 @@ version = "0.1.0"
 edition.workspace = true
 
 [package.metadata.android]
-apk_name = "winio-example"
+package = "rs.compio.winio"
 use_aapt2 = true
 
 [[package.metadata.android.application.activity]]
@@ -12,29 +12,24 @@ name = "rs.compio.winio.Activity"
 
 [[package.metadata.android.application.activity.meta_data]]
 name="android.app.lib_name"
-value="winio_android_example"
+# 省略value可以自动推断库名
+# value = "lib_name"
 
 [[package.metadata.android.application.activity.intent_filter]]
 actions = ["android.intent.action.VIEW", "android.intent.action.MAIN"]
 categories = ["android.intent.category.LAUNCHER"]
 
+[[example]]
+name = "hello"
+crate-type = ["cdylib"]
+
 [lib]
-path = "main.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
 
 [target.'cfg(target_os = "android")'.dependencies]
 futures-util.workspace = true
-android_logger = {version = "0.15.1",optional = true}
-log = {workspace = true,optional = true}
-compio-log = {workspace = true,optional = true}
-
-[dependencies.winio]
-path = "../../winio"
-
-[features]
-default = ["enable_log", "hello"]
-enable_log = ["android_logger/default", "log", "compio-log/enable_log"]
-hello = []
-widgets = []
+android_logger = "0.15.1"
+log.workspace = true
+winio.path = "../../winio"
