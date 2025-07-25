@@ -54,6 +54,8 @@ impl Layoutable for TextBox {
     fn set_size(&mut self, v: Size);
 
     fn preferred_size(&self) -> Size;
+
+    fn min_size(&self) -> Size;
 }
 
 /// Events of [`TextBox`].

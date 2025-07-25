@@ -12,7 +12,7 @@ use windows_sys::Win32::{
 use winio_handle::{AsRawWindow, AsWindow};
 use winio_primitive::{HAlign, Point, Size};
 
-use crate::ui::{Widget, font::measure_string};
+use crate::ui::Widget;
 
 #[derive(Debug)]
 pub struct Label {
@@ -41,10 +41,7 @@ impl Label {
     pub fn set_enabled(&mut self, v: bool);
 
     pub fn preferred_size(&self) -> Size {
-        measure_string(
-            self.handle.as_raw_window().as_win32(),
-            &self.handle.text_u16(),
-        )
+        self.handle.measure_text()
     }
 
     pub fn loc(&self) -> Point;

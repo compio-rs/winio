@@ -7,7 +7,7 @@ use std::{
 };
 
 use compio::driver::syscall;
-use widestring::U16CStr;
+use widestring::U16Str;
 use windows::{
     Win32::Graphics::DirectWrite::{
         DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC,
@@ -79,7 +79,7 @@ pub fn default_font(dpi: u32) -> HFONT {
 pub static DWRITE_FACTORY: LazyLock<IDWriteFactory> =
     LazyLock::new(|| unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).unwrap() });
 
-pub fn measure_string(hwnd: HWND, s: &U16CStr) -> Size {
+pub fn measure_string(hwnd: HWND, s: &U16Str) -> Size {
     unsafe {
         let hfont = SendMessageW(hwnd, WM_GETFONT, 0, 0) as HFONT;
         let mut font = MaybeUninit::<LOGFONTW>::uninit();
