@@ -1,17 +1,24 @@
 use std::{cell::Cell, ptr::null};
 
 use inherit_methods_macro::inherit_methods;
-use windows_sys::Win32::{
-    Foundation::{HWND, LPARAM, LRESULT, WPARAM},
-    Graphics::Gdi::InvalidateRect,
-    UI::{
-        Controls::{EM_GETPASSWORDCHAR, EM_SETPASSWORDCHAR, ShowScrollBar, WC_EDITW},
-        WindowsAndMessaging::{
-            DLGC_WANTALLKEYS, EN_UPDATE, ES_AUTOHSCROLL, ES_AUTOVSCROLL, ES_CENTER, ES_LEFT,
-            ES_MULTILINE, ES_PASSWORD, ES_RIGHT, GWLP_WNDPROC, SB_VERT, SetWindowLongPtrW,
-            WM_COMMAND, WM_GETDLGCODE, WNDPROC, WS_CHILD, WS_EX_CLIENTEDGE, WS_TABSTOP, WS_VISIBLE,
+use windows_sys::{
+    Win32::{
+        Foundation::{HWND, LPARAM, LRESULT, WPARAM},
+        Graphics::Gdi::InvalidateRect,
+        UI::{
+            Controls::{
+                EM_GETPASSWORDCHAR, EM_REPLACESEL, EM_SETPASSWORDCHAR, ShowScrollBar, WC_EDITW,
+            },
+            Input::KeyboardAndMouse::VK_RETURN,
+            WindowsAndMessaging::{
+                DLGC_WANTALLKEYS, EN_UPDATE, ES_AUTOHSCROLL, ES_AUTOVSCROLL, ES_CENTER, ES_LEFT,
+                ES_MULTILINE, ES_PASSWORD, ES_RIGHT, GWLP_WNDPROC, SB_VERT, SetWindowLongPtrW,
+                WM_COMMAND, WM_GETDLGCODE, WM_KEYUP, WNDPROC, WS_CHILD, WS_EX_CLIENTEDGE,
+                WS_TABSTOP, WS_VISIBLE,
+            },
         },
     },
+    w,
 };
 use winio_handle::{AsRawWidget, AsRawWindow, AsWindow};
 use winio_primitive::{HAlign, Point, Size};
@@ -257,9 +264,20 @@ unsafe extern "system" fn multiline_edit_wnd_proc(
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
-    let mut res = OLD_WND_PROC.get().unwrap()(hwnd, umsg, wparam, lparam);
-    if umsg == WM_GETDLGCODE {
-        res &= !(DLGC_WANTALLKEYS as isize);
+    let old_proc = OLD_WND_PROC.get().unwrap();
+
+    let mut res = old_proc(hwnd, umsg, wparam, lparam);
+    match umsg {
+        WM_GETDLGCODE => {
+            res &= !(DLGC_WANTALLKEYS as isize);
+        }
+        WM_KEYUP => {
+            if wparam == VK_RETURN as _ {
+                const RETURN_TEXT: *const u16 = w!("\r\n\0");
+                old_proc(hwnd, EM_REPLACESEL, 1, RETURN_TEXT as _);
+            }
+        }
+        _ => {}
     }
     res
 }
