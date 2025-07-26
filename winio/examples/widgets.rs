@@ -105,7 +105,7 @@ impl Component for MainModel {
             },
             show_button: ToolTip<Button> = (&window) => {
                 text: "Show",
-                tooltip: "Show the current selection in the combo box."
+                tooltip: "Show the current selection in the combo box.\nIf no selection, show \"No selection.\"",
             },
             progress: Progress = (&window) => {
                 indeterminate: true,
