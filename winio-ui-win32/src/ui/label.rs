@@ -3,7 +3,7 @@ use std::ptr::null;
 use inherit_methods_macro::inherit_methods;
 use windows_sys::Win32::{
     Graphics::Gdi::InvalidateRect,
-    System::SystemServices::{SS_CENTER, SS_LEFT, SS_RIGHT},
+    System::SystemServices::{SS_CENTER, SS_LEFT, SS_NOTIFY, SS_RIGHT},
     UI::{
         Controls::WC_STATICW,
         WindowsAndMessaging::{WS_CHILD, WS_EX_TRANSPARENT, WS_VISIBLE},
@@ -24,7 +24,8 @@ impl Label {
     pub fn new(parent: impl AsWindow) -> Self {
         let mut handle = Widget::new(
             WC_STATICW,
-            WS_CHILD | WS_VISIBLE | SS_LEFT,
+            // Without SS_NOTIFY ToolTip won't work
+            WS_CHILD | WS_VISIBLE | SS_LEFT | SS_NOTIFY,
             0,
             parent.as_window().as_win32(),
         );
