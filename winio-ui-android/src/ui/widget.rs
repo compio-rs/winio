@@ -60,10 +60,10 @@ impl BaseWidget {
         .unwrap()
     }
 
-    pub(crate) fn set_loc(&mut self, p: Point) {
+    pub(crate) fn set_loc(&self, p: Point) {
         let w = self.inner.clone();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "setLoc", "(DD)V", &[p.x.into(), p.x.into()])?
+            env.call_method(w.as_obj(), "setLoc", "(DD)V", &[p.x.into(), p.y.into()])?
                 .v()
         })
         .unwrap();
@@ -79,7 +79,7 @@ impl BaseWidget {
         .unwrap()
     }
 
-    pub(crate) fn set_size(&mut self, size: Size) {
+    pub(crate) fn set_size(&self, size: Size) {
         let w = self.inner.clone();
         vm_exec_on_ui_thread(move |mut env, _| {
             env.call_method(
@@ -106,12 +106,12 @@ impl BaseWidget {
     pub(crate) fn is_visible(&self) -> bool {
         let w = self.inner.clone();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "isVisible", "()[D", &[])?.z()
+            env.call_method(w.as_obj(), "isVisible", "()Z", &[])?.z()
         })
         .unwrap()
     }
 
-    pub(crate) fn set_visible(&mut self, visible: bool) {
+    pub(crate) fn set_visible(&self, visible: bool) {
         let w = self.inner.clone();
         vm_exec_on_ui_thread(move |mut env, _| {
             env.call_method(w.as_obj(), "setVisible", "(Z)V", &[visible.into()])?
@@ -130,7 +130,7 @@ impl BaseWidget {
         .unwrap()
     }
 
-    pub(crate) fn set_text<S>(&mut self, text: S)
+    pub(crate) fn set_text<S>(&self, text: S)
     where
         S: AsRef<str>,
     {
@@ -165,7 +165,7 @@ impl BaseWidget {
         }
     }
 
-    pub fn set_halign(&mut self, align: HAlign) {
+    pub fn set_halign(&self, align: HAlign) {
         let value = match align {
             HAlign::Left => Self::HALIGN_LEFT,
             HAlign::Center => Self::HALIGN_CENTER,
@@ -175,6 +175,23 @@ impl BaseWidget {
         let w = self.inner.clone();
         vm_exec_on_ui_thread(move |mut env, _| {
             env.call_method(w.as_obj(), "setHAlign", "(I)V", &[value.into()])?
+                .v()
+        })
+        .unwrap();
+    }
+
+    pub(crate) fn is_checked(&self) -> bool {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "isChecked", "()Z", &[])?.z()
+        })
+        .unwrap()
+    }
+
+    pub(crate) fn set_checked(&self, checked: bool) {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "setChecked", "(Z)V", &[checked.into()])?
                 .v()
         })
         .unwrap();

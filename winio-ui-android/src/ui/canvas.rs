@@ -42,91 +42,91 @@ pub struct DrawingContext<'a> {
 }
 
 impl<'a> DrawingContext<'a> {
-    pub fn draw_path<P>(&mut self, _pen: P, _path: &DrawingPath)
+    pub fn draw_path<P>(&self, _pen: P, _path: &DrawingPath)
     where
         P: Pen,
     {
         todo!()
     }
 
-    pub fn fill_path<B>(&mut self, _brush: B, _path: &DrawingPath)
+    pub fn fill_path<B>(&self, _brush: B, _path: &DrawingPath)
     where
         B: Brush,
     {
         todo!()
     }
 
-    pub fn draw_arc<P>(&mut self, _pen: P, _rect: Rect, _start: f64, _end: f64)
+    pub fn draw_arc<P>(&self, _pen: P, _rect: Rect, _start: f64, _end: f64)
     where
         P: Pen,
     {
         todo!()
     }
 
-    pub fn draw_pie<P>(&mut self, _pen: P, _rect: Rect, _start: f64, _end: f64)
+    pub fn draw_pie<P>(&self, _pen: P, _rect: Rect, _start: f64, _end: f64)
     where
         P: Pen,
     {
         todo!()
     }
 
-    pub fn fill_pie<B>(&mut self, _brush: B, _rect: Rect, _start: f64, _end: f64)
+    pub fn fill_pie<B>(&self, _brush: B, _rect: Rect, _start: f64, _end: f64)
     where
         B: Brush,
     {
         todo!()
     }
 
-    pub fn draw_ellipse<P>(&mut self, _pen: P, _rect: Rect)
+    pub fn draw_ellipse<P>(&self, _pen: P, _rect: Rect)
     where
         P: Pen,
     {
         todo!()
     }
 
-    pub fn fill_ellipse<B>(&mut self, _brush: B, _rect: Rect)
+    pub fn fill_ellipse<B>(&self, _brush: B, _rect: Rect)
     where
         B: Brush,
     {
         todo!()
     }
 
-    pub fn draw_line<P>(&mut self, _pen: P, _start: Point, _end: Point)
+    pub fn draw_line<P>(&self, _pen: P, _start: Point, _end: Point)
     where
         P: Pen,
     {
         todo!()
     }
 
-    pub fn draw_rect<P>(&mut self, _pen: P, _rect: Rect)
+    pub fn draw_rect<P>(&self, _pen: P, _rect: Rect)
     where
         P: Pen,
     {
         todo!()
     }
 
-    pub fn fill_rect<B>(&mut self, _brush: B, _rect: Rect)
+    pub fn fill_rect<B>(&self, _brush: B, _rect: Rect)
     where
         B: Brush,
     {
         todo!()
     }
 
-    pub fn draw_round_rect<P>(&mut self, _pen: P, _rect: Rect, _round: Size)
+    pub fn draw_round_rect<P>(&self, _pen: P, _rect: Rect, _round: Size)
     where
         P: Pen,
     {
         todo!()
     }
 
-    pub fn fill_round_rect<B>(&mut self, _brush: B, _rect: Rect, _round: Size)
+    pub fn fill_round_rect<B>(&self, _brush: B, _rect: Rect, _round: Size)
     where
         B: Brush,
     {
         todo!()
     }
 
-    pub fn draw_str<B, S>(&mut self, _brush: B, _font: DrawingFont, _pos: Point, _text: S)
+    pub fn draw_str<B, S>(&self, _brush: B, _font: DrawingFont, _pos: Point, _text: S)
     where
         B: Brush,
         S: AsRef<str>,
@@ -138,7 +138,7 @@ impl<'a> DrawingContext<'a> {
         todo!()
     }
 
-    pub fn draw_image(&mut self, _image_rep: &DrawingImage, _rect: Rect, _clip: Option<Rect>) {
+    pub fn draw_image(&self, _image_rep: &DrawingImage, _rect: Rect, _clip: Option<Rect>) {
         todo!()
     }
 
@@ -152,12 +152,12 @@ pub struct DrawingPath;
 pub struct DrawingPathBuilder;
 
 impl DrawingPathBuilder {
-    pub fn add_line(&mut self, _p: Point) {
+    pub fn add_line(&self, _p: Point) {
         todo!()
     }
 
     pub fn add_arc(
-        &mut self,
+        &self,
         _center: Point,
         _radius: Size,
         _start: f64,
@@ -167,7 +167,7 @@ impl DrawingPathBuilder {
         todo!()
     }
 
-    pub fn add_bezier(&mut self, _p1: Point, _p2: Point, _p3: Point) {
+    pub fn add_bezier(&self, _p1: Point, _p2: Point, _p3: Point) {
         todo!()
     }
 
@@ -199,29 +199,29 @@ impl Canvas {
         todo!()
     }
 
-    pub fn context(&mut self) -> DrawingContext<'_> {
+    pub fn context(&self) -> DrawingContext<'_> {
         todo!()
     }
 
     pub fn is_visible(&self) -> bool;
 
-    pub fn set_visible(&mut self, visible: bool);
+    pub fn set_visible(&self, visible: bool);
 
     pub fn is_enabled(&self) -> bool {
         todo!()
     }
 
-    pub fn set_enabled(&mut self, _v: bool) {
+    pub fn set_enabled(&self, _v: bool) {
         todo!()
     }
 
     pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&self, p: Point);
 
     pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&self, v: Size);
 
     pub fn new<W>(_parent: W) -> Self
     where

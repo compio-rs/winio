@@ -24,7 +24,7 @@ impl ComboBox {
         todo!()
     }
 
-    pub fn set_selection(&mut self, _i: Option<usize>) {
+    pub fn set_selection(&self, _i: Option<usize>) {
         todo!()
     }
 
@@ -36,7 +36,7 @@ impl ComboBox {
         todo!()
     }
 
-    pub fn set_editable(&mut self, _v: bool) {
+    pub fn set_editable(&self, _v: bool) {
         todo!()
     }
 
@@ -44,7 +44,7 @@ impl ComboBox {
         todo!()
     }
 
-    pub fn clear(&mut self) {
+    pub fn clear(&self) {
         todo!()
     }
 
@@ -52,43 +52,43 @@ impl ComboBox {
         todo!()
     }
 
-    pub fn set<S>(&mut self, _i: usize, _s: S)
+    pub fn set<S>(&self, _i: usize, _s: S)
     where
         S: AsRef<str>,
     {
         todo!()
     }
 
-    pub fn insert<S>(&mut self, _i: usize, _s: S)
+    pub fn insert<S>(&self, _i: usize, _s: S)
     where
         S: AsRef<str>,
     {
         todo!()
     }
 
-    pub fn remove(&mut self, _i: usize) {
+    pub fn remove(&self, _i: usize) {
         todo!()
     }
 
     pub fn is_visible(&self) -> bool;
 
-    pub fn set_visible(&mut self, visible: bool);
+    pub fn set_visible(&self, visible: bool);
 
     pub fn is_enabled(&self) -> bool {
         todo!()
     }
 
-    pub fn set_enabled(&mut self, _v: bool) {
+    pub fn set_enabled(&self, _v: bool) {
         todo!()
     }
 
     pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&self, p: Point);
 
     pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&self, v: Size);
 
     pub fn preferred_size(&self) -> Size {
         todo!()

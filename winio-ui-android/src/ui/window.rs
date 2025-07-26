@@ -83,19 +83,19 @@ impl Window {
 
     pub fn is_visible(&self) -> bool;
 
-    pub fn set_visible(&mut self, visible: bool);
+    pub fn set_visible(&self, visible: bool);
 
     pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&self, p: Point);
 
     pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, size: Size);
+    pub fn set_size(&self, size: Size);
 
     pub fn text(&self) -> String;
 
-    pub fn set_text<S>(&mut self, _text: S)
+    pub fn set_text<S>(&self, _text: S)
     where
         S: AsRef<str>;
 }

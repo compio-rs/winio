@@ -17,6 +17,8 @@
       <sourceFolder url="file://$MODULE_DIR$/winio/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/winio/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/winio-ui-android/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/mobile-examples/android/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/mobile-examples/android/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

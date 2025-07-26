@@ -1,6 +1,5 @@
-use crate::vm_exec_on_ui_thread;
 use {
-    super::BaseWidget,
+    super::{super::JObjectExt, BaseWidget, vm_exec_on_ui_thread},
     inherit_methods_macro::inherit_methods,
     winio_handle::{AsWindow, impl_as_widget},
     winio_primitive::{HAlign, Point, Size},
@@ -11,6 +10,7 @@ pub struct Edit {
     inner: BaseWidget,
 }
 
+//noinspection SpellCheckingInspection
 #[inherit_methods(from = "self.inner")]
 impl Edit {
     const WIDGET_CLASS: &'static str = "rs/compio/winio/Edit";
@@ -19,9 +19,22 @@ impl Edit {
         todo!()
     }
 
-    pub fn text(&self) -> String;
+    pub fn text(&self) -> String {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(
+                w.as_obj(),
+                "getTextString",
+                "()Ljava/lang/CharSequence;",
+                &[],
+            )?
+            .l()?
+            .to(&mut env)
+        })
+        .unwrap()
+    }
 
-    pub fn set_text<S>(&mut self, _text: S)
+    pub fn set_text<S>(&self, _text: S)
     where
         S: AsRef<str>;
 
@@ -33,7 +46,7 @@ impl Edit {
         .unwrap()
     }
 
-    pub fn set_password(&mut self, password: bool) {
+    pub fn set_password(&self, password: bool) {
         let w = self.inner.clone();
         vm_exec_on_ui_thread(move |mut env, _| {
             env.call_method(w.as_obj(), "setPassword", "(Z)V", &[password.into()])?
@@ -42,31 +55,29 @@ impl Edit {
         .unwrap();
     }
 
-    //noinspection SpellCheckingInspection
     pub fn halign(&self) -> HAlign;
 
-    //noinspection SpellCheckingInspection
-    pub fn set_halign(&mut self, align: HAlign);
+    pub fn set_halign(&self, align: HAlign);
 
     pub fn is_visible(&self) -> bool;
 
-    pub fn set_visible(&mut self, visible: bool);
+    pub fn set_visible(&self, visible: bool);
 
     pub fn is_enabled(&self) -> bool {
         todo!()
     }
 
-    pub fn set_enabled(&mut self, _v: bool) {
+    pub fn set_enabled(&self, _v: bool) {
         todo!()
     }
 
     pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&self, p: Point);
 
     pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&self, v: Size);
 
     pub fn preferred_size(&self) -> Size;
 

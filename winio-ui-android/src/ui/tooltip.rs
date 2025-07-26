@@ -10,7 +10,7 @@ impl<T> ToolTip<T> {
         todo!()
     }
 
-    pub fn set_tooltip<S>(&mut self, _s: S)
+    pub fn set_tooltip<S>(&self, _s: S)
     where
         S: AsRef<str>,
     {

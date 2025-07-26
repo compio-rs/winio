@@ -65,4 +65,8 @@ public class Edit extends EditText {
     public double[] getLoc() {
         return this.w.getLoc();
     }
+
+    public CharSequence getTextString() {
+        return super.getText().toString();
+    }
 }

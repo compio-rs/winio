@@ -20,7 +20,7 @@ impl Slider {
         todo!()
     }
 
-    pub fn set_orient(&mut self, _v: Orient) {
+    pub fn set_orient(&self, _v: Orient) {
         todo!()
     }
 
@@ -28,7 +28,7 @@ impl Slider {
         todo!()
     }
 
-    pub fn set_minimum(&mut self, _v: usize) {
+    pub fn set_minimum(&self, _v: usize) {
         todo!()
     }
 
@@ -36,7 +36,7 @@ impl Slider {
         todo!()
     }
 
-    pub fn set_maximum(&mut self, _v: usize) {
+    pub fn set_maximum(&self, _v: usize) {
         todo!()
     }
 
@@ -44,7 +44,7 @@ impl Slider {
         todo!()
     }
 
-    pub fn set_freq(&mut self, _v: usize) {
+    pub fn set_freq(&self, _v: usize) {
         todo!()
     }
 
@@ -52,29 +52,29 @@ impl Slider {
         todo!()
     }
 
-    pub fn set_pos(&mut self, _pos: usize) {
+    pub fn set_pos(&self, _pos: usize) {
         todo!()
     }
 
     pub fn is_visible(&self) -> bool;
 
-    pub fn set_visible(&mut self, visible: bool);
+    pub fn set_visible(&self, visible: bool);
 
     pub fn is_enabled(&self) -> bool {
         todo!()
     }
 
-    pub fn set_enabled(&mut self, _v: bool) {
+    pub fn set_enabled(&self, _v: bool) {
         todo!()
     }
 
     pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&self, p: Point);
 
     pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&self, v: Size);
 
     pub fn preferred_size(&self) -> Size {
         todo!()

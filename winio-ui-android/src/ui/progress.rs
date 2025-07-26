@@ -16,7 +16,7 @@ impl Progress {
         todo!()
     }
 
-    pub fn set_range(&mut self, _min: usize, _max: usize) {
+    pub fn set_range(&self, _min: usize, _max: usize) {
         todo!()
     }
 
@@ -24,7 +24,7 @@ impl Progress {
         todo!()
     }
 
-    pub fn set_pos(&mut self, _pos: usize) {
+    pub fn set_pos(&self, _pos: usize) {
         todo!()
     }
 
@@ -32,29 +32,29 @@ impl Progress {
         todo!()
     }
 
-    pub fn set_indeterminate(&mut self, _v: bool) {
+    pub fn set_indeterminate(&self, _v: bool) {
         todo!()
     }
 
     pub fn is_visible(&self) -> bool;
 
-    pub fn set_visible(&mut self, visible: bool);
+    pub fn set_visible(&self, visible: bool);
 
     pub fn is_enabled(&self) -> bool {
         todo!()
     }
 
-    pub fn set_enabled(&mut self, _v: bool) {
+    pub fn set_enabled(&self, _v: bool) {
         todo!()
     }
 
     pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&self, p: Point);
 
     pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&self, v: Size);
 
     pub fn preferred_size(&self) -> Size {
         todo!()
@@ -64,7 +64,7 @@ impl Progress {
         todo!()
     }
 
-    pub fn set_minimum(&mut self, _v: usize) {
+    pub fn set_minimum(&self, _v: usize) {
         todo!()
     }
 
@@ -72,7 +72,7 @@ impl Progress {
         todo!()
     }
 
-    pub fn set_maximum(&mut self, _v: usize) {
+    pub fn set_maximum(&self, _v: usize) {
         todo!()
     }
 

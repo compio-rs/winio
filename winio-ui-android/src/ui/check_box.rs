@@ -20,33 +20,29 @@ impl CheckBox {
 
     pub fn text(&self) -> String;
 
-    pub fn set_text<S>(&mut self, _text: S)
+    pub fn set_text<S>(&self, _text: S)
     where
         S: AsRef<str>;
 
-    pub fn is_checked(&self) -> bool {
-        todo!()
-    }
+    pub fn is_checked(&self) -> bool;
 
-    pub fn set_checked(&self, _v: bool) {
-        todo!()
-    }
+    pub fn set_checked(&self, _v: bool);
 
     pub fn is_visible(&self) -> bool;
 
-    pub fn set_visible(&mut self, visible: bool);
+    pub fn set_visible(&self, visible: bool);
 
-    pub fn set_enabled(&mut self, _v: bool) {
+    pub fn set_enabled(&self, _v: bool) {
         todo!()
     }
 
     pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&self, p: Point);
 
     pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&self, v: Size);
 
     pub fn preferred_size(&self) -> Size;
 
