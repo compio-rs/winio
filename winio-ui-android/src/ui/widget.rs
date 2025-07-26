@@ -196,6 +196,23 @@ impl BaseWidget {
         })
         .unwrap();
     }
+
+    pub(crate) fn is_enabled(&self) -> bool {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "isEnabled", "()Z", &[])?.z()
+        })
+        .unwrap()
+    }
+
+    pub(crate) fn set_enabled(&self, enabled: bool) {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "setEnabled", "(Z)V", &[enabled.into()])?
+                .v()
+        })
+        .unwrap();
+    }
 }
 
 impl From<RawWidget> for BaseWidget {

@@ -40,13 +40,9 @@ impl Progress {
 
     pub fn set_visible(&self, visible: bool);
 
-    pub fn is_enabled(&self) -> bool {
-        todo!()
-    }
+    pub fn is_enabled(&self) -> bool;
 
-    pub fn set_enabled(&self, _v: bool) {
-        todo!()
-    }
+    pub fn set_enabled(&self, enabled: bool);
 
     pub fn loc(&self) -> Point;
 

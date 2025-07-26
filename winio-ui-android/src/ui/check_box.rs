@@ -10,6 +10,7 @@ pub struct CheckBox {
     inner: BaseWidget,
 }
 
+//noinspection SpellCheckingInspection
 #[inherit_methods(from = "self.inner")]
 impl CheckBox {
     const WIDGET_CLASS: &'static str = "rs/compio/winio/CheckBox";
@@ -32,10 +33,6 @@ impl CheckBox {
 
     pub fn set_visible(&self, visible: bool);
 
-    pub fn set_enabled(&self, _v: bool) {
-        todo!()
-    }
-
     pub fn loc(&self) -> Point;
 
     pub fn set_loc(&self, p: Point);
@@ -46,9 +43,9 @@ impl CheckBox {
 
     pub fn preferred_size(&self) -> Size;
 
-    pub fn is_enabled(&self) -> bool {
-        todo!()
-    }
+    pub fn is_enabled(&self) -> bool;
+
+    pub fn set_enabled(&self, enabled: bool);
 
     pub fn new<W>(parent: W) -> Self
     where
