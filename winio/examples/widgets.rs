@@ -11,7 +11,7 @@ fn main() {
 
 struct MainModel {
     window: Child<Window>,
-    ulabel: Child<Label>,
+    ulabel: Child<ToolTip<Label>>,
     plabel: Child<Label>,
     uentry: Child<Edit>,
     pentry: Child<Edit>,
@@ -57,8 +57,9 @@ impl Component for MainModel {
                 size: Size::new(800.0, 600.0),
             },
             canvas: Canvas = (&window),
-            ulabel: Label = (&window) => {
+            ulabel: ToolTip<Label> = (&window) => {
                 text: "Username:",
+                tooltip: "Your username",
                 halign: HAlign::Right,
             },
             plabel: Label = (&window) => {
