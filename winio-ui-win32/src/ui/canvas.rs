@@ -18,7 +18,7 @@ use windows::Win32::{
     },
 };
 use windows_sys::Win32::{
-    Foundation::{HWND, LPARAM, POINT},
+    Foundation::{HWND, LPARAM, POINT, SetLastError},
     Graphics::Gdi::MapWindowPoints,
     System::SystemServices::SS_OWNERDRAW,
     UI::{
@@ -203,7 +203,12 @@ impl Canvas {
         } else {
             unsafe { GetParent(handle) }
         };
-        syscall!(BOOL, MapWindowPoints(parent, handle, &mut p, 1)).unwrap();
+        unsafe { SetLastError(0) };
+        match syscall!(BOOL, MapWindowPoints(parent, handle, &mut p, 1)) {
+            Ok(_) => {}
+            Err(e) if e.raw_os_error() == Some(0) => {}
+            Err(e) => panic!("{e:?}"),
+        }
         let p = self.handle.point_d2l((p.x, p.y));
         let size = self.size();
         if p.x >= 0.0 && p.x <= size.width && p.y >= 0.0 && p.y <= size.height {
