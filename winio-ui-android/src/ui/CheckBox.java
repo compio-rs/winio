@@ -7,6 +7,7 @@ public class CheckBox extends android.widget.CheckBox {
         super(parent.getContext());
         parent.addView(this);
         this.w = new Widget(this);
+        this.setOnClickListener((v) -> on_clicked());
     }
 
     public void setChecked(boolean checked) {
@@ -44,4 +45,6 @@ public class CheckBox extends android.widget.CheckBox {
     public double[] getLoc() {
         return this.w.getLoc();
     }
+
+    private native void on_clicked();
 }

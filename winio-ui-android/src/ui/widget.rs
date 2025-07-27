@@ -213,6 +213,104 @@ impl BaseWidget {
         })
         .unwrap();
     }
+
+    pub(crate) fn range(&self) -> (usize, usize) {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "getRange", "()[I", &[])?
+                .l()?
+                .to(&mut env)
+        })
+        .unwrap()
+    }
+
+    pub(crate) fn set_range(&self, min: usize, max: usize) {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(
+                w.as_obj(),
+                "setRange",
+                "(II)V",
+                &[(min as i32).into(), (max as i32).into()],
+            )?
+            .v()
+        })
+        .unwrap();
+    }
+
+    pub(crate) fn pos(&self) -> usize {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "getPos", "()I", &[])?.i()
+        })
+        .unwrap() as _
+    }
+
+    pub(crate) fn set_pos(&self, pos: usize) {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "setPos", "(I)V", &[(pos as i32).into()])?
+                .v()
+        })
+        .unwrap();
+    }
+
+    pub(crate) fn is_indeterminate(&self) -> bool {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "isIndeterminate", "()Z", &[])?
+                .z()
+        })
+        .unwrap()
+    }
+
+    pub(crate) fn set_indeterminate(&self, indeterminate: bool) {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(
+                w.as_obj(),
+                "setIndeterminate",
+                "(Z)V",
+                &[indeterminate.into()],
+            )?
+            .v()
+        })
+        .unwrap();
+    }
+
+    pub(crate) fn minimum(&self) -> usize {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "getMinimum", "()I", &[])?.i()
+        })
+        .unwrap() as _
+    }
+
+    pub(crate) fn set_minimum(&self, minimum: usize) {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "setMinimum", "(I)V", &[(minimum as i32).into()])?
+                .v()
+        })
+        .unwrap();
+    }
+
+    pub(crate) fn maximum(&self) -> usize {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "getMaximum", "()I", &[])?.i()
+        })
+        .unwrap() as _
+    }
+
+    pub(crate) fn set_maximum(&self, maximum: usize) {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "setMaximum", "(I)V", &[(maximum as i32).into()])?
+                .v()
+        })
+        .unwrap();
+    }
 }
 
 impl From<RawWidget> for BaseWidget {

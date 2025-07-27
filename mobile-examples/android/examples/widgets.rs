@@ -1,10 +1,14 @@
+#![no_main]
+
 use winio::prelude::*;
 
-pub(crate) fn main() {
-    #[cfg(feature = "enable_log")]
-    tracing_subscriber::fmt()
-        .with_max_level(compio_log::Level::INFO)
-        .init();
+#[unsafe(no_mangle)]
+fn main() {
+    android_logger::init_once(
+        android_logger::Config::default()
+            .with_tag("winio")
+            .with_max_level(log::LevelFilter::Info),
+    );
 
     App::new("rs.compio.winio.widgets").run::<MainModel>(());
 }

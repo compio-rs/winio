@@ -266,7 +266,7 @@ fn render(
 /// ```
 #[macro_export]
 macro_rules! layout {
-    ($root:expr_2021, $($e:expr_2021 $(=>  { $($t:tt)* })?),+$(,)?) => {{
+    ($root:expr, $($e:expr $(=>  { $($t:tt)* })?),+$(,)?) => {{
         #[allow(unused_mut)]
         let mut root = $root;
         $(

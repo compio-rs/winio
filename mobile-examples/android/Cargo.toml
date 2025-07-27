@@ -28,6 +28,10 @@ categories = ["android.intent.category.LAUNCHER"]
 name = "hello"
 crate-type = ["cdylib"]
 
+[[example]]
+name = "widgets"
+crate-type = ["cdylib"]
+
 [lib]
 crate-type = ["cdylib"]
 

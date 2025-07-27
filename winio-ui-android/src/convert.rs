@@ -2,7 +2,7 @@ use {
     jni::{
         JNIEnv,
         errors::Result,
-        objects::{JDoubleArray, JObject, JString},
+        objects::{JDoubleArray, JIntArray, JObject, JString},
     },
     winio_primitive::{Point, Size},
 };
@@ -47,5 +47,15 @@ impl<'a> JObjectExt<Point> for JObject<'a> {
             y: buf[1],
             _unit: Default::default(),
         })
+    }
+}
+
+impl<'a> JObjectExt<(usize, usize)> for JObject<'a> {
+    fn to(self, env: &mut JNIEnv) -> Result<(usize, usize)> {
+        let a = JIntArray::from(self);
+        let mut buf = [0i32; 2];
+        env.get_int_array_region(a, 0, &mut buf)?;
+
+        Ok((buf[0] as _, buf[1] as _))
     }
 }

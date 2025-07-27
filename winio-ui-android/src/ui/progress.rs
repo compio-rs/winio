@@ -12,29 +12,17 @@ pub struct Progress {
 
 #[inherit_methods(from = "self.inner")]
 impl Progress {
-    pub fn range(&self) -> (usize, usize) {
-        todo!()
-    }
+    pub fn range(&self) -> (usize, usize);
 
-    pub fn set_range(&self, _min: usize, _max: usize) {
-        todo!()
-    }
+    pub fn set_range(&self, min: usize, max: usize);
 
-    pub fn pos(&self) -> usize {
-        todo!()
-    }
+    pub fn pos(&self) -> usize;
 
-    pub fn set_pos(&self, _pos: usize) {
-        todo!()
-    }
+    pub fn set_pos(&self, pos: usize);
 
-    pub fn is_indeterminate(&self) -> bool {
-        todo!()
-    }
+    pub fn is_indeterminate(&self) -> bool;
 
-    pub fn set_indeterminate(&self, _v: bool) {
-        todo!()
-    }
+    pub fn set_indeterminate(&self, indeterminate: bool);
 
     pub fn is_visible(&self) -> bool;
 
@@ -52,25 +40,15 @@ impl Progress {
 
     pub fn set_size(&self, v: Size);
 
-    pub fn preferred_size(&self) -> Size {
-        todo!()
-    }
+    pub fn preferred_size(&self) -> Size;
 
-    pub fn minimum(&self) -> usize {
-        todo!()
-    }
+    pub fn minimum(&self) -> usize;
 
-    pub fn set_minimum(&self, _v: usize) {
-        todo!()
-    }
+    pub fn set_minimum(&self, minimum: usize);
 
-    pub fn maximum(&self) -> usize {
-        todo!()
-    }
+    pub fn maximum(&self) -> usize;
 
-    pub fn set_maximum(&self, _v: usize) {
-        todo!()
-    }
+    pub fn set_maximum(&self, maximum: usize);
 
     pub fn new<W>(_parent: W) -> Self
     where

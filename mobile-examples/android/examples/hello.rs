@@ -9,7 +9,7 @@ fn main() {
             .with_tag("winio")
             .with_max_level(log::LevelFilter::Info),
     );
-    App::new("rs.compio.winio.widgets").run::<MainModel>(());
+    App::new("rs.compio.winio.hello").run::<MainModel>(());
 }
 
 pub struct MainModel {

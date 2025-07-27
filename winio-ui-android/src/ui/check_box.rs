@@ -1,9 +1,17 @@
 use {
-    super::BaseWidget,
+    super::{
+        super::{define_event, recv_event},
+        BaseWidget,
+    },
     inherit_methods_macro::inherit_methods,
     winio_handle::{AsWindow, impl_as_widget},
     winio_primitive::{Point, Size},
 };
+
+define_event!(
+    WAIT_FOR_CHECK_BOX_CLICKING,
+    Java_rs_compio_winio_CheckBox_on_1clicked
+);
 
 #[derive(Debug)]
 pub struct CheckBox {
@@ -16,7 +24,7 @@ impl CheckBox {
     const WIDGET_CLASS: &'static str = "rs/compio/winio/CheckBox";
 
     pub async fn wait_click(&self) {
-        todo!()
+        recv_event!(self, WAIT_FOR_CHECK_BOX_CLICKING)
     }
 
     pub fn text(&self) -> String;
