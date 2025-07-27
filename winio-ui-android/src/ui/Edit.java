@@ -11,6 +11,18 @@ public class Edit extends EditText {
         parent.addView(this);
         this.w = new Widget(this);
         setHAlign(Widget.HALIGN_LEFT);
+        addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                on_changed();
+            }
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {}
+        });
     }
 
     public void setPassword(boolean password) {
@@ -69,4 +81,6 @@ public class Edit extends EditText {
     public CharSequence getTextString() {
         return super.getText().toString();
     }
+
+    private native void on_changed();
 }

@@ -1,9 +1,17 @@
 use {
-    super::{super::JObjectExt, BaseWidget, vm_exec_on_ui_thread},
+    super::{
+        super::{JObjectExt, define_event, recv_event},
+        BaseWidget, vm_exec_on_ui_thread,
+    },
     inherit_methods_macro::inherit_methods,
     winio_handle::{AsWindow, impl_as_widget},
     winio_primitive::{HAlign, Point, Size},
 };
+
+define_event!(
+    WAIT_FOR_EDIT_CHANGING,
+    Java_rs_compio_winio_Edit_on_1changed
+);
 
 #[derive(Debug)]
 pub struct Edit {
@@ -16,7 +24,7 @@ impl Edit {
     const WIDGET_CLASS: &'static str = "rs/compio/winio/Edit";
 
     pub async fn wait_change(&self) {
-        todo!()
+        recv_event!(self, WAIT_FOR_EDIT_CHANGING)
     }
 
     pub fn text(&self) -> String {

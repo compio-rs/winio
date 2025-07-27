@@ -10,8 +10,11 @@ pub struct Progress {
     inner: BaseWidget,
 }
 
+//noinspection SpellCheckingInspection
 #[inherit_methods(from = "self.inner")]
 impl Progress {
+    const WIDGET_CLASS: &'static str = "rs/compio/winio/Progress";
+
     pub fn range(&self) -> (usize, usize);
 
     pub fn set_range(&self, min: usize, max: usize);
@@ -50,11 +53,17 @@ impl Progress {
 
     pub fn set_maximum(&self, maximum: usize);
 
-    pub fn new<W>(_parent: W) -> Self
+    pub fn new<W>(parent: W) -> Self
     where
         W: AsWindow,
     {
-        todo!()
+        BaseWidget::create(parent.as_window(), Self::WIDGET_CLASS)
+    }
+}
+
+impl From<BaseWidget> for Progress {
+    fn from(value: BaseWidget) -> Self {
+        Self { inner: value }
     }
 }
 

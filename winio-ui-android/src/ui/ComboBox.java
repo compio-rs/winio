@@ -49,7 +49,7 @@ public class ComboBox extends LinearLayout {
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                on_change();
+                on_changed();
             }
 
             @Override
@@ -59,7 +59,7 @@ public class ComboBox extends LinearLayout {
         autoCompleteTextView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                on_select();
+                on_selected();
             }
         });
     }
@@ -205,6 +205,6 @@ public class ComboBox extends LinearLayout {
         }
     }
 
-    private native void on_change();
-    private native void on_select();
+    private native void on_changed();
+    private native void on_selected();
 }

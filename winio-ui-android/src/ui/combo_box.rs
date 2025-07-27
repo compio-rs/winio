@@ -10,11 +10,11 @@ use {
 
 define_event!(
     WAIT_FOR_COMBO_BOX_CHANGING,
-    Java_rs_compio_winio_ComboBox_on_1change
+    Java_rs_compio_winio_ComboBox_on_1changed
 );
 define_event!(
     WAIT_FOR_COMBO_BOX_SELECTING,
-    Java_rs_compio_winio_ComboBox_on_1select
+    Java_rs_compio_winio_ComboBox_on_1selected
 );
 
 #[derive(Debug)]
