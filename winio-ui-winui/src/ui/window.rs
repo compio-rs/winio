@@ -118,11 +118,11 @@ impl Window {
     }
 
     fn dpi(&self) -> u32 {
-        if let Ok(id) = self.app_window.Id() {
+        match self.app_window.Id() { Ok(id) => {
             unsafe { GetDpiForWindow(id.Value as _) }
-        } else {
+        } _ => {
             96
-        }
+        }}
     }
 
     fn scale(&self) -> f64 {

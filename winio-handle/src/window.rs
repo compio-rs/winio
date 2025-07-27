@@ -18,6 +18,9 @@ cfg_if::cfg_if! {
         ///
         /// [`NSWindow`]: objc2_app_kit::NSWindow
         pub type RawWindow = objc2::rc::Retained<objc2_app_kit::NSWindow>;
+    } else if #[cfg(target_os = "android")] {
+        /// Android Window
+        pub type RawWindow = jni::objects::GlobalRef;
     } else {
         /// Raw window handle.
         #[derive(Clone)]
@@ -58,7 +61,7 @@ impl RawWindow {
 }
 
 #[allow(unreachable_patterns)]
-#[cfg(not(any(windows, target_os = "macos")))]
+#[cfg(not(any(windows, target_os = "macos", target_os = "android")))]
 impl RawWindow {
     /// Get Qt `QWidget`.
     #[cfg(feature = "qt")]

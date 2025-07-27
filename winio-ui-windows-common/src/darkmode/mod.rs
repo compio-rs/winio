@@ -74,7 +74,7 @@ static EDIT_NORMAL_BACK: LazyLock<WinBrush> =
 /// # Safety
 /// It should only be called inside an wndproc, and `hwnd` & `hdc` should be
 /// valid.
-pub unsafe fn control_color_static(hwnd: HWND, hdc: HDC) -> LRESULT {
+pub unsafe fn control_color_static(hwnd: HWND, hdc: HDC) -> LRESULT { unsafe {
     let dark = is_dark_mode_allowed_for_app();
 
     let mut class = [0u16; MAX_CLASS_NAME as usize];
@@ -98,12 +98,12 @@ pub unsafe fn control_color_static(hwnd: HWND, hdc: HDC) -> LRESULT {
         GetStockObject(WHITE_BRUSH)
     };
     res as _
-}
+}}
 
 /// # Safety
 /// It should only be called inside an wndproc, and `hparent` & `hwnd` & `hdc`
 /// should be valid.
-pub unsafe fn control_color_edit(hparent: HWND, hwnd: HWND, hdc: HDC) -> Option<LRESULT> {
+pub unsafe fn control_color_edit(hparent: HWND, hwnd: HWND, hdc: HDC) -> Option<LRESULT> { unsafe {
     if is_dark_mode_allowed_for_app() {
         let mut class = [0u16; MAX_CLASS_NAME as usize];
         GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
@@ -128,4 +128,4 @@ pub unsafe fn control_color_edit(hparent: HWND, hwnd: HWND, hdc: HDC) -> Option<
     } else {
         None
     }
-}
+}}

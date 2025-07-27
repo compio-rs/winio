@@ -1,6 +1,6 @@
 use winio::prelude::*;
 
-fn main() {
+pub(crate) fn main() {
     #[cfg(feature = "enable_log")]
     tracing_subscriber::fmt()
         .with_max_level(compio_log::Level::INFO)
@@ -9,7 +9,7 @@ fn main() {
     App::new("rs.compio.winio.widgets").run::<MainModel>(());
 }
 
-struct MainModel {
+pub(crate) struct MainModel {
     window: Child<Window>,
     ulabel: Child<Label>,
     plabel: Child<Label>,
@@ -32,7 +32,7 @@ struct MainModel {
 }
 
 #[derive(Debug)]
-enum MainMessage {
+pub(crate) enum MainMessage {
     Noop,
     Close,
     Redraw,

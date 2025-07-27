@@ -1,0 +1,33 @@
+[package]
+name = "winio-ui-android"
+version = "0.1.0"
+description = "Android backend for winio."
+edition = { workspace = true }
+authors = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+
+[target.'cfg(target_os = "android")'.dependencies]
+log.workspace = true
+jni.workspace = true
+image = { workspace = true, default-features = false }
+futures-util = "0.3.31"
+libc = "1.0.0-alpha.1"
+
+winio-primitive = { workspace = true }
+winio-callback = { workspace = true }
+winio-handle = { workspace = true }
+winio-pollable = { workspace = true }
+
+compio = { workspace = true }
+oneshot = {workspace = true,features = ["default"]}
+
+inherit-methods-macro = { workspace = true }
+
+scoped-tls = { workspace = true }
+
+[build-dependencies]
+encoding_rs = "0.8.35"

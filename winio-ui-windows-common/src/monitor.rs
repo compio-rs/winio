@@ -1,4 +1,7 @@
-use std::ptr::{addr_of_mut, null_mut};
+use std::{
+    mem::zeroed,
+    ptr::{addr_of_mut, null_mut},
+};
 
 use compio::driver::syscall;
 use windows_sys::{
@@ -30,23 +33,25 @@ pub fn monitor_get_all() -> Vec<Monitor> {
 }
 
 unsafe extern "system" fn enum_monitor(m: HMONITOR, _: HDC, _: *mut RECT, res: LPARAM) -> BOOL {
-    let res = &mut *(res as *mut Vec<Monitor>);
-    let mut info: MONITORINFO = unsafe { std::mem::zeroed() };
-    info.cbSize = size_of::<MONITORINFO>() as _;
-    if GetMonitorInfoW(m, &mut info) == 0 {
-        return 0;
+    unsafe {
+        let res = &mut *(res as *mut Vec<Monitor>);
+        let mut info: MONITORINFO = zeroed();
+        info.cbSize = size_of::<MONITORINFO>() as _;
+        if GetMonitorInfoW(m, &mut info) == 0 {
+            return 0;
+        }
+        let mut dpi_x = 0;
+        let mut dpi_y = 0;
+        if GetDpiForMonitor(m, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y) != S_OK {
+            return 0;
+        }
+        res.push(Monitor::new(
+            rect_from(info.rcMonitor),
+            rect_from(info.rcWork),
+            Size::new(dpi_x as f64, dpi_y as f64) / USER_DEFAULT_SCREEN_DPI as f64,
+        ));
+        1
     }
-    let mut dpix = 0;
-    let mut dpiy = 0;
-    if GetDpiForMonitor(m, MDT_EFFECTIVE_DPI, &mut dpix, &mut dpiy) != S_OK {
-        return 0;
-    }
-    res.push(Monitor::new(
-        rect_from(info.rcMonitor),
-        rect_from(info.rcWork),
-        Size::new(dpix as f64, dpiy as f64) / USER_DEFAULT_SCREEN_DPI as f64,
-    ));
-    1
 }
 
 #[inline]

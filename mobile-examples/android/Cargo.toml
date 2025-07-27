@@ -1,0 +1,44 @@
+[package]
+name = "winio-android-example"
+version = "0.1.0"
+edition.workspace = true
+
+[package.metadata.android]
+package = "rs.compio.winio"
+use_aapt2 = true
+
+[package.metadata.android.sdk]
+min_sdk_version = 24
+target_sdk_version = 36
+max_sdk_version = 36
+
+[[package.metadata.android.application.activity]]
+name = "rs.compio.winio.Activity"
+
+[[package.metadata.android.application.activity.meta_data]]
+name="android.app.lib_name"
+# 省略value可以自动推断库名
+# value = "lib_name"
+
+[[package.metadata.android.application.activity.intent_filter]]
+actions = ["android.intent.action.VIEW", "android.intent.action.MAIN"]
+categories = ["android.intent.category.LAUNCHER"]
+
+[[example]]
+name = "hello"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "widgets"
+crate-type = ["cdylib"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+
+[target.'cfg(target_os = "android")'.dependencies]
+futures-util.workspace = true
+android_logger = "0.15.1"
+log.workspace = true
+winio.path = "../../winio"
