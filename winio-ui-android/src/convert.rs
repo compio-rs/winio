@@ -59,3 +59,15 @@ impl<'a> JObjectExt<(usize, usize)> for JObject<'a> {
         Ok((buf[0] as _, buf[1] as _))
     }
 }
+
+impl<'a> JObjectExt<Option<usize>> for JObject<'a> {
+    fn to(self, env: &mut JNIEnv) -> Result<Option<usize>> {
+        if self.is_null() {
+            return Ok(None);
+        }
+
+        Ok(Some(
+            env.call_method(self, "intValue", "()I", &[])?.i()? as _
+        ))
+    }
+}

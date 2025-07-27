@@ -156,14 +156,7 @@ impl DrawingPathBuilder {
         todo!()
     }
 
-    pub fn add_arc(
-        &self,
-        _center: Point,
-        _radius: Size,
-        _start: f64,
-        _end: f64,
-        _clockwise: bool,
-    ) {
+    pub fn add_arc(&self, _center: Point, _radius: Size, _start: f64, _end: f64, _clockwise: bool) {
         todo!()
     }
 
@@ -183,6 +176,8 @@ pub struct Canvas {
 
 #[inherit_methods(from = "self.inner")]
 impl Canvas {
+    const WIDGET_CLASS: &'static str = "rs/compio/winio/Canvas";
+
     pub async fn wait_mouse_move(&self) -> Point {
         todo!()
     }
@@ -200,7 +195,9 @@ impl Canvas {
     }
 
     pub fn context(&self) -> DrawingContext<'_> {
-        todo!()
+        DrawingContext {
+            _a: Default::default(),
+        }
     }
 
     pub fn is_visible(&self) -> bool;
@@ -219,11 +216,17 @@ impl Canvas {
 
     pub fn set_size(&self, v: Size);
 
-    pub fn new<W>(_parent: W) -> Self
+    pub fn new<W>(parent: W) -> Self
     where
         W: AsWindow,
     {
-        todo!()
+        BaseWidget::create(parent.as_window(), Self::WIDGET_CLASS)
+    }
+}
+
+impl From<BaseWidget> for Canvas {
+    fn from(value: BaseWidget) -> Self {
+        Self { inner: value }
     }
 }
 

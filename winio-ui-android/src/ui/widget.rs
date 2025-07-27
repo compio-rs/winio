@@ -1,5 +1,6 @@
 use {
     super::{super::JObjectExt, vm_exec, vm_exec_on_ui_thread},
+    jni::objects::JObject,
     std::ops::Deref,
     winio_handle::{AsRawWindow, BorrowedWindow, RawWidget},
     winio_primitive::{HAlign, Point, Size},
@@ -310,6 +311,144 @@ impl BaseWidget {
                 .v()
         })
         .unwrap();
+    }
+
+    pub(crate) fn clear(&self) {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "clear", "()V", &[])?.v()
+        })
+        .unwrap()
+    }
+
+    pub(crate) fn get(&self, i: usize) -> String {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(
+                w.as_obj(),
+                "get",
+                "(I)Ljava/lang/CharSequence;",
+                &[(i as i32).into()],
+            )?
+            .l()?
+            .to(&mut env)
+        })
+        .unwrap()
+    }
+
+    pub(crate) fn set<S>(&self, i: usize, item: S)
+    where
+        S: AsRef<str>,
+    {
+        let item = item.as_ref().to_owned();
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            let text = env.new_string(&item)?;
+            env.call_method(
+                w.as_obj(),
+                "set",
+                "(ILjava/lang/CharSequence;)V",
+                &[(i as i32).into(), (&text).into()],
+            )?
+            .v()
+        })
+        .unwrap();
+    }
+
+    pub(crate) fn insert<S>(&self, i: usize, item: S)
+    where
+        S: AsRef<str>,
+    {
+        let item = item.as_ref().to_owned();
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            let text = env.new_string(&item)?;
+            env.call_method(
+                w.as_obj(),
+                "insert",
+                "(ILjava/lang/CharSequence;)V",
+                &[(i as i32).into(), (&text).into()],
+            )?
+            .v()
+        })
+        .unwrap();
+    }
+
+    pub(crate) fn remove(&self, i: usize) {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "remove", "(I)V", &[(i as i32).into()])?
+                .v()
+        })
+        .unwrap();
+    }
+
+    pub(crate) fn selection(&self) -> Option<usize> {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "getSelection", "()Ljava/lang/Integer;", &[])?
+                .l()?
+                .to(&mut env)
+        })
+        .unwrap()
+    }
+
+    pub(crate) fn set_selection(&self, i: Option<usize>) {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            let i = if let Some(i) = i {
+                env.call_static_method(
+                    "java/lang/Integer",
+                    "valueOf",
+                    "(I)Ljava/lang/Integer;",
+                    &[(i as i32).into()],
+                )?
+                .l()?
+            } else {
+                JObject::null()
+            };
+            env.call_method(
+                w.as_obj(),
+                "setSelection",
+                "(Ljava/lang/Integer;)V",
+                &[(&i).into()],
+            )?
+            .v()
+        })
+        .unwrap();
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "getLength", "()I", &[])?.i()
+        })
+        .unwrap() as _
+    }
+
+    pub(crate) fn is_editable(&self) -> bool {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "isEditable", "()Z", &[])?.z()
+        })
+        .unwrap()
+    }
+
+    pub(crate) fn set_editable(&self, editable: bool) {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "setEditable", "(Z)V", &[editable.into()])?
+                .v()
+        })
+        .unwrap();
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        let w = self.inner.clone();
+        vm_exec_on_ui_thread(move |mut env, _| {
+            env.call_method(w.as_obj(), "isEmpty", "()Z", &[])?.z()
+        })
+        .unwrap()
     }
 }
 
