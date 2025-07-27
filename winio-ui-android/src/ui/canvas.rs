@@ -1,7 +1,8 @@
 use {
-    super::BaseWidget,
+    super::{BaseWidget, vm_exec_on_ui_thread},
     image::DynamicImage,
     inherit_methods_macro::inherit_methods,
+    jni::{objects::GlobalRef,JNIEnv,errors::Result as JniResult},
     std::marker::PhantomData,
     winio_handle::{AsWindow, impl_as_widget},
     winio_primitive::{
@@ -11,15 +12,33 @@ use {
 };
 
 /// Drawing brush.
-pub trait Brush {}
+pub trait Brush {
+    fn get_raw(&self, env: &mut JNIEnv) -> JniResult<GlobalRef>;
+}
 
-impl<B: Brush> Brush for &'_ B {}
+impl<B: Brush> Brush for &'_ B {
+    fn get_raw(&self, env: &mut JNIEnv) -> JniResult<GlobalRef> {
+        B::get_raw(self, env)
+    }
+}
 
-impl Brush for LinearGradientBrush {}
+impl Brush for LinearGradientBrush {
+    fn get_raw(&self, _env: &mut JNIEnv) -> JniResult<GlobalRef> {
+        todo!()
+    }
+}
 
-impl Brush for RadialGradientBrush {}
+impl Brush for RadialGradientBrush {
+    fn get_raw(&self, _env: &mut JNIEnv) -> JniResult<GlobalRef> {
+        todo!()
+    }
+}
 
-impl Brush for SolidColorBrush {}
+impl Brush for SolidColorBrush {
+    fn get_raw(&self, _env: &mut JNIEnv) -> JniResult<GlobalRef> {
+        todo!()
+    }
+}
 
 /// Drawing pen.
 pub trait Pen {}
@@ -38,6 +57,7 @@ impl DrawingImage {
 }
 
 pub struct DrawingContext<'a> {
+    inner: GlobalRef,
     _a: PhantomData<&'a ()>,
 }
 
@@ -174,6 +194,7 @@ pub struct Canvas {
     inner: BaseWidget,
 }
 
+//noinspection SpellCheckingInspection
 #[inherit_methods(from = "self.inner")]
 impl Canvas {
     const WIDGET_CLASS: &'static str = "rs/compio/winio/Canvas";
@@ -195,7 +216,22 @@ impl Canvas {
     }
 
     pub fn context(&self) -> DrawingContext<'_> {
+        let w = self.inner.clone();
+        let inner = vm_exec_on_ui_thread(move |mut env, _| {
+            let ctx = env
+                .call_method(
+                    w.as_obj(),
+                    "context",
+                    format!("()L{}$DrawingContext;", Self::WIDGET_CLASS),
+                    &[],
+                )?
+                .l()?;
+            env.new_global_ref(ctx)
+        })
+        .unwrap();
+
         DrawingContext {
+            inner,
             _a: Default::default(),
         }
     }

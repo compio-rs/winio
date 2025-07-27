@@ -50,15 +50,14 @@ pub(crate) enum MainMessage {
 }
 
 impl Component for MainModel {
-    type Event = ();
     type Init<'a> = ();
     type Message = MainMessage;
+    type Event = ();
 
     fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
         init! {
             window: Window = (()) => {
                 text: "Widgets example",
-                size: Size::new(800.0, 600.0),
             },
             canvas: Canvas = (&window),
             ulabel: Label = (&window) => {

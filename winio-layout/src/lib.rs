@@ -105,7 +105,7 @@ pub use stack_panel::*;
 #[cfg(test)]
 mod test;
 
-fn rect_t2e(rect: &taffy::Layout, margin: Margin) -> Rect {
+fn rect_t2e(rect: &Layout, margin: Margin) -> Rect {
     Rect::new(
         Point::new(
             rect.location.x as f64 + margin.left,
@@ -124,7 +124,7 @@ fn offset(mut a: Rect, offset: Point) -> Rect {
 }
 
 macro_rules! __layout_child {
-    ($(#[$sm:meta])* struct $name:ident { $($(#[$m:meta])* $f:ident: $t:ty = $e:expr_2021),*$(,)? }) => {
+    ($(#[$sm:meta])* struct $name:ident { $($(#[$m:meta])* $f:ident: $t:ty = $e:expr),*$(,)? }) => {
         struct $name<'a> {
             widget: &'a mut dyn $crate::Layoutable,
             width: Option<f64>,
@@ -279,10 +279,10 @@ macro_rules! layout {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! __layout_push {
-    ($root:expr_2021, $e:expr_2021,) => {
+    ($root:expr, $e:expr,) => {
         $root.push($e).finish();
     };
-    ($root:expr_2021, $e:expr_2021, $($(#[$me:meta])* $p:ident : $v:expr_2021),+$(,)?) => {
+    ($root:expr, $e:expr, $($(#[$me:meta])* $p:ident : $v:expr),+$(,)?) => {
         let builder = $root.push($e);
         $(
             $(#[$me])*

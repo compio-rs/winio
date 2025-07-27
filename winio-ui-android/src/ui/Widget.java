@@ -2,6 +2,7 @@ package rs.compio.winio;
 
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
@@ -60,6 +61,13 @@ public class Widget {
     public double[] getSize() {
         double w = this.view.getWidth();
         double h = this.view.getHeight();
+        ViewGroup.LayoutParams params = this.view.getLayoutParams();
+        if (params != null) {
+            if (params.width == ViewGroup.LayoutParams.MATCH_PARENT)
+                w = this.view.getParent() != null ? ((View)this.view.getParent()).getWidth() : w;
+            if (params.height == ViewGroup.LayoutParams.MATCH_PARENT)
+                h = this.view.getParent() != null ? ((View)this.view.getParent()).getHeight() : h;
+        }
         return new double[]{w, h};
     }
 
