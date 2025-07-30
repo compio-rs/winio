@@ -7,13 +7,13 @@ use widestring::U16CString;
 use windows_sys::Win32::UI::{
     Controls::{
         TOOLTIPS_CLASSW, TTF_IDISHWND, TTF_SUBCLASS, TTM_ADDTOOLW, TTM_DELTOOLW,
-        TTM_UPDATETIPTEXTW, TTS_ALWAYSTIP, TTS_NOPREFIX, TTTOOLINFOW,
+        TTM_SETMAXTIPWIDTH, TTM_UPDATETIPTEXTW, TTS_ALWAYSTIP, TTS_NOPREFIX, TTTOOLINFOW,
     },
-    WindowsAndMessaging::{DestroyWindow, GetParent, WS_POPUP},
+    WindowsAndMessaging::{DestroyWindow, GetParent, GetSystemMetrics, SM_CXMAXTRACK, WS_POPUP},
 };
 use winio_handle::{AsRawWidget, AsWidget};
 
-use crate::Widget;
+use crate::{Widget, ui::fix_crlf};
 
 pub struct ToolTip<T: AsWidget> {
     inner: T,
@@ -31,6 +31,12 @@ impl<T: AsWidget> ToolTip<T> {
             0,
             parent,
         );
+
+        // Enable support for multiline tooltips
+        // -1 doesn't work, we use SM_CXMAXTRACK like WinForms does
+        let max_width = unsafe { GetSystemMetrics(SM_CXMAXTRACK) };
+        handle.send_message(TTM_SETMAXTIPWIDTH, 0, max_width as isize);
+
         let mut info: TTTOOLINFOW = unsafe { std::mem::zeroed() };
         info.cbSize = std::mem::size_of::<TTTOOLINFOW>() as _;
         info.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
@@ -44,7 +50,7 @@ impl<T: AsWidget> ToolTip<T> {
     }
 
     pub fn tooltip(&self) -> String {
-        self.text.to_string_lossy()
+        self.text.to_string_lossy().replace("\r\n", "\n")
     }
 
     fn update_info(&mut self, msg: u32) {
@@ -57,7 +63,7 @@ impl<T: AsWidget> ToolTip<T> {
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) {
         let add_new = self.text.is_empty();
-        self.text = U16CString::from_str_truncate(s);
+        self.text = U16CString::from_str_truncate(fix_crlf(s.as_ref()));
         if self.text.is_empty() {
             self.delete();
         } else {
