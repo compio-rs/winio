@@ -1,8 +1,4 @@
-use std::future::Future;
-
-use winio_elm::Component;
-
-use crate::sys::Runtime;
+use {crate::sys::Runtime, std::future::Future, winio_elm::Component};
 
 /// Root application, manages the async runtime.
 pub struct App {
@@ -16,7 +12,7 @@ impl App {
         #[allow(unused_mut)]
         let mut runtime = Runtime::new();
         let name = name.as_ref().to_string();
-        #[cfg(not(any(windows, target_vendor = "apple")))]
+        #[cfg(not(any(windows, target_vendor = "apple", target_os = "android")))]
         runtime.set_app_id(&name);
         Self {
             runtime,

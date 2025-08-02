@@ -105,7 +105,7 @@ pub use stack_panel::*;
 #[cfg(test)]
 mod test;
 
-fn rect_t2e(rect: &taffy::Layout, margin: Margin) -> Rect {
+fn rect_t2e(rect: &Layout, margin: Margin) -> Rect {
     Rect::new(
         Point::new(
             rect.location.x as f64 + margin.left,

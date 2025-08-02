@@ -9,13 +9,13 @@ use windows_sys::Win32::{
 use winio_primitive::{Point, Rect, Size};
 
 #[inline]
-pub unsafe fn get_dpi_for_window(h_wnd: HWND) -> u32 {
+pub unsafe fn get_dpi_for_window(h_wnd: HWND) -> u32 { unsafe {
     if !h_wnd.is_null() {
         GetDpiForWindow(h_wnd)
     } else {
         GetDpiForSystem()
     }
-}
+}}
 
 pub trait DpiAware {
     fn to_logical(self, dpi: u32) -> Self;

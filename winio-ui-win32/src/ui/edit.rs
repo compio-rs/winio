@@ -266,7 +266,7 @@ unsafe extern "system" fn multiline_edit_wnd_proc(
 ) -> LRESULT {
     let old_proc = OLD_WND_PROC.get().unwrap();
 
-    let mut res = old_proc(hwnd, umsg, wparam, lparam);
+    let mut res = unsafe { old_proc(hwnd, umsg, wparam, lparam) };
     match umsg {
         WM_GETDLGCODE => {
             res &= !(DLGC_WANTALLKEYS as isize);
@@ -274,7 +274,7 @@ unsafe extern "system" fn multiline_edit_wnd_proc(
         WM_KEYUP => {
             if wparam == VK_RETURN as _ {
                 const RETURN_TEXT: *const u16 = w!("\r\n\0");
-                old_proc(hwnd, EM_REPLACESEL, 1, RETURN_TEXT as _);
+                unsafe { old_proc(hwnd, EM_REPLACESEL, 1, RETURN_TEXT as _) };
             }
         }
         _ => {}

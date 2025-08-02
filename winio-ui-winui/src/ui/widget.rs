@@ -40,11 +40,11 @@ impl Widget {
     }
 
     pub fn is_enabled(&self) -> bool {
-        if let Ok(handle) = self.handle.cast::<MUXC::Control>() {
+        match self.handle.cast::<MUXC::Control>() { Ok(handle) => {
             handle.IsEnabled().unwrap()
-        } else {
+        } _ => {
             true
-        }
+        }}
     }
 
     pub fn set_enabled(&self, enabled: bool) {
