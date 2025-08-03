@@ -25,7 +25,7 @@ use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
     runtime::WindowMessageCommand,
-    ui::{Widget, fix_crlf, font::measure_string},
+    ui::{Widget, fix_crlf},
 };
 
 #[derive(Debug)]
@@ -55,10 +55,7 @@ impl EditImpl {
     pub fn set_enabled(&mut self, v: bool);
 
     pub fn preferred_size(&self) -> Size {
-        let s = measure_string(
-            self.handle.as_raw_window().as_win32(),
-            &self.handle.text_u16(),
-        );
+        let s = self.handle.measure_text();
         Size::new(s.width + 8.0, s.height + 4.0)
     }
 
@@ -226,6 +223,17 @@ impl TextBox {
     pub fn set_enabled(&mut self, v: bool);
 
     pub fn preferred_size(&self) -> Size;
+
+    pub fn min_size(&self) -> Size {
+        let text = self.handle.handle.text_u16();
+        let index = text.as_slice().iter().position(|c| *c == '\r' as u16);
+        if let Some(index) = index {
+            let s = self.handle.handle.measure(text.split_at(index).0);
+            Size::new(8.0, s.height + 4.0)
+        } else {
+            self.preferred_size()
+        }
+    }
 
     pub fn loc(&self) -> Point;
 

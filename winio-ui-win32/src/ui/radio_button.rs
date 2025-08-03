@@ -9,10 +9,7 @@ use windows_sys::Win32::UI::{
 use winio_handle::{AsRawWindow, AsWindow};
 use winio_primitive::{Point, Size};
 
-use crate::{
-    runtime::WindowMessageCommand,
-    ui::{Widget, font::measure_string},
-};
+use crate::{runtime::WindowMessageCommand, ui::Widget};
 
 #[derive(Debug)]
 pub struct RadioButton {
@@ -41,10 +38,7 @@ impl RadioButton {
     pub fn set_enabled(&mut self, v: bool);
 
     pub fn preferred_size(&self) -> Size {
-        let s = measure_string(
-            self.handle.as_raw_window().as_win32(),
-            &self.handle.text_u16(),
-        );
+        let s = self.handle.measure_text();
         Size::new(s.width + 18.0, s.height + 2.0)
     }
 

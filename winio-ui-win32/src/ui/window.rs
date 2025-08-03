@@ -6,7 +6,7 @@ use std::{
 
 use compio::driver::syscall;
 use inherit_methods_macro::inherit_methods;
-use widestring::{U16CStr, U16CString, u16cstr};
+use widestring::{U16CStr, U16CString, U16Str, u16cstr};
 use windows_sys::Win32::{
     Foundation::{ERROR_INVALID_HANDLE, HWND, LPARAM, LRESULT, POINT, SetLastError, WPARAM},
     Graphics::Gdi::{GetStockObject, MapWindowPoints, WHITE_BRUSH},
@@ -31,6 +31,7 @@ use winio_ui_windows_common::{
 };
 
 use crate::{
+    font::measure_string,
     runtime::{WindowMessage, wait, window_proc},
     ui::{
         dpi::{DpiAware, get_dpi_for_window},
@@ -102,6 +103,14 @@ impl Widget {
 
     pub async fn wait_parent(&self, msg: u32) -> WindowMessage {
         unsafe { wait(GetParent(self.as_raw_window().as_win32()), msg) }.await
+    }
+
+    pub fn measure(&self, s: &U16Str) -> Size {
+        measure_string(self.as_raw_window().as_win32(), s)
+    }
+
+    pub fn measure_text(&self) -> Size {
+        self.measure(self.text_u16().as_ustr())
     }
 
     pub fn dpi(&self) -> u32 {

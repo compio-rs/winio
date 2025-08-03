@@ -14,7 +14,7 @@ use winio_primitive::{Point, Size};
 
 use crate::{
     runtime::WindowMessageCommand,
-    ui::{Widget, font::measure_string, get_u16c, with_u16c},
+    ui::{Widget, get_u16c, with_u16c},
 };
 
 #[derive(Debug)]
@@ -57,7 +57,7 @@ impl ListBox {
         let mut height = 0.0f64;
         for i in 0..self.len() {
             let data = self.get_u16(i);
-            let s = measure_string(self.handle.as_raw_window().as_win32(), &data);
+            let s = self.handle.measure(data.as_ustr());
             width = width.max(s.width);
             height += s.height;
         }
@@ -69,7 +69,7 @@ impl ListBox {
         let mut height = 0.0f64;
         for i in 0..self.len() {
             let data = self.get_u16(i);
-            let s = measure_string(self.handle.as_raw_window().as_win32(), &data);
+            let s = self.handle.measure(data.as_ustr());
             width = width.max(s.width);
             height = height.max(s.height);
         }
