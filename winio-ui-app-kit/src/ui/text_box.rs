@@ -61,6 +61,27 @@ impl TextBox {
 
     pub fn set_enabled(&mut self, v: bool);
 
+    pub fn min_size(&self) -> Size {
+        unsafe {
+            let text = self.text();
+            let font = self.text_view.font();
+            let text = NSAttributedString::initWithString_attributes(
+                NSAttributedString::alloc(),
+                &NSString::from_str(text.split('\n').next().unwrap_or(&text)),
+                if let Some(font) = font {
+                    Some(NSDictionary::from_slices(
+                        &[NSFontAttributeName],
+                        &[font.as_ref()],
+                    ))
+                } else {
+                    None
+                }
+                .as_deref(),
+            );
+            from_cgsize(text.size())
+        }
+    }
+
     pub fn preferred_size(&self) -> Size {
         unsafe {
             let font = self.text_view.font();
