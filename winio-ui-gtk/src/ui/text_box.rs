@@ -54,6 +54,11 @@ impl TextBox {
 
     pub fn preferred_size(&self) -> Size;
 
+    pub fn min_size(&self) -> Size {
+        let size = self.preferred_size();
+        Size::new(size.width, 0.0)
+    }
+
     pub fn loc(&self) -> Point;
 
     pub fn set_loc(&mut self, p: Point);

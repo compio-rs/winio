@@ -146,6 +146,8 @@ impl TextBox {
 
     pub fn preferred_size(&self) -> Size;
 
+    pub fn min_size(&self) -> Size;
+
     pub fn loc(&self) -> Point;
 
     pub fn set_loc(&mut self, p: Point);
