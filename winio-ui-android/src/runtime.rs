@@ -27,16 +27,9 @@ impl Runtime {
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
         self.enter(|| {
-            let mut result = None;
-            unsafe {
-                self.runtime.spawn_unchecked(async {
-                    result = Some(future.await);
-                    // exit the application here, if possible
-                })
-            }
-            .detach();
-            // start the application here and wait till it exits
-            result.unwrap()
+            self.inner.block_on(future, |timeout| {
+                sleep(timeout.unwrap_or_else(|| Duration::from_millis(10)));
+            })
         })
     }
 }
