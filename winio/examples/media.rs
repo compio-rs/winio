@@ -29,6 +29,7 @@ enum MainMessage {
     Redraw,
     Tick,
     Volume,
+    Time,
     ChooseFile,
     OpenFile(PathBuf),
 }
@@ -95,6 +96,9 @@ impl Component for MainModel {
             self.volume_slider => {
                 SliderEvent::Change => MainMessage::Volume,
             },
+            self.time_slider => {
+                SliderEvent::Change => MainMessage::Time,
+            },
             self.browse_button => {
                 ButtonEvent::Click => MainMessage::ChooseFile,
             }
@@ -114,11 +118,10 @@ impl Component for MainModel {
                 let ct = self.media.current_time();
                 let ft = self.media.full_time();
                 if let Some(ft) = ft {
-                    self.time_slider
-                        .set_maximum((ft.as_secs_f64() * 100.0) as _);
+                    let ft = ft.as_secs_f64();
+                    self.time_slider.set_maximum((ft * 100.0) as _);
                     self.time_slider.set_pos((ct.as_secs_f64() * 100.0) as _);
-                    self.time_slider
-                        .set_freq((ft.as_secs_f64() * 100.0) as usize / 10);
+                    self.time_slider.set_freq((ft * 100.0) as usize / 10);
                 } else {
                     self.time_slider.set_maximum(1);
                     self.time_slider.set_pos(0);
@@ -130,6 +133,15 @@ impl Component for MainModel {
                 let pos = self.volume_slider.pos();
                 self.volume_label.set_text(pos.to_string());
                 self.media.set_volume(pos as f64 / 100.0);
+                true
+            }
+            MainMessage::Time => {
+                let pos = self.time_slider.pos();
+                let ft = self.media.full_time();
+                if ft.is_some() {
+                    self.media
+                        .set_current_time(Duration::from_secs_f64(pos as f64 / 100.0));
+                }
                 true
             }
             MainMessage::ChooseFile => {
