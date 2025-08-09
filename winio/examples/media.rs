@@ -16,10 +16,20 @@ fn main() {
 struct MainModel {
     window: Child<Window>,
     media: Child<Media>,
+    playing: bool,
+    play_button: Child<Button>,
     browse_button: Child<Button>,
     time_slider: Child<Slider>,
     volume_slider: Child<Slider>,
     volume_label: Child<Label>,
+}
+
+impl MainModel {
+    fn set_playing(&mut self, v: bool) {
+        self.playing = v;
+        self.play_button
+            .set_text(if self.playing { "⏸️" } else { "▶️" });
+    }
 }
 
 #[derive(Debug)]
@@ -30,6 +40,7 @@ enum MainMessage {
     Tick,
     Volume,
     Time,
+    Play,
     ChooseFile,
     OpenFile(PathBuf),
 }
@@ -46,6 +57,10 @@ impl Component for MainModel {
                 size: Size::new(800.0, 600.0),
             },
             media: Media = (&window),
+            play_button: Button = (&window) => {
+                enabled: false,
+                text: "▶️"
+            },
             browse_button: Button = (&window) => {
                 text: "..."
             },
@@ -79,6 +94,8 @@ impl Component for MainModel {
         Self {
             window,
             media,
+            playing: false,
+            play_button,
             browse_button,
             time_slider,
             volume_slider,
@@ -98,6 +115,9 @@ impl Component for MainModel {
             },
             self.time_slider => {
                 SliderEvent::Change => MainMessage::Time,
+            },
+            self.play_button => {
+                ButtonEvent::Click => MainMessage::Play,
             },
             self.browse_button => {
                 ButtonEvent::Click => MainMessage::ChooseFile,
@@ -144,6 +164,16 @@ impl Component for MainModel {
                 }
                 true
             }
+            MainMessage::Play => {
+                if self.playing {
+                    self.media.pause();
+                    self.set_playing(false);
+                } else {
+                    self.media.play();
+                    self.set_playing(true);
+                }
+                true
+            }
             MainMessage::ChooseFile => {
                 if let Some(p) = FileBox::new()
                     .title("Open media file")
@@ -161,7 +191,9 @@ impl Component for MainModel {
                 self.media.set_url(url.as_str());
                 self.volume_slider.enable();
                 self.time_slider.enable();
+                self.play_button.enable();
                 self.media.play();
+                self.set_playing(true);
                 true
             }
         }
@@ -176,6 +208,7 @@ impl Component for MainModel {
 
             let mut bottom_bar = layout! {
                 StackPanel::new(Orient::Horizontal),
+                self.play_button   => { margin: margin },
                 self.time_slider   => { margin: margin, grow: true },
                 self.volume_slider => { margin: margin, width: 200.0 },
                 self.volume_label  => { margin: margin, valign: VAlign::Center, halign: HAlign::Left, width: 20.0 },
