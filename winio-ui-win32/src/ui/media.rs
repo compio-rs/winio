@@ -124,6 +124,10 @@ impl Media {
         unsafe { self.engine.Pause().unwrap() }
     }
 
+    pub fn full_time(&self) -> Option<Duration> {
+        unsafe { Duration::try_from_secs_f64(self.engine.GetDuration()).ok() }
+    }
+
     pub fn current_time(&self) -> Duration {
         unsafe { Duration::from_secs_f64(self.engine.GetCurrentTime()) }
     }
