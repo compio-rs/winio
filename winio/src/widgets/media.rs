@@ -33,6 +33,9 @@ impl Media {
     /// Pause.
     pub fn pause(&mut self);
 
+    /// Full duration of the media.
+    pub fn full_time(&self) -> Option<Duration>;
+
     /// The current time.
     pub fn current_time(&self) -> Duration;
 

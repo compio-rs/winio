@@ -1,5 +1,6 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Duration};
 
+use compio::{runtime::spawn, time::interval};
 use url::Url;
 use winio::prelude::*;
 
@@ -26,6 +27,7 @@ enum MainMessage {
     Noop,
     Close,
     Redraw,
+    Tick,
     Volume,
     ChooseFile,
     OpenFile(PathBuf),
@@ -47,7 +49,8 @@ impl Component for MainModel {
                 text: "..."
             },
             time_slider: Slider = (&window) => {
-                enabled: false
+                enabled: false,
+                minimum: 0,
             },
             volume_slider: Slider = (&window) => {
                 enabled: false,
@@ -59,6 +62,16 @@ impl Component for MainModel {
             volume_label: Label = (&window),
         }
         sender.post(MainMessage::Volume);
+
+        let sender = sender.clone();
+        spawn(async move {
+            let mut interval = interval(Duration::from_millis(100));
+            loop {
+                interval.tick().await;
+                sender.post(MainMessage::Tick);
+            }
+        })
+        .detach();
 
         window.show();
 
@@ -97,6 +110,22 @@ impl Component for MainModel {
                 false
             }
             MainMessage::Redraw => true,
+            MainMessage::Tick => {
+                let ct = self.media.current_time();
+                let ft = self.media.full_time();
+                if let Some(ft) = ft {
+                    self.time_slider
+                        .set_maximum((ft.as_secs_f64() * 100.0) as _);
+                    self.time_slider.set_pos((ct.as_secs_f64() * 100.0) as _);
+                    self.time_slider
+                        .set_freq((ft.as_secs_f64() * 100.0) as usize / 10);
+                } else {
+                    self.time_slider.set_maximum(1);
+                    self.time_slider.set_pos(0);
+                    self.time_slider.set_freq(1);
+                }
+                true
+            }
             MainMessage::Volume => {
                 let pos = self.volume_slider.pos();
                 self.volume_label.set_text(pos.to_string());
