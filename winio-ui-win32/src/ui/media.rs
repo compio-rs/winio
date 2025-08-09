@@ -1,30 +1,32 @@
-use std::time::Duration;
+use std::{mem::MaybeUninit, time::Duration};
 
+use compio::driver::syscall;
 use compio_log::error;
 use inherit_methods_macro::inherit_methods;
 use windows::{
     Win32::{
         Media::MediaFoundation::{
             CLSID_MFMediaEngineClassFactory, IMFMediaEngine, IMFMediaEngineClassFactory,
-            IMFMediaEngineNotify, IMFMediaEngineNotify_Impl, MF_MEDIA_ENGINE_CALLBACK,
-            MF_MEDIA_ENGINE_EVENT_ERROR, MF_MEDIA_ENGINE_PLAYBACK_HWND, MF_VERSION,
-            MFCreateAttributes, MFSTARTUP_FULL, MFShutdown, MFStartup,
+            IMFMediaEngineEx, IMFMediaEngineNotify, IMFMediaEngineNotify_Impl,
+            MF_MEDIA_ENGINE_CALLBACK, MF_MEDIA_ENGINE_EVENT_ERROR, MF_MEDIA_ENGINE_PLAYBACK_HWND,
+            MF_VERSION, MFCreateAttributes, MFSTARTUP_FULL, MFShutdown, MFStartup,
+            MFVideoNormalizedRect,
         },
         System::Com::{
             CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx,
             CoUninitialize,
         },
     },
-    core::{BSTR, Result, implement},
+    core::{BSTR, Interface, Result, implement},
 };
 use windows_sys::Win32::{
     System::SystemServices::SS_OWNERDRAW,
     UI::{
         Controls::WC_STATICW,
-        WindowsAndMessaging::{WS_CHILD, WS_VISIBLE},
+        WindowsAndMessaging::{GetClientRect, WS_CHILD, WS_VISIBLE},
     },
 };
-use winio_handle::{AsRawWindow, AsWindow};
+use winio_handle::{AsRawWidget, AsRawWindow, AsWindow};
 use winio_primitive::{Point, Size};
 
 use crate::{Widget, ui::with_u16c};
@@ -96,11 +98,38 @@ impl Media {
 
     pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) {
+        self.handle.set_loc(p);
+        self.update_rect();
+    }
 
     pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&mut self, v: Size) {
+        self.handle.set_size(v);
+        self.update_rect();
+    }
+
+    fn update_rect(&mut self) {
+        let handle = self.as_raw_widget().as_win32();
+        let mut rect = MaybeUninit::uninit();
+        syscall!(BOOL, unsafe { GetClientRect(handle, rect.as_mut_ptr()) }).unwrap();
+        let rect = unsafe { rect.assume_init() };
+
+        let src_rect = MFVideoNormalizedRect {
+            left: 0.0,
+            top: 0.0,
+            right: 1.0,
+            bottom: 1.0,
+        };
+        unsafe {
+            self.engine
+                .cast::<IMFMediaEngineEx>()
+                .unwrap()
+                .UpdateVideoStream(Some(&src_rect), Some(std::ptr::addr_of!(rect).cast()), None)
+                .unwrap();
+        }
+    }
 
     pub fn url(&self) -> String {
         unsafe { self.engine.GetCurrentSource().unwrap().to_string() }
