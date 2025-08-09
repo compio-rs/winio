@@ -92,13 +92,25 @@ impl Media {
         }
     }
 
+    pub fn full_time(&self) -> Option<Duration> {
+        unsafe {
+            self.view
+                .player()
+                .and_then(|player| player.currentItem())
+                .and_then(|item| {
+                    let t = item.duration();
+                    Duration::try_from_secs_f64(t.seconds()).ok()
+                })
+        }
+    }
+
     pub fn current_time(&self) -> Duration {
         unsafe {
             self.view
                 .player()
-                .map(|player| {
+                .and_then(|player| {
                     let ct = player.currentTime();
-                    Duration::from_secs_f64(ct.seconds())
+                    Duration::try_from_secs_f64(ct.seconds()).ok()
                 })
                 .unwrap_or_default()
         }
