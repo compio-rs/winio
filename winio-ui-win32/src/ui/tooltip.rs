@@ -9,9 +9,9 @@ use windows_sys::Win32::UI::{
         TOOLTIPS_CLASSW, TTF_IDISHWND, TTF_SUBCLASS, TTM_ADDTOOLW, TTM_DELTOOLW,
         TTM_SETMAXTIPWIDTH, TTM_UPDATETIPTEXTW, TTS_ALWAYSTIP, TTS_NOPREFIX, TTTOOLINFOW,
     },
-    WindowsAndMessaging::{DestroyWindow, GetParent, GetSystemMetrics, SM_CXMAXTRACK, WS_POPUP},
+    WindowsAndMessaging::{GetParent, GetSystemMetrics, SM_CXMAXTRACK, WS_POPUP},
 };
-use winio_handle::{AsRawWidget, AsWidget};
+use winio_handle::AsWidget;
 
 use crate::{Widget, ui::fix_crlf};
 
@@ -79,14 +79,6 @@ impl<T: AsWidget> ToolTip<T> {
 
     fn delete(&mut self) {
         self.update_info(TTM_DELTOOLW);
-    }
-}
-
-impl<T: AsWidget> Drop for ToolTip<T> {
-    fn drop(&mut self) {
-        unsafe {
-            DestroyWindow(self.handle.as_raw_widget().as_win32());
-        }
     }
 }
 

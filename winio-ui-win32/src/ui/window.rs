@@ -13,11 +13,11 @@ use windows_sys::Win32::{
     UI::{
         Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled},
         WindowsAndMessaging::{
-            CW_USEDEFAULT, CloseWindow, CreateWindowExW, DestroyWindow, GWL_EXSTYLE, GWL_STYLE,
-            GetClientRect, GetParent, GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW,
-            GetWindowTextW, HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW, IMAGE_ICON, LR_DEFAULTCOLOR,
-            LR_DEFAULTSIZE, LR_SHARED, LoadCursorW, LoadImageW, RegisterClassExW, SW_HIDE, SW_SHOW,
-            SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SendMessageW, SetWindowLongPtrW, SetWindowPos,
+            CW_USEDEFAULT, CreateWindowExW, DestroyWindow, GWL_EXSTYLE, GWL_STYLE, GetClientRect,
+            GetParent, GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
+            HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW, IMAGE_ICON, LR_DEFAULTCOLOR, LR_DEFAULTSIZE,
+            LR_SHARED, LoadCursorW, LoadImageW, RegisterClassExW, SW_HIDE, SW_SHOW, SWP_NOMOVE,
+            SWP_NOSIZE, SWP_NOZORDER, SendMessageW, SetWindowLongPtrW, SetWindowPos,
             SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE, WM_SETICON, WM_SIZE, WNDCLASSEXW,
             WS_CHILDWINDOW, WS_EX_CONTROLPARENT, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
         },
@@ -50,7 +50,7 @@ impl OwnedWindow {
 
 impl Drop for OwnedWindow {
     fn drop(&mut self) {
-        unsafe { CloseWindow(self.0) };
+        unsafe { DestroyWindow(self.0) };
     }
 }
 
@@ -458,11 +458,3 @@ impl Window {
 }
 
 winio_handle::impl_as_window!(Window, handle);
-
-impl Drop for Window {
-    fn drop(&mut self) {
-        unsafe {
-            DestroyWindow(self.handle.as_raw_window().as_win32());
-        }
-    }
-}
