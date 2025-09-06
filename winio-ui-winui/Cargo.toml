@@ -33,6 +33,7 @@ winui3 = { workspace = true, features = [
     "UI_Windowing",
     "UI_Xaml_Controls_Primitives",
     "UI_Xaml_Input",
+    "UI_Xaml_Media",
 ] }
 windows-sys = { workspace = true, features = [
     "Win32_Security",
@@ -43,6 +44,7 @@ windows = { workspace = true, features = [
     "Foundation",
     "Foundation_Collections",
     "Graphics",
+    "Media_Core",
     "Win32_Graphics_Direct2D",
     "Win32_Graphics_Direct3D",
     "Win32_Graphics_Direct3D11",

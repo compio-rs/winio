@@ -168,3 +168,6 @@ pub use slider::*;
 
 mod tooltip;
 pub use tooltip::*;
+
+mod media;
+pub use media::*;
