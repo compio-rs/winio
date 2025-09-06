@@ -4,7 +4,7 @@ use gtk4::{
     MediaFile,
     gio::prelude::FileExt,
     glib::object::Cast,
-    prelude::{MediaFileExt, MediaStreamExt},
+    prelude::{MediaFileExt, MediaStreamExt, WidgetExt},
 };
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsWindow;
@@ -17,6 +17,7 @@ pub struct Media {
     widget: gtk4::Video,
     handle: Widget,
     source: Option<gtk4::MediaFile>,
+    image: gtk4::Widget,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -24,11 +25,17 @@ impl Media {
     pub fn new(parent: impl AsWindow) -> Self {
         let widget = gtk4::Video::new();
         widget.set_autoplay(false);
+        let overlay = widget.first_child().unwrap();
+        let controls = overlay.last_child().unwrap();
+        controls.set_visible(false);
+        let image = controls.prev_sibling().unwrap();
+        image.set_visible(false);
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
         Self {
             widget,
             handle,
             source: None,
+            image,
         }
     }
 
@@ -76,6 +83,7 @@ impl Media {
         if let Some(player) = &self.source {
             player.pause();
         }
+        self.image.set_visible(false);
     }
 
     pub fn full_time(&self) -> Option<Duration> {
@@ -94,6 +102,7 @@ impl Media {
     pub fn set_current_time(&mut self, t: Duration) {
         if let Some(player) = &self.source {
             player.seek(t.as_micros() as _);
+            player.seek_success();
         }
     }
 
