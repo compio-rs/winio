@@ -6,9 +6,14 @@ fn main() {
     let target_os = std::env::var("CARGO_CFG_TARGET_OS");
 
     if target_os.as_deref() != Ok("windows") && target_os.as_deref() != Ok("macos") {
-        let qbuild =
-            qt_build_utils::QtBuild::new(vec!["Core".into(), "Gui".into(), "Widgets".into()])
-                .unwrap();
+        let qbuild = qt_build_utils::QtBuild::new(vec![
+            "Core".into(),
+            "Gui".into(),
+            "Widgets".into(),
+            "Multimedia".into(),
+            "MultimediaWidgets".into(),
+        ])
+        .unwrap();
 
         let major = qbuild.version().major;
         if major != 5 && major != 6 {
@@ -33,6 +38,7 @@ fn main() {
             "src/ui/combo_box",
             "src/ui/list_box",
             "src/ui/scroll_bar",
+            "src/ui/media",
         ];
 
         for s in sources {

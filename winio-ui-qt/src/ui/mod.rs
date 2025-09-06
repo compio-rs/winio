@@ -40,6 +40,9 @@ pub use list_box::*;
 mod scroll_bar;
 pub use scroll_bar::*;
 
+mod media;
+pub use media::*;
+
 mod tooltip;
 pub use tooltip::*;
 
