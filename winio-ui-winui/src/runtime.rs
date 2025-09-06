@@ -1,5 +1,5 @@
 use std::{
-    cell::OnceCell,
+    cell::{OnceCell, RefCell},
     future::Future,
     os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle, RawHandle},
     ptr::null,
@@ -116,13 +116,13 @@ impl Runtime {
 
 fn resume_foreground<T: Send + 'static>(
     dispatcher: &DispatcherQueue,
-    mut f: impl (FnMut() -> T) + Send + 'static,
+    f: impl (Fn() -> T) + Send + 'static,
 ) -> Option<T> {
     let (tx, rx) = oneshot::channel();
-    let mut tx = Some(tx);
+    let tx = RefCell::new(Some(tx));
     dispatcher
         .TryEnqueue(&DispatcherQueueHandler::new(move || {
-            if let Some(tx) = tx.take() {
+            if let Some(tx) = tx.borrow_mut().take() {
                 tx.send(f()).ok();
             }
             Ok(())
@@ -155,8 +155,8 @@ fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> 
     let dispatcher = DispatcherQueue::GetForCurrentThread()?;
     let (handle, shutdown_event) = RUNTIME.with(|runtime| {
         (
-            runtime.runtime.as_raw_fd(),
-            runtime.shutdown_event.as_raw_fd(),
+            runtime.runtime.as_raw_fd() as isize,
+            runtime.shutdown_event.as_raw_fd() as isize,
         )
     });
 
