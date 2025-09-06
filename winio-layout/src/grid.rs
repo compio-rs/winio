@@ -1,7 +1,7 @@
 use std::{fmt::Display, num::ParseFloatError, str::FromStr};
 
 use taffy::{
-    NodeId, Style, TaffyTree, TrackSizingFunction,
+    GridTemplateComponent, NodeId, Style, TaffyTree, TrackSizingFunction,
     prelude::{auto, fr, length, line, span},
 };
 
@@ -201,8 +201,14 @@ impl<'a> Grid<'a> {
                         .columns
                         .iter()
                         .map(TrackSizingFunction::from)
+                        .map(GridTemplateComponent::Single)
                         .collect(),
-                    grid_template_rows: self.rows.iter().map(TrackSizingFunction::from).collect(),
+                    grid_template_rows: self
+                        .rows
+                        .iter()
+                        .map(TrackSizingFunction::from)
+                        .map(GridTemplateComponent::Single)
+                        .collect(),
                     ..Default::default()
                 },
                 &nodes,

@@ -42,7 +42,7 @@ windows-sys = { workspace = true, features = [
     "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
 ] }
-windows-numerics = "0.2"
+windows-numerics = "0.3"
 
 slim-detours-sys = { version = "0.3", optional = true }
 sync-unsafe-cell = { version = "0.1", optional = true }

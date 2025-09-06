@@ -12,4 +12,4 @@ repository = { workspace = true }
 winio-primitive = { workspace = true }
 
 paste = { workspace = true }
-taffy = "0.8"
+taffy = "0.9"
