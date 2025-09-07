@@ -31,7 +31,7 @@ use winui3::{
         },
     },
     XamlApp, XamlAppOverrides,
-    bootstrap::PackageDependency,
+    bootstrap::{PackageDependency, WindowsAppSDKVersion},
     init_apartment,
 };
 
@@ -51,11 +51,27 @@ impl Default for Runtime {
     }
 }
 
+fn init_appsdk_with(
+    vers: impl IntoIterator<Item = WindowsAppSDKVersion>,
+) -> Result<PackageDependency> {
+    for ver in vers {
+        if let Ok(p) = PackageDependency::initialize_version(ver) {
+            return Ok(p);
+        }
+    }
+    PackageDependency::initialize()
+}
+
 impl Runtime {
     pub fn new() -> Self {
         init_apartment(ApartmentType::SingleThreaded).unwrap();
 
-        let winui_dependency = winui3::bootstrap::PackageDependency::initialize().unwrap();
+        let winui_dependency = init_appsdk_with([
+            WindowsAppSDKVersion::V1_7,
+            WindowsAppSDKVersion::V1_6,
+            WindowsAppSDKVersion::V1_5,
+        ])
+        .unwrap();
 
         debug!("WinUI initialized: {winui_dependency:?}");
 

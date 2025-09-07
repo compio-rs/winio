@@ -35,9 +35,10 @@ impl Window {
 
         let app_window = handle.AppWindow().unwrap();
         let titlebar = app_window.TitleBar().unwrap();
+        // Available since 1.7
         titlebar
             .SetPreferredTheme(TitleBarTheme::UseDefaultAppMode)
-            .unwrap();
+            .ok();
 
         let canvas = MUXC::Canvas::new().unwrap();
         canvas
