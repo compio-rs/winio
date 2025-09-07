@@ -84,11 +84,12 @@ impl ScrollBar {
     }
 
     pub fn maximum(&self) -> usize {
-        self.bar.Maximum().unwrap() as usize
+        self.bar.Maximum().unwrap() as usize + self.page()
     }
 
     pub fn set_maximum(&mut self, v: usize) {
-        self.bar.SetMaximum(v as _).unwrap()
+        let page = self.page();
+        self.bar.SetMaximum(v.saturating_sub(page) as _).unwrap()
     }
 
     pub fn page(&self) -> usize {
