@@ -37,6 +37,8 @@ using WinioMediaPlayer = QMediaPlayer;
 #endif
 
 std::unique_ptr<QVideoWidget> new_video(QWidget *parent);
-std::unique_ptr<WinioMediaPlayer> new_player(const QUrl &url);
+std::unique_ptr<WinioMediaPlayer> new_player();
 
+void player_set_source(WinioMediaPlayer &player, const QUrl &url);
+QUrl player_get_source(WinioMediaPlayer const &player);
 void player_set_output(WinioMediaPlayer &player, QVideoWidget *w);

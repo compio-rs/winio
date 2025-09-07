@@ -18,10 +18,8 @@ impl Media {
         let widget = unsafe { ffi::new_video(parent.as_window().as_qt()) };
         let mut widget = Widget::new(widget);
         widget.set_visible(true);
-        Self {
-            widget,
-            player: UniquePtr::null(),
-        }
+        let player = ffi::new_player();
+        Self { widget, player }
     }
 
     pub fn is_visible(&self) -> bool;
@@ -45,24 +43,11 @@ impl Media {
     pub fn set_size(&mut self, s: Size);
 
     pub fn url(&self) -> String {
-        if self.player.is_null() {
-            String::new()
-        } else {
-            self.player.source().into()
-        }
-    }
-
-    fn clear_player(&mut self) {
-        if !self.player.is_null() {
-            unsafe {
-                ffi::player_set_output(self.player.pin_mut(), std::ptr::null_mut());
-            }
-        }
+        ffi::player_get_source(&self.player).into()
     }
 
     pub fn set_url(&mut self, url: impl AsRef<str>) {
-        self.clear_player();
-        self.player = ffi::new_player(&QUrl::from(url.as_ref()));
+        ffi::player_set_source(self.player.pin_mut(), &url.as_ref().into());
         unsafe {
             ffi::player_set_output(
                 self.player.pin_mut(),
@@ -72,67 +57,46 @@ impl Media {
     }
 
     pub fn play(&mut self) {
-        if !self.player.is_null() {
-            self.player.pin_mut().play();
-        }
+        self.player.pin_mut().play();
     }
 
     pub fn pause(&mut self) {
-        if !self.player.is_null() {
-            self.player.pin_mut().pause();
-        }
+        self.player.pin_mut().pause();
     }
 
     pub fn full_time(&self) -> Option<Duration> {
-        if self.player.is_null() {
+        let duration = self.player.duration().0;
+        if duration == 0 {
             None
         } else {
-            Some(Duration::from_millis(self.player.duration().0 as _))
+            Some(Duration::from_millis(duration as _))
         }
     }
 
     pub fn current_time(&self) -> Duration {
-        if self.player.is_null() {
-            Duration::ZERO
-        } else {
-            Duration::from_millis(self.player.position().0 as _)
-        }
+        Duration::from_millis(self.player.position().0 as _)
     }
 
     pub fn set_current_time(&mut self, t: Duration) {
-        if !self.player.is_null() {
-            self.player
-                .pin_mut()
-                .setPosition(qint64(t.as_millis() as _));
-        }
+        self.player
+            .pin_mut()
+            .setPosition(qint64(t.as_millis() as _));
     }
 
     pub fn volume(&self) -> f64 {
-        if self.player.is_null() {
-            1.0
-        } else {
-            self.player.volume()
-        }
+        self.player.volume()
     }
 
     pub fn set_volume(&mut self, v: f64) {
-        if !self.player.is_null() {
-            self.player.pin_mut().setVolume(v);
-        }
+        self.player.pin_mut().setVolume(v);
     }
 
     pub fn is_muted(&self) -> bool {
-        if self.player.is_null() {
-            false
-        } else {
-            self.player.isMuted()
-        }
+        self.player.isMuted()
     }
 
     pub fn set_muted(&mut self, v: bool) {
-        if !self.player.is_null() {
-            self.player.pin_mut().setMuted(v);
-        }
+        self.player.pin_mut().setMuted(v);
     }
 }
 
@@ -148,7 +112,9 @@ winio_handle::impl_as_widget!(Media, widget);
 
 impl Drop for Media {
     fn drop(&mut self) {
-        self.clear_player();
+        unsafe {
+            ffi::player_set_output(self.player.pin_mut(), std::ptr::null_mut());
+        }
     }
 }
 
@@ -231,8 +197,10 @@ mod ffi {
         fn url_to_qstring(url: &QUrl) -> QString;
 
         unsafe fn new_video(parent: *mut QWidget) -> UniquePtr<QVideoWidget>;
-        fn new_player(url: &QUrl) -> UniquePtr<WinioMediaPlayer>;
+        fn new_player() -> UniquePtr<WinioMediaPlayer>;
 
+        fn player_set_source(player: Pin<&mut WinioMediaPlayer>, url: &QUrl);
+        fn player_get_source(player: &WinioMediaPlayer) -> QUrl;
         unsafe fn player_set_output(player: Pin<&mut WinioMediaPlayer>, w: *mut QVideoWidget);
 
         fn play(self: Pin<&mut WinioMediaPlayer>);
@@ -240,7 +208,6 @@ mod ffi {
         fn duration(self: &WinioMediaPlayer) -> qint64;
         fn position(self: &WinioMediaPlayer) -> qint64;
         fn setPosition(self: Pin<&mut WinioMediaPlayer>, p: qint64);
-        fn source(self: &WinioMediaPlayer) -> QUrl;
         fn volume(self: &WinioMediaPlayer) -> f64;
         fn setVolume(self: Pin<&mut WinioMediaPlayer>, v: f64);
         fn isMuted(self: &WinioMediaPlayer) -> bool;

@@ -14,14 +14,24 @@ std::unique_ptr<QVideoWidget> new_video(QWidget *parent) {
     return w;
 }
 
-std::unique_ptr<WinioMediaPlayer> new_player(const QUrl &url) {
-    auto player = std::make_unique<WinioMediaPlayer>();
+std::unique_ptr<WinioMediaPlayer> new_player() {
+    return std::make_unique<WinioMediaPlayer>();
+}
+
+void player_set_source(WinioMediaPlayer &player, const QUrl &url) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-    player->setSource(url);
+    player.setSource(url);
 #else
-    player->setMedia(url);
+    player.setMedia(url);
 #endif
-    return player;
+}
+
+QUrl player_get_source(WinioMediaPlayer const &player) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    return player.source();
+#else
+    return player.media().canonicalUrl();
+#endif
 }
 
 void player_set_output(WinioMediaPlayer &player, QVideoWidget *w) {
