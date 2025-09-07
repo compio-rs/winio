@@ -43,16 +43,15 @@ impl Media {
     pub fn set_size(&mut self, s: Size);
 
     pub fn url(&self) -> String {
-        ffi::player_get_source(&self.player).into()
+        self.player.source().into()
     }
 
     pub fn set_url(&mut self, url: impl AsRef<str>) {
-        ffi::player_set_source(self.player.pin_mut(), &url.as_ref().into());
+        self.player.pin_mut().setSource(&url.as_ref().into());
         unsafe {
-            ffi::player_set_output(
-                self.player.pin_mut(),
-                self.widget.pin_mut().get_unchecked_mut(),
-            );
+            self.player
+                .pin_mut()
+                .setVideoOutput(self.widget.pin_mut().get_unchecked_mut());
         }
     }
 
@@ -113,7 +112,7 @@ winio_handle::impl_as_widget!(Media, widget);
 impl Drop for Media {
     fn drop(&mut self) {
         unsafe {
-            ffi::player_set_output(self.player.pin_mut(), std::ptr::null_mut());
+            self.player.pin_mut().setVideoOutput(std::ptr::null_mut());
         }
     }
 }
@@ -199,12 +198,11 @@ mod ffi {
         unsafe fn new_video(parent: *mut QWidget) -> UniquePtr<QVideoWidget>;
         fn new_player() -> UniquePtr<WinioMediaPlayer>;
 
-        fn player_set_source(player: Pin<&mut WinioMediaPlayer>, url: &QUrl);
-        fn player_get_source(player: &WinioMediaPlayer) -> QUrl;
-        unsafe fn player_set_output(player: Pin<&mut WinioMediaPlayer>, w: *mut QVideoWidget);
-
         fn play(self: Pin<&mut WinioMediaPlayer>);
         fn pause(self: Pin<&mut WinioMediaPlayer>);
+        fn source(self: &WinioMediaPlayer) -> QUrl;
+        fn setSource(self: Pin<&mut WinioMediaPlayer>, url: &QUrl);
+        unsafe fn setVideoOutput(self: Pin<&mut WinioMediaPlayer>, w: *mut QVideoWidget);
         fn duration(self: &WinioMediaPlayer) -> qint64;
         fn position(self: &WinioMediaPlayer) -> qint64;
         fn setPosition(self: Pin<&mut WinioMediaPlayer>, p: qint64);

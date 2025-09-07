@@ -23,22 +23,29 @@ private:
     QAudioOutput m_audio;
 
 public:
-    WinioMediaPlayer();
-    ~WinioMediaPlayer() override;
+    WinioMediaPlayer() : QMediaPlayer(), m_audio() { setAudioOutput(&m_audio); }
+    ~WinioMediaPlayer() override { setAudioOutput(nullptr); }
 
     double volume() const { return m_audio.volume(); }
     void setVolume(double v) { m_audio.setVolume(v); }
 
     bool isMuted() const { return m_audio.isMuted(); }
     void setMuted(bool v) { m_audio.setMuted(v); }
+
+    void setVideoOutput(QVideoWidget *w) { QMediaPlayer::setVideoOutput(w); }
 };
 #else
-using WinioMediaPlayer = QMediaPlayer;
+struct WinioMediaPlayer : public QMediaPlayer {
+    WinioMediaPlayer() : QMediaPlayer() {}
+    ~WinioMediaPlayer() override {}
+
+    double volume() const { return ((double)QMediaPlayer::volume()) / 100.0; }
+    void setVolume(double v) { QMediaPlayer::setVolume(v * 100.0); }
+
+    QUrl source() const { return media().canonicalUrl(); }
+    void setSource(const QUrl &url) { setMedia(url); }
+};
 #endif
 
 std::unique_ptr<QVideoWidget> new_video(QWidget *parent);
 std::unique_ptr<WinioMediaPlayer> new_player();
-
-void player_set_source(WinioMediaPlayer &player, const QUrl &url);
-QUrl player_get_source(WinioMediaPlayer const &player);
-void player_set_output(WinioMediaPlayer &player, QVideoWidget *w);
