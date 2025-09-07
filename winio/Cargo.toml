@@ -60,9 +60,22 @@ gtk = ["dep:winio-ui-gtk"]
 qt = ["dep:winio-ui-qt"]
 enable_log = ["compio/enable_log", "compio-log/enable_log"]
 
+media = [
+    "winio-ui-app-kit/media",
+    "winio-ui-win32?/media",
+    "winio-ui-winui?/media",
+    "winio-ui-gtk?/media",
+    "winio-ui-qt?/media",
+]
+all = ["media"]
+
 nightly = ["compio/nightly", "cyper/nightly"]
 win32-dark-mode = [
     "winio-ui-win32?/dark-mode",
     "winio-ui-winui?/win32-dark-mode",
 ]
 objc-static = ["winio-ui-app-kit/objc-static"]
+
+[[example]]
+name = "media"
+required-features = ["media"]

@@ -10,7 +10,9 @@ fn main() {
             "Core".into(),
             "Gui".into(),
             "Widgets".into(),
+            #[cfg(feature = "media")]
             "Multimedia".into(),
+            #[cfg(feature = "media")]
             "MultimediaWidgets".into(),
         ])
         .unwrap();
@@ -38,6 +40,7 @@ fn main() {
             "src/ui/combo_box",
             "src/ui/list_box",
             "src/ui/scroll_bar",
+            #[cfg(feature = "media")]
             "src/ui/media",
         ];
 

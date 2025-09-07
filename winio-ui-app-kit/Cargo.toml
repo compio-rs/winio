@@ -32,11 +32,15 @@ objc2-app-kit = { workspace = true, features = [
     "objc2-uniform-type-identifiers",
 ] }
 objc2-uniform-type-identifiers = "0.3"
-objc2-av-kit = "0.3"
-objc2-av-foundation = { version = "0.3", features = ["objc2-core-media"] }
-objc2-core-media = "0.3"
+objc2-av-kit = { version = "0.3", optional = true }
+objc2-av-foundation = { version = "0.3", features = [
+    "objc2-core-media",
+], optional = true }
+objc2-core-media = { version = "0.3", optional = true }
 
 [features]
+media = ["dep:objc2-av-kit", "dep:objc2-av-foundation", "dep:objc2-core-media"]
+
 objc-static = [
     "objc2/unstable-static-class-inlined",
     "objc2/unstable-static-sel-inlined",

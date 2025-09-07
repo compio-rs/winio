@@ -53,7 +53,9 @@ pub use scroll_bar::*;
 mod slider;
 pub use slider::*;
 
+#[cfg(feature = "media")]
 mod media;
+#[cfg(feature = "media")]
 pub use media::*;
 
 mod tooltip;

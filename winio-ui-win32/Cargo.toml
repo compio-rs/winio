@@ -41,9 +41,10 @@ windows = { workspace = true, features = [
     "Win32_Graphics_Direct2D_Common",
     "Win32_Graphics_DirectWrite",
     "Win32_Graphics_Dxgi_Common",
-    "Win32_Media_MediaFoundation",
 ] }
-windows-core = { workspace = true }
+windows-core = { workspace = true, optional = true }
 
 [features]
+media = ["dep:windows-core", "windows/Win32_Media_MediaFoundation"]
+
 dark-mode = ["winio-ui-windows-common/dark-mode"]

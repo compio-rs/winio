@@ -40,7 +40,9 @@ pub use list_box::*;
 mod scroll_bar;
 pub use scroll_bar::*;
 
+#[cfg(feature = "media")]
 mod media;
+#[cfg(feature = "media")]
 pub use media::*;
 
 mod tooltip;
