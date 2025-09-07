@@ -5,15 +5,11 @@ use inherit_methods_macro::inherit_methods;
 use winio_handle::AsWindow;
 use winio_primitive::{Point, Size};
 
-use crate::{
-    static_cast_mut,
-    ui::{QString, QWidget, Widget, impl_static_cast},
-};
+use crate::ui::{QString, Widget, impl_static_cast};
 
 pub struct Media {
     widget: Widget<ffi::QVideoWidget>,
-    audio: UniquePtr<ffi::QAudioOutput>,
-    player: UniquePtr<ffi::QMediaPlayer>,
+    player: UniquePtr<ffi::WinioMediaPlayer>,
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -22,10 +18,8 @@ impl Media {
         let widget = unsafe { ffi::new_video(parent.as_window().as_qt()) };
         let mut widget = Widget::new(widget);
         widget.set_visible(true);
-        let audio = ffi::new_audio();
         Self {
             widget,
-            audio,
             player: UniquePtr::null(),
         }
     }
@@ -62,7 +56,6 @@ impl Media {
         if !self.player.is_null() {
             unsafe {
                 ffi::player_set_output(self.player.pin_mut(), std::ptr::null_mut());
-                self.player.pin_mut().setAudioOutput(std::ptr::null_mut());
             }
         }
     }
@@ -73,11 +66,8 @@ impl Media {
         unsafe {
             ffi::player_set_output(
                 self.player.pin_mut(),
-                static_cast_mut::<QWidget>(self.widget.pin_mut()).get_unchecked_mut(),
+                self.widget.pin_mut().get_unchecked_mut(),
             );
-            self.player
-                .pin_mut()
-                .setAudioOutput(self.audio.pin_mut().get_unchecked_mut());
         }
     }
 
@@ -118,19 +108,31 @@ impl Media {
     }
 
     pub fn volume(&self) -> f64 {
-        self.audio.volume() as _
+        if self.player.is_null() {
+            1.0
+        } else {
+            self.player.volume()
+        }
     }
 
     pub fn set_volume(&mut self, v: f64) {
-        self.audio.pin_mut().setVolume(v as _);
+        if !self.player.is_null() {
+            self.player.pin_mut().setVolume(v);
+        }
     }
 
     pub fn is_muted(&self) -> bool {
-        self.audio.isMuted()
+        if self.player.is_null() {
+            false
+        } else {
+            self.player.isMuted()
+        }
     }
 
     pub fn set_muted(&mut self, v: bool) {
-        self.audio.pin_mut().setMuted(v);
+        if !self.player.is_null() {
+            self.player.pin_mut().setMuted(v);
+        }
     }
 }
 
@@ -222,31 +224,26 @@ mod ffi {
         type QString = crate::ui::QString;
         type QWidget = crate::ui::QWidget;
         type QVideoWidget;
-        type QAudioOutput;
-        type QMediaPlayer;
+        type WinioMediaPlayer;
 
         fn new_url(s: &QString) -> QUrl;
 
         fn url_to_qstring(url: &QUrl) -> QString;
 
         unsafe fn new_video(parent: *mut QWidget) -> UniquePtr<QVideoWidget>;
-        fn new_audio() -> UniquePtr<QAudioOutput>;
-        fn new_player(url: &QUrl) -> UniquePtr<QMediaPlayer>;
+        fn new_player(url: &QUrl) -> UniquePtr<WinioMediaPlayer>;
 
-        unsafe fn player_set_output(player: Pin<&mut QMediaPlayer>, w: *mut QWidget);
+        unsafe fn player_set_output(player: Pin<&mut WinioMediaPlayer>, w: *mut QVideoWidget);
 
-        unsafe fn setAudioOutput(self: Pin<&mut QMediaPlayer>, o: *mut QAudioOutput);
-
-        fn play(self: Pin<&mut QMediaPlayer>);
-        fn pause(self: Pin<&mut QMediaPlayer>);
-        fn duration(self: &QMediaPlayer) -> qint64;
-        fn position(self: &QMediaPlayer) -> qint64;
-        fn setPosition(self: Pin<&mut QMediaPlayer>, p: qint64);
-        fn source(self: &QMediaPlayer) -> QUrl;
-
-        fn volume(self: &QAudioOutput) -> f32;
-        fn setVolume(self: Pin<&mut QAudioOutput>, v: f32);
-        fn isMuted(self: &QAudioOutput) -> bool;
-        fn setMuted(self: Pin<&mut QAudioOutput>, v: bool);
+        fn play(self: Pin<&mut WinioMediaPlayer>);
+        fn pause(self: Pin<&mut WinioMediaPlayer>);
+        fn duration(self: &WinioMediaPlayer) -> qint64;
+        fn position(self: &WinioMediaPlayer) -> qint64;
+        fn setPosition(self: Pin<&mut WinioMediaPlayer>, p: qint64);
+        fn source(self: &WinioMediaPlayer) -> QUrl;
+        fn volume(self: &WinioMediaPlayer) -> f64;
+        fn setVolume(self: Pin<&mut WinioMediaPlayer>, v: f64);
+        fn isMuted(self: &WinioMediaPlayer) -> bool;
+        fn setMuted(self: Pin<&mut WinioMediaPlayer>, v: bool);
     }
 }
