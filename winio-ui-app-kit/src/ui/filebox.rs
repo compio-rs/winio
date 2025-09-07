@@ -163,23 +163,25 @@ async unsafe fn filebox(
             .any(|f| f.pattern == "*.*" || f.pattern == "*");
         handle.setAllowsOtherFileTypes(allow_others);
 
-        let ns_filters = NSArray::from_retained_slice(
-            &filters
-                .into_iter()
-                .filter_map(|f| {
-                    let pattern = f.pattern;
-                    if pattern == "*.*" || pattern == "*" {
-                        None
-                    } else {
-                        UTType::typeWithFilenameExtension(&NSString::from_str(
-                            pattern.strip_prefix("*.").unwrap_or(&pattern),
-                        ))
-                    }
-                })
-                .collect::<Vec<_>>(),
-        );
-        if !ns_filters.is_empty() {
-            handle.setAllowedContentTypes(&ns_filters);
+        if !(open && allow_others) {
+            let ns_filters = NSArray::from_retained_slice(
+                &filters
+                    .into_iter()
+                    .filter_map(|f| {
+                        let pattern = f.pattern;
+                        if pattern == "*.*" || pattern == "*" {
+                            None
+                        } else {
+                            UTType::typeWithFilenameExtension(&NSString::from_str(
+                                pattern.strip_prefix("*.").unwrap_or(&pattern),
+                            ))
+                        }
+                    })
+                    .collect::<Vec<_>>(),
+            );
+            if !ns_filters.is_empty() {
+                handle.setAllowedContentTypes(&ns_filters);
+            }
         }
     }
 

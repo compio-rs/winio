@@ -168,3 +168,8 @@ pub use slider::*;
 
 mod tooltip;
 pub use tooltip::*;
+
+#[cfg(feature = "media")]
+mod media;
+#[cfg(feature = "media")]
+pub use media::*;

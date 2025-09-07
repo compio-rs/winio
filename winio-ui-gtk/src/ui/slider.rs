@@ -44,6 +44,9 @@ impl Slider {
 
     fn reset_marks(&mut self) {
         self.widget.clear_marks();
+        if self.freq == 0 {
+            return;
+        }
         let mut value = self.minimum();
         let max = self.maximum();
         while value <= max {
