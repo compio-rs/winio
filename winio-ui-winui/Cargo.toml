@@ -52,4 +52,6 @@ windows = { workspace = true, features = [
 [features]
 media = ["windows/Media_Core", "winui3/UI_Xaml_Media"]
 
+enable-cbs = []
+
 win32-dark-mode = ["winio-ui-windows-common/dark-mode"]

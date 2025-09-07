@@ -66,11 +66,23 @@ impl Runtime {
     pub fn new() -> Self {
         init_apartment(ApartmentType::SingleThreaded).unwrap();
 
-        let winui_dependency = init_appsdk_with([
-            WindowsAppSDKVersion::V1_7,
-            WindowsAppSDKVersion::V1_6,
-            WindowsAppSDKVersion::V1_5,
-        ])
+        let winui_dependency = init_appsdk_with({
+            use WindowsAppSDKVersion::*;
+            [
+                V1_7,
+                V1_6,
+                #[cfg(feature = "enable-cbs")]
+                VNextCbs,
+                V1_5,
+                #[cfg(feature = "enable-cbs")]
+                Cbs,
+                V1_4,
+                V1_3,
+                V1_2,
+                #[cfg(not(feature = "media"))]
+                V1_1,
+            ]
+        })
         .unwrap();
 
         debug!("WinUI initialized: {winui_dependency:?}");

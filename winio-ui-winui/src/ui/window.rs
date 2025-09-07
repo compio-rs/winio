@@ -1,7 +1,11 @@
 use std::rc::Rc;
 
 use send_wrapper::SendWrapper;
-use windows::{Foundation::TypedEventHandler, core::Ref};
+use windows::{
+    Foundation::TypedEventHandler,
+    Win32::Foundation::E_NOINTERFACE,
+    core::{Interface, Ref},
+};
 use windows_sys::Win32::UI::{
     HiDpi::GetDpiForWindow,
     WindowsAndMessaging::{IMAGE_ICON, LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LR_SHARED, LoadImageW},
@@ -10,10 +14,15 @@ use winio_callback::Callback;
 use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::get_current_module_handle;
-use winui3::Microsoft::UI::{
-    IconId,
-    Windowing::{AppWindow, AppWindowChangedEventArgs, AppWindowClosingEventArgs, TitleBarTheme},
-    Xaml::{self as MUX, Controls as MUXC, RoutedEventHandler},
+use winui3::{
+    IWindowNative,
+    Microsoft::UI::{
+        IconId, WindowId,
+        Windowing::{
+            AppWindow, AppWindowChangedEventArgs, AppWindowClosingEventArgs, TitleBarTheme,
+        },
+        Xaml::{self as MUX, Controls as MUXC, RoutedEventHandler},
+    },
 };
 
 use crate::{GlobalRuntime, ui::Convertible};
@@ -33,12 +42,28 @@ impl Window {
     pub fn new(_parent: Option<impl AsWindow>) -> Self {
         let handle = MUX::Window::new().unwrap();
 
-        let app_window = handle.AppWindow().unwrap();
+        let app_window = match handle.AppWindow() {
+            Ok(w) => w,
+            // Available since 1.3
+            Err(e) if e.code() == E_NOINTERFACE => {
+                let hwnd = unsafe {
+                    handle
+                        .cast::<IWindowNative>()
+                        .unwrap()
+                        .get_WindowHandle()
+                        .unwrap()
+                };
+                AppWindow::GetFromWindowId(WindowId { Value: hwnd.0 as _ }).unwrap()
+            }
+            Err(e) => panic!("{e:?}"),
+        };
         let titlebar = app_window.TitleBar().unwrap();
-        // Available since 1.7
-        titlebar
-            .SetPreferredTheme(TitleBarTheme::UseDefaultAppMode)
-            .ok();
+        match titlebar.SetPreferredTheme(TitleBarTheme::UseDefaultAppMode) {
+            Ok(()) => {}
+            // Available since 1.7
+            Err(e) if e.code() == E_NOINTERFACE => {}
+            Err(e) => panic!("{e:?}"),
+        }
 
         let canvas = MUXC::Canvas::new().unwrap();
         canvas
