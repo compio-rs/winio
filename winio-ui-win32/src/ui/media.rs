@@ -1,16 +1,17 @@
 use std::{mem::MaybeUninit, time::Duration};
 
 use compio::driver::syscall;
-use compio_log::error;
+use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender};
+use futures_util::StreamExt;
 use inherit_methods_macro::inherit_methods;
 use windows::{
     Win32::{
         Media::MediaFoundation::{
             CLSID_MFMediaEngineClassFactory, IMFMediaEngine, IMFMediaEngineClassFactory,
             IMFMediaEngineEx, IMFMediaEngineNotify, IMFMediaEngineNotify_Impl,
-            MF_MEDIA_ENGINE_CALLBACK, MF_MEDIA_ENGINE_EVENT_ERROR, MF_MEDIA_ENGINE_PLAYBACK_HWND,
-            MF_VERSION, MFCreateAttributes, MFSTARTUP_FULL, MFShutdown, MFStartup,
-            MFVideoNormalizedRect,
+            MF_MEDIA_ENGINE_CALLBACK, MF_MEDIA_ENGINE_EVENT, MF_MEDIA_ENGINE_EVENT_CANPLAY,
+            MF_MEDIA_ENGINE_EVENT_ERROR, MF_MEDIA_ENGINE_PLAYBACK_HWND, MF_VERSION,
+            MFCreateAttributes, MFSTARTUP_FULL, MFShutdown, MFStartup, MFVideoNormalizedRect,
         },
         System::Com::{
             CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx,
@@ -35,6 +36,7 @@ use crate::{Widget, ui::with_u16c};
 pub struct Media {
     handle: Widget,
     engine: IMFMediaEngine,
+    notify: UnboundedReceiver<bool>,
     #[allow(dead_code)]
     callback: IMFMediaEngineNotify,
     _guard: MFGuard,
@@ -58,7 +60,8 @@ impl Media {
                 CoCreateInstance(&CLSID_MFMediaEngineClassFactory, None, CLSCTX_INPROC_SERVER)
                     .unwrap();
 
-            let callback: IMFMediaEngineNotify = MediaNotify {}.into();
+            let (tx, rx) = futures_channel::mpsc::unbounded();
+            let callback: IMFMediaEngineNotify = MediaNotify { notify: tx }.into();
 
             let mut attrs = None;
             MFCreateAttributes(&mut attrs, 1).unwrap();
@@ -78,6 +81,7 @@ impl Media {
             Self {
                 handle,
                 callback,
+                notify: rx,
                 engine,
                 _guard,
             }
@@ -135,7 +139,7 @@ impl Media {
         unsafe { self.engine.GetCurrentSource().unwrap().to_string() }
     }
 
-    pub fn set_url(&mut self, url: impl AsRef<str>) {
+    pub async fn load(&mut self, url: impl AsRef<str>) -> bool {
         unsafe {
             with_u16c(url.as_ref(), |s| {
                 self.engine
@@ -143,6 +147,7 @@ impl Media {
                     .unwrap();
             })
         }
+        self.notify.next().await.unwrap_or_default()
     }
 
     pub fn play(&mut self) {
@@ -207,12 +212,20 @@ impl Drop for MFGuard {
 }
 
 #[implement(IMFMediaEngineNotify)]
-struct MediaNotify {}
+struct MediaNotify {
+    notify: UnboundedSender<bool>,
+}
 
 impl IMFMediaEngineNotify_Impl for MediaNotify_Impl {
     fn EventNotify(&self, event: u32, _param1: usize, _param2: u32) -> Result<()> {
-        if event == MF_MEDIA_ENGINE_EVENT_ERROR.0 as _ {
-            error!("MFMediaEngine error: code {_param1}, HRESULT {_param2}");
+        match MF_MEDIA_ENGINE_EVENT(event as _) {
+            MF_MEDIA_ENGINE_EVENT_CANPLAY => {
+                self.notify.unbounded_send(true).ok();
+            }
+            MF_MEDIA_ENGINE_EVENT_ERROR => {
+                self.notify.unbounded_send(false).ok();
+            }
+            _ => {}
         }
         Ok(())
     }

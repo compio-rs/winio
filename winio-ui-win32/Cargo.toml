@@ -17,6 +17,7 @@ winio-ui-windows-common = { workspace = true, features = ["win32"] }
 compio = { workspace = true, features = ["arrayvec"] }
 compio-log = { workspace = true }
 
+futures-channel = { workspace = true, optional = true }
 futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true, default-features = false }
@@ -45,6 +46,10 @@ windows = { workspace = true, features = [
 windows-core = { workspace = true, optional = true }
 
 [features]
-media = ["dep:windows-core", "windows/Win32_Media_MediaFoundation"]
+media = [
+    "dep:futures-channel",
+    "dep:windows-core",
+    "windows/Win32_Media_MediaFoundation",
+]
 
 dark-mode = ["winio-ui-windows-common/dark-mode"]

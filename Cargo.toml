@@ -43,6 +43,7 @@ compio-runtime = "0.9.0"
 compio-log = "0.1.0"
 
 cfg-if = "1"
+futures-channel = "0.3"
 futures-util = "0.3"
 image = { version = "0.25", default-features = false }
 inherit-methods-macro = "0.1"
