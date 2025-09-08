@@ -49,3 +49,7 @@ struct WinioMediaPlayer : public QMediaPlayer {
 
 std::unique_ptr<QVideoWidget> new_video(QWidget *parent);
 std::unique_ptr<WinioMediaPlayer> new_player();
+
+void player_connect_notify(WinioMediaPlayer &p,
+                           callback_fn_t<void(bool)> callback,
+                           std::uint8_t const *data);
