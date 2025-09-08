@@ -1,21 +1,30 @@
-use std::time::Duration;
+use std::{ffi::c_void, ptr::null_mut, time::Duration};
 
 use inherit_methods_macro::inherit_methods;
-use objc2::{MainThreadMarker, rc::Retained};
-use objc2_av_foundation::AVPlayer;
+use objc2::{
+    DefinedClass, MainThreadMarker, MainThreadOnly, define_class, msg_send,
+    rc::{Allocated, Retained},
+    runtime::AnyObject,
+};
+use objc2_av_foundation::{AVPlayer, AVPlayerItem, AVPlayerItemStatus};
 use objc2_av_kit::{AVPlayerView, AVPlayerViewControlsStyle};
 use objc2_core_media::CMTime;
-use objc2_foundation::{NSString, NSURL};
+use objc2_foundation::{
+    NSDictionary, NSKeyValueChangeKey, NSKeyValueObservingOptions, NSObject,
+    NSObjectNSKeyValueObserverRegistration, NSString, NSURL, ns_string,
+};
+use winio_callback::Callback;
 use winio_handle::AsWindow;
 use winio_primitive::{Point, Size};
 
-use crate::{Widget, from_nsstring};
+use crate::{GlobalRuntime, Widget, from_nsstring};
 
 #[derive(Debug)]
 pub struct Media {
     handle: Widget,
     view: Retained<AVPlayerView>,
     url: Option<Retained<NSURL>>,
+    delegate: Retained<PlayerDelegate>,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -27,12 +36,15 @@ impl Media {
             let view = AVPlayerView::new(mtm);
             let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
 
+            let delegate = PlayerDelegate::new(mtm);
+
             view.setControlsStyle(AVPlayerViewControlsStyle::None);
 
             Self {
                 handle,
                 view,
                 url: None,
+                delegate,
             }
         }
     }
@@ -65,13 +77,24 @@ impl Media {
             .unwrap_or_default()
     }
 
-    pub fn set_url(&mut self, url: impl AsRef<str>) {
+    pub async fn load(&mut self, url: impl AsRef<str>) -> bool {
         unsafe {
             self.url = NSURL::URLWithString(&NSString::from_str(url.as_ref()));
             if let Some(url) = &self.url {
                 let mtm = MainThreadMarker::new().unwrap();
+                let item = AVPlayerItem::playerItemWithURL(url, mtm);
+                item.addObserver_forKeyPath_options_context(
+                    &self.delegate,
+                    ns_string!("status"),
+                    NSKeyValueObservingOptions::New,
+                    null_mut(),
+                );
                 self.view
-                    .setPlayer(Some(&AVPlayer::playerWithURL(url, mtm)));
+                    .setPlayer(Some(&AVPlayer::playerWithPlayerItem(Some(&item), mtm)));
+                self.delegate.ivars().notify.wait().await;
+                item.status() == AVPlayerItemStatus::ReadyToPlay
+            } else {
+                false
             }
         }
     }
@@ -160,3 +183,47 @@ impl Media {
 }
 
 winio_handle::impl_as_widget!(Media, handle);
+
+#[derive(Debug, Default)]
+struct PlayerDelegateIvars {
+    notify: Callback,
+}
+
+define_class! {
+    #[unsafe(super(NSObject))]
+    #[name = "WinioPlayerDelegate"]
+    #[ivars = PlayerDelegateIvars]
+    #[thread_kind = MainThreadOnly]
+    #[derive(Debug)]
+    struct PlayerDelegate;
+
+    #[allow(non_snake_case)]
+    impl PlayerDelegate {
+        #[unsafe(method_id(init))]
+        fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
+            let this = this.set_ivars(PlayerDelegateIvars::default());
+            unsafe { msg_send![super(this), init] }
+        }
+
+        #[unsafe(method(observeValueForKeyPath:ofObject:change:context:))]
+        unsafe fn observeValueForKeyPath_ofObject_change_context(
+            &self,
+            key_path: Option<&NSString>,
+            _object: Option<&AnyObject>,
+            _change: Option<&NSDictionary<NSKeyValueChangeKey, AnyObject>>,
+            _context: *mut c_void,
+        ) {
+            if let Some(path) = key_path{
+                if path.isEqualToString(ns_string!("status")) {
+                    self.ivars().notify.signal::<GlobalRuntime>(());
+                }
+            }
+        }
+    }
+}
+
+impl PlayerDelegate {
+    pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
+        unsafe { msg_send![mtm.alloc::<Self>(), init] }
+    }
+}
