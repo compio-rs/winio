@@ -1,9 +1,10 @@
 use std::time::Duration;
 
+use futures_util::StreamExt;
 use gtk4::{
     MediaFile,
     gio::prelude::FileExt,
-    glib::object::Cast,
+    glib::object::{Cast, ObjectExt},
     prelude::{MediaFileExt, MediaStreamExt, WidgetExt},
 };
 use inherit_methods_macro::inherit_methods;
@@ -67,16 +68,32 @@ impl Media {
             .unwrap_or_default()
     }
 
-    pub fn set_url(&mut self, url: impl AsRef<str>) {
+    pub async fn load(&mut self, url: impl AsRef<str>) -> bool {
         let player = MediaFile::for_file(&gtk4::gio::File::for_uri(url.as_ref()));
+        let (tx, mut rx) = futures_channel::mpsc::unbounded();
+        let cp = player.connect_prepared_notify({
+            let tx = tx.clone();
+            move |_| {
+                tx.unbounded_send(true).ok();
+            }
+        });
+        let ce = player.connect_error_notify(move |_| {
+            tx.unbounded_send(false).ok();
+        });
         self.widget.set_media_stream(Some(&player));
+        self.image.set_visible(false);
+        let res = rx.next().await.unwrap_or_default();
+        player.disconnect(cp);
+        player.disconnect(ce);
         self.source = Some(player);
+        res
     }
 
     pub fn play(&mut self) {
         if let Some(player) = &self.source {
             player.play();
         }
+        self.image.set_visible(false);
     }
 
     pub fn pause(&mut self) {

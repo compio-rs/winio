@@ -19,12 +19,9 @@ impl Media {
     /// The current URL.
     pub fn url(&self) -> String;
 
-    /// Set the current URL.
-    pub fn set_url(&mut self, url: impl AsRef<str>);
-
     /// Load a media source.
-    pub fn load(&mut self, url: impl AsRef<str>) {
-        self.set_url(url);
+    pub async fn load(&mut self, url: impl AsRef<str>) -> bool {
+        self.widget.load(url).await
     }
 
     /// Play.

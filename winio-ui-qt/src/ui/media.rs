@@ -2,12 +2,17 @@ use std::{fmt::Debug, mem::MaybeUninit, time::Duration};
 
 use cxx::{ExternType, UniquePtr, type_id};
 use inherit_methods_macro::inherit_methods;
+use winio_callback::Callback;
 use winio_handle::AsWindow;
 use winio_primitive::{Point, Size};
 
-use crate::ui::{QString, Widget, impl_static_cast};
+use crate::{
+    GlobalRuntime,
+    ui::{QString, Widget, impl_static_cast},
+};
 
 pub struct Media {
+    on_notify: Box<Callback<bool>>,
     widget: Widget<ffi::QVideoWidget>,
     player: UniquePtr<ffi::WinioMediaPlayer>,
 }
@@ -15,11 +20,23 @@ pub struct Media {
 #[inherit_methods(from = "self.widget")]
 impl Media {
     pub fn new(parent: impl AsWindow) -> Self {
+        let on_notify = Box::new(Callback::new());
         let widget = unsafe { ffi::new_video(parent.as_window().as_qt()) };
         let mut widget = Widget::new(widget);
         widget.set_visible(true);
-        let player = ffi::new_player();
-        Self { widget, player }
+        let mut player = ffi::new_player();
+        unsafe {
+            ffi::player_connect_notify(
+                player.pin_mut(),
+                Self::on_notify,
+                on_notify.as_ref() as *const _ as _,
+            );
+        }
+        Self {
+            on_notify,
+            widget,
+            player,
+        }
     }
 
     pub fn is_visible(&self) -> bool;
@@ -46,13 +63,14 @@ impl Media {
         self.player.source().into()
     }
 
-    pub fn set_url(&mut self, url: impl AsRef<str>) {
+    pub async fn load(&mut self, url: impl AsRef<str>) -> bool {
         self.player.pin_mut().setSource(&url.as_ref().into());
         unsafe {
             self.player
                 .pin_mut()
                 .setVideoOutput(self.widget.pin_mut().get_unchecked_mut());
         }
+        self.on_notify.wait().await
     }
 
     pub fn play(&mut self) {
@@ -96,6 +114,13 @@ impl Media {
 
     pub fn set_muted(&mut self, v: bool) {
         self.player.pin_mut().setMuted(v);
+    }
+
+    fn on_notify(c: *const u8, loaded: bool) {
+        let c = c as *const Callback<bool>;
+        if let Some(c) = unsafe { c.as_ref() } {
+            c.signal::<GlobalRuntime>(loaded);
+        }
     }
 }
 
@@ -210,5 +235,11 @@ mod ffi {
         fn setVolume(self: Pin<&mut WinioMediaPlayer>, v: f64);
         fn isMuted(self: &WinioMediaPlayer) -> bool;
         fn setMuted(self: Pin<&mut WinioMediaPlayer>, v: bool);
+
+        unsafe fn player_connect_notify(
+            p: Pin<&mut WinioMediaPlayer>,
+            callback: unsafe fn(*const u8, bool),
+            data: *const u8,
+        );
     }
 }

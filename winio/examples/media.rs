@@ -188,12 +188,24 @@ impl Component for MainModel {
             }
             MainMessage::OpenFile(p) => {
                 let url = Url::from_file_path(&p).unwrap();
-                self.media.set_url(url.as_str());
-                self.volume_slider.enable();
-                self.time_slider.enable();
-                self.play_button.enable();
-                self.media.play();
-                self.set_playing(true);
+                if self.media.load(url.as_str()).await {
+                    self.volume_slider.enable();
+                    self.time_slider.enable();
+                    self.play_button.enable();
+                    self.media.play();
+                    self.set_playing(true);
+                } else {
+                    self.volume_slider.disable();
+                    self.time_slider.disable();
+                    self.play_button.disable();
+                    self.set_playing(false);
+                    MessageBox::new()
+                        .buttons(MessageBoxButton::Ok)
+                        .style(MessageBoxStyle::Error)
+                        .message("Failed to load media file.")
+                        .show(&self.window)
+                        .await;
+                }
                 true
             }
         }
