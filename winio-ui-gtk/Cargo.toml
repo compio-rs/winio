@@ -14,6 +14,8 @@ winio-handle = { workspace = true, features = ["gtk"] }
 winio-callback = { workspace = true }
 winio-pollable = { workspace = true }
 
+futures-channel = { workspace = true, optional = true }
+futures-util = { workspace = true, optional = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true, default-features = false }
 scoped-tls = { workspace = true }
@@ -22,4 +24,4 @@ gtk4 = { workspace = true, features = ["v4_14"] }
 pangocairo = "0.21"
 
 [features]
-media = []
+media = ["dep:futures-channel", "dep:futures-util"]

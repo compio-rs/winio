@@ -74,7 +74,7 @@ impl Media {
             ))
             .unwrap();
         self.mpe.SetSource(&source).unwrap();
-        let res = rx.next().await.unwrap();
+        let res = rx.next().await.unwrap_or_default();
         source.RemoveOpenOperationCompleted(token).unwrap();
         res
     }
