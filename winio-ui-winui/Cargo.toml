@@ -58,6 +58,7 @@ media = [
     "windows/Media_Core",
     "winui3/UI_Xaml_Media",
 ]
+webview = ["winui3/Web_WebView2_Core"]
 
 enable-cbs = []
 

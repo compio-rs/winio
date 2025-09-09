@@ -67,7 +67,7 @@ media = [
     "winio-ui-gtk?/media",
     "winio-ui-qt?/media",
 ]
-webview = ["winio-ui-win32?/webview"]
+webview = ["winio-ui-win32?/webview", "winio-ui-winui?/webview"]
 all = ["media", "webview"]
 
 nightly = ["compio/nightly", "cyper/nightly"]
