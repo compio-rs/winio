@@ -109,7 +109,7 @@ impl WebView {
         self.view.get_source().unwrap()
     }
 
-    pub fn set_source(&self, s: impl AsRef<str>) {
+    pub fn set_source(&mut self, s: impl AsRef<str>) {
         self.view.navigate(s.as_ref()).unwrap();
     }
 

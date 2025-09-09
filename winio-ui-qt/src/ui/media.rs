@@ -1,4 +1,4 @@
-use std::{fmt::Debug, mem::MaybeUninit, time::Duration};
+use std::{fmt::Debug, time::Duration};
 
 use cxx::{ExternType, UniquePtr, type_id};
 use inherit_methods_macro::inherit_methods;
@@ -8,7 +8,7 @@ use winio_primitive::{Point, Size};
 
 use crate::{
     GlobalRuntime,
-    ui::{QString, Widget, impl_static_cast},
+    ui::{Widget, impl_static_cast},
 };
 
 pub struct Media {
@@ -144,58 +144,6 @@ impl Drop for Media {
 
 impl_static_cast!(ffi::QVideoWidget, ffi::QWidget);
 
-#[repr(C)]
-pub struct QUrl {
-    _space: MaybeUninit<usize>,
-}
-
-unsafe impl ExternType for QUrl {
-    type Id = type_id!("QUrl");
-    type Kind = cxx::kind::Trivial;
-}
-
-impl From<&QString> for QUrl {
-    fn from(value: &QString) -> Self {
-        ffi::new_url(value)
-    }
-}
-
-impl From<QString> for QUrl {
-    fn from(value: QString) -> Self {
-        ffi::new_url(&value)
-    }
-}
-
-impl From<&QUrl> for QString {
-    fn from(value: &QUrl) -> Self {
-        ffi::url_to_qstring(value)
-    }
-}
-
-impl From<QUrl> for QString {
-    fn from(value: QUrl) -> Self {
-        ffi::url_to_qstring(&value)
-    }
-}
-
-impl From<&str> for QUrl {
-    fn from(value: &str) -> Self {
-        QString::from(value).into()
-    }
-}
-
-impl From<&QUrl> for String {
-    fn from(value: &QUrl) -> Self {
-        QString::from(value).into()
-    }
-}
-
-impl From<QUrl> for String {
-    fn from(value: QUrl) -> Self {
-        QString::from(value).into()
-    }
-}
-
 #[allow(non_camel_case_types)]
 struct qint64(i64);
 
@@ -210,15 +158,10 @@ mod ffi {
         include!("winio-ui-qt/src/ui/media.hpp");
 
         type qint64 = super::qint64;
-        type QUrl = super::QUrl;
-        type QString = crate::ui::QString;
+        type QUrl = crate::ui::QUrl;
         type QWidget = crate::ui::QWidget;
         type QVideoWidget;
         type WinioMediaPlayer;
-
-        fn new_url(s: &QString) -> QUrl;
-
-        fn url_to_qstring(url: &QUrl) -> QString;
 
         unsafe fn new_video(parent: *mut QWidget) -> UniquePtr<QVideoWidget>;
         fn new_player() -> UniquePtr<WinioMediaPlayer>;

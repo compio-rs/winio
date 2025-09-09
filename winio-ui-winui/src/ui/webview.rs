@@ -112,7 +112,7 @@ impl WebView {
             .to_string_lossy()
     }
 
-    pub fn set_source(&self, s: impl AsRef<str>) {
+    pub fn set_source(&mut self, s: impl AsRef<str>) {
         self.view
             .SetSource(&Uri::CreateUri(&HSTRING::from(s.as_ref())).unwrap())
             .unwrap()

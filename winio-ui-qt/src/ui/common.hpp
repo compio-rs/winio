@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QString>
+#include <QUrl>
 #include <optional>
 #include <rust/cxx.h>
 #include <tuple>
@@ -39,3 +40,11 @@ inline QString new_string_utf8(const std::uint8_t *p, std::size_t len) {
 inline std::size_t string_len(const QString &s) noexcept { return s.size(); }
 
 inline void string_drop(QString &s) noexcept { s.~QString(); }
+
+namespace rust {
+template <> struct IsRelocatable<QUrl> : std::true_type {};
+} // namespace rust
+
+inline QUrl new_url(const QString &s) { return QUrl{s}; }
+
+inline QString url_to_qstring(const QUrl &url) { return url.toString(); }
