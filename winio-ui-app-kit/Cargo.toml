@@ -37,9 +37,11 @@ objc2-av-foundation = { version = "0.3", features = [
     "objc2-core-media",
 ], optional = true }
 objc2-core-media = { version = "0.3", optional = true }
+objc2-web-kit = { version = "0.3", optional = true }
 
 [features]
 media = ["dep:objc2-av-kit", "dep:objc2-av-foundation", "dep:objc2-core-media"]
+webview = ["dep:objc2-web-kit"]
 
 objc-static = [
     "objc2/unstable-static-class-inlined",
