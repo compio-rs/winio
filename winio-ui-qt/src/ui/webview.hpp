@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.hpp"
+#include <QWebEngineHistory>
 #include <QWebEngineView>
 
 STATIC_CAST_ASSERT(QWebEngineView, QWidget);

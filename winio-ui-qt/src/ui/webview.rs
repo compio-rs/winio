@@ -60,7 +60,14 @@ impl WebView {
     }
 
     pub fn can_go_forward(&self) -> bool {
-        true
+        unsafe {
+            self.widget
+                .as_ref()
+                .history()
+                .as_ref()
+                .map(|history| history.canGoForward())
+                .unwrap_or_default()
+        }
     }
 
     pub fn go_forward(&mut self) {
@@ -68,7 +75,14 @@ impl WebView {
     }
 
     pub fn can_go_back(&self) -> bool {
-        true
+        unsafe {
+            self.widget
+                .as_ref()
+                .history()
+                .as_ref()
+                .map(|history| history.canGoBack())
+                .unwrap_or_default()
+        }
     }
 
     pub fn go_back(&mut self) {
@@ -99,6 +113,7 @@ mod ffi {
         type QWidget = crate::ui::QWidget;
         type QUrl = crate::ui::QUrl;
         type QWebEngineView;
+        type QWebEngineHistory;
 
         unsafe fn new_webview(parent: *mut QWidget) -> UniquePtr<QWebEngineView>;
 
@@ -112,5 +127,9 @@ mod ffi {
         fn setUrl(self: Pin<&mut QWebEngineView>, url: &QUrl);
         fn forward(self: Pin<&mut QWebEngineView>);
         fn back(self: Pin<&mut QWebEngineView>);
+        fn history(self: &QWebEngineView) -> *mut QWebEngineHistory;
+
+        fn canGoForward(self: &QWebEngineHistory) -> bool;
+        fn canGoBack(self: &QWebEngineHistory) -> bool;
     }
 }
