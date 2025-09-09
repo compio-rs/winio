@@ -20,25 +20,28 @@ jobs:
         toolchain: ['nightly']
         setup:
           - os: 'ubuntu-24.04'
-            deps: 'qtbase5-dev qtmultimedia5-dev libgtk-4-dev'
-            features: 'media'
+            deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev libgtk-4-dev libwebkitgtk-6.0-dev'
+            features: 'media,webview'
           - os: 'ubuntu-24.04'
             deps: 'qt6-base-dev libgtk-4-dev'
           - os: 'ubuntu-24.04'
             deps: 'qt6-base-dev qt6-multimedia-dev libgtk-4-dev'
             features: 'media'
           - os: 'ubuntu-24.04'
-            features: 'gtk,media'
+            features: 'gtk,webview'
             no_default_features: true
-            deps: 'qt6-base-dev qt6-multimedia-dev libgtk-4-dev'
+            deps: 'qt6-base-dev qt6-webengine-dev libgtk-4-dev libwebkitgtk-6.0-dev'
           - os: 'windows-latest'
             target: 'x86_64-pc-windows-msvc'
           - os: 'windows-latest'
+            target: 'x86_64-pc-windows-msvc'
+            features: 'webview'
+          - os: 'windows-latest'
             target: 'i686-pc-windows-msvc'
-            features: 'media'
+            features: 'media,webview'
           - os: 'windows-latest'
             target: 'x86_64-pc-windows-gnullvm'
-            features: 'win32,media'
+            features: 'win32,media,webview'
             no_default_features: true
           - os: 'windows-latest'
             target: 'x86_64-pc-windows-msvc'
@@ -47,6 +50,8 @@ jobs:
           - os: 'macos-13'
           - os: 'macos-13'
             features: 'media'
+          - os: 'macos-13'
+            features: 'webview'
     steps:
       - uses: actions/checkout@v4
       - name: Setup Rust Toolchain
