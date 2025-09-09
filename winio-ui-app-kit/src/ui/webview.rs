@@ -52,11 +52,17 @@ impl WebView {
 
     pub fn set_visible(&mut self, v: bool);
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> bool {
+        true
+    }
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, _: bool) {
+        ()
+    }
 
-    pub fn preferred_size(&self) -> Size;
+    pub fn preferred_size(&self) -> Size {
+        Size::zero()
+    }
 
     pub fn loc(&self) -> Point;
 
