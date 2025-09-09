@@ -1,7 +1,7 @@
 use flume::Receiver;
 use webview2::{Controller, Environment, WebView as WebView2};
 use windows_sys::Win32::{Foundation::RECT, UI::HiDpi::GetDpiForWindow};
-use winio_handle::AsWindow;
+use winio_handle::{AsRawWidget, AsWidget, AsWindow, BorrowedWidget, RawWidget};
 use winio_primitive::{Point, Rect, Size};
 
 #[derive(Debug)]
@@ -131,5 +131,17 @@ impl WebView {
 
     pub async fn wait_navigate(&self) {
         self.nav_rx.recv_async().await.ok();
+    }
+}
+
+impl AsRawWidget for WebView {
+    fn as_raw_widget(&self) -> RawWidget {
+        unimplemented!("cannot get HWND from WebView2")
+    }
+}
+
+impl AsWidget for WebView {
+    fn as_widget(&self) -> BorrowedWidget<'_> {
+        unsafe { BorrowedWidget::borrow_raw(AsRawWidget::as_raw_widget(self)) }
     }
 }

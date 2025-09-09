@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
-use winio_handle::AsWindow;
+use winio_handle::{AsRawWidget, AsWindow, RawWidget};
 use winio_layout::{Enable, Layoutable, Visible};
 use winio_primitive::{Point, Size};
 
@@ -170,6 +170,15 @@ impl WebViewInner {
     }
 }
 
+impl AsRawWidget for WebViewInner {
+    fn as_raw_widget(&self) -> RawWidget {
+        match self {
+            Self::Params(_) => unreachable!("cannot get raw widget before initialized"),
+            Self::Widget(w) => w.as_raw_widget(),
+        }
+    }
+}
+
 /// A web view.
 #[derive(Debug)]
 pub struct WebView {
@@ -264,3 +273,5 @@ impl Component for WebView {
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
+
+winio_handle::impl_as_widget!(WebView, widget);
