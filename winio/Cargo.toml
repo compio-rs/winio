@@ -67,7 +67,14 @@ media = [
     "winio-ui-gtk?/media",
     "winio-ui-qt?/media",
 ]
-all = ["media"]
+webview = [
+    "winio-ui-app-kit/webview",
+    "winio-ui-win32?/webview",
+    "winio-ui-winui?/webview",
+    "winio-ui-gtk?/webview",
+    "winio-ui-qt?/webview",
+]
+all = ["media", "webview"]
 
 nightly = ["compio/nightly", "cyper/nightly"]
 win32-dark-mode = [
@@ -75,8 +82,13 @@ win32-dark-mode = [
     "winio-ui-winui?/win32-dark-mode",
 ]
 winui-enable-cbs = ["winio-ui-winui?/enable-cbs"]
+winui-webview-system = ["winio-ui-winui?/webview-system"]
 objc-static = ["winio-ui-app-kit/objc-static"]
 
 [[example]]
 name = "media"
 required-features = ["media"]
+
+[[example]]
+name = "net_webview"
+required-features = ["webview"]

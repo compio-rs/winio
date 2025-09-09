@@ -27,3 +27,4 @@ qt-build-utils = { version = "0.7" }
 
 [features]
 media = []
+webview = []

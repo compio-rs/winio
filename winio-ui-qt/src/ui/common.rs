@@ -55,12 +55,65 @@ impl Debug for QString {
     }
 }
 
+#[repr(C)]
+pub struct QUrl {
+    _space: MaybeUninit<usize>,
+}
+
+unsafe impl ExternType for QUrl {
+    type Id = type_id!("QUrl");
+    type Kind = cxx::kind::Trivial;
+}
+
+impl From<&QString> for QUrl {
+    fn from(value: &QString) -> Self {
+        ffi::new_url(value)
+    }
+}
+
+impl From<QString> for QUrl {
+    fn from(value: QString) -> Self {
+        ffi::new_url(&value)
+    }
+}
+
+impl From<&QUrl> for QString {
+    fn from(value: &QUrl) -> Self {
+        ffi::url_to_qstring(value)
+    }
+}
+
+impl From<QUrl> for QString {
+    fn from(value: QUrl) -> Self {
+        ffi::url_to_qstring(&value)
+    }
+}
+
+impl From<&str> for QUrl {
+    fn from(value: &str) -> Self {
+        QString::from(value).into()
+    }
+}
+
+impl From<&QUrl> for String {
+    fn from(value: &QUrl) -> Self {
+        QString::from(value).into()
+    }
+}
+
+impl From<QUrl> for String {
+    fn from(value: QUrl) -> Self {
+        QString::from(value).into()
+    }
+}
+
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++-unwind" {
         include!("winio-ui-qt/src/ui/common.hpp");
 
         type QString = super::QString;
+        type QUrl = super::QUrl;
 
         #[cxx_name = "new_string_utf8"]
         unsafe fn from_utf8(p: *const u8, size: usize) -> QString;
@@ -68,5 +121,9 @@ mod ffi {
         fn utf16(self: &QString) -> *const u16;
         fn string_len(s: &QString) -> usize;
         fn string_drop(s: Pin<&mut QString>);
+
+        fn new_url(s: &QString) -> QUrl;
+
+        fn url_to_qstring(url: &QUrl) -> QString;
     }
 }

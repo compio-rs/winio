@@ -14,6 +14,10 @@ fn main() {
             "Multimedia".into(),
             #[cfg(feature = "media")]
             "MultimediaWidgets".into(),
+            #[cfg(feature = "webview")]
+            "WebEngineCore".into(),
+            #[cfg(feature = "webview")]
+            "WebEngineWidgets".into(),
         ])
         .unwrap();
 
@@ -42,6 +46,8 @@ fn main() {
             "src/ui/scroll_bar",
             #[cfg(feature = "media")]
             "src/ui/media",
+            #[cfg(feature = "webview")]
+            "src/ui/webview",
         ];
 
         for s in sources {

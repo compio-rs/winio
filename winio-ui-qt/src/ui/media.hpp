@@ -2,20 +2,11 @@
 
 #include "common.hpp"
 #include <QMediaPlayer>
-#include <QUrl>
 #include <QVideoWidget>
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QAudioOutput>
 #endif
-
-namespace rust {
-template <> struct IsRelocatable<QUrl> : std::true_type {};
-} // namespace rust
-
-inline QUrl new_url(const QString &s) { return QUrl{s}; }
-
-inline QString url_to_qstring(const QUrl &url) { return url.toString(); }
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 struct WinioMediaPlayer : public QMediaPlayer {
@@ -46,6 +37,8 @@ struct WinioMediaPlayer : public QMediaPlayer {
     void setSource(const QUrl &url) { setMedia(url); }
 };
 #endif
+
+STATIC_CAST_ASSERT(QVideoWidget, QWidget);
 
 std::unique_ptr<QVideoWidget> new_video(QWidget *parent);
 std::unique_ptr<WinioMediaPlayer> new_player();
