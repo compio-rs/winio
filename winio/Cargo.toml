@@ -76,6 +76,7 @@ win32-dark-mode = [
     "winio-ui-winui?/win32-dark-mode",
 ]
 winui-enable-cbs = ["winio-ui-winui?/enable-cbs"]
+winui-webview-system = ["winio-ui-winui?/webview-system"]
 objc-static = ["winio-ui-app-kit/objc-static"]
 
 [[example]]

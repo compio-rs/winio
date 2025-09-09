@@ -61,5 +61,6 @@ media = [
 webview = ["winui3/Web_WebView2_Core"]
 
 enable-cbs = []
+webview-system = []
 
 win32-dark-mode = ["winio-ui-windows-common/dark-mode"]
