@@ -36,7 +36,7 @@ impl Component for MainModel {
                 text: "Networking example",
                 size: Size::new(800.0, 600.0),
             },
-            webview: WebView = (()) => {
+            webview: WebView = (&window) => {
                 source: url
             },
             button: Button = (&window) => {
@@ -77,7 +77,6 @@ impl Component for MainModel {
     }
 
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
-        self.webview.init(&self.window).await;
         futures_util::future::join4(
             self.window.update(),
             self.webview.update(),

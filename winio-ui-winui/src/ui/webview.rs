@@ -1,28 +1,27 @@
-use std::{path::PathBuf, rc::Rc};
+use std::{future::Future, path::PathBuf, rc::Rc};
 
-use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows::{
     Foundation::{TypedEventHandler, Uri},
     core::{HSTRING, Interface},
 };
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::{AsRawWidget, AsWindow, RawWidget};
 use winio_primitive::{Point, Size};
+use winio_ui_windows_common::{WebViewImpl, WebViewLazy};
 use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
 use crate::{GlobalRuntime, Widget};
 
 #[derive(Debug)]
-pub struct WebView {
+pub struct WebViewInner {
     on_navigate: SendWrapper<Rc<Callback>>,
     handle: Widget,
     view: MUXC::WebView2,
 }
 
-#[inherit_methods(from = "self.handle")]
-impl WebView {
-    pub async fn new(parent: impl AsWindow) -> Self {
+impl WebViewImpl for WebViewInner {
+    async fn new(parent: impl AsWindow) -> Self {
         #[cfg(feature = "webview-system")]
         {
             fn add_webview2sdk_path() {
@@ -83,27 +82,39 @@ impl WebView {
         }
     }
 
-    pub fn is_visible(&self) -> bool;
-
-    pub fn set_visible(&mut self, v: bool);
-
-    pub fn is_enabled(&self) -> bool;
-
-    pub fn set_enabled(&mut self, v: bool);
-
-    pub fn preferred_size(&self) -> Size {
-        Size::zero()
+    fn is_visible(&self) -> bool {
+        self.handle.is_visible()
     }
 
-    pub fn loc(&self) -> Point;
+    fn set_visible(&mut self, v: bool) {
+        self.handle.set_visible(v)
+    }
 
-    pub fn set_loc(&mut self, p: Point);
+    fn is_enabled(&self) -> bool {
+        self.handle.is_enabled()
+    }
 
-    pub fn size(&self) -> Size;
+    fn set_enabled(&mut self, v: bool) {
+        self.handle.set_enabled(v)
+    }
 
-    pub fn set_size(&mut self, v: Size);
+    fn loc(&self) -> Point {
+        self.handle.loc()
+    }
 
-    pub fn source(&self) -> String {
+    fn set_loc(&mut self, p: Point) {
+        self.handle.set_loc(p)
+    }
+
+    fn size(&self) -> Size {
+        self.handle.size()
+    }
+
+    fn set_size(&mut self, v: Size) {
+        self.handle.set_size(v)
+    }
+
+    fn source(&self) -> String {
         self.view
             .Source()
             .unwrap()
@@ -112,31 +123,40 @@ impl WebView {
             .to_string_lossy()
     }
 
-    pub fn set_source(&mut self, s: impl AsRef<str>) {
+    fn set_source(&mut self, s: impl AsRef<str>) {
         self.view
             .SetSource(&Uri::CreateUri(&HSTRING::from(s.as_ref())).unwrap())
             .unwrap()
     }
 
-    pub fn can_go_forward(&self) -> bool {
+    fn can_go_forward(&self) -> bool {
         self.view.CanGoForward().unwrap()
     }
 
-    pub fn go_forward(&mut self) {
+    fn go_forward(&mut self) {
         self.view.GoForward().unwrap();
     }
 
-    pub fn can_go_back(&self) -> bool {
+    fn can_go_back(&self) -> bool {
         self.view.CanGoBack().unwrap()
     }
 
-    pub fn go_back(&mut self) {
+    fn go_back(&mut self) {
         self.view.GoBack().unwrap();
     }
 
-    pub async fn wait_navigate(&self) {
-        self.on_navigate.wait().await;
+    fn wait_navigate(&self) -> impl Future<Output = ()> + 'static + use<> {
+        let on_navigate = self.on_navigate.clone();
+        async move {
+            on_navigate.wait().await;
+        }
     }
 }
 
-winio_handle::impl_as_widget!(WebView, handle);
+impl AsRawWidget for WebViewInner {
+    fn as_raw_widget(&self) -> RawWidget {
+        self.handle.as_raw_widget()
+    }
+}
+
+pub type WebView = WebViewLazy<WebViewInner>;

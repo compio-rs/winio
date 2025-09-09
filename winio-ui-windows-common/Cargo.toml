@@ -15,6 +15,7 @@ winio-handle = { workspace = true }
 compio = { workspace = true }
 
 cfg-if = { workspace = true }
+futures-util = { workspace = true, optional = true }
 image = { workspace = true, default-features = false }
 widestring = { workspace = true }
 
@@ -53,4 +54,5 @@ embed-resource = "3"
 [features]
 win32 = ["winio-handle/win32"]
 winui = ["winio-handle/winui"]
+webview = ["dep:futures-util"]
 dark-mode = ["dep:slim-detours-sys", "dep:sync-unsafe-cell"]

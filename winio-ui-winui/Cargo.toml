@@ -58,7 +58,7 @@ media = [
     "windows/Media_Core",
     "winui3/UI_Xaml_Media",
 ]
-webview = ["winui3/Web_WebView2_Core"]
+webview = ["winui3/Web_WebView2_Core", "winio-ui-windows-common/webview"]
 
 enable-cbs = []
 webview-system = []
