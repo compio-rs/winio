@@ -26,7 +26,7 @@ pub struct WebView {
 
 #[inherit_methods(from = "self.handle")]
 impl WebView {
-    pub async fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsWindow) -> Self {
         unsafe {
             let mtm = MainThreadMarker::new().unwrap();
 

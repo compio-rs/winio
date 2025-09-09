@@ -16,7 +16,7 @@ pub struct WebView {
 
 #[inherit_methods(from = "self.widget")]
 impl WebView {
-    pub async fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsWindow) -> Self {
         let on_loaded = Box::new(Callback::new());
         let mut widget = unsafe { ffi::new_webview(parent.as_window().as_qt()) };
         unsafe {
