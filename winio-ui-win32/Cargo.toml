@@ -45,7 +45,7 @@ windows = { workspace = true, features = [
     "Win32_Graphics_Dxgi_Common",
 ] }
 windows-core = { workspace = true, optional = true }
-webview2 = { version = "0.1", optional = true }
+webview2 = { workspace = true, optional = true }
 
 [features]
 media = [
@@ -57,6 +57,7 @@ webview = [
     "dep:webview2",
     "dep:flume",
     "dep:futures-channel",
+    "dep:windows-core",
     "winio-ui-windows-common/webview",
 ]
 

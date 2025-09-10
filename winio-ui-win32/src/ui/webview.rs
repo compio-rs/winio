@@ -1,30 +1,46 @@
-use std::future::Future;
+use std::{cell::RefCell, future::Future};
 
 use flume::Receiver;
-use webview2::{Controller, Environment, WebView as WebView2};
+use webview2::{
+    CreateCoreWebView2Environment, ICoreWebView2, ICoreWebView2Controller,
+    ICoreWebView2CreateCoreWebView2ControllerCompletedHandler,
+    ICoreWebView2CreateCoreWebView2ControllerCompletedHandler_Impl,
+    ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,
+    ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler_Impl, ICoreWebView2Environment,
+    ICoreWebView2NavigationCompletedEventArgs, ICoreWebView2NavigationCompletedEventHandler,
+    ICoreWebView2NavigationCompletedEventHandler_Impl,
+};
+use windows::{
+    Win32::Foundation::{HWND, RECT},
+    core::{HRESULT, PCWSTR, Ref, Result, implement},
+};
 use windows_sys::Win32::{
-    Foundation::RECT,
+    System::Com::CoTaskMemFree,
     UI::{HiDpi::GetDpiForWindow, WindowsAndMessaging::IsWindow},
 };
 use winio_handle::{AsRawWidget, AsWindow, RawWidget};
 use winio_primitive::{Point, Rect, Size};
 use winio_ui_windows_common::{WebViewImpl, WebViewLazy};
 
+use crate::ui::with_u16c;
+
 #[derive(Debug)]
 pub struct WebViewInner {
-    host: Controller,
-    view: WebView2,
+    host: ICoreWebView2Controller,
+    view: ICoreWebView2,
     nav_rx: Receiver<()>,
 }
 
 impl WebViewInner {
     fn dpi(&self) -> f64 {
-        let hwnd = self.host.get_parent_window().unwrap();
-        unsafe { GetDpiForWindow(hwnd.cast()) as f64 / 96.0 }
+        unsafe {
+            let hwnd = self.host.ParentWindow().unwrap();
+            GetDpiForWindow(hwnd.0) as f64 / 96.0
+        }
     }
 
     fn rect(&self) -> Rect {
-        let rect = self.host.get_bounds().unwrap();
+        let rect = unsafe { self.host.Bounds() }.unwrap();
         Rect::new(
             Point::new(rect.left as _, rect.top as _),
             Size::new((rect.right - rect.left) as _, (rect.bottom - rect.top) as _),
@@ -34,16 +50,16 @@ impl WebViewInner {
     #[allow(clippy::missing_transmute_annotations)]
     fn set_rect(&mut self, r: Rect) {
         let r = r * self.dpi();
-        self.host
-            .put_bounds(unsafe {
-                std::mem::transmute(RECT {
+        unsafe {
+            self.host
+                .SetBounds(RECT {
                     left: r.origin.x as _,
                     top: r.origin.y as _,
                     right: (r.origin.x + r.size.width) as _,
                     bottom: (r.origin.y + r.size.height) as _,
                 })
-            })
-            .unwrap();
+                .unwrap();
+        }
     }
 }
 
@@ -55,23 +71,33 @@ impl WebViewImpl for WebViewInner {
         if unsafe { IsWindow(hwnd) } == 0 {
             panic!("Invalid window handle");
         }
-        Environment::builder()
-            .build(move |res| {
-                res?.create_controller(hwnd.cast(), |res| {
-                    let host = res?;
-                    let view = host.get_webview()?;
-                    tx.send((host, view)).ok();
-                    Ok(())
-                })
-            })
+        unsafe {
+            CreateCoreWebView2Environment(&CreateEnvHandler::create(move |env| {
+                let env = env?;
+                let env = env.unwrap();
+                env.CreateCoreWebView2Controller(
+                    HWND(hwnd),
+                    &CreateControllerHandler::create(move |host| {
+                        let host = host?;
+                        let host = host.unwrap();
+                        let view = host.CoreWebView2()?;
+                        tx.send((host.clone(), view)).ok();
+                        Ok(())
+                    }),
+                )?;
+                Ok(())
+            }))
             .unwrap();
+        }
         let (host, view) = rx.await.unwrap();
         let (tx, rx) = flume::unbounded();
-        view.add_navigation_completed(move |_, _| {
-            tx.send(()).ok();
-            Ok(())
-        })
-        .unwrap();
+        unsafe {
+            view.NavigationCompleted(&NavCompletedHandler::create(move |_, _| {
+                tx.send(()).ok();
+                Ok(())
+            }))
+            .unwrap();
+        }
         Self {
             host,
             view,
@@ -80,11 +106,13 @@ impl WebViewImpl for WebViewInner {
     }
 
     fn is_visible(&self) -> bool {
-        self.host.get_is_visible().unwrap()
+        unsafe { self.host.IsVisible().unwrap().as_bool() }
     }
 
     fn set_visible(&mut self, v: bool) {
-        self.host.put_is_visible(v).unwrap();
+        unsafe {
+            self.host.SetIsVisible(v).unwrap();
+        }
     }
 
     fn is_enabled(&self) -> bool {
@@ -114,27 +142,36 @@ impl WebViewImpl for WebViewInner {
     }
 
     fn source(&self) -> String {
-        self.view.get_source().unwrap()
+        unsafe {
+            let source = CoTaskMemPtr(self.view.Source().unwrap().0);
+            PCWSTR(source.0).to_string().unwrap()
+        }
     }
 
     fn set_source(&mut self, s: impl AsRef<str>) {
-        self.view.navigate(s.as_ref()).unwrap();
+        with_u16c(s.as_ref(), |s| unsafe {
+            self.view.Navigate(PCWSTR(s.as_ptr())).unwrap();
+        })
     }
 
     fn can_go_forward(&self) -> bool {
-        self.view.get_can_go_forward().unwrap()
+        unsafe { self.view.CanGoForward().unwrap().as_bool() }
     }
 
     fn go_forward(&mut self) {
-        self.view.go_forward().unwrap();
+        unsafe {
+            self.view.GoForward().unwrap();
+        }
     }
 
     fn can_go_back(&self) -> bool {
-        self.view.get_can_go_back().unwrap()
+        unsafe { self.view.CanGoBack().unwrap().as_bool() }
     }
 
     fn go_back(&mut self) {
-        self.view.go_back().unwrap();
+        unsafe {
+            self.view.GoBack().unwrap();
+        }
     }
 
     fn wait_navigate(&self) -> impl Future<Output = ()> + 'static + use<> {
@@ -152,3 +189,121 @@ impl AsRawWidget for WebViewInner {
 }
 
 pub type WebView = WebViewLazy<WebViewInner>;
+
+struct CoTaskMemPtr<T>(*mut T);
+
+impl<T> Drop for CoTaskMemPtr<T> {
+    fn drop(&mut self) {
+        unsafe { CoTaskMemFree(self.0.cast()) }
+    }
+}
+
+#[implement(ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler)]
+struct CreateEnvHandler<F>
+where
+    F: FnOnce(Result<Ref<ICoreWebView2Environment>>) -> Result<()> + 'static,
+{
+    f: RefCell<Option<F>>,
+}
+
+impl<F> CreateEnvHandler<F>
+where
+    F: FnOnce(Result<Ref<ICoreWebView2Environment>>) -> Result<()> + 'static,
+{
+    pub fn create(f: F) -> ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler {
+        Self {
+            f: RefCell::new(Some(f)),
+        }
+        .into()
+    }
+}
+
+impl<F> ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler_Impl for CreateEnvHandler_Impl<F>
+where
+    F: FnOnce(Result<Ref<ICoreWebView2Environment>>) -> Result<()> + 'static,
+{
+    fn Invoke(
+        &self,
+        errorcode: HRESULT,
+        createdenvironment: Ref<ICoreWebView2Environment>,
+    ) -> Result<()> {
+        let f = self.f.borrow_mut().take();
+        if let Some(f) = f {
+            f(errorcode.map(|| createdenvironment))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+#[implement(ICoreWebView2CreateCoreWebView2ControllerCompletedHandler)]
+struct CreateControllerHandler<F>
+where
+    F: FnOnce(Result<Ref<ICoreWebView2Controller>>) -> Result<()> + 'static,
+{
+    f: RefCell<Option<F>>,
+}
+
+impl<F> CreateControllerHandler<F>
+where
+    F: FnOnce(Result<Ref<ICoreWebView2Controller>>) -> Result<()> + 'static,
+{
+    pub fn create(f: F) -> ICoreWebView2CreateCoreWebView2ControllerCompletedHandler {
+        Self {
+            f: RefCell::new(Some(f)),
+        }
+        .into()
+    }
+}
+
+impl<F> ICoreWebView2CreateCoreWebView2ControllerCompletedHandler_Impl
+    for CreateControllerHandler_Impl<F>
+where
+    F: FnOnce(Result<Ref<ICoreWebView2Controller>>) -> Result<()> + 'static,
+{
+    fn Invoke(
+        &self,
+        errorcode: HRESULT,
+        createdcontroller: Ref<ICoreWebView2Controller>,
+    ) -> Result<()> {
+        let f = self.f.borrow_mut().take();
+        if let Some(f) = f {
+            f(errorcode.map(|| createdcontroller))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+#[implement(ICoreWebView2NavigationCompletedEventHandler)]
+struct NavCompletedHandler<F>
+where
+    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> Result<()>
+        + 'static,
+{
+    f: F,
+}
+
+impl<F> NavCompletedHandler<F>
+where
+    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> Result<()>
+        + 'static,
+{
+    pub fn create(f: F) -> ICoreWebView2NavigationCompletedEventHandler {
+        Self { f }.into()
+    }
+}
+
+impl<F> ICoreWebView2NavigationCompletedEventHandler_Impl for NavCompletedHandler_Impl<F>
+where
+    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> Result<()>
+        + 'static,
+{
+    fn Invoke(
+        &self,
+        sender: Ref<ICoreWebView2>,
+        args: Ref<ICoreWebView2NavigationCompletedEventArgs>,
+    ) -> Result<()> {
+        (self.f)(sender, args)
+    }
+}
