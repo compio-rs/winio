@@ -93,10 +93,7 @@ impl Runtime {
         init_dark();
         set_preferred_app_mode(PreferredAppMode::AllowDark);
 
-        #[cfg(feature = "mrm-hook")]
-        {
-            crate::ui::mrm_hook::init_hook();
-        }
+        crate::ui::mrm_hook::init_hook();
 
         let runtime = compio::runtime::Runtime::new().unwrap();
 
