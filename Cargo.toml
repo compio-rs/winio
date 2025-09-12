@@ -58,7 +58,7 @@ windows-core = "0.62"
 winui3 = { version = "0.3.0", package = "winio-winui3" }
 webview2 = { version = "0.1.0", package = "winio-webview2" }
 
-slim-detours-sys = "0.3"
+slim-detours-sys = "0.4"
 sync-unsafe-cell = "0.1"
 
 objc2 = "0.6"

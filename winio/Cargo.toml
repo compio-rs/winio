@@ -53,7 +53,7 @@ tracing-subscriber = "0.3"
 url = "2"
 
 [features]
-default = ["qt", "win32", "win32-dark-mode"]
+default = ["qt", "win32"]
 win32 = ["dep:winio-ui-win32"]
 winui = ["dep:winio-ui-winui"]
 gtk = ["dep:winio-ui-gtk"]
@@ -77,10 +77,6 @@ webview = [
 all = ["media", "webview"]
 
 nightly = ["compio/nightly", "cyper/nightly"]
-win32-dark-mode = [
-    "winio-ui-win32?/dark-mode",
-    "winio-ui-winui?/win32-dark-mode",
-]
 winui-enable-cbs = ["winio-ui-winui?/enable-cbs"]
 winui-webview-system = ["winio-ui-winui?/webview-system"]
 winui-mrm-hook = ["winio-ui-winui?/mrm-hook"]

@@ -74,5 +74,3 @@ mrm-hook = [
     "dep:sync-unsafe-cell",
     "windows-sys/Win32_System_Diagnostics_Debug",
 ]
-
-win32-dark-mode = ["winio-ui-windows-common/dark-mode"]
