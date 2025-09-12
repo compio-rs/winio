@@ -73,7 +73,7 @@ impl Runtime {
                 V1_7,
                 V1_6,
                 #[cfg(feature = "enable-cbs")]
-                VNextCbs,
+                Cbs1_6,
                 V1_5,
                 #[cfg(feature = "enable-cbs")]
                 Cbs,
