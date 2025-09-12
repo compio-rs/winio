@@ -51,6 +51,9 @@ windows = { workspace = true, features = [
     "Win32_Graphics_Dxgi",
 ] }
 
+slim-detours-sys = { workspace = true, optional = true }
+sync-unsafe-cell = { workspace = true, optional = true }
+
 [features]
 media = [
     "dep:futures-channel",
@@ -60,7 +63,16 @@ media = [
 ]
 webview = ["winui3/Web_WebView2_Core", "winio-ui-windows-common/webview"]
 
+# Use CBS WinUI3 shipped with Windows
 enable-cbs = []
+# Use WebView2 Core shipped with Windows
 webview-system = []
+# Hook MRM.dll to avoid errors
+# https://github.com/microsoft/WindowsAppSDK/issues/5814
+mrm-hook = [
+    "dep:slim-detours-sys",
+    "dep:sync-unsafe-cell",
+    "windows-sys/Win32_System_Diagnostics_Debug",
+]
 
 win32-dark-mode = ["winio-ui-windows-common/dark-mode"]

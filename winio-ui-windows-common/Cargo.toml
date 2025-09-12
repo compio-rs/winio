@@ -45,8 +45,8 @@ windows-sys = { workspace = true, features = [
 ] }
 windows-numerics = "0.3"
 
-slim-detours-sys = { version = "0.3", optional = true }
-sync-unsafe-cell = { version = "0.1", optional = true }
+slim-detours-sys = { workspace = true, optional = true }
+sync-unsafe-cell = { workspace = true, optional = true }
 
 [build-dependencies]
 embed-resource = "3"

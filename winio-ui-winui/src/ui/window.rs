@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{mem::MaybeUninit, rc::Rc};
 
 use send_wrapper::SendWrapper;
 use windows::{
@@ -8,7 +8,9 @@ use windows::{
 };
 use windows_sys::Win32::UI::{
     HiDpi::GetDpiForWindow,
-    WindowsAndMessaging::{IMAGE_ICON, LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LR_SHARED, LoadImageW},
+    WindowsAndMessaging::{
+        GetClientRect, IMAGE_ICON, LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LR_SHARED, LoadImageW,
+    },
 };
 use winio_callback::Callback;
 use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
@@ -50,7 +52,7 @@ impl Window {
                     handle
                         .cast::<IWindowNative>()
                         .unwrap()
-                        .get_WindowHandle()
+                        .WindowHandle()
                         .unwrap()
                 };
                 AppWindow::GetFromWindowId(WindowId { Value: hwnd.0 as _ }).unwrap()
@@ -176,7 +178,24 @@ impl Window {
     }
 
     pub fn client_size(&self) -> Size {
-        Size::from_native(self.app_window.ClientSize().unwrap()) / self.scale()
+        let size = match self.app_window.ClientSize() {
+            Ok(s) => Size::from_native(s),
+            // Available since 1.1
+            Err(e) if e.code() == E_NOINTERFACE => {
+                let mut rect = MaybeUninit::uninit();
+                if unsafe {
+                    GetClientRect(self.app_window.Id().unwrap().Value as _, rect.as_mut_ptr())
+                } == 0
+                {
+                    panic!("{:?}", std::io::Error::last_os_error());
+                } else {
+                    let rect = unsafe { rect.assume_init() };
+                    Size::new((rect.right - rect.left) as _, (rect.bottom - rect.top) as _)
+                }
+            }
+            Err(e) => panic!("{e:?}"),
+        };
+        size / self.scale()
     }
 
     pub fn text(&self) -> String {

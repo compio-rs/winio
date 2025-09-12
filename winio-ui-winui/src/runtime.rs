@@ -69,6 +69,7 @@ impl Runtime {
         let winui_dependency = init_appsdk_with({
             use WindowsAppSDKVersion::*;
             [
+                V1_8,
                 V1_7,
                 V1_6,
                 #[cfg(feature = "enable-cbs")]
@@ -81,6 +82,8 @@ impl Runtime {
                 V1_2,
                 #[cfg(not(feature = "media"))]
                 V1_1,
+                #[cfg(not(feature = "media"))]
+                V1_0,
             ]
         })
         .unwrap();
@@ -89,6 +92,11 @@ impl Runtime {
 
         init_dark();
         set_preferred_app_mode(PreferredAppMode::AllowDark);
+
+        #[cfg(feature = "mrm-hook")]
+        {
+            crate::ui::mrm_hook::init_hook();
+        }
 
         let runtime = compio::runtime::Runtime::new().unwrap();
 
