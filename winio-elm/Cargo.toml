@@ -1,6 +1,6 @@
 [package]
 name = "winio-elm"
-version = "0.1.1"
+version = "0.2.0"
 description = "ELM framework for winio."
 edition = { workspace = true }
 authors = { workspace = true }
