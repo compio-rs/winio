@@ -92,10 +92,6 @@ impl ListBox {
         self.on_select.wait().await;
     }
 
-    pub async fn wait_change(&self) {
-        std::future::pending().await
-    }
-
     pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
         let item = MUXC::ListBoxItem::new().unwrap();
         item.SetContent(&HSTRING::from(s.as_ref()).to_reference())

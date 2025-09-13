@@ -3,7 +3,7 @@ use std::rc::Rc;
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows::{
-    Foundation::IReference,
+    Foundation::{IReference, TypedEventHandler},
     core::{HSTRING, IInspectable, Interface},
 };
 use winio_callback::Callback;
@@ -16,6 +16,7 @@ use crate::{GlobalRuntime, Widget, ui::ToIReference};
 #[derive(Debug)]
 pub struct ComboBox {
     on_select: SendWrapper<Rc<Callback<()>>>,
+    on_edit: SendWrapper<Rc<Callback<()>>>,
     handle: Widget,
     combo_box: MUXC::ComboBox,
 }
@@ -34,8 +35,19 @@ impl ComboBox {
                 }))
                 .unwrap();
         }
+        let on_edit = SendWrapper::new(Rc::new(Callback::new()));
+        {
+            let on_edit = on_edit.clone();
+            combo_box
+                .TextSubmitted(&TypedEventHandler::new(move |_, _| {
+                    on_edit.signal::<GlobalRuntime>(());
+                    Ok(())
+                }))
+                .unwrap();
+        }
         Self {
             on_select,
+            on_edit,
             handle: Widget::new(parent, combo_box.cast().unwrap()),
             combo_box,
         }
@@ -90,7 +102,7 @@ impl ComboBox {
     }
 
     pub async fn wait_change(&self) {
-        std::future::pending().await
+        self.on_edit.wait().await;
     }
 
     pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
