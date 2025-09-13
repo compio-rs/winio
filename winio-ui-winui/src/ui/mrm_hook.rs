@@ -68,6 +68,7 @@ unsafe extern "system" fn mrm_get_file_path_from_name(
     }
 }
 
+#[allow(clippy::missing_transmute_annotations)]
 fn detour_attach() -> Result<()> {
     unsafe {
         let module = LoadLibraryW(w!("MRM.dll"))?;
