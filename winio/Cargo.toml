@@ -1,6 +1,6 @@
 [package]
 name = "winio"
-version = "0.7.2"
+version = "0.8.0"
 description = "Single-threaded async GUI runtime based on compio."
 categories = ["asynchronous", "gui"]
 keywords = ["async", "gui"]

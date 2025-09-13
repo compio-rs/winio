@@ -1,6 +1,6 @@
 [package]
 name = "winio-ui-windows-common"
-version = "0.1.1"
+version = "0.2.0"
 description = "Windows common methods for winio."
 edition = { workspace = true }
 authors = { workspace = true }
