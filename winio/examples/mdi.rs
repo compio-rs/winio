@@ -80,14 +80,13 @@ impl Component for MainModel {
 }
 
 struct ChildModel {
-    window: Child<Window>,
+    window: Child<View>,
     check: Child<CheckBox>,
 }
 
 #[derive(Debug)]
 enum ChildMessage {
     Noop,
-    Redraw,
     Check,
 }
 
@@ -103,8 +102,7 @@ impl Component for ChildModel {
 
     fn init(root: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
         init! {
-            window: Window = (root) => {
-                text: "Child window",
+            window: View = (root) => {
                 size: Size::new(400.0, 300.0),
             },
             check: CheckBox = (&window) => {
@@ -120,9 +118,6 @@ impl Component for ChildModel {
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: ChildMessage::Noop,
-            self.window => {
-                WindowEvent::Resize => ChildMessage::Redraw,
-            },
             self.check => {
                 CheckBoxEvent::Click => ChildMessage::Check,
             }
@@ -133,7 +128,6 @@ impl Component for ChildModel {
         futures_util::future::join(self.window.update(), self.check.update()).await;
         match message {
             ChildMessage::Noop => false,
-            ChildMessage::Redraw => true,
             ChildMessage::Check => {
                 sender.output(ChildEvent::Check(self.check.is_checked()));
                 true
@@ -145,7 +139,7 @@ impl Component for ChildModel {
         self.window.render();
         self.check.render();
 
-        let csize = self.window.client_size();
+        let csize = self.window.size();
         let psize = self.check.preferred_size();
         self.check.set_loc(Point::zero());
         self.check.set_size(Size::new(csize.width, psize.height));

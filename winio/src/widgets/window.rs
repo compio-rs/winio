@@ -1,6 +1,5 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
-use winio_handle::MaybeBorrowedWindow;
 use winio_layout::{Layoutable, Visible};
 use winio_primitive::{Point, Size};
 
@@ -76,12 +75,12 @@ pub enum WindowEvent {
 
 impl Component for Window {
     type Event = WindowEvent;
-    type Init<'a> = MaybeBorrowedWindow<'a>;
+    type Init<'a> = ();
     type Message = ();
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+    fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
         Self {
-            widget: sys::Window::new(init.0),
+            widget: sys::Window::new(),
         }
     }
 

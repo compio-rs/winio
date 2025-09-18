@@ -8,7 +8,7 @@ use compio::driver::syscall;
 use inherit_methods_macro::inherit_methods;
 use widestring::{U16CStr, U16CString, U16Str, u16cstr};
 use windows_sys::Win32::{
-    Foundation::{ERROR_INVALID_HANDLE, HWND, LPARAM, LRESULT, POINT, SetLastError, WPARAM},
+    Foundation::{ERROR_INVALID_HANDLE, HWND, LPARAM, LRESULT, SetLastError, WPARAM},
     Graphics::Gdi::{GetStockObject, MapWindowPoints, WHITE_BRUSH},
     UI::{
         Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled},
@@ -23,7 +23,10 @@ use windows_sys::Win32::{
         },
     },
 };
-use winio_handle::{AsRawWidget, AsRawWindow, AsWindow, RawWidget, RawWindow};
+use winio_handle::{
+    AsRawWidget, AsRawWindow, AsWidget, AsWindow, BorrowedWidget, BorrowedWindow, RawWidget,
+    RawWindow,
+};
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{
     PreferredAppMode, control_use_dark_mode, get_current_module_handle, set_preferred_app_mode,
@@ -179,21 +182,17 @@ impl Widget {
         unsafe {
             let mut rect = MaybeUninit::uninit();
             syscall!(BOOL, GetWindowRect(handle, rect.as_mut_ptr())).unwrap();
-            let rect = rect.assume_init();
-            let mut point = POINT {
-                x: rect.left,
-                y: rect.top,
-            };
+            let mut rect = rect.assume_init();
             SetLastError(0);
             match syscall!(
                 BOOL,
-                MapWindowPoints(HWND_DESKTOP, GetParent(handle), &mut point, 2,)
+                MapWindowPoints(HWND_DESKTOP, GetParent(handle), &mut rect as *mut _ as _, 2)
             ) {
                 Ok(_) => {}
                 Err(e) if e.raw_os_error() == Some(0) => {}
                 Err(e) => panic!("{e:?}"),
             }
-            (point.x, point.y)
+            (rect.left, rect.right)
         }
     }
 
@@ -331,13 +330,25 @@ impl AsRawWindow for Widget {
     }
 }
 
+impl AsWindow for Widget {
+    fn as_window(&self) -> BorrowedWindow<'_> {
+        unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
+    }
+}
+
 impl AsRawWidget for Widget {
     fn as_raw_widget(&self) -> RawWidget {
         self.0.as_raw_widget()
     }
 }
 
-pub(crate) const WINDOW_CLASS_NAME: &U16CStr =
+impl AsWidget for Widget {
+    fn as_widget(&self) -> BorrowedWidget<'_> {
+        unsafe { BorrowedWidget::borrow_raw(self.as_raw_widget()) }
+    }
+}
+
+const WINDOW_CLASS_NAME: &U16CStr =
     u16cstr!(concat!("WinioWindowVersion", env!("CARGO_PKG_VERSION")));
 
 fn register() {
@@ -365,6 +376,11 @@ fn register_once() {
     REGISTER.call_once(register);
 }
 
+pub(crate) fn window_class_name() -> *const u16 {
+    register_once();
+    WINDOW_CLASS_NAME.as_ptr()
+}
+
 #[derive(Debug)]
 pub struct Window {
     handle: Widget,
@@ -372,23 +388,14 @@ pub struct Window {
 
 #[inherit_methods(from = "self.handle")]
 impl Window {
-    pub fn new(parent: Option<impl AsWindow>) -> Self {
-        register_once();
-        let handle = if let Some(parent) = parent {
-            Widget::new(
-                WINDOW_CLASS_NAME.as_ptr(),
-                WS_CHILDWINDOW,
-                WS_EX_CONTROLPARENT,
-                parent.as_window().as_win32(),
-            )
-        } else {
-            Widget::new(
-                WINDOW_CLASS_NAME.as_ptr(),
-                WS_OVERLAPPEDWINDOW,
-                WS_EX_CONTROLPARENT,
-                null_mut(),
-            )
-        };
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        let handle = Widget::new(
+            window_class_name(),
+            WS_OVERLAPPEDWINDOW,
+            WS_EX_CONTROLPARENT,
+            null_mut(),
+        );
         let this = Self { handle };
         unsafe { window_use_dark_mode(this.as_raw_window().as_win32()) };
         this
@@ -458,3 +465,38 @@ impl Window {
 }
 
 winio_handle::impl_as_window!(Window, handle);
+
+#[derive(Debug)]
+pub struct View {
+    handle: Widget,
+}
+
+#[inherit_methods(from = "self.handle")]
+impl View {
+    pub fn new(parent: impl AsWindow) -> Self {
+        let handle = Widget::new(
+            window_class_name(),
+            WS_CHILDWINDOW | WS_VISIBLE,
+            WS_EX_CONTROLPARENT,
+            parent.as_window().as_win32(),
+        );
+        let this = Self { handle };
+        unsafe { window_use_dark_mode(this.as_raw_window().as_win32()) };
+        this
+    }
+
+    pub fn is_visible(&self) -> bool;
+
+    pub fn set_visible(&mut self, v: bool);
+
+    pub fn loc(&self) -> Point;
+
+    pub fn set_loc(&mut self, p: Point);
+
+    pub fn size(&self) -> Size;
+
+    pub fn set_size(&mut self, v: Size);
+}
+
+winio_handle::impl_as_widget!(View, handle);
+winio_handle::impl_as_window!(View, handle);
