@@ -83,8 +83,10 @@ impl AsRawWidget for Widget {
 
 impl Drop for Widget {
     fn drop(&mut self) {
-        let parent = self.widget.parent().unwrap();
-        let fixed = parent.downcast::<gtk4::Fixed>().unwrap();
-        fixed.remove(&self.widget);
+        if let Some(parent) = self.widget.parent() {
+            if let Ok(fixed) = parent.downcast::<gtk4::Fixed>() {
+                fixed.remove(&self.widget);
+            }
+        }
     }
 }

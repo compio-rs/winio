@@ -42,29 +42,33 @@ impl ScrollView {
 
     pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, s: Size);
+    pub fn set_size(&mut self, s: Size) {
+        self.handle.set_size(s);
+        self.swindow.set_max_content_height(s.height as _);
+        self.swindow.set_max_content_width(s.width as _);
+    }
 
     pub fn hscroll(&self) -> bool {
-        self.swindow.hscrollbar_policy() != gtk4::PolicyType::Never
+        self.swindow.hscrollbar_policy() == gtk4::PolicyType::Automatic
     }
 
     pub fn set_hscroll(&mut self, v: bool) {
         self.swindow.set_hscrollbar_policy(if v {
             gtk4::PolicyType::Automatic
         } else {
-            gtk4::PolicyType::Never
+            gtk4::PolicyType::External
         });
     }
 
     pub fn vscroll(&self) -> bool {
-        self.swindow.vscrollbar_policy() != gtk4::PolicyType::Never
+        self.swindow.vscrollbar_policy() == gtk4::PolicyType::Automatic
     }
 
     pub fn set_vscroll(&mut self, v: bool) {
         self.swindow.set_vscrollbar_policy(if v {
             gtk4::PolicyType::Automatic
         } else {
-            gtk4::PolicyType::Never
+            gtk4::PolicyType::External
         });
     }
 
