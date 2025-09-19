@@ -7,7 +7,7 @@ use objc2::{
 use objc2_app_kit::NSSlider;
 use objc2_foundation::{NSObject, NSString};
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Orient, Point, Size};
 
 use crate::{GlobalRuntime, Widget};
@@ -21,7 +21,7 @@ pub struct Slider {
 
 #[inherit_methods(from = "self.handle")]
 impl Slider {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         unsafe {
             let mtm = MainThreadMarker::new().unwrap();
 

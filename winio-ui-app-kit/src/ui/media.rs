@@ -14,7 +14,7 @@ use objc2_foundation::{
     NSObjectNSKeyValueObserverRegistration, NSString, NSURL, ns_string,
 };
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{GlobalRuntime, Widget, from_nsstring};
@@ -29,7 +29,7 @@ pub struct Media {
 
 #[inherit_methods(from = "self.handle")]
 impl Media {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         unsafe {
             let mtm = MainThreadMarker::new().unwrap();
 

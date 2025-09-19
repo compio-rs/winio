@@ -6,7 +6,7 @@ use objc2::{
 use objc2_app_kit::{NSControlSize, NSEvent, NSScroller, NSScrollerStyle};
 use objc2_foundation::{NSPoint, NSRect, NSSize};
 use winio_callback::Callback;
-use winio_handle::{AsRawWidget, AsWindow, RawWidget};
+use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Orient, Point, Size};
 
 use crate::{GlobalRuntime, ui::Widget};
@@ -21,7 +21,7 @@ struct ScrollBarImpl {
 
 #[inherit_methods(from = "self.handle")]
 impl ScrollBarImpl {
-    pub fn new(parent: impl AsWindow, vertical: bool) -> Self {
+    pub fn new(parent: impl AsContainer, vertical: bool) -> Self {
         unsafe {
             let mtm = MainThreadMarker::new().unwrap();
 
@@ -158,8 +158,7 @@ pub struct ScrollBar {
 }
 
 impl ScrollBar {
-    pub fn new(parent: impl AsWindow) -> Self {
-        let parent = parent.as_window();
+    pub fn new(parent: impl AsContainer) -> Self {
         let handle = ScrollBarImpl::new(&parent, false);
         let mut vhandle = ScrollBarImpl::new(&parent, true);
         vhandle.set_visible(false);

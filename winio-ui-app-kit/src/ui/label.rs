@@ -2,7 +2,7 @@ use inherit_methods_macro::inherit_methods;
 use objc2::rc::Retained;
 use objc2_app_kit::{NSTextAlignment, NSTextField};
 use objc2_foundation::{MainThreadMarker, NSString};
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::ui::{Widget, from_nsstring};
@@ -15,7 +15,7 @@ pub struct Label {
 
 #[inherit_methods(from = "self.handle")]
 impl Label {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         unsafe {
             let mtm = MainThreadMarker::new().unwrap();
 

@@ -9,7 +9,7 @@ use objc2_app_kit::{
 };
 use objc2_foundation::{MainThreadMarker, NSObject, NSString};
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{
@@ -26,7 +26,7 @@ pub struct Button {
 
 #[inherit_methods(from = "self.handle")]
 impl Button {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         unsafe {
             let mtm = MainThreadMarker::new().unwrap();
 
@@ -88,7 +88,7 @@ pub struct CheckBox {
 
 #[inherit_methods(from = "self.handle")]
 impl CheckBox {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let handle = Button::new(parent);
         unsafe {
             handle.view.setButtonType(NSButtonType::Switch);
@@ -147,7 +147,7 @@ pub struct RadioButton {
 
 #[inherit_methods(from = "self.handle")]
 impl RadioButton {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let handle = Button::new(parent);
         unsafe {
             handle.view.setButtonType(NSButtonType::Radio);

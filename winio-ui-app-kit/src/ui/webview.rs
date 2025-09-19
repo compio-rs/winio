@@ -9,7 +9,7 @@ use objc2_foundation::{
 };
 use objc2_web_kit::{WKNavigation, WKNavigationDelegate, WKWebView, WKWebViewConfiguration};
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{
@@ -26,11 +26,11 @@ pub struct WebView {
 
 #[inherit_methods(from = "self.handle")]
 impl WebView {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         unsafe {
             let mtm = MainThreadMarker::new().unwrap();
 
-            let frame = parent.as_window().frame();
+            let frame = parent.as_container().frame();
             let config = WKWebViewConfiguration::new(mtm);
             let view =
                 WKWebView::initWithFrame_configuration(WKWebView::alloc(mtm), frame, &config);
@@ -56,6 +56,7 @@ impl WebView {
         true
     }
 
+    #[allow(clippy::unused_unit)]
     pub fn set_enabled(&mut self, _: bool) {
         ()
     }
