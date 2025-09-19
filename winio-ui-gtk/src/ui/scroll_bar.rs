@@ -6,7 +6,7 @@ use gtk4::{
 };
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Orient, Point, Size};
 
 use crate::{GlobalRuntime, Widget};
@@ -21,7 +21,7 @@ pub struct ScrollBar {
 
 #[inherit_methods(from = "self.handle")]
 impl ScrollBar {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let adjustment = gtk4::Adjustment::new(0.0, 0.0, 0.0, 1.0, 0.0, 0.0);
         let widget = gtk4::Scrollbar::new(gtk4::Orientation::Horizontal, Some(&adjustment));
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });

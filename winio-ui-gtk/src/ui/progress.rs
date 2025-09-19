@@ -2,7 +2,7 @@ use std::{cell::Cell, rc::Rc, time::Duration};
 
 use gtk4::glib::{ControlFlow, SourceId, object::Cast};
 use inherit_methods_macro::inherit_methods;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::ui::Widget;
@@ -19,7 +19,7 @@ pub struct Progress {
 
 #[inherit_methods(from = "self.handle")]
 impl Progress {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let widget = gtk4::ProgressBar::new();
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
         let indeterminate = Rc::new(Cell::new(false));

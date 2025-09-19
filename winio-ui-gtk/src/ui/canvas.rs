@@ -19,7 +19,7 @@ use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
 use pangocairo::functions::show_layout;
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{
     BrushPen, DrawingFont, HAlign, LinearGradientBrush, MouseButton, Point, RadialGradientBrush,
     Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, VAlign, Vector,
@@ -40,7 +40,7 @@ pub struct Canvas {
 
 #[inherit_methods(from = "self.handle")]
 impl Canvas {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let widget = gtk4::DrawingArea::new();
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
 

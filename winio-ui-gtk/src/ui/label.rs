@@ -1,6 +1,6 @@
 use gtk4::glib::object::Cast;
 use inherit_methods_macro::inherit_methods;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::ui::Widget;
@@ -13,7 +13,7 @@ pub struct Label {
 
 #[inherit_methods(from = "self.handle")]
 impl Label {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let widget = gtk4::Label::new(None);
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
         Self { widget, handle }

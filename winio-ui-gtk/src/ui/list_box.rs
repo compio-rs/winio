@@ -7,7 +7,7 @@ use gtk4::{
 };
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{
@@ -27,7 +27,7 @@ pub struct ListBox {
 
 #[inherit_methods(from = "self.handle")]
 impl ListBox {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let swindow = gtk4::ScrolledWindow::new();
         swindow.set_hscrollbar_policy(gtk4::PolicyType::Never);
         let model = StringListModel::new();

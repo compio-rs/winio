@@ -1,11 +1,15 @@
 use std::rc::Rc;
 
 use gtk4::{glib::Propagation, prelude::*};
+use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
+use winio_handle::{
+    AsContainer, AsRawContainer, AsRawWindow, AsWindow, BorrowedContainer, BorrowedWindow,
+    RawContainer, RawWindow,
+};
 use winio_primitive::{ColorTheme, Point, Size};
 
-use crate::GlobalRuntime;
+use crate::{GlobalRuntime, Widget};
 
 #[derive(Debug)]
 pub struct Window {
@@ -13,12 +17,12 @@ pub struct Window {
     on_close: Rc<Callback<()>>,
     window: gtk4::Window,
     swindow: gtk4::ScrolledWindow,
-    #[allow(dead_code)]
     fixed: gtk4::Fixed,
 }
 
 impl Window {
-    pub fn new(_: Option<impl AsWindow>) -> Self {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
         let window = gtk4::Window::new();
 
         let color = window.color();
@@ -155,5 +159,58 @@ impl AsRawWindow for Window {
 impl AsWindow for Window {
     fn as_window(&self) -> BorrowedWindow<'_> {
         unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
+    }
+}
+
+impl AsRawContainer for Window {
+    fn as_raw_container(&self) -> RawContainer {
+        RawContainer::Gtk(self.fixed.clone())
+    }
+}
+
+impl AsContainer for Window {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        unsafe { BorrowedContainer::borrow_raw(self.as_raw_container()) }
+    }
+}
+
+#[derive(Debug)]
+pub struct View {
+    fixed: gtk4::Fixed,
+    handle: Widget,
+}
+
+#[inherit_methods(from = "self.handle")]
+impl View {
+    pub fn new(parent: impl AsContainer) -> Self {
+        let fixed = gtk4::Fixed::new();
+        let handle = Widget::new(parent, unsafe { fixed.clone().unsafe_cast() });
+        Self { fixed, handle }
+    }
+
+    pub fn is_visible(&self) -> bool;
+
+    pub fn set_visible(&mut self, v: bool);
+
+    pub fn loc(&self) -> Point;
+
+    pub fn set_loc(&mut self, p: Point);
+
+    pub fn size(&self) -> Size;
+
+    pub fn set_size(&mut self, s: Size);
+}
+
+winio_handle::impl_as_widget!(View, handle);
+
+impl AsRawContainer for View {
+    fn as_raw_container(&self) -> RawContainer {
+        RawContainer::Gtk(self.fixed.clone())
+    }
+}
+
+impl AsContainer for View {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        unsafe { BorrowedContainer::borrow_raw(self.as_raw_container()) }
     }
 }
