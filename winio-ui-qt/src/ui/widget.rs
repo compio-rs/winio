@@ -7,20 +7,17 @@ use std::{
 use cxx::{ExternType, UniquePtr, memory::UniquePtrTarget, type_id};
 pub use ffi::{QWidget, is_dark};
 use inherit_methods_macro::inherit_methods;
-use winio_handle::{
-    AsContainer, AsRawContainer, AsRawWidget, AsRawWindow, RawContainer, RawWidget, RawWindow,
-};
-use winio_primitive::{Point, Rect, Size};
+use winio_handle::{AsContainer, AsRawContainer, AsRawWidget, RawContainer, RawWidget};
+use winio_primitive::{Point, Size};
 
 use crate::ui::StaticCastTo;
 
-pub(crate) struct Widget<T: UniquePtrTarget + StaticCastTo<ffi::QWidget>, const DROP: bool = false>
-{
+pub(crate) struct Widget<T: UniquePtrTarget + StaticCastTo<ffi::QWidget>> {
     widget: ManuallyDrop<UniquePtr<T>>,
     weak_ref: QWidgetPointer,
 }
 
-impl<T, const DROP: bool> Widget<T, DROP>
+impl<T> Widget<T>
 where
     T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
 {
@@ -33,15 +30,24 @@ where
         }
     }
 
-    unsafe fn drop_in_place(&mut self) {
-        ManuallyDrop::drop(&mut self.widget);
+    #[inline]
+    fn check_ref(&self) {
+        #[cold]
+        fn panic_null() {
+            unreachable!("the widget has been deleted by its parent")
+        }
+        if self.weak_ref.isNull() {
+            panic_null();
+        }
     }
 
     pub(crate) fn as_ref(&self) -> &T {
+        self.check_ref();
         &self.widget
     }
 
     pub(crate) fn pin_mut(&mut self) -> Pin<&mut T> {
+        self.check_ref();
         self.widget.pin_mut()
     }
 
@@ -100,56 +106,20 @@ where
     pub fn set_size(&mut self, s: Size) {
         self.pin_mut_qwidget().resize(s.width as _, s.height as _);
     }
-
-    pub fn client_rect(&self) -> Rect {
-        let geometry = self.as_ref_qwidget().geometry();
-        Rect::new(
-            Point::new(geometry.x1 as _, geometry.y1 as _),
-            Size::new(
-                (geometry.x2 - geometry.x1) as _,
-                (geometry.y2 - geometry.y1) as _,
-            ),
-        )
-    }
-
-    pub fn text(&self) -> String {
-        self.as_ref_qwidget().windowTitle().into()
-    }
-
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.pin_mut_qwidget().setWindowTitle(&s.as_ref().into());
-    }
 }
 
-impl<T, const DROP: bool> Drop for Widget<T, DROP>
+impl<T> Drop for Widget<T>
 where
     T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
 {
     fn drop(&mut self) {
-        if DROP {
-            unsafe {
-                self.drop_in_place();
-            }
-        } else if !self.weak_ref.isNull() {
+        if !self.weak_ref.isNull() {
             self.pin_mut_qwidget().deleteLater();
         }
     }
 }
 
-impl<T, const DROP: bool> AsRawWindow for Widget<T, DROP>
-where
-    T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
-{
-    fn as_raw_window(&self) -> RawWindow {
-        RawWindow::Qt(
-            (self.as_ref_qwidget() as *const ffi::QWidget)
-                .cast_mut()
-                .cast(),
-        )
-    }
-}
-
-impl<T, const DROP: bool> AsRawWidget for Widget<T, DROP>
+impl<T> AsRawWidget for Widget<T>
 where
     T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
 {
@@ -162,7 +132,7 @@ where
     }
 }
 
-impl<T, const DROP: bool> AsRawContainer for Widget<T, DROP>
+impl<T> AsRawContainer for Widget<T>
 where
     T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
 {
@@ -175,7 +145,7 @@ where
     }
 }
 
-impl<T, const DROP: bool> Debug for Widget<T, DROP>
+impl<T> Debug for Widget<T>
 where
     T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
 {
