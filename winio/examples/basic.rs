@@ -14,8 +14,8 @@ fn main() {
 }
 
 struct MainModel {
-    window: Child<Window>,
     canvas: Child<Canvas>,
+    window: Child<Window>,
     counter: usize,
 }
 

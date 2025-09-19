@@ -10,7 +10,6 @@ fn main() {
 }
 
 struct MainModel {
-    window: Child<Window>,
     ulabel: Child<ToolTip<Label>>,
     plabel: Child<Label>,
     uentry: Child<Edit>,
@@ -29,6 +28,7 @@ struct MainModel {
     show_button: Child<ToolTip<Button>>,
     progress: Child<Progress>,
     mltext: Child<TextBox>,
+    window: Child<Window>,
 }
 
 #[derive(Debug)]

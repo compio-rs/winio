@@ -10,12 +10,12 @@ fn main() {
 }
 
 struct MainModel {
-    window: Child<Window>,
     scroll: Child<ScrollView>,
     radios: Vec<Child<RadioButton>>,
     add_btn: Child<Button>,
     del_btn: Child<Button>,
     show_btn: Child<Button>,
+    window: Child<Window>,
     selected: Option<usize>,
 }
 

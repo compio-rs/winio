@@ -6,6 +6,10 @@ use winio_primitive::{Point, Size};
 use crate::sys;
 
 /// A simple window.
+///
+/// ## Platform specific
+/// * Qt: The desctruct order of Qt requires the window to be dropped last, and
+///   you should better put it at the end of the struct.
 #[derive(Debug)]
 pub struct Window {
     widget: sys::Window,

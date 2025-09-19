@@ -14,10 +14,10 @@ fn main() {
 }
 
 struct MainModel {
-    window: Child<Window>,
     canvas: Child<Canvas>,
     button: Child<Button>,
     entry: Child<Edit>,
+    window: Child<Window>,
     client: Client,
     text: FetchStatus,
 }

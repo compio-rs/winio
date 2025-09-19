@@ -6,6 +6,8 @@ WinioMainWindow::WinioMainWindow(QWidget *parent)
     setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
 }
 
+WinioMainWindow::~WinioMainWindow() {}
+
 void WinioMainWindow::resizeEvent(QResizeEvent *event) {
     if (m_resize_callback) {
         auto &[callback, data] = *m_resize_callback;
@@ -33,8 +35,8 @@ void WinioMainWindow::closeEvent(QCloseEvent *event) {
     event->accept();
 }
 
-std::unique_ptr<QMainWindow> new_main_window(QWidget *parent) {
-    return std::make_unique<WinioMainWindow>(parent);
+std::unique_ptr<QMainWindow> new_main_window() {
+    return std::make_unique<WinioMainWindow>(nullptr);
 }
 
 void main_window_register_resize_event(QMainWindow &w,

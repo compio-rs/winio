@@ -1,13 +1,10 @@
-use std::ptr::null_mut;
-
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::AsWindow;
 use winio_primitive::{Point, Size};
 
 use crate::{
     GlobalRuntime,
-    ui::{Widget, impl_static_cast, static_cast},
+    ui::{Widget, impl_static_cast},
 };
 
 #[derive(Debug)]
@@ -15,15 +12,14 @@ pub struct Window {
     on_resize: Box<Callback<Size>>,
     on_move: Box<Callback<Point>>,
     on_close: Box<Callback<()>>,
-    widget: Widget<ffi::QMainWindow>,
+    widget: Widget<ffi::QMainWindow, true>,
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Window {
-    pub fn new(parent: Option<impl AsWindow>) -> Self {
-        let mut widget = unsafe {
-            ffi::new_main_window(parent.map(|w| w.as_window().as_qt()).unwrap_or(null_mut()))
-        };
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        let mut widget = ffi::new_main_window();
         let on_resize = Box::new(Callback::new());
         let on_move = Box::new(Callback::new());
         let on_close = Box::new(Callback::new());
@@ -110,19 +106,7 @@ impl Window {
 }
 
 winio_handle::impl_as_window!(Window, widget);
-
-impl Drop for Window {
-    fn drop(&mut self) {
-        unsafe {
-            if static_cast::<ffi::QWidget>(self.widget.as_ref())
-                .parentWidget()
-                .is_null()
-            {
-                self.widget.drop_in_place();
-            }
-        }
-    }
-}
+winio_handle::impl_as_container!(Window, widget);
 
 impl_static_cast!(ffi::QMainWindow, ffi::QWidget);
 
@@ -134,7 +118,7 @@ mod ffi {
         type QWidget = crate::ui::QWidget;
         type QMainWindow;
 
-        unsafe fn new_main_window(parent: *mut QWidget) -> UniquePtr<QMainWindow>;
+        fn new_main_window() -> UniquePtr<QMainWindow>;
 
         unsafe fn main_window_register_resize_event(
             w: Pin<&mut QMainWindow>,

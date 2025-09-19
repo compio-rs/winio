@@ -49,8 +49,8 @@ macro_rules! __init_assign {
 /// ```ignore
 /// # use winio::prelude::*;
 /// struct MainModel {
-///     window: Child<Window>,
 ///     canvas: Child<Canvas>,
+///     window: Child<Window>,
 /// }
 /// enum MainMessage {
 ///     Noop,

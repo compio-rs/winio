@@ -1,11 +1,10 @@
 use std::{mem::MaybeUninit, pin::Pin};
 
 use cxx::{ExternType, UniquePtr, type_id};
-pub(crate) use ffi::QWidget;
 use image::{DynamicImage, Pixel, Rgb, Rgba};
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{
     BrushPen, Color, DrawingFont, HAlign, LinearGradientBrush, MouseButton, Point,
     RadialGradientBrush, Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, VAlign, Vector,
@@ -24,8 +23,8 @@ pub struct Canvas {
 
 #[inherit_methods(from = "self.widget")]
 impl Canvas {
-    pub fn new(parent: impl AsWindow) -> Self {
-        let mut widget = unsafe { ffi::new_canvas(parent.as_window().as_qt()) };
+    pub fn new(parent: impl AsContainer) -> Self {
+        let mut widget = unsafe { ffi::new_canvas(parent.as_container().as_qt()) };
         widget.pin_mut().setVisible(true);
         let on_move = Box::new(Callback::new());
         let on_press = Box::new(Callback::new());
@@ -684,7 +683,7 @@ mod ffi {
     unsafe extern "C++-unwind" {
         include!("winio-ui-qt/src/ui/canvas.hpp");
 
-        type QWidget;
+        type QWidget = crate::ui::QWidget;
         type QtMouseButton = super::QtMouseButton;
 
         unsafe fn new_canvas(parent: *mut QWidget) -> UniquePtr<QWidget>;

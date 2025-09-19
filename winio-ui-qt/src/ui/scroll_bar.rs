@@ -3,7 +3,7 @@ use std::{fmt::Debug, pin::Pin};
 use cxx::{ExternType, UniquePtr, memory::UniquePtrTarget, type_id};
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Orient, Point, Size};
 
 use crate::{
@@ -13,7 +13,7 @@ use crate::{
 
 pub struct ScrollBarImpl<T, const TT: bool>
 where
-    T: UniquePtrTarget,
+    T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
 {
     on_moved: Box<Callback>,
     widget: Widget<T>,
@@ -134,7 +134,9 @@ where
     }
 }
 
-impl<T: UniquePtrTarget, const TT: bool> Debug for ScrollBarImpl<T, TT> {
+impl<T: UniquePtrTarget + StaticCastTo<ffi::QWidget>, const TT: bool> Debug
+    for ScrollBarImpl<T, TT>
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ScrollBarImpl")
             .field("on_moved", &self.on_moved)
@@ -150,15 +152,15 @@ winio_handle::impl_as_widget!(ScrollBar, widget);
 winio_handle::impl_as_widget!(Slider, widget);
 
 impl ScrollBar {
-    pub fn new(parent: impl AsWindow) -> Self {
-        let widget = unsafe { ffi::new_scroll_bar(parent.as_window().as_qt()) };
+    pub fn new(parent: impl AsContainer) -> Self {
+        let widget = unsafe { ffi::new_scroll_bar(parent.as_container().as_qt()) };
         Self::new_impl(widget)
     }
 }
 
 impl Slider {
-    pub fn new(parent: impl AsWindow) -> Self {
-        let widget = unsafe { ffi::new_slider(parent.as_window().as_qt()) };
+    pub fn new(parent: impl AsContainer) -> Self {
+        let widget = unsafe { ffi::new_slider(parent.as_container().as_qt()) };
         Self::new_impl(widget)
     }
 

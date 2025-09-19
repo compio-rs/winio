@@ -1,17 +1,21 @@
 use std::{fmt::Debug, mem::ManuallyDrop, pin::Pin};
 
 use cxx::{ExternType, UniquePtr, memory::UniquePtrTarget, type_id};
-pub use ffi::is_dark;
-use winio_handle::{AsRawWidget, AsRawWindow, RawWidget, RawWindow};
+pub use ffi::{QWidget, is_dark};
+use inherit_methods_macro::inherit_methods;
+use winio_handle::{
+    AsContainer, AsRawContainer, AsRawWidget, AsRawWindow, RawContainer, RawWidget, RawWindow,
+};
 use winio_primitive::{Point, Rect, Size};
 
 use crate::ui::StaticCastTo;
 
-pub(crate) struct Widget<T: UniquePtrTarget> {
+pub(crate) struct Widget<T: UniquePtrTarget + StaticCastTo<ffi::QWidget>, const DROP: bool = false>
+{
     widget: ManuallyDrop<UniquePtr<T>>,
 }
 
-impl<T> Widget<T>
+impl<T, const DROP: bool> Widget<T, DROP>
 where
     T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
 {
@@ -21,7 +25,7 @@ where
         }
     }
 
-    pub(crate) unsafe fn drop_in_place(&mut self) {
+    unsafe fn drop_in_place(&mut self) {
         ManuallyDrop::drop(&mut self.widget);
     }
 
@@ -109,7 +113,22 @@ where
     }
 }
 
-impl<T> AsRawWindow for Widget<T>
+impl<T, const DROP: bool> Drop for Widget<T, DROP>
+where
+    T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
+{
+    fn drop(&mut self) {
+        if DROP {
+            unsafe {
+                self.drop_in_place();
+            }
+        } else {
+            self.pin_mut_qwidget().deleteLater();
+        }
+    }
+}
+
+impl<T, const DROP: bool> AsRawWindow for Widget<T, DROP>
 where
     T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
 {
@@ -122,7 +141,7 @@ where
     }
 }
 
-impl<T> AsRawWidget for Widget<T>
+impl<T, const DROP: bool> AsRawWidget for Widget<T, DROP>
 where
     T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
 {
@@ -135,14 +154,57 @@ where
     }
 }
 
-impl<T> Debug for Widget<T>
+impl<T, const DROP: bool> AsRawContainer for Widget<T, DROP>
 where
-    T: UniquePtrTarget,
+    T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
+{
+    fn as_raw_container(&self) -> RawContainer {
+        RawContainer::Qt(
+            (self.as_ref_qwidget() as *const ffi::QWidget)
+                .cast_mut()
+                .cast(),
+        )
+    }
+}
+
+impl<T, const DROP: bool> Debug for Widget<T, DROP>
+where
+    T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Widget").finish_non_exhaustive()
     }
 }
+
+#[derive(Debug)]
+pub struct View {
+    pub(crate) widget: Widget<ffi::QWidget>,
+}
+
+#[inherit_methods(from = "self.widget")]
+impl View {
+    pub fn new(parent: impl AsContainer) -> Self {
+        let widget = unsafe { ffi::new_widget(parent.as_container().as_qt()) };
+        let mut widget = Widget::new(widget);
+        widget.set_visible(true);
+        Self { widget }
+    }
+
+    pub fn is_visible(&self) -> bool;
+
+    pub fn set_visible(&mut self, v: bool);
+
+    pub fn loc(&self) -> Point;
+
+    pub fn set_loc(&mut self, p: Point);
+
+    pub fn size(&self) -> Size;
+
+    pub fn set_size(&mut self, s: Size);
+}
+
+winio_handle::impl_as_widget!(View, widget);
+winio_handle::impl_as_container!(View, widget);
 
 #[repr(C)]
 pub struct QSize {
@@ -175,10 +237,12 @@ mod ffi {
 
         fn is_dark() -> bool;
 
-        type QWidget = crate::ui::QWidget;
+        type QWidget;
         type QSize = super::QSize;
         type QRect = super::QRect;
         type QString = crate::ui::QString;
+
+        unsafe fn new_widget(parent: *mut QWidget) -> UniquePtr<QWidget>;
 
         fn parentWidget(self: &QWidget) -> *mut QWidget;
         fn x(self: &QWidget) -> i32;
@@ -200,5 +264,7 @@ mod ffi {
         fn setWindowTitle(self: Pin<&mut QWidget>, s: &QString);
         fn toolTip(self: &QWidget) -> QString;
         fn setToolTip(self: Pin<&mut QWidget>, s: &QString);
+        fn childrenRect(self: &QWidget) -> QRect;
+        fn deleteLater(self: Pin<&mut QWidget>);
     }
 }

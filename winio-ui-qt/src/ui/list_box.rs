@@ -2,7 +2,7 @@ use std::pin::Pin;
 
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{
@@ -18,8 +18,8 @@ pub struct ListBox {
 
 #[inherit_methods(from = "self.widget")]
 impl ListBox {
-    pub fn new(parent: impl AsWindow) -> Self {
-        let mut widget = unsafe { ffi::new_list_widget(parent.as_window().as_qt()) };
+    pub fn new(parent: impl AsContainer) -> Self {
+        let mut widget = unsafe { ffi::new_list_widget(parent.as_container().as_qt()) };
         let on_select = Box::new(Callback::new());
         unsafe {
             ffi::list_widget_connect_select(

@@ -8,6 +8,7 @@ mod canvas;
 pub use canvas::*;
 
 mod widget;
+pub use widget::View;
 pub(crate) use widget::*;
 
 mod monitor;
@@ -40,6 +41,9 @@ pub use list_box::*;
 mod scroll_bar;
 pub use scroll_bar::*;
 
+mod scroll_view;
+pub use scroll_view::*;
+
 #[cfg(feature = "media")]
 mod media;
 #[cfg(feature = "media")]
@@ -53,7 +57,8 @@ pub use webview::*;
 mod tooltip;
 pub use tooltip::*;
 
-pub(crate) trait StaticCastTo<T> {
+#[doc(hidden)]
+pub trait StaticCastTo<T> {
     fn static_cast(&self) -> &T;
     fn static_cast_mut(self: Pin<&mut Self>) -> Pin<&mut T>;
 }

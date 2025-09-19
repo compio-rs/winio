@@ -10,8 +10,8 @@ fn main() {
 }
 
 struct MainModel {
-    window: Child<Window>,
     cwindow: Child<ChildModel>,
+    window: Child<Window>,
 }
 
 #[derive(Debug)]

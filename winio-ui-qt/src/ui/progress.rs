@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::ui::{Widget, impl_static_cast};
@@ -11,8 +11,8 @@ pub struct Progress {
 
 #[inherit_methods(from = "self.widget")]
 impl Progress {
-    pub fn new(parent: impl AsWindow) -> Self {
-        let widget = unsafe { ffi::new_progress_bar(parent.as_window().as_qt()) };
+    pub fn new(parent: impl AsContainer) -> Self {
+        let widget = unsafe { ffi::new_progress_bar(parent.as_container().as_qt()) };
         let mut widget = Widget::new(widget);
         widget.set_visible(true);
         Self { widget }
