@@ -283,6 +283,14 @@ impl Widget {
     }
 }
 
+impl Drop for Widget {
+    fn drop(&mut self) {
+        unsafe {
+            self.view.removeFromSuperview();
+        }
+    }
+}
+
 impl AsRawWidget for Widget {
     fn as_raw_widget(&self) -> RawWidget {
         self.view.clone()

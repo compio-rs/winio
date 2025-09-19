@@ -148,7 +148,10 @@ impl Component for MainModel {
 
         let mut radios_panel = StackPanel::new(Orient::Vertical);
         for radio in self.radios.iter_mut() {
-            radios_panel.push(radio).finish();
+            radios_panel
+                .push(radio)
+                .margin(Margin::new_all_same(4.0))
+                .finish();
         }
 
         radios_panel.set_size(csize);
