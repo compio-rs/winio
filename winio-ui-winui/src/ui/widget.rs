@@ -21,6 +21,9 @@ impl Widget {
         let parent = parent.as_container();
         let canvas = parent.as_winui();
         canvas.Children().unwrap().Append(&handle).unwrap();
+        canvas
+            .Measure(Size::new(f64::INFINITY, f64::INFINITY).to_native())
+            .unwrap();
         Self { handle }
     }
 

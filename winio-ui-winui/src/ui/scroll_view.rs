@@ -2,9 +2,11 @@ use inherit_methods_macro::inherit_methods;
 use windows::core::Interface;
 use winio_handle::{AsContainer, AsRawContainer, BorrowedContainer, RawContainer};
 use winio_primitive::{Point, Rect, Size};
-use winui3::Microsoft::UI::Xaml::{Controls as MUXC, HorizontalAlignment, VerticalAlignment};
+use winui3::Microsoft::UI::Xaml::{
+    Controls as MUXC, FrameworkElement, HorizontalAlignment, VerticalAlignment,
+};
 
-use crate::Widget;
+use crate::{Widget, ui::Convertible};
 
 #[derive(Debug)]
 pub struct ScrollView {
@@ -56,10 +58,11 @@ impl ScrollView {
             .unwrap()
             .into_iter()
             .map(|c| {
+                let c = c.cast::<FrameworkElement>().unwrap();
                 let left = MUXC::Canvas::GetLeft(&c).unwrap();
                 let top = MUXC::Canvas::GetTop(&c).unwrap();
-                let size = c.ActualSize().unwrap();
-                Rect::new(Point::new(left, top), Size::new(size.X as _, size.Y as _))
+                let size = Size::from_native(c.DesiredSize().unwrap());
+                Rect::new(Point::new(left, top), size)
             })
             .reduce(|a, b| a.union(&b))
             .unwrap_or_default();

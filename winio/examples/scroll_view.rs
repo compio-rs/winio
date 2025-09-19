@@ -151,6 +151,8 @@ impl Component for MainModel {
             radios_panel.push(radio).finish();
         }
 
+        radios_panel.set_size(csize);
+
         let mut buttons_panel = layout! {
             StackPanel::new(Orient::Vertical),
             self.add_btn  => { margin: Margin::new_all_same(4.0) },
@@ -165,9 +167,5 @@ impl Component for MainModel {
         };
 
         root_panel.set_size(csize);
-
-        let scroll_size = self.scroll.size();
-        radios_panel.set_size(scroll_size);
-        self.scroll.set_size(scroll_size);
     }
 }
