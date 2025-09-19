@@ -14,6 +14,7 @@ fn main() {
 }
 
 struct MainModel {
+    window: Child<Window>,
     media: Child<Media>,
     playing: bool,
     play_button: Child<Button>,
@@ -21,7 +22,6 @@ struct MainModel {
     time_slider: Child<Slider>,
     volume_slider: Child<Slider>,
     volume_label: Child<Label>,
-    window: Child<Window>,
 }
 
 impl MainModel {

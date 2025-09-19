@@ -18,13 +18,13 @@ fn main() {
 }
 
 struct MainModel {
+    window: Child<Window>,
     canvas: Child<Canvas>,
     scrollbar: Child<ScrollBar>,
     button: Child<Button>,
     entry: Child<Edit>,
     list: Child<ObservableVec<String>>,
     listbox: Child<ListBox>,
-    window: Child<Window>,
     images: Vec<DynamicImage>,
     sel_images: BTreeMap<usize, Option<DrawingImage>>,
 }

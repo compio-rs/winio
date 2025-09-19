@@ -1,4 +1,8 @@
-use std::{fmt::Debug, mem::ManuallyDrop, pin::Pin};
+use std::{
+    fmt::Debug,
+    mem::{ManuallyDrop, MaybeUninit},
+    pin::Pin,
+};
 
 use cxx::{ExternType, UniquePtr, memory::UniquePtrTarget, type_id};
 pub use ffi::{QWidget, is_dark};
@@ -13,15 +17,19 @@ use crate::ui::StaticCastTo;
 pub(crate) struct Widget<T: UniquePtrTarget + StaticCastTo<ffi::QWidget>, const DROP: bool = false>
 {
     widget: ManuallyDrop<UniquePtr<T>>,
+    weak_ref: QWidgetPointer,
 }
 
 impl<T, const DROP: bool> Widget<T, DROP>
 where
     T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
 {
-    pub fn new(widget: UniquePtr<T>) -> Self {
+    pub fn new(mut widget: UniquePtr<T>) -> Self {
+        let weak_ref =
+            unsafe { ffi::widget_weak(widget.pin_mut().static_cast_mut().get_unchecked_mut()) };
         Self {
             widget: ManuallyDrop::new(widget),
+            weak_ref,
         }
     }
 
@@ -122,7 +130,7 @@ where
             unsafe {
                 self.drop_in_place();
             }
-        } else {
+        } else if !self.weak_ref.isNull() {
             self.pin_mut_qwidget().deleteLater();
         }
     }
@@ -230,6 +238,16 @@ unsafe impl ExternType for QRect {
     type Kind = cxx::kind::Trivial;
 }
 
+#[repr(C)]
+pub struct QWidgetPointer {
+    _data: MaybeUninit<[usize; 2]>,
+}
+
+unsafe impl ExternType for QWidgetPointer {
+    type Id = type_id!("QWidgetPointer");
+    type Kind = cxx::kind::Trivial;
+}
+
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++-unwind" {
@@ -241,8 +259,12 @@ mod ffi {
         type QSize = super::QSize;
         type QRect = super::QRect;
         type QString = crate::ui::QString;
+        type QWidgetPointer = super::QWidgetPointer;
 
         unsafe fn new_widget(parent: *mut QWidget) -> UniquePtr<QWidget>;
+        unsafe fn widget_weak(w: *mut QWidget) -> QWidgetPointer;
+
+        fn isNull(self: &QWidgetPointer) -> bool;
 
         fn parentWidget(self: &QWidget) -> *mut QWidget;
         fn x(self: &QWidget) -> i32;
@@ -266,5 +288,6 @@ mod ffi {
         fn setToolTip(self: Pin<&mut QWidget>, s: &QString);
         fn childrenRect(self: &QWidget) -> QRect;
         fn deleteLater(self: Pin<&mut QWidget>);
+        unsafe fn setParent(self: Pin<&mut QWidget>, parent: *mut QWidget);
     }
 }

@@ -250,8 +250,8 @@ fn render(
 /// ```ignore
 /// # use winio::prelude::*;
 /// # struct MainModel {
-/// #     canvas: Child<Canvas>,
 /// #     window: Child<Window>,
+/// #     canvas: Child<Canvas>,
 /// # }
 /// # impl MainModel { fn foo(&mut self) {
 /// let csize = self.window.client_size();

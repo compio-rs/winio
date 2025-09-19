@@ -10,10 +10,10 @@ fn main() {
 }
 
 struct MainModel {
+    window: Child<Window>,
     button: Child<Button>,
     entry: Child<Edit>,
     webview: Child<WebView>,
-    window: Child<Window>,
 }
 
 #[derive(Debug)]

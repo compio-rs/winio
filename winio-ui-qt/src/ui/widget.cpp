@@ -11,3 +11,5 @@ bool is_dark() {
 std::unique_ptr<QWidget> new_widget(QWidget *parent) {
     return std::make_unique<QWidget>(parent);
 }
+
+QPointer<QWidget> widget_weak(QWidget *w) { return QPointer(w); }
