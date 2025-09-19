@@ -27,7 +27,7 @@ use windows_sys::Win32::{
         WindowsAndMessaging::{GetClientRect, WS_CHILD, WS_VISIBLE},
     },
 };
-use winio_handle::{AsRawWidget, AsRawWindow, AsWindow};
+use winio_handle::{AsContainer, AsRawWidget, AsRawWindow};
 use winio_primitive::{Point, Size};
 
 use crate::{Widget, ui::with_u16c};
@@ -44,14 +44,14 @@ pub struct Media {
 
 #[inherit_methods(from = "self.handle")]
 impl Media {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let _guard = MFGuard::init();
 
         let mut handle = Widget::new(
             WC_STATICW,
             WS_VISIBLE | WS_CHILD | SS_OWNERDRAW,
             0,
-            parent.as_window().as_win32(),
+            parent.as_container().as_win32(),
         );
         handle.set_size(handle.size_d2l((50, 14)));
 

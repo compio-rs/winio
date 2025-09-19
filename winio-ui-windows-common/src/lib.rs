@@ -11,7 +11,11 @@ pub(crate) fn parent_handle(parent: Option<impl AsWindow>) -> Option<HWND> {
         #[cfg(feature = "win32")]
         RawWindow::Win32(h) => Some(h),
         #[cfg(feature = "winui")]
-        RawWindow::WinUI(window) => Some(window.AppWindow().ok()?.Id().ok()?.Value as _),
+        RawWindow::WinUI(window) => unsafe {
+            use windows::core::Interface;
+            use winui3::IWindowNative;
+            Some(window.cast::<IWindowNative>().ok()?.WindowHandle().ok()?.0)
+        },
         _ => unimplemented!(),
     })
 }

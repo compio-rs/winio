@@ -21,7 +21,7 @@ pub struct WebViewInner {
 }
 
 impl WebViewImpl for WebViewInner {
-    async fn new(parent: impl AsWindow) -> Self {
+    async fn new(parent: impl AsContainer) -> Self {
         #[cfg(feature = "webview-system")]
         {
             fn add_webview2sdk_path() {

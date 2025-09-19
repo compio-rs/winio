@@ -7,7 +7,7 @@ use windows_sys::Win32::UI::{
         SIF_TRACKPOS, WM_HSCROLL, WM_VSCROLL, WS_CHILD, WS_VISIBLE,
     },
 };
-use winio_handle::{AsRawWidget, AsWindow, RawWidget};
+use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Orient, Point, Size};
 
 use crate::Widget;
@@ -19,12 +19,12 @@ struct ScrollBarImpl {
 
 #[inherit_methods(from = "self.handle")]
 impl ScrollBarImpl {
-    pub fn new(parent: impl AsWindow, style: u32) -> Self {
+    pub fn new(parent: impl AsContainer, style: u32) -> Self {
         let mut handle = Widget::new(
             WC_SCROLLBARW,
             WS_CHILD | style,
             0,
-            parent.as_window().as_win32(),
+            parent.as_container().as_win32(),
         );
         handle.set_size(handle.size_d2l((50, 14)));
         Self { handle }
@@ -131,8 +131,7 @@ pub struct ScrollBar {
 }
 
 impl ScrollBar {
-    pub fn new(parent: impl AsWindow) -> Self {
-        let parent = parent.as_window();
+    pub fn new(parent: impl AsContainer) -> Self {
         let handle = ScrollBarImpl::new(&parent, WS_VISIBLE | SBS_HORZ as u32);
         let vhandle = ScrollBarImpl::new(&parent, SBS_VERT as u32);
         Self {

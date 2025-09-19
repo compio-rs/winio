@@ -10,7 +10,7 @@ use windows_sys::Win32::{
         WindowsAndMessaging::{WM_HSCROLL, WM_USER, WM_VSCROLL, WS_CHILD, WS_TABSTOP, WS_VISIBLE},
     },
 };
-use winio_handle::{AsRawWidget, AsWindow, RawWidget};
+use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Orient, Point, Size};
 use winio_ui_windows_common::control_use_dark_mode;
 
@@ -24,12 +24,12 @@ struct SliderImpl {
 
 #[inherit_methods(from = "self.handle")]
 impl SliderImpl {
-    pub fn new(parent: impl AsWindow, style: u32) -> Self {
+    pub fn new(parent: impl AsContainer, style: u32) -> Self {
         let mut handle = Widget::new(
             TRACKBAR_CLASSW,
             WS_CHILD | WS_TABSTOP | TBS_AUTOTICKS | TBS_BOTH | TBS_TOOLTIPS | style,
             0,
-            parent.as_window().as_win32(),
+            parent.as_container().as_win32(),
         );
         handle.set_size(handle.size_d2l((50, 14)));
         let tooltip_handle = handle.send_message(TBM_GETTOOLTIPS, 0, 0) as HWND;
@@ -106,8 +106,7 @@ pub struct Slider {
 }
 
 impl Slider {
-    pub fn new(parent: impl AsWindow) -> Self {
-        let parent = parent.as_window();
+    pub fn new(parent: impl AsContainer) -> Self {
         let handle = SliderImpl::new(&parent, WS_VISIBLE | TBS_HORZ);
         let vhandle = SliderImpl::new(&parent, TBS_VERT);
         Self {

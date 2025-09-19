@@ -20,7 +20,7 @@ use windows_sys::{
     },
     w,
 };
-use winio_handle::{AsRawWidget, AsRawWindow, AsWindow};
+use winio_handle::{AsContainer, AsRawWidget, AsRawWindow};
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
@@ -35,12 +35,12 @@ struct EditImpl {
 
 #[inherit_methods(from = "self.handle")]
 impl EditImpl {
-    pub fn new(parent: impl AsWindow, style: u32) -> Self {
+    pub fn new(parent: impl AsContainer, style: u32) -> Self {
         let mut handle = Widget::new(
             WC_EDITW,
             style,
             WS_EX_CLIENTEDGE,
-            parent.as_window().as_win32(),
+            parent.as_container().as_win32(),
         );
         handle.set_size(handle.size_d2l((100, 50)));
         Self { handle }
@@ -117,7 +117,7 @@ pub struct Edit {
 
 #[inherit_methods(from = "self.handle")]
 impl Edit {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let handle = EditImpl::new(
             parent,
             WS_CHILD
@@ -192,7 +192,7 @@ pub struct TextBox {
 
 #[inherit_methods(from = "self.handle")]
 impl TextBox {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let handle = EditImpl::new(
             parent,
             WS_CHILD

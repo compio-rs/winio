@@ -24,8 +24,8 @@ use windows_sys::Win32::{
     },
 };
 use winio_handle::{
-    AsRawWidget, AsRawWindow, AsWidget, AsWindow, BorrowedWidget, BorrowedWindow, RawWidget,
-    RawWindow,
+    AsContainer, AsRawContainer, AsRawWidget, AsRawWindow, AsWidget, AsWindow, BorrowedContainer,
+    BorrowedWidget, BorrowedWindow, RawContainer, RawWidget, RawWindow,
 };
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{
@@ -66,6 +66,12 @@ impl AsRawWindow for OwnedWindow {
 impl AsRawWidget for OwnedWindow {
     fn as_raw_widget(&self) -> RawWidget {
         RawWidget::Win32(self.0)
+    }
+}
+
+impl AsRawContainer for OwnedWindow {
+    fn as_raw_container(&self) -> RawContainer {
+        RawContainer::Win32(self.0)
     }
 }
 
@@ -348,6 +354,18 @@ impl AsWidget for Widget {
     }
 }
 
+impl AsRawContainer for Widget {
+    fn as_raw_container(&self) -> RawContainer {
+        self.0.as_raw_container()
+    }
+}
+
+impl AsContainer for Widget {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        unsafe { BorrowedContainer::borrow_raw(self.as_raw_container()) }
+    }
+}
+
 const WINDOW_CLASS_NAME: &U16CStr =
     u16cstr!(concat!("WinioWindowVersion", env!("CARGO_PKG_VERSION")));
 
@@ -465,6 +483,7 @@ impl Window {
 }
 
 winio_handle::impl_as_window!(Window, handle);
+winio_handle::impl_as_container!(Window, handle);
 
 #[derive(Debug)]
 pub struct View {
@@ -473,15 +492,15 @@ pub struct View {
 
 #[inherit_methods(from = "self.handle")]
 impl View {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let handle = Widget::new(
             window_class_name(),
             WS_CHILDWINDOW | WS_VISIBLE,
             WS_EX_CONTROLPARENT,
-            parent.as_window().as_win32(),
+            parent.as_container().as_win32(),
         );
         let this = Self { handle };
-        unsafe { window_use_dark_mode(this.as_raw_window().as_win32()) };
+        unsafe { window_use_dark_mode(this.handle.as_raw_window().as_win32()) };
         this
     }
 
@@ -499,4 +518,4 @@ impl View {
 }
 
 winio_handle::impl_as_widget!(View, handle);
-winio_handle::impl_as_window!(View, handle);
+winio_handle::impl_as_container!(View, handle);

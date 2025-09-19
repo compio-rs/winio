@@ -4,7 +4,7 @@ use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows::core::{HSTRING, Interface};
 use winio_callback::Callback;
-use winio_handle::{AsRawWidget, AsWindow, RawWidget};
+use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{HAlign, Point, Size};
 use winui3::Microsoft::UI::Xaml::{
     Controls::{self as MUXC, ScrollBarVisibility, ScrollViewer, TextChangedEventHandler},
@@ -24,7 +24,7 @@ pub struct Edit {
 }
 
 impl Edit {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let text_box = MUXC::TextBox::new().unwrap();
         let password_box = MUXC::PasswordBox::new().unwrap();
         password_box.SetVisibility(Visibility::Collapsed).unwrap();
@@ -51,8 +51,8 @@ impl Edit {
 
         Self {
             on_change,
-            handle: Widget::new(parent.as_window(), text_box.cast().unwrap()),
-            phandle: Widget::new(parent.as_window(), password_box.cast().unwrap()),
+            handle: Widget::new(&parent, text_box.cast().unwrap()),
+            phandle: Widget::new(&parent, password_box.cast().unwrap()),
             text_box,
             password_box,
             password: false,
@@ -190,7 +190,7 @@ pub struct TextBox {
 
 #[inherit_methods(from = "self.handle")]
 impl TextBox {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let text_box = MUXC::TextBox::new().unwrap();
         text_box.SetAcceptsReturn(true).unwrap();
         text_box.SetTextWrapping(TextWrapping::Wrap).unwrap();

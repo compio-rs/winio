@@ -44,6 +44,7 @@ windows-sys = { workspace = true, features = [
     "Win32_UI_WindowsAndMessaging",
 ] }
 windows-numerics = "0.3"
+winui3 = { workspace = true, optional = true, features = ["native"] }
 
 slim-detours-sys = { workspace = true }
 sync-unsafe-cell = { workspace = true }
@@ -53,5 +54,5 @@ embed-resource = "3"
 
 [features]
 win32 = ["winio-handle/win32"]
-winui = ["winio-handle/winui"]
+winui = ["winio-handle/winui", "dep:winui3"]
 webview = ["dep:futures-util"]

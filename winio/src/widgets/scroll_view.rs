@@ -1,6 +1,6 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
-use winio_handle::BorrowedWindow;
+use winio_handle::BorrowedContainer;
 use winio_layout::{Enable, Layoutable, Visible};
 use winio_primitive::{Point, Size};
 
@@ -59,7 +59,7 @@ pub enum ScrollViewEvent {}
 
 impl Component for ScrollView {
     type Event = ScrollViewEvent;
-    type Init<'a> = BorrowedWindow<'a>;
+    type Init<'a> = BorrowedContainer<'a>;
     type Message = ();
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
@@ -79,4 +79,4 @@ impl Component for ScrollView {
 }
 
 winio_handle::impl_as_widget!(ScrollView, widget);
-winio_handle::impl_as_window!(ScrollView, widget);
+winio_handle::impl_as_container!(ScrollView, widget);

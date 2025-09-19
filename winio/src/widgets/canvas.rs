@@ -1,6 +1,6 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
-use winio_handle::BorrowedWindow;
+use winio_handle::BorrowedContainer;
 use winio_layout::{Enable, Layoutable, Visible};
 use winio_primitive::{MouseButton, Point, Size, Vector};
 
@@ -61,7 +61,7 @@ pub enum CanvasEvent {
 
 impl Component for Canvas {
     type Event = CanvasEvent;
-    type Init<'a> = BorrowedWindow<'a>;
+    type Init<'a> = BorrowedContainer<'a>;
     type Message = ();
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {

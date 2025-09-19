@@ -116,3 +116,4 @@ impl Component for Window {
 }
 
 winio_handle::impl_as_window!(Window, widget);
+winio_handle::impl_as_container!(Window, widget);

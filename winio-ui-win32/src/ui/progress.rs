@@ -7,7 +7,7 @@ use windows_sys::Win32::UI::{
     HiDpi::GetSystemMetricsForDpi,
     WindowsAndMessaging::{SM_CYVSCROLL, USER_DEFAULT_SCREEN_DPI, WS_CHILD, WS_VISIBLE},
 };
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::ui::Widget;
@@ -19,12 +19,12 @@ pub struct Progress {
 
 #[inherit_methods(from = "self.handle")]
 impl Progress {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let mut handle = Widget::new(
             PROGRESS_CLASSW,
             WS_CHILD | WS_VISIBLE | PBS_SMOOTHREVERSE,
             0,
-            parent.as_window().as_win32(),
+            parent.as_container().as_win32(),
         );
         handle.set_size(handle.size_d2l((100, 15)));
         Self { handle }

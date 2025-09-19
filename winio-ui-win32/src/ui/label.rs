@@ -9,7 +9,7 @@ use windows_sys::Win32::{
         WindowsAndMessaging::{WS_CHILD, WS_EX_TRANSPARENT, WS_VISIBLE},
     },
 };
-use winio_handle::{AsRawWindow, AsWindow};
+use winio_handle::{AsContainer, AsRawWindow};
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::ui::Widget;
@@ -21,13 +21,13 @@ pub struct Label {
 
 #[inherit_methods(from = "self.handle")]
 impl Label {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let mut handle = Widget::new(
             WC_STATICW,
             // Without SS_NOTIFY ToolTip won't work
             WS_CHILD | WS_VISIBLE | SS_LEFT | SS_NOTIFY,
             0,
-            parent.as_window().as_win32(),
+            parent.as_container().as_win32(),
         );
         handle.set_size(handle.size_d2l((100, 50)));
         Self { handle }

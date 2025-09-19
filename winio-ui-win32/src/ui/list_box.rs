@@ -9,7 +9,7 @@ use windows_sys::Win32::UI::{
         WM_COMMAND, WS_CHILD, WS_TABSTOP, WS_VISIBLE, WS_VSCROLL,
     },
 };
-use winio_handle::{AsRawWindow, AsWindow};
+use winio_handle::{AsContainer, AsRawWindow};
 use winio_primitive::{Point, Size};
 
 use crate::{
@@ -24,7 +24,7 @@ pub struct ListBox {
 
 #[inherit_methods(from = "self.handle")]
 impl ListBox {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let mut handle = Widget::new(
             WC_LISTBOXW,
             WS_TABSTOP
@@ -38,7 +38,7 @@ impl ListBox {
                 | LBS_DISABLENOSCROLL as u32
                 | LBS_NOINTEGRALHEIGHT as u32,
             0,
-            parent.as_window().as_win32(),
+            parent.as_container().as_win32(),
         );
         handle.set_size(handle.size_d2l((50, 14)));
         Self { handle }

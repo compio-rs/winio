@@ -38,7 +38,7 @@ use windows::{
     core::{BOOL, Interface, Result},
 };
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{DrawingFont, MouseButton, Point, Rect, Size, Vector};
 use winio_ui_windows_common::is_dark_mode_allowed_for_app;
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
@@ -235,7 +235,7 @@ pub struct Canvas {
 
 #[inherit_methods(from = "self.handle")]
 impl Canvas {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let dwrite = unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).unwrap() };
         let panel = MUXC::SwapChainPanel::new().unwrap();
         let swap_chain = SwapChain::new();

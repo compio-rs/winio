@@ -1,5 +1,6 @@
 use std::{mem::MaybeUninit, rc::Rc};
 
+use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows::{
     Foundation::TypedEventHandler,
@@ -13,7 +14,10 @@ use windows_sys::Win32::UI::{
     },
 };
 use winio_callback::Callback;
-use winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow};
+use winio_handle::{
+    AsContainer, AsRawContainer, AsRawWindow, AsWindow, BorrowedContainer, BorrowedWindow,
+    RawContainer, RawWindow,
+};
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::get_current_module_handle;
 use winui3::{
@@ -27,7 +31,7 @@ use winui3::{
     },
 };
 
-use crate::{GlobalRuntime, ui::Convertible};
+use crate::{GlobalRuntime, Widget, ui::Convertible};
 
 #[derive(Debug)]
 pub struct Window {
@@ -36,12 +40,12 @@ pub struct Window {
     on_close: SendWrapper<Rc<Callback>>,
     handle: MUX::Window,
     app_window: AppWindow,
-    #[allow(dead_code)]
     canvas: MUXC::Canvas,
 }
 
 impl Window {
-    pub fn new(_parent: Option<impl AsWindow>) -> Self {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
         let handle = MUX::Window::new().unwrap();
 
         let app_window = match handle.AppWindow() {
@@ -247,5 +251,64 @@ impl AsRawWindow for Window {
 impl AsWindow for Window {
     fn as_window(&self) -> BorrowedWindow<'_> {
         unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
+    }
+}
+
+impl AsRawContainer for Window {
+    fn as_raw_container(&self) -> RawContainer {
+        RawContainer::WinUI(self.canvas.clone())
+    }
+}
+
+impl AsContainer for Window {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        unsafe { BorrowedContainer::borrow_raw(self.as_raw_container()) }
+    }
+}
+
+#[derive(Debug)]
+pub struct View {
+    handle: Widget,
+    canvas: MUXC::Canvas,
+}
+
+#[inherit_methods(from = "self.handle")]
+impl View {
+    pub fn new(parent: impl AsContainer) -> Self {
+        let canvas = MUXC::Canvas::new().unwrap();
+        Self {
+            handle: Widget::new(parent, canvas.cast().unwrap()),
+            canvas,
+        }
+    }
+
+    pub fn is_visible(&self) -> bool;
+
+    pub fn set_visible(&mut self, v: bool);
+
+    pub fn is_enabled(&self) -> bool;
+
+    pub fn set_enabled(&mut self, v: bool);
+
+    pub fn loc(&self) -> Point;
+
+    pub fn set_loc(&mut self, p: Point);
+
+    pub fn size(&self) -> Size;
+
+    pub fn set_size(&mut self, v: Size);
+}
+
+winio_handle::impl_as_widget!(View, handle);
+
+impl AsRawContainer for View {
+    fn as_raw_container(&self) -> RawContainer {
+        RawContainer::WinUI(self.canvas.clone())
+    }
+}
+
+impl AsContainer for View {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        unsafe { BorrowedContainer::borrow_raw(self.as_raw_container()) }
     }
 }

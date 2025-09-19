@@ -1,5 +1,5 @@
 use windows::core::Interface;
-use winio_handle::{AsRawWidget, AsWindow, RawWidget};
+use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::Xaml::{self as MUX, Controls as MUXC};
 
@@ -11,16 +11,15 @@ pub(crate) struct Widget {
 }
 
 impl Widget {
-    pub fn new(parent: impl AsWindow, handle: MUX::FrameworkElement) -> Self {
-        let parent = parent.as_window();
-        let window = parent.as_winui();
+    pub fn new(parent: impl AsContainer, handle: MUX::FrameworkElement) -> Self {
         handle
             .SetHorizontalAlignment(MUX::HorizontalAlignment::Center)
             .unwrap();
         handle
             .SetVerticalAlignment(MUX::VerticalAlignment::Center)
             .unwrap();
-        let canvas = window.Content().unwrap().cast::<MUXC::Canvas>().unwrap();
+        let parent = parent.as_container();
+        let canvas = parent.as_winui();
         canvas.Children().unwrap().Append(&handle).unwrap();
         Self { handle }
     }
