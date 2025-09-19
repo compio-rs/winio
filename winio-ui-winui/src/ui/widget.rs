@@ -89,6 +89,20 @@ impl Widget {
     }
 }
 
+impl Drop for Widget {
+    fn drop(&mut self) {
+        if let Ok(parent) = self.handle.Parent() {
+            if let Ok(parent) = parent.cast::<MUXC::Canvas>() {
+                let children = parent.Children().unwrap();
+                let mut index = 0;
+                if children.IndexOf(&self.handle, &mut index).is_ok() {
+                    children.RemoveAt(index as _).unwrap();
+                }
+            }
+        }
+    }
+}
+
 impl AsRawWidget for Widget {
     fn as_raw_widget(&self) -> RawWidget {
         RawWidget::WinUI(self.handle.clone())
