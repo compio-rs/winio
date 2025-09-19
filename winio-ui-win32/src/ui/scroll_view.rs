@@ -16,8 +16,8 @@ use windows_sys::{
                 EnumChildWindows, GetParent, GetScrollInfo, GetWindowRect, HWND_DESKTOP, SB_BOTTOM,
                 SB_HORZ, SB_LINEDOWN, SB_LINEUP, SB_PAGEDOWN, SB_PAGEUP, SB_THUMBTRACK, SB_TOP,
                 SB_VERT, SCROLLINFO, SIF_ALL, SIF_PAGE, SIF_POS, SIF_RANGE, SWP_NOSIZE,
-                SWP_NOZORDER, SetWindowPos, WM_HSCROLL, WM_VSCROLL, WS_CHILDWINDOW,
-                WS_EX_CONTROLPARENT, WS_HSCROLL, WS_VISIBLE, WS_VSCROLL,
+                SWP_NOZORDER, SetWindowPos, WM_HSCROLL, WM_MOUSEHWHEEL, WM_MOUSEWHEEL, WM_VSCROLL,
+                WS_CHILDWINDOW, WS_EX_CONTROLPARENT, WS_HSCROLL, WS_VISIBLE, WS_VSCROLL,
             },
         },
     },
@@ -190,7 +190,7 @@ impl ScrollView {
         .unwrap();
     }
 
-    fn scroll(&self, dir: i32, wparam: WPARAM) {
+    fn scroll(&self, dir: i32, wparam: WPARAM, wheel: bool) {
         let parent = self.handle.as_raw_widget().as_win32();
         unsafe {
             let mut si = SCROLLINFO {
@@ -204,15 +204,20 @@ impl ScrollView {
             };
             syscall!(BOOL, GetScrollInfo(parent, dir, &mut si)).unwrap();
 
-            match (wparam & 0xFFFF) as i32 {
-                SB_TOP => si.nPos = si.nMin,
-                SB_LINEDOWN => si.nPos += 1,
-                SB_LINEUP => si.nPos -= 1,
-                SB_BOTTOM => si.nPos = si.nMax - si.nPage as i32 + 1,
-                SB_PAGEDOWN => si.nPos += si.nPage as i32,
-                SB_PAGEUP => si.nPos -= si.nPage as i32,
-                SB_THUMBTRACK => si.nPos = si.nTrackPos,
-                _ => {}
+            if wheel {
+                let delta = ((wparam >> 16) & 0xFFFF) as i16 as isize;
+                si.nPos += -delta as i32;
+            } else {
+                match (wparam & 0xFFFF) as i32 {
+                    SB_TOP => si.nPos = si.nMin,
+                    SB_LINEDOWN => si.nPos += 1,
+                    SB_LINEUP => si.nPos -= 1,
+                    SB_BOTTOM => si.nPos = si.nMax - si.nPage as i32 + 1,
+                    SB_PAGEDOWN => si.nPos += si.nPage as i32,
+                    SB_PAGEUP => si.nPos -= si.nPage as i32,
+                    SB_THUMBTRACK => si.nPos = si.nTrackPos,
+                    _ => {}
+                }
             }
             si.fMask = SIF_POS;
             SetScrollInfo(parent, dir, &si, 1);
@@ -231,10 +236,16 @@ impl ScrollView {
         loop {
             futures_util::select! {
                 msg = self.handle.wait(WM_VSCROLL).fuse() => {
-                    self.scroll(SB_VERT, msg.wparam);
+                    self.scroll(SB_VERT, msg.wparam, false)
                 },
                 msg = self.handle.wait(WM_HSCROLL).fuse() => {
-                    self.scroll(SB_HORZ, msg.wparam);
+                    self.scroll(SB_HORZ, msg.wparam, false)
+                },
+                msg = self.handle.wait(WM_MOUSEWHEEL).fuse() => {
+                    self.scroll(SB_VERT, msg.wparam, true)
+                },
+                msg = self.handle.wait(WM_MOUSEHWHEEL).fuse() => {
+                    self.scroll(SB_HORZ, msg.wparam, true)
                 },
             }
         }
