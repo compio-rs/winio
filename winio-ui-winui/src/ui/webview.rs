@@ -1,4 +1,4 @@
-use std::{future::Future, path::PathBuf, rc::Rc};
+use std::{future::Future, rc::Rc};
 
 use send_wrapper::SendWrapper;
 use windows::{
@@ -6,7 +6,7 @@ use windows::{
     core::{HSTRING, Interface},
 };
 use winio_callback::Callback;
-use winio_handle::{AsRawWidget, AsWindow, RawWidget};
+use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{WebViewImpl, WebViewLazy};
 use winui3::Microsoft::UI::Xaml::Controls as MUXC;
@@ -25,6 +25,8 @@ impl WebViewImpl for WebViewInner {
         #[cfg(feature = "webview-system")]
         {
             fn add_webview2sdk_path() {
+                use std::path::PathBuf;
+
                 use windows::{
                     Win32::{
                         System::LibraryLoader::{
