@@ -7,7 +7,7 @@ use gtk4::{
 };
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{GlobalRuntime, ui::Widget};
@@ -22,7 +22,7 @@ pub struct ComboBox {
 
 #[inherit_methods(from = "self.handle")]
 impl ComboBox {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let model = StringListModel::new();
         let widget = gtk4::DropDown::new(Some(model.clone()), gtk4::Expression::NONE);
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });

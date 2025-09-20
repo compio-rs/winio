@@ -1,7 +1,7 @@
 use cxx::{ExternType, type_id};
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
@@ -17,8 +17,8 @@ pub struct Edit {
 
 #[inherit_methods(from = "self.widget")]
 impl Edit {
-    pub fn new(parent: impl AsWindow) -> Self {
-        let mut widget = unsafe { ffi::new_line_edit(parent.as_window().as_qt()) };
+    pub fn new(parent: impl AsContainer) -> Self {
+        let mut widget = unsafe { ffi::new_line_edit(parent.as_container().as_qt()) };
         let on_changed = Box::new(Callback::new());
         unsafe {
             ffi::line_edit_connect_changed(
@@ -121,8 +121,8 @@ pub struct TextBox {
 
 #[inherit_methods(from = "self.widget")]
 impl TextBox {
-    pub fn new(parent: impl AsWindow) -> Self {
-        let mut widget = unsafe { ffi::new_text_edit(parent.as_window().as_qt()) };
+    pub fn new(parent: impl AsContainer) -> Self {
+        let mut widget = unsafe { ffi::new_text_edit(parent.as_container().as_qt()) };
         let on_changed = Box::new(Callback::new());
         unsafe {
             ffi::text_edit_connect_changed(

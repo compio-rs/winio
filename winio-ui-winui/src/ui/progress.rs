@@ -1,6 +1,6 @@
 use inherit_methods_macro::inherit_methods;
 use windows::core::Interface;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
@@ -14,7 +14,7 @@ pub struct Progress {
 
 #[inherit_methods(from = "self.handle")]
 impl Progress {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let progress_bar = MUXC::ProgressBar::new().unwrap();
         Self {
             handle: Widget::new(parent, progress_bar.cast().unwrap()),

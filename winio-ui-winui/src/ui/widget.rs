@@ -1,5 +1,5 @@
 use windows::core::Interface;
-use winio_handle::{AsRawWidget, AsWindow, RawWidget};
+use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::Xaml::{self as MUX, Controls as MUXC};
 
@@ -11,17 +11,19 @@ pub(crate) struct Widget {
 }
 
 impl Widget {
-    pub fn new(parent: impl AsWindow, handle: MUX::FrameworkElement) -> Self {
-        let parent = parent.as_window();
-        let window = parent.as_winui();
+    pub fn new(parent: impl AsContainer, handle: MUX::FrameworkElement) -> Self {
         handle
             .SetHorizontalAlignment(MUX::HorizontalAlignment::Center)
             .unwrap();
         handle
             .SetVerticalAlignment(MUX::VerticalAlignment::Center)
             .unwrap();
-        let canvas = window.Content().unwrap().cast::<MUXC::Canvas>().unwrap();
+        let parent = parent.as_container();
+        let canvas = parent.as_winui();
         canvas.Children().unwrap().Append(&handle).unwrap();
+        canvas
+            .Measure(Size::new(f64::INFINITY, f64::INFINITY).to_native())
+            .unwrap();
         Self { handle }
     }
 
@@ -87,6 +89,20 @@ impl Widget {
     pub fn set_size(&mut self, v: Size) {
         self.handle.SetWidth(v.width).unwrap();
         self.handle.SetHeight(v.height).unwrap();
+    }
+}
+
+impl Drop for Widget {
+    fn drop(&mut self) {
+        if let Ok(parent) = self.handle.Parent() {
+            if let Ok(parent) = parent.cast::<MUXC::Canvas>() {
+                let children = parent.Children().unwrap();
+                let mut index = 0;
+                if children.IndexOf(&self.handle, &mut index).is_ok() {
+                    children.RemoveAt(index as _).unwrap();
+                }
+            }
+        }
     }
 }
 

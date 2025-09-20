@@ -1,19 +1,22 @@
 use std::fmt::Debug;
 
+use inherit_methods_macro::inherit_methods;
 use objc2::{
     DeclaredClass, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained, Weak},
     runtime::ProtocolObject,
 };
 use objc2_app_kit::{
-    NSBackingStoreType, NSControl, NSScreen, NSView, NSWindow, NSWindowDelegate,
-    NSWindowOrderingMode, NSWindowStyleMask,
+    NSBackingStoreType, NSControl, NSScreen, NSView, NSWindow, NSWindowDelegate, NSWindowStyleMask,
 };
 use objc2_foundation::{
     MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSPoint, NSRect, NSSize, NSString,
 };
 use winio_callback::Callback;
-use winio_handle::{AsRawWidget, AsRawWindow, AsWindow, BorrowedWindow, RawWidget, RawWindow};
+use winio_handle::{
+    AsContainer, AsRawContainer, AsRawWidget, AsRawWindow, AsWindow, BorrowedContainer,
+    BorrowedWindow, RawContainer, RawWidget, RawWindow,
+};
 use winio_primitive::{Point, Rect, Size};
 
 use crate::{
@@ -28,7 +31,8 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new(parent: Option<impl AsWindow>) -> Self {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
         unsafe {
             let mtm = MainThreadMarker::new().unwrap();
 
@@ -45,13 +49,6 @@ impl Window {
                     false,
                 )
             };
-
-            if let Some(parent) = parent {
-                parent
-                    .as_window()
-                    .as_raw_window()
-                    .addChildWindow_ordered(&wnd, NSWindowOrderingMode::Above);
-            }
 
             let delegate = WindowDelegate::new(mtm);
             let del_obj = ProtocolObject::from_ref(&*delegate);
@@ -141,6 +138,18 @@ impl AsWindow for Window {
     }
 }
 
+impl AsRawContainer for Window {
+    fn as_raw_container(&self) -> RawContainer {
+        self.wnd.contentView().unwrap()
+    }
+}
+
+impl AsContainer for Window {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        unsafe { BorrowedContainer::borrow_raw(self.as_raw_container()) }
+    }
+}
+
 #[derive(Debug, Default)]
 struct WindowDelegateIvars {
     did_resize: Callback,
@@ -198,9 +207,9 @@ pub(crate) struct Widget {
 }
 
 impl Widget {
-    pub fn from_nsview(parent: impl AsWindow, view: Retained<NSView>) -> Self {
+    pub fn from_nsview(parent: impl AsContainer, view: Retained<NSView>) -> Self {
         unsafe {
-            let parent = parent.as_window().as_raw_window().contentView().unwrap();
+            let parent = parent.as_container().as_raw_container();
             parent.addSubview(&view);
             let mut this = Self {
                 parent: Weak::from_retained(&parent),
@@ -274,8 +283,56 @@ impl Widget {
     }
 }
 
+impl Drop for Widget {
+    fn drop(&mut self) {
+        unsafe {
+            self.view.removeFromSuperview();
+        }
+    }
+}
+
 impl AsRawWidget for Widget {
     fn as_raw_widget(&self) -> RawWidget {
         self.view.clone()
     }
 }
+
+impl AsRawContainer for Widget {
+    fn as_raw_container(&self) -> RawContainer {
+        self.view.clone()
+    }
+}
+
+#[derive(Debug)]
+pub struct View {
+    handle: Widget,
+}
+
+#[inherit_methods(from = "self.handle")]
+impl View {
+    pub fn new(parent: impl AsContainer) -> Self {
+        unsafe {
+            let mtm = MainThreadMarker::new().unwrap();
+
+            let view = NSView::new(mtm);
+            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
+
+            Self { handle }
+        }
+    }
+
+    pub fn is_visible(&self) -> bool;
+
+    pub fn set_visible(&mut self, v: bool);
+
+    pub fn loc(&self) -> Point;
+
+    pub fn set_loc(&mut self, p: Point);
+
+    pub fn size(&self) -> Size;
+
+    pub fn set_size(&mut self, v: Size);
+}
+
+winio_handle::impl_as_widget!(View, handle);
+winio_handle::impl_as_container!(View, handle);

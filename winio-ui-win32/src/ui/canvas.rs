@@ -29,7 +29,7 @@ use windows_sys::Win32::{
         },
     },
 };
-use winio_handle::{AsRawWindow, AsWindow};
+use winio_handle::{AsContainer, AsRawWindow};
 use winio_primitive::{DrawingFont, MouseButton, Orient, Point, Rect, Size, Vector};
 use winio_ui_windows_common::is_dark_mode_allowed_for_app;
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
@@ -78,12 +78,12 @@ pub struct Canvas {
 
 #[inherit_methods(from = "self.handle")]
 impl Canvas {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let handle = Widget::new(
             WC_STATICW,
             WS_CHILD | WS_VISIBLE | SS_OWNERDRAW,
             0,
-            parent.as_window().as_win32(),
+            parent.as_container().as_win32(),
         );
         let target = create_target(handle.as_raw_window().as_win32());
         Self { handle, target }

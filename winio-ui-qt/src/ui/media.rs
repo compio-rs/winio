@@ -3,7 +3,7 @@ use std::{fmt::Debug, time::Duration};
 use cxx::{ExternType, UniquePtr, type_id};
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{
@@ -19,9 +19,9 @@ pub struct Media {
 
 #[inherit_methods(from = "self.widget")]
 impl Media {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let on_notify = Box::new(Callback::new());
-        let widget = unsafe { ffi::new_video(parent.as_window().as_qt()) };
+        let widget = unsafe { ffi::new_video(parent.as_container().as_qt()) };
         let mut widget = Widget::new(widget);
         widget.set_visible(true);
         let mut player = ffi::new_player();

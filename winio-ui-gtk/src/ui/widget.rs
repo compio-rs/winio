@@ -1,7 +1,7 @@
 use std::cell::Cell;
 
-use gtk4::prelude::{Cast, FixedExt, GtkWindowExt, WidgetExt};
-use winio_handle::{AsRawWidget, AsWindow, RawWidget};
+use gtk4::prelude::{Cast, FixedExt, WidgetExt};
+use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Point, Size};
 
 #[derive(Debug)]
@@ -11,13 +11,9 @@ pub(crate) struct Widget {
 }
 
 impl Widget {
-    pub fn new(parent: impl AsWindow, widget: gtk4::Widget) -> Self {
-        let parent = parent.as_window().to_gtk();
-        let swindow = parent.child().unwrap();
-        let port = swindow.first_child().unwrap();
-        let fixed = port.first_child().unwrap();
-        let fixed = fixed.downcast::<gtk4::Fixed>().unwrap();
-        fixed.put(&widget, 0.0, 0.0);
+    pub fn new(parent: impl AsContainer, widget: gtk4::Widget) -> Self {
+        let parent = parent.as_container().to_gtk();
+        parent.put(&widget, 0.0, 0.0);
         Self {
             widget,
             preferred_size: Cell::new(Size::new(f64::MAX, f64::MAX)),
@@ -82,5 +78,15 @@ impl Widget {
 impl AsRawWidget for Widget {
     fn as_raw_widget(&self) -> RawWidget {
         RawWidget::Gtk(self.widget.clone())
+    }
+}
+
+impl Drop for Widget {
+    fn drop(&mut self) {
+        if let Some(parent) = self.widget.parent() {
+            if let Ok(fixed) = parent.downcast::<gtk4::Fixed>() {
+                fixed.remove(&self.widget);
+            }
+        }
     }
 }

@@ -1,6 +1,6 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender, ObservableVecEvent};
-use winio_handle::BorrowedWindow;
+use winio_handle::BorrowedContainer;
 use winio_layout::{Enable, Layoutable, Visible};
 use winio_primitive::{Point, Size};
 
@@ -130,7 +130,7 @@ impl ListBoxMessage {
 
 impl Component for ListBox {
     type Event = ListBoxEvent;
-    type Init<'a> = BorrowedWindow<'a>;
+    type Init<'a> = BorrowedContainer<'a>;
     type Message = ListBoxMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {

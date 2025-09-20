@@ -9,7 +9,7 @@ use objc2_app_kit::{
 };
 use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString};
 use winio_callback::Callback;
-use winio_handle::{AsRawWidget, AsWindow, RawWidget};
+use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
@@ -28,7 +28,7 @@ pub struct Edit {
 }
 
 impl Edit {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         unsafe {
             let mtm = MainThreadMarker::new().unwrap();
 
@@ -46,10 +46,8 @@ impl Edit {
             pview.setSelectable(true);
             pview.setHidden(true);
 
-            let handle =
-                Widget::from_nsview(parent.as_window(), Retained::cast_unchecked(view.clone()));
-            let phandle =
-                Widget::from_nsview(parent.as_window(), Retained::cast_unchecked(pview.clone()));
+            let handle = Widget::from_nsview(&parent, Retained::cast_unchecked(view.clone()));
+            let phandle = Widget::from_nsview(&parent, Retained::cast_unchecked(pview.clone()));
 
             let delegate = EditDelegate::new(mtm);
             let del_obj = ProtocolObject::from_ref(&*delegate);

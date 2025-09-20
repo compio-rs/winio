@@ -14,6 +14,7 @@ struct WinioMainWindow : public QMainWindow {
     callback_t<bool()> m_close_callback;
 
     WinioMainWindow(QWidget *parent);
+    ~WinioMainWindow() override;
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -21,7 +22,7 @@ protected:
     void closeEvent(QCloseEvent *event) override;
 };
 
-std::unique_ptr<QMainWindow> new_main_window(QWidget *parent);
+std::unique_ptr<QMainWindow> new_main_window();
 
 STATIC_CAST_ASSERT(QMainWindow, QWidget);
 

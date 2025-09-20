@@ -12,7 +12,7 @@ use windows_sys::Win32::{
         },
     },
 };
-use winio_handle::{AsRawWidget, AsRawWindow, AsWindow, RawWidget};
+use winio_handle::{AsContainer, AsRawWidget, AsRawWindow, RawWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{
@@ -27,14 +27,14 @@ struct ComboBoxImpl {
 
 #[inherit_methods(from = "self.handle")]
 impl ComboBoxImpl {
-    pub fn new(parent: impl AsWindow, editable: bool) -> Self {
+    pub fn new(parent: impl AsContainer, editable: bool) -> Self {
         let mut style = WS_TABSTOP | WS_CHILD | CBS_AUTOHSCROLL as u32 | CBS_HASSTRINGS as u32;
         if editable {
             style |= CBS_DROPDOWN as u32;
         } else {
             style |= WS_VISIBLE | CBS_DROPDOWNLIST as u32;
         }
-        let mut handle = Widget::new(WC_COMBOBOXW, style, 0, parent.as_window().as_win32());
+        let mut handle = Widget::new(WC_COMBOBOXW, style, 0, parent.as_container().as_win32());
         handle.set_size(handle.size_d2l((50, 14)));
         Self { handle }
     }
@@ -165,8 +165,7 @@ pub struct ComboBox {
 }
 
 impl ComboBox {
-    pub fn new(parent: impl AsWindow) -> Self {
-        let parent = parent.as_window();
+    pub fn new(parent: impl AsContainer) -> Self {
         let handle = ComboBoxImpl::new(&parent, false);
         let ehandle = ComboBoxImpl::new(&parent, true);
         Self {

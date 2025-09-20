@@ -1,6 +1,6 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender, ObservableVecEvent};
-use winio_handle::BorrowedWindow;
+use winio_handle::BorrowedContainer;
 use winio_layout::{Enable, Layoutable, Visible};
 use winio_primitive::{Point, Size};
 
@@ -144,7 +144,7 @@ impl ComboBoxMessage {
 
 impl Component for ComboBox {
     type Event = ComboBoxEvent;
-    type Init<'a> = BorrowedWindow<'a>;
+    type Init<'a> = BorrowedContainer<'a>;
     type Message = ComboBoxMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {

@@ -7,7 +7,7 @@ use windows::{
     Media::Core::{MediaSource, MediaSourceOpenOperationCompletedEventArgs},
     core::{Interface, Ref},
 };
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
@@ -21,7 +21,7 @@ pub struct Media {
 
 #[inherit_methods(from = "self.handle")]
 impl Media {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let mpe = MUXC::MediaPlayerElement::new().unwrap();
         Self {
             handle: Widget::new(parent, mpe.cast().unwrap()),

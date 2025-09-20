@@ -2,7 +2,8 @@ use std::{cell::RefCell, fmt::Debug, future::Future, rc::Rc};
 
 use futures_util::future::Either;
 use winio_handle::{
-    AsRawWidget, AsRawWindow, AsWidget, AsWindow, BorrowedWidget, BorrowedWindow, RawWidget,
+    AsContainer, AsRawContainer, AsRawWidget, AsWidget, BorrowedContainer, BorrowedWidget,
+    RawWidget,
 };
 use winio_primitive::{Point, Size};
 
@@ -38,7 +39,7 @@ impl LazyInitParams {
 
 #[allow(async_fn_in_trait)]
 pub trait WebViewImpl {
-    async fn new(parent: impl AsWindow) -> Self;
+    async fn new(parent: impl AsContainer) -> Self;
 
     fn is_visible(&self) -> bool;
     fn set_visible(&mut self, v: bool);
@@ -197,15 +198,15 @@ pub struct WebViewLazy<W> {
 }
 
 impl<W: WebViewImpl + 'static> WebViewLazy<W> {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let inner = Rc::new(RefCell::new(
             WebViewInner::Params(LazyInitParams::default()),
         ));
         compio::runtime::spawn({
             let inner = inner.clone();
-            let parent = parent.as_window().as_raw_window();
+            let parent = parent.as_container().as_raw_container();
             async move {
-                let mut w = W::new(unsafe { BorrowedWindow::borrow_raw(parent) }).await;
+                let mut w = W::new(unsafe { BorrowedContainer::borrow_raw(parent) }).await;
                 let mut inner = inner.borrow_mut();
                 if let WebViewInner::Params(p) = &*inner {
                     p.init(&mut w);

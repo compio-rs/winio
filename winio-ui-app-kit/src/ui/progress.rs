@@ -2,7 +2,7 @@ use inherit_methods_macro::inherit_methods;
 use objc2::rc::Retained;
 use objc2_app_kit::NSProgressIndicator;
 use objc2_foundation::MainThreadMarker;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::ui::Widget;
@@ -15,7 +15,7 @@ pub struct Progress {
 
 #[inherit_methods(from = "self.handle")]
 impl Progress {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         unsafe {
             let mtm = MainThreadMarker::new().unwrap();
 

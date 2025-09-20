@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use cxx::{ExternType, UniquePtr, memory::UniquePtrTarget, type_id};
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{
@@ -16,7 +16,7 @@ use crate::{
 
 pub struct ButtonImpl<T>
 where
-    T: UniquePtrTarget,
+    T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
 {
     on_click: Box<Callback>,
     widget: Widget<T>,
@@ -82,7 +82,7 @@ where
     }
 }
 
-impl<T: UniquePtrTarget> Debug for ButtonImpl<T> {
+impl<T: UniquePtrTarget + StaticCastTo<ffi::QWidget>> Debug for ButtonImpl<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ButtonImpl")
             .field("on_click", &self.on_click)
@@ -100,15 +100,15 @@ winio_handle::impl_as_widget!(CheckBox, widget);
 winio_handle::impl_as_widget!(RadioButton, widget);
 
 impl Button {
-    pub fn new(parent: impl AsWindow) -> Self {
-        let widget = unsafe { ffi::new_push_button(parent.as_window().as_qt()) };
+    pub fn new(parent: impl AsContainer) -> Self {
+        let widget = unsafe { ffi::new_push_button(parent.as_container().as_qt()) };
         Self::new_impl(widget)
     }
 }
 
 impl CheckBox {
-    pub fn new(parent: impl AsWindow) -> Self {
-        let widget = unsafe { ffi::new_check_box(parent.as_window().as_qt()) };
+    pub fn new(parent: impl AsContainer) -> Self {
+        let widget = unsafe { ffi::new_check_box(parent.as_container().as_qt()) };
         Self::new_impl(widget)
     }
 
@@ -126,8 +126,8 @@ impl CheckBox {
 }
 
 impl RadioButton {
-    pub fn new(parent: impl AsWindow) -> Self {
-        let widget = unsafe { ffi::new_radio_button(parent.as_window().as_qt()) };
+    pub fn new(parent: impl AsContainer) -> Self {
+        let widget = unsafe { ffi::new_radio_button(parent.as_container().as_qt()) };
         Self::new_impl(widget)
     }
 

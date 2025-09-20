@@ -163,6 +163,9 @@ pub use canvas::*;
 mod scroll_bar;
 pub use scroll_bar::*;
 
+mod scroll_view;
+pub use scroll_view::*;
+
 mod slider;
 pub use slider::*;
 

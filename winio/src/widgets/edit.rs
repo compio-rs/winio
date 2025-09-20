@@ -1,6 +1,6 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
-use winio_handle::BorrowedWindow;
+use winio_handle::BorrowedContainer;
 use winio_layout::{Enable, Layoutable, Visible};
 use winio_primitive::{HAlign, Point, Size};
 
@@ -69,7 +69,7 @@ pub enum EditEvent {
 
 impl Component for Edit {
     type Event = EditEvent;
-    type Init<'a> = BorrowedWindow<'a>;
+    type Init<'a> = BorrowedContainer<'a>;
     type Message = ();
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {

@@ -13,7 +13,7 @@ use objc2_foundation::{
     NSString,
 };
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
@@ -30,7 +30,7 @@ pub struct TextBox {
 
 #[inherit_methods(from = "self.handle")]
 impl TextBox {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         unsafe {
             let mtm = MainThreadMarker::new().unwrap();
 

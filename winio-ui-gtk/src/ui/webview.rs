@@ -4,7 +4,7 @@ use gtk4::glib::object::Cast;
 use inherit_methods_macro::inherit_methods;
 use webkit6::prelude::WebViewExt;
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{GlobalRuntime, ui::Widget};
@@ -18,7 +18,7 @@ pub struct WebView {
 
 #[inherit_methods(from = "self.handle")]
 impl WebView {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let widget = webkit6::WebView::new();
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
         let on_loaded = Rc::new(Callback::new());

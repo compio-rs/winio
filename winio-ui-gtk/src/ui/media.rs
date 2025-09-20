@@ -8,7 +8,7 @@ use gtk4::{
     prelude::{MediaFileExt, MediaStreamExt, WidgetExt},
 };
 use inherit_methods_macro::inherit_methods;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::ui::Widget;
@@ -23,7 +23,7 @@ pub struct Media {
 
 #[inherit_methods(from = "self.handle")]
 impl Media {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let widget = gtk4::Video::new();
         widget.set_autoplay(false);
         let overlay = widget.first_child().unwrap();

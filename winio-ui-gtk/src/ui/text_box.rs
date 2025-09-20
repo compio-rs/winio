@@ -7,7 +7,7 @@ use gtk4::{
 };
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::{GlobalRuntime, ui::Widget};
@@ -21,7 +21,7 @@ pub struct TextBox {
 
 #[inherit_methods(from = "self.handle")]
 impl TextBox {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let container = gtk4::ScrolledWindow::new();
         let widget = gtk4::TextView::new();
         container.set_child(Some(&widget));

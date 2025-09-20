@@ -4,7 +4,7 @@ use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows::core::Interface;
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Orient, Point, Size};
 use winui3::Microsoft::UI::Xaml::Controls::{
     self as MUXC,
@@ -22,7 +22,7 @@ pub struct ScrollBar {
 
 #[inherit_methods(from = "self.handle")]
 impl ScrollBar {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let bar = MUXC::Primitives::ScrollBar::new().unwrap();
         bar.SetIndicatorMode(ScrollingIndicatorMode::MouseIndicator)
             .unwrap();

@@ -1,12 +1,15 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
-use winio_handle::MaybeBorrowedWindow;
 use winio_layout::{Layoutable, Visible};
 use winio_primitive::{Point, Size};
 
 use crate::sys;
 
 /// A simple window.
+///
+/// ## Platform specific
+/// * Qt: The desctruct order of Qt requires the window to be dropped last, and
+///   you should better put it at the end of the struct.
 #[derive(Debug)]
 pub struct Window {
     widget: sys::Window,
@@ -76,12 +79,12 @@ pub enum WindowEvent {
 
 impl Component for Window {
     type Event = WindowEvent;
-    type Init<'a> = MaybeBorrowedWindow<'a>;
+    type Init<'a> = ();
     type Message = ();
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+    fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
         Self {
-            widget: sys::Window::new(init.0),
+            widget: sys::Window::new(),
         }
     }
 
@@ -117,3 +120,4 @@ impl Component for Window {
 }
 
 winio_handle::impl_as_window!(Window, widget);
+winio_handle::impl_as_container!(Window, widget);

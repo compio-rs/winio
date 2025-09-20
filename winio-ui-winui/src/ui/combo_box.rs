@@ -7,7 +7,7 @@ use windows::{
     core::{HSTRING, IInspectable, Interface},
 };
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::Xaml::Controls::{self as MUXC, SelectionChangedEventHandler};
 
@@ -23,7 +23,7 @@ pub struct ComboBox {
 
 #[inherit_methods(from = "self.handle")]
 impl ComboBox {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let combo_box = MUXC::ComboBox::new().unwrap();
         let on_select = SendWrapper::new(Rc::new(Callback::new()));
         {

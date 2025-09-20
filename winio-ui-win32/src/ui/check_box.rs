@@ -6,7 +6,7 @@ use windows_sys::Win32::UI::{
         WS_VISIBLE,
     },
 };
-use winio_handle::{AsRawWindow, AsWindow};
+use winio_handle::{AsContainer, AsRawWindow};
 use winio_primitive::{Point, Size};
 
 use crate::{runtime::WindowMessageCommand, ui::Widget};
@@ -18,12 +18,12 @@ pub struct CheckBox {
 
 #[inherit_methods(from = "self.handle")]
 impl CheckBox {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let mut handle = Widget::new(
             WC_BUTTONW,
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_CHECKBOX as u32,
             0,
-            parent.as_window().as_win32(),
+            parent.as_container().as_win32(),
         );
         handle.set_size(handle.size_d2l((50, 14)));
         Self { handle }

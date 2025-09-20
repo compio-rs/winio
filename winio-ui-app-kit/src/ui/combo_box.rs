@@ -9,7 +9,7 @@ use objc2_app_kit::{
 };
 use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString};
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{
@@ -26,7 +26,7 @@ pub struct ComboBox {
 
 #[inherit_methods(from = "self.handle")]
 impl ComboBox {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         unsafe {
             let mtm = MainThreadMarker::new().unwrap();
 

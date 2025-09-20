@@ -1,6 +1,6 @@
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{
@@ -16,9 +16,9 @@ pub struct WebView {
 
 #[inherit_methods(from = "self.widget")]
 impl WebView {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let on_loaded = Box::new(Callback::new());
-        let mut widget = unsafe { ffi::new_webview(parent.as_window().as_qt()) };
+        let mut widget = unsafe { ffi::new_webview(parent.as_container().as_qt()) };
         unsafe {
             ffi::webview_connect_load_finished(
                 widget.pin_mut(),

@@ -6,7 +6,7 @@ use gtk4::{
 };
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{GlobalRuntime, ui::Widget};
@@ -20,7 +20,7 @@ pub struct CheckBox {
 
 #[inherit_methods(from = "self.handle")]
 impl CheckBox {
-    pub(crate) fn new_impl(parent: impl AsWindow, radio: bool) -> Self {
+    pub(crate) fn new_impl(parent: impl AsContainer, radio: bool) -> Self {
         let widget = gtk4::CheckButton::new();
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
         let on_click = Rc::new(Callback::new());
@@ -39,7 +39,7 @@ impl CheckBox {
         }
     }
 
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         Self::new_impl(parent, false)
     }
 
@@ -96,8 +96,8 @@ pub struct RadioButton {
 
 #[inherit_methods(from = "self.handle")]
 impl RadioButton {
-    pub fn new(parent: impl AsWindow) -> Self {
-        let handle = CheckBox::new_impl(parent.as_window(), true);
+    pub fn new(parent: impl AsContainer) -> Self {
+        let handle = CheckBox::new_impl(parent, true);
         let hidden = gtk4::CheckButton::new();
         hidden.set_visible(false);
         handle.widget.set_group(Some(&hidden));

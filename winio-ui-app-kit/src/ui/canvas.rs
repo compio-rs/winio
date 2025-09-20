@@ -29,7 +29,7 @@ use objc2_core_text::{
 };
 use objc2_foundation::{MainThreadMarker, NSPoint, NSRect, NSSize, NSString};
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{
     BrushPen, Color, DrawingFont, GradientStop, HAlign, LinearGradientBrush, MouseButton, Point,
     RadialGradientBrush, Rect, RelativePoint, Size, SolidColorBrush, VAlign, Vector,
@@ -48,7 +48,7 @@ pub struct Canvas {
 
 #[inherit_methods(from = "self.handle")]
 impl Canvas {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let view = CanvasView::new(MainThreadMarker::new().unwrap());
         let handle = Widget::from_nsview(parent, view.clone().into_super());
         Self { view, handle }

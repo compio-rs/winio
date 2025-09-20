@@ -3,7 +3,7 @@ use std::rc::Rc;
 use gtk4::{glib::object::Cast, prelude::ButtonExt};
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{GlobalRuntime, ui::Widget};
@@ -17,7 +17,7 @@ pub struct Button {
 
 #[inherit_methods(from = "self.handle")]
 impl Button {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let widget = gtk4::Button::new();
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
         let on_click = Rc::new(Callback::new());

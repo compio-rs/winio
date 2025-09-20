@@ -6,7 +6,7 @@ use gtk4::{
 };
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::AsWindow;
+use winio_handle::AsContainer;
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::{GlobalRuntime, ui::Widget};
@@ -20,7 +20,7 @@ pub struct Edit {
 
 #[inherit_methods(from = "self.handle")]
 impl Edit {
-    pub fn new(parent: impl AsWindow) -> Self {
+    pub fn new(parent: impl AsContainer) -> Self {
         let widget = gtk4::Entry::new();
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
         let on_changed = Rc::new(Callback::new());
