@@ -39,8 +39,7 @@ use windows::{
 };
 use winio_callback::Callback;
 use winio_handle::AsWindow;
-use winio_primitive::{DrawingFont, MouseButton, Point, Rect, Size, Vector};
-use winio_ui_windows_common::is_dark_mode_allowed_for_app;
+use winio_primitive::{ColorTheme, DrawingFont, MouseButton, Point, Rect, Size, Vector};
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 use winui3::{
     ISwapChainPanelNative,
@@ -193,7 +192,7 @@ impl SwapChain {
             context.SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
             self.bitmap = Some(bitmap);
             context.BeginDraw();
-            context.Clear(Some(&if is_dark_mode_allowed_for_app() {
+            context.Clear(Some(&if matches!(crate::color_theme(), ColorTheme::Dark) {
                 D2D1_COLOR_F {
                     r: 0.0,
                     g: 0.0,

@@ -45,8 +45,8 @@ windows-sys = { workspace = true, features = [
 ] }
 windows-numerics = "0.3"
 
-slim-detours-sys = { workspace = true }
-sync-unsafe-cell = { workspace = true }
+slim-detours-sys = { workspace = true, optional = true }
+sync-unsafe-cell = { workspace = true, optional = true }
 
 [build-dependencies]
 embed-resource = "3"
@@ -55,3 +55,4 @@ embed-resource = "3"
 win32 = ["winio-handle/win32"]
 winui = ["winio-handle/winui"]
 webview = ["dep:futures-util"]
+dark-mode = ["dep:slim-detours-sys", "dep:sync-unsafe-cell"]

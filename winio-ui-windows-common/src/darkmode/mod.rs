@@ -29,8 +29,17 @@ impl Drop for WinBrush {
 unsafe impl Send for WinBrush {}
 unsafe impl Sync for WinBrush {}
 
-mod hook;
-pub use hook::*;
+cfg_if::cfg_if! {
+    if #[cfg(feature = "dark-mode")] {
+        #[path = "hook.rs"]
+        mod imp;
+        pub use imp::*;
+    } else {
+        #[path = "fallback.rs"]
+        mod imp;
+        pub use imp::*;
+    }
+}
 
 #[repr(u32)]
 #[allow(dead_code)]
