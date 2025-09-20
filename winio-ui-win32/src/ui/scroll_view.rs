@@ -236,16 +236,16 @@ impl ScrollView {
         loop {
             futures_util::select! {
                 msg = self.handle.wait(WM_VSCROLL).fuse() => {
-                    self.scroll(SB_VERT, msg.wparam, false)
+                    self.scroll(SB_VERT, msg.wparam(), false)
                 },
                 msg = self.handle.wait(WM_HSCROLL).fuse() => {
-                    self.scroll(SB_HORZ, msg.wparam, false)
+                    self.scroll(SB_HORZ, msg.wparam(), false)
                 },
                 msg = self.handle.wait(WM_MOUSEWHEEL).fuse() => {
-                    self.scroll(SB_VERT, msg.wparam, true)
+                    self.scroll(SB_VERT, msg.wparam(), true)
                 },
                 msg = self.handle.wait(WM_MOUSEHWHEEL).fuse() => {
-                    self.scroll(SB_HORZ, msg.wparam, true)
+                    self.scroll(SB_HORZ, msg.wparam(), true)
                 },
             }
         }

@@ -493,11 +493,19 @@ pub struct View {
 #[inherit_methods(from = "self.handle")]
 impl View {
     pub fn new(parent: impl AsContainer) -> Self {
+        Self::new_impl(parent.as_container().as_win32(), WS_VISIBLE)
+    }
+
+    pub(crate) fn new_hidden(parent: HWND) -> Self {
+        Self::new_impl(parent, 0)
+    }
+
+    fn new_impl(parent: HWND, style: u32) -> Self {
         let handle = Widget::new(
             window_class_name(),
-            WS_CHILDWINDOW | WS_VISIBLE,
+            WS_CHILDWINDOW | style,
             WS_EX_CONTROLPARENT,
-            parent.as_container().as_win32(),
+            parent,
         );
         let this = Self { handle };
         unsafe { window_use_dark_mode(this.handle.as_raw_window().as_win32()) };
