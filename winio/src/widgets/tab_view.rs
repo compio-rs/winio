@@ -25,6 +25,11 @@ impl TabView {
         self.widget.insert(i, &item.widget)
     }
 
+    /// Append a new tab item.
+    pub fn append(&mut self, item: &TabViewItem) {
+        self.insert(self.len(), item)
+    }
+
     /// Remove a tab by index.
     pub fn remove(&mut self, i: usize);
 
@@ -65,7 +70,10 @@ impl Layoutable for TabView {
 
 /// Events of [`TabView`].
 #[non_exhaustive]
-pub enum TabViewEvent {}
+pub enum TabViewEvent {
+    /// The selection changed.
+    Select,
+}
 
 impl Component for TabView {
     type Event = TabViewEvent;
@@ -77,8 +85,11 @@ impl Component for TabView {
         Self { widget }
     }
 
-    async fn start(&mut self, _sender: &ComponentSender<Self>) -> ! {
-        self.widget.start().await
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
+        loop {
+            self.widget.wait_select().await;
+            sender.output(TabViewEvent::Select);
+        }
     }
 
     async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {

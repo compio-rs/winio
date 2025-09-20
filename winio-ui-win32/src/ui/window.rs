@@ -19,7 +19,7 @@ use windows_sys::Win32::{
             LR_SHARED, LoadCursorW, LoadImageW, RegisterClassExW, SW_HIDE, SW_SHOW, SWP_NOMOVE,
             SWP_NOSIZE, SWP_NOZORDER, SendMessageW, SetWindowLongPtrW, SetWindowPos,
             SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE, WM_SETICON, WM_SIZE, WNDCLASSEXW,
-            WS_CHILDWINDOW, WS_EX_CONTROLPARENT, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
+            WS_CHILDWINDOW, WS_CLIPCHILDREN, WS_EX_CONTROLPARENT, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
         },
     },
 };
@@ -503,7 +503,7 @@ impl View {
     fn new_impl(parent: HWND, style: u32) -> Self {
         let handle = Widget::new(
             window_class_name(),
-            WS_CHILDWINDOW | style,
+            WS_CHILDWINDOW | WS_CLIPCHILDREN | style,
             WS_EX_CONTROLPARENT,
             parent,
         );

@@ -14,7 +14,7 @@ use windows_sys::Win32::UI::{
     },
     WindowsAndMessaging::{
         GetClientRect, GetParent, MoveWindow, SW_HIDE, SW_SHOW, SendMessageW, ShowWindow,
-        WM_NOTIFY, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
+        WM_NOTIFY, WS_CHILD, WS_CLIPCHILDREN, WS_EX_CONTROLPARENT, WS_TABSTOP, WS_VISIBLE,
     },
 };
 use winio_handle::{AsContainer, AsRawContainer, AsRawWidget, BorrowedContainer, RawContainer};
@@ -34,8 +34,8 @@ impl TabView {
     pub fn new(parent: impl AsContainer) -> Self {
         let mut handle = Widget::new(
             WC_TABCONTROLW,
-            WS_TABSTOP | WS_VISIBLE | WS_CHILD | TCS_TABS,
-            0,
+            WS_TABSTOP | WS_CLIPCHILDREN | WS_VISIBLE | WS_CHILD | TCS_TABS,
+            WS_EX_CONTROLPARENT,
             parent.as_container().as_win32(),
         );
         handle.set_size(handle.size_d2l((50, 14)));
@@ -98,7 +98,7 @@ impl TabView {
         self.handle.send_message(TCM_SETCURSEL, i as _, 0);
     }
 
-    pub async fn start(&self) -> ! {
+    pub async fn wait_select(&self) {
         loop {
             let WindowMessageNotify {
                 hwnd_from, code, ..
@@ -107,6 +107,7 @@ impl TabView {
                 && (code == TCN_SELCHANGE)
             {
                 self.show_current_view();
+                return;
             }
         }
     }

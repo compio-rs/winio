@@ -1,20 +1,11 @@
-use std::{path::PathBuf, time::Duration};
+use std::{ops::Deref, path::PathBuf, time::Duration};
 
 use compio::{runtime::spawn, time::interval};
 use url::Url;
 use winio::prelude::*;
 
-fn main() {
-    #[cfg(feature = "enable_log")]
-    tracing_subscriber::fmt()
-        .with_max_level(compio_log::Level::INFO)
-        .init();
-
-    App::new("rs.compio.winio.media").run::<MainModel>(());
-}
-
-struct MainModel {
-    window: Child<Window>,
+pub struct MediaPage {
+    window: Child<TabViewItem>,
     media: Child<Media>,
     playing: bool,
     play_button: Child<Button>,
@@ -24,7 +15,7 @@ struct MainModel {
     volume_label: Child<Label>,
 }
 
-impl MainModel {
+impl MediaPage {
     fn set_playing(&mut self, v: bool) {
         self.playing = v;
         self.play_button
@@ -33,10 +24,14 @@ impl MainModel {
 }
 
 #[derive(Debug)]
-enum MainMessage {
+pub enum MediaPageEvent {
+    ShowMessage(MessageBox),
+    ChooseFile,
+}
+
+#[derive(Debug)]
+pub enum MediaPageMessage {
     Noop,
-    Close,
-    Redraw,
     Tick,
     Volume,
     Time,
@@ -45,16 +40,15 @@ enum MainMessage {
     OpenFile(PathBuf),
 }
 
-impl Component for MainModel {
-    type Event = ();
-    type Init<'a> = ();
-    type Message = MainMessage;
+impl Component for MediaPage {
+    type Event = MediaPageEvent;
+    type Init<'a> = &'a TabView;
+    type Message = MediaPageMessage;
 
-    fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
         init! {
-            window: Window = (()) => {
-                text: "Media example",
-                size: Size::new(800.0, 600.0),
+            window: TabViewItem = (tabview) => {
+                text: "Media",
             },
             media: Media = (&window),
             play_button: Button = (&window) => {
@@ -77,19 +71,17 @@ impl Component for MainModel {
             },
             volume_label: Label = (&window),
         }
-        sender.post(MainMessage::Volume);
+        sender.post(MediaPageMessage::Volume);
 
         let sender = sender.clone();
         spawn(async move {
             let mut interval = interval(Duration::from_millis(100));
             loop {
                 interval.tick().await;
-                sender.post(MainMessage::Tick);
+                sender.post(MediaPageMessage::Tick);
             }
         })
         .detach();
-
-        window.show();
 
         Self {
             window,
@@ -105,22 +97,18 @@ impl Component for MainModel {
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: MainMessage::Noop,
-            self.window => {
-                WindowEvent::Close => MainMessage::Close,
-                WindowEvent::Resize => MainMessage::Redraw,
-            },
+            sender, default: MediaPageMessage::Noop,
             self.volume_slider => {
-                SliderEvent::Change => MainMessage::Volume,
+                SliderEvent::Change => MediaPageMessage::Volume,
             },
             self.time_slider => {
-                SliderEvent::Change => MainMessage::Time,
+                SliderEvent::Change => MediaPageMessage::Time,
             },
             self.play_button => {
-                ButtonEvent::Click => MainMessage::Play,
+                ButtonEvent::Click => MediaPageMessage::Play,
             },
             self.browse_button => {
-                ButtonEvent::Click => MainMessage::ChooseFile,
+                ButtonEvent::Click => MediaPageMessage::ChooseFile,
             }
         }
     }
@@ -128,13 +116,8 @@ impl Component for MainModel {
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
         self.window.update().await;
         match message {
-            MainMessage::Noop => false,
-            MainMessage::Close => {
-                sender.output(());
-                false
-            }
-            MainMessage::Redraw => true,
-            MainMessage::Tick => {
+            MediaPageMessage::Noop => false,
+            MediaPageMessage::Tick => {
                 let ct = self.media.current_time();
                 let ft = self.media.full_time();
                 if let Some(ft) = ft {
@@ -149,13 +132,13 @@ impl Component for MainModel {
                 }
                 true
             }
-            MainMessage::Volume => {
+            MediaPageMessage::Volume => {
                 let pos = self.volume_slider.pos();
                 self.volume_label.set_text(pos.to_string());
                 self.media.set_volume(pos as f64 / 100.0);
                 true
             }
-            MainMessage::Time => {
+            MediaPageMessage::Time => {
                 let pos = self.time_slider.pos();
                 let ft = self.media.full_time();
                 if ft.is_some() {
@@ -164,7 +147,7 @@ impl Component for MainModel {
                 }
                 true
             }
-            MainMessage::Play => {
+            MediaPageMessage::Play => {
                 if self.playing {
                     self.media.pause();
                     self.set_playing(false);
@@ -174,19 +157,11 @@ impl Component for MainModel {
                 }
                 true
             }
-            MainMessage::ChooseFile => {
-                if let Some(p) = FileBox::new()
-                    .title("Open media file")
-                    .add_filter(("MP4 video", "*.mp4"))
-                    .add_filter(("All files", "*.*"))
-                    .open(&self.window)
-                    .await
-                {
-                    sender.post(MainMessage::OpenFile(p));
-                }
+            MediaPageMessage::ChooseFile => {
+                sender.output(MediaPageEvent::ChooseFile);
                 false
             }
-            MainMessage::OpenFile(p) => {
+            MediaPageMessage::OpenFile(p) => {
                 let url = Url::from_file_path(&p).unwrap();
                 if self.media.load(url.as_str()).await {
                     self.volume_slider.enable();
@@ -199,12 +174,12 @@ impl Component for MainModel {
                     self.time_slider.disable();
                     self.play_button.disable();
                     self.set_playing(false);
-                    MessageBox::new()
-                        .buttons(MessageBoxButton::Ok)
-                        .style(MessageBoxStyle::Error)
-                        .message("Failed to load media file.")
-                        .show(&self.window)
-                        .await;
+                    sender.output(MediaPageEvent::ShowMessage(
+                        MessageBox::new()
+                            .buttons(MessageBoxButton::Ok)
+                            .style(MessageBoxStyle::Error)
+                            .message("Failed to load media file."),
+                    ));
                 }
                 true
             }
@@ -214,7 +189,7 @@ impl Component for MainModel {
     fn render(&mut self, _sender: &ComponentSender<Self>) {
         self.window.render();
 
-        let csize = self.window.client_size();
+        let csize = self.window.size();
         {
             let margin = Margin::new_all_same(4.0);
 
@@ -233,5 +208,13 @@ impl Component for MainModel {
             };
             grid.set_size(csize);
         }
+    }
+}
+
+impl Deref for MediaPage {
+    type Target = TabViewItem;
+
+    fn deref(&self) -> &Self::Target {
+        &self.window
     }
 }

@@ -1,55 +1,50 @@
 use std::{
     io,
+    ops::Deref,
     path::{Path, PathBuf},
 };
 
 use compio::{buf::buf_try, fs::File, io::AsyncReadAtExt, runtime::spawn};
 use winio::prelude::*;
 
-fn main() {
-    #[cfg(feature = "enable_log")]
-    tracing_subscriber::fmt()
-        .with_max_level(compio_log::Level::INFO)
-        .init();
-
-    App::new("rs.compio.winio.fs").run::<MainModel>("Cargo.toml")
-}
-
-struct MainModel {
-    window: Child<Window>,
+pub struct FsPage {
+    window: Child<TabViewItem>,
     canvas: Child<Canvas>,
     button: Child<Button>,
     label: Child<Label>,
-    text: FetchStatus,
+    text: FsFetchStatus,
 }
 
 #[derive(Debug)]
-enum FetchStatus {
+pub enum FsFetchStatus {
     Loading,
     Complete(String),
     Error(String),
 }
 
 #[derive(Debug)]
-enum MainMessage {
-    Noop,
-    Close,
-    Redraw,
+pub enum FsPageEvent {
     ChooseFile,
-    OpenFile(PathBuf),
-    Fetch(FetchStatus),
 }
 
-impl Component for MainModel {
-    type Event = ();
-    type Init<'a> = &'a str;
-    type Message = MainMessage;
+#[derive(Debug)]
+pub enum FsPageMessage {
+    Noop,
+    ChooseFile,
+    OpenFile(PathBuf),
+    Fetch(FsFetchStatus),
+}
 
-    fn init(path: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+impl Component for FsPage {
+    type Event = FsPageEvent;
+    type Init<'a> = &'a TabView;
+    type Message = FsPageMessage;
+
+    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+        let path = "Cargo.toml";
         init! {
-            window: Window = (()) => {
-                text: "File IO example",
-                size: Size::new(800.0, 600.0),
+            window: TabViewItem = (tabview) => {
+                text: "File IO",
             },
             canvas: Canvas = (&window),
             button: Button = (&window) => {
@@ -64,26 +59,20 @@ impl Component for MainModel {
         let path = path.to_string();
         spawn(fetch(path, sender.clone())).detach();
 
-        window.show();
-
         Self {
             window,
             canvas,
             button,
             label,
-            text: FetchStatus::Loading,
+            text: FsFetchStatus::Loading,
         }
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: MainMessage::Noop,
-            self.window => {
-                WindowEvent::Close => MainMessage::Close,
-                WindowEvent::Resize => MainMessage::Redraw,
-            },
+            sender, default: FsPageMessage::Noop,
             self.button => {
-                ButtonEvent::Click => MainMessage::ChooseFile,
+                ButtonEvent::Click => FsPageMessage::ChooseFile,
             },
         }
     }
@@ -96,29 +85,17 @@ impl Component for MainModel {
         )
         .await;
         match message {
-            MainMessage::Noop => false,
-            MainMessage::Close => {
-                sender.output(());
+            FsPageMessage::Noop => false,
+            FsPageMessage::ChooseFile => {
+                sender.output(FsPageEvent::ChooseFile);
                 false
             }
-            MainMessage::Redraw => true,
-            MainMessage::ChooseFile => {
-                if let Some(p) = FileBox::new()
-                    .title("Open file")
-                    .add_filter(("All files", "*.*"))
-                    .open(&self.window)
-                    .await
-                {
-                    sender.post(MainMessage::OpenFile(p));
-                }
-                false
-            }
-            MainMessage::OpenFile(p) => {
+            FsPageMessage::OpenFile(p) => {
                 self.label.set_text(p.to_str().unwrap_or_default());
                 spawn(fetch(p, sender.clone())).detach();
                 true
             }
-            MainMessage::Fetch(status) => {
+            FsPageMessage::Fetch(status) => {
                 self.text = status;
                 true
             }
@@ -126,7 +103,7 @@ impl Component for MainModel {
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {
-        let csize = self.window.client_size();
+        let csize = self.window.size();
 
         {
             let mut panel = layout! {
@@ -154,11 +131,19 @@ impl Component for MainModel {
                 .build(),
             Point::zero(),
             match &self.text {
-                FetchStatus::Loading => "Loading...",
-                FetchStatus::Complete(s) => s.as_str(),
-                FetchStatus::Error(e) => e.as_str(),
+                FsFetchStatus::Loading => "Loading...",
+                FsFetchStatus::Complete(s) => s.as_str(),
+                FsFetchStatus::Error(e) => e.as_str(),
             },
         );
+    }
+}
+
+impl Deref for FsPage {
+    type Target = TabViewItem;
+
+    fn deref(&self) -> &Self::Target {
+        &self.window
     }
 }
 
@@ -168,11 +153,11 @@ async fn read_file(path: impl AsRef<Path>) -> io::Result<String> {
     String::from_utf8(buffer).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
 }
 
-async fn fetch(path: impl AsRef<Path>, sender: ComponentSender<MainModel>) {
-    sender.post(MainMessage::Fetch(FetchStatus::Loading));
+async fn fetch(path: impl AsRef<Path>, sender: ComponentSender<FsPage>) {
+    sender.post(FsPageMessage::Fetch(FsFetchStatus::Loading));
     let status = match read_file(path).await {
-        Ok(text) => FetchStatus::Complete(text),
-        Err(e) => FetchStatus::Error(format!("{e:?}")),
+        Ok(text) => FsFetchStatus::Complete(text),
+        Err(e) => FsFetchStatus::Error(format!("{e:?}")),
     };
-    sender.post(MainMessage::Fetch(status));
+    sender.post(FsPageMessage::Fetch(status));
 }
