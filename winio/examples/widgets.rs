@@ -24,8 +24,14 @@ struct MainModel {
     gallery: Child<GalleryPage>,
     scroll: Child<ScrollViewPage>,
     misc: Child<MiscPage>,
+    #[cfg(feature = "media")]
     media: Child<MediaPage>,
+    #[cfg(not(feature = "media"))]
+    media: Child<DummyPage>,
+    #[cfg(feature = "webview")]
     webview: Child<WebViewPage>,
+    #[cfg(not(feature = "webview"))]
+    webview: Child<DummyPage>,
 }
 
 #[derive(Debug)]
@@ -38,7 +44,9 @@ enum MainMessage {
     ChooseFolder,
     OpenFolder(PathBuf),
     ShowMessage(MessageBox),
+    #[cfg(feature = "media")]
     ChooseMedia,
+    #[cfg(feature = "media")]
     OpenMedia(PathBuf),
 }
 
@@ -65,8 +73,14 @@ impl Component for MainModel {
             gallery: GalleryPage = (&*tabview),
             scroll: ScrollViewPage = (&*tabview),
             misc: MiscPage = (&*tabview),
+            #[cfg(feature = "media")]
             media: MediaPage = (&*tabview),
+            #[cfg(not(feature = "media"))]
+            media: DummyPage = ((&*tabview, "Media", "media")),
+            #[cfg(feature = "webview")]
             webview: WebViewPage = (&*tabview),
+            #[cfg(not(feature = "webview"))]
+            webview: DummyPage = ((&*tabview, "WebView", "webview")),
         }
 
         tabview.append(&basic);
@@ -121,7 +135,9 @@ impl Component for MainModel {
                 MiscPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
             },
             self.media => {
+                #[cfg(feature = "media")]
                 MediaPageEvent::ChooseFile => MainMessage::ChooseMedia,
+                #[cfg(feature = "media")]
                 MediaPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
             },
             self.webview => {},
@@ -197,6 +213,7 @@ impl Component for MainModel {
                 mb.show(&self.window).await;
                 false
             }
+            #[cfg(feature = "media")]
             MainMessage::ChooseMedia => {
                 if let Some(p) = FileBox::new()
                     .title("Open media file")
@@ -209,6 +226,7 @@ impl Component for MainModel {
                 }
                 false
             }
+            #[cfg(feature = "media")]
             MainMessage::OpenMedia(p) => self.media.emit(MediaPageMessage::OpenFile(p)).await,
         };
         need_render

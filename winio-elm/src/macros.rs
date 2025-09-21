@@ -19,13 +19,17 @@ pub use paste::paste as __paste;
 #[macro_export]
 macro_rules! init {
     () => {};
-    ($($name:ident : $t:ty = ($init:expr) $(=> { $($a:tt)* } )?),+$(,)?) => {
+    ($($(#[$m:meta])* $name:ident : $t:ty = ($init:expr) $(=> { $($a:tt)* } )?),+$(,)?) => {
         $(
             #[allow(unused_mut)]
+            $(#[$m])*
             let mut $name = $crate::Child::<$t>::init($init);
-            $(
-                $crate::__init_assign!($name, $($a)*);
-            )?
+            $(#[$m])*
+            {
+                $(
+                    $crate::__init_assign!($name, $($a)*);
+                )?
+            }
         )*
     };
 }
