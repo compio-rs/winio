@@ -9,3 +9,7 @@ std::unique_ptr<QTabWidget> new_tab_widget(QWidget *parent);
 
 void tab_widget_connect_changed(QTabWidget &w, callback_fn_t<void()> callback,
                                 std::uint8_t const *data);
+
+inline int tab_widget_index_of(QTabWidget const &w, QWidget *widget) {
+    return w.indexOf(widget);
+}

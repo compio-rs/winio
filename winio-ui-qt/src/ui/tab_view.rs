@@ -128,7 +128,10 @@ impl TabViewItem {
             if !parent.is_null() {
                 let parent = Pin::new_unchecked(&mut *(parent.cast::<ffi::QTabWidget>()));
                 parent
-                    .tabText(parent.indexOf(self.view.as_raw_widget().as_qt()))
+                    .tabText(ffi::tab_widget_index_of(
+                        &parent,
+                        self.view.as_raw_widget().as_qt(),
+                    ))
                     .into()
             } else {
                 self.text.clone()
@@ -142,7 +145,7 @@ impl TabViewItem {
             let parent = self.parent();
             if !parent.is_null() {
                 let parent = Pin::new_unchecked(&mut *(parent.cast::<ffi::QTabWidget>()));
-                let index = parent.indexOf(self.view.as_raw_widget().as_qt());
+                let index = ffi::tab_widget_index_of(&parent, self.view.as_raw_widget().as_qt());
                 parent.setTabText(index, &text.into());
             } else {
                 self.text = text.into();
@@ -172,9 +175,10 @@ mod ffi {
             data: *const u8,
         );
 
+        unsafe fn tab_widget_index_of(w: &QTabWidget, widget: *mut QWidget) -> i32;
+
         fn currentIndex(self: &QTabWidget) -> i32;
         fn setCurrentIndex(self: Pin<&mut QTabWidget>, index: i32);
-        unsafe fn indexOf(self: &QTabWidget, widget: *const QWidget) -> i32;
         fn tabText(self: &QTabWidget, index: i32) -> QString;
         fn setTabText(self: Pin<&mut QTabWidget>, index: i32, text: &QString);
 
