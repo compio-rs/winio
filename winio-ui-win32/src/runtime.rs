@@ -20,14 +20,15 @@ use windows_sys::{
         Graphics::Gdi::{BLACK_BRUSH, GetStockObject, HDC, InvalidateRect},
         System::Threading::INFINITE,
         UI::{
+            Controls::NMHDR,
             Input::KeyboardAndMouse::{GetFocus, SetFocus},
             WindowsAndMessaging::{
                 DefWindowProcW, DispatchMessageW, EnumChildWindows, GA_ROOT, GetAncestor,
                 IsDialogMessageW, MWMO_ALERTABLE, MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx,
                 PM_REMOVE, PeekMessageW, QS_ALLINPUT, SWP_NOACTIVATE, SWP_NOZORDER, SendMessageW,
-                SetWindowPos, TranslateMessage, WA_INACTIVE, WM_ACTIVATE, WM_CREATE,
+                SetWindowPos, TranslateMessage, WA_INACTIVE, WM_ACTIVATE, WM_COMMAND, WM_CREATE,
                 WM_CTLCOLORBTN, WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC,
-                WM_DPICHANGED, WM_SETFOCUS, WM_SETFONT, WM_SETTINGCHANGE,
+                WM_DPICHANGED, WM_NOTIFY, WM_SETFOCUS, WM_SETFONT, WM_SETTINGCHANGE,
             },
         },
     },
@@ -42,30 +43,59 @@ use super::RUNTIME;
 use crate::ui::{dpi::get_dpi_for_window, font::default_font};
 
 #[derive(Clone, Copy)]
-pub(crate) struct WindowMessage {
-    // pub handle: HWND,
-    // pub message: u32,
-    pub wparam: WPARAM,
-    pub lparam: LPARAM,
+pub(crate) enum WindowMessage {
+    General {
+        // handle: HWND,
+        // message: u32,
+        wparam: WPARAM,
+        lparam: LPARAM,
+    },
+    Command(WindowMessageCommand),
+    Notify(WindowMessageNotify),
 }
 
 impl WindowMessage {
-    pub(crate) fn command(self) -> WindowMessageCommand {
-        let message = (self.wparam as u32 >> 16) & 0xFFFF;
-        // let id = wparam as u32 & 0xFFFF;
-        let handle = self.lparam as HWND;
-        WindowMessageCommand {
-            message,
-            // id: id as _,
-            handle,
+    pub fn wparam(&self) -> WPARAM {
+        match self {
+            Self::General { wparam, .. } => *wparam,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn lparam(&self) -> LPARAM {
+        match self {
+            Self::General { lparam, .. } => *lparam,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn command(self) -> WindowMessageCommand {
+        match self {
+            Self::Command(c) => c,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn notify(self) -> WindowMessageNotify {
+        match self {
+            Self::Notify(n) => n,
+            _ => unreachable!(),
         }
     }
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct WindowMessageCommand {
     pub message: u32,
     // pub id: usize,
     pub handle: HWND,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct WindowMessageNotify {
+    pub hwnd_from: HWND,
+    // pub id_from: usize,
+    pub code: u32,
 }
 
 pub(crate) enum FutureState {
@@ -160,11 +190,26 @@ impl Runtime {
     }
 
     fn set_current_msg(&self, handle: HWND, message: u32, wparam: WPARAM, lparam: LPARAM) -> bool {
-        let full_msg = WindowMessage {
-            // handle,
-            // message,
-            wparam,
-            lparam,
+        let full_msg = match message {
+            WM_COMMAND => WindowMessage::Command({
+                let message = (wparam as u32 >> 16) & 0xFFFF;
+                // let id = wparam as u32 & 0xFFFF;
+                let handle = lparam as HWND;
+                WindowMessageCommand {
+                    message,
+                    // id: id as _,
+                    handle,
+                }
+            }),
+            WM_NOTIFY => WindowMessage::Notify(unsafe {
+                let header = &*(lparam as *const NMHDR);
+                WindowMessageNotify {
+                    hwnd_from: header.hwndFrom,
+                    // id_from: header.idFrom,
+                    code: header.code,
+                }
+            }),
+            _ => WindowMessage::General { wparam, lparam },
         };
         let mut registry = self.registry.borrow_mut();
         let completes = registry.get_mut(&(handle, message));

@@ -149,7 +149,7 @@ impl Canvas {
                 msg = self.handle.wait_parent(WM_RBUTTONDOWN).fuse() => (msg, MouseButton::Right),
                 msg = self.handle.wait_parent(WM_MBUTTONDOWN).fuse() => (msg, MouseButton::Middle),
             };
-            if self.is_in(msg.lparam, false).is_some() {
+            if self.is_in(msg.lparam(), false).is_some() {
                 break b;
             }
         }
@@ -162,7 +162,7 @@ impl Canvas {
                 msg = self.handle.wait_parent(WM_RBUTTONUP).fuse() => (msg, MouseButton::Right),
                 msg = self.handle.wait_parent(WM_MBUTTONUP).fuse() => (msg, MouseButton::Middle),
             };
-            if self.is_in(msg.lparam, false).is_some() {
+            if self.is_in(msg.lparam(), false).is_some() {
                 break b;
             }
         }
@@ -171,7 +171,7 @@ impl Canvas {
     pub async fn wait_mouse_move(&self) -> Point {
         loop {
             let msg = self.handle.wait_parent(WM_MOUSEMOVE).await;
-            if let Some(p) = self.is_in(msg.lparam, false) {
+            if let Some(p) = self.is_in(msg.lparam(), false) {
                 break p;
             }
         }
@@ -183,11 +183,11 @@ impl Canvas {
                 msg = self.handle.wait_parent(WM_MOUSEWHEEL).fuse() => (msg, Orient::Vertical),
                 msg = self.handle.wait_parent(WM_MOUSEHWHEEL).fuse() => (msg, Orient::Horizontal),
             };
-            if self.is_in(msg.lparam, true).is_some() {
+            if self.is_in(msg.lparam(), true).is_some() {
                 break (msg, orient);
             }
         };
-        let delta = ((msg.wparam >> 16) & 0xFFFF) as i16 as isize;
+        let delta = ((msg.wparam() >> 16) & 0xFFFF) as i16 as isize;
         match orient {
             Orient::Vertical => Vector::new(0.0, delta as _),
             Orient::Horizontal => Vector::new(delta as _, 0.0),

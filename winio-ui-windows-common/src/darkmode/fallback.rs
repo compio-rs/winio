@@ -1,3 +1,5 @@
+#![allow(clippy::missing_safety_doc)]
+
 use windows_sys::{
     Win32::{
         Foundation::{HWND, LPARAM, S_OK},

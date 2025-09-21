@@ -1,40 +1,31 @@
+use std::ops::Deref;
+
 use winio::prelude::*;
 
-fn main() {
-    #[cfg(feature = "enable_log")]
-    tracing_subscriber::fmt()
-        .with_max_level(compio_log::Level::INFO)
-        .init();
-
-    App::new("rs.compio.winio.net").run::<MainModel>("https://www.example.com/");
-}
-
-struct MainModel {
-    window: Child<Window>,
+pub struct WebViewPage {
+    window: Child<TabViewItem>,
     button: Child<Button>,
     entry: Child<Edit>,
     webview: Child<WebView>,
 }
 
 #[derive(Debug)]
-enum MainMessage {
+pub enum WebViewPageMessage {
     Noop,
-    Close,
-    Redraw,
     Go,
     Navigate,
 }
 
-impl Component for MainModel {
+impl Component for WebViewPage {
     type Event = ();
-    type Init<'a> = &'a str;
-    type Message = MainMessage;
+    type Init<'a> = &'a TabView;
+    type Message = WebViewPageMessage;
 
-    fn init(url: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+    fn init(webview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+        let url = "https://www.example.com/";
         init! {
-            window: Window = (()) => {
-                text: "Networking example",
-                size: Size::new(800.0, 600.0),
+            window: TabViewItem = (webview) => {
+                text: "WebView",
             },
             webview: WebView = (&window) => {
                 source: url
@@ -47,9 +38,7 @@ impl Component for MainModel {
             },
         }
 
-        sender.post(MainMessage::Go);
-
-        window.show();
+        sender.post(WebViewPageMessage::Go);
 
         Self {
             window,
@@ -61,22 +50,18 @@ impl Component for MainModel {
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: MainMessage::Noop,
-            self.window => {
-                WindowEvent::Close => MainMessage::Close,
-                WindowEvent::Resize => MainMessage::Redraw,
-            },
+            sender, default: WebViewPageMessage::Noop,
             self.button => {
-                ButtonEvent::Click => MainMessage::Go,
+                ButtonEvent::Click => WebViewPageMessage::Go,
             },
             self.entry => {},
             self.webview => {
-                WebViewEvent::Navigate => MainMessage::Navigate,
+                WebViewEvent::Navigate => WebViewPageMessage::Navigate,
             }
         }
     }
 
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
+    async fn update(&mut self, message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
         futures_util::future::join4(
             self.window.update(),
             self.webview.update(),
@@ -85,17 +70,12 @@ impl Component for MainModel {
         )
         .await;
         match message {
-            MainMessage::Noop => false,
-            MainMessage::Close => {
-                sender.output(());
-                false
-            }
-            MainMessage::Redraw => true,
-            MainMessage::Go => {
+            WebViewPageMessage::Noop => false,
+            WebViewPageMessage::Go => {
                 self.webview.navigate(self.entry.text());
                 false
             }
-            MainMessage::Navigate => {
+            WebViewPageMessage::Navigate => {
                 self.entry.set_text(self.webview.source());
                 true
             }
@@ -103,7 +83,7 @@ impl Component for MainModel {
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {
-        let csize = self.window.client_size();
+        let csize = self.window.size();
 
         {
             let mut header_panel = layout! {
@@ -118,5 +98,13 @@ impl Component for MainModel {
             };
             root_panel.set_size(csize);
         }
+    }
+}
+
+impl Deref for WebViewPage {
+    type Target = TabViewItem;
+
+    fn deref(&self) -> &Self::Target {
+        &self.window
     }
 }

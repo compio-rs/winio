@@ -19,7 +19,7 @@ use windows_sys::Win32::{
             LR_SHARED, LoadCursorW, LoadImageW, RegisterClassExW, SW_HIDE, SW_SHOW, SWP_NOMOVE,
             SWP_NOSIZE, SWP_NOZORDER, SendMessageW, SetWindowLongPtrW, SetWindowPos,
             SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE, WM_SETICON, WM_SIZE, WNDCLASSEXW,
-            WS_CHILDWINDOW, WS_EX_CONTROLPARENT, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
+            WS_CHILDWINDOW, WS_CLIPCHILDREN, WS_EX_CONTROLPARENT, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
         },
     },
 };
@@ -493,11 +493,19 @@ pub struct View {
 #[inherit_methods(from = "self.handle")]
 impl View {
     pub fn new(parent: impl AsContainer) -> Self {
+        Self::new_impl(parent.as_container().as_win32(), WS_VISIBLE)
+    }
+
+    pub(crate) fn new_hidden(parent: HWND) -> Self {
+        Self::new_impl(parent, 0)
+    }
+
+    fn new_impl(parent: HWND, style: u32) -> Self {
         let handle = Widget::new(
             window_class_name(),
-            WS_CHILDWINDOW | WS_VISIBLE,
+            WS_CHILDWINDOW | WS_CLIPCHILDREN | style,
             WS_EX_CONTROLPARENT,
-            parent.as_container().as_win32(),
+            parent,
         );
         let this = Self { handle };
         unsafe { window_use_dark_mode(this.handle.as_raw_window().as_win32()) };

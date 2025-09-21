@@ -1,16 +1,9 @@
+use std::ops::Deref;
+
 use winio::prelude::*;
 
-fn main() {
-    #[cfg(feature = "enable_log")]
-    tracing_subscriber::fmt()
-        .with_max_level(compio_log::Level::INFO)
-        .init();
-
-    App::new("rs.compio.winio.scrollview").run::<MainModel>(());
-}
-
-struct MainModel {
-    window: Child<Window>,
+pub struct ScrollViewPage {
+    window: Child<TabViewItem>,
     scroll: Child<ScrollView>,
     radios: Vec<Child<RadioButton>>,
     add_btn: Child<Button>,
@@ -20,26 +13,28 @@ struct MainModel {
 }
 
 #[derive(Debug)]
-enum MainMessage {
+pub enum ScrollViewPageEvent {
+    ShowMessage(MessageBox),
+}
+
+#[derive(Debug)]
+pub enum ScrollViewPageMessage {
     Noop,
-    Redraw,
-    Close,
     Add,
     Del,
     Show,
     Select(usize),
 }
 
-impl Component for MainModel {
-    type Event = ();
-    type Init<'a> = ();
-    type Message = MainMessage;
+impl Component for ScrollViewPage {
+    type Event = ScrollViewPageEvent;
+    type Init<'a> = &'a TabView;
+    type Message = ScrollViewPageMessage;
 
-    fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+    fn init(tabview: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
         init! {
-            window: Window = (()) => {
-                text: "ScrollView Example",
-                size: Size::new(400.0, 300.0),
+            window: TabViewItem = (tabview) => {
+                text: "ScrollView",
             },
             scroll: ScrollView = (&window) => {
                 vscroll: true,
@@ -58,8 +53,6 @@ impl Component for MainModel {
 
         let radios = Vec::new();
 
-        window.show();
-
         Self {
             window,
             scroll,
@@ -75,23 +68,19 @@ impl Component for MainModel {
         let radios = self.radios.iter_mut().map(|r| &mut **r).collect::<Vec<_>>();
         let mut radio_group = RadioButtonGroup::new(radios);
         start! {
-            sender, default: MainMessage::Noop,
-            self.window => {
-                WindowEvent::Close => MainMessage::Close,
-                WindowEvent::Resize => MainMessage::Redraw,
-            },
+            sender, default: ScrollViewPageMessage::Noop,
             self.add_btn => {
-                ButtonEvent::Click => MainMessage::Add,
+                ButtonEvent::Click => ScrollViewPageMessage::Add,
             },
             self.del_btn => {
-                ButtonEvent::Click => MainMessage::Del,
+                ButtonEvent::Click => ScrollViewPageMessage::Del,
             },
             self.show_btn => {
-                ButtonEvent::Click => MainMessage::Show,
+                ButtonEvent::Click => ScrollViewPageMessage::Show,
             },
             self.scroll => {},
             radio_group => {
-                |i| Some(MainMessage::Select(i))
+                |i| Some(ScrollViewPageMessage::Select(i))
             }
         }
     }
@@ -99,13 +88,8 @@ impl Component for MainModel {
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
         let (b1, b2) = futures_util::future::join(self.window.update(), self.scroll.update()).await;
         let b3 = match message {
-            MainMessage::Noop => false,
-            MainMessage::Redraw => true,
-            MainMessage::Close => {
-                sender.output(());
-                false
-            }
-            MainMessage::Add => {
+            ScrollViewPageMessage::Noop => false,
+            ScrollViewPageMessage::Add => {
                 let idx = self.radios.len() + 1;
                 init! {
                     radio: RadioButton = (&self.scroll) => {
@@ -116,26 +100,26 @@ impl Component for MainModel {
                 self.radios.push(radio);
                 true
             }
-            MainMessage::Del => {
+            ScrollViewPageMessage::Del => {
                 if !self.radios.is_empty() {
                     self.radios.pop();
                 }
                 true
             }
-            MainMessage::Show => {
+            ScrollViewPageMessage::Show => {
                 let selected = self
                     .radios
                     .iter()
                     .find_map(|r| if r.is_checked() { Some(r.text()) } else { None });
-                MessageBox::new()
-                    .title("Selected Radio")
-                    .message(selected.unwrap_or("No selection".to_string()))
-                    .buttons(MessageBoxButton::Ok)
-                    .show(&self.window)
-                    .await;
+                sender.output(ScrollViewPageEvent::ShowMessage(
+                    MessageBox::new()
+                        .title("Selected Radio")
+                        .message(selected.unwrap_or("No selection".to_string()))
+                        .buttons(MessageBoxButton::Ok),
+                ));
                 false
             }
-            MainMessage::Select(idx) => {
+            ScrollViewPageMessage::Select(idx) => {
                 self.selected = Some(idx);
                 false
             }
@@ -144,7 +128,7 @@ impl Component for MainModel {
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {
-        let csize = self.window.client_size();
+        let csize = self.window.size();
 
         let mut radios_panel = StackPanel::new(Orient::Vertical);
         for radio in self.radios.iter_mut() {
@@ -170,5 +154,13 @@ impl Component for MainModel {
         };
 
         root_panel.set_size(csize);
+    }
+}
+
+impl Deref for ScrollViewPage {
+    type Target = TabViewItem;
+
+    fn deref(&self) -> &Self::Target {
+        &self.window
     }
 }

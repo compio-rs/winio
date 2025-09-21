@@ -1,5 +1,6 @@
 use std::{
     collections::BTreeMap,
+    ops::Deref,
     path::{Path, PathBuf},
 };
 
@@ -8,17 +9,8 @@ use image::{DynamicImage, ImageReader};
 use itertools::Itertools;
 use winio::prelude::*;
 
-fn main() {
-    #[cfg(feature = "enable_log")]
-    tracing_subscriber::fmt()
-        .with_max_level(compio_log::Level::INFO)
-        .init();
-
-    App::new("rs.compio.winio.gallery").run::<MainModel>(dirs::picture_dir())
-}
-
-struct MainModel {
-    window: Child<Window>,
+pub struct GalleryPage {
+    window: Child<TabViewItem>,
     canvas: Child<Canvas>,
     scrollbar: Child<ScrollBar>,
     button: Child<Button>,
@@ -31,7 +23,7 @@ struct MainModel {
 
 const MAX_COLUMN: usize = 3;
 
-impl MainModel {
+impl GalleryPage {
     fn update_scrollbar(&mut self) {
         let pos = self.scrollbar.pos();
 
@@ -65,9 +57,13 @@ impl MainModel {
 }
 
 #[derive(Debug)]
-enum MainMessage {
+pub enum GalleryPageEvent {
+    ChooseFolder,
+}
+
+#[derive(Debug)]
+pub enum GalleryPageMessage {
     Noop,
-    Close,
     Redraw,
     ChooseFolder,
     OpenFolder(PathBuf),
@@ -78,16 +74,16 @@ enum MainMessage {
     Wheel(Vector),
 }
 
-impl Component for MainModel {
-    type Event = ();
-    type Init<'a> = Option<PathBuf>;
-    type Message = MainMessage;
+impl Component for GalleryPage {
+    type Event = GalleryPageEvent;
+    type Init<'a> = &'a TabView;
+    type Message = GalleryPageMessage;
 
-    fn init(path: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+        let path = dirs::picture_dir();
         init! {
-            window: Window = (()) => {
-                text: "Gallery example",
-                size: Size::new(800.0, 600.0),
+            window: TabViewItem = (tabview) => {
+                text: "Gallery",
             },
             canvas: Canvas = (&window),
             scrollbar: ScrollBar = (&window) => {
@@ -111,8 +107,6 @@ impl Component for MainModel {
             spawn_blocking(move || fetch(path, sender)).detach();
         }
 
-        window.show();
-
         Self {
             window,
             canvas,
@@ -128,25 +122,21 @@ impl Component for MainModel {
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: MainMessage::Noop,
-            self.window => {
-                WindowEvent::Close => MainMessage::Close,
-                WindowEvent::Resize => MainMessage::Redraw,
-            },
+            sender, default: GalleryPageMessage::Noop,
             self.canvas => {
-                CanvasEvent::MouseWheel(w) => MainMessage::Wheel(w),
+                CanvasEvent::MouseWheel(w) => GalleryPageMessage::Wheel(w),
             },
             self.button => {
-                ButtonEvent::Click => MainMessage::ChooseFolder,
+                ButtonEvent::Click => GalleryPageMessage::ChooseFolder,
             },
             self.list => {
-                e => MainMessage::List(e),
+                e => GalleryPageMessage::List(e),
             },
             self.listbox => {
-                ListBoxEvent::Select => MainMessage::Select,
+                ListBoxEvent::Select => GalleryPageMessage::Select,
             },
             self.scrollbar => {
-                ScrollBarEvent::Change => MainMessage::Redraw,
+                ScrollBarEvent::Change => GalleryPageMessage::Redraw,
             }
         }
     }
@@ -160,35 +150,25 @@ impl Component for MainModel {
         .await;
         self.update_scrollbar();
         match message {
-            MainMessage::Noop => false,
-            MainMessage::Close => {
-                sender.output(());
+            GalleryPageMessage::Noop => false,
+            GalleryPageMessage::Redraw => true,
+            GalleryPageMessage::ChooseFolder => {
+                sender.output(GalleryPageEvent::ChooseFolder);
                 false
             }
-            MainMessage::Redraw => true,
-            MainMessage::ChooseFolder => {
-                if let Some(p) = FileBox::new()
-                    .title("Open folder")
-                    .open_folder(&self.window)
-                    .await
-                {
-                    sender.post(MainMessage::OpenFolder(p));
-                }
-                false
-            }
-            MainMessage::OpenFolder(p) => {
+            GalleryPageMessage::OpenFolder(p) => {
                 self.entry.set_text(p.to_str().unwrap_or_default());
                 let sender = sender.clone();
                 spawn_blocking(move || fetch(p, sender)).detach();
                 true
             }
-            MainMessage::Clear => {
+            GalleryPageMessage::Clear => {
                 self.list.clear();
                 self.images.clear();
                 self.sel_images.clear();
                 true
             }
-            MainMessage::Append(path, image) => {
+            GalleryPageMessage::Append(path, image) => {
                 if let Some(filename) = path.file_name() {
                     self.list.push(filename.to_string_lossy().into_owned());
                     self.images.push(image);
@@ -197,12 +177,12 @@ impl Component for MainModel {
                     false
                 }
             }
-            MainMessage::List(e) => {
+            GalleryPageMessage::List(e) => {
                 self.listbox
                     .emit(ListBoxMessage::from_observable_vec_event(e))
                     .await
             }
-            MainMessage::Select => {
+            GalleryPageMessage::Select => {
                 for i in 0..self.list.len() {
                     if self.listbox.is_selected(i) {
                         self.sel_images.entry(i).or_insert(None);
@@ -212,7 +192,7 @@ impl Component for MainModel {
                 }
                 true
             }
-            MainMessage::Wheel(w) => {
+            GalleryPageMessage::Wheel(w) => {
                 let delta = w.y;
                 let pos = self.scrollbar.pos();
                 self.scrollbar
@@ -223,7 +203,7 @@ impl Component for MainModel {
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {
-        let csize = self.window.client_size();
+        let csize = self.window.size();
 
         {
             let mut header_panel = layout! {
@@ -307,13 +287,21 @@ impl Component for MainModel {
     }
 }
 
-fn fetch(path: impl AsRef<Path>, sender: ComponentSender<MainModel>) {
-    sender.post(MainMessage::Clear);
+impl Deref for GalleryPage {
+    type Target = TabViewItem;
+
+    fn deref(&self) -> &Self::Target {
+        &self.window
+    }
+}
+
+fn fetch(path: impl AsRef<Path>, sender: ComponentSender<GalleryPage>) {
+    sender.post(GalleryPageMessage::Clear);
     for p in path.as_ref().read_dir().unwrap() {
         let p = p.unwrap().path();
         if let Ok(reader) = ImageReader::open(&p) {
             if let Ok(image) = reader.decode() {
-                sender.post(MainMessage::Append(p, image));
+                sender.post(GalleryPageMessage::Append(p, image));
             }
         }
     }

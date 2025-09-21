@@ -17,7 +17,8 @@ use windows_sys::{
                 SB_HORZ, SB_LINEDOWN, SB_LINEUP, SB_PAGEDOWN, SB_PAGEUP, SB_THUMBTRACK, SB_TOP,
                 SB_VERT, SCROLLINFO, SIF_ALL, SIF_PAGE, SIF_POS, SIF_RANGE, SWP_NOSIZE,
                 SWP_NOZORDER, SetWindowPos, WM_HSCROLL, WM_MOUSEHWHEEL, WM_MOUSEWHEEL, WM_VSCROLL,
-                WS_CHILDWINDOW, WS_EX_CONTROLPARENT, WS_HSCROLL, WS_VISIBLE, WS_VSCROLL,
+                WS_CHILDWINDOW, WS_CLIPCHILDREN, WS_EX_CONTROLPARENT, WS_HSCROLL, WS_VISIBLE,
+                WS_VSCROLL,
             },
         },
     },
@@ -41,7 +42,7 @@ impl ScrollView {
     pub fn new(parent: impl AsContainer) -> Self {
         let mut handle = Widget::new(
             window_class_name(),
-            WS_CHILDWINDOW | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL,
+            WS_CHILDWINDOW | WS_CLIPCHILDREN | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL,
             WS_EX_CONTROLPARENT,
             parent.as_container().as_win32(),
         );
@@ -236,16 +237,16 @@ impl ScrollView {
         loop {
             futures_util::select! {
                 msg = self.handle.wait(WM_VSCROLL).fuse() => {
-                    self.scroll(SB_VERT, msg.wparam, false)
+                    self.scroll(SB_VERT, msg.wparam(), false)
                 },
                 msg = self.handle.wait(WM_HSCROLL).fuse() => {
-                    self.scroll(SB_HORZ, msg.wparam, false)
+                    self.scroll(SB_HORZ, msg.wparam(), false)
                 },
                 msg = self.handle.wait(WM_MOUSEWHEEL).fuse() => {
-                    self.scroll(SB_VERT, msg.wparam, true)
+                    self.scroll(SB_VERT, msg.wparam(), true)
                 },
                 msg = self.handle.wait(WM_MOUSEHWHEEL).fuse() => {
-                    self.scroll(SB_HORZ, msg.wparam, true)
+                    self.scroll(SB_HORZ, msg.wparam(), true)
                 },
             }
         }

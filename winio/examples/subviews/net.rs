@@ -1,29 +1,20 @@
-use std::time::Duration;
+use std::{ops::Deref, time::Duration};
 
 use compio::{runtime::spawn, time::timeout};
 use cyper::Client;
 use winio::prelude::*;
 
-fn main() {
-    #[cfg(feature = "enable_log")]
-    tracing_subscriber::fmt()
-        .with_max_level(compio_log::Level::INFO)
-        .init();
-
-    App::new("rs.compio.winio.net").run::<MainModel>("https://www.example.com/");
-}
-
-struct MainModel {
-    window: Child<Window>,
+pub struct NetPage {
+    window: Child<TabViewItem>,
     canvas: Child<Canvas>,
     button: Child<Button>,
     entry: Child<Edit>,
     client: Client,
-    text: FetchStatus,
+    text: NetFetchStatus,
 }
 
 #[derive(Debug)]
-enum FetchStatus {
+pub enum NetFetchStatus {
     Loading,
     Complete(String),
     Error(String),
@@ -31,24 +22,22 @@ enum FetchStatus {
 }
 
 #[derive(Debug)]
-enum MainMessage {
+pub enum NetPageMessage {
     Noop,
-    Close,
-    Redraw,
     Go,
-    Fetch(FetchStatus),
+    Fetch(NetFetchStatus),
 }
 
-impl Component for MainModel {
+impl Component for NetPage {
     type Event = ();
-    type Init<'a> = &'a str;
-    type Message = MainMessage;
+    type Init<'a> = &'a TabView;
+    type Message = NetPageMessage;
 
-    fn init(url: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+        let url = "https://www.example.com/";
         init! {
-            window: Window = (()) => {
-                text: "Networking example",
-                size: Size::new(800.0, 600.0),
+            window: TabViewItem = (tabview) => {
+                text: "Networking",
             },
             canvas: Canvas = (&window),
             button: Button = (&window) => {
@@ -64,27 +53,21 @@ impl Component for MainModel {
         let url = url.to_string();
         spawn(fetch(client.clone(), url, sender.clone())).detach();
 
-        window.show();
-
         Self {
             window,
             canvas,
             button,
             entry,
-            text: FetchStatus::Loading,
+            text: NetFetchStatus::Loading,
             client,
         }
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: MainMessage::Noop,
-            self.window => {
-                WindowEvent::Close => MainMessage::Close,
-                WindowEvent::Resize => MainMessage::Redraw,
-            },
+            sender, default: NetPageMessage::Noop,
             self.button => {
-                ButtonEvent::Click => MainMessage::Go,
+                ButtonEvent::Click => NetPageMessage::Go,
             },
             self.entry => {},
         }
@@ -99,13 +82,8 @@ impl Component for MainModel {
         )
         .await;
         match message {
-            MainMessage::Noop => false,
-            MainMessage::Close => {
-                sender.output(());
-                false
-            }
-            MainMessage::Redraw => true,
-            MainMessage::Go => {
+            NetPageMessage::Noop => false,
+            NetPageMessage::Go => {
                 spawn(fetch(
                     self.client.clone(),
                     self.entry.text(),
@@ -114,7 +92,7 @@ impl Component for MainModel {
                 .detach();
                 false
             }
-            MainMessage::Fetch(status) => {
+            NetPageMessage::Fetch(status) => {
                 self.text = status;
                 true
             }
@@ -122,7 +100,7 @@ impl Component for MainModel {
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {
-        let csize = self.window.client_size();
+        let csize = self.window.size();
 
         {
             let mut header_panel = layout! {
@@ -155,25 +133,33 @@ impl Component for MainModel {
                 .build(),
             Point::zero(),
             match &self.text {
-                FetchStatus::Loading => "Loading...",
-                FetchStatus::Complete(s) => s.as_str(),
-                FetchStatus::Error(e) => e.as_str(),
-                FetchStatus::Timedout => "Timed out.",
+                NetFetchStatus::Loading => "Loading...",
+                NetFetchStatus::Complete(s) => s.as_str(),
+                NetFetchStatus::Error(e) => e.as_str(),
+                NetFetchStatus::Timedout => "Timed out.",
             },
         );
     }
 }
 
-async fn fetch(client: Client, url: String, sender: ComponentSender<MainModel>) {
-    sender.post(MainMessage::Fetch(FetchStatus::Loading));
+impl Deref for NetPage {
+    type Target = TabViewItem;
+
+    fn deref(&self) -> &Self::Target {
+        &self.window
+    }
+}
+
+async fn fetch(client: Client, url: String, sender: ComponentSender<NetPage>) {
+    sender.post(NetPageMessage::Fetch(NetFetchStatus::Loading));
     let status =
         if let Ok(res) = timeout(Duration::from_secs(8), client.get(url).unwrap().send()).await {
             match res {
-                Ok(response) => FetchStatus::Complete(response.text().await.unwrap()),
-                Err(e) => FetchStatus::Error(format!("{e:?}")),
+                Ok(response) => NetFetchStatus::Complete(response.text().await.unwrap()),
+                Err(e) => NetFetchStatus::Error(format!("{e:?}")),
             }
         } else {
-            FetchStatus::Timedout
+            NetFetchStatus::Timedout
         };
-    sender.post(MainMessage::Fetch(status));
+    sender.post(NetPageMessage::Fetch(status));
 }

@@ -52,6 +52,8 @@ jobs:
             features: 'media'
           - os: 'macos-13'
             features: 'webview'
+          - os: 'macos-13'
+            features: 'media,webview'
     steps:
       - uses: actions/checkout@v4
       - name: Setup Rust Toolchain

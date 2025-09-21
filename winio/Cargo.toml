@@ -50,6 +50,7 @@ image = { workspace = true, default-features = false, features = [
 ] }
 itertools = "0.14"
 tracing-subscriber = "0.3"
+tuplex = "0.1"
 url = "2"
 
 [features]
@@ -84,11 +85,3 @@ win32-dark-mode = [
 winui-enable-cbs = ["winio-ui-winui?/enable-cbs"]
 winui-webview-system = ["winio-ui-winui?/webview-system"]
 objc-static = ["winio-ui-app-kit/objc-static"]
-
-[[example]]
-name = "media"
-required-features = ["media"]
-
-[[example]]
-name = "net_webview"
-required-features = ["webview"]
