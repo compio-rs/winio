@@ -39,7 +39,9 @@ pub struct ListBox {
 impl ListBox {
     pub fn new(parent: impl AsContainer) -> Self {
         unsafe {
-            let mtm = MainThreadMarker::new().unwrap();
+            let parent = parent.as_container();
+            let mtm = parent.mtm();
+
             let table = NSTableView::new(mtm);
             let column = NSTableColumn::new(mtm);
             table.addTableColumn(&column);

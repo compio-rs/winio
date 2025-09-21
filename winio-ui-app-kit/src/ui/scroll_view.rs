@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
-use objc2::rc::Retained;
+use objc2::{MainThreadOnly, rc::Retained};
 use objc2_app_kit::{NSControl, NSScrollView, NSView};
-use objc2_foundation::{MainThreadMarker, NSSize};
+use objc2_foundation::NSSize;
 use winio_handle::{AsContainer, AsRawContainer, BorrowedContainer, RawContainer};
 use winio_primitive::{Point, Size};
 
@@ -18,7 +18,8 @@ pub struct ScrollView {
 impl ScrollView {
     pub fn new(parent: impl AsContainer) -> Self {
         unsafe {
-            let mtm = MainThreadMarker::new().unwrap();
+            let parent = parent.as_container();
+            let mtm = parent.mtm();
 
             let view = NSScrollView::new(mtm);
             let inner_view = NSView::new(mtm);

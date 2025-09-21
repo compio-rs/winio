@@ -32,7 +32,8 @@ pub struct TextBox {
 impl TextBox {
     pub fn new(parent: impl AsContainer) -> Self {
         unsafe {
-            let mtm = MainThreadMarker::new().unwrap();
+            let parent = parent.as_container();
+            let mtm = parent.mtm();
 
             let view = NSTextView::scrollableTextView(mtm);
             let text_view = Retained::cast_unchecked::<NSTextView>(view.documentView().unwrap());

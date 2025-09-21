@@ -23,7 +23,8 @@ pub struct TabView {
 impl TabView {
     pub fn new(parent: impl AsContainer) -> Self {
         unsafe {
-            let mtm = MainThreadMarker::new().unwrap();
+            let parent = parent.as_container();
+            let mtm = parent.mtm();
 
             let view = NSTabView::new(mtm);
             let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
@@ -151,14 +152,16 @@ impl TabViewDelegate {
 #[derive(Debug)]
 pub struct TabViewItem {
     item: Retained<NSTabViewItem>,
+    mtm: MainThreadMarker,
 }
 
 impl TabViewItem {
-    pub fn new(_parent: &TabView) -> Self {
+    pub fn new(parent: &TabView) -> Self {
         unsafe {
             let item = NSTabViewItem::new();
-            item.setView(Some(&NSView::new(MainThreadMarker::new().unwrap())));
-            Self { item }
+            let mtm = parent.view.mtm();
+            item.setView(Some(&NSView::new(mtm)));
+            Self { item, mtm }
         }
     }
 
@@ -174,8 +177,7 @@ impl TabViewItem {
 
     pub fn size(&self) -> Size {
         unsafe {
-            let mtm = MainThreadMarker::new().unwrap();
-            let frame = self.item.view(mtm).unwrap().frame().size;
+            let frame = self.item.view(self.mtm).unwrap().frame().size;
             from_cgsize(frame)
         }
     }
@@ -183,10 +185,7 @@ impl TabViewItem {
 
 impl AsRawContainer for TabViewItem {
     fn as_raw_container(&self) -> RawContainer {
-        unsafe {
-            let mtm = MainThreadMarker::new().unwrap();
-            self.item.view(mtm).unwrap().clone()
-        }
+        unsafe { self.item.view(self.mtm).unwrap().clone() }
     }
 }
 

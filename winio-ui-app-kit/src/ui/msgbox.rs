@@ -2,7 +2,7 @@ use std::{cell::Cell, rc::Rc};
 
 use block2::StackBlock;
 use compio::arrayvec::ArrayVec;
-use objc2::rc::Retained;
+use objc2::{MainThreadOnly, rc::Retained};
 use objc2_app_kit::{
     NSAlert, NSAlertFirstButtonReturn, NSAlertStyle, NSImage, NSImageNameCaution, NSImageNameInfo,
 };
@@ -21,8 +21,13 @@ async fn msgbox_custom(
 ) -> MessageBoxResponse {
     unsafe {
         let parent = parent.map(|p| p.as_window().as_raw_window());
+        let mtm = parent
+            .as_ref()
+            .map(|w| w.mtm())
+            .or_else(MainThreadMarker::new)
+            .unwrap();
 
-        let alert = NSAlert::new(MainThreadMarker::new().unwrap());
+        let alert = NSAlert::new(mtm);
         if let Some(parent) = &parent {
             alert.window().setParentWindow(Some(parent));
         }
