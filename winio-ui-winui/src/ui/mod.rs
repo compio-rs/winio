@@ -182,4 +182,7 @@ mod webview;
 #[cfg(feature = "webview")]
 pub use webview::*;
 
+mod tab_view;
+pub use tab_view::*;
+
 pub(crate) mod mrm_hook;
