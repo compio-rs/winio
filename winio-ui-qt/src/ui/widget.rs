@@ -162,7 +162,15 @@ pub struct View {
 #[inherit_methods(from = "self.widget")]
 impl View {
     pub fn new(parent: impl AsContainer) -> Self {
-        let widget = unsafe { ffi::new_widget(parent.as_container().as_qt()) };
+        Self::new_impl(parent.as_container().as_qt())
+    }
+
+    pub(crate) fn new_standalone() -> Self {
+        Self::new_impl(std::ptr::null_mut())
+    }
+
+    fn new_impl(parent: *mut ffi::QWidget) -> Self {
+        let widget = unsafe { ffi::new_widget(parent) };
         let mut widget = Widget::new(widget);
         widget.set_visible(true);
         Self { widget }

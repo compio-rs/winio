@@ -45,6 +45,7 @@ fn main() {
             "src/ui/list_box",
             "src/ui/scroll_bar",
             "src/ui/scroll_view",
+            "src/ui/tab_view",
             #[cfg(feature = "media")]
             "src/ui/media",
             #[cfg(feature = "webview")]
