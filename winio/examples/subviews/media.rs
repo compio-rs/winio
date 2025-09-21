@@ -122,9 +122,9 @@ impl Component for MediaPage {
                 let ft = self.media.full_time();
                 if let Some(ft) = ft {
                     let ft = ft.as_secs_f64();
+                    self.time_slider.set_freq((ft * 100.0) as usize / 10);
                     self.time_slider.set_maximum((ft * 100.0) as _);
                     self.time_slider.set_pos((ct.as_secs_f64() * 100.0) as _);
-                    self.time_slider.set_freq((ft * 100.0) as usize / 10);
                 } else {
                     self.time_slider.set_maximum(1);
                     self.time_slider.set_pos(0);
