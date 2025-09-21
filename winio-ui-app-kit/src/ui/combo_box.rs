@@ -28,14 +28,15 @@ pub struct ComboBox {
 impl ComboBox {
     pub fn new(parent: impl AsContainer) -> Self {
         unsafe {
-            let mtm = MainThreadMarker::new().unwrap();
+            let parent = parent.as_container();
+            let mtm = parent.mtm();
 
             let view = NSComboBox::new(mtm);
             view.setBezeled(true);
             view.setDrawsBackground(false);
             view.setEditable(false);
             view.setSelectable(false);
-            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
+            let handle = Widget::from_nsview(&parent, Retained::cast_unchecked(view.clone()));
 
             let delegate = ComboBoxDelegate::new(mtm);
             let del_obj = ProtocolObject::from_ref(&*delegate);

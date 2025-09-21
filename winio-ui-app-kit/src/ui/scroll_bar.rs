@@ -23,7 +23,8 @@ struct ScrollBarImpl {
 impl ScrollBarImpl {
     pub fn new(parent: impl AsContainer, vertical: bool) -> Self {
         unsafe {
-            let mtm = MainThreadMarker::new().unwrap();
+            let parent = parent.as_container();
+            let mtm = parent.mtm();
 
             let view = CustomScroller::new(
                 mtm,
@@ -201,7 +202,7 @@ impl ScrollBar {
             NSScroller::scrollerWidthForControlSize_scrollerStyle(
                 NSControlSize::Regular,
                 NSScrollerStyle::Overlay,
-                MainThreadMarker::new().unwrap(),
+                self.handle.view.mtm(),
             )
         };
         if self.vertical {

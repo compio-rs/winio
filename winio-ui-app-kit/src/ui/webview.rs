@@ -28,9 +28,10 @@ pub struct WebView {
 impl WebView {
     pub fn new(parent: impl AsContainer) -> Self {
         unsafe {
-            let mtm = MainThreadMarker::new().unwrap();
+            let parent = parent.as_container();
+            let mtm = parent.mtm();
 
-            let frame = parent.as_container().frame();
+            let frame = parent.frame();
             let config = WKWebViewConfiguration::new(mtm);
             let view =
                 WKWebView::initWithFrame_configuration(WKWebView::alloc(mtm), frame, &config);

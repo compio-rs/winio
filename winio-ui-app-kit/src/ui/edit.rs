@@ -30,7 +30,8 @@ pub struct Edit {
 impl Edit {
     pub fn new(parent: impl AsContainer) -> Self {
         unsafe {
-            let mtm = MainThreadMarker::new().unwrap();
+            let parent = parent.as_container();
+            let mtm = parent.mtm();
 
             let view = NSTextField::new(mtm);
             view.setBezeled(true);

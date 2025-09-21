@@ -1,7 +1,7 @@
 use std::{cell::Cell, path::PathBuf, rc::Rc};
 
 use block2::StackBlock;
-use objc2::rc::Retained;
+use objc2::{MainThreadOnly, rc::Retained};
 use objc2_app_kit::{NSModalResponseOK, NSOpenPanel, NSSavePanel};
 use objc2_foundation::{MainThreadMarker, NSArray, NSString};
 use objc2_uniform_type_identifiers::UTType;
@@ -127,8 +127,12 @@ async unsafe fn filebox(
     folder: bool,
 ) -> FileBoxInner {
     let parent = parent.map(|p| p.as_window().as_raw_window());
+    let mtm = parent
+        .as_ref()
+        .map(|w| w.mtm())
+        .or_else(MainThreadMarker::new)
+        .unwrap();
 
-    let mtm = MainThreadMarker::new().unwrap();
     let handle: Retained<NSSavePanel> = if open {
         let handle = NSOpenPanel::openPanel(mtm);
         handle.setCanChooseFiles(!folder);

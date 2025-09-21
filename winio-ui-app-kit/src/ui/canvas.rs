@@ -49,7 +49,8 @@ pub struct Canvas {
 #[inherit_methods(from = "self.handle")]
 impl Canvas {
     pub fn new(parent: impl AsContainer) -> Self {
-        let view = CanvasView::new(MainThreadMarker::new().unwrap());
+        let parent = parent.as_container();
+        let view = CanvasView::new(parent.mtm());
         let handle = Widget::from_nsview(parent, view.clone().into_super());
         Self { view, handle }
     }

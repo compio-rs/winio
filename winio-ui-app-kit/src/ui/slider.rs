@@ -23,7 +23,8 @@ pub struct Slider {
 impl Slider {
     pub fn new(parent: impl AsContainer) -> Self {
         unsafe {
-            let mtm = MainThreadMarker::new().unwrap();
+            let parent = parent.as_container();
+            let mtm = parent.mtm();
 
             let view = NSSlider::new(mtm);
             let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));

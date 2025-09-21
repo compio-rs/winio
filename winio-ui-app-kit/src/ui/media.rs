@@ -31,7 +31,8 @@ pub struct Media {
 impl Media {
     pub fn new(parent: impl AsContainer) -> Self {
         unsafe {
-            let mtm = MainThreadMarker::new().unwrap();
+            let parent = parent.as_container();
+            let mtm = parent.mtm();
 
             let view = AVPlayerView::new(mtm);
             let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
@@ -81,7 +82,7 @@ impl Media {
         unsafe {
             self.url = NSURL::URLWithString(&NSString::from_str(url.as_ref()));
             if let Some(url) = &self.url {
-                let mtm = MainThreadMarker::new().unwrap();
+                let mtm = self.delegate.mtm();
                 let item = AVPlayerItem::playerItemWithURL(url, mtm);
                 item.addObserver_forKeyPath_options_context(
                     &self.delegate,

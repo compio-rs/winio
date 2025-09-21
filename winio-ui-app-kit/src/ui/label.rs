@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
-use objc2::rc::Retained;
+use objc2::{MainThreadOnly, rc::Retained};
 use objc2_app_kit::{NSTextAlignment, NSTextField};
-use objc2_foundation::{MainThreadMarker, NSString};
+use objc2_foundation::NSString;
 use winio_handle::AsContainer;
 use winio_primitive::{HAlign, Point, Size};
 
@@ -17,9 +17,9 @@ pub struct Label {
 impl Label {
     pub fn new(parent: impl AsContainer) -> Self {
         unsafe {
-            let mtm = MainThreadMarker::new().unwrap();
+            let parent = parent.as_container();
 
-            let view = NSTextField::new(mtm);
+            let view = NSTextField::new(parent.mtm());
             view.setBezeled(false);
             view.setDrawsBackground(false);
             view.setEditable(false);
