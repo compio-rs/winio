@@ -65,6 +65,9 @@ pub use accent::*;
 mod tooltip;
 pub use tooltip::*;
 
+mod tab_view;
+pub use tab_view::*;
+
 pub fn color_theme() -> ColorTheme {
     unsafe {
         let osx_mode =
