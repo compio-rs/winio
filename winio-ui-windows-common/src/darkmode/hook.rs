@@ -28,16 +28,17 @@ use windows_sys::{
             Accessibility::{HCF_HIGHCONTRASTON, HIGHCONTRASTW},
             Controls::{
                 BP_CHECKBOX, BP_RADIOBUTTON, CloseThemeData, DTBG_CLIPRECT, DTBGOPTS,
-                DTT_TEXTCOLOR, DTTOPTS, DrawThemeBackground, DrawThemeBackgroundEx, DrawThemeText,
-                DrawThemeTextEx, GetThemeColor, HTHEME, OPEN_THEME_DATA_FLAGS, OpenThemeData,
-                OpenThemeDataEx, PBS_DISABLED, PFTASKDIALOGCALLBACK, PP_TRANSPARENTBAR,
-                PROGRESS_CLASSW, SetWindowTheme, TABP_AEROWIZARDBODY, TABP_BODY, TABP_PANE,
-                TABP_TABITEM, TABP_TABITEMBOTHEDGE, TABP_TABITEMLEFTEDGE, TABP_TABITEMRIGHTEDGE,
-                TABP_TOPTABITEM, TABP_TOPTABITEMBOTHEDGE, TABP_TOPTABITEMLEFTEDGE,
-                TABP_TOPTABITEMRIGHTEDGE, TASKDIALOG_NOTIFICATIONS, TDLG_MAININSTRUCTIONPANE,
-                TDLG_PRIMARYPANEL, TDLG_SECONDARYPANEL, TDN_CREATED, TDN_DIALOG_CONSTRUCTED,
-                TIS_DISABLED, TIS_FOCUSED, TIS_HOT, TIS_NORMAL, TIS_SELECTED, TMT_FILLCOLOR,
-                TMT_TEXTCOLOR, WC_BUTTONW, WC_COMBOBOXW,
+                DTT_TEXTCOLOR, DTTOPTS, DrawThemeBackground, DrawThemeBackgroundEx,
+                DrawThemeParentBackground, DrawThemeText, DrawThemeTextEx, GetThemeColor, HTHEME,
+                OPEN_THEME_DATA_FLAGS, OpenThemeData, OpenThemeDataEx, PBS_DISABLED,
+                PFTASKDIALOGCALLBACK, PP_TRANSPARENTBAR, PROGRESS_CLASSW, SetWindowTheme,
+                TABP_AEROWIZARDBODY, TABP_BODY, TABP_PANE, TABP_TABITEM, TABP_TABITEMBOTHEDGE,
+                TABP_TABITEMLEFTEDGE, TABP_TABITEMRIGHTEDGE, TABP_TOPTABITEM,
+                TABP_TOPTABITEMBOTHEDGE, TABP_TOPTABITEMLEFTEDGE, TABP_TOPTABITEMRIGHTEDGE,
+                TASKDIALOG_NOTIFICATIONS, TDLG_MAININSTRUCTIONPANE, TDLG_PRIMARYPANEL,
+                TDLG_SECONDARYPANEL, TDN_CREATED, TDN_DIALOG_CONSTRUCTED, TIS_DISABLED,
+                TIS_FOCUSED, TIS_HOT, TIS_NORMAL, TIS_SELECTED, TMT_FILLCOLOR, TMT_TEXTCOLOR,
+                WC_BUTTONW, WC_COMBOBOXW, WC_TABCONTROLW,
             },
             HiDpi::OpenThemeDataForDpi,
             Shell::{DefSubclassProc, SetWindowSubclass},
@@ -218,8 +219,13 @@ type DrawThemeBackgroundExFn = unsafe extern "system" fn(
 static TRUE_DRAW_THEME_BACKGROUND_EX: SyncUnsafeCell<DrawThemeBackgroundExFn> =
     SyncUnsafeCell::new(DrawThemeBackgroundEx);
 
+type DrawThemeParentBackgroundFn =
+    unsafe extern "system" fn(hwnd: HWND, hdc: HDC, prect: *const RECT) -> HRESULT;
+static TRUE_DRAW_THEME_PARENT_BACKGROUND: SyncUnsafeCell<DrawThemeParentBackgroundFn> =
+    SyncUnsafeCell::new(DrawThemeParentBackground);
+
 #[inline]
-unsafe fn detour_hooks() -> [DETOUR_INLINE_HOOK; 8] {
+unsafe fn detour_hooks() -> [DETOUR_INLINE_HOOK; 9] {
     [
         DETOUR_INLINE_HOOK {
             pszFuncName: null(),
@@ -260,6 +266,11 @@ unsafe fn detour_hooks() -> [DETOUR_INLINE_HOOK; 8] {
             pszFuncName: null(),
             ppPointer: TRUE_DRAW_THEME_BACKGROUND_EX.get().cast(),
             pDetour: dark_draw_theme_background_ex as _,
+        },
+        DETOUR_INLINE_HOOK {
+            pszFuncName: null(),
+            ppPointer: TRUE_DRAW_THEME_PARENT_BACKGROUND.get().cast(),
+            pDetour: dark_draw_theme_parent_background as _,
         },
     ]
 }
@@ -522,6 +533,30 @@ unsafe extern "system" fn dark_draw_theme_background_ex(
         }
     }
     (*TRUE_DRAW_THEME_BACKGROUND_EX.get())(htheme, hdc, ipartid, istateid, prect, poptions)
+}
+
+unsafe extern "system" fn dark_draw_theme_parent_background(
+    hwnd: HWND,
+    hdc: HDC,
+    prect: *const RECT,
+) -> HRESULT {
+    if is_dark_mode_allowed_for_app() {
+        let mut class_name = [0u16; MAX_CLASS_NAME as usize];
+        GetClassNameW(hwnd, class_name.as_mut_ptr(), MAX_CLASS_NAME);
+        let class_name = U16CStr::from_ptr_str(class_name.as_ptr());
+        if u16_string_eq_ignore_case(class_name, WC_TABCONTROLW) {
+            let rect = if prect.is_null() {
+                let mut rect = MaybeUninit::uninit();
+                GetClientRect(hwnd, rect.as_mut_ptr());
+                rect.assume_init()
+            } else {
+                *prect
+            };
+            FillRect(hdc, &rect, DLG_GRAY_BACK.0);
+            return S_OK;
+        }
+    }
+    (*TRUE_DRAW_THEME_PARENT_BACKGROUND.get())(hwnd, hdc, prect)
 }
 
 fn delta_colorref_luma(cr: u32, d: i32) -> u32 {
