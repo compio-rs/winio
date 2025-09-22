@@ -1,7 +1,8 @@
 use std::{
+    collections::HashMap,
     mem::MaybeUninit,
     ptr::{null, null_mut},
-    sync::{LazyLock, Once},
+    sync::{LazyLock, Mutex, Once},
 };
 
 use slim_detours_sys::{DETOUR_INLINE_HOOK, SlimDetoursInlineHooks};
@@ -13,25 +14,32 @@ use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongPtrW;
 use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongW as SetClassLongPtrW;
 use windows_sys::{
     Win32::{
-        Foundation::{COLORREF, HWND, LPARAM, LRESULT, RECT, S_OK, WPARAM},
+        Foundation::{COLORREF, E_INVALIDARG, HWND, LPARAM, LRESULT, RECT, S_OK, WPARAM},
         Graphics::{
             Dwm::DwmSetWindowAttribute,
             Gdi::{
-                BLACK_BRUSH, CreateSolidBrush, DRAW_TEXT_FORMAT, FillRect, GetStockObject, HDC,
-                InvalidateRect, Rectangle, SelectObject, WHITE_BRUSH,
+                BLACK_BRUSH, CreateSolidBrush, DC_BRUSH, DRAW_TEXT_FORMAT, FillRect, FrameRect,
+                GetStockObject, HDC, InvalidateRect, Rectangle, SelectObject, SetDCBrushColor,
+                WHITE_BRUSH,
             },
         },
         System::SystemServices::MAX_CLASS_NAME,
         UI::{
             Accessibility::{HCF_HIGHCONTRASTON, HIGHCONTRASTW},
             Controls::{
-                BP_CHECKBOX, BP_RADIOBUTTON, DTBGOPTS, DTT_TEXTCOLOR, DTTOPTS, DrawThemeBackground,
-                DrawThemeBackgroundEx, DrawThemeText, DrawThemeTextEx, GetThemeColor, HTHEME,
-                PBS_DISABLED, PFTASKDIALOGCALLBACK, PP_TRANSPARENTBAR, PROGRESS_CLASSW,
-                SetWindowTheme, TASKDIALOG_NOTIFICATIONS, TDLG_MAININSTRUCTIONPANE,
+                BP_CHECKBOX, BP_RADIOBUTTON, CloseThemeData, DTBG_CLIPRECT, DTBGOPTS,
+                DTT_TEXTCOLOR, DTTOPTS, DrawThemeBackground, DrawThemeBackgroundEx, DrawThemeText,
+                DrawThemeTextEx, GetThemeColor, HTHEME, OPEN_THEME_DATA_FLAGS, OpenThemeData,
+                OpenThemeDataEx, PBS_DISABLED, PFTASKDIALOGCALLBACK, PP_TRANSPARENTBAR,
+                PROGRESS_CLASSW, SetWindowTheme, TABP_AEROWIZARDBODY, TABP_BODY, TABP_PANE,
+                TABP_TABITEM, TABP_TABITEMBOTHEDGE, TABP_TABITEMLEFTEDGE, TABP_TABITEMRIGHTEDGE,
+                TABP_TOPTABITEM, TABP_TOPTABITEMBOTHEDGE, TABP_TOPTABITEMLEFTEDGE,
+                TABP_TOPTABITEMRIGHTEDGE, TASKDIALOG_NOTIFICATIONS, TDLG_MAININSTRUCTIONPANE,
                 TDLG_PRIMARYPANEL, TDLG_SECONDARYPANEL, TDN_CREATED, TDN_DIALOG_CONSTRUCTED,
+                TIS_DISABLED, TIS_FOCUSED, TIS_HOT, TIS_NORMAL, TIS_SELECTED, TMT_FILLCOLOR,
                 TMT_TEXTCOLOR, WC_BUTTONW, WC_COMBOBOXW,
             },
+            HiDpi::OpenThemeDataForDpi,
             Shell::{DefSubclassProc, SetWindowSubclass},
             WindowsAndMessaging::{
                 EnumChildWindows, GCLP_HBRBACKGROUND, GetClassNameW, GetClientRect,
@@ -45,6 +53,7 @@ use windows_sys::{
 };
 
 use super::{PreferredAppMode, WHITE, WinBrush, u16_string_eq_ignore_case};
+use crate::darkmode::u16_string_starts_with_ignore_case;
 
 #[link(name = "ntdll")]
 extern "system" {
@@ -145,6 +154,26 @@ pub unsafe fn window_use_dark_mode(h_wnd: HWND) -> HRESULT {
     S_OK
 }
 
+type OpenThemeDataFn = unsafe extern "system" fn(hwnd: HWND, pszclasslist: PCWSTR) -> HTHEME;
+static TRUE_OPEN_THEME_DATA: SyncUnsafeCell<OpenThemeDataFn> = SyncUnsafeCell::new(OpenThemeData);
+
+type OpenThemeDataExFn = unsafe extern "system" fn(
+    hwnd: HWND,
+    pszclasslist: PCWSTR,
+    dwflags: OPEN_THEME_DATA_FLAGS,
+) -> HTHEME;
+static TRUE_OPEN_THEME_DATA_EX: SyncUnsafeCell<OpenThemeDataExFn> =
+    SyncUnsafeCell::new(OpenThemeDataEx);
+
+type OpenThemeDataForDpiFn =
+    unsafe extern "system" fn(hwnd: HWND, pszclasslist: PCWSTR, dpi: u32) -> HTHEME;
+static TRUE_OPEN_THEME_DATA_FOR_DPI: SyncUnsafeCell<OpenThemeDataForDpiFn> =
+    SyncUnsafeCell::new(OpenThemeDataForDpi);
+
+type CloseThemeDataFn = unsafe extern "system" fn(htheme: HTHEME) -> HRESULT;
+static TRUE_CLOSE_THEME_DATA: SyncUnsafeCell<CloseThemeDataFn> =
+    SyncUnsafeCell::new(CloseThemeData);
+
 type GetThemeColorFn = unsafe extern "system" fn(
     htheme: HTHEME,
     ipartid: i32,
@@ -190,8 +219,28 @@ static TRUE_DRAW_THEME_BACKGROUND_EX: SyncUnsafeCell<DrawThemeBackgroundExFn> =
     SyncUnsafeCell::new(DrawThemeBackgroundEx);
 
 #[inline]
-unsafe fn detour_hooks() -> [DETOUR_INLINE_HOOK; 4] {
+unsafe fn detour_hooks() -> [DETOUR_INLINE_HOOK; 8] {
     [
+        DETOUR_INLINE_HOOK {
+            pszFuncName: null(),
+            ppPointer: TRUE_OPEN_THEME_DATA.get().cast(),
+            pDetour: dark_open_theme_data as _,
+        },
+        DETOUR_INLINE_HOOK {
+            pszFuncName: null(),
+            ppPointer: TRUE_OPEN_THEME_DATA_EX.get().cast(),
+            pDetour: dark_open_theme_data_ex as _,
+        },
+        DETOUR_INLINE_HOOK {
+            pszFuncName: null(),
+            ppPointer: TRUE_OPEN_THEME_DATA_FOR_DPI.get().cast(),
+            pDetour: dark_open_theme_data_for_dpi as _,
+        },
+        DETOUR_INLINE_HOOK {
+            pszFuncName: null(),
+            ppPointer: TRUE_CLOSE_THEME_DATA.get().cast(),
+            pDetour: dark_close_theme_data as _,
+        },
         DETOUR_INLINE_HOOK {
             pszFuncName: null(),
             ppPointer: TRUE_GET_THEME_COLOR.get().cast(),
@@ -228,6 +277,88 @@ pub fn init_dark() {
     DETOUR_GUARD.call_once(detour_attach);
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ThemeType {
+    Button,
+    TaskDialog,
+    Tab,
+    Progress,
+}
+
+static HTHEME_MAP: LazyLock<Mutex<HashMap<HTHEME, (usize, ThemeType)>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+unsafe fn on_theme_open(pszclasslist: PCWSTR, htheme: HTHEME) {
+    let class_list = U16CStr::from_ptr_str(pszclasslist);
+    let ty = if u16_string_starts_with_ignore_case(class_list, w!("Button")) {
+        Some(ThemeType::Button)
+    } else if u16_string_starts_with_ignore_case(class_list, w!("TaskDialog")) {
+        Some(ThemeType::TaskDialog)
+    } else if u16_string_eq_ignore_case(class_list, w!("Tab")) {
+        Some(ThemeType::Tab)
+    } else if u16_string_eq_ignore_case(class_list, w!("Progress"))
+        || u16_string_eq_ignore_case(class_list, w!("Indeterminate::Progress"))
+    {
+        Some(ThemeType::Progress)
+    } else {
+        None
+    };
+    if let Some(ty) = ty {
+        HTHEME_MAP
+            .lock()
+            .unwrap()
+            .entry(htheme)
+            .and_modify(|e| e.0 += 1)
+            .or_insert((1, ty));
+    }
+}
+
+unsafe extern "system" fn dark_open_theme_data(hwnd: HWND, pszclasslist: PCWSTR) -> HTHEME {
+    let htheme = (*TRUE_OPEN_THEME_DATA.get())(hwnd, pszclasslist);
+    if htheme == 0 {
+        return htheme;
+    }
+    on_theme_open(pszclasslist, htheme);
+    htheme
+}
+
+unsafe extern "system" fn dark_open_theme_data_ex(
+    hwnd: HWND,
+    pszclasslist: PCWSTR,
+    dwflags: OPEN_THEME_DATA_FLAGS,
+) -> HTHEME {
+    let htheme = (*TRUE_OPEN_THEME_DATA_EX.get())(hwnd, pszclasslist, dwflags);
+    if htheme == 0 {
+        return htheme;
+    }
+    on_theme_open(pszclasslist, htheme);
+    htheme
+}
+
+unsafe extern "system" fn dark_open_theme_data_for_dpi(
+    hwnd: HWND,
+    pszclasslist: PCWSTR,
+    dpi: u32,
+) -> HTHEME {
+    let htheme = (*TRUE_OPEN_THEME_DATA_FOR_DPI.get())(hwnd, pszclasslist, dpi);
+    if htheme == 0 {
+        return htheme;
+    }
+    on_theme_open(pszclasslist, htheme);
+    htheme
+}
+
+unsafe extern "system" fn dark_close_theme_data(htheme: HTHEME) -> HRESULT {
+    let mut map = HTHEME_MAP.lock().unwrap();
+    if let Some((count, _)) = map.get_mut(&htheme) {
+        *count -= 1;
+        if *count == 0 {
+            map.remove(&htheme);
+        }
+    }
+    (*TRUE_CLOSE_THEME_DATA.get())(htheme)
+}
+
 unsafe extern "system" fn dark_get_theme_color(
     htheme: HTHEME,
     ipartid: i32,
@@ -237,11 +368,15 @@ unsafe extern "system" fn dark_get_theme_color(
 ) -> HRESULT {
     let res = (*TRUE_GET_THEME_COLOR.get())(htheme, ipartid, istateid, ipropid, pcolor);
 
-    if is_dark_mode_allowed_for_app() && ipropid == TMT_TEXTCOLOR as _ {
-        if ipartid == TDLG_MAININSTRUCTIONPANE {
-            *pcolor = increase(*pcolor, 150);
-        } else {
-            *pcolor = 0xFFFFFF;
+    if is_dark_mode_allowed_for_app() {
+        if let Some((_, ThemeType::TaskDialog)) = HTHEME_MAP.lock().unwrap().get(&htheme) {
+            if ipropid == TMT_TEXTCOLOR as _ {
+                if ipartid == TDLG_MAININSTRUCTIONPANE {
+                    *pcolor = increase(*pcolor, 150);
+                } else {
+                    *pcolor = WHITE;
+                }
+            }
         }
     }
 
@@ -259,38 +394,42 @@ unsafe extern "system" fn dark_draw_theme_text(
     dwtextflags2: u32,
     prect: *const RECT,
 ) -> HRESULT {
-    if is_dark_mode_allowed_for_app()
-        && (ipartid == BP_CHECKBOX || ipartid == BP_RADIOBUTTON)
-        && istateid != PBS_DISABLED
-    {
-        let mut options: DTTOPTS = std::mem::zeroed();
-        options.dwSize = std::mem::size_of::<DTTOPTS>() as _;
-        options.dwFlags = DTT_TEXTCOLOR;
-        options.crText = WHITE;
-        DrawThemeTextEx(
-            htheme,
-            hdc,
-            ipartid,
-            istateid,
-            psztext,
-            cchtext,
-            dwtextflags,
-            prect.cast_mut(),
-            &options,
-        )
-    } else {
-        (*TRUE_DRAW_THEME_TEXT.get())(
-            htheme,
-            hdc,
-            ipartid,
-            istateid,
-            psztext,
-            cchtext,
-            dwtextflags,
-            dwtextflags2,
-            prect,
-        )
+    if is_dark_mode_allowed_for_app() {
+        if let Some((_, ty)) = HTHEME_MAP.lock().unwrap().get(&htheme) {
+            if (ty == &ThemeType::Button
+                && ((ipartid == BP_CHECKBOX || ipartid == BP_RADIOBUTTON)
+                    && istateid != PBS_DISABLED))
+                || (ty == &ThemeType::Tab)
+            {
+                let mut options: DTTOPTS = std::mem::zeroed();
+                options.dwSize = std::mem::size_of::<DTTOPTS>() as _;
+                options.dwFlags = DTT_TEXTCOLOR;
+                options.crText = WHITE;
+                return DrawThemeTextEx(
+                    htheme,
+                    hdc,
+                    ipartid,
+                    istateid,
+                    psztext,
+                    cchtext,
+                    dwtextflags,
+                    prect.cast_mut(),
+                    &options,
+                );
+            }
+        }
     }
+    (*TRUE_DRAW_THEME_TEXT.get())(
+        htheme,
+        hdc,
+        ipartid,
+        istateid,
+        psztext,
+        cchtext,
+        dwtextflags,
+        dwtextflags2,
+        prect,
+    )
 }
 
 unsafe extern "system" fn dark_draw_theme_background(
@@ -301,11 +440,20 @@ unsafe extern "system" fn dark_draw_theme_background(
     prect: *const RECT,
     pcliprect: *const RECT,
 ) -> HRESULT {
-    let res = (*TRUE_DRAW_THEME_BACKGROUND.get())(htheme, hdc, ipartid, istateid, prect, pcliprect);
-    if is_dark_mode_allowed_for_app() && ipartid == PP_TRANSPARENTBAR {
-        FillRect(hdc, prect, DLG_GRAY_BACK.0);
-    }
-    res
+    let options = DTBGOPTS {
+        dwSize: std::mem::size_of::<DTBGOPTS>() as _,
+        dwFlags: if pcliprect.is_null() {
+            0
+        } else {
+            DTBG_CLIPRECT
+        },
+        rcClip: if pcliprect.is_null() {
+            RECT::default()
+        } else {
+            *pcliprect
+        },
+    };
+    dark_draw_theme_background_ex(htheme, hdc, ipartid, istateid, prect, &options)
 }
 
 unsafe extern "system" fn dark_draw_theme_background_ex(
@@ -316,24 +464,110 @@ unsafe extern "system" fn dark_draw_theme_background_ex(
     prect: *const RECT,
     poptions: *const DTBGOPTS,
 ) -> HRESULT {
-    if !is_dark_mode_allowed_for_app() {
-        return (*TRUE_DRAW_THEME_BACKGROUND_EX.get())(
-            htheme, hdc, ipartid, istateid, prect, poptions,
-        );
+    if is_dark_mode_allowed_for_app() {
+        if let Some((_, ty)) = HTHEME_MAP.lock().unwrap().get(&htheme) {
+            match ty {
+                ThemeType::Progress => {
+                    if ipartid == PP_TRANSPARENTBAR {
+                        FillRect(hdc, prect, DLG_GRAY_BACK.0);
+                        return S_OK;
+                    }
+                }
+                ThemeType::Tab => match ipartid {
+                    TABP_TABITEM
+                    | TABP_TABITEMLEFTEDGE
+                    | TABP_TABITEMRIGHTEDGE
+                    | TABP_TABITEMBOTHEDGE
+                    | TABP_TOPTABITEM
+                    | TABP_TOPTABITEMLEFTEDGE
+                    | TABP_TOPTABITEMRIGHTEDGE
+                    | TABP_TOPTABITEMBOTHEDGE => {
+                        let f = match istateid {
+                            TIS_NORMAL => -0.75,
+                            TIS_HOT => -0.8,
+                            TIS_FOCUSED | TIS_SELECTED => -0.86,
+                            TIS_DISABLED => -0.6,
+                            _ => return E_INVALIDARG,
+                        };
+                        let res = adjust_luma(htheme, hdc, ipartid, istateid, prect, poptions, f);
+                        if res >= 0 {
+                            return res;
+                        }
+                    }
+                    TABP_PANE | TABP_BODY | TABP_AEROWIZARDBODY => {
+                        let res =
+                            adjust_luma(htheme, hdc, ipartid, istateid, prect, poptions, -0.86);
+                        if res >= 0 {
+                            FrameRect(hdc, prect, DLG_GRAY_BACK.0);
+                            return res;
+                        }
+                    }
+                    _ => {}
+                },
+                ThemeType::TaskDialog => {
+                    match ipartid {
+                        TDLG_PRIMARYPANEL => {
+                            FillRect(hdc, prect, DLG_GRAY_BACK.0);
+                            return S_OK;
+                        }
+                        TDLG_SECONDARYPANEL => {
+                            FillRect(hdc, prect, DLG_DARK_BACK.0);
+                            return S_OK;
+                        }
+                        _ => {}
+                    };
+                }
+                _ => {}
+            }
+        }
     }
-    match ipartid {
-        TDLG_PRIMARYPANEL => {
-            FillRect(hdc, prect, DLG_GRAY_BACK.0);
-            S_OK
-        }
-        TDLG_SECONDARYPANEL => {
-            FillRect(hdc, prect, DLG_DARK_BACK.0);
-            S_OK
-        }
-        _ => {
-            (*TRUE_DRAW_THEME_BACKGROUND_EX.get())(htheme, hdc, ipartid, istateid, prect, poptions)
+    (*TRUE_DRAW_THEME_BACKGROUND_EX.get())(htheme, hdc, ipartid, istateid, prect, poptions)
+}
+
+fn delta_colorref_luma(cr: u32, d: i32) -> u32 {
+    fn clamp(val: i32) -> u8 {
+        val.clamp(0, 0xFF) as u8
+    }
+    let r = clamp((cr & 0xFF) as i32 + d);
+    let g = clamp(((cr >> 8) & 0xFF) as i32 + d);
+    let b = clamp(((cr >> 16) & 0xFF) as i32 + d);
+    (r as u32) | ((g as u32) << 8) | ((b as u32) << 16)
+}
+
+fn adjust_luma(
+    htheme: HTHEME,
+    hdc: HDC,
+    ipartid: i32,
+    istateid: i32,
+    prect: *const RECT,
+    poptions: *const DTBGOPTS,
+    delta: f64,
+) -> HRESULT {
+    let mut color = 0;
+    let res = unsafe {
+        (*TRUE_GET_THEME_COLOR.get())(htheme, ipartid, istateid, TMT_FILLCOLOR as _, &mut color)
+    };
+    if res >= 0 {
+        let color = delta_colorref_luma(color, (delta * 255.0) as _);
+        unsafe {
+            SetDCBrushColor(hdc, color);
+            let clip = if let Some(opt) = poptions.as_ref() {
+                if (opt.dwFlags & DTBG_CLIPRECT) != 0 {
+                    &opt.rcClip
+                } else {
+                    null()
+                }
+            } else {
+                null()
+            };
+            if clip.is_null() {
+                FillRect(hdc, prect, GetStockObject(DC_BRUSH));
+            } else {
+                FillRect(hdc, clip, GetStockObject(DC_BRUSH));
+            }
         }
     }
+    res
 }
 
 static DLG_DARK_BACK: LazyLock<WinBrush> =

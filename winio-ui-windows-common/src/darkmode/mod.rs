@@ -3,7 +3,9 @@ use std::{mem::MaybeUninit, sync::LazyLock};
 use widestring::U16CStr;
 use windows_sys::Win32::{
     Foundation::{COLORREF, HWND, LRESULT},
-    Globalization::{CSTR_EQUAL, CompareStringW, LOCALE_ALL, NORM_IGNORECASE},
+    Globalization::{
+        CSTR_EQUAL, CompareStringW, FIND_STARTSWITH, FindStringOrdinal, LOCALE_ALL, NORM_IGNORECASE,
+    },
     Graphics::Gdi::{
         BLACK_BRUSH, CreateSolidBrush, DeleteObject, GetStockObject, HDC, HGDIOBJ, NULL_BRUSH,
         ScreenToClient, SetBkColor, SetBkMode, SetTextColor, TRANSPARENT, WHITE_BRUSH,
@@ -63,6 +65,11 @@ fn u16_string_eq_ignore_case(s1: &U16CStr, s2: *const u16) -> bool {
             -1,
         ) == CSTR_EQUAL
     }
+}
+
+#[inline]
+fn u16_string_starts_with_ignore_case(s1: &U16CStr, s2: *const u16) -> bool {
+    unsafe { FindStringOrdinal(FIND_STARTSWITH, s1.as_ptr(), s1.len() as _, s2, -1, 1) >= 0 }
 }
 
 const WHITE: COLORREF = 0x00FFFFFF;
