@@ -43,9 +43,9 @@ use windows_sys::{
             HiDpi::OpenThemeDataForDpi,
             Shell::{DefSubclassProc, SetWindowSubclass},
             WindowsAndMessaging::{
-                EnumChildWindows, GCLP_HBRBACKGROUND, GetClassNameW, GetClientRect,
-                SPI_GETHIGHCONTRAST, SystemParametersInfoW, WM_CTLCOLORDLG, WM_ERASEBKGND,
-                WM_SETTINGCHANGE,
+                ES_MULTILINE, EnumChildWindows, GCLP_HBRBACKGROUND, GWL_STYLE, GetClassNameW,
+                GetClientRect, GetWindowLongPtrW, SPI_GETHIGHCONTRAST, SystemParametersInfoW,
+                WM_CTLCOLORDLG, WM_ERASEBKGND, WM_SETTINGCHANGE,
             },
         },
     },
@@ -717,10 +717,15 @@ pub unsafe fn control_use_dark_mode(hwnd: HWND, misc_task_dialog: bool) {
     GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
     let class = U16CStr::from_ptr_str(class.as_ptr());
     let subappname = if is_dark_mode_allowed_for_app() {
-        if u16_string_eq_ignore_case(class, WC_COMBOBOXW)
-            || u16_string_eq_ignore_case(class, WC_EDITW)
-        {
+        if u16_string_eq_ignore_case(class, WC_COMBOBOXW) {
             w!("DarkMode_CFD")
+        } else if u16_string_eq_ignore_case(class, WC_EDITW) {
+            let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
+            if style & ES_MULTILINE as isize != 0 {
+                w!("DarkMode_Explorer")
+            } else {
+                w!("DarkMode_CFD")
+            }
         } else if u16_string_eq_ignore_case(class, PROGRESS_CLASSW)
             || (u16_string_eq_ignore_case(class, WC_BUTTONW) && misc_task_dialog)
         {
