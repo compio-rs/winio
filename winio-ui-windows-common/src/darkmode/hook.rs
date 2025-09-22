@@ -500,14 +500,13 @@ unsafe extern "system" fn dark_draw_theme_background_ex(
                             TIS_DISABLED => -0.6,
                             _ => return E_INVALIDARG,
                         };
-                        let res = adjust_luma(htheme, hdc, ipartid, istateid, prect, poptions, f);
+                        let res = adjust_luma(hdc, WHITE, prect, poptions, f);
                         if res >= 0 {
                             return res;
                         }
                     }
                     TABP_PANE | TABP_BODY | TABP_AEROWIZARDBODY => {
-                        let res =
-                            adjust_luma(htheme, hdc, ipartid, istateid, prect, poptions, -0.86);
+                        let res = adjust_luma(hdc, WHITE, prect, poptions, -0.86);
                         if res >= 0 {
                             FrameRect(hdc, prect, DLG_GRAY_BACK.0);
                             return res;
@@ -570,39 +569,31 @@ fn delta_colorref_luma(cr: u32, d: i32) -> u32 {
 }
 
 fn adjust_luma(
-    htheme: HTHEME,
     hdc: HDC,
-    ipartid: i32,
-    istateid: i32,
+    color: u32,
     prect: *const RECT,
     poptions: *const DTBGOPTS,
     delta: f64,
 ) -> HRESULT {
-    let mut color = 0;
-    let res = unsafe {
-        (*TRUE_GET_THEME_COLOR.get())(htheme, ipartid, istateid, TMT_FILLCOLOR as _, &mut color)
-    };
-    if res >= 0 {
-        let color = delta_colorref_luma(color, (delta * 255.0) as _);
-        unsafe {
-            SetDCBrushColor(hdc, color);
-            let clip = if let Some(opt) = poptions.as_ref() {
-                if (opt.dwFlags & DTBG_CLIPRECT) != 0 {
-                    &opt.rcClip
-                } else {
-                    null()
-                }
+    let color = delta_colorref_luma(color, (delta * 255.0) as _);
+    unsafe {
+        SetDCBrushColor(hdc, color);
+        let clip = if let Some(opt) = poptions.as_ref() {
+            if (opt.dwFlags & DTBG_CLIPRECT) != 0 {
+                &opt.rcClip
             } else {
                 null()
-            };
-            if clip.is_null() {
-                FillRect(hdc, prect, GetStockObject(DC_BRUSH));
-            } else {
-                FillRect(hdc, clip, GetStockObject(DC_BRUSH));
             }
+        } else {
+            null()
+        };
+        if clip.is_null() {
+            FillRect(hdc, prect, GetStockObject(DC_BRUSH));
+        } else {
+            FillRect(hdc, clip, GetStockObject(DC_BRUSH));
         }
     }
-    res
+    S_OK
 }
 
 static DLG_DARK_BACK: LazyLock<WinBrush> =
