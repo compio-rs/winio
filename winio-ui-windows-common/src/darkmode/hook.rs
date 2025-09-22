@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     mem::MaybeUninit,
     ptr::{null, null_mut},
-    sync::{LazyLock, Mutex, Once},
+    sync::{LazyLock, Mutex, Once, OnceLock},
 };
 
 use slim_detours_sys::{DETOUR_INLINE_HOOK, SlimDetoursInlineHooks};
@@ -18,27 +18,27 @@ use windows_sys::{
         Graphics::{
             Dwm::DwmSetWindowAttribute,
             Gdi::{
-                BLACK_BRUSH, CreateSolidBrush, DC_BRUSH, DRAW_TEXT_FORMAT, FillRect, FrameRect,
-                GetStockObject, HDC, InvalidateRect, Rectangle, SelectObject, SetDCBrushColor,
-                WHITE_BRUSH,
+                BLACK_BRUSH, CreateSolidBrush, DC_BRUSH, DRAW_TEXT_FORMAT, DT_CENTER, DT_VCENTER,
+                FillRect, FrameRect, GetStockObject, HDC, InvalidateRect, Rectangle, SelectObject,
+                SetDCBrushColor, WHITE_BRUSH,
             },
         },
         System::SystemServices::MAX_CLASS_NAME,
         UI::{
             Accessibility::{HCF_HIGHCONTRASTON, HIGHCONTRASTW},
             Controls::{
-                BP_CHECKBOX, BP_RADIOBUTTON, CloseThemeData, DTBG_CLIPRECT, DTBGOPTS,
-                DTT_TEXTCOLOR, DTTOPTS, DrawThemeBackground, DrawThemeBackgroundEx,
+                BP_CHECKBOX, BP_PUSHBUTTON, BP_RADIOBUTTON, CloseThemeData, DTBG_CLIPRECT,
+                DTBGOPTS, DTT_TEXTCOLOR, DTTOPTS, DrawThemeBackground, DrawThemeBackgroundEx,
                 DrawThemeParentBackground, DrawThemeText, DrawThemeTextEx, GetThemeColor, HTHEME,
                 OPEN_THEME_DATA_FLAGS, OpenThemeData, OpenThemeDataEx, PBS_DISABLED,
-                PFTASKDIALOGCALLBACK, PP_TRANSPARENTBAR, PROGRESS_CLASSW, SetWindowTheme,
-                TABP_AEROWIZARDBODY, TABP_BODY, TABP_PANE, TABP_TABITEM, TABP_TABITEMBOTHEDGE,
-                TABP_TABITEMLEFTEDGE, TABP_TABITEMRIGHTEDGE, TABP_TOPTABITEM,
-                TABP_TOPTABITEMBOTHEDGE, TABP_TOPTABITEMLEFTEDGE, TABP_TOPTABITEMRIGHTEDGE,
-                TASKDIALOG_NOTIFICATIONS, TDLG_MAININSTRUCTIONPANE, TDLG_PRIMARYPANEL,
-                TDLG_SECONDARYPANEL, TDN_CREATED, TDN_DIALOG_CONSTRUCTED, TIS_DISABLED,
-                TIS_FOCUSED, TIS_HOT, TIS_NORMAL, TIS_SELECTED, TMT_FILLCOLOR, TMT_TEXTCOLOR,
-                WC_BUTTONW, WC_COMBOBOXW, WC_TABCONTROLW,
+                PFTASKDIALOGCALLBACK, PP_TRANSPARENTBAR, PROGRESS_CLASSW, SPNP_DOWN, SPNP_DOWNHORZ,
+                SPNP_UP, SPNP_UPHORZ, SetWindowTheme, TABP_AEROWIZARDBODY, TABP_BODY, TABP_PANE,
+                TABP_TABITEM, TABP_TABITEMBOTHEDGE, TABP_TABITEMLEFTEDGE, TABP_TABITEMRIGHTEDGE,
+                TABP_TOPTABITEM, TABP_TOPTABITEMBOTHEDGE, TABP_TOPTABITEMLEFTEDGE,
+                TABP_TOPTABITEMRIGHTEDGE, TASKDIALOG_NOTIFICATIONS, TDLG_MAININSTRUCTIONPANE,
+                TDLG_PRIMARYPANEL, TDLG_SECONDARYPANEL, TDN_CREATED, TDN_DIALOG_CONSTRUCTED,
+                TIS_DISABLED, TIS_FOCUSED, TIS_HOT, TIS_NORMAL, TIS_SELECTED, TMT_TEXTCOLOR,
+                WC_BUTTONW, WC_COMBOBOXW, WC_EDITW, WC_TABCONTROLW,
             },
             HiDpi::OpenThemeDataForDpi,
             Shell::{DefSubclassProc, SetWindowSubclass},
@@ -294,6 +294,7 @@ enum ThemeType {
     TaskDialog,
     Tab,
     Progress,
+    Spin,
 }
 
 static HTHEME_MAP: LazyLock<Mutex<HashMap<HTHEME, (usize, ThemeType)>>> =
@@ -311,6 +312,8 @@ unsafe fn on_theme_open(pszclasslist: PCWSTR, htheme: HTHEME) {
         || u16_string_eq_ignore_case(class_list, w!("Indeterminate::Progress"))
     {
         Some(ThemeType::Progress)
+    } else if u16_string_eq_ignore_case(class_list, w!("Spin")) {
+        Some(ThemeType::Spin)
     } else {
         None
     };
@@ -527,6 +530,64 @@ unsafe extern "system" fn dark_draw_theme_background_ex(
                         _ => {}
                     };
                 }
+                ThemeType::Spin => {
+                    FillRect(hdc, prect, DLG_GRAY_BACK.0);
+
+                    struct ThemeData(HTHEME);
+
+                    impl Drop for ThemeData {
+                        fn drop(&mut self) {
+                            unsafe {
+                                (*TRUE_CLOSE_THEME_DATA.get())(self.0);
+                            }
+                        }
+                    }
+
+                    static BUTTON_THEME_DATA: OnceLock<ThemeData> = OnceLock::new();
+
+                    let htheme = BUTTON_THEME_DATA
+                        .get_or_init(|| {
+                            ThemeData((*TRUE_OPEN_THEME_DATA.get())(
+                                null_mut(),
+                                w!("DarkMode_Explorer::Button"),
+                            ))
+                        })
+                        .0;
+
+                    let res = (*TRUE_DRAW_THEME_BACKGROUND_EX.get())(
+                        htheme,
+                        hdc,
+                        BP_PUSHBUTTON,
+                        istateid,
+                        prect,
+                        poptions,
+                    );
+                    if res < 0 {
+                        return res;
+                    }
+                    let text = match ipartid {
+                        SPNP_UP => w!("▲"),
+                        SPNP_DOWN => w!("▼"),
+                        SPNP_UPHORZ => w!("▶"),
+                        SPNP_DOWNHORZ => w!("◀"),
+                        _ => return E_INVALIDARG,
+                    };
+                    let mut options: DTTOPTS = std::mem::zeroed();
+                    options.dwSize = std::mem::size_of::<DTTOPTS>() as _;
+                    options.dwFlags = DTT_TEXTCOLOR;
+                    options.crText = WHITE;
+                    return DrawThemeTextEx(
+                        htheme,
+                        hdc,
+                        ipartid,
+                        istateid,
+                        text,
+                        1,
+                        DT_CENTER | DT_VCENTER,
+                        prect.cast_mut(),
+                        &options,
+                    );
+                }
                 _ => {}
             }
         }
@@ -656,7 +717,9 @@ pub unsafe fn control_use_dark_mode(hwnd: HWND, misc_task_dialog: bool) {
     GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
     let class = U16CStr::from_ptr_str(class.as_ptr());
     let subappname = if is_dark_mode_allowed_for_app() {
-        if u16_string_eq_ignore_case(class, WC_COMBOBOXW) {
+        if u16_string_eq_ignore_case(class, WC_COMBOBOXW)
+            || u16_string_eq_ignore_case(class, WC_EDITW)
+        {
             w!("DarkMode_CFD")
         } else if u16_string_eq_ignore_case(class, PROGRESS_CLASSW)
             || (u16_string_eq_ignore_case(class, WC_BUTTONW) && misc_task_dialog)
