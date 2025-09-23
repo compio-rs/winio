@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::BTreeMap,
     mem::MaybeUninit,
     ptr::{null, null_mut},
     sync::{LazyLock, Mutex, Once},
@@ -17,8 +17,7 @@ use windows_sys::{
             Dwm::DwmSetWindowAttribute,
             Gdi::{
                 BLACK_BRUSH, CreateSolidBrush, DC_BRUSH, DRAW_TEXT_FORMAT, FillRect, FrameRect,
-                GetStockObject, HDC, InvalidateRect, Rectangle, SelectObject, SetDCBrushColor,
-                WHITE_BRUSH,
+                GetStockObject, HDC, InvalidateRect, SetDCBrushColor, WHITE_BRUSH,
             },
         },
         System::SystemServices::MAX_CLASS_NAME,
@@ -43,7 +42,7 @@ use windows_sys::{
             WindowsAndMessaging::{
                 ES_MULTILINE, EnumChildWindows, GCLP_HBRBACKGROUND, GWL_STYLE, GetClassNameW,
                 GetClientRect, GetWindowLongPtrW, SPI_GETHIGHCONTRAST, SystemParametersInfoW,
-                WM_CTLCOLORDLG, WM_ERASEBKGND, WM_SETTINGCHANGE,
+                WM_CTLCOLORDLG, WM_SETTINGCHANGE,
             },
         },
     },
@@ -294,8 +293,7 @@ enum ThemeType {
     Progress,
 }
 
-static HTHEME_MAP: LazyLock<Mutex<HashMap<HTHEME, (usize, ThemeType)>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
+static HTHEME_MAP: Mutex<BTreeMap<HTHEME, (usize, ThemeType)>> = Mutex::new(BTreeMap::new());
 
 unsafe fn on_theme_open(pszclasslist: PCWSTR, htheme: HTHEME) {
     let class_list = U16CStr::from_ptr_str(pszclasslist);
@@ -691,18 +689,6 @@ unsafe extern "system" fn task_dialog_subclass(
         WM_SETTINGCHANGE => {
             window_use_dark_mode(hwnd);
             children_refresh_dark_mode(hwnd, 1);
-        }
-        WM_ERASEBKGND => {
-            if is_dark_mode_allowed_for_app() {
-                let hdc = wparam as HDC;
-                let brush = DLG_GRAY_BACK.0;
-                let old_brush = SelectObject(hdc, brush);
-                let mut r = MaybeUninit::uninit();
-                GetClientRect(hwnd, r.as_mut_ptr());
-                let r = r.assume_init();
-                Rectangle(hdc, r.left - 1, r.top - 1, r.right + 1, r.bottom + 1);
-                SelectObject(hdc, old_brush);
-            }
         }
         WM_CTLCOLORDLG => {
             if is_dark_mode_allowed_for_app() {
