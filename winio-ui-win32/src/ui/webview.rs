@@ -154,6 +154,12 @@ impl WebViewImpl for WebViewInner {
         })
     }
 
+    fn set_html(&mut self, s: impl AsRef<str>) {
+        with_u16c(s.as_ref(), |s| unsafe {
+            self.view.NavigateToString(PCWSTR(s.as_ptr())).unwrap();
+        })
+    }
+
     fn can_go_forward(&self) -> bool {
         unsafe { self.view.CanGoForward().unwrap().as_bool() }
     }
@@ -171,6 +177,18 @@ impl WebViewImpl for WebViewInner {
     fn go_back(&mut self) {
         unsafe {
             self.view.GoBack().unwrap();
+        }
+    }
+
+    fn reload(&mut self) {
+        unsafe {
+            self.view.Reload().unwrap();
+        }
+    }
+
+    fn stop(&mut self) {
+        unsafe {
+            self.view.Stop().unwrap();
         }
     }
 

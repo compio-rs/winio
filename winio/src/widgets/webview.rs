@@ -27,6 +27,14 @@ impl WebView {
         self.set_source(s)
     }
 
+    /// Set the HTML content directly.
+    pub fn set_html(&mut self, s: impl AsRef<str>);
+
+    /// Navigate to HTML content directly.
+    pub fn navigate_to_string(&mut self, s: impl AsRef<str>) {
+        self.set_html(s)
+    }
+
     /// Get if can go forward.
     pub fn can_go_forward(&self) -> bool;
 
@@ -38,6 +46,12 @@ impl WebView {
 
     /// Go back.
     pub fn go_back(&mut self);
+
+    /// Reload the current page.
+    pub fn reload(&mut self);
+
+    /// Stop loading the current page.
+    pub fn stop(&mut self);
 }
 
 #[inherit_methods(from = "self.widget")]

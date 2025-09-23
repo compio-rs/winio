@@ -131,6 +131,12 @@ impl WebViewImpl for WebViewInner {
             .unwrap()
     }
 
+    fn set_html(&mut self, s: impl AsRef<str>) {
+        self.view
+            .NavigateToString(&HSTRING::from(s.as_ref()))
+            .unwrap();
+    }
+
     fn can_go_forward(&self) -> bool {
         self.view.CanGoForward().unwrap()
     }
@@ -145,6 +151,14 @@ impl WebViewImpl for WebViewInner {
 
     fn go_back(&mut self) {
         self.view.GoBack().unwrap();
+    }
+
+    fn reload(&mut self) {
+        self.view.Reload().unwrap();
+    }
+
+    fn stop(&mut self) {
+        self.view.CoreWebView2().unwrap().Stop().unwrap();
     }
 
     fn wait_navigate(&self) -> impl Future<Output = ()> + 'static + use<> {
