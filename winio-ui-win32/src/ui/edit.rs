@@ -1,5 +1,6 @@
-use std::{cell::Cell, ptr::null};
+use std::ptr::null;
 
+use compio::driver::syscall;
 use inherit_methods_macro::inherit_methods;
 use windows_sys::{
     Win32::{
@@ -10,11 +11,11 @@ use windows_sys::{
                 EM_GETPASSWORDCHAR, EM_REPLACESEL, EM_SETPASSWORDCHAR, ShowScrollBar, WC_EDITW,
             },
             Input::KeyboardAndMouse::VK_RETURN,
+            Shell::{DefSubclassProc, SetWindowSubclass},
             WindowsAndMessaging::{
                 DLGC_WANTALLKEYS, EN_UPDATE, ES_AUTOHSCROLL, ES_AUTOVSCROLL, ES_CENTER, ES_LEFT,
-                ES_MULTILINE, ES_PASSWORD, ES_RIGHT, GWLP_WNDPROC, SB_VERT, SetWindowLongPtrW,
-                WM_COMMAND, WM_GETDLGCODE, WM_KEYUP, WNDPROC, WS_CHILD, WS_EX_CLIENTEDGE,
-                WS_TABSTOP, WS_VISIBLE,
+                ES_MULTILINE, ES_PASSWORD, ES_RIGHT, SB_VERT, WM_COMMAND, WM_GETDLGCODE, WM_KEYUP,
+                WS_CHILD, WS_EX_CLIENTEDGE, WS_TABSTOP, WS_VISIBLE,
             },
         },
     },
@@ -203,14 +204,16 @@ impl TextBox {
                 | ES_AUTOVSCROLL as u32,
         );
         unsafe { ShowScrollBar(handle.as_raw_widget().as_win32(), SB_VERT, 1) };
-        let old_proc = unsafe {
-            SetWindowLongPtrW(
+        syscall!(
+            BOOL,
+            SetWindowSubclass(
                 handle.as_raw_widget().as_win32(),
-                GWLP_WNDPROC,
-                multiline_edit_wnd_proc as usize as _,
+                Some(multiline_edit_wnd_proc),
+                0,
+                0,
             )
-        } as usize;
-        OLD_WND_PROC.set(unsafe { std::mem::transmute::<usize, WNDPROC>(old_proc) });
+        )
+        .unwrap();
         Self { handle }
     }
 
@@ -262,27 +265,23 @@ impl TextBox {
 
 winio_handle::impl_as_widget!(TextBox, handle);
 
-thread_local! {
-    static OLD_WND_PROC: Cell<WNDPROC> = Cell::new(None);
-}
-
 unsafe extern "system" fn multiline_edit_wnd_proc(
     hwnd: HWND,
     umsg: u32,
     wparam: WPARAM,
     lparam: LPARAM,
+    _id: usize,
+    _data: usize,
 ) -> LRESULT {
-    let old_proc = OLD_WND_PROC.get().unwrap();
-
-    let mut res = old_proc(hwnd, umsg, wparam, lparam);
+    let mut res = DefSubclassProc(hwnd, umsg, wparam, lparam);
     match umsg {
         WM_GETDLGCODE => {
             res &= !(DLGC_WANTALLKEYS as isize);
         }
         WM_KEYUP => {
             if wparam == VK_RETURN as _ {
-                const RETURN_TEXT: *const u16 = w!("\r\n\0");
-                old_proc(hwnd, EM_REPLACESEL, 1, RETURN_TEXT as _);
+                const RETURN_TEXT: *const u16 = w!("\r\n");
+                DefSubclassProc(hwnd, EM_REPLACESEL, 1, RETURN_TEXT as _);
             }
         }
         _ => {}
