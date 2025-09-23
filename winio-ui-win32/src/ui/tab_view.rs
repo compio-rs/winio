@@ -19,6 +19,7 @@ use windows_sys::Win32::UI::{
 };
 use winio_handle::{AsContainer, AsRawContainer, AsRawWidget, BorrowedContainer, RawContainer};
 use winio_primitive::{Point, Size};
+use winio_ui_windows_common::children_refresh_dark_mode;
 
 use crate::{View, Widget, WindowMessageNotify, ui::with_u16c};
 
@@ -154,6 +155,10 @@ impl TabView {
                 self.handle
                     .send_message(TCM_INSERTITEMW, i, std::ptr::addr_of_mut!(item) as _);
             });
+            // The updown control is created lazily.
+            unsafe {
+                children_refresh_dark_mode(self.handle.as_raw_widget().as_win32(), 0);
+            }
         }
         self.reset_indices();
         if self.len() == 1 {
