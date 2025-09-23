@@ -5,6 +5,7 @@ use std::{
 };
 
 use compio::{buf::buf_try, fs::File, io::AsyncReadAtExt, runtime::spawn};
+use tuplex::IntoArray;
 use winio::prelude::*;
 
 pub struct FsPage {
@@ -77,13 +78,20 @@ impl Component for FsPage {
         }
     }
 
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
-        futures_util::future::join3(
+    async fn update_children(&mut self) -> bool {
+        futures_util::future::join4(
             self.window.update(),
             self.canvas.update(),
             self.button.update(),
+            self.label.update(),
         )
-        .await;
+        .await
+        .into_array()
+        .into_iter()
+        .any(|b| b)
+    }
+
+    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
         match message {
             FsPageMessage::Noop => false,
             FsPageMessage::ChooseFile => {

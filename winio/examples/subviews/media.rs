@@ -1,6 +1,7 @@
 use std::{ops::Deref, path::PathBuf, time::Duration};
 
 use compio::{runtime::spawn, time::interval};
+use tuplex::IntoArray;
 use url::Url;
 use winio::prelude::*;
 
@@ -113,8 +114,22 @@ impl Component for MediaPage {
         }
     }
 
+    async fn update_children(&mut self) -> bool {
+        futures_util::join!(
+            self.window.update(),
+            self.media.update(),
+            self.play_button.update(),
+            self.browse_button.update(),
+            self.time_slider.update(),
+            self.volume_slider.update(),
+            self.volume_label.update(),
+        )
+        .into_array()
+        .into_iter()
+        .any(|x| x)
+    }
+
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
-        self.window.update().await;
         match message {
             MediaPageMessage::Noop => false,
             MediaPageMessage::Tick => {
@@ -187,8 +202,6 @@ impl Component for MediaPage {
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {
-        self.window.render();
-
         let csize = self.window.size();
         {
             let margin = Margin::new_all_same(4.0);

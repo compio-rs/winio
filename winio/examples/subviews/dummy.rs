@@ -1,5 +1,6 @@
 use std::ops::Deref;
 
+use tuplex::IntoArray;
 use winio::prelude::*;
 
 pub struct DummyPage {
@@ -37,8 +38,15 @@ impl Component for DummyPage {
         }
     }
 
+    async fn update_children(&mut self) -> bool {
+        futures_util::future::join(self.window.update(), self.label.update())
+            .await
+            .into_array()
+            .into_iter()
+            .any(|b| b)
+    }
+
     async fn update(&mut self, message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
-        self.window.update().await;
         match message {
             DummyPageMessage::Noop => false,
         }

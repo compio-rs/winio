@@ -1,5 +1,6 @@
 use std::ops::Deref;
 
+use tuplex::IntoArray;
 use winio::prelude::*;
 
 pub struct ScrollViewPage {
@@ -85,9 +86,22 @@ impl Component for ScrollViewPage {
         }
     }
 
+    async fn update_children(&mut self) -> bool {
+        futures_util::future::join5(
+            self.window.update(),
+            self.scroll.update(),
+            self.add_btn.update(),
+            self.del_btn.update(),
+            self.show_btn.update(),
+        )
+        .await
+        .into_array()
+        .into_iter()
+        .any(|b| b)
+    }
+
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
-        let (b1, b2) = futures_util::future::join(self.window.update(), self.scroll.update()).await;
-        let b3 = match message {
+        match message {
             ScrollViewPageMessage::Noop => false,
             ScrollViewPageMessage::Add => {
                 let idx = self.radios.len() + 1;
@@ -123,8 +137,7 @@ impl Component for ScrollViewPage {
                 self.selected = Some(idx);
                 false
             }
-        };
-        b1 | b2 | b3
+        }
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {

@@ -144,8 +144,8 @@ impl Component for MainModel {
         }
     }
 
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
-        let mut need_render = futures_util::join!(
+    async fn update_children(&mut self) -> bool {
+        futures_util::join!(
             self.window.update(),
             self.tabview.update(),
             self.basic.update(),
@@ -159,8 +159,11 @@ impl Component for MainModel {
         )
         .into_array()
         .into_iter()
-        .any(|b| b);
-        need_render |= match message {
+        .any(|b| b)
+    }
+
+    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
+        match message {
             MainMessage::Noop => false,
             MainMessage::Close => {
                 match MessageBox::new()
@@ -228,8 +231,7 @@ impl Component for MainModel {
             }
             #[cfg(feature = "media")]
             MainMessage::OpenMedia(p) => self.media.emit(MediaPageMessage::OpenFile(p)).await,
-        };
-        need_render
+        }
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {
@@ -245,6 +247,9 @@ impl Component for MainModel {
             };
             root_panel.set_size(csize);
         }
+    }
+
+    fn render_children(&mut self) {
         if let Some(index) = self.tabview.selection() {
             match index {
                 0 => self.basic.render(),

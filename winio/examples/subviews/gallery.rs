@@ -7,6 +7,7 @@ use std::{
 use compio::runtime::spawn_blocking;
 use image::{DynamicImage, ImageReader};
 use itertools::Itertools;
+use tuplex::IntoArray;
 use winio::prelude::*;
 
 pub struct GalleryPage {
@@ -141,13 +142,22 @@ impl Component for GalleryPage {
         }
     }
 
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
-        futures_util::future::join3(
+    async fn update_children(&mut self) -> bool {
+        futures_util::join!(
             self.window.update(),
             self.canvas.update(),
+            self.scrollbar.update(),
             self.button.update(),
+            self.entry.update(),
+            self.list.update(),
+            self.listbox.update(),
         )
-        .await;
+        .into_array()
+        .into_iter()
+        .any(|b| b)
+    }
+
+    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
         self.update_scrollbar();
         match message {
             GalleryPageMessage::Noop => false,

@@ -2,6 +2,7 @@ use std::{ops::Deref, time::Duration};
 
 use compio::{runtime::spawn, time::timeout};
 use cyper::Client;
+use tuplex::IntoArray;
 use winio::prelude::*;
 
 pub struct NetPage {
@@ -73,14 +74,20 @@ impl Component for NetPage {
         }
     }
 
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
+    async fn update_children(&mut self) -> bool {
         futures_util::future::join4(
             self.window.update(),
             self.canvas.update(),
-            self.button.update(),
             self.entry.update(),
+            self.button.update(),
         )
-        .await;
+        .await
+        .into_array()
+        .into_iter()
+        .any(|b| b)
+    }
+
+    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
         match message {
             NetPageMessage::Noop => false,
             NetPageMessage::Go => {

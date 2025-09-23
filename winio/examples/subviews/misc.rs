@@ -1,5 +1,6 @@
 use std::ops::Deref;
 
+use tuplex::IntoArray;
 use winio::prelude::*;
 
 pub struct MiscPage {
@@ -164,8 +165,32 @@ impl Component for MiscPage {
         }
     }
 
+    async fn update_children(&mut self) -> bool {
+        futures_util::join!(
+            self.window.update(),
+            self.ulabel.update(),
+            self.plabel.update(),
+            self.uentry.update(),
+            self.pentry.update(),
+            self.pcheck.update(),
+            self.canvas.update(),
+            self.combo.update(),
+            self.list.update(),
+            self.r1.update(),
+            self.r2.update(),
+            self.r3.update(),
+            self.push_button.update(),
+            self.pop_button.update(),
+            self.show_button.update(),
+            self.progress.update(),
+            self.mltext.update(),
+        )
+        .into_array()
+        .into_iter()
+        .any(|b| b)
+    }
+
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
-        futures_util::future::join(self.window.update(), self.canvas.update()).await;
         match message {
             MiscPageMessage::Noop => false,
             MiscPageMessage::PasswordCheck => {

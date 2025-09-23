@@ -2,6 +2,7 @@ use std::{ops::Deref, time::Duration};
 
 use compio::{runtime::spawn, time::interval};
 use compio_log::info;
+use tuplex::IntoArray;
 use winio::prelude::*;
 
 pub struct BasicPage {
@@ -58,8 +59,15 @@ impl Component for BasicPage {
         }
     }
 
+    async fn update_children(&mut self) -> bool {
+        futures_util::future::join(self.window.update(), self.canvas.update())
+            .await
+            .into_array()
+            .into_iter()
+            .any(|b| b)
+    }
+
     async fn update(&mut self, message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
-        futures_util::future::join(self.window.update(), self.canvas.update()).await;
         match message {
             BasicPageMessage::Noop => false,
             BasicPageMessage::Tick => {

@@ -1,5 +1,6 @@
 use std::ops::Deref;
 
+use tuplex::IntoArray;
 use winio::prelude::*;
 
 pub struct WebViewPage {
@@ -61,14 +62,20 @@ impl Component for WebViewPage {
         }
     }
 
-    async fn update(&mut self, message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
+    async fn update_children(&mut self) -> bool {
         futures_util::future::join4(
             self.window.update(),
             self.webview.update(),
             self.button.update(),
             self.entry.update(),
         )
-        .await;
+        .await
+        .into_array()
+        .into_iter()
+        .any(|b| b)
+    }
+
+    async fn update(&mut self, message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
         match message {
             WebViewPageMessage::Noop => false,
             WebViewPageMessage::Go => {

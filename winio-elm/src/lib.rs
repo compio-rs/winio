@@ -23,11 +23,20 @@ pub trait Component: Sized {
     /// Start the event listening.
     async fn start(&mut self, sender: &ComponentSender<Self>) -> !;
 
-    /// Respond to the message.
+    /// Respond to the message. Return true if need render.
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool;
 
     /// Render the widgets.
     fn render(&mut self, sender: &ComponentSender<Self>);
+
+    /// Update the children components. Return true if any child needs render.
+    async fn update_children(&mut self) -> bool {
+        false
+    }
+
+    /// Render the children components. It will be called if any child or self
+    /// needs render.
+    fn render_children(&mut self) {}
 }
 
 #[derive(Debug)]
@@ -99,14 +108,22 @@ pub async fn run<'a, T: Component>(init: impl Into<T::Init<'a>>) -> T::Event {
             _ = fut_start.fuse() => unsafe { unreachable_unchecked() },
             _ = fut_recv.fuse() => {
                 let mut need_render = false;
+                let mut children_need_render = false;
                 for msg in sender.fetch_all() {
-                    need_render |= match msg {
-                        ComponentMessage::Message(msg) => model.update(msg, &sender).await,
+                    match msg {
+                        ComponentMessage::Message(msg) => {
+                            need_render |= model.update(msg, &sender).await;
+                            children_need_render |= model.update_children().await;
+                        }
                         ComponentMessage::Event(e) => break 'outer e,
                     };
                 }
+                children_need_render |= need_render;
                 if need_render {
                     model.render(&sender);
+                }
+                if children_need_render {
+                    model.render_children();
                 }
             }
         }
