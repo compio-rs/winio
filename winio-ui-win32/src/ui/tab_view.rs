@@ -92,9 +92,6 @@ impl TabView {
     }
 
     pub fn set_selection(&mut self, i: Option<usize>) {
-        if !self.is_empty() && i.is_none() {
-            panic!("cannot cancel selection if the tab collection is not empty");
-        }
         let i = if let Some(i) = i { i as isize } else { -1 };
         self.handle.send_message(TCM_SETCURSEL, i as _, 0);
     }
