@@ -11,6 +11,7 @@ use crate::{GlobalRuntime, ui::Widget};
 
 #[derive(Debug)]
 pub struct WebView {
+    on_loading: Rc<Callback<()>>,
     on_loaded: Rc<Callback<()>>,
     widget: webkit6::WebView,
     handle: Widget,
@@ -21,6 +22,13 @@ impl WebView {
     pub fn new(parent: impl AsContainer) -> Self {
         let widget = webkit6::WebView::new();
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
+        let on_loading = Rc::new(Callback::new());
+        widget.connect_resource_load_started({
+            let on_loading = on_loading.clone();
+            move |_, _, _| {
+                on_loading.signal::<GlobalRuntime>(());
+            }
+        });
         let on_loaded = Rc::new(Callback::new());
         widget.connect_load_changed({
             let on_loaded = on_loaded.clone();
@@ -29,6 +37,7 @@ impl WebView {
             }
         });
         Self {
+            on_loading,
             on_loaded,
             widget,
             handle,
@@ -63,6 +72,10 @@ impl WebView {
         self.widget.load_uri(s.as_ref());
     }
 
+    pub fn set_html(&mut self, s: impl AsRef<str>) {
+        self.widget.load_html(s.as_ref(), None);
+    }
+
     pub fn can_go_forward(&self) -> bool {
         self.widget.can_go_forward()
     }
@@ -79,7 +92,19 @@ impl WebView {
         self.widget.go_back();
     }
 
-    pub async fn wait_navigate(&self) {
+    pub fn reload(&mut self) {
+        self.widget.reload();
+    }
+
+    pub fn stop(&mut self) {
+        self.widget.stop_loading();
+    }
+
+    pub async fn wait_navigating(&self) {
+        self.on_loading.wait().await
+    }
+
+    pub async fn wait_navigated(&self) {
         self.on_loaded.wait().await
     }
 }
