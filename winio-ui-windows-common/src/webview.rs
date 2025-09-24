@@ -150,7 +150,7 @@ impl<W: WebViewImpl> WebViewInner<W> {
         match self {
             Self::Params(p) => match &p.source {
                 LazyInitSource::Url(s) => s.clone(),
-                LazyInitSource::Html(_) => "about:blank".into(),
+                LazyInitSource::Html(_) => String::new(),
             },
             Self::Widget(w) => w.source(),
         }

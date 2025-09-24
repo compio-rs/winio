@@ -10,6 +10,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct WebView {
+    on_started: Box<Callback>,
     on_loaded: Box<Callback>,
     widget: Widget<ffi::QWebEngineView>,
 }
@@ -17,8 +18,16 @@ pub struct WebView {
 #[inherit_methods(from = "self.widget")]
 impl WebView {
     pub fn new(parent: impl AsContainer) -> Self {
-        let on_loaded = Box::new(Callback::new());
         let mut widget = unsafe { ffi::new_webview(parent.as_container().as_qt()) };
+        let on_started = Box::new(Callback::new());
+        unsafe {
+            ffi::webview_connect_load_started(
+                widget.pin_mut(),
+                Self::on_started,
+                on_started.as_ref() as *const _ as _,
+            );
+        }
+        let on_loaded = Box::new(Callback::new());
         unsafe {
             ffi::webview_connect_load_finished(
                 widget.pin_mut(),
@@ -28,7 +37,11 @@ impl WebView {
         }
         let mut widget = Widget::new(widget);
         widget.set_visible(true);
-        Self { on_loaded, widget }
+        Self {
+            on_started,
+            on_loaded,
+            widget,
+        }
     }
 
     pub fn is_visible(&self) -> bool;
@@ -57,6 +70,12 @@ impl WebView {
 
     pub fn set_source(&mut self, s: impl AsRef<str>) {
         self.widget.pin_mut().setUrl(&s.as_ref().into());
+    }
+
+    pub fn set_html(&mut self, html: impl AsRef<str>) {
+        self.widget
+            .pin_mut()
+            .setHtml(&html.as_ref().into(), &"".into());
     }
 
     pub fn can_go_forward(&self) -> bool {
@@ -89,6 +108,25 @@ impl WebView {
         self.widget.pin_mut().back();
     }
 
+    pub fn reload(&mut self) {
+        self.widget.pin_mut().reload();
+    }
+
+    pub fn stop(&mut self) {
+        self.widget.pin_mut().stop();
+    }
+
+    fn on_started(c: *const u8) {
+        let c = c as *const Callback<()>;
+        if let Some(c) = unsafe { c.as_ref() } {
+            c.signal::<GlobalRuntime>(());
+        }
+    }
+
+    pub async fn wait_navigating(&self) {
+        self.on_started.wait().await;
+    }
+
     fn on_loaded(c: *const u8) {
         let c = c as *const Callback<()>;
         if let Some(c) = unsafe { c.as_ref() } {
@@ -96,7 +134,7 @@ impl WebView {
         }
     }
 
-    pub async fn wait_navigate(&self) {
+    pub async fn wait_navigated(&self) {
         self.on_loaded.wait().await;
     }
 }
@@ -112,10 +150,17 @@ mod ffi {
 
         type QWidget = crate::ui::QWidget;
         type QUrl = crate::ui::QUrl;
+        type QString = crate::ui::QString;
         type QWebEngineView;
         type QWebEngineHistory;
 
         unsafe fn new_webview(parent: *mut QWidget) -> UniquePtr<QWebEngineView>;
+
+        unsafe fn webview_connect_load_started(
+            w: Pin<&mut QWebEngineView>,
+            callback: unsafe fn(*const u8),
+            data: *const u8,
+        );
 
         unsafe fn webview_connect_load_finished(
             w: Pin<&mut QWebEngineView>,
@@ -125,9 +170,12 @@ mod ffi {
 
         fn url(self: &QWebEngineView) -> QUrl;
         fn setUrl(self: Pin<&mut QWebEngineView>, url: &QUrl);
+        fn setHtml(self: Pin<&mut QWebEngineView>, html: &QString, url: &QUrl);
         fn forward(self: Pin<&mut QWebEngineView>);
         fn back(self: Pin<&mut QWebEngineView>);
         fn history(self: &QWebEngineView) -> *mut QWebEngineHistory;
+        fn reload(self: Pin<&mut QWebEngineView>);
+        fn stop(self: Pin<&mut QWebEngineView>);
 
         fn canGoForward(self: &QWebEngineHistory) -> bool;
         fn canGoBack(self: &QWebEngineHistory) -> bool;
