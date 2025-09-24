@@ -32,6 +32,10 @@ struct MainModel {
     webview: Child<WebViewPage>,
     #[cfg(not(feature = "webview"))]
     webview: Child<DummyPage>,
+    #[cfg(feature = "webview")]
+    markdown: Child<MarkdownPage>,
+    #[cfg(not(feature = "webview"))]
+    markdown: Child<DummyPage>,
 }
 
 #[derive(Debug)]
@@ -48,6 +52,10 @@ enum MainMessage {
     ChooseMedia,
     #[cfg(feature = "media")]
     OpenMedia(PathBuf),
+    #[cfg(feature = "webview")]
+    ChooseMarkdown,
+    #[cfg(feature = "webview")]
+    OpenMarkdown(PathBuf),
 }
 
 impl Component for MainModel {
@@ -81,6 +89,10 @@ impl Component for MainModel {
             webview: WebViewPage = (&*tabview),
             #[cfg(not(feature = "webview"))]
             webview: DummyPage = ((&*tabview, "WebView", "webview")),
+            #[cfg(feature = "webview")]
+            markdown: MarkdownPage = (&*tabview),
+            #[cfg(not(feature = "webview"))]
+            markdown: DummyPage = ((&*tabview, "Markdown", "webview")),
         }
 
         tabview.append(&basic);
@@ -91,6 +103,7 @@ impl Component for MainModel {
         tabview.append(&misc);
         tabview.append(&media);
         tabview.append(&webview);
+        tabview.append(&markdown);
 
         sender.post(MainMessage::Redraw);
 
@@ -107,6 +120,7 @@ impl Component for MainModel {
             misc,
             media,
             webview,
+            markdown,
         }
     }
 
@@ -141,6 +155,12 @@ impl Component for MainModel {
                 MediaPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
             },
             self.webview => {},
+            self.markdown => {
+                #[cfg(feature = "webview")]
+                MarkdownPageEvent::ChooseFile => MainMessage::ChooseMarkdown,
+                #[cfg(feature = "webview")]
+                MarkdownPageEvent::MessageBox(mb) => MainMessage::ShowMessage(mb),
+            },
         }
     }
 
@@ -156,6 +176,7 @@ impl Component for MainModel {
             self.misc.update(),
             self.media.update(),
             self.webview.update(),
+            self.markdown.update(),
         )
         .into_array()
         .into_iter()
@@ -231,6 +252,23 @@ impl Component for MainModel {
             }
             #[cfg(feature = "media")]
             MainMessage::OpenMedia(p) => self.media.emit(MediaPageMessage::OpenFile(p)).await,
+            #[cfg(feature = "webview")]
+            MainMessage::ChooseMarkdown => {
+                if let Some(p) = FileBox::new()
+                    .title("Open markdown file")
+                    .add_filter(("Markdown files", "*.md"))
+                    .add_filter(("All files", "*.*"))
+                    .open(&self.window)
+                    .await
+                {
+                    sender.post(MainMessage::OpenMarkdown(p));
+                }
+                false
+            }
+            #[cfg(feature = "webview")]
+            MainMessage::OpenMarkdown(p) => {
+                self.markdown.emit(MarkdownPageMessage::OpenFile(p)).await
+            }
         }
     }
 
@@ -260,6 +298,7 @@ impl Component for MainModel {
                 5 => self.misc.render(),
                 6 => self.media.render(),
                 7 => self.webview.render(),
+                8 => self.markdown.render(),
                 _ => {}
             }
         }

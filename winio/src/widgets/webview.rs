@@ -27,6 +27,14 @@ impl WebView {
         self.set_source(s)
     }
 
+    /// Set the HTML content directly.
+    pub fn set_html(&mut self, s: impl AsRef<str>);
+
+    /// Navigate to HTML content directly.
+    pub fn navigate_to_string(&mut self, s: impl AsRef<str>) {
+        self.set_html(s)
+    }
+
     /// Get if can go forward.
     pub fn can_go_forward(&self) -> bool;
 
@@ -38,6 +46,12 @@ impl WebView {
 
     /// Go back.
     pub fn go_back(&mut self);
+
+    /// Reload the current page.
+    pub fn reload(&mut self);
+
+    /// Stop loading the current page.
+    pub fn stop(&mut self);
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -70,8 +84,10 @@ impl Layoutable for WebView {
 /// Events of [`WebView`].
 #[non_exhaustive]
 pub enum WebViewEvent {
+    /// The webview is currently navigating to a new source.
+    Navigating,
     /// The webview has been navigated to a new source.
-    Navigate,
+    Navigated,
 }
 
 impl Component for WebView {
@@ -85,10 +101,21 @@ impl Component for WebView {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        loop {
-            self.widget.wait_navigate().await;
-            sender.output(WebViewEvent::Navigate);
-        }
+        let fut_navigated = async {
+            loop {
+                self.widget.wait_navigated().await;
+                sender.output(WebViewEvent::Navigated);
+            }
+        };
+        let fut_navigating = async {
+            loop {
+                self.widget.wait_navigating().await;
+                sender.output(WebViewEvent::Navigating);
+            }
+        };
+        futures_util::future::join(fut_navigated, fut_navigating)
+            .await
+            .0
     }
 
     async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {

@@ -27,6 +27,9 @@ cfg_if::cfg_if! {
     if #[cfg(feature = "webview")] {
         mod webview;
         pub use webview::*;
+
+        mod markdown;
+        pub use markdown::*;
     }
 }
 

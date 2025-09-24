@@ -93,6 +93,13 @@ impl WebView {
         }
     }
 
+    pub fn set_html(&mut self, html: impl AsRef<str>) {
+        unsafe {
+            self.view
+                .loadHTMLString_baseURL(&NSString::from_str(html.as_ref()), None);
+        }
+    }
+
     pub fn can_go_forward(&self) -> bool {
         unsafe { self.view.canGoForward() }
     }
@@ -113,7 +120,23 @@ impl WebView {
         }
     }
 
-    pub async fn wait_navigate(&self) {
+    pub fn reload(&mut self) {
+        unsafe {
+            self.view.reload();
+        }
+    }
+
+    pub fn stop(&mut self) {
+        unsafe {
+            self.view.stopLoading();
+        }
+    }
+
+    pub async fn wait_navigating(&self) {
+        self.delegate.ivars().navigating.wait().await
+    }
+
+    pub async fn wait_navigated(&self) {
         self.delegate.ivars().navigated.wait().await
     }
 }
@@ -122,6 +145,7 @@ winio_handle::impl_as_widget!(WebView, handle);
 
 #[derive(Debug, Default)]
 struct WebViewDelegateIvars {
+    navigating: Callback,
     navigated: Callback,
 }
 
@@ -146,6 +170,15 @@ define_class! {
 
     #[allow(non_snake_case)]
     unsafe impl WKNavigationDelegate for WebViewDelegate {
+        #[unsafe(method(webView:didCommitNavigation:))]
+        unsafe fn webView_didCommitNavigation(
+            &self,
+            _web_view: &WKWebView,
+            _navigation: Option<&WKNavigation>,
+        ) {
+            self.ivars().navigating.signal::<GlobalRuntime>(());
+        }
+
         #[unsafe(method(webView:didFinishNavigation:))]
         unsafe fn webView_didFinishNavigation(
             &self,

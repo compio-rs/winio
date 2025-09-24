@@ -7,12 +7,17 @@ use winio_handle::{
 };
 use winio_primitive::{Point, Size};
 
+enum LazyInitSource {
+    Url(String),
+    Html(String),
+}
+
 struct LazyInitParams {
     visible: bool,
     enabled: bool,
     loc: Point,
     size: Size,
-    source: String,
+    source: LazyInitSource,
 }
 
 impl Default for LazyInitParams {
@@ -22,7 +27,7 @@ impl Default for LazyInitParams {
             enabled: true,
             loc: Point::zero(),
             size: Size::zero(),
-            source: String::new(),
+            source: LazyInitSource::Url(String::new()),
         }
     }
 }
@@ -33,7 +38,10 @@ impl LazyInitParams {
         w.set_enabled(self.enabled);
         w.set_loc(self.loc);
         w.set_size(self.size);
-        w.set_source(&self.source);
+        match &self.source {
+            LazyInitSource::Url(s) => w.set_source(s),
+            LazyInitSource::Html(s) => w.set_html(s),
+        }
     }
 }
 
@@ -55,6 +63,7 @@ pub trait WebViewImpl {
 
     fn source(&self) -> String;
     fn set_source(&mut self, s: impl AsRef<str>);
+    fn set_html(&mut self, s: impl AsRef<str>);
 
     fn can_go_forward(&self) -> bool;
     fn go_forward(&mut self);
@@ -62,7 +71,11 @@ pub trait WebViewImpl {
     fn can_go_back(&self) -> bool;
     fn go_back(&mut self);
 
-    fn wait_navigate(&self) -> impl Future<Output = ()> + 'static + use<Self>;
+    fn reload(&mut self);
+    fn stop(&mut self);
+
+    fn wait_navigating(&self) -> impl Future<Output = ()> + 'static + use<Self>;
+    fn wait_navigated(&self) -> impl Future<Output = ()> + 'static + use<Self>;
 }
 
 enum WebViewInner<W> {
@@ -135,15 +148,25 @@ impl<W: WebViewImpl> WebViewInner<W> {
 
     pub fn source(&self) -> String {
         match self {
-            Self::Params(p) => p.source.clone(),
+            Self::Params(p) => match &p.source {
+                LazyInitSource::Url(s) => s.clone(),
+                LazyInitSource::Html(_) => String::new(),
+            },
             Self::Widget(w) => w.source(),
         }
     }
 
     pub fn set_source(&mut self, s: impl AsRef<str>) {
         match self {
-            Self::Params(p) => p.source = s.as_ref().into(),
+            Self::Params(p) => p.source = LazyInitSource::Url(s.as_ref().into()),
             Self::Widget(w) => w.set_source(s),
+        }
+    }
+
+    pub fn set_html(&mut self, s: impl AsRef<str>) {
+        match self {
+            Self::Params(p) => p.source = LazyInitSource::Html(s.as_ref().into()),
+            Self::Widget(w) => w.set_html(s),
         }
     }
 
@@ -175,10 +198,31 @@ impl<W: WebViewImpl> WebViewInner<W> {
         }
     }
 
-    pub fn wait_navigate(&self) -> impl Future<Output = ()> + 'static {
+    pub fn reload(&mut self) {
+        match self {
+            Self::Params(_) => unreachable!("cannot reload before initialized"),
+            Self::Widget(w) => w.reload(),
+        }
+    }
+
+    pub fn stop(&mut self) {
+        match self {
+            Self::Params(_) => unreachable!("cannot stop before initialized"),
+            Self::Widget(w) => w.stop(),
+        }
+    }
+
+    pub fn wait_navigating(&self) -> impl Future<Output = ()> + 'static {
         match self {
             Self::Params(_) => Either::Left(std::future::pending()),
-            Self::Widget(w) => Either::Right(w.wait_navigate()),
+            Self::Widget(w) => Either::Right(w.wait_navigating()),
+        }
+    }
+
+    pub fn wait_navigated(&self) -> impl Future<Output = ()> + 'static {
+        match self {
+            Self::Params(_) => Either::Left(std::future::pending()),
+            Self::Widget(w) => Either::Right(w.wait_navigated()),
         }
     }
 }
@@ -264,6 +308,10 @@ impl<W: WebViewImpl> WebViewLazy<W> {
         self.inner.borrow_mut().set_source(s);
     }
 
+    pub fn set_html(&mut self, s: impl AsRef<str>) {
+        self.inner.borrow_mut().set_html(s);
+    }
+
     pub fn can_go_forward(&self) -> bool {
         self.inner.borrow().can_go_forward()
     }
@@ -280,8 +328,21 @@ impl<W: WebViewImpl> WebViewLazy<W> {
         self.inner.borrow_mut().go_back();
     }
 
-    pub async fn wait_navigate(&self) {
-        let fut = self.inner.borrow().wait_navigate();
+    pub fn reload(&mut self) {
+        self.inner.borrow_mut().reload();
+    }
+
+    pub fn stop(&mut self) {
+        self.inner.borrow_mut().stop();
+    }
+
+    pub async fn wait_navigating(&self) {
+        let fut = self.inner.borrow().wait_navigating();
+        fut.await
+    }
+
+    pub async fn wait_navigated(&self) {
+        let fut = self.inner.borrow().wait_navigated();
         fut.await
     }
 }

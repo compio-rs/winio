@@ -15,7 +15,8 @@ use crate::{GlobalRuntime, Widget};
 
 #[derive(Debug)]
 pub struct WebViewInner {
-    on_navigate: SendWrapper<Rc<Callback>>,
+    on_navigating: SendWrapper<Rc<Callback>>,
+    on_navigated: SendWrapper<Rc<Callback>>,
     handle: Widget,
     view: MUXC::WebView2,
 }
@@ -68,17 +69,27 @@ impl WebViewImpl for WebViewInner {
         }
         let view = MUXC::WebView2::new().unwrap();
         view.EnsureCoreWebView2Async().unwrap().await.unwrap();
-        let on_navigate = SendWrapper::new(Rc::new(Callback::new()));
+        let on_navigating = SendWrapper::new(Rc::new(Callback::new()));
         {
-            let on_navigate = on_navigate.clone();
+            let on_navigating = on_navigating.clone();
+            view.NavigationStarting(&TypedEventHandler::new(move |_, _| {
+                on_navigating.signal::<GlobalRuntime>(());
+                Ok(())
+            }))
+            .unwrap();
+        }
+        let on_navigated = SendWrapper::new(Rc::new(Callback::new()));
+        {
+            let on_navigated = on_navigated.clone();
             view.NavigationCompleted(&TypedEventHandler::new(move |_, _| {
-                on_navigate.signal::<GlobalRuntime>(());
+                on_navigated.signal::<GlobalRuntime>(());
                 Ok(())
             }))
             .unwrap();
         }
         Self {
-            on_navigate,
+            on_navigating,
+            on_navigated,
             handle: Widget::new(parent, view.cast().unwrap()),
             view,
         }
@@ -131,6 +142,12 @@ impl WebViewImpl for WebViewInner {
             .unwrap()
     }
 
+    fn set_html(&mut self, s: impl AsRef<str>) {
+        self.view
+            .NavigateToString(&HSTRING::from(s.as_ref()))
+            .unwrap();
+    }
+
     fn can_go_forward(&self) -> bool {
         self.view.CanGoForward().unwrap()
     }
@@ -147,10 +164,25 @@ impl WebViewImpl for WebViewInner {
         self.view.GoBack().unwrap();
     }
 
-    fn wait_navigate(&self) -> impl Future<Output = ()> + 'static + use<> {
-        let on_navigate = self.on_navigate.clone();
+    fn reload(&mut self) {
+        self.view.Reload().unwrap();
+    }
+
+    fn stop(&mut self) {
+        self.view.CoreWebView2().unwrap().Stop().unwrap();
+    }
+
+    fn wait_navigating(&self) -> impl Future<Output = ()> + 'static + use<> {
+        let on_navigating = self.on_navigating.clone();
         async move {
-            on_navigate.wait().await;
+            on_navigating.wait().await;
+        }
+    }
+
+    fn wait_navigated(&self) -> impl Future<Output = ()> + 'static + use<> {
+        let on_navigated = self.on_navigated.clone();
+        async move {
+            on_navigated.wait().await;
         }
     }
 }
