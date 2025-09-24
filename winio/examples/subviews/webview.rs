@@ -36,7 +36,8 @@ pub enum WebViewPageMessage {
     Back,
     Forward,
     Reload,
-    Navigate,
+    Navigating,
+    Navigated,
 }
 
 impl Component for WebViewPage {
@@ -103,7 +104,8 @@ impl Component for WebViewPage {
             },
             self.entry => {},
             self.webview => {
-                WebViewEvent::Navigate => WebViewPageMessage::Navigate,
+                WebViewEvent::Navigating => WebViewPageMessage::Navigating,
+                WebViewEvent::Navigated => WebViewPageMessage::Navigated,
             }
         }
     }
@@ -151,7 +153,12 @@ impl Component for WebViewPage {
                 }
                 false
             }
-            WebViewPageMessage::Navigate => {
+            WebViewPageMessage::Navigating => {
+                self.entry.set_text(self.webview.source());
+                self.set_reload_button(false);
+                true
+            }
+            WebViewPageMessage::Navigated => {
                 self.entry.set_text(self.webview.source());
                 self.set_reload_button(true);
                 true

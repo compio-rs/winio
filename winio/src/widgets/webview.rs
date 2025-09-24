@@ -84,8 +84,10 @@ impl Layoutable for WebView {
 /// Events of [`WebView`].
 #[non_exhaustive]
 pub enum WebViewEvent {
+    /// The webview is currently navigating to a new source.
+    Navigating,
     /// The webview has been navigated to a new source.
-    Navigate,
+    Navigated,
 }
 
 impl Component for WebView {
@@ -99,10 +101,21 @@ impl Component for WebView {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        loop {
-            self.widget.wait_navigate().await;
-            sender.output(WebViewEvent::Navigate);
-        }
+        let fut_navigated = async {
+            loop {
+                self.widget.wait_navigated().await;
+                sender.output(WebViewEvent::Navigated);
+            }
+        };
+        let fut_navigating = async {
+            loop {
+                self.widget.wait_navigating().await;
+                sender.output(WebViewEvent::Navigating);
+            }
+        };
+        futures_util::future::join(fut_navigated, fut_navigating)
+            .await
+            .0
     }
 
     async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {

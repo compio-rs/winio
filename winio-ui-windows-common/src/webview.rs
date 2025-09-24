@@ -74,7 +74,8 @@ pub trait WebViewImpl {
     fn reload(&mut self);
     fn stop(&mut self);
 
-    fn wait_navigate(&self) -> impl Future<Output = ()> + 'static + use<Self>;
+    fn wait_navigating(&self) -> impl Future<Output = ()> + 'static + use<Self>;
+    fn wait_navigated(&self) -> impl Future<Output = ()> + 'static + use<Self>;
 }
 
 enum WebViewInner<W> {
@@ -211,10 +212,17 @@ impl<W: WebViewImpl> WebViewInner<W> {
         }
     }
 
-    pub fn wait_navigate(&self) -> impl Future<Output = ()> + 'static {
+    pub fn wait_navigating(&self) -> impl Future<Output = ()> + 'static {
         match self {
             Self::Params(_) => Either::Left(std::future::pending()),
-            Self::Widget(w) => Either::Right(w.wait_navigate()),
+            Self::Widget(w) => Either::Right(w.wait_navigating()),
+        }
+    }
+
+    pub fn wait_navigated(&self) -> impl Future<Output = ()> + 'static {
+        match self {
+            Self::Params(_) => Either::Left(std::future::pending()),
+            Self::Widget(w) => Either::Right(w.wait_navigated()),
         }
     }
 }
@@ -328,8 +336,13 @@ impl<W: WebViewImpl> WebViewLazy<W> {
         self.inner.borrow_mut().stop();
     }
 
-    pub async fn wait_navigate(&self) {
-        let fut = self.inner.borrow().wait_navigate();
+    pub async fn wait_navigating(&self) {
+        let fut = self.inner.borrow().wait_navigating();
+        fut.await
+    }
+
+    pub async fn wait_navigated(&self) {
+        let fut = self.inner.borrow().wait_navigated();
         fut.await
     }
 }

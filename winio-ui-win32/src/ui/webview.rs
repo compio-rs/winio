@@ -8,7 +8,8 @@ use webview2::{
     ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,
     ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler_Impl, ICoreWebView2Environment,
     ICoreWebView2NavigationCompletedEventArgs, ICoreWebView2NavigationCompletedEventHandler,
-    ICoreWebView2NavigationCompletedEventHandler_Impl,
+    ICoreWebView2NavigationCompletedEventHandler_Impl, ICoreWebView2NavigationStartingEventArgs,
+    ICoreWebView2NavigationStartingEventHandler, ICoreWebView2NavigationStartingEventHandler_Impl,
 };
 use windows::{
     Win32::Foundation::{HWND, RECT},
@@ -28,7 +29,8 @@ use crate::ui::with_u16c;
 pub struct WebViewInner {
     host: ICoreWebView2Controller,
     view: ICoreWebView2,
-    nav_rx: Receiver<()>,
+    navigating_rx: Receiver<()>,
+    navigated_rx: Receiver<()>,
 }
 
 impl WebViewInner {
@@ -90,7 +92,15 @@ impl WebViewImpl for WebViewInner {
             .unwrap();
         }
         let (host, view) = rx.await.unwrap();
-        let (tx, rx) = flume::unbounded();
+        let (tx, navigating_rx) = flume::unbounded();
+        unsafe {
+            view.NavigationStarting(&NavStartingHandler::create(move |_, _| {
+                tx.send(()).ok();
+                Ok(())
+            }))
+            .unwrap();
+        }
+        let (tx, navigated_rx) = flume::unbounded();
         unsafe {
             view.NavigationCompleted(&NavCompletedHandler::create(move |_, _| {
                 tx.send(()).ok();
@@ -101,7 +111,8 @@ impl WebViewImpl for WebViewInner {
         Self {
             host,
             view,
-            nav_rx: rx,
+            navigating_rx,
+            navigated_rx,
         }
     }
 
@@ -192,8 +203,15 @@ impl WebViewImpl for WebViewInner {
         }
     }
 
-    fn wait_navigate(&self) -> impl Future<Output = ()> + 'static + use<> {
-        let rx = self.nav_rx.clone();
+    fn wait_navigating(&self) -> impl Future<Output = ()> + 'static + use<> {
+        let rx = self.navigating_rx.clone();
+        async move {
+            rx.recv_async().await.ok();
+        }
+    }
+
+    fn wait_navigated(&self) -> impl Future<Output = ()> + 'static + use<> {
+        let rx = self.navigated_rx.clone();
         async move {
             rx.recv_async().await.ok();
         }
@@ -290,6 +308,39 @@ where
         } else {
             Ok(())
         }
+    }
+}
+
+#[implement(ICoreWebView2NavigationStartingEventHandler)]
+struct NavStartingHandler<F>
+where
+    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> Result<()>
+        + 'static,
+{
+    f: F,
+}
+
+impl<F> NavStartingHandler<F>
+where
+    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> Result<()>
+        + 'static,
+{
+    pub fn create(f: F) -> ICoreWebView2NavigationStartingEventHandler {
+        Self { f }.into()
+    }
+}
+
+impl<F> ICoreWebView2NavigationStartingEventHandler_Impl for NavStartingHandler_Impl<F>
+where
+    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> Result<()>
+        + 'static,
+{
+    fn Invoke(
+        &self,
+        sender: Ref<ICoreWebView2>,
+        args: Ref<ICoreWebView2NavigationStartingEventArgs>,
+    ) -> Result<()> {
+        (self.f)(sender, args)
     }
 }
 
