@@ -49,6 +49,7 @@ image = { workspace = true, default-features = false, features = [
     "default-formats",
 ] }
 itertools = "0.14"
+pulldown-cmark = "0.13"
 tracing-subscriber = "0.3"
 tuplex = "0.1"
 url = "2"
