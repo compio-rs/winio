@@ -137,6 +137,10 @@ impl Canvas {
 
     pub fn set_size(&mut self, s: Size);
 
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
     pub fn context(&mut self) -> DrawingContext<'_> {
         let surface = RecordingSurface::create(Content::ColorAlpha, None).unwrap();
         let ctx = Context::new(&surface).unwrap();
