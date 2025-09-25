@@ -8,6 +8,7 @@ use crate::ui::Convertible;
 #[derive(Debug)]
 pub(crate) struct Widget {
     handle: MUX::FrameworkElement,
+    pub(crate) parent: MUXC::Canvas,
 }
 
 impl Widget {
@@ -24,7 +25,10 @@ impl Widget {
         canvas
             .Measure(Size::new(f64::INFINITY, f64::INFINITY).to_native())
             .unwrap();
-        Self { handle }
+        Self {
+            handle,
+            parent: canvas.clone(),
+        }
     }
 
     pub fn is_visible(&self) -> bool {
@@ -90,18 +94,34 @@ impl Widget {
         self.handle.SetWidth(v.width).unwrap();
         self.handle.SetHeight(v.height).unwrap();
     }
+
+    pub fn tooltip(&self) -> String {
+        MUXC::ToolTipService::GetToolTip(&self.handle)
+            .and_then(|w| w.cast::<MUXC::TextBlock>())
+            .and_then(|w| w.Text())
+            .map(|s| s.to_string_lossy())
+            .unwrap_or_default()
+    }
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) {
+        let text = MUXC::ToolTipService::GetToolTip(&self.handle)
+            .and_then(|w| w.cast::<MUXC::TextBlock>())
+            .unwrap_or_else(|_| {
+                let text = MUXC::TextBlock::new().unwrap();
+                MUXC::ToolTipService::SetToolTip(&self.handle, &text).unwrap();
+                text
+            });
+        text.SetText(&windows::core::HSTRING::from(s.as_ref()))
+            .unwrap();
+    }
 }
 
 impl Drop for Widget {
     fn drop(&mut self) {
-        if let Ok(parent) = self.handle.Parent() {
-            if let Ok(parent) = parent.cast::<MUXC::Canvas>() {
-                let children = parent.Children().unwrap();
-                let mut index = 0;
-                if children.IndexOf(&self.handle, &mut index).is_ok() {
-                    children.RemoveAt(index as _).unwrap();
-                }
-            }
+        let children = self.parent.Children().unwrap();
+        let mut index = 0;
+        if children.IndexOf(&self.handle, &mut index).is_ok() {
+            children.RemoveAt(index as _).unwrap();
         }
     }
 }

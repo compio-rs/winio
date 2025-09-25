@@ -60,6 +60,10 @@ impl RadioButton {
 
     pub fn set_size(&mut self, v: Size);
 
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
     pub fn text(&self) -> String {
         self.text.Text().unwrap().to_string_lossy()
     }
