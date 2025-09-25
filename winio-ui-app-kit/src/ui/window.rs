@@ -281,6 +281,27 @@ impl Widget {
             self.view.setFrame(frame);
         }
     }
+
+    pub fn tooltip(&self) -> String {
+        unsafe {
+            self.view
+                .toolTip()
+                .map(|s| from_nsstring(&s))
+                .unwrap_or_default()
+        }
+    }
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) {
+        let s = s.as_ref();
+        let s = if s.is_empty() {
+            None
+        } else {
+            Some(NSString::from_str(s))
+        };
+        unsafe {
+            self.view.setToolTip(s.as_deref());
+        }
+    }
 }
 
 impl Drop for Widget {

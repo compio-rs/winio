@@ -68,6 +68,10 @@ impl ComboBox {
 
     pub fn set_size(&mut self, v: Size);
 
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
     pub fn text(&self) -> String {
         unsafe { from_nsstring(&self.view.stringValue()) }
     }

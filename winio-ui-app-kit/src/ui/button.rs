@@ -65,6 +65,10 @@ impl Button {
 
     pub fn set_size(&mut self, v: Size);
 
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
     pub fn text(&self) -> String {
         unsafe { from_nsstring(&self.view.title()) }
     }
@@ -115,6 +119,10 @@ impl CheckBox {
     pub fn size(&self) -> Size;
 
     pub fn set_size(&mut self, v: Size);
+
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
 
     pub fn text(&self) -> String;
 
@@ -174,6 +182,10 @@ impl RadioButton {
     pub fn size(&self) -> Size;
 
     pub fn set_size(&mut self, v: Size);
+
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
 
     pub fn text(&self) -> String;
 
