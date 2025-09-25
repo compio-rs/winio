@@ -14,10 +14,7 @@ use windows_sys::Win32::UI::{
     },
 };
 use winio_callback::Callback;
-use winio_handle::{
-    AsContainer, AsRawContainer, AsRawWindow, AsWindow, BorrowedContainer, BorrowedWindow,
-    RawContainer, RawWindow,
-};
+use winio_handle::{AsContainer, AsRawContainer, AsRawWindow, RawContainer, RawWindow};
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::get_current_module_handle;
 use winui3::{
@@ -248,11 +245,7 @@ impl AsRawWindow for Window {
     }
 }
 
-impl AsWindow for Window {
-    fn as_window(&self) -> BorrowedWindow<'_> {
-        unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
-    }
-}
+winio_handle::impl_as_window!(Window);
 
 impl AsRawContainer for Window {
     fn as_raw_container(&self) -> RawContainer {
@@ -260,11 +253,7 @@ impl AsRawContainer for Window {
     }
 }
 
-impl AsContainer for Window {
-    fn as_container(&self) -> BorrowedContainer<'_> {
-        unsafe { BorrowedContainer::borrow_raw(self.as_raw_container()) }
-    }
-}
+winio_handle::impl_as_container!(Window);
 
 #[derive(Debug)]
 pub struct View {
@@ -307,8 +296,4 @@ impl AsRawContainer for View {
     }
 }
 
-impl AsContainer for View {
-    fn as_container(&self) -> BorrowedContainer<'_> {
-        unsafe { BorrowedContainer::borrow_raw(self.as_raw_container()) }
-    }
-}
+winio_handle::impl_as_container!(View);
