@@ -77,6 +77,10 @@ impl Canvas {
 
     pub fn set_size(&mut self, s: Size);
 
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
     fn on_move(c: *const u8, x: i32, y: i32) {
         let c = c as *const Callback<Point>;
         if let Some(c) = unsafe { c.as_ref() } {

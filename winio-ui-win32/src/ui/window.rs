@@ -24,8 +24,7 @@ use windows_sys::Win32::{
     },
 };
 use winio_handle::{
-    AsContainer, AsRawContainer, AsRawWidget, AsRawWindow, AsWidget, AsWindow, BorrowedContainer,
-    BorrowedWidget, BorrowedWindow, RawContainer, RawWidget, RawWindow,
+    AsContainer, AsRawContainer, AsRawWidget, AsRawWindow, RawContainer, RawWidget, RawWindow,
 };
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{
@@ -36,6 +35,7 @@ use winio_ui_windows_common::{
 use crate::{
     font::measure_string,
     runtime::{WindowMessage, wait, window_proc},
+    tooltip::{get_tooltip, remove_tooltip, set_tooltip},
     ui::{
         dpi::{DpiAware, get_dpi_for_window},
         get_u16c, with_u16c,
@@ -252,6 +252,14 @@ impl Widget {
         }
     }
 
+    pub fn tooltip(&self) -> String {
+        get_tooltip(self.as_raw_window().as_win32()).unwrap_or_default()
+    }
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) {
+        set_tooltip(self.as_raw_window().as_win32(), s);
+    }
+
     pub fn text(&self) -> String {
         self.text_u16().to_string_lossy()
     }
@@ -330,17 +338,19 @@ impl Widget {
     }
 }
 
+impl Drop for Widget {
+    fn drop(&mut self) {
+        remove_tooltip(self.as_raw_window().as_win32());
+    }
+}
+
 impl AsRawWindow for Widget {
     fn as_raw_window(&self) -> RawWindow {
         self.0.as_raw_window()
     }
 }
 
-impl AsWindow for Widget {
-    fn as_window(&self) -> BorrowedWindow<'_> {
-        unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
-    }
-}
+winio_handle::impl_as_window!(Widget);
 
 impl AsRawWidget for Widget {
     fn as_raw_widget(&self) -> RawWidget {
@@ -348,11 +358,7 @@ impl AsRawWidget for Widget {
     }
 }
 
-impl AsWidget for Widget {
-    fn as_widget(&self) -> BorrowedWidget<'_> {
-        unsafe { BorrowedWidget::borrow_raw(self.as_raw_widget()) }
-    }
-}
+winio_handle::impl_as_widget!(Widget);
 
 impl AsRawContainer for Widget {
     fn as_raw_container(&self) -> RawContainer {
@@ -360,11 +366,7 @@ impl AsRawContainer for Widget {
     }
 }
 
-impl AsContainer for Widget {
-    fn as_container(&self) -> BorrowedContainer<'_> {
-        unsafe { BorrowedContainer::borrow_raw(self.as_raw_container()) }
-    }
-}
+winio_handle::impl_as_container!(Widget);
 
 const WINDOW_CLASS_NAME: &U16CStr =
     u16cstr!(concat!("WinioWindowVersion", env!("CARGO_PKG_VERSION")));

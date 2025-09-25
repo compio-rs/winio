@@ -111,13 +111,6 @@ impl Deref for BorrowedWidget<'_> {
 pub trait AsRawWidget {
     /// Get the raw widget handle.
     fn as_raw_widget(&self) -> RawWidget;
-
-    /// Iterate all raw widget handles.
-    ///
-    /// This is useful for widgets that are implemented by multiple raw widgets.
-    fn iter_raw_widgets(&self) -> impl Iterator<Item = RawWidget> {
-        std::iter::once(self.as_raw_widget())
-    }
 }
 
 impl AsRawWidget for RawWidget {
@@ -138,21 +131,12 @@ impl<T: AsRawWidget> AsRawWidget for &'_ T {
     fn as_raw_widget(&self) -> RawWidget {
         (**self).as_raw_widget()
     }
-
-    fn iter_raw_widgets(&self) -> impl Iterator<Item = RawWidget> {
-        (**self).iter_raw_widgets()
-    }
 }
 
 /// Trait to borrow the widget handle.
 pub trait AsWidget {
     /// Get the widget handle.
     fn as_widget(&self) -> BorrowedWidget<'_>;
-
-    /// Iterate all widget handles. See [`AsRawWidget::iter_raw_widgets`].
-    fn iter_widgets(&self) -> impl Iterator<Item = BorrowedWidget<'_>> {
-        std::iter::once(self.as_widget())
-    }
 }
 
 impl AsWidget for BorrowedWidget<'_> {
@@ -165,11 +149,6 @@ impl<T: AsWidget + ?Sized> AsWidget for &T {
     #[inline]
     fn as_widget(&self) -> BorrowedWidget<'_> {
         T::as_widget(self)
-    }
-
-    #[inline]
-    fn iter_widgets(&self) -> impl Iterator<Item = BorrowedWidget<'_>> {
-        T::iter_widgets(self)
     }
 }
 
@@ -188,26 +167,13 @@ macro_rules! impl_as_widget {
                 self.$inner.as_raw_widget()
             }
         }
-        impl $crate::AsWidget for $t {
-            fn as_widget(&self) -> $crate::BorrowedWidget<'_> {
-                unsafe {
-                    $crate::BorrowedWidget::borrow_raw($crate::AsRawWidget::as_raw_widget(self))
-                }
-            }
-        }
+        $crate::impl_as_widget!($t);
     };
     ($t:ty) => {
         impl $crate::AsWidget for $t {
             fn as_widget(&self) -> $crate::BorrowedWidget<'_> {
                 unsafe {
                     $crate::BorrowedWidget::borrow_raw($crate::AsRawWidget::as_raw_widget(self))
-                }
-            }
-
-            fn iter_widgets(&self) -> impl core::iter::Iterator<Item = $crate::BorrowedWidget<'_>> {
-                unsafe {
-                    $crate::AsRawWidget::iter_raw_widgets(self)
-                        .map(|w| $crate::BorrowedWidget::borrow_raw(w))
                 }
             }
         }

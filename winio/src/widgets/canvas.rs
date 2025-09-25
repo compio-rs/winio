@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_layout::{Enable, Layoutable, Visible};
+use winio_layout::{Enable, Layoutable, ToolTip, Visible};
 use winio_primitive::{MouseButton, Point, Size, Vector};
 
 use crate::{sys, ui::DrawingContext};
@@ -17,6 +17,13 @@ impl Canvas {
     pub fn context(&mut self) -> DrawingContext<'_> {
         DrawingContext::new(self.widget.context())
     }
+}
+
+#[inherit_methods(from = "self.widget")]
+impl ToolTip for Canvas {
+    fn tooltip(&self) -> String;
+
+    fn set_tooltip(&mut self, s: impl AsRef<str>);
 }
 
 #[inherit_methods(from = "self.widget")]

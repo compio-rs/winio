@@ -69,8 +69,5 @@ mod webview;
 #[cfg(feature = "webview")]
 pub use webview::*;
 
-mod tooltip;
-pub use tooltip::*;
-
 mod tab_view;
 pub use tab_view::*;

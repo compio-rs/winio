@@ -1,6 +1,6 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
-use winio_layout::{Layoutable, Visible};
+use winio_layout::{Layoutable, TextWidget, Visible};
 use winio_primitive::{Point, Size};
 
 use crate::sys;
@@ -16,13 +16,14 @@ pub struct Window {
 }
 
 #[inherit_methods(from = "self.widget")]
+impl TextWidget for Window {
+    fn text(&self) -> String;
+
+    fn set_text(&mut self, s: impl AsRef<str>);
+}
+
+#[inherit_methods(from = "self.widget")]
 impl Window {
-    /// The title.
-    pub fn text(&self) -> String;
-
-    /// Set the title.
-    pub fn set_text(&mut self, s: impl AsRef<str>);
-
     /// The inner client size.
     pub fn client_size(&self) -> Size;
 

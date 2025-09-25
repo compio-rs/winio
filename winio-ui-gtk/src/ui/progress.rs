@@ -64,6 +64,10 @@ impl Progress {
         self.handle.set_size(s);
     }
 
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
     pub fn minimum(&self) -> usize {
         self.min
     }

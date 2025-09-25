@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_layout::{Enable, Layoutable, Visible};
+use winio_layout::{Enable, Layoutable, ToolTip, Visible};
 use winio_primitive::{Point, Size};
 
 use crate::sys;
@@ -10,6 +10,13 @@ use crate::sys;
 #[derive(Debug)]
 pub struct Progress {
     widget: sys::Progress,
+}
+
+#[inherit_methods(from = "self.widget")]
+impl ToolTip for Progress {
+    fn tooltip(&self) -> String;
+
+    fn set_tooltip(&mut self, s: impl AsRef<str>);
 }
 
 #[inherit_methods(from = "self.widget")]

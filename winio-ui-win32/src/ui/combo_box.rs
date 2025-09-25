@@ -7,12 +7,14 @@ use windows_sys::Win32::{
         WindowsAndMessaging::{
             CB_DELETESTRING, CB_GETCOUNT, CB_GETCURSEL, CB_GETLBTEXT, CB_GETLBTEXTLEN,
             CB_INSERTSTRING, CB_RESETCONTENT, CB_SETCURSEL, CBN_EDITUPDATE, CBN_SELCHANGE,
-            CBS_AUTOHSCROLL, CBS_DROPDOWN, CBS_DROPDOWNLIST, CBS_HASSTRINGS, WM_COMMAND, WS_CHILD,
-            WS_TABSTOP, WS_VISIBLE,
+            CBS_AUTOHSCROLL, CBS_DROPDOWN, CBS_DROPDOWNLIST, CBS_HASSTRINGS, GetParent, WM_COMMAND,
+            WS_CHILD, WS_TABSTOP, WS_VISIBLE,
         },
     },
 };
-use winio_handle::{AsContainer, AsRawWidget, AsRawWindow, RawWidget};
+use winio_handle::{
+    AsContainer, AsRawWidget, AsRawWindow, BorrowedContainer, RawContainer, RawWidget,
+};
 use winio_primitive::{Point, Size};
 
 use crate::{
@@ -64,6 +66,10 @@ impl ComboBoxImpl {
     pub fn size(&self) -> Size;
 
     pub fn set_size(&mut self, v: Size);
+
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
 
     pub fn text(&self) -> String;
 
@@ -160,105 +166,67 @@ impl AsRawWidget for ComboBoxImpl {
 #[derive(Debug)]
 pub struct ComboBox {
     handle: ComboBoxImpl,
-    ehandle: ComboBoxImpl,
     editable: bool,
 }
 
+#[inherit_methods(from = "self.handle")]
 impl ComboBox {
     pub fn new(parent: impl AsContainer) -> Self {
         let handle = ComboBoxImpl::new(&parent, false);
-        let ehandle = ComboBoxImpl::new(&parent, true);
         Self {
             handle,
-            ehandle,
             editable: false,
         }
     }
 
-    pub fn is_visible(&self) -> bool {
-        if self.editable {
-            &self.ehandle
-        } else {
-            &self.handle
+    fn recreate(&mut self, editable: bool) {
+        let parent = unsafe { GetParent(self.handle.as_raw_widget().as_win32()) };
+        let mut new_handle = ComboBoxImpl::new(
+            unsafe { BorrowedContainer::borrow_raw(RawContainer::Win32(parent)) },
+            editable,
+        );
+        new_handle.set_visible(self.handle.is_visible());
+        new_handle.set_enabled(self.handle.is_enabled());
+        new_handle.set_loc(self.handle.loc());
+        new_handle.set_size(self.handle.size());
+        new_handle.set_tooltip(self.handle.tooltip());
+        new_handle.set_text(self.handle.text());
+        for i in 0..self.handle.len() {
+            new_handle.insert(i, self.handle.get(i));
         }
-        .is_visible()
+        new_handle.set_selection(self.handle.selection());
+        self.handle = new_handle;
     }
 
-    pub fn set_visible(&mut self, v: bool) {
-        if self.editable {
-            &mut self.ehandle
-        } else {
-            &mut self.handle
-        }
-        .set_visible(v);
-    }
+    pub fn is_visible(&self) -> bool;
 
-    pub fn is_enabled(&self) -> bool {
-        self.handle.is_enabled()
-    }
+    pub fn set_visible(&mut self, v: bool);
 
-    pub fn set_enabled(&mut self, v: bool) {
-        self.handle.set_enabled(v);
-        self.ehandle.set_enabled(v);
-    }
+    pub fn is_enabled(&self) -> bool;
 
-    pub fn preferred_size(&self) -> Size {
-        self.handle.preferred_size()
-    }
+    pub fn set_enabled(&mut self, v: bool);
 
-    pub fn loc(&self) -> Point {
-        self.handle.loc()
-    }
+    pub fn preferred_size(&self) -> Size;
 
-    pub fn set_loc(&mut self, p: Point) {
-        self.handle.set_loc(p);
-        self.ehandle.set_loc(p);
-    }
+    pub fn loc(&self) -> Point;
 
-    pub fn size(&self) -> Size {
-        self.handle.size()
-    }
+    pub fn set_loc(&mut self, p: Point);
 
-    pub fn set_size(&mut self, v: Size) {
-        self.handle.set_size(v);
-        self.ehandle.set_size(v);
-    }
+    pub fn size(&self) -> Size;
 
-    pub fn text(&self) -> String {
-        if self.editable {
-            &self.ehandle
-        } else {
-            &self.handle
-        }
-        .text()
-    }
+    pub fn set_size(&mut self, v: Size);
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
-        if self.editable {
-            &mut self.ehandle
-        } else {
-            &mut self.handle
-        }
-        .set_text(s);
-    }
+    pub fn tooltip(&self) -> String;
 
-    pub fn selection(&self) -> Option<usize> {
-        if self.editable {
-            &self.ehandle
-        } else {
-            &self.handle
-        }
-        .selection()
-    }
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
 
-    pub fn set_selection(&mut self, i: Option<usize>) {
-        if self.editable {
-            &mut self.ehandle
-        } else {
-            &mut self.handle
-        }
-        .set_selection(i);
-    }
+    pub fn text(&self) -> String;
+
+    pub fn set_text(&mut self, s: impl AsRef<str>);
+
+    pub fn selection(&self) -> Option<usize>;
+
+    pub fn set_selection(&mut self, i: Option<usize>);
 
     pub fn is_editable(&self) -> bool {
         self.editable
@@ -266,89 +234,32 @@ impl ComboBox {
 
     pub fn set_editable(&mut self, v: bool) {
         if self.editable != v {
-            if v {
-                self.ehandle.set_text(self.handle.text());
-                self.ehandle.set_selection(self.handle.selection());
-                self.ehandle.set_visible(self.handle.is_visible());
-                self.handle.set_visible(false);
-            } else {
-                self.handle.set_text(self.ehandle.text());
-                self.handle.set_selection(self.ehandle.selection());
-                self.handle.set_visible(self.ehandle.is_visible());
-                self.ehandle.set_visible(false);
-            }
+            self.recreate(v);
             self.editable = v;
         }
     }
 
     pub async fn wait_select(&self) {
-        if self.editable {
-            &self.ehandle
-        } else {
-            &self.handle
-        }
-        .wait_select()
-        .await
+        self.handle.wait_select().await
     }
 
     pub async fn wait_change(&self) {
-        if self.editable {
-            &self.ehandle
-        } else {
-            &self.handle
-        }
-        .wait_change()
-        .await
+        self.handle.wait_change().await
     }
 
-    pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
-        let s = s.as_ref();
-        self.handle.insert(i, s);
-        self.ehandle.insert(i, s);
-    }
+    pub fn insert(&mut self, i: usize, s: impl AsRef<str>);
 
-    pub fn remove(&mut self, i: usize) {
-        self.handle.remove(i);
-        self.ehandle.remove(i);
-    }
+    pub fn remove(&mut self, i: usize);
 
-    pub fn get(&self, i: usize) -> String {
-        self.handle.get(i)
-    }
+    pub fn get(&self, i: usize) -> String;
 
-    pub fn set(&mut self, i: usize, s: impl AsRef<str>) {
-        let s = s.as_ref();
-        self.handle.set(i, s);
-        self.ehandle.set(i, s);
-    }
+    pub fn set(&mut self, i: usize, s: impl AsRef<str>);
 
-    pub fn len(&self) -> usize {
-        self.handle.len()
-    }
+    pub fn len(&self) -> usize;
 
-    pub fn is_empty(&self) -> bool {
-        self.handle.is_empty()
-    }
+    pub fn is_empty(&self) -> bool;
 
-    pub fn clear(&mut self) {
-        self.handle.clear();
-        self.ehandle.clear();
-    }
+    pub fn clear(&mut self);
 }
 
-impl AsRawWidget for ComboBox {
-    fn as_raw_widget(&self) -> RawWidget {
-        if self.editable {
-            &self.ehandle
-        } else {
-            &self.handle
-        }
-        .as_raw_widget()
-    }
-
-    fn iter_raw_widgets(&self) -> impl Iterator<Item = RawWidget> {
-        [self.handle.as_raw_widget(), self.ehandle.as_raw_widget()].into_iter()
-    }
-}
-
-winio_handle::impl_as_widget!(ComboBox);
+winio_handle::impl_as_widget!(ComboBox, handle);

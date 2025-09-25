@@ -169,9 +169,6 @@ pub use scroll_view::*;
 mod slider;
 pub use slider::*;
 
-mod tooltip;
-pub use tooltip::*;
-
 #[cfg(feature = "media")]
 mod media;
 #[cfg(feature = "media")]

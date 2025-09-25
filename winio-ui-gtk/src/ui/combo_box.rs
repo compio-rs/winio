@@ -59,6 +59,10 @@ impl ComboBox {
 
     pub fn set_size(&mut self, s: Size);
 
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
     pub fn text(&self) -> String {
         self.widget
             .selected_item()

@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_layout::{Enable, Layoutable, Visible};
+use winio_layout::{Enable, Layoutable, TextWidget, Visible};
 use winio_primitive::{Point, Size};
 
 use crate::sys;
@@ -108,13 +108,14 @@ pub struct TabViewItem {
 }
 
 #[inherit_methods(from = "self.widget")]
+impl TextWidget for TabViewItem {
+    fn text(&self) -> String;
+
+    fn set_text(&mut self, s: impl AsRef<str>);
+}
+
+#[inherit_methods(from = "self.widget")]
 impl TabViewItem {
-    /// Get the title of the tab.
-    pub fn text(&self) -> String;
-
-    /// Set the title of the tab.
-    pub fn set_text(&mut self, s: impl AsRef<str>);
-
     /// Get the available size of the tab.
     pub fn size(&self) -> Size;
 }

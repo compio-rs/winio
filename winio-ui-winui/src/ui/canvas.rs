@@ -348,6 +348,10 @@ impl Canvas {
 
     pub fn set_size(&mut self, v: Size);
 
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
     pub fn context(&mut self) -> DrawingContext<'_> {
         let size = self.size();
         let scalex = self.panel.CompositionScaleX().unwrap();

@@ -73,8 +73,5 @@ pub use webview::*;
 mod accent;
 pub use accent::*;
 
-mod tooltip;
-pub use tooltip::*;
-
 mod tab_view;
 pub use tab_view::*;

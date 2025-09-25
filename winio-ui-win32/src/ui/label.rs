@@ -56,6 +56,10 @@ impl Label {
         unsafe { InvalidateRect(self.handle.as_raw_window().as_win32(), null(), 1) };
     }
 
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
     pub fn text(&self) -> String;
 
     pub fn set_text(&mut self, s: impl AsRef<str>);

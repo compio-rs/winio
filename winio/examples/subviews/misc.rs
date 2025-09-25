@@ -5,7 +5,7 @@ use winio::prelude::*;
 
 pub struct MiscPage {
     window: Child<TabViewItem>,
-    ulabel: Child<ToolTip<Label>>,
+    ulabel: Child<Label>,
     plabel: Child<Label>,
     uentry: Child<Edit>,
     pentry: Child<Edit>,
@@ -18,9 +18,9 @@ pub struct MiscPage {
     r2: Child<RadioButton>,
     r3: Child<RadioButton>,
     rindex: usize,
-    push_button: Child<ToolTip<Button>>,
-    pop_button: Child<ToolTip<Button>>,
-    show_button: Child<ToolTip<Button>>,
+    push_button: Child<Button>,
+    pop_button: Child<Button>,
+    show_button: Child<Button>,
     progress: Child<Progress>,
     mltext: Child<TextBox>,
 }
@@ -53,7 +53,7 @@ impl Component for MiscPage {
                 text: "MISC",
             },
             canvas: Canvas = (&window),
-            ulabel: ToolTip<Label> = (&window) => {
+            ulabel: Label = (&window) => {
                 text: "Username:",
                 tooltip: "Your username",
                 halign: HAlign::Right,
@@ -93,14 +93,14 @@ impl Component for MiscPage {
             r3: RadioButton = (&window) => {
                 text: "╠╠╠"
             },
-            push_button: ToolTip<Button> = (&window) => {
+            push_button: Button = (&window) => {
                 text: "Push",
             },
-            pop_button: ToolTip<Button> = (&window) => {
+            pop_button: Button = (&window) => {
                 text: "Pop",
                 tooltip: "Pop the last entry in the combo box."
             },
-            show_button: ToolTip<Button> = (&window) => {
+            show_button: Button = (&window) => {
                 text: "Show",
                 tooltip: "Show the current selection in the combo box.\nIf no selection, show \"No selection.\"",
             },

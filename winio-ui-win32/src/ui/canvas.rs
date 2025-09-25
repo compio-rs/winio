@@ -105,6 +105,10 @@ impl Canvas {
 
     pub fn set_size(&mut self, v: Size);
 
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
     pub fn context(&mut self) -> DrawingContext<'_> {
         unsafe {
             let size = self.handle.size_l2d(self.handle.size());

@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_layout::{Enable, Layoutable, Visible};
+use winio_layout::{Enable, Layoutable, TextWidget, ToolTip, Visible};
 use winio_primitive::{Point, Size};
 
 use crate::sys;
@@ -13,12 +13,17 @@ pub struct Button {
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Button {
-    /// The text.
-    pub fn text(&self) -> String;
+impl ToolTip for Button {
+    fn tooltip(&self) -> String;
 
-    /// Set the text.
-    pub fn set_text(&mut self, s: impl AsRef<str>);
+    fn set_tooltip(&mut self, s: impl AsRef<str>);
+}
+
+#[inherit_methods(from = "self.widget")]
+impl TextWidget for Button {
+    fn text(&self) -> String;
+
+    fn set_text(&mut self, s: impl AsRef<str>);
 }
 
 #[inherit_methods(from = "self.widget")]

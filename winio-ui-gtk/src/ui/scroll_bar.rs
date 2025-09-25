@@ -58,6 +58,10 @@ impl ScrollBar {
 
     pub fn set_size(&mut self, v: Size);
 
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
     pub fn orient(&self) -> Orient {
         match self.widget.orientation() {
             gtk4::Orientation::Horizontal => Orient::Horizontal,

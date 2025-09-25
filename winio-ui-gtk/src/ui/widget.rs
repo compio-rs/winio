@@ -73,6 +73,19 @@ impl Widget {
     pub fn set_size(&mut self, s: Size) {
         self.widget.set_size_request(s.width as _, s.height as _)
     }
+
+    pub fn tooltip(&self) -> String {
+        self.widget
+            .tooltip_text()
+            .map(|s| s.to_string())
+            .unwrap_or_default()
+    }
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) {
+        let s = s.as_ref();
+        let s = if s.is_empty() { None } else { Some(s) };
+        self.widget.set_tooltip_text(s);
+    }
 }
 
 impl AsRawWidget for Widget {

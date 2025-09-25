@@ -61,6 +61,10 @@ impl Slider {
 
     pub fn set_size(&mut self, v: Size);
 
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
     pub fn orient(&self) -> Orient {
         let vertical: bool = unsafe { msg_send![&*self.view, isVertical] };
         if vertical {

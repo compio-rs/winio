@@ -60,6 +60,10 @@ where
 
     pub fn set_size(&mut self, s: Size);
 
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
     pub fn text(&self) -> String {
         static_cast::<ffi::QAbstractButton>(self.widget.as_ref())
             .text()

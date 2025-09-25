@@ -115,6 +115,10 @@ impl ListBox {
 
     pub fn set_size(&mut self, v: Size);
 
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
     pub async fn wait_select(&self) {
         self.delegate.ivars().select.wait().await
     }

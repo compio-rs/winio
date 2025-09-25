@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_layout::{Enable, Layoutable, Visible};
+use winio_layout::{Enable, Layoutable, TextWidget, ToolTip, Visible};
 use winio_primitive::{Point, Size};
 
 use crate::sys;
@@ -13,13 +13,21 @@ pub struct CheckBox {
 }
 
 #[inherit_methods(from = "self.widget")]
+impl ToolTip for CheckBox {
+    fn tooltip(&self) -> String;
+
+    fn set_tooltip(&mut self, s: impl AsRef<str>);
+}
+
+#[inherit_methods(from = "self.widget")]
+impl TextWidget for CheckBox {
+    fn text(&self) -> String;
+
+    fn set_text(&mut self, s: impl AsRef<str>);
+}
+
+#[inherit_methods(from = "self.widget")]
 impl CheckBox {
-    /// The text.
-    pub fn text(&self) -> String;
-
-    /// Set the text.
-    pub fn set_text(&mut self, s: impl AsRef<str>);
-
     /// If the box is checked.
     pub fn is_checked(&self) -> bool;
 

@@ -40,6 +40,10 @@ impl Label {
 
     pub fn set_size(&mut self, v: Size);
 
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
     pub fn text(&self) -> String {
         self.label.Text().unwrap().to_string_lossy()
     }

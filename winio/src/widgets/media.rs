@@ -3,7 +3,7 @@ use std::time::Duration;
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_layout::{Enable, Layoutable, Visible};
+use winio_layout::{Enable, Layoutable, ToolTip, Visible};
 use winio_primitive::{Point, Size};
 
 use crate::sys;
@@ -12,6 +12,13 @@ use crate::sys;
 #[derive(Debug)]
 pub struct Media {
     widget: sys::Media,
+}
+
+#[inherit_methods(from = "self.widget")]
+impl ToolTip for Media {
+    fn tooltip(&self) -> String;
+
+    fn set_tooltip(&mut self, s: impl AsRef<str>);
 }
 
 #[inherit_methods(from = "self.widget")]
