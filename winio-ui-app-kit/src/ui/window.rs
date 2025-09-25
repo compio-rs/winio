@@ -14,8 +14,7 @@ use objc2_foundation::{
 };
 use winio_callback::Callback;
 use winio_handle::{
-    AsContainer, AsRawContainer, AsRawWidget, AsRawWindow, AsWindow, BorrowedContainer,
-    BorrowedWindow, RawContainer, RawWidget, RawWindow,
+    AsContainer, AsRawContainer, AsRawWidget, AsRawWindow, RawContainer, RawWidget, RawWindow,
 };
 use winio_primitive::{Point, Rect, Size};
 
@@ -132,11 +131,7 @@ impl AsRawWindow for Window {
     }
 }
 
-impl AsWindow for Window {
-    fn as_window(&self) -> BorrowedWindow<'_> {
-        unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
-    }
-}
+winio_handle::impl_as_window!(Window);
 
 impl AsRawContainer for Window {
     fn as_raw_container(&self) -> RawContainer {
@@ -144,11 +139,7 @@ impl AsRawContainer for Window {
     }
 }
 
-impl AsContainer for Window {
-    fn as_container(&self) -> BorrowedContainer<'_> {
-        unsafe { BorrowedContainer::borrow_raw(self.as_raw_container()) }
-    }
-}
+winio_handle::impl_as_container!(Window);
 
 #[derive(Debug, Default)]
 struct WindowDelegateIvars {

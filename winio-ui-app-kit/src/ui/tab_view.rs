@@ -7,7 +7,7 @@ use objc2::{
 use objc2_app_kit::{NSTabView, NSTabViewDelegate, NSTabViewItem, NSView};
 use objc2_foundation::{MainThreadMarker, NSObject, NSObjectProtocol, NSString};
 use winio_callback::Callback;
-use winio_handle::{AsContainer, AsRawContainer, BorrowedContainer, RawContainer};
+use winio_handle::{AsContainer, AsRawContainer, RawContainer};
 use winio_primitive::{Point, Size};
 
 use crate::{GlobalRuntime, from_cgsize, from_nsstring, ui::Widget};
@@ -189,8 +189,4 @@ impl AsRawContainer for TabViewItem {
     }
 }
 
-impl AsContainer for TabViewItem {
-    fn as_container(&self) -> BorrowedContainer<'_> {
-        unsafe { BorrowedContainer::borrow_raw(self.as_raw_container()) }
-    }
-}
+winio_handle::impl_as_container!(TabViewItem);

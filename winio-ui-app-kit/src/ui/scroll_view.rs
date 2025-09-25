@@ -2,7 +2,7 @@ use inherit_methods_macro::inherit_methods;
 use objc2::{MainThreadOnly, rc::Retained};
 use objc2_app_kit::{NSControl, NSScrollView, NSView};
 use objc2_foundation::NSSize;
-use winio_handle::{AsContainer, AsRawContainer, BorrowedContainer, RawContainer};
+use winio_handle::{AsContainer, AsRawContainer, RawContainer};
 use winio_primitive::{Point, Size};
 
 use crate::{from_cgsize, transform_cgrect, transform_rect, ui::Widget};
@@ -121,8 +121,4 @@ impl AsRawContainer for ScrollView {
     }
 }
 
-impl AsContainer for ScrollView {
-    fn as_container(&self) -> BorrowedContainer<'_> {
-        unsafe { BorrowedContainer::borrow_raw(self.as_raw_container()) }
-    }
-}
+winio_handle::impl_as_container!(ScrollView);

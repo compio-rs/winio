@@ -3,10 +3,7 @@ use std::rc::Rc;
 use gtk4::{glib::Propagation, prelude::*};
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::{
-    AsContainer, AsRawContainer, AsRawWindow, AsWindow, BorrowedContainer, BorrowedWindow,
-    RawContainer, RawWindow,
-};
+use winio_handle::{AsContainer, AsRawContainer, AsRawWindow, RawContainer, RawWindow};
 use winio_primitive::{ColorTheme, Point, Size};
 
 use crate::{GlobalRuntime, Widget};
@@ -156,11 +153,7 @@ impl AsRawWindow for Window {
     }
 }
 
-impl AsWindow for Window {
-    fn as_window(&self) -> BorrowedWindow<'_> {
-        unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
-    }
-}
+winio_handle::impl_as_window!(Window);
 
 impl AsRawContainer for Window {
     fn as_raw_container(&self) -> RawContainer {
@@ -168,11 +161,7 @@ impl AsRawContainer for Window {
     }
 }
 
-impl AsContainer for Window {
-    fn as_container(&self) -> BorrowedContainer<'_> {
-        unsafe { BorrowedContainer::borrow_raw(self.as_raw_container()) }
-    }
-}
+winio_handle::impl_as_container!(Window);
 
 #[derive(Debug)]
 pub struct View {
@@ -209,8 +198,4 @@ impl AsRawContainer for View {
     }
 }
 
-impl AsContainer for View {
-    fn as_container(&self) -> BorrowedContainer<'_> {
-        unsafe { BorrowedContainer::borrow_raw(self.as_raw_container()) }
-    }
-}
+winio_handle::impl_as_container!(View);
