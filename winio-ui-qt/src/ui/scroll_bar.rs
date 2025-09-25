@@ -148,6 +148,13 @@ impl<T: UniquePtrTarget + StaticCastTo<ffi::QWidget>, const TT: bool> Debug
 pub type ScrollBar = ScrollBarImpl<ffi::QScrollBar, false>;
 pub type Slider = ScrollBarImpl<ffi::QSlider, true>;
 
+#[inherit_methods(from = "self.widget")]
+impl ScrollBar {
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+}
+
 winio_handle::impl_as_widget!(ScrollBar, widget);
 winio_handle::impl_as_widget!(Slider, widget);
 

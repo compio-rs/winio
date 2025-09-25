@@ -106,6 +106,14 @@ where
     pub fn set_size(&mut self, s: Size) {
         self.pin_mut_qwidget().resize(s.width as _, s.height as _);
     }
+
+    pub fn tooltip(&self) -> String {
+        self.as_ref_qwidget().toolTip().into()
+    }
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) {
+        self.pin_mut_qwidget().setToolTip(&s.as_ref().into());
+    }
 }
 
 impl<T> Drop for Widget<T>

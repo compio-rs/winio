@@ -36,6 +36,10 @@ impl Progress {
 
     pub fn set_size(&mut self, s: Size);
 
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
     pub fn minimum(&self) -> usize {
         self.widget.as_ref().minimum() as _
     }
