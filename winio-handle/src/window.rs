@@ -188,6 +188,9 @@ macro_rules! impl_as_window {
                 self.$inner.as_raw_window()
             }
         }
+        $crate::impl_as_window!($t);
+    };
+    ($t:ty) => {
         impl $crate::AsWindow for $t {
             fn as_window(&self) -> $crate::BorrowedWindow<'_> {
                 unsafe {

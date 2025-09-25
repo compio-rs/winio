@@ -51,6 +51,10 @@ impl Progress {
 
     pub fn set_size(&mut self, v: Size);
 
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
     pub fn minimum(&self) -> usize {
         self.handle.send_message(PBM_GETRANGE, 1, 0) as usize
     }

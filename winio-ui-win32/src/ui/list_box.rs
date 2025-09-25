@@ -84,6 +84,10 @@ impl ListBox {
 
     pub fn set_size(&mut self, v: Size);
 
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
     pub fn is_selected(&self, i: usize) -> bool {
         self.handle.send_message(LB_GETSEL, i as _, 0) != 0
     }

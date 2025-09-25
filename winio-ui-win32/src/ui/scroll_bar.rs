@@ -3,11 +3,11 @@ use inherit_methods_macro::inherit_methods;
 use windows_sys::Win32::UI::{
     Controls::{SetScrollInfo, WC_SCROLLBARW},
     WindowsAndMessaging::{
-        GetScrollInfo, SB_CTL, SBS_HORZ, SBS_VERT, SCROLLINFO, SIF_PAGE, SIF_POS, SIF_RANGE,
-        SIF_TRACKPOS, WM_HSCROLL, WM_VSCROLL, WS_CHILD, WS_VISIBLE,
+        GetParent, GetScrollInfo, SB_CTL, SBS_HORZ, SBS_VERT, SCROLLINFO, SIF_PAGE, SIF_POS,
+        SIF_RANGE, SIF_TRACKPOS, WM_HSCROLL, WS_CHILD, WS_VISIBLE,
     },
 };
-use winio_handle::{AsContainer, AsRawWidget, RawWidget};
+use winio_handle::{AsContainer, AsRawWidget, BorrowedContainer, RawContainer, RawWidget};
 use winio_primitive::{Orient, Point, Size};
 
 use crate::Widget;
@@ -45,6 +45,10 @@ impl ScrollBarImpl {
     pub fn size(&self) -> Size;
 
     pub fn set_size(&mut self, v: Size);
+
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
 
     fn info(&self, mask: u32) -> SCROLLINFO {
         let mut info: SCROLLINFO = unsafe { std::mem::zeroed() };
@@ -126,47 +130,48 @@ impl AsRawWidget for ScrollBarImpl {
 #[derive(Debug)]
 pub struct ScrollBar {
     handle: ScrollBarImpl,
-    vhandle: ScrollBarImpl,
     vertical: bool,
 }
 
+#[inherit_methods(from = "self.handle")]
 impl ScrollBar {
     pub fn new(parent: impl AsContainer) -> Self {
         let handle = ScrollBarImpl::new(&parent, WS_VISIBLE | SBS_HORZ as u32);
-        let vhandle = ScrollBarImpl::new(&parent, SBS_VERT as u32);
         Self {
             handle,
-            vhandle,
             vertical: false,
         }
     }
 
-    pub fn is_visible(&self) -> bool {
-        if self.vertical {
-            &self.vhandle
-        } else {
-            &self.handle
-        }
-        .is_visible()
+    fn recreate(&mut self, vertical: bool) {
+        let parent = unsafe { GetParent(self.handle.as_raw_widget().as_win32()) };
+        let mut new_handle = ScrollBarImpl::new(
+            unsafe { BorrowedContainer::borrow_raw(RawContainer::Win32(parent)) },
+            if vertical {
+                SBS_VERT as u32
+            } else {
+                SBS_HORZ as u32
+            } | WS_VISIBLE,
+        );
+        new_handle.set_visible(self.handle.is_visible());
+        new_handle.set_enabled(self.handle.is_enabled());
+        new_handle.set_loc(self.handle.loc());
+        new_handle.set_size(self.handle.size());
+        new_handle.set_tooltip(self.handle.tooltip());
+        new_handle.set_minimum(self.handle.minimum());
+        new_handle.set_maximum(self.handle.maximum());
+        new_handle.set_page(self.handle.page());
+        new_handle.set_pos(self.handle.pos());
+        self.handle = new_handle;
     }
 
-    pub fn set_visible(&mut self, v: bool) {
-        if self.vertical {
-            &mut self.vhandle
-        } else {
-            &mut self.handle
-        }
-        .set_visible(v);
-    }
+    pub fn is_visible(&self) -> bool;
 
-    pub fn is_enabled(&self) -> bool {
-        self.handle.is_enabled()
-    }
+    pub fn set_visible(&mut self, v: bool);
 
-    pub fn set_enabled(&mut self, v: bool) {
-        self.handle.set_enabled(v);
-        self.vhandle.set_enabled(v);
-    }
+    pub fn is_enabled(&self) -> bool;
+
+    pub fn set_enabled(&mut self, v: bool);
 
     pub fn preferred_size(&self) -> Size {
         if self.vertical {
@@ -176,23 +181,17 @@ impl ScrollBar {
         }
     }
 
-    pub fn loc(&self) -> Point {
-        self.handle.loc()
-    }
+    pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, p: Point) {
-        self.handle.set_loc(p);
-        self.vhandle.set_loc(p);
-    }
+    pub fn set_loc(&mut self, p: Point);
 
-    pub fn size(&self) -> Size {
-        self.handle.size()
-    }
+    pub fn size(&self) -> Size;
 
-    pub fn set_size(&mut self, v: Size) {
-        self.handle.set_size(v);
-        self.vhandle.set_size(v);
-    }
+    pub fn set_size(&mut self, v: Size);
+
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
 
     pub fn orient(&self) -> Orient {
         if self.vertical {
@@ -205,82 +204,30 @@ impl ScrollBar {
     pub fn set_orient(&mut self, v: Orient) {
         let v = matches!(v, Orient::Vertical);
         if self.vertical != v {
-            if v {
-                self.vhandle.set_pos(self.handle.pos());
-                self.vhandle.set_visible(self.handle.is_visible());
-                self.handle.set_visible(false);
-            } else {
-                self.handle.set_pos(self.vhandle.pos());
-                self.handle.set_visible(self.vhandle.is_visible());
-                self.vhandle.set_visible(false);
-            }
+            self.recreate(v);
             self.vertical = v;
         }
     }
 
-    pub fn minimum(&self) -> usize {
-        self.handle.minimum()
-    }
+    pub fn minimum(&self) -> usize;
 
-    pub fn set_minimum(&mut self, v: usize) {
-        self.handle.set_minimum(v);
-        self.vhandle.set_minimum(v);
-    }
+    pub fn set_minimum(&mut self, v: usize);
 
-    pub fn maximum(&self) -> usize {
-        self.handle.maximum()
-    }
+    pub fn maximum(&self) -> usize;
 
-    pub fn set_maximum(&mut self, v: usize) {
-        self.handle.set_maximum(v);
-        self.vhandle.set_maximum(v);
-    }
+    pub fn set_maximum(&mut self, v: usize);
 
-    pub fn page(&self) -> usize {
-        self.handle.page()
-    }
+    pub fn page(&self) -> usize;
 
-    pub fn set_page(&mut self, v: usize) {
-        self.handle.set_page(v);
-        self.vhandle.set_page(v);
-    }
+    pub fn set_page(&mut self, v: usize);
 
-    pub fn pos(&self) -> usize {
-        if self.vertical {
-            &self.vhandle
-        } else {
-            &self.handle
-        }
-        .pos()
-    }
+    pub fn pos(&self) -> usize;
 
-    pub fn set_pos(&mut self, v: usize) {
-        self.handle.set_pos(v);
-        self.vhandle.set_pos(v);
-    }
+    pub fn set_pos(&mut self, v: usize);
 
     pub async fn wait_change(&self) {
-        if self.vertical {
-            self.vhandle.handle.wait_parent(WM_VSCROLL).await;
-        } else {
-            self.handle.handle.wait_parent(WM_HSCROLL).await;
-        }
+        self.handle.handle.wait_parent(WM_HSCROLL).await;
     }
 }
 
-impl AsRawWidget for ScrollBar {
-    fn as_raw_widget(&self) -> RawWidget {
-        if self.vertical {
-            &self.vhandle
-        } else {
-            &self.handle
-        }
-        .as_raw_widget()
-    }
-
-    fn iter_raw_widgets(&self) -> impl Iterator<Item = RawWidget> {
-        [self.handle.as_raw_widget(), self.vhandle.as_raw_widget()].into_iter()
-    }
-}
-
-winio_handle::impl_as_widget!(ScrollBar);
+winio_handle::impl_as_widget!(ScrollBar, handle);

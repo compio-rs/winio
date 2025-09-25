@@ -48,6 +48,27 @@ pub trait Enable {
     }
 }
 
+/// Common trait for widgets that have a tooltip.
+pub trait ToolTip {
+    /// Get the tooltip text of the widget.
+    fn tooltip(&self) -> String;
+
+    /// Set the tooltip text of the widget.
+    fn set_tooltip(&mut self, s: impl AsRef<str>);
+}
+
+/// Common trait for widgets that have text.
+pub trait TextWidget {
+    /// Get the text of the widget.
+    fn text(&self) -> String;
+
+    /// Set the text of the widget.
+    ///
+    /// If the widget supports multiline strings, lines are separated with `\n`.
+    /// You don't need to handle CRLF.
+    fn set_text(&mut self, s: impl AsRef<str>);
+}
+
 /// Trait for a layoutable widget.
 ///
 /// To create a responsive layout, always set location and size together.

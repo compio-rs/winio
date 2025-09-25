@@ -114,6 +114,10 @@ impl Media {
         self.update_rect();
     }
 
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
     fn update_rect(&mut self) {
         let handle = self.as_raw_widget().as_win32();
         let mut rect = MaybeUninit::uninit();

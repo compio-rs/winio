@@ -188,6 +188,9 @@ macro_rules! impl_as_container {
                 self.$inner.as_raw_container()
             }
         }
+        $crate::impl_as_container!($t);
+    };
+    ($t:ty) => {
         impl $crate::AsContainer for $t {
             fn as_container(&self) -> $crate::BorrowedContainer<'_> {
                 unsafe {

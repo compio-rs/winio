@@ -8,6 +8,7 @@ pub use winio_ui_windows_common::{
 
 pub(crate) mod dpi;
 pub(crate) mod font;
+pub(crate) mod tooltip;
 
 mod window;
 pub use window::*;
@@ -57,9 +58,6 @@ pub use media::*;
 mod webview;
 #[cfg(feature = "webview")]
 pub use webview::*;
-
-mod tooltip;
-pub use tooltip::*;
 
 mod tab_view;
 pub use tab_view::*;
