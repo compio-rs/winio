@@ -11,7 +11,7 @@ use windows::{
             IMFMediaEngineEx, IMFMediaEngineNotify, IMFMediaEngineNotify_Impl,
             MF_MEDIA_ENGINE_CALLBACK, MF_MEDIA_ENGINE_EVENT, MF_MEDIA_ENGINE_EVENT_CANPLAY,
             MF_MEDIA_ENGINE_EVENT_ERROR, MF_MEDIA_ENGINE_PLAYBACK_HWND, MF_VERSION,
-            MFCreateAttributes, MFSTARTUP_FULL, MFShutdown, MFStartup, MFVideoNormalizedRect,
+            MFCreateAttributes, MFSTARTUP_FULL, MFShutdown, MFStartup,
         },
         System::Com::{
             CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx,
@@ -102,10 +102,7 @@ impl Media {
 
     pub fn loc(&self) -> Point;
 
-    pub fn set_loc(&mut self, p: Point) {
-        self.handle.set_loc(p);
-        self.update_rect();
-    }
+    pub fn set_loc(&mut self, p: Point);
 
     pub fn size(&self) -> Size;
 
@@ -124,17 +121,11 @@ impl Media {
         syscall!(BOOL, unsafe { GetClientRect(handle, rect.as_mut_ptr()) }).unwrap();
         let rect = unsafe { rect.assume_init() };
 
-        let src_rect = MFVideoNormalizedRect {
-            left: 0.0,
-            top: 0.0,
-            right: 1.0,
-            bottom: 1.0,
-        };
         unsafe {
             self.engine
                 .cast::<IMFMediaEngineEx>()
                 .unwrap()
-                .UpdateVideoStream(Some(&src_rect), Some(std::ptr::addr_of!(rect).cast()), None)
+                .UpdateVideoStream(None, Some(std::ptr::addr_of!(rect).cast()), None)
                 .unwrap();
         }
     }
