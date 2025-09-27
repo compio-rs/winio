@@ -5,7 +5,7 @@ use send_wrapper::SendWrapper;
 use windows::core::Interface;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Orient, Point, Size};
+use winio_primitive::{Orient, Point, Size, TickPosition};
 use winui3::Microsoft::UI::Xaml::Controls::{
     self as MUXC,
     Primitives::{RangeBaseValueChangedEventHandler, TickPlacement},
@@ -25,6 +25,7 @@ impl Slider {
     pub fn new(parent: impl AsContainer) -> Self {
         let bar = MUXC::Slider::new().unwrap();
         bar.SetTickPlacement(TickPlacement::Outside).unwrap();
+        bar.SetIsThumbToolTipEnabled(false).unwrap();
         let on_scroll = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_scroll = on_scroll.clone();
@@ -65,6 +66,29 @@ impl Slider {
     pub fn size(&self) -> Size;
 
     pub fn set_size(&mut self, v: Size);
+
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
+    pub fn tick_pos(&self) -> TickPosition {
+        match self.bar.TickPlacement().unwrap() {
+            TickPlacement::None => TickPosition::None,
+            TickPlacement::TopLeft => TickPosition::TopLeft,
+            TickPlacement::BottomRight => TickPosition::BottomRight,
+            _ => TickPosition::Both,
+        }
+    }
+
+    pub fn set_tick_pos(&mut self, v: TickPosition) {
+        let v = match v {
+            TickPosition::None => TickPlacement::None,
+            TickPosition::TopLeft => TickPlacement::TopLeft,
+            TickPosition::BottomRight => TickPlacement::BottomRight,
+            TickPosition::Both => TickPlacement::Outside,
+        };
+        self.bar.SetTickPlacement(v).unwrap();
+    }
 
     pub fn orient(&self) -> Orient {
         Orient::from_native(self.bar.Orientation().unwrap())

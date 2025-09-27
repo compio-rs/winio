@@ -4,14 +4,11 @@ use cxx::{ExternType, UniquePtr, memory::UniquePtrTarget, type_id};
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Orient, Point, Size};
+use winio_primitive::{Orient, Point, Size, TickPosition};
 
-use crate::{
-    GlobalRuntime, StaticCastTo, Widget, impl_static_cast, impl_static_cast_propogate,
-    static_cast_mut,
-};
+use crate::{GlobalRuntime, StaticCastTo, Widget, impl_static_cast, impl_static_cast_propogate};
 
-pub struct ScrollBarImpl<T, const TT: bool>
+pub struct ScrollBarImpl<T>
 where
     T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
 {
@@ -21,7 +18,7 @@ where
 
 #[allow(private_bounds)]
 #[inherit_methods(from = "self.widget")]
-impl<T, const TT: bool> ScrollBarImpl<T, TT>
+impl<T> ScrollBarImpl<T>
 where
     T: StaticCastTo<ffi::QAbstractSlider> + StaticCastTo<ffi::QWidget> + UniquePtrTarget,
 {
@@ -64,6 +61,10 @@ where
     pub fn size(&self) -> Size;
 
     pub fn set_size(&mut self, v: Size);
+
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
 
     pub fn orient(&self) -> Orient {
         match self.as_abstract_ref().orientation() {
@@ -112,17 +113,9 @@ where
 
     pub fn set_pos(&mut self, v: usize) {
         self.pin_abstract_mut().setValue(v as _);
-        if TT {
-            static_cast_mut::<ffi::QWidget>(self.widget.pin_mut())
-                .setToolTip(&v.to_string().into());
-        }
     }
 
-    fn on_moved(c: *const u8, slider: Pin<&mut ffi::QAbstractSlider>) {
-        if TT {
-            let value = slider.value();
-            static_cast_mut::<ffi::QWidget>(slider).setToolTip(&value.to_string().into());
-        }
+    fn on_moved(c: *const u8, _slider: Pin<&mut ffi::QAbstractSlider>) {
         let c = c as *const Callback<()>;
         if let Some(c) = unsafe { c.as_ref() } {
             c.signal::<GlobalRuntime>(());
@@ -134,9 +127,7 @@ where
     }
 }
 
-impl<T: UniquePtrTarget + StaticCastTo<ffi::QWidget>, const TT: bool> Debug
-    for ScrollBarImpl<T, TT>
-{
+impl<T: UniquePtrTarget + StaticCastTo<ffi::QWidget>> Debug for ScrollBarImpl<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ScrollBarImpl")
             .field("on_moved", &self.on_moved)
@@ -145,15 +136,8 @@ impl<T: UniquePtrTarget + StaticCastTo<ffi::QWidget>, const TT: bool> Debug
     }
 }
 
-pub type ScrollBar = ScrollBarImpl<ffi::QScrollBar, false>;
-pub type Slider = ScrollBarImpl<ffi::QSlider, true>;
-
-#[inherit_methods(from = "self.widget")]
-impl ScrollBar {
-    pub fn tooltip(&self) -> String;
-
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
-}
+pub type ScrollBar = ScrollBarImpl<ffi::QScrollBar>;
+pub type Slider = ScrollBarImpl<ffi::QSlider>;
 
 winio_handle::impl_as_widget!(ScrollBar, widget);
 winio_handle::impl_as_widget!(Slider, widget);
@@ -177,6 +161,14 @@ impl Slider {
 
     pub fn set_freq(&mut self, v: usize) {
         self.widget.pin_mut().setTickInterval(v as _);
+    }
+
+    pub fn tick_pos(&self) -> TickPosition {
+        self.widget.as_ref().tickPosition().into()
+    }
+
+    pub fn set_tick_pos(&mut self, v: TickPosition) {
+        self.widget.pin_mut().setTickPosition(v.into());
     }
 }
 
@@ -204,6 +196,44 @@ unsafe impl ExternType for QtOrientation {
     type Kind = cxx::kind::Trivial;
 }
 
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+#[non_exhaustive]
+pub enum QSliderTickPosition {
+    NoTicks        = 0,
+    TicksAbove     = 1,
+    TicksBelow     = 2,
+    TicksBothSides = 3,
+}
+
+unsafe impl ExternType for QSliderTickPosition {
+    type Id = type_id!("QSliderTickPosition");
+    type Kind = cxx::kind::Trivial;
+}
+
+impl From<QSliderTickPosition> for TickPosition {
+    fn from(v: QSliderTickPosition) -> Self {
+        match v {
+            QSliderTickPosition::NoTicks => TickPosition::None,
+            QSliderTickPosition::TicksAbove => TickPosition::TopLeft,
+            QSliderTickPosition::TicksBelow => TickPosition::BottomRight,
+            QSliderTickPosition::TicksBothSides => TickPosition::Both,
+        }
+    }
+}
+
+impl From<TickPosition> for QSliderTickPosition {
+    fn from(v: TickPosition) -> Self {
+        match v {
+            TickPosition::None => QSliderTickPosition::NoTicks,
+            TickPosition::TopLeft => QSliderTickPosition::TicksAbove,
+            TickPosition::BottomRight => QSliderTickPosition::TicksBelow,
+            TickPosition::Both => QSliderTickPosition::TicksBothSides,
+        }
+    }
+}
+
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++-unwind" {
@@ -214,6 +244,7 @@ mod ffi {
         type QScrollBar;
         type QSlider;
         type QtOrientation = super::QtOrientation;
+        type QSliderTickPosition = super::QSliderTickPosition;
 
         unsafe fn new_scroll_bar(parent: *mut QWidget) -> UniquePtr<QScrollBar>;
         unsafe fn new_slider(parent: *mut QWidget) -> UniquePtr<QSlider>;
@@ -241,5 +272,8 @@ mod ffi {
 
         fn tickInterval(self: &QSlider) -> i32;
         fn setTickInterval(self: Pin<&mut QSlider>, v: i32);
+
+        fn tickPosition(self: &QSlider) -> QSliderTickPosition;
+        fn setTickPosition(self: Pin<&mut QSlider>, v: QSliderTickPosition);
     }
 }

@@ -2,12 +2,12 @@ use std::rc::Rc;
 
 use gtk4::{
     glib::object::Cast,
-    prelude::{AdjustmentExt, OrientableExt, ScaleExt, WidgetExt},
+    prelude::{AdjustmentExt, OrientableExt, ScaleExt},
 };
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Orient, Point, Size};
+use winio_primitive::{Orient, Point, Size, TickPosition};
 
 use crate::{GlobalRuntime, Widget};
 
@@ -18,6 +18,7 @@ pub struct Slider {
     widget: gtk4::Scale,
     handle: Widget,
     freq: usize,
+    tick_pos: TickPosition,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -39,6 +40,7 @@ impl Slider {
             widget,
             handle,
             freq: 1,
+            tick_pos: TickPosition::Both,
         }
     }
 
@@ -50,10 +52,29 @@ impl Slider {
         let mut value = self.minimum();
         let max = self.maximum();
         while value <= max {
-            self.widget
-                .add_mark(value as _, gtk4::PositionType::Left, None);
-            self.widget
-                .add_mark(value as _, gtk4::PositionType::Right, None);
+            if matches!(self.tick_pos, TickPosition::TopLeft | TickPosition::Both) {
+                self.widget.add_mark(
+                    value as _,
+                    match self.orient() {
+                        Orient::Horizontal => gtk4::PositionType::Top,
+                        Orient::Vertical => gtk4::PositionType::Left,
+                    },
+                    None,
+                );
+            }
+            if matches!(
+                self.tick_pos,
+                TickPosition::BottomRight | TickPosition::Both
+            ) {
+                self.widget.add_mark(
+                    value as _,
+                    match self.orient() {
+                        Orient::Horizontal => gtk4::PositionType::Bottom,
+                        Orient::Vertical => gtk4::PositionType::Right,
+                    },
+                    None,
+                );
+            }
             value += self.freq;
         }
     }
@@ -75,6 +96,21 @@ impl Slider {
     pub fn size(&self) -> Size;
 
     pub fn set_size(&mut self, v: Size);
+
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
+    pub fn tick_pos(&self) -> TickPosition {
+        self.tick_pos
+    }
+
+    pub fn set_tick_pos(&mut self, v: TickPosition) {
+        if self.tick_pos != v {
+            self.tick_pos = v;
+            self.reset_marks();
+        }
+    }
 
     pub fn orient(&self) -> Orient {
         match self.widget.orientation() {
@@ -131,16 +167,10 @@ impl Slider {
 
     pub fn set_pos(&mut self, v: usize) {
         self.adjustment.set_value(v as _);
-        self.reset_tooltip();
-    }
-
-    fn reset_tooltip(&self) {
-        self.widget.set_tooltip_text(Some(&self.pos().to_string()));
     }
 
     pub async fn wait_change(&self) {
         self.on_scroll.wait().await;
-        self.reset_tooltip();
     }
 }
 

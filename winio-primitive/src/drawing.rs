@@ -186,3 +186,16 @@ pub enum MouseButton {
     /// Other buttons.
     Other,
 }
+
+/// Tick position choices.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum TickPosition {
+    /// No ticks.
+    None,
+    /// Ticks on the top or left.
+    TopLeft,
+    /// Ticks on the bottom or right.
+    BottomRight,
+    /// Ticks on both sides.
+    Both,
+}

@@ -8,6 +8,7 @@
 #include <memory>
 
 using QtOrientation = Qt::Orientation;
+using QSliderTickPosition = QSlider::TickPosition;
 
 STATIC_CAST_ASSERT(QAbstractSlider, QWidget);
 STATIC_CAST_ASSERT(QScrollBar, QAbstractSlider);

@@ -19,11 +19,16 @@ thread_local! {
 }
 
 pub(crate) fn set_tooltip(hwnd: HWND, s: impl AsRef<str>) {
-    TOOLTIPS.with_borrow_mut(|m| {
-        m.entry(hwnd)
-            .or_insert_with(|| ToolTip::new(hwnd))
-            .set_tooltip(s);
-    });
+    let s = s.as_ref();
+    if s.is_empty() {
+        remove_tooltip(hwnd);
+    } else {
+        TOOLTIPS.with_borrow_mut(|m| {
+            m.entry(hwnd)
+                .or_insert_with(|| ToolTip::new(hwnd))
+                .set_tooltip(s);
+        });
+    }
 }
 
 pub(crate) fn get_tooltip(hwnd: HWND) -> Option<String> {
