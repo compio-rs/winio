@@ -4,11 +4,11 @@ use objc2::{
     rc::{Allocated, Retained},
     sel,
 };
-use objc2_app_kit::NSSlider;
-use objc2_foundation::{NSObject, NSString};
+use objc2_app_kit::{NSSlider, NSTickMarkPosition};
+use objc2_foundation::NSObject;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Orient, Point, Size};
+use winio_primitive::{Orient, Point, Size, TickPosition};
 
 use crate::{GlobalRuntime, Widget};
 
@@ -64,6 +64,25 @@ impl Slider {
     pub fn tooltip(&self) -> String;
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
+    pub fn tick_pos(&self) -> TickPosition {
+        let tpos = unsafe { self.view.tickMarkPosition() };
+        match tpos {
+            NSTickMarkPosition::Below => TickPosition::BottomRight,
+            NSTickMarkPosition::Above => TickPosition::TopLeft,
+            _ => TickPosition::None,
+        }
+    }
+
+    pub fn set_tick_pos(&mut self, v: TickPosition) {
+        let tpos = match v {
+            TickPosition::BottomRight => NSTickMarkPosition::Below,
+            _ => NSTickMarkPosition::Above,
+        };
+        unsafe {
+            self.view.setTickMarkPosition(tpos);
+        }
+    }
 
     pub fn orient(&self) -> Orient {
         let vertical: bool = unsafe { msg_send![&*self.view, isVertical] };
@@ -121,19 +140,10 @@ impl Slider {
         unsafe {
             self.view.setDoubleValue(pos as _);
         }
-        self.reset_tooltip();
-    }
-
-    fn reset_tooltip(&self) {
-        unsafe {
-            self.view
-                .setToolTip(Some(&NSString::from_str(&self.pos().to_string())))
-        }
     }
 
     pub async fn wait_change(&self) {
         self.delegate.ivars().action.wait().await;
-        self.reset_tooltip();
     }
 }
 
