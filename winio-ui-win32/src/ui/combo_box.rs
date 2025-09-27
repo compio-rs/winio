@@ -116,6 +116,9 @@ impl ComboBoxImpl {
             self.handle
                 .send_message(CB_INSERTSTRING, i as _, s.as_ptr() as _);
         });
+        if self.len() == 1 {
+            self.set_selection(Some(0));
+        }
     }
 
     pub fn remove(&mut self, i: usize) {

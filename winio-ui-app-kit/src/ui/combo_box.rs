@@ -152,6 +152,9 @@ impl ComboBox {
             let s = NSString::from_str(s.as_ref());
             self.view.insertItemWithObjectValue_atIndex(&s, i as _);
         }
+        if self.len() == 1 {
+            self.set_selection(Some(0));
+        }
     }
 
     pub fn remove(&mut self, i: usize) {
