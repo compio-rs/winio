@@ -12,6 +12,7 @@ pub struct MediaPage {
     play_button: Child<Button>,
     browse_button: Child<Button>,
     time_slider: Child<Slider>,
+    time_label: Child<Label>,
     volume_slider: Child<Slider>,
     volume_label: Child<Label>,
 }
@@ -64,6 +65,9 @@ impl Component for MediaPage {
                 tick_pos: TickPosition::TopLeft,
                 minimum: 0,
             },
+            time_label: Label = (&window) => {
+                halign: HAlign::Right,
+            },
             volume_slider: Slider = (&window) => {
                 enabled: false,
                 tick_pos: TickPosition::TopLeft,
@@ -93,6 +97,7 @@ impl Component for MediaPage {
             play_button,
             browse_button,
             time_slider,
+            time_label,
             volume_slider,
             volume_label,
         }
@@ -135,17 +140,35 @@ impl Component for MediaPage {
         match message {
             MediaPageMessage::Noop => false,
             MediaPageMessage::Tick => {
+                fn format_duration(dur: Duration) -> String {
+                    let secs = dur.as_secs();
+                    let hours = secs / 3600;
+                    let minutes = (secs % 3600) / 60;
+                    let seconds = secs % 60;
+                    if hours > 0 {
+                        format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
+                    } else {
+                        format!("{:02}:{:02}", minutes, seconds)
+                    }
+                }
+
                 let ct = self.media.current_time();
                 let ft = self.media.full_time();
                 if let Some(ft) = ft {
-                    let ft = ft.as_secs_f64();
-                    self.time_slider.set_freq((ft * 100.0) as usize / 10);
-                    self.time_slider.set_maximum((ft * 100.0) as _);
+                    let ft_secs = ft.as_secs_f64();
+                    self.time_slider.set_freq((ft_secs * 100.0) as usize / 10);
+                    self.time_slider.set_maximum((ft_secs * 100.0) as _);
                     self.time_slider.set_pos((ct.as_secs_f64() * 100.0) as _);
+                    self.time_label.set_text(format!(
+                        "{} / {}",
+                        format_duration(ct),
+                        format_duration(ft)
+                    ));
                 } else {
                     self.time_slider.set_maximum(1);
                     self.time_slider.set_pos(0);
                     self.time_slider.set_freq(1);
+                    self.time_label.set_text(format_duration(ct));
                 }
                 true
             }
@@ -212,6 +235,7 @@ impl Component for MediaPage {
                 StackPanel::new(Orient::Horizontal),
                 self.play_button   => { margin: margin },
                 self.time_slider   => { margin: margin, grow: true },
+                self.time_label    => { margin: margin, valign: VAlign::Center, halign: HAlign::Center },
                 self.volume_slider => { margin: margin, width: 200.0 },
                 self.volume_label  => { margin: margin, valign: VAlign::Center, halign: HAlign::Left, width: 20.0 },
                 self.browse_button => { margin: margin }
