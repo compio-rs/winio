@@ -1,8 +1,8 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_layout::{Enable, Layoutable, Visible};
-use winio_primitive::{Orient, Point, Size};
+use winio_layout::{Enable, Layoutable, ToolTip, Visible};
+use winio_primitive::{Orient, Point, Size, TickPosition};
 
 use crate::sys;
 
@@ -13,7 +13,20 @@ pub struct Slider {
 }
 
 #[inherit_methods(from = "self.widget")]
+impl ToolTip for Slider {
+    fn tooltip(&self) -> String;
+
+    fn set_tooltip(&mut self, s: impl AsRef<str>);
+}
+
+#[inherit_methods(from = "self.widget")]
 impl Slider {
+    /// The tick position.
+    pub fn tick_pos(&self) -> TickPosition;
+
+    /// Set the tick position.
+    pub fn set_tick_pos(&mut self, v: TickPosition);
+
     /// The orientation.
     pub fn orient(&self) -> Orient;
 

@@ -61,10 +61,12 @@ impl Component for MediaPage {
             },
             time_slider: Slider = (&window) => {
                 enabled: false,
+                tick_pos: TickPosition::TopLeft,
                 minimum: 0,
             },
             volume_slider: Slider = (&window) => {
                 enabled: false,
+                tick_pos: TickPosition::TopLeft,
                 minimum: 0,
                 maximum: 100,
                 pos: 100,

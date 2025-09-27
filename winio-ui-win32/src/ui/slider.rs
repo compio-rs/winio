@@ -1,18 +1,14 @@
 use inherit_methods_macro::inherit_methods;
-use windows_sys::Win32::{
-    Foundation::HWND,
-    UI::{
-        Controls::{
-            TBM_GETRANGEMAX, TBM_GETRANGEMIN, TBM_GETTOOLTIPS, TBM_SETPOSNOTIFY, TBM_SETRANGEMAX,
-            TBM_SETRANGEMIN, TBM_SETTICFREQ, TBS_AUTOTICKS, TBS_BOTH, TBS_HORZ, TBS_TOOLTIPS,
-            TBS_VERT, TRACKBAR_CLASSW,
-        },
-        WindowsAndMessaging::{GetParent, WM_HSCROLL, WM_USER, WS_CHILD, WS_TABSTOP, WS_VISIBLE},
+use windows_sys::Win32::UI::{
+    Controls::{
+        TBM_GETRANGEMAX, TBM_GETRANGEMIN, TBM_SETPOSNOTIFY, TBM_SETRANGEMAX, TBM_SETRANGEMIN,
+        TBM_SETTICFREQ, TBS_AUTOTICKS, TBS_BOTH, TBS_BOTTOM, TBS_HORZ, TBS_TOP, TBS_VERT,
+        TRACKBAR_CLASSW,
     },
+    WindowsAndMessaging::{GetParent, WM_HSCROLL, WM_USER, WS_CHILD, WS_TABSTOP, WS_VISIBLE},
 };
 use winio_handle::{AsContainer, AsRawWidget, BorrowedContainer, RawContainer, RawWidget};
-use winio_primitive::{Orient, Point, Size};
-use winio_ui_windows_common::control_use_dark_mode;
+use winio_primitive::{Orient, Point, Size, TickPosition};
 
 use crate::Widget;
 
@@ -27,16 +23,11 @@ impl SliderImpl {
     pub fn new(parent: impl AsContainer, style: u32) -> Self {
         let mut handle = Widget::new(
             TRACKBAR_CLASSW,
-            WS_CHILD | WS_TABSTOP | TBS_AUTOTICKS | TBS_BOTH | TBS_TOOLTIPS | style,
+            WS_CHILD | WS_TABSTOP | TBS_AUTOTICKS | style,
             0,
             parent.as_container().as_win32(),
         );
         handle.set_size(handle.size_d2l((50, 14)));
-        let tooltip_handle = handle.send_message(TBM_GETTOOLTIPS, 0, 0) as HWND;
-        unsafe {
-            control_use_dark_mode(tooltip_handle, false);
-            crate::runtime::refresh_font(tooltip_handle);
-        }
         Self { handle, freq: 1 }
     }
 
@@ -86,7 +77,7 @@ impl SliderImpl {
     }
 
     pub fn pos(&self) -> usize {
-        // Why is it not in `windows-sys`?
+        // Why isn't it in `windows-sys`?
         const TBM_GETPOS: u32 = WM_USER;
         self.handle.send_message(TBM_GETPOS, 0, 0) as _
     }
@@ -106,23 +97,33 @@ impl AsRawWidget for SliderImpl {
 pub struct Slider {
     handle: SliderImpl,
     vertical: bool,
+    tick_pos: TickPosition,
 }
 
 #[inherit_methods(from = "self.handle")]
 impl Slider {
     pub fn new(parent: impl AsContainer) -> Self {
-        let handle = SliderImpl::new(&parent, WS_VISIBLE | TBS_HORZ);
+        let handle = SliderImpl::new(&parent, WS_VISIBLE | TBS_BOTH | TBS_HORZ);
         Self {
             handle,
             vertical: false,
+            tick_pos: TickPosition::Both,
         }
     }
 
-    fn recreate(&mut self, vertical: bool) {
+    fn recreate(&mut self, vertical: bool, tick_pos: TickPosition) {
         let parent = unsafe { GetParent(self.handle.as_raw_widget().as_win32()) };
+        let mut style = WS_VISIBLE;
+        style |= match tick_pos {
+            TickPosition::None => 0,
+            TickPosition::TopLeft => TBS_TOP,
+            TickPosition::BottomRight => TBS_BOTTOM,
+            TickPosition::Both => TBS_BOTH,
+        };
+        style |= if vertical { TBS_VERT } else { TBS_HORZ };
         let mut new_handle = SliderImpl::new(
             unsafe { BorrowedContainer::borrow_raw(RawContainer::Win32(parent)) },
-            if vertical { TBS_VERT } else { TBS_HORZ } | WS_VISIBLE,
+            style,
         );
         new_handle.set_visible(self.handle.is_visible());
         new_handle.set_enabled(self.handle.is_enabled());
@@ -145,10 +146,15 @@ impl Slider {
     pub fn set_enabled(&mut self, v: bool);
 
     pub fn preferred_size(&self) -> Size {
+        let base_length = match self.tick_pos {
+            TickPosition::None => 20.0,
+            TickPosition::TopLeft | TickPosition::BottomRight => 30.0,
+            TickPosition::Both => 40.0,
+        };
         if self.vertical {
-            Size::new(40.0, 0.0)
+            Size::new(base_length, 0.0)
         } else {
-            Size::new(0.0, 40.0)
+            Size::new(0.0, base_length)
         }
     }
 
@@ -159,6 +165,21 @@ impl Slider {
     pub fn size(&self) -> Size;
 
     pub fn set_size(&mut self, v: Size);
+
+    pub fn tooltip(&self) -> String;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+
+    pub fn tick_pos(&self) -> TickPosition {
+        self.tick_pos
+    }
+
+    pub fn set_tick_pos(&mut self, v: TickPosition) {
+        if self.tick_pos != v {
+            self.recreate(self.vertical, v);
+            self.tick_pos = v;
+        }
+    }
 
     pub fn orient(&self) -> Orient {
         if self.vertical {
@@ -171,7 +192,7 @@ impl Slider {
     pub fn set_orient(&mut self, v: Orient) {
         let v = matches!(v, Orient::Vertical);
         if self.vertical != v {
-            self.recreate(v);
+            self.recreate(v, self.tick_pos);
             self.vertical = v;
         }
     }
