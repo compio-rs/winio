@@ -10,6 +10,8 @@ use sync_unsafe_cell::SyncUnsafeCell;
 use widestring::U16CStr;
 #[cfg(target_pointer_width = "64")]
 use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongPtrW;
+#[cfg(not(target_pointer_width = "64"))]
+use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongW as SetClassLongPtrW;
 use windows_sys::{
     Win32::{
         Foundation::{COLORREF, E_INVALIDARG, HWND, LPARAM, LRESULT, RECT, S_OK, WPARAM},

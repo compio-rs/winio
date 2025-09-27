@@ -38,7 +38,7 @@ jobs:
             features: 'webview'
           - os: 'windows-latest'
             target: 'i686-pc-windows-msvc'
-            features: 'media,webview,winui-enable-cbs,winui-webview-system'
+            features: 'media,webview,win32-dark-mode,winui-enable-cbs,winui-webview-system'
           - os: 'windows-latest'
             target: 'x86_64-pc-windows-gnullvm'
             features: 'win32,media,webview'
