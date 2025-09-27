@@ -5,7 +5,9 @@ use windows_sys::Win32::UI::{
         TBM_SETTICFREQ, TBS_AUTOTICKS, TBS_BOTH, TBS_BOTTOM, TBS_HORZ, TBS_TOP, TBS_VERT,
         TRACKBAR_CLASSW,
     },
-    WindowsAndMessaging::{GetParent, WM_HSCROLL, WM_USER, WS_CHILD, WS_TABSTOP, WS_VISIBLE},
+    WindowsAndMessaging::{
+        GetParent, WM_HSCROLL, WM_USER, WM_VSCROLL, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
+    },
 };
 use winio_handle::{AsContainer, AsRawWidget, BorrowedContainer, RawContainer, RawWidget};
 use winio_primitive::{Orient, Point, Size, TickPosition};
@@ -214,7 +216,11 @@ impl Slider {
     pub fn set_pos(&mut self, v: usize);
 
     pub async fn wait_change(&self) {
-        self.handle.handle.wait_parent(WM_HSCROLL).await;
+        if self.vertical {
+            self.handle.handle.wait_parent(WM_VSCROLL).await;
+        } else {
+            self.handle.handle.wait_parent(WM_HSCROLL).await;
+        }
     }
 }
 
