@@ -1,8 +1,20 @@
 # Winio
 
 Winio is a single-threaded asynchronous GUI runtime.
-It is based on [`compio`](https://github.com/compio-rs/compio), and the GUI part is powered by Win32, Qt, GTK and Cocoa.
+It is based on [`compio`](https://github.com/compio-rs/compio), and the GUI part is powered by Win32, WinUI 3, Qt 5/6, GTK 4 or AppKit.
 All IO requests could be issued in the same thread as GUI, without blocking the user interface!
+
+## Example
+
+Read the [examples](winio/examples) and learn more!
+
+| Backend | Light                                  | Dark                                 |
+| ------- | -------------------------------------- | ------------------------------------ |
+| Win32   | ![Win32 Light](assets/win32.light.png) | ![Win32 Dark](assets/win32.dark.png) |
+| WinUI 3 | ![WinUI Light](assets/winui.light.png) | ![WinUI Dark](assets/winui.dark.png) |
+| Qt 6    | ![Qt Light](assets/qt.light.png)       | ![Qt Dark](assets/qt.dark.png)       |
+| GTK 4   | ![GTK Light](assets/gtk.light.png)     | ![GTK Dark](assets/gtk.dark.png)     |
+| AppKit  | ![macOS Light](assets/mac.light.png)   | ![macOS Dark](assets/mac.dark.png)   |
 
 ## Quick start
 
@@ -34,7 +46,7 @@ impl Component for MainModel {
         // create & initialize the window
         init! {
             window: Window = (()) => {
-                text: "Basic example",
+                text: "Example",
                 size: Size::new(800.0, 600.0),
             }
         }
@@ -52,9 +64,12 @@ impl Component for MainModel {
         }
     }
 
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
+    async fn update_children(&mut self) -> bool {
         // update the window
-        self.window.update().await;
+        self.window.update().await
+    }
+
+    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
         // deal with custom messages
         match message {
             MainMessage::Noop => false,
@@ -68,8 +83,12 @@ impl Component for MainModel {
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {
-        self.window.render();
+        let csize = self.window.client_size();
         // adjust layout and draw widgets here
+    }
+
+    fn render_children(&mut self) {
+        self.window.render();
     }
 }
 ```
