@@ -152,7 +152,7 @@ impl ComboBox {
             let s = NSString::from_str(s.as_ref());
             self.view.insertItemWithObjectValue_atIndex(&s, i as _);
         }
-        if self.len() == 1 {
+        if (!self.is_editable()) && self.len() == 1 {
             self.set_selection(Some(0));
         }
     }

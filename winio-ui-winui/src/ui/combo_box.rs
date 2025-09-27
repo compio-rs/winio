@@ -118,7 +118,7 @@ impl ComboBox {
             .unwrap()
             .InsertAt(i as _, &item.cast::<IInspectable>().unwrap())
             .unwrap();
-        if self.len() == 1 {
+        if (!self.is_editable()) && self.len() == 1 {
             self.set_selection(Some(0));
         }
     }

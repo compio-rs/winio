@@ -116,9 +116,6 @@ impl ComboBoxImpl {
             self.handle
                 .send_message(CB_INSERTSTRING, i as _, s.as_ptr() as _);
         });
-        if self.len() == 1 {
-            self.set_selection(Some(0));
-        }
     }
 
     pub fn remove(&mut self, i: usize) {
@@ -250,7 +247,12 @@ impl ComboBox {
         self.handle.wait_change().await
     }
 
-    pub fn insert(&mut self, i: usize, s: impl AsRef<str>);
+    pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
+        self.handle.insert(i, s);
+        if (!self.is_editable()) && self.len() == 1 {
+            self.set_selection(Some(0));
+        }
+    }
 
     pub fn remove(&mut self, i: usize);
 
