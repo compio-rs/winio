@@ -38,7 +38,11 @@ impl Label {
 
     pub fn set_enabled(&mut self, v: bool);
 
-    pub fn preferred_size(&self) -> Size;
+    pub fn preferred_size(&self) -> Size {
+        let mut size = self.handle.preferred_size();
+        size.width += 4.0;
+        size
+    }
 
     pub fn loc(&self) -> Point;
 
