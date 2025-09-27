@@ -658,7 +658,7 @@ pub unsafe fn control_use_dark_mode(hwnd: HWND, misc_task_dialog: bool) {
             w!("DarkMode_CFD")
         } else if u16_string_eq_ignore_case(class, WC_EDITW) {
             let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
-            if style & ES_MULTILINE as isize != 0 {
+            if style as i32 & ES_MULTILINE != 0 {
                 w!("DarkMode_Explorer")
             } else {
                 w!("DarkMode_CFD")
