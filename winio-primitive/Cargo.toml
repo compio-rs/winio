@@ -9,6 +9,6 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-bitflags = "2"
+bitflags = { workspace = true }
 euclid = "0.22"
 rgb = "0.8"

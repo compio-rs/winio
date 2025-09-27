@@ -42,6 +42,7 @@ compio = "0.16.0"
 compio-runtime = "0.9.1"
 compio-log = "0.1.0"
 
+bitflags = "2"
 cfg-if = "1"
 futures-channel = "0.3"
 futures-util = "0.3"

@@ -14,6 +14,7 @@ winio-handle = { workspace = true, features = ["qt"] }
 winio-callback = { workspace = true }
 winio-pollable = { workspace = true }
 
+bitflags = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true, default-features = false }
 local-sync = { workspace = true }

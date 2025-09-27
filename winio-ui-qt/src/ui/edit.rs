@@ -88,19 +88,15 @@ impl Edit {
     }
 
     pub fn set_halign(&mut self, align: HAlign) {
-        let mut flag = self.widget.as_ref().alignment() as i32;
-        flag &= 0xFFF0;
+        let mut flag = self.widget.as_ref().alignment();
+        flag &= QtAlignmentFlag::from_bits_retain(0xFFF0);
         match align {
-            HAlign::Left => flag |= QtAlignmentFlag::AlignLeft as i32,
-            HAlign::Center => flag |= QtAlignmentFlag::AlignHCenter as i32,
-            HAlign::Right => flag |= QtAlignmentFlag::AlignRight as i32,
-            HAlign::Stretch => flag |= QtAlignmentFlag::AlignJustify as i32,
+            HAlign::Left => flag |= QtAlignmentFlag::AlignLeft,
+            HAlign::Center => flag |= QtAlignmentFlag::AlignHCenter,
+            HAlign::Right => flag |= QtAlignmentFlag::AlignRight,
+            HAlign::Stretch => flag |= QtAlignmentFlag::AlignJustify,
         }
-        unsafe {
-            self.widget
-                .pin_mut()
-                .setAlignment(std::mem::transmute::<i32, QtAlignmentFlag>(flag));
-        }
+        self.widget.pin_mut().setAlignment(flag);
     }
 
     fn on_changed(c: *const u8) {
@@ -186,19 +182,15 @@ impl TextBox {
     }
 
     pub fn set_halign(&mut self, align: HAlign) {
-        let mut flag = self.widget.as_ref().alignment() as i32;
-        flag &= 0xFFF0;
+        let mut flag = self.widget.as_ref().alignment();
+        flag &= QtAlignmentFlag::from_bits_retain(0xFFF0);
         match align {
-            HAlign::Left => flag |= QtAlignmentFlag::AlignLeft as i32,
-            HAlign::Center => flag |= QtAlignmentFlag::AlignHCenter as i32,
-            HAlign::Right => flag |= QtAlignmentFlag::AlignRight as i32,
-            HAlign::Stretch => flag |= QtAlignmentFlag::AlignJustify as i32,
+            HAlign::Left => flag |= QtAlignmentFlag::AlignLeft,
+            HAlign::Center => flag |= QtAlignmentFlag::AlignHCenter,
+            HAlign::Right => flag |= QtAlignmentFlag::AlignRight,
+            HAlign::Stretch => flag |= QtAlignmentFlag::AlignJustify,
         }
-        unsafe {
-            self.widget
-                .pin_mut()
-                .setAlignment(std::mem::transmute::<i32, QtAlignmentFlag>(flag));
-        }
+        self.widget.pin_mut().setAlignment(flag);
     }
 
     fn on_changed(c: *const u8) {
@@ -215,26 +207,20 @@ impl TextBox {
 
 winio_handle::impl_as_widget!(TextBox, widget);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(i32)]
-#[non_exhaustive]
-#[allow(dead_code, clippy::enum_variant_names)]
-pub(crate) enum QtAlignmentFlag {
-    AlignLeft    = 0x0001,
-    AlignRight   = 0x0002,
-    AlignHCenter = 0x0004,
-    AlignJustify = 0x0008,
+bitflags::bitflags! {
+    pub struct QtAlignmentFlag: i32 {
+        const AlignLeft    = 0x0001;
+        const AlignRight   = 0x0002;
+        const AlignHCenter = 0x0004;
+        const AlignJustify = 0x0008;
+
+        const _ = !0;
+    }
 }
 
 unsafe impl ExternType for QtAlignmentFlag {
     type Id = type_id!("QtAlignmentFlag");
     type Kind = cxx::kind::Trivial;
-}
-
-impl QtAlignmentFlag {
-    pub fn contains(&self, flag: QtAlignmentFlag) -> bool {
-        (*self as i32 & flag as i32) != 0
-    }
 }
 
 #[derive(PartialEq, Eq)]

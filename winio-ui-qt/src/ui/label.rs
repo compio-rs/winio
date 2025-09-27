@@ -62,19 +62,15 @@ impl Label {
     }
 
     pub fn set_halign(&mut self, align: HAlign) {
-        let mut flag = self.widget.as_ref().alignment() as i32;
-        flag &= 0xFFF0;
+        let mut flag = self.widget.as_ref().alignment();
+        flag &= QtAlignmentFlag::from_bits_retain(0xFFF0);
         match align {
-            HAlign::Left => flag |= QtAlignmentFlag::AlignLeft as i32,
-            HAlign::Center => flag |= QtAlignmentFlag::AlignHCenter as i32,
-            HAlign::Right => flag |= QtAlignmentFlag::AlignRight as i32,
-            HAlign::Stretch => flag |= QtAlignmentFlag::AlignJustify as i32,
+            HAlign::Left => flag |= QtAlignmentFlag::AlignLeft,
+            HAlign::Center => flag |= QtAlignmentFlag::AlignHCenter,
+            HAlign::Right => flag |= QtAlignmentFlag::AlignRight,
+            HAlign::Stretch => flag |= QtAlignmentFlag::AlignJustify,
         }
-        unsafe {
-            self.widget
-                .pin_mut()
-                .setAlignment(std::mem::transmute::<i32, QtAlignmentFlag>(flag));
-        }
+        self.widget.pin_mut().setAlignment(flag);
     }
 }
 
