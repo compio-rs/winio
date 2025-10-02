@@ -71,7 +71,10 @@ impl TabView {
     }
 
     pub async fn wait_select(&self) {
-        self.on_select.wait().await
+        self.on_select.wait().await;
+        self.view
+            .Measure(Size::new(f64::INFINITY, f64::INFINITY).to_native())
+            .unwrap();
     }
 
     pub fn insert(&mut self, i: usize, item: &TabViewItem) {
