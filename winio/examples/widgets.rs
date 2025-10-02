@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{future::Future, path::PathBuf, pin::Pin};
 
 use tuplex::IntoArray;
 use winio::prelude::*;
@@ -165,22 +165,40 @@ impl Component for MainModel {
     }
 
     async fn update_children(&mut self) -> bool {
-        futures_util::join!(
-            self.window.update(),
-            self.tabview.update(),
-            self.basic.update(),
-            self.fs.update(),
-            self.net.update(),
-            self.gallery.update(),
-            self.scroll.update(),
-            self.misc.update(),
-            self.media.update(),
-            self.webview.update(),
-            self.markdown.update(),
-        )
-        .into_array()
-        .into_iter()
-        .any(|b| b)
+        let mut subviews: Vec<Pin<Box<dyn Future<Output = bool>>>> = vec![
+            Box::pin(self.basic.update()),
+            Box::pin(self.fs.update()),
+            Box::pin(self.net.update()),
+            Box::pin(self.gallery.update()),
+            Box::pin(self.scroll.update()),
+            Box::pin(self.misc.update()),
+            Box::pin(self.media.update()),
+            Box::pin(self.webview.update()),
+            Box::pin(self.markdown.update()),
+        ];
+        if let Some(index) = self.tabview.selection() {
+            let visible_subview = subviews.remove(index);
+            futures_util::join!(
+                self.window.update(),
+                self.tabview.update(),
+                visible_subview,
+                async {
+                    futures_util::future::join_all(subviews.into_iter()).await;
+                    false
+                },
+            )
+            .into_array()
+            .into_iter()
+            .any(|b| b)
+        } else {
+            futures_util::join!(self.window.update(), self.tabview.update(), async {
+                futures_util::future::join_all(subviews.into_iter()).await;
+                false
+            })
+            .into_array()
+            .into_iter()
+            .any(|b| b)
+        }
     }
 
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
