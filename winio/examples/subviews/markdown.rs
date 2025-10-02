@@ -107,7 +107,7 @@ impl Component for MarkdownPage {
                         let mut output = String::new();
                         pulldown_cmark::html::push_html(
                             &mut output,
-                            pulldown_cmark::Parser::new(&text),
+                            pulldown_cmark::Parser::new_ext(&text, pulldown_cmark::Options::all()),
                         );
                         let html = format!(
                             r#"<!DOCTYPE html>
