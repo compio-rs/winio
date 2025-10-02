@@ -24,7 +24,7 @@ image = { workspace = true, default-features = false }
 inherit-methods-macro = { workspace = true }
 oneshot = { version = "0.1", default-features = false, features = ["std"] }
 scoped-tls = { workspace = true }
-send_wrapper = "0.6"
+send_wrapper = { workspace = true }
 widestring = { workspace = true }
 
 winui3 = { workspace = true, features = [

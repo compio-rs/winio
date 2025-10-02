@@ -42,14 +42,18 @@ cyper = { version = "0.5.0", default-features = false, features = [
     "http2",
     "http3-altsvc",
 ] }
+cyper-axum = "0.5.0"
+axum = { version = "0.8", default-features = false }
 
 dirs = "6.0"
+futures-channel = { workspace = true }
 futures-util = { workspace = true }
 image = { workspace = true, default-features = false, features = [
     "default-formats",
 ] }
 itertools = "0.14"
 pulldown-cmark = "0.13"
+send_wrapper = { workspace = true, features = ["futures"] }
 tracing-subscriber = "0.3"
 tuplex = "0.1"
 url = "2"
@@ -78,7 +82,7 @@ webview = [
 ]
 all = ["media", "webview"]
 
-nightly = ["compio/nightly", "cyper/nightly"]
+nightly = ["compio/nightly", "cyper/nightly", "cyper-axum/nightly"]
 win32-dark-mode = [
     "winio-ui-win32?/dark-mode",
     "winio-ui-winui?/win32-dark-mode",
