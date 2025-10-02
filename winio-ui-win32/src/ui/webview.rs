@@ -160,7 +160,11 @@ impl WebViewImpl for WebViewInner {
     }
 
     fn set_source(&mut self, s: impl AsRef<str>) {
-        with_u16c(s.as_ref(), |s| unsafe {
+        let s = s.as_ref();
+        if s.is_empty() {
+            return self.set_html("");
+        }
+        with_u16c(s, |s| unsafe {
             self.view.Navigate(PCWSTR(s.as_ptr())).unwrap();
         })
     }

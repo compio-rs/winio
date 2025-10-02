@@ -85,8 +85,12 @@ impl WebView {
     }
 
     pub fn set_source(&mut self, s: impl AsRef<str>) {
+        let s = s.as_ref();
+        if s.is_empty() {
+            return self.set_html("");
+        }
         unsafe {
-            if let Some(url) = NSURL::URLWithString(&NSString::from_str(s.as_ref())) {
+            if let Some(url) = NSURL::URLWithString(&NSString::from_str(s)) {
                 let req = NSURLRequest::requestWithURL(&url);
                 self.view.loadRequest(&req);
             }

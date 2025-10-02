@@ -137,8 +137,12 @@ impl WebViewImpl for WebViewInner {
     }
 
     fn set_source(&mut self, s: impl AsRef<str>) {
+        let s = s.as_ref();
+        if s.is_empty() {
+            return self.set_html("");
+        }
         self.view
-            .SetSource(&Uri::CreateUri(&HSTRING::from(s.as_ref())).unwrap())
+            .SetSource(&Uri::CreateUri(&HSTRING::from(s)).unwrap())
             .unwrap()
     }
 
