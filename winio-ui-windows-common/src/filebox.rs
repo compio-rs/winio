@@ -238,7 +238,24 @@ impl FileBoxInner {
     }
 }
 
-struct CoTaskMemPtr<T>(*mut T);
+pub struct CoTaskMemPtr<T>(*mut T);
+
+impl<T> CoTaskMemPtr<T> {
+    /// # Safety
+    /// Caller should ensure that the pointer is valid to be freed with
+    /// `CoTaskMemFree`.
+    pub unsafe fn new(ptr: *mut T) -> Self {
+        Self(ptr)
+    }
+
+    pub fn as_ptr(&self) -> *const T {
+        self.0
+    }
+
+    pub fn as_mut_ptr(&mut self) -> *mut T {
+        self.0
+    }
+}
 
 impl<T> Drop for CoTaskMemPtr<T> {
     fn drop(&mut self) {

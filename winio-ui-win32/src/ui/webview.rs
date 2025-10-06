@@ -15,10 +15,10 @@ use windows::{
     Win32::Foundation::{HWND, RECT},
     core::{HRESULT, PCWSTR, Ref, Result, implement},
 };
-use windows_sys::Win32::{System::Com::CoTaskMemFree, UI::HiDpi::GetDpiForWindow};
+use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
 use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Point, Rect, Size};
-use winio_ui_windows_common::{WebViewImpl, WebViewLazy};
+use winio_ui_windows_common::{CoTaskMemPtr, WebViewImpl, WebViewLazy};
 
 use crate::ui::with_u16c;
 
@@ -147,8 +147,8 @@ impl WebViewImpl for WebViewInner {
 
     fn source(&self) -> String {
         unsafe {
-            let source = CoTaskMemPtr(self.view.Source().unwrap().0);
-            PCWSTR(source.0).to_string().unwrap()
+            let source = CoTaskMemPtr::new(self.view.Source().unwrap().0);
+            PCWSTR(source.as_ptr()).to_string().unwrap()
         }
     }
 
@@ -222,14 +222,6 @@ impl AsRawWidget for WebViewInner {
 }
 
 pub type WebView = WebViewLazy<WebViewInner>;
-
-struct CoTaskMemPtr<T>(*mut T);
-
-impl<T> Drop for CoTaskMemPtr<T> {
-    fn drop(&mut self) {
-        unsafe { CoTaskMemFree(self.0.cast()) }
-    }
-}
 
 #[implement(ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler)]
 struct CreateEnvHandler<F>
