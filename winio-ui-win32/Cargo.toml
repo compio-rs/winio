@@ -11,13 +11,13 @@ repository = { workspace = true }
 [target.'cfg(windows)'.dependencies]
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true, features = ["win32"] }
+winio-callback = { workspace = true, optional = true }
 winio-pollable = { workspace = true }
 winio-ui-windows-common = { workspace = true, features = ["win32"] }
 
 compio = { workspace = true, features = ["arrayvec"] }
 compio-log = { workspace = true }
 
-flume = { version = "0.11", optional = true }
 futures-channel = { workspace = true, optional = true }
 futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
@@ -54,8 +54,8 @@ media = [
     "windows/Win32_Media_MediaFoundation",
 ]
 webview = [
+    "dep:winio-callback",
     "dep:webview2",
-    "dep:flume",
     "dep:futures-channel",
     "dep:windows-core",
     "winio-ui-windows-common/webview",

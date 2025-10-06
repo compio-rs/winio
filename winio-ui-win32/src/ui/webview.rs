@@ -1,6 +1,5 @@
-use std::{cell::RefCell, future::Future};
+use std::{cell::RefCell, future::Future, rc::Rc};
 
-use flume::Receiver;
 use webview2::{
     CreateCoreWebView2Environment, ICoreWebView2, ICoreWebView2Controller,
     ICoreWebView2CreateCoreWebView2ControllerCompletedHandler,
@@ -16,6 +15,7 @@ use windows::{
     core::{HRESULT, PCWSTR, Ref, Result, implement},
 };
 use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
+use winio_callback::Callback;
 use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Point, Rect, Size};
 use winio_ui_windows_common::{CoTaskMemPtr, WebViewImpl, WebViewLazy};
@@ -26,8 +26,8 @@ use crate::ui::with_u16c;
 pub struct WebViewInner {
     host: ICoreWebView2Controller,
     view: ICoreWebView2,
-    navigating_rx: Receiver<()>,
-    navigated_rx: Receiver<()>,
+    navigating: Rc<Callback>,
+    navigated: Rc<Callback>,
 }
 
 impl WebViewInner {
@@ -85,18 +85,20 @@ impl WebViewImpl for WebViewInner {
             .unwrap();
         }
         let (host, view) = rx.await.unwrap();
-        let (tx, navigating_rx) = flume::unbounded();
+        let navigating = Rc::new(Callback::new());
         unsafe {
+            let navigating = navigating.clone();
             view.NavigationStarting(&NavStartingHandler::create(move |_, _| {
-                tx.send(()).ok();
+                navigating.signal::<()>(());
                 Ok(())
             }))
             .unwrap();
         }
-        let (tx, navigated_rx) = flume::unbounded();
+        let navigated = Rc::new(Callback::new());
         unsafe {
+            let navigated = navigated.clone();
             view.NavigationCompleted(&NavCompletedHandler::create(move |_, _| {
-                tx.send(()).ok();
+                navigated.signal::<()>(());
                 Ok(())
             }))
             .unwrap();
@@ -104,8 +106,8 @@ impl WebViewImpl for WebViewInner {
         Self {
             host,
             view,
-            navigating_rx,
-            navigated_rx,
+            navigating,
+            navigated,
         }
     }
 
@@ -201,16 +203,16 @@ impl WebViewImpl for WebViewInner {
     }
 
     fn wait_navigating(&self) -> impl Future<Output = ()> + 'static + use<> {
-        let rx = self.navigating_rx.clone();
+        let navigating = self.navigating.clone();
         async move {
-            rx.recv_async().await.ok();
+            navigating.wait().await;
         }
     }
 
     fn wait_navigated(&self) -> impl Future<Output = ()> + 'static + use<> {
-        let rx = self.navigated_rx.clone();
+        let navigated = self.navigated.clone();
         async move {
-            rx.recv_async().await.ok();
+            navigated.wait().await;
         }
     }
 }
