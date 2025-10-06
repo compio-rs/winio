@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-use futures_util::StreamExt;
 use gtk4::{
     MediaFile,
     gio::prelude::FileExt,
@@ -74,19 +73,19 @@ impl Media {
 
     pub async fn load(&mut self, url: impl AsRef<str>) -> bool {
         let player = MediaFile::for_file(&gtk4::gio::File::for_uri(url.as_ref()));
-        let (tx, mut rx) = futures_channel::mpsc::unbounded();
+        let (tx, mut rx) = local_sync::mpsc::unbounded::channel();
         let cp = player.connect_prepared_notify({
             let tx = tx.clone();
             move |_| {
-                tx.unbounded_send(true).ok();
+                tx.send(true).ok();
             }
         });
         let ce = player.connect_error_notify(move |_| {
-            tx.unbounded_send(false).ok();
+            tx.send(false).ok();
         });
         self.widget.set_media_stream(Some(&player));
         self.image.set_visible(false);
-        let res = rx.next().await.unwrap_or_default();
+        let res = rx.recv().await.unwrap_or_default();
         player.disconnect(cp);
         player.disconnect(ce);
         self.source = Some(player);
