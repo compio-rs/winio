@@ -9,7 +9,7 @@ use std::{
 
 use axum::{http::Uri, response::IntoResponse};
 use compio::{buf::buf_try, fs::File, io::AsyncReadAtExt, net::TcpListener, runtime::spawn};
-use futures_channel::oneshot;
+use local_sync::oneshot;
 use send_wrapper::SendWrapper;
 use tuplex::IntoArray;
 use winio::prelude::*;

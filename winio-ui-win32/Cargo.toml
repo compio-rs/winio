@@ -21,6 +21,7 @@ compio-log = { workspace = true }
 futures-channel = { workspace = true, optional = true }
 futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
+local-sync = { workspace = true, optional = true }
 image = { workspace = true, default-features = false }
 scoped-tls = { workspace = true }
 slab = "0.4"
@@ -56,8 +57,8 @@ media = [
 webview = [
     "dep:winio-callback",
     "dep:webview2",
-    "dep:futures-channel",
     "dep:windows-core",
+    "dep:local-sync",
     "winio-ui-windows-common/webview",
 ]
 

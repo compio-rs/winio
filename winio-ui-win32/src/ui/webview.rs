@@ -64,7 +64,7 @@ impl WebViewInner {
 
 impl WebViewImpl for WebViewInner {
     async fn new(parent: impl AsContainer) -> Self {
-        let (tx, rx) = futures_channel::oneshot::channel();
+        let (tx, rx) = local_sync::oneshot::channel();
         let hwnd = parent.as_container().as_win32();
         unsafe {
             CreateCoreWebView2Environment(&CreateEnvHandler::create(move |env| {
