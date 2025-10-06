@@ -20,7 +20,7 @@ pub struct MarkdownPage {
     button: Child<Button>,
     label: Child<Label>,
     markdown_path: Rc<RefCell<PathBuf>>,
-    addr: Rc<RefCell<Option<SocketAddr>>>,
+    addr: Option<SocketAddr>,
     shutdown_tx: Option<oneshot::Sender<()>>,
 }
 
@@ -39,6 +39,7 @@ pub enum MarkdownPageEvent {
 #[derive(Debug)]
 pub enum MarkdownPageMessage {
     Noop,
+    SetAddr(SocketAddr),
     ChooseFile,
     OpenFile(PathBuf),
     Fetch(MarkdownFetchStatus),
@@ -65,12 +66,11 @@ impl Component for MarkdownPage {
             },
         }
 
-        let addr = Rc::new(RefCell::new(None));
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
         let markdown_path = Rc::new(RefCell::new(PathBuf::from(path)));
         {
-            let addr = addr.clone();
             let markdown_path = SendWrapper::new(markdown_path.clone());
+            let sender = sender.clone();
             spawn(async move {
                 let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
                 let serve = cyper_axum::serve(
@@ -98,7 +98,7 @@ impl Component for MarkdownPage {
                     shutdown_rx.await.ok();
                 });
                 let local_addr = serve.local_addr().unwrap();
-                *addr.borrow_mut() = Some(local_addr);
+                sender.post(MarkdownPageMessage::SetAddr(local_addr));
                 serve.await
             })
             .detach();
@@ -113,7 +113,7 @@ impl Component for MarkdownPage {
             button,
             label,
             markdown_path,
-            addr,
+            addr: None,
             shutdown_tx: Some(shutdown_tx),
         }
     }
@@ -143,6 +143,10 @@ impl Component for MarkdownPage {
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
         match message {
             MarkdownPageMessage::Noop => false,
+            MarkdownPageMessage::SetAddr(addr) => {
+                self.addr = Some(addr);
+                false
+            }
             MarkdownPageMessage::ChooseFile => {
                 sender.output(MarkdownPageEvent::ChooseFile);
                 false
@@ -171,7 +175,7 @@ impl Component for MarkdownPage {
                                             || dest_url.starts_with("https://")
                                         {
                                             dest_url.to_string()
-                                        } else if let Some(addr) = *self.addr.borrow() {
+                                        } else if let Some(addr) = self.addr {
                                             format!("http://{}/{}", addr, dest_url)
                                         } else {
                                             dest_url.to_string()
