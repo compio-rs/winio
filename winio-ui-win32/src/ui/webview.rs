@@ -225,7 +225,10 @@ impl AsRawWidget for WebViewInner {
 
 pub type WebView = WebViewLazy<WebViewInner>;
 
-#[implement(ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler)]
+#[implement(
+    ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,
+    Agile = false
+)]
 struct CreateEnvHandler<F>
 where
     F: FnOnce(Result<Ref<ICoreWebView2Environment>>) -> Result<()> + 'static,
@@ -263,7 +266,10 @@ where
     }
 }
 
-#[implement(ICoreWebView2CreateCoreWebView2ControllerCompletedHandler)]
+#[implement(
+    ICoreWebView2CreateCoreWebView2ControllerCompletedHandler,
+    Agile = false
+)]
 struct CreateControllerHandler<F>
 where
     F: FnOnce(Result<Ref<ICoreWebView2Controller>>) -> Result<()> + 'static,
@@ -302,7 +308,7 @@ where
     }
 }
 
-#[implement(ICoreWebView2NavigationStartingEventHandler)]
+#[implement(ICoreWebView2NavigationStartingEventHandler, Agile = false)]
 struct NavStartingHandler<F>
 where
     F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> Result<()>
@@ -335,7 +341,7 @@ where
     }
 }
 
-#[implement(ICoreWebView2NavigationCompletedEventHandler)]
+#[implement(ICoreWebView2NavigationCompletedEventHandler, Agile = false)]
 struct NavCompletedHandler<F>
 where
     F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> Result<()>
