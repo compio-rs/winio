@@ -15,10 +15,7 @@ use windows::{
     Win32::Foundation::{HWND, RECT},
     core::{HRESULT, PCWSTR, Ref, Result, implement},
 };
-use windows_sys::Win32::{
-    System::Com::CoTaskMemFree,
-    UI::{HiDpi::GetDpiForWindow, WindowsAndMessaging::IsWindow},
-};
+use windows_sys::Win32::{System::Com::CoTaskMemFree, UI::HiDpi::GetDpiForWindow};
 use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Point, Rect, Size};
 use winio_ui_windows_common::{WebViewImpl, WebViewLazy};
@@ -69,10 +66,6 @@ impl WebViewImpl for WebViewInner {
     async fn new(parent: impl AsContainer) -> Self {
         let (tx, rx) = futures_channel::oneshot::channel();
         let hwnd = parent.as_container().as_win32();
-        // Check here because the creation is asynchronous.
-        if unsafe { IsWindow(hwnd) } == 0 {
-            panic!("Invalid window handle");
-        }
         unsafe {
             CreateCoreWebView2Environment(&CreateEnvHandler::create(move |env| {
                 let env = env?;
