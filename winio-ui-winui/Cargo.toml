@@ -18,8 +18,6 @@ compio = { workspace = true }
 compio-runtime = { workspace = true, features = ["notify-always"] }
 compio-log = { workspace = true }
 
-futures-channel = { workspace = true, optional = true }
-futures-util = { workspace = true, optional = true }
 image = { workspace = true, default-features = false }
 inherit-methods-macro = { workspace = true }
 oneshot = { version = "0.1", default-features = false, features = ["std"] }
@@ -56,12 +54,7 @@ slim-detours-sys = { workspace = true }
 sync-unsafe-cell = { workspace = true }
 
 [features]
-media = [
-    "dep:futures-channel",
-    "dep:futures-util",
-    "windows/Media_Core",
-    "winui3/UI_Xaml_Media",
-]
+media = ["windows/Media_Core", "winui3/UI_Xaml_Media"]
 webview = ["winui3/Web_WebView2_Core", "winio-ui-windows-common/webview"]
 
 # Use CBS WinUI3 shipped with Windows

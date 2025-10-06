@@ -1,12 +1,7 @@
 use std::time::Duration;
 
-use futures_util::StreamExt;
 use inherit_methods_macro::inherit_methods;
-use windows::{
-    Foundation::{TypedEventHandler, Uri},
-    Media::Core::{MediaSource, MediaSourceOpenOperationCompletedEventArgs},
-    core::{Interface, Ref},
-};
+use windows::{Foundation::Uri, Media::Core::MediaSource, core::Interface};
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::Xaml::Controls as MUXC;
@@ -66,21 +61,8 @@ impl Media {
     pub async fn load(&mut self, url: impl AsRef<str>) -> bool {
         let source =
             MediaSource::CreateFromUri(&Uri::CreateUri(&url.as_ref().into()).unwrap()).unwrap();
-        let (tx, mut rx) = futures_channel::mpsc::unbounded();
-        let token = source
-            .OpenOperationCompleted(&TypedEventHandler::new(
-                move |_, args: Ref<MediaSourceOpenOperationCompletedEventArgs>| {
-                    if let Some(args) = args.as_ref() {
-                        tx.unbounded_send(args.Error().is_err()).ok();
-                    }
-                    Ok(())
-                },
-            ))
-            .unwrap();
         self.mpe.SetSource(&source).unwrap();
-        let res = rx.next().await.unwrap_or_default();
-        source.RemoveOpenOperationCompleted(token).unwrap();
-        res
+        source.OpenAsync().unwrap().await.is_ok()
     }
 
     pub fn play(&mut self) {
