@@ -65,11 +65,9 @@ impl TabView {
         }
     }
 
-    pub fn set_selection(&mut self, i: Option<usize>) {
+    pub fn set_selection(&mut self, i: usize) {
         unsafe {
-            if let Some(i) = i {
-                self.view.selectTabViewItemAtIndex(i as _);
-            }
+            self.view.selectTabViewItemAtIndex(i as _);
         }
     }
 
