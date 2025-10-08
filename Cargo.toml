@@ -25,18 +25,18 @@ license = "MIT"
 repository = "https://github.com/compio-rs/winio"
 
 [workspace.dependencies]
-winio-primitive = { path = "winio-primitive", version = "0.1.0" }
+winio-primitive = { path = "winio-primitive", version = "0.1.1" }
 winio-callback = { path = "winio-callback", version = "0.1.0" }
-winio-layout = { path = "winio-layout", version = "0.1.1" }
-winio-handle = { path = "winio-handle", version = "0.3.0" }
-winio-elm = { path = "winio-elm", version = "0.2.0" }
+winio-layout = { path = "winio-layout", version = "0.1.2" }
+winio-handle = { path = "winio-handle", version = "0.4.0" }
+winio-elm = { path = "winio-elm", version = "0.3.0" }
 winio-pollable = { path = "winio-pollable", version = "0.2.0" }
-winio-ui-windows-common = { path = "winio-ui-windows-common", version = "0.2.0" }
-winio-ui-win32 = { path = "winio-ui-win32", version = "0.2.0" }
-winio-ui-winui = { path = "winio-ui-winui", version = "0.2.0" }
-winio-ui-gtk = { path = "winio-ui-gtk", version = "0.2.0" }
-winio-ui-qt = { path = "winio-ui-qt", version = "0.2.0" }
-winio-ui-app-kit = { path = "winio-ui-app-kit", version = "0.2.0" }
+winio-ui-windows-common = { path = "winio-ui-windows-common", version = "0.3.0" }
+winio-ui-win32 = { path = "winio-ui-win32", version = "0.3.0" }
+winio-ui-winui = { path = "winio-ui-winui", version = "0.3.0" }
+winio-ui-gtk = { path = "winio-ui-gtk", version = "0.3.0" }
+winio-ui-qt = { path = "winio-ui-qt", version = "0.3.0" }
+winio-ui-app-kit = { path = "winio-ui-app-kit", version = "0.3.0" }
 
 compio = "0.16.0"
 compio-runtime = "0.9.1"

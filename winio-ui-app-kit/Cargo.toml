@@ -1,6 +1,6 @@
 [package]
 name = "winio-ui-app-kit"
-version = "0.2.0"
+version = "0.3.0"
 description = "AppKit backend for winio."
 edition = { workspace = true }
 authors = { workspace = true }
