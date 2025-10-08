@@ -31,8 +31,8 @@ impl ComboBox {
     /// The selection index.
     pub fn selection(&self) -> Option<usize>;
 
-    /// Set or cancel the selection.
-    pub fn set_selection(&mut self, i: Option<usize>);
+    /// Set the selection.
+    pub fn set_selection(&mut self, i: usize);
 
     /// If the combo box is editable.
     pub fn is_editable(&self) -> bool;

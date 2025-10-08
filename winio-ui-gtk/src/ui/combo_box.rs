@@ -88,9 +88,8 @@ impl ComboBox {
         }
     }
 
-    pub fn set_selection(&mut self, i: Option<usize>) {
-        self.widget
-            .set_selected(i.map(|i| i as u32).unwrap_or(gtk4::INVALID_LIST_POSITION));
+    pub fn set_selection(&mut self, i: usize) {
+        self.widget.set_selected(i as _);
     }
 
     pub fn is_editable(&self) -> bool {

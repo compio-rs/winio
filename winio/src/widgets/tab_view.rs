@@ -17,8 +17,8 @@ impl TabView {
     /// The selection index.
     pub fn selection(&self) -> Option<usize>;
 
-    /// Set or cancel the selection.
-    pub fn set_selection(&mut self, i: Option<usize>);
+    /// Set the selection.
+    pub fn set_selection(&mut self, i: usize);
 
     /// Insert a new tab item.
     pub fn insert(&mut self, i: usize, item: &TabViewItem) {

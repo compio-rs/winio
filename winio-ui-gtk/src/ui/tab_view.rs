@@ -56,8 +56,8 @@ impl TabView {
         self.view.current_page().map(|i| i as usize)
     }
 
-    pub fn set_selection(&mut self, i: Option<usize>) {
-        self.view.set_current_page(i.map(|i| i as _));
+    pub fn set_selection(&mut self, i: usize) {
+        self.view.set_current_page(Some(i as _));
     }
 
     pub async fn wait_select(&self) {

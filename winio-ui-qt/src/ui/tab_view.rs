@@ -54,10 +54,8 @@ impl TabView {
         if idx < 0 { None } else { Some(idx as usize) }
     }
 
-    pub fn set_selection(&mut self, index: Option<usize>) {
-        self.widget
-            .pin_mut()
-            .setCurrentIndex(index.map(|i| i as i32).unwrap_or(-1));
+    pub fn set_selection(&mut self, index: usize) {
+        self.widget.pin_mut().setCurrentIndex(index as _);
     }
 
     fn on_select(c: *const u8) {
