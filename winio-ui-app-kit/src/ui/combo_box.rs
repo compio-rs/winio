@@ -7,7 +7,9 @@ use objc2::{
 use objc2_app_kit::{
     NSComboBox, NSComboBoxDelegate, NSControlTextEditingDelegate, NSTextFieldDelegate,
 };
-use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString};
+use objc2_foundation::{
+    MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString, ns_string,
+};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
@@ -159,7 +161,17 @@ impl ComboBox {
 
     pub fn remove(&mut self, i: usize) {
         unsafe {
-            self.view.removeItemAtIndex(i as _);
+            let i = i as isize;
+            let remove_current = self.view.indexOfSelectedItem() == i;
+            self.view.removeItemAtIndex(i);
+            let len = self.view.numberOfItems();
+            if remove_current && (!self.is_editable()) {
+                if len > 0 {
+                    self.view.selectItemAtIndex(i.min(len - 1));
+                } else {
+                    self.view.setStringValue(ns_string!(""));
+                }
+            }
         }
     }
 }
