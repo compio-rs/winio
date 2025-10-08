@@ -65,9 +65,8 @@ impl TabView {
             .and_then(|i| if i < 0 { None } else { Some(i as usize) })
     }
 
-    pub fn set_selection(&mut self, i: Option<usize>) {
-        let i = i.map(|i| i as i32).unwrap_or(-1);
-        self.view.SetSelectedIndex(i).unwrap();
+    pub fn set_selection(&mut self, i: usize) {
+        self.view.SetSelectedIndex(i as _).unwrap();
     }
 
     pub async fn wait_select(&self) {
