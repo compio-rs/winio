@@ -89,16 +89,14 @@ impl ComboBox {
         if index < 0 { None } else { Some(index as _) }
     }
 
-    pub fn set_selection(&mut self, i: Option<usize>) {
+    pub fn set_selection(&mut self, i: usize) {
         unsafe {
             let old_sel = self.selection();
-            if i != old_sel {
+            if Some(i) != old_sel {
                 if let Some(i) = self.selection() {
                     self.view.deselectItemAtIndex(i as _);
                 }
-                if let Some(i) = i {
-                    self.view.selectItemAtIndex(i as _);
-                }
+                self.view.selectItemAtIndex(i as _);
             }
         }
     }
@@ -155,7 +153,7 @@ impl ComboBox {
             self.view.insertItemWithObjectValue_atIndex(&s, i as _);
         }
         if (!self.is_editable()) && self.len() == 1 {
-            self.set_selection(Some(0));
+            self.set_selection(0);
         }
     }
 

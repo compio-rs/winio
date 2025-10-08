@@ -77,9 +77,8 @@ impl ComboBox {
         if i < 0 { None } else { Some(i as _) }
     }
 
-    pub fn set_selection(&mut self, i: Option<usize>) {
-        let i = if let Some(i) = i { i as i32 } else { -1 };
-        self.widget.pin_mut().setCurrentIndex(i);
+    pub fn set_selection(&mut self, i: usize) {
+        self.widget.pin_mut().setCurrentIndex(i as _);
     }
 
     pub fn is_editable(&self) -> bool {

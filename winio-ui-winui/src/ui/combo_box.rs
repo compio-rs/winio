@@ -88,9 +88,8 @@ impl ComboBox {
         if i < 0 { None } else { Some(i as usize) }
     }
 
-    pub fn set_selection(&mut self, i: Option<usize>) {
-        let i = if let Some(i) = i { i as i32 } else { -1 };
-        self.combo_box.SetSelectedIndex(i).unwrap();
+    pub fn set_selection(&mut self, i: usize) {
+        self.combo_box.SetSelectedIndex(i as _).unwrap();
     }
 
     pub fn is_editable(&self) -> bool {
@@ -119,12 +118,21 @@ impl ComboBox {
             .InsertAt(i as _, &item.cast::<IInspectable>().unwrap())
             .unwrap();
         if (!self.is_editable()) && self.len() == 1 {
-            self.set_selection(Some(0));
+            self.set_selection(0);
         }
     }
 
     pub fn remove(&mut self, i: usize) {
+        let remove_current = self.selection() == Some(i);
         self.combo_box.Items().unwrap().RemoveAt(i as _).unwrap();
+        let len = self.len();
+        if remove_current && (!self.is_editable()) {
+            if len > 0 {
+                self.set_selection(i.min(len - 1));
+            } else {
+                self.combo_box.SetSelectedIndex(-1).unwrap();
+            }
+        }
     }
 
     pub fn get(&self, i: usize) -> String {

@@ -91,8 +91,7 @@ impl TabView {
         if i < 0 { None } else { Some(i as _) }
     }
 
-    pub fn set_selection(&mut self, i: Option<usize>) {
-        let i = if let Some(i) = i { i as isize } else { -1 };
+    pub fn set_selection(&mut self, i: usize) {
         self.handle.send_message(TCM_SETCURSEL, i as _, 0);
     }
 
@@ -170,7 +169,7 @@ impl TabView {
         self.views.remove(i);
         self.reset_indices();
         if need_reselect {
-            self.set_selection(Some(0));
+            self.set_selection(0);
         }
     }
 
