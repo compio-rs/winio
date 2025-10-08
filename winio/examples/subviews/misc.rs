@@ -13,7 +13,6 @@ pub struct MiscPage {
     canvas: Child<Canvas>,
     combo: Child<ComboBox>,
     list: Child<ObservableVec<String>>,
-    index: Option<usize>,
     r1: Child<RadioButton>,
     r2: Child<RadioButton>,
     r3: Child<RadioButton>,
@@ -124,7 +123,6 @@ impl Component for MiscPage {
             canvas,
             combo,
             list,
-            index: None,
             r1,
             r2,
             r3,
@@ -203,10 +201,7 @@ impl Component for MiscPage {
                     .emit(ComboBoxMessage::from_observable_vec_event(e))
                     .await
             }
-            MiscPageMessage::Select => {
-                self.index = self.combo.selection();
-                false
-            }
+            MiscPageMessage::Select => true,
             MiscPageMessage::Push => {
                 self.list.push(
                     match self.rindex {
@@ -241,7 +236,8 @@ impl Component for MiscPage {
                     MessageBox::new()
                         .title("Show selected item")
                         .message(
-                            self.index
+                            self.combo
+                                .selection()
                                 .and_then(|index| self.list.get(index))
                                 .map(|s| s.as_str())
                                 .unwrap_or("No selection."),

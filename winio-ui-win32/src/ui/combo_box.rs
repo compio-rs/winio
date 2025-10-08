@@ -80,8 +80,7 @@ impl ComboBoxImpl {
         if i < 0 { None } else { Some(i as _) }
     }
 
-    pub fn set_selection(&mut self, i: Option<usize>) {
-        let i = if let Some(i) = i { i as isize } else { -1 };
+    pub fn set_selection(&mut self, i: usize) {
         self.handle.send_message(CB_SETCURSEL, i as _, 0);
     }
 
@@ -118,8 +117,17 @@ impl ComboBoxImpl {
         });
     }
 
-    pub fn remove(&mut self, i: usize) {
+    pub fn remove(&mut self, i: usize, editable: bool) {
+        let remove_current = self.selection() == Some(i);
         self.handle.send_message(CB_DELETESTRING, i as _, 0);
+        let len = self.len();
+        if remove_current && (!editable) {
+            if len > 0 {
+                self.set_selection(i.min(len - 1));
+            } else {
+                self.handle.send_message(CB_SETCURSEL, -1isize as _, 0);
+            }
+        }
         unsafe {
             InvalidateRect(self.handle.as_raw_window().as_win32(), std::ptr::null(), 1);
         }
@@ -140,8 +148,12 @@ impl ComboBoxImpl {
     }
 
     pub fn set(&mut self, i: usize, s: impl AsRef<str>) {
-        self.remove(i);
+        let selection = self.selection();
+        self.remove(i, true);
         self.insert(i, s);
+        if let Some(i) = selection {
+            self.set_selection(i);
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -194,7 +206,9 @@ impl ComboBox {
         for i in 0..self.handle.len() {
             new_handle.insert(i, self.handle.get(i));
         }
-        new_handle.set_selection(self.handle.selection());
+        if let Some(i) = self.handle.selection() {
+            new_handle.set_selection(i);
+        }
         self.handle = new_handle;
     }
 
@@ -226,7 +240,7 @@ impl ComboBox {
 
     pub fn selection(&self) -> Option<usize>;
 
-    pub fn set_selection(&mut self, i: Option<usize>);
+    pub fn set_selection(&mut self, i: usize);
 
     pub fn is_editable(&self) -> bool {
         self.editable
@@ -250,11 +264,13 @@ impl ComboBox {
     pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
         self.handle.insert(i, s);
         if (!self.is_editable()) && self.len() == 1 {
-            self.set_selection(Some(0));
+            self.set_selection(0);
         }
     }
 
-    pub fn remove(&mut self, i: usize);
+    pub fn remove(&mut self, i: usize) {
+        self.handle.remove(i, self.editable)
+    }
 
     pub fn get(&self, i: usize) -> String;
 
