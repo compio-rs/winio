@@ -18,12 +18,12 @@ winio-ui-windows-common = { workspace = true, features = ["win32"] }
 compio = { workspace = true, features = ["arrayvec"] }
 compio-log = { workspace = true }
 
-futures-channel = { workspace = true, optional = true }
 futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
 local-sync = { workspace = true, optional = true }
 image = { workspace = true, default-features = false }
 scoped-tls = { workspace = true }
+send_wrapper = { workspace = true, optional = true }
 slab = "0.4"
 widestring = { workspace = true }
 
@@ -50,7 +50,8 @@ webview2 = { workspace = true, optional = true }
 
 [features]
 media = [
-    "dep:futures-channel",
+    "dep:winio-callback",
+    "dep:send_wrapper",
     "dep:windows-core",
     "windows/Win32_Media_MediaFoundation",
 ]

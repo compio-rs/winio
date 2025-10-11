@@ -1,9 +1,8 @@
-use std::{mem::MaybeUninit, time::Duration};
+use std::{mem::MaybeUninit, sync::Arc, time::Duration};
 
 use compio::driver::syscall;
-use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender};
-use futures_util::StreamExt;
 use inherit_methods_macro::inherit_methods;
+use send_wrapper::SendWrapper;
 use windows::{
     Win32::{
         Media::MediaFoundation::{
@@ -21,22 +20,24 @@ use windows::{
     core::{BSTR, Interface, Result, implement},
 };
 use windows_sys::Win32::{
+    Foundation::HWND,
     System::SystemServices::SS_OWNERDRAW,
     UI::{
         Controls::WC_STATICW,
-        WindowsAndMessaging::{GetClientRect, WS_CHILD, WS_VISIBLE},
+        WindowsAndMessaging::{GetClientRect, PostMessageW, WS_CHILD, WS_VISIBLE},
     },
 };
+use winio_callback::Callback;
 use winio_handle::{AsContainer, AsRawWidget, AsRawWindow};
 use winio_primitive::{Point, Size};
 
-use crate::{Widget, ui::with_u16c};
+use crate::{UserCallback, WM_USER_CALLBACK, Widget, ui::with_u16c};
 
 #[derive(Debug)]
 pub struct Media {
     handle: Widget,
     engine: IMFMediaEngine,
-    notify: UnboundedReceiver<bool>,
+    notify: Arc<SendWrapper<Callback<bool>>>,
     #[allow(dead_code)]
     callback: IMFMediaEngineNotify,
     _guard: MFGuard,
@@ -47,12 +48,9 @@ impl Media {
     pub fn new(parent: impl AsContainer) -> Self {
         let _guard = MFGuard::init();
 
-        let mut handle = Widget::new(
-            WC_STATICW,
-            WS_VISIBLE | WS_CHILD | SS_OWNERDRAW,
-            0,
-            parent.as_container().as_win32(),
-        );
+        let parent = parent.as_container().as_win32();
+
+        let mut handle = Widget::new(WC_STATICW, WS_VISIBLE | WS_CHILD | SS_OWNERDRAW, 0, parent);
         handle.set_size(handle.size_d2l((50, 14)));
 
         unsafe {
@@ -60,8 +58,8 @@ impl Media {
                 CoCreateInstance(&CLSID_MFMediaEngineClassFactory, None, CLSCTX_INPROC_SERVER)
                     .unwrap();
 
-            let (tx, rx) = futures_channel::mpsc::unbounded();
-            let callback: IMFMediaEngineNotify = MediaNotify { notify: tx }.into();
+            let notify = Arc::new(SendWrapper::new(Callback::new()));
+            let callback: IMFMediaEngineNotify = MediaNotify::new(notify.clone(), parent).into();
 
             let mut attrs = None;
             MFCreateAttributes(&mut attrs, 1).unwrap();
@@ -81,7 +79,7 @@ impl Media {
             Self {
                 handle,
                 callback,
-                notify: rx,
+                notify,
                 engine,
                 _guard,
             }
@@ -142,7 +140,7 @@ impl Media {
                     .unwrap();
             })
         }
-        self.notify.next().await.unwrap_or_default()
+        self.notify.wait().await
     }
 
     pub fn play(&mut self) {
@@ -208,19 +206,40 @@ impl Drop for MFGuard {
 
 #[implement(IMFMediaEngineNotify)]
 struct MediaNotify {
-    notify: UnboundedSender<bool>,
+    notify: Arc<SendWrapper<Callback<bool>>>,
+    parent: usize,
+}
+
+impl MediaNotify {
+    pub fn new(notify: Arc<SendWrapper<Callback<bool>>>, parent: HWND) -> Self {
+        Self {
+            notify,
+            parent: parent as _,
+        }
+    }
 }
 
 impl IMFMediaEngineNotify_Impl for MediaNotify_Impl {
     fn EventNotify(&self, event: u32, _param1: usize, _param2: u32) -> Result<()> {
-        match MF_MEDIA_ENGINE_EVENT(event as _) {
-            MF_MEDIA_ENGINE_EVENT_CANPLAY => {
-                self.notify.unbounded_send(true).ok();
-            }
-            MF_MEDIA_ENGINE_EVENT_ERROR => {
-                self.notify.unbounded_send(false).ok();
-            }
-            _ => {}
+        let msg = match MF_MEDIA_ENGINE_EVENT(event as _) {
+            MF_MEDIA_ENGINE_EVENT_CANPLAY => Some(true),
+            MF_MEDIA_ENGINE_EVENT_ERROR => Some(false),
+            _ => None,
+        };
+        if let Some(msg) = msg {
+            let notify = self.notify.clone();
+            syscall!(
+                BOOL,
+                PostMessageW(
+                    self.parent as _,
+                    WM_USER_CALLBACK,
+                    0,
+                    UserCallback::new(move || {
+                        notify.signal::<()>(msg);
+                    })
+                    .into_raw(),
+                )
+            )?;
         }
         Ok(())
     }
