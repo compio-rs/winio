@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{rc::Rc, time::Duration};
 
 use gtk4::{
     MediaFile,
@@ -7,6 +7,7 @@ use gtk4::{
     prelude::{MediaFileExt, MediaStreamExt, WidgetExt},
 };
 use inherit_methods_macro::inherit_methods;
+use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
@@ -73,21 +74,18 @@ impl Media {
 
     pub async fn load(&mut self, url: impl AsRef<str>) -> bool {
         let player = MediaFile::for_file(&gtk4::gio::File::for_uri(url.as_ref()));
-        let (tx, mut rx) = local_sync::mpsc::unbounded::channel();
+        let callback = Rc::new(Callback::new());
         let cp = player.connect_prepared_notify({
-            let tx = tx.clone();
+            let callback = callback.clone();
             move |_| {
-                tx.send(true).ok();
+                callback.signal::<()>(());
             }
-        });
-        let ce = player.connect_error_notify(move |_| {
-            tx.send(false).ok();
         });
         self.widget.set_media_stream(Some(&player));
         self.image.set_visible(false);
-        let res = rx.recv().await.unwrap_or_default();
+        callback.wait().await;
+        let res = player.error().is_none();
         player.disconnect(cp);
-        player.disconnect(ce);
         self.source = Some(player);
         res
     }

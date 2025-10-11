@@ -16,7 +16,6 @@ winio-pollable = { workspace = true }
 
 inherit-methods-macro = { workspace = true }
 image = { workspace = true, default-features = false }
-local-sync = { workspace = true, optional = true }
 scoped-tls = { workspace = true }
 
 gtk4 = { workspace = true, features = ["v4_14"] }
@@ -24,5 +23,5 @@ pangocairo = "0.21"
 webkit6 = { version = "0.5", optional = true }
 
 [features]
-media = ["dep:local-sync"]
+media = []
 webview = ["dep:webkit6"]
