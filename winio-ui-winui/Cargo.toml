@@ -33,6 +33,7 @@ winui3 = { workspace = true, features = [
     "UI_Dispatching",
     "UI_Windowing",
     "UI_Xaml_Controls_Primitives",
+    "UI_Xaml_Media",
     "UI_Xaml_Input",
 ] }
 windows-sys = { workspace = true, features = [
@@ -55,7 +56,7 @@ slim-detours-sys = { workspace = true }
 sync-unsafe-cell = { workspace = true }
 
 [features]
-media = ["windows/Media_Core", "winui3/UI_Xaml_Media"]
+media = ["windows/Media_Core"]
 webview = ["winui3/Web_WebView2_Core", "winio-ui-windows-common/webview"]
 
 # Use CBS WinUI3 shipped with Windows
