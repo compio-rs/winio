@@ -4,6 +4,10 @@ use winio_layout::{Layoutable, TextWidget, Visible};
 use winio_primitive::{Point, Size};
 
 use crate::sys;
+#[cfg(windows)]
+pub use crate::sys::Backdrop;
+#[cfg(target_os = "macos")]
+pub use crate::sys::Vibrancy;
 
 /// A simple window.
 ///
@@ -46,6 +50,28 @@ impl Window {
     /// Set window extended style.
     #[cfg(all(windows, feature = "win32"))]
     pub fn set_ex_style(&mut self, s: u32);
+
+    /// Get the backdrop effect of the window.
+    ///
+    /// # Platform specific
+    /// * Win32: Supported on Windows 11 22H2 and later; some controls might
+    ///   look weird.
+    /// * WinUI: Supported on 1.3 and later; the color of the title bar might be
+    ///   different from the client area if the backdrop is set to `Acrylic`.
+    #[cfg(windows)]
+    pub fn backdrop(&self) -> Backdrop;
+
+    /// Set the backdrop effect of the window.
+    #[cfg(windows)]
+    pub fn set_backdrop(&mut self, backdrop: Backdrop);
+
+    /// Get the visual effect of the window.
+    #[cfg(target_os = "macos")]
+    pub fn vibrancy(&self) -> Option<Vibrancy>;
+
+    /// Set the visual effect of the window.
+    #[cfg(target_os = "macos")]
+    pub fn set_vibrancy(&mut self, v: Option<Vibrancy>);
 }
 
 #[inherit_methods(from = "self.widget")]

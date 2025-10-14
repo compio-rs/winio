@@ -14,28 +14,36 @@ use slab::Slab;
 use windows::Win32::Graphics::Direct2D::{
     D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1CreateFactory, ID2D1Factory,
 };
+#[cfg(target_pointer_width = "64")]
+use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongPtrW;
+#[cfg(not(target_pointer_width = "64"))]
+use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongW as SetClassLongPtrW;
 use windows_sys::{
     Win32::{
         Foundation::{HANDLE, HWND, LPARAM, LRESULT, RECT, WAIT_FAILED, WPARAM},
-        Graphics::Gdi::{BLACK_BRUSH, GetStockObject, HDC, InvalidateRect},
+        Graphics::{
+            Dwm::DwmExtendFrameIntoClientArea,
+            Gdi::{BLACK_BRUSH, GetStockObject, HDC, InvalidateRect, WHITE_BRUSH},
+        },
         System::Threading::INFINITE,
         UI::{
-            Controls::NMHDR,
+            Controls::{MARGINS, NMHDR},
             Input::KeyboardAndMouse::{GetFocus, SetFocus},
             WindowsAndMessaging::{
-                DefWindowProcW, DispatchMessageW, EnumChildWindows, GA_ROOT, GetAncestor,
-                IsDialogMessageW, MWMO_ALERTABLE, MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx,
-                PM_REMOVE, PeekMessageW, QS_ALLINPUT, SWP_NOACTIVATE, SWP_NOZORDER, SendMessageW,
-                SetWindowPos, TranslateMessage, WA_INACTIVE, WM_ACTIVATE, WM_COMMAND, WM_CREATE,
-                WM_CTLCOLORBTN, WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC,
-                WM_DPICHANGED, WM_NOTIFY, WM_SETFOCUS, WM_SETFONT, WM_SETTINGCHANGE, WM_USER,
+                DefWindowProcW, DispatchMessageW, EnumChildWindows, GA_ROOT, GCLP_HBRBACKGROUND,
+                GetAncestor, IsDialogMessageW, MWMO_ALERTABLE, MWMO_INPUTAVAILABLE,
+                MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW, QS_ALLINPUT, SWP_NOACTIVATE,
+                SWP_NOZORDER, SendMessageW, SetWindowPos, TranslateMessage, WA_INACTIVE,
+                WM_ACTIVATE, WM_COMMAND, WM_CREATE, WM_CTLCOLORBTN, WM_CTLCOLOREDIT,
+                WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC, WM_DPICHANGED, WM_NOTIFY, WM_SETFOCUS,
+                WM_SETFONT, WM_SETTINGCHANGE, WM_USER,
             },
         },
     },
     core::BOOL,
 };
 use winio_ui_windows_common::{
-    children_refresh_dark_mode, control_color_edit, control_color_static, init_dark,
+    Backdrop, children_refresh_dark_mode, control_color_edit, control_color_static, init_dark,
     is_dark_mode_allowed_for_app, window_use_dark_mode,
 };
 
@@ -315,6 +323,7 @@ pub(crate) unsafe extern "system" fn window_proc(
             WM_SETTINGCHANGE => {
                 window_use_dark_mode(handle);
                 children_refresh_dark_mode(handle, 0);
+                refresh_background(handle);
                 InvalidateRect(handle, null(), 1);
             }
             WM_CTLCOLORSTATIC => {
@@ -429,4 +438,46 @@ impl UserCallback {
     pub fn call(self) {
         (self.callback)()
     }
+}
+
+pub(crate) unsafe fn set_backdrop(handle: HWND, backdrop: Backdrop) {
+    let old_backdrop = unsafe { get_backdrop(handle) };
+    if old_backdrop != backdrop {
+        set_backdrop_impl(handle, backdrop);
+        refresh_background(handle);
+    }
+}
+
+pub(crate) use winio_ui_windows_common::get_backdrop;
+
+unsafe fn set_backdrop_impl(handle: HWND, backdrop: Backdrop) {
+    let res = winio_ui_windows_common::set_backdrop(handle, backdrop);
+    if res {
+        let margins = MARGINS {
+            cxLeftWidth: -1,
+            cxRightWidth: -1,
+            cyTopHeight: -1,
+            cyBottomHeight: -1,
+        };
+        DwmExtendFrameIntoClientArea(handle, &margins);
+    } else {
+        let margins = MARGINS {
+            cxLeftWidth: 0,
+            cxRightWidth: 0,
+            cyTopHeight: 0,
+            cyBottomHeight: 0,
+        };
+        DwmExtendFrameIntoClientArea(handle, &margins);
+    }
+}
+
+unsafe fn refresh_background(handle: HWND) {
+    let backdrop = get_backdrop(GetAncestor(handle, GA_ROOT));
+    let black = !matches!(backdrop, Backdrop::None) || is_dark_mode_allowed_for_app();
+    let brush = if black {
+        GetStockObject(BLACK_BRUSH)
+    } else {
+        GetStockObject(WHITE_BRUSH)
+    };
+    SetClassLongPtrW(handle, GCLP_HBRBACKGROUND, brush as _);
 }

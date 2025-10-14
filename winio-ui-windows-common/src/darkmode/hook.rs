@@ -8,18 +8,14 @@ use std::{
 use slim_detours_sys::{DETOUR_INLINE_HOOK, SlimDetoursInlineHooks};
 use sync_unsafe_cell::SyncUnsafeCell;
 use widestring::U16CStr;
-#[cfg(target_pointer_width = "64")]
-use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongPtrW;
-#[cfg(not(target_pointer_width = "64"))]
-use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongW as SetClassLongPtrW;
 use windows_sys::{
     Win32::{
         Foundation::{COLORREF, E_INVALIDARG, HWND, LPARAM, LRESULT, RECT, S_OK, WPARAM},
         Graphics::{
             Dwm::DwmSetWindowAttribute,
             Gdi::{
-                BLACK_BRUSH, CreateSolidBrush, DC_BRUSH, DRAW_TEXT_FORMAT, FillRect, FrameRect,
-                GetStockObject, HDC, InvalidateRect, SetDCBrushColor, WHITE_BRUSH,
+                CreateSolidBrush, DC_BRUSH, DRAW_TEXT_FORMAT, FillRect, FrameRect, GetStockObject,
+                HDC, InvalidateRect, SetDCBrushColor,
             },
         },
         System::SystemServices::MAX_CLASS_NAME,
@@ -42,9 +38,9 @@ use windows_sys::{
             HiDpi::OpenThemeDataForDpi,
             Shell::{DefSubclassProc, SetWindowSubclass},
             WindowsAndMessaging::{
-                ES_MULTILINE, EnumChildWindows, GCLP_HBRBACKGROUND, GWL_STYLE, GetClassNameW,
-                GetClientRect, GetWindowLongPtrW, SPI_GETHIGHCONTRAST, SystemParametersInfoW,
-                WM_CTLCOLORDLG, WM_SETTINGCHANGE,
+                ES_MULTILINE, EnumChildWindows, GWL_STYLE, GetClassNameW, GetClientRect,
+                GetWindowLongPtrW, SPI_GETHIGHCONTRAST, SystemParametersInfoW, WM_CTLCOLORDLG,
+                WM_SETTINGCHANGE,
             },
         },
     },
@@ -125,12 +121,6 @@ const DWMWA_USE_IMMERSIVE_DARK_MODE_V2: u32 = 0x14;
 /// `h_wnd` should be valid.
 pub unsafe fn window_use_dark_mode(h_wnd: HWND) -> HRESULT {
     let set_dark_mode = is_dark_mode_allowed_for_app();
-    let brush = if set_dark_mode {
-        GetStockObject(BLACK_BRUSH)
-    } else {
-        GetStockObject(WHITE_BRUSH)
-    };
-    SetClassLongPtrW(h_wnd, GCLP_HBRBACKGROUND, brush as _);
     AllowDarkModeForWindow(h_wnd, set_dark_mode);
     let set_dark_mode = set_dark_mode as BOOL;
     let hr = DwmSetWindowAttribute(
