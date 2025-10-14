@@ -252,6 +252,10 @@ impl Window {
 
     pub fn set_backdrop(&mut self, backdrop: Backdrop) {
         self.set_backdrop_impl(backdrop).ok();
+        unsafe {
+            let hwnd = self.app_window.Id().unwrap().Value as _;
+            winio_ui_windows_common::set_backdrop(hwnd, backdrop);
+        }
     }
 
     fn set_backdrop_impl(&mut self, backdrop: Backdrop) -> windows::core::Result<bool> {

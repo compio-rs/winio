@@ -475,11 +475,11 @@ impl Window {
     }
 
     pub fn backdrop(&self) -> Backdrop {
-        get_backdrop(self.as_raw_window().as_win32())
+        unsafe { get_backdrop(self.as_raw_window().as_win32()) }
     }
 
     pub fn set_backdrop(&mut self, backdrop: Backdrop) {
-        set_backdrop(self.as_raw_window().as_win32(), backdrop);
+        unsafe { set_backdrop(self.as_raw_window().as_win32(), backdrop) };
     }
 
     pub async fn wait_size(&self) {

@@ -22,11 +22,7 @@ use windows_sys::{
     Win32::{
         Foundation::{HANDLE, HWND, LPARAM, LRESULT, RECT, WAIT_FAILED, WPARAM},
         Graphics::{
-            Dwm::{
-                DWMSBT_AUTO, DWMSBT_MAINWINDOW, DWMSBT_TABBEDWINDOW, DWMSBT_TRANSIENTWINDOW,
-                DWMWA_SYSTEMBACKDROP_TYPE, DwmExtendFrameIntoClientArea, DwmGetWindowAttribute,
-                DwmSetWindowAttribute,
-            },
+            Dwm::DwmExtendFrameIntoClientArea,
             Gdi::{BLACK_BRUSH, GetStockObject, HDC, InvalidateRect, WHITE_BRUSH},
         },
         System::Threading::INFINITE,
@@ -444,78 +440,44 @@ impl UserCallback {
     }
 }
 
-pub(crate) fn set_backdrop(handle: HWND, backdrop: Backdrop) {
-    let old_backdrop = get_backdrop(handle);
+pub(crate) unsafe fn set_backdrop(handle: HWND, backdrop: Backdrop) {
+    let old_backdrop = unsafe { get_backdrop(handle) };
     if old_backdrop != backdrop {
         set_backdrop_impl(handle, backdrop);
         refresh_background(handle);
     }
 }
 
-pub(crate) fn get_backdrop(handle: HWND) -> Backdrop {
-    let mut style = 0;
-    let res = unsafe {
-        DwmGetWindowAttribute(
-            handle,
-            DWMWA_SYSTEMBACKDROP_TYPE as _,
-            &mut style as *mut _ as _,
-            4,
-        )
-    };
-    if res < 0 {
-        return Backdrop::None;
-    }
-    match style {
-        DWMSBT_TRANSIENTWINDOW => Backdrop::Acrylic,
-        DWMSBT_MAINWINDOW => Backdrop::Mica,
-        DWMSBT_TABBEDWINDOW => Backdrop::MicaAlt,
-        _ => Backdrop::None,
-    }
-}
+pub(crate) use winio_ui_windows_common::get_backdrop;
 
-fn set_backdrop_impl(handle: HWND, backdrop: Backdrop) {
-    let style = match backdrop {
-        Backdrop::Acrylic => DWMSBT_TRANSIENTWINDOW,
-        Backdrop::Mica => DWMSBT_MAINWINDOW,
-        Backdrop::MicaAlt => DWMSBT_TABBEDWINDOW,
-        _ => DWMSBT_AUTO,
-    };
-    unsafe {
-        let res = DwmSetWindowAttribute(
-            handle,
-            DWMWA_SYSTEMBACKDROP_TYPE as _,
-            &style as *const _ as _,
-            4,
-        );
-        if res >= 0 && style > 0 {
-            let margins = MARGINS {
-                cxLeftWidth: -1,
-                cxRightWidth: -1,
-                cyTopHeight: -1,
-                cyBottomHeight: -1,
-            };
-            DwmExtendFrameIntoClientArea(handle, &margins);
-        } else {
-            let margins = MARGINS {
-                cxLeftWidth: 0,
-                cxRightWidth: 0,
-                cyTopHeight: 0,
-                cyBottomHeight: 0,
-            };
-            DwmExtendFrameIntoClientArea(handle, &margins);
-        }
-    }
-}
-
-fn refresh_background(handle: HWND) {
-    unsafe {
-        let backdrop = get_backdrop(GetAncestor(handle, GA_ROOT));
-        let black = !matches!(backdrop, Backdrop::None) || is_dark_mode_allowed_for_app();
-        let brush = if black {
-            GetStockObject(BLACK_BRUSH)
-        } else {
-            GetStockObject(WHITE_BRUSH)
+unsafe fn set_backdrop_impl(handle: HWND, backdrop: Backdrop) {
+    let res = winio_ui_windows_common::set_backdrop(handle, backdrop);
+    if res {
+        let margins = MARGINS {
+            cxLeftWidth: -1,
+            cxRightWidth: -1,
+            cyTopHeight: -1,
+            cyBottomHeight: -1,
         };
-        SetClassLongPtrW(handle, GCLP_HBRBACKGROUND, brush as _);
+        DwmExtendFrameIntoClientArea(handle, &margins);
+    } else {
+        let margins = MARGINS {
+            cxLeftWidth: 0,
+            cxRightWidth: 0,
+            cyTopHeight: 0,
+            cyBottomHeight: 0,
+        };
+        DwmExtendFrameIntoClientArea(handle, &margins);
     }
+}
+
+unsafe fn refresh_background(handle: HWND) {
+    let backdrop = get_backdrop(GetAncestor(handle, GA_ROOT));
+    let black = !matches!(backdrop, Backdrop::None) || is_dark_mode_allowed_for_app();
+    let brush = if black {
+        GetStockObject(BLACK_BRUSH)
+    } else {
+        GetStockObject(WHITE_BRUSH)
+    };
+    SetClassLongPtrW(handle, GCLP_HBRBACKGROUND, brush as _);
 }
