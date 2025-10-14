@@ -251,7 +251,12 @@ impl Window {
     }
 
     pub fn set_backdrop(&mut self, backdrop: Backdrop) {
-        self.set_backdrop_impl(backdrop).ok();
+        match self.set_backdrop_impl(backdrop) {
+            Ok(_) => {}
+            // Available since 1.3
+            Err(e) if e.code() == E_NOINTERFACE => {}
+            Err(e) => panic!("{e:?}"),
+        }
         unsafe {
             let hwnd = self.app_window.Id().unwrap().Value as _;
             winio_ui_windows_common::set_backdrop(hwnd, backdrop);
