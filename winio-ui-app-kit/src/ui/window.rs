@@ -248,7 +248,7 @@ impl WindowDelegate {
 }
 
 /// <https://developer.apple.com/documentation/appkit/nsvisualeffectview/material>
-#[derive(Clone, Copy, Debug, PartialEq, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 #[non_exhaustive]
 pub enum Vibrancy {
     #[deprecated(
