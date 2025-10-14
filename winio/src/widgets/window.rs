@@ -1,11 +1,13 @@
 use inherit_methods_macro::inherit_methods;
-#[cfg(windows)]
-pub use sys::Backdrop;
 use winio_elm::{Component, ComponentSender};
 use winio_layout::{Layoutable, TextWidget, Visible};
 use winio_primitive::{Point, Size};
 
 use crate::sys;
+#[cfg(windows)]
+pub use crate::sys::Backdrop;
+#[cfg(target_os = "macos")]
+pub use crate::sys::Vibrancy;
 
 /// A simple window.
 ///
@@ -62,6 +64,14 @@ impl Window {
     /// Set the backdrop effect of the window.
     #[cfg(windows)]
     pub fn set_backdrop(&mut self, backdrop: Backdrop);
+
+    /// Get the visual effect of the window.
+    #[cfg(target_os = "macos")]
+    pub fn vibrancy(&self) -> Option<Vibrancy>;
+
+    /// Set the visual effect of the window.
+    #[cfg(target_os = "macos")]
+    pub fn set_vibrancy(&mut self, v: Option<Vibrancy>);
 }
 
 #[inherit_methods(from = "self.widget")]

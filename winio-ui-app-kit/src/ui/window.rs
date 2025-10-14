@@ -7,7 +7,10 @@ use objc2::{
     runtime::ProtocolObject,
 };
 use objc2_app_kit::{
-    NSBackingStoreType, NSControl, NSScreen, NSView, NSWindow, NSWindowDelegate, NSWindowStyleMask,
+    NSAppKitVersionNumber, NSAppKitVersionNumber10_10, NSAppKitVersionNumber10_11,
+    NSAppKitVersionNumber10_14, NSAutoresizingMaskOptions, NSBackingStoreType, NSControl, NSScreen,
+    NSView, NSVisualEffectBlendingMode, NSVisualEffectMaterial, NSVisualEffectState,
+    NSVisualEffectView, NSWindow, NSWindowDelegate, NSWindowOrderingMode, NSWindowStyleMask,
 };
 use objc2_foundation::{
     MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSPoint, NSRect, NSSize, NSString,
@@ -27,6 +30,8 @@ use crate::{
 pub struct Window {
     wnd: Retained<NSWindow>,
     delegate: Retained<WindowDelegate>,
+    vibrancy: Option<Vibrancy>,
+    vibrancy_view: Option<Retained<NSVisualEffectView>>,
 }
 
 impl Window {
@@ -54,7 +59,12 @@ impl Window {
             wnd.setDelegate(Some(del_obj));
             wnd.setAcceptsMouseMovedEvents(true);
             wnd.makeKeyWindow();
-            let mut this = Self { wnd, delegate };
+            let mut this = Self {
+                wnd,
+                delegate,
+                vibrancy: None,
+                vibrancy_view: None,
+            };
             this.set_loc(Point::zero());
             this
         }
@@ -110,6 +120,52 @@ impl Window {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
         self.wnd.setTitle(&NSString::from_str(s.as_ref()));
+    }
+
+    pub fn vibrancy(&self) -> Option<Vibrancy> {
+        self.vibrancy
+    }
+
+    pub fn set_vibrancy(&mut self, v: Option<Vibrancy>) {
+        unsafe {
+            if self.vibrancy == v {
+                return;
+            }
+            if NSAppKitVersionNumber < NSAppKitVersionNumber10_10 {
+                return;
+            }
+            self.vibrancy = v;
+
+            if let Some(v) = v {
+                let view = self.wnd.contentView().unwrap();
+                let bounds = view.bounds();
+                let vev: Retained<NSVisualEffectView> = NSVisualEffectView::initWithFrame(
+                    self.wnd.mtm().alloc::<NSVisualEffectView>(),
+                    bounds,
+                );
+                #[allow(deprecated)]
+                let m = if (v as u32 > 9 && NSAppKitVersionNumber < NSAppKitVersionNumber10_14)
+                    || (v as u32 > 4 && NSAppKitVersionNumber < NSAppKitVersionNumber10_11)
+                {
+                    NSVisualEffectMaterial::AppearanceBased
+                } else {
+                    NSVisualEffectMaterial(v as u64 as _)
+                };
+                vev.setMaterial(m);
+                vev.setBlendingMode(NSVisualEffectBlendingMode::BehindWindow);
+                vev.setState(NSVisualEffectState::FollowsWindowActiveState);
+                vev.setAutoresizingMask(
+                    NSAutoresizingMaskOptions::ViewWidthSizable
+                        | NSAutoresizingMaskOptions::ViewHeightSizable,
+                );
+                view.addSubview_positioned_relativeTo(&vev, NSWindowOrderingMode::Below, None);
+                if let Some(vv) = self.vibrancy_view.replace(vev) {
+                    vv.removeFromSuperview();
+                }
+            } else if let Some(vv) = self.vibrancy_view.take() {
+                vv.removeFromSuperview();
+            }
+        }
     }
 
     pub async fn wait_size(&self) {
@@ -189,6 +245,56 @@ impl WindowDelegate {
     pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
         unsafe { msg_send![mtm.alloc::<Self>(), init] }
     }
+}
+
+/// <https://developer.apple.com/documentation/appkit/nsvisualeffectview/material>
+#[derive(Clone, Copy, Debug, PartialEq, Hash)]
+#[non_exhaustive]
+pub enum Vibrancy {
+    #[deprecated(
+        note = "A default material appropriate for the view's effectiveAppearance.  You should \
+                instead choose an appropriate semantic material."
+    )]
+    AppearanceBased     = 0,
+    #[deprecated(note = "Use a semantic material instead.")]
+    Light               = 1,
+    #[deprecated(note = "Use a semantic material instead.")]
+    Dark                = 2,
+    #[deprecated(note = "Use a semantic material instead.")]
+    MediumLight         = 8,
+    #[deprecated(note = "Use a semantic material instead.")]
+    UltraDark           = 9,
+
+    /// macOS 10.10+
+    Titlebar            = 3,
+    /// macOS 10.10+
+    Selection           = 4,
+
+    /// macOS 10.11+
+    Menu                = 5,
+    /// macOS 10.11+
+    Popover             = 6,
+    /// macOS 10.11+
+    Sidebar             = 7,
+
+    /// macOS 10.14+
+    HeaderView          = 10,
+    /// macOS 10.14+
+    Sheet               = 11,
+    /// macOS 10.14+
+    WindowBackground    = 12,
+    /// macOS 10.14+
+    HudWindow           = 13,
+    /// macOS 10.14+
+    FullScreenUI        = 15,
+    /// macOS 10.14+
+    Tooltip             = 17,
+    /// macOS 10.14+
+    ContentBackground   = 18,
+    /// macOS 10.14+
+    UnderWindowBackground = 21,
+    /// macOS 10.14+
+    UnderPageBackground = 22,
 }
 
 #[derive(Debug)]
