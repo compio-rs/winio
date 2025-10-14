@@ -8,11 +8,10 @@ use windows::{
         Foundation::{D2DERR_RECREATE_TARGET, HMODULE},
         Graphics::{
             Direct2D::{
-                Common::{D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_COLOR_F, D2D1_PIXEL_FORMAT},
+                Common::{D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_PIXEL_FORMAT},
                 D2D1_BITMAP_OPTIONS_CANNOT_DRAW, D2D1_BITMAP_OPTIONS_TARGET,
-                D2D1_BITMAP_PROPERTIES1, D2D1_DEVICE_CONTEXT_OPTIONS_NONE,
-                D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE, ID2D1Bitmap1, ID2D1Device, ID2D1DeviceContext,
-                ID2D1Factory2,
+                D2D1_BITMAP_PROPERTIES1, D2D1_DEVICE_CONTEXT_OPTIONS_NONE, ID2D1Bitmap1,
+                ID2D1Device, ID2D1DeviceContext, ID2D1Factory2,
             },
             Direct3D::{
                 D3D_DRIVER_TYPE_HARDWARE, D3D_FEATURE_LEVEL_9_1, D3D_FEATURE_LEVEL_9_2,
@@ -39,7 +38,7 @@ use windows::{
 };
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{ColorTheme, DrawingFont, MouseButton, Point, Rect, Size, Vector};
+use winio_primitive::{DrawingFont, MouseButton, Point, Rect, Size, Vector};
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 use winui3::{
     ISwapChainPanelNative,
@@ -189,24 +188,9 @@ impl SwapChain {
             let bitmap = context.CreateBitmapFromDxgiSurface(&buffer, Some(&props))?;
             context.SetTarget(&bitmap);
             context.SetDpi(DPI * scalex, DPI * scaley);
-            context.SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
             self.bitmap = Some(bitmap);
             context.BeginDraw();
-            context.Clear(Some(&if matches!(crate::color_theme(), ColorTheme::Dark) {
-                D2D1_COLOR_F {
-                    r: 0.0,
-                    g: 0.0,
-                    b: 0.0,
-                    a: 1.0,
-                }
-            } else {
-                D2D1_COLOR_F {
-                    r: 1.0,
-                    g: 1.0,
-                    b: 1.0,
-                    a: 1.0,
-                }
-            }));
+            context.Clear(None);
         }
         Ok(())
     }

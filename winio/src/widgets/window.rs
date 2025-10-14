@@ -50,6 +50,10 @@ impl Window {
     pub fn set_ex_style(&mut self, s: u32);
 
     /// Get the backdrop effect of the window.
+    ///
+    /// # Platform specific
+    /// * Win32: Supported on Windows 11 22H2 and later; some controls might
+    ///   look weird.
     #[cfg(windows)]
     pub fn backdrop(&self) -> Backdrop;
 

@@ -16,15 +16,20 @@ use windows_sys::Win32::UI::{
 use winio_callback::Callback;
 use winio_handle::{AsContainer, AsRawContainer, AsRawWindow, RawContainer, RawWindow};
 use winio_primitive::{Point, Size};
-use winio_ui_windows_common::get_current_module_handle;
+use winio_ui_windows_common::{Backdrop, get_current_module_handle};
 use winui3::{
     IWindowNative,
     Microsoft::UI::{
+        Composition::SystemBackdrops::MicaKind,
         IconId, WindowId,
         Windowing::{
             AppWindow, AppWindowChangedEventArgs, AppWindowClosingEventArgs, TitleBarTheme,
         },
-        Xaml::{self as MUX, Controls as MUXC, RoutedEventHandler},
+        Xaml::{
+            self as MUX, Controls as MUXC,
+            Media::{DesktopAcrylicBackdrop, MicaBackdrop},
+            RoutedEventHandler,
+        },
     },
 };
 
@@ -224,6 +229,55 @@ impl Window {
         self.app_window
             .SetIconWithIconId(IconId { Value: icon as _ })
             .unwrap();
+    }
+
+    pub fn backdrop(&self) -> Backdrop {
+        match self.handle.SystemBackdrop() {
+            Ok(brush) => {
+                if brush.cast::<DesktopAcrylicBackdrop>().is_ok() {
+                    Backdrop::Acrylic
+                } else if let Ok(brush) = brush.cast::<MicaBackdrop>() {
+                    match brush.Kind() {
+                        Ok(MicaKind::Base) => Backdrop::Mica,
+                        Ok(MicaKind::BaseAlt) => Backdrop::MicaAlt,
+                        _ => Backdrop::None,
+                    }
+                } else {
+                    Backdrop::None
+                }
+            }
+            Err(_) => Backdrop::None,
+        }
+    }
+
+    pub fn set_backdrop(&mut self, backdrop: Backdrop) {
+        self.set_backdrop_impl(backdrop).ok();
+    }
+
+    fn set_backdrop_impl(&mut self, backdrop: Backdrop) -> windows::core::Result<bool> {
+        match backdrop {
+            Backdrop::Acrylic => {
+                let brush = DesktopAcrylicBackdrop::new()?;
+                self.handle.SetSystemBackdrop(&brush)?;
+                Ok(true)
+            }
+            Backdrop::Mica => {
+                let brush = MicaBackdrop::new()?;
+                brush.SetKind(MicaKind::Base)?;
+                self.handle.SetSystemBackdrop(&brush)?;
+                Ok(true)
+            }
+            Backdrop::MicaAlt => {
+                let brush = MicaBackdrop::new()?;
+                brush.SetKind(MicaKind::BaseAlt)?;
+                self.handle.SetSystemBackdrop(&brush)?;
+                Ok(true)
+            }
+            _ => {
+                self.handle.SetSystemBackdrop(None)?;
+                Ok(false)
+            }
+        }
     }
 
     pub async fn wait_size(&self) {

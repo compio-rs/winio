@@ -29,6 +29,7 @@ winui3 = { workspace = true, features = [
     "native",
     "XamlApp",
     "UI_Composition",
+    "UI_Composition_SystemBackdrops",
     "UI_Dispatching",
     "UI_Windowing",
     "UI_Xaml_Controls_Primitives",
