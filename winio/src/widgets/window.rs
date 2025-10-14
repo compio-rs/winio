@@ -1,4 +1,6 @@
 use inherit_methods_macro::inherit_methods;
+#[cfg(windows)]
+pub use sys::Backdrop;
 use winio_elm::{Component, ComponentSender};
 use winio_layout::{Layoutable, TextWidget, Visible};
 use winio_primitive::{Point, Size};
@@ -46,6 +48,14 @@ impl Window {
     /// Set window extended style.
     #[cfg(all(windows, feature = "win32"))]
     pub fn set_ex_style(&mut self, s: u32);
+
+    /// Get the backdrop effect of the window.
+    #[cfg(windows)]
+    pub fn backdrop(&self) -> Backdrop;
+
+    /// Set the backdrop effect of the window.
+    #[cfg(windows)]
+    pub fn set_backdrop(&mut self, backdrop: Backdrop);
 }
 
 #[inherit_methods(from = "self.widget")]

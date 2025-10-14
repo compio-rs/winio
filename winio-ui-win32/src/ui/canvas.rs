@@ -24,18 +24,19 @@ use windows_sys::Win32::{
     UI::{
         Controls::WC_STATICW,
         WindowsAndMessaging::{
-            GetParent, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEHWHEEL,
-            WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_RBUTTONDOWN, WM_RBUTTONUP, WS_CHILD, WS_VISIBLE,
+            GA_ROOT, GetAncestor, GetParent, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN,
+            WM_MBUTTONUP, WM_MOUSEHWHEEL, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_RBUTTONDOWN,
+            WM_RBUTTONUP, WS_CHILD, WS_VISIBLE,
         },
     },
 };
-use winio_handle::{AsContainer, AsRawWindow};
+use winio_handle::{AsContainer, AsRawWidget, AsRawWindow};
 use winio_primitive::{DrawingFont, MouseButton, Orient, Point, Rect, Size, Vector};
-use winio_ui_windows_common::is_dark_mode_allowed_for_app;
+use winio_ui_windows_common::{Backdrop, is_dark_mode_allowed_for_app};
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 
 use crate::{
-    RUNTIME,
+    RUNTIME, get_backdrop,
     ui::{Widget, font::DWRITE_FACTORY},
 };
 
@@ -123,21 +124,27 @@ impl Canvas {
                 }
             }
             self.target.BeginDraw();
-            self.target.Clear(Some(&if is_dark_mode_allowed_for_app() {
-                D2D1_COLOR_F {
+            let parent_backdrop =
+                get_backdrop(GetAncestor(self.handle.as_raw_widget().as_win32(), GA_ROOT));
+            let clear_color = if !matches!(parent_backdrop, Backdrop::None) {
+                None
+            } else if is_dark_mode_allowed_for_app() {
+                Some(D2D1_COLOR_F {
                     r: 0.0,
                     g: 0.0,
                     b: 0.0,
                     a: 1.0,
-                }
+                })
             } else {
-                D2D1_COLOR_F {
+                Some(D2D1_COLOR_F {
                     r: 1.0,
                     g: 1.0,
                     b: 1.0,
                     a: 1.0,
-                }
-            }));
+                })
+            };
+            self.target
+                .Clear(clear_color.as_ref().map(|c| c as *const _));
         }
         DrawingContext::new(self)
     }

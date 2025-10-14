@@ -41,6 +41,9 @@ pub use darkmode::*;
 mod resource;
 pub use resource::*;
 
+mod backdrop;
+pub use backdrop::*;
+
 #[cfg(feature = "webview")]
 mod webview;
 #[cfg(feature = "webview")]

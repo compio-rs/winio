@@ -19,7 +19,8 @@ use windows_sys::Win32::{
             LR_SHARED, LoadCursorW, LoadImageW, RegisterClassExW, SW_HIDE, SW_SHOW, SWP_NOMOVE,
             SWP_NOSIZE, SWP_NOZORDER, SendMessageW, SetWindowLongPtrW, SetWindowPos,
             SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE, WM_SETICON, WM_SIZE, WNDCLASSEXW,
-            WS_CHILDWINDOW, WS_CLIPCHILDREN, WS_EX_CONTROLPARENT, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
+            WS_CHILDWINDOW, WS_CLIPCHILDREN, WS_EX_CONTROLPARENT, WS_EX_TRANSPARENT,
+            WS_OVERLAPPEDWINDOW, WS_VISIBLE,
         },
     },
 };
@@ -28,13 +29,15 @@ use winio_handle::{
 };
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{
-    PreferredAppMode, control_use_dark_mode, get_current_module_handle, set_preferred_app_mode,
-    window_use_dark_mode,
+    Backdrop, PreferredAppMode, control_use_dark_mode, get_current_module_handle,
+    set_preferred_app_mode, window_use_dark_mode,
 };
 
 use crate::{
     font::measure_string,
+    get_backdrop,
     runtime::{WindowMessage, wait, window_proc},
+    set_backdrop,
     tooltip::{get_tooltip, remove_tooltip, set_tooltip},
     ui::{
         dpi::{DpiAware, get_dpi_for_window},
@@ -413,7 +416,7 @@ impl Window {
         let handle = Widget::new(
             window_class_name(),
             WS_OVERLAPPEDWINDOW,
-            WS_EX_CONTROLPARENT,
+            WS_EX_CONTROLPARENT | WS_EX_TRANSPARENT,
             null_mut(),
         );
         let this = Self { handle };
@@ -469,6 +472,14 @@ impl Window {
             panic!("{:?}", std::io::Error::last_os_error());
         }
         self.handle.set_icon(icon);
+    }
+
+    pub fn backdrop(&self) -> Backdrop {
+        get_backdrop(self.as_raw_window().as_win32())
+    }
+
+    pub fn set_backdrop(&mut self, backdrop: Backdrop) {
+        set_backdrop(self.as_raw_window().as_win32(), backdrop);
     }
 
     pub async fn wait_size(&self) {
