@@ -36,7 +36,7 @@ use windows_sys::{
                 SWP_NOZORDER, SendMessageW, SetWindowPos, TranslateMessage, WA_INACTIVE,
                 WM_ACTIVATE, WM_COMMAND, WM_CREATE, WM_CTLCOLORBTN, WM_CTLCOLOREDIT,
                 WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC, WM_DPICHANGED, WM_NOTIFY, WM_SETFOCUS,
-                WM_SETFONT, WM_SETTINGCHANGE, WM_USER,
+                WM_SETFONT, WM_SETTINGCHANGE,
             },
         },
     },
@@ -217,11 +217,6 @@ impl Runtime {
                     code: header.code,
                 }
             }),
-            WM_USER_CALLBACK => {
-                let callback = unsafe { UserCallback::from_raw(lparam) };
-                callback.call();
-                return true;
-            }
             _ => WindowMessage::General { wparam, lparam },
         };
         let mut registry = self.registry.borrow_mut();
@@ -405,40 +400,6 @@ impl Future for MsgFuture {
 impl Drop for MsgFuture {
     fn drop(&mut self) {
         RUNTIME.with(|runtime| runtime.deregister(self.id, self.handle, self.msg));
-    }
-}
-
-/// A message that can be posted to a window to execute a callback.
-/// * wParam: 0
-/// * lParam: *mut Box<UserCallback>
-///
-/// The window procedure must call [`UserCallback::from_raw`] to take ownership
-/// of the callback and then call it.
-pub const WM_USER_CALLBACK: u32 = WM_USER + 1;
-
-pub struct UserCallback {
-    callback: Box<dyn FnOnce() + Send>,
-}
-
-impl UserCallback {
-    pub fn new(f: impl FnOnce() + Send + 'static) -> Self {
-        Self {
-            callback: Box::new(f),
-        }
-    }
-
-    pub fn into_raw(self) -> LPARAM {
-        Box::into_raw(Box::new(self)) as _
-    }
-
-    /// # Safety
-    /// The caller must ensure that lparam is from [`WM_USER_CALLBACK`].
-    pub unsafe fn from_raw(lparam: LPARAM) -> Self {
-        *Box::from_raw(lparam as *mut Self)
-    }
-
-    pub fn call(self) {
-        (self.callback)()
     }
 }
 
