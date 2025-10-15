@@ -8,6 +8,7 @@ use std::{
     future::Future,
     hint::unreachable_unchecked,
     pin::Pin,
+    sync::Mutex,
     task::{Context, Poll, Waker},
 };
 
@@ -105,5 +106,82 @@ impl<T> Drop for WaitFut<'_, T> {
     fn drop(&mut self) {
         // Deregister the waker.
         *self.0.0.borrow_mut() = WakerState::Inactive;
+    }
+}
+
+/// A thread-safe callback type.
+#[derive(Debug)]
+pub struct SyncCallback<T = ()>(Mutex<WakerState<T>>);
+
+impl<T> Default for SyncCallback<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> SyncCallback<T> {
+    /// Create [`SyncCallback`].
+    pub fn new() -> Self {
+        Self(Mutex::new(WakerState::Inactive))
+    }
+
+    /// Signal the callback and try to run the runtime if there's a waker
+    /// waiting. Returns `true` if not handled.
+    pub fn signal(&self, v: T) -> bool {
+        let mut state = self.0.lock().unwrap();
+        match &*state {
+            WakerState::Inactive => return true,
+            WakerState::Signaled(_) => {
+                // If a state is signaled again, the runtime might be too busy
+                // to wake the waker. Just try to run it again.
+            }
+            WakerState::Active(waker) => {
+                waker.wake_by_ref();
+            }
+        }
+        *state = WakerState::Signaled(v);
+        false
+    }
+
+    pub(crate) fn register(&self, waker: &Waker) -> Poll<T> {
+        let mut state = self.0.lock().unwrap();
+        match &*state {
+            WakerState::Signaled(_) => {
+                let state = std::mem::replace(&mut *state, WakerState::Inactive);
+                let v = if let WakerState::Signaled(v) = state {
+                    v
+                } else {
+                    // SAFETY: already checked
+                    unsafe { unreachable_unchecked() }
+                };
+                Poll::Ready(v)
+            }
+            _ => {
+                *state = WakerState::Active(waker.clone());
+                Poll::Pending
+            }
+        }
+    }
+
+    /// Wait for signal.
+    pub fn wait(&self) -> impl Future<Output = T> + '_ {
+        SyncWaitFut(self)
+    }
+}
+
+struct SyncWaitFut<'a, T>(&'a SyncCallback<T>);
+
+impl<T> Future for SyncWaitFut<'_, T> {
+    type Output = T;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        self.0.register(cx.waker())
+    }
+}
+
+impl<T> Drop for SyncWaitFut<'_, T> {
+    fn drop(&mut self) {
+        // Deregister the waker.
+        *self.0.0.lock().unwrap() = WakerState::Inactive;
     }
 }

@@ -1,4 +1,4 @@
-use std::{mem::MaybeUninit, rc::Rc, sync::Arc};
+use std::{cell::RefCell, mem::MaybeUninit, rc::Rc, sync::Arc};
 
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
@@ -14,7 +14,7 @@ use windows_sys::Win32::UI::{
         GetClientRect, IMAGE_ICON, LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LR_SHARED, LoadImageW,
     },
 };
-use winio_callback::Callback;
+use winio_callback::{Callback, SyncCallback};
 use winio_handle::{AsContainer, AsRawContainer, AsRawWindow, RawContainer, RawWindow};
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{Backdrop, get_current_module_handle};
@@ -22,7 +22,6 @@ use winui3::{
     IWindowNative,
     Microsoft::UI::{
         Composition::SystemBackdrops::MicaKind,
-        Dispatching::{DispatcherQueue, DispatcherQueueHandler},
         IconId, WindowId,
         Windowing::{
             AppWindow, AppWindowChangedEventArgs, AppWindowClosingEventArgs, TitleBarTheme,
@@ -52,6 +51,7 @@ impl Window {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         let handle = MUX::Window::new().unwrap();
+        ROOT_WINDOWS.with_borrow_mut(|map| map.push(handle.clone()));
 
         let app_window = match handle.AppWindow() {
             Ok(w) => w,
@@ -327,27 +327,42 @@ impl AsRawContainer for Window {
 
 winio_handle::impl_as_container!(Window);
 
+thread_local! {
+    static ROOT_WINDOWS: RefCell<Vec<MUX::Window>> = const { RefCell::new(vec![]) };
+}
+
+pub(crate) fn get_root_window(e: &MUX::FrameworkElement) -> Option<MUX::Window> {
+    let e_root = e.XamlRoot().ok()?;
+    ROOT_WINDOWS.with_borrow(|windows| {
+        for w in windows {
+            if let Ok(c) = w.Content() {
+                if let Ok(r) = c.XamlRoot() {
+                    if r == e_root {
+                        return Some(w.clone());
+                    }
+                }
+            }
+        }
+        None
+    })
+}
+
 #[derive(Debug)]
 struct ColorThemeWatcher {
     settings: UISettings,
-    notify: Arc<SendWrapper<Callback>>,
+    notify: Arc<SyncCallback>,
     token: i64,
 }
 
 impl ColorThemeWatcher {
     pub fn new() -> Self {
         let settings = UISettings::new().unwrap();
-        let notify = Arc::new(SendWrapper::new(Callback::new()));
+        let notify = Arc::new(SyncCallback::new());
         let token = {
             let notify = notify.clone();
-            let dispatcher = DispatcherQueue::GetForCurrentThread().unwrap();
             settings
                 .ColorValuesChanged(&TypedEventHandler::new(move |_, _| {
-                    let notify = notify.clone();
-                    dispatcher.TryEnqueue(&DispatcherQueueHandler::new(move || {
-                        notify.signal::<GlobalRuntime>(());
-                        Ok(())
-                    }))?;
+                    notify.signal(());
                     Ok(())
                 }))
                 .unwrap()
