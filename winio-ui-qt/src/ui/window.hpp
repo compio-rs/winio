@@ -12,6 +12,7 @@ struct WinioMainWindow : public QMainWindow {
     callback_t<void(int, int)> m_resize_callback;
     callback_t<void(int, int)> m_move_callback;
     callback_t<bool()> m_close_callback;
+    callback_t<void()> m_theme_callback;
 
     WinioMainWindow(QWidget *parent);
     ~WinioMainWindow() override;
@@ -20,6 +21,7 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
     void moveEvent(QMoveEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
+    void changeEvent(QEvent *event) override;
 };
 
 std::unique_ptr<QMainWindow> new_main_window();
@@ -34,4 +36,7 @@ void main_window_register_move_event(QMainWindow &w,
                                      std::uint8_t const *data);
 void main_window_register_close_event(QMainWindow &w,
                                       callback_fn_t<bool()> callback,
+                                      std::uint8_t const *data);
+void main_window_register_theme_event(QMainWindow &w,
+                                      callback_fn_t<void()> callback,
                                       std::uint8_t const *data);

@@ -11,6 +11,7 @@ pub struct Window {
     on_resize: Box<Callback<Size>>,
     on_move: Box<Callback<Point>>,
     on_close: Box<Callback<()>>,
+    on_theme: Box<Callback<()>>,
     widget: UniquePtr<ffi::QMainWindow>,
 }
 
@@ -21,6 +22,7 @@ impl Window {
         let on_resize = Box::new(Callback::new());
         let on_move = Box::new(Callback::new());
         let on_close = Box::new(Callback::new());
+        let on_theme = Box::new(Callback::new());
         unsafe {
             ffi::main_window_register_resize_event(
                 widget.pin_mut(),
@@ -37,11 +39,17 @@ impl Window {
                 Self::on_close,
                 on_close.as_ref() as *const _ as _,
             );
+            ffi::main_window_register_theme_event(
+                widget.pin_mut(),
+                Self::on_theme,
+                on_theme.as_ref() as *const _ as _,
+            );
         }
         Self {
             on_resize,
             on_move,
             on_close,
+            on_theme,
             widget,
         }
     }
@@ -124,6 +132,13 @@ impl Window {
         false
     }
 
+    fn on_theme(c: *const u8) {
+        let c = c as *const Callback<()>;
+        if let Some(c) = unsafe { c.as_ref() } {
+            c.signal::<GlobalRuntime>(());
+        }
+    }
+
     pub async fn wait_size(&self) {
         self.on_resize.wait().await;
     }
@@ -134,6 +149,10 @@ impl Window {
 
     pub async fn wait_close(&self) {
         self.on_close.wait().await
+    }
+
+    pub async fn wait_theme_changed(&self) {
+        self.on_theme.wait().await
     }
 }
 
@@ -192,6 +211,11 @@ mod ffi {
         unsafe fn main_window_register_close_event(
             w: Pin<&mut QMainWindow>,
             callback: unsafe fn(*const u8) -> bool,
+            data: *const u8,
+        );
+        unsafe fn main_window_register_theme_event(
+            w: Pin<&mut QMainWindow>,
+            callback: unsafe fn(*const u8),
             data: *const u8,
         );
     }
