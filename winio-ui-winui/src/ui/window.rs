@@ -1,9 +1,10 @@
-use std::{mem::MaybeUninit, rc::Rc};
+use std::{mem::MaybeUninit, rc::Rc, sync::Arc};
 
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows::{
     Foundation::TypedEventHandler,
+    UI::ViewManagement::UISettings,
     Win32::Foundation::E_NOINTERFACE,
     core::{Interface, Ref},
 };
@@ -21,6 +22,7 @@ use winui3::{
     IWindowNative,
     Microsoft::UI::{
         Composition::SystemBackdrops::MicaKind,
+        Dispatching::{DispatcherQueue, DispatcherQueueHandler},
         IconId, WindowId,
         Windowing::{
             AppWindow, AppWindowChangedEventArgs, AppWindowClosingEventArgs, TitleBarTheme,
@@ -40,6 +42,7 @@ pub struct Window {
     on_size: SendWrapper<Rc<Callback>>,
     on_move: SendWrapper<Rc<Callback>>,
     on_close: SendWrapper<Rc<Callback>>,
+    theme_watcher: ColorThemeWatcher,
     handle: MUX::Window,
     app_window: AppWindow,
     canvas: MUXC::Canvas,
@@ -128,11 +131,13 @@ impl Window {
                 }))
                 .unwrap();
         }
+        let theme_watcher = ColorThemeWatcher::new();
 
         Self {
             on_size,
             on_move,
             on_close,
+            theme_watcher,
             handle,
             app_window,
             canvas,
@@ -300,6 +305,10 @@ impl Window {
     pub async fn wait_close(&self) {
         self.on_close.wait().await
     }
+
+    pub async fn wait_theme_changed(&self) {
+        self.theme_watcher.wait().await
+    }
 }
 
 impl AsRawWindow for Window {
@@ -317,6 +326,49 @@ impl AsRawContainer for Window {
 }
 
 winio_handle::impl_as_container!(Window);
+
+#[derive(Debug)]
+struct ColorThemeWatcher {
+    settings: UISettings,
+    notify: Arc<SendWrapper<Callback>>,
+    token: i64,
+}
+
+impl ColorThemeWatcher {
+    pub fn new() -> Self {
+        let settings = UISettings::new().unwrap();
+        let notify = Arc::new(SendWrapper::new(Callback::new()));
+        let token = {
+            let notify = notify.clone();
+            let dispatcher = DispatcherQueue::GetForCurrentThread().unwrap();
+            settings
+                .ColorValuesChanged(&TypedEventHandler::new(move |_, _| {
+                    let notify = notify.clone();
+                    dispatcher.TryEnqueue(&DispatcherQueueHandler::new(move || {
+                        notify.signal::<GlobalRuntime>(());
+                        Ok(())
+                    }))?;
+                    Ok(())
+                }))
+                .unwrap()
+        };
+        Self {
+            settings,
+            notify,
+            token,
+        }
+    }
+
+    pub async fn wait(&self) {
+        self.notify.wait().await
+    }
+}
+
+impl Drop for ColorThemeWatcher {
+    fn drop(&mut self) {
+        self.settings.RemoveColorValuesChanged(self.token).unwrap();
+    }
+}
 
 #[derive(Debug)]
 pub struct View {
