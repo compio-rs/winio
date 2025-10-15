@@ -12,9 +12,12 @@ use crate::{GlobalRuntime, Widget};
 pub struct Window {
     on_size: Rc<Callback<()>>,
     on_close: Rc<Callback<()>>,
+    on_theme: Rc<Callback<()>>,
     window: gtk4::Window,
     swindow: gtk4::ScrolledWindow,
     fixed: gtk4::Fixed,
+    #[allow(unused)]
+    settings: gtk4::Settings,
 }
 
 impl Window {
@@ -22,14 +25,7 @@ impl Window {
     pub fn new() -> Self {
         let window = gtk4::Window::new();
 
-        let color = window.color();
-        let brightness = color.red() * 0.299 + color.green() * 0.587 + color.blue() * 0.114;
-        let theme = if brightness > 0.5 {
-            ColorTheme::Dark
-        } else {
-            ColorTheme::Light
-        };
-        super::COLOR_THEME.set(theme);
+        set_color_theme(&window);
 
         let swindow = gtk4::ScrolledWindow::new();
         swindow.set_hscrollbar_policy(gtk4::PolicyType::External);
@@ -40,6 +36,7 @@ impl Window {
 
         let on_size = Rc::new(Callback::new());
         let on_close = Rc::new(Callback::new());
+        let on_theme = Rc::new(Callback::new());
 
         window.connect_default_width_notify({
             let on_size = on_size.clone();
@@ -68,12 +65,25 @@ impl Window {
                 Propagation::Proceed
             }
         });
+        let settings = gtk4::Settings::for_display(&WidgetExt::display(&window));
+        settings.connect_closure("notify::gtk-theme-name", true, {
+            let on_theme = on_theme.clone();
+            let window = window.clone();
+            gtk4::glib::RustClosure::new_local(move |_| {
+                set_color_theme(&window);
+                on_theme.signal::<GlobalRuntime>(());
+                None
+            })
+        });
+
         Self {
             on_size,
             on_close,
+            on_theme,
             window,
             swindow,
             fixed,
+            settings,
         }
     }
 
@@ -145,6 +155,10 @@ impl Window {
     pub async fn wait_close(&self) {
         self.on_close.wait().await
     }
+
+    pub async fn wait_theme_changed(&self) {
+        self.on_theme.wait().await
+    }
 }
 
 impl AsRawWindow for Window {
@@ -162,6 +176,17 @@ impl AsRawContainer for Window {
 }
 
 winio_handle::impl_as_container!(Window);
+
+fn set_color_theme(w: &gtk4::Window) {
+    let color = w.color();
+    let brightness = color.red() * 0.299 + color.green() * 0.587 + color.blue() * 0.114;
+    let theme = if brightness > 0.5 {
+        ColorTheme::Dark
+    } else {
+        ColorTheme::Light
+    };
+    super::COLOR_THEME.set(theme);
+}
 
 #[derive(Debug)]
 pub struct View {
