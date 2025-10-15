@@ -296,6 +296,65 @@ pub(crate) unsafe extern "system" fn window_proc(
     lparam: LPARAM,
 ) -> LRESULT {
     trace!("window_proc: {:p}, {}, {}, {}", handle, msg, wparam, lparam);
+    // These messages need special handling.
+    match msg {
+        WM_CREATE => {
+            window_use_dark_mode(handle);
+            refresh_background(handle);
+            refresh_font(handle);
+        }
+        WM_ACTIVATE => {
+            let state = (wparam & 0xFFFF) as u32;
+            if state == WA_INACTIVE {
+                FOCUS.set(GetFocus());
+            }
+            return 0;
+        }
+        WM_SETFOCUS => {
+            let focus = FOCUS.get();
+            if !focus.is_null() {
+                SetFocus(focus);
+            }
+            return 0;
+        }
+        WM_SETTINGCHANGE => {
+            window_use_dark_mode(handle);
+            children_refresh_dark_mode(handle, 0);
+            refresh_background(handle);
+            InvalidateRect(handle, null(), 1);
+        }
+        WM_CTLCOLORSTATIC => {
+            return control_color_static(lparam as HWND, wparam as HDC);
+        }
+        WM_CTLCOLORBTN => {
+            if is_dark_mode_allowed_for_app() {
+                return GetStockObject(BLACK_BRUSH) as _;
+            }
+        }
+        WM_CTLCOLOREDIT | WM_CTLCOLORLISTBOX => {
+            if let Some(res) = control_color_edit(handle, lparam as HWND, wparam as HDC) {
+                return res;
+            }
+        }
+        WM_DPICHANGED => {
+            unsafe {
+                let new_rect = lparam as *const RECT;
+                if let Some(new_rect) = new_rect.as_ref() {
+                    SetWindowPos(
+                        handle,
+                        null_mut(),
+                        new_rect.left,
+                        new_rect.top,
+                        new_rect.right - new_rect.left,
+                        new_rect.bottom - new_rect.top,
+                        SWP_NOZORDER | SWP_NOACTIVATE,
+                    );
+                }
+            }
+            refresh_font(handle);
+        }
+        _ => {}
+    }
     let res = RUNTIME.with(|runtime| {
         let res = runtime.set_current_msg(handle, msg, wparam, lparam);
         runtime.runtime.run();
@@ -304,63 +363,6 @@ pub(crate) unsafe extern "system" fn window_proc(
     if res {
         0
     } else {
-        // These messages need special return values.
-        match msg {
-            WM_ACTIVATE => {
-                let state = (wparam & 0xFFFF) as u32;
-                if state == WA_INACTIVE {
-                    FOCUS.set(GetFocus());
-                }
-                return 0;
-            }
-            WM_SETFOCUS => {
-                let focus = FOCUS.get();
-                if !focus.is_null() {
-                    SetFocus(focus);
-                }
-                return 0;
-            }
-            WM_SETTINGCHANGE => {
-                window_use_dark_mode(handle);
-                children_refresh_dark_mode(handle, 0);
-                refresh_background(handle);
-                InvalidateRect(handle, null(), 1);
-            }
-            WM_CTLCOLORSTATIC => {
-                return control_color_static(lparam as HWND, wparam as HDC);
-            }
-            WM_CTLCOLORBTN => {
-                if is_dark_mode_allowed_for_app() {
-                    return GetStockObject(BLACK_BRUSH) as _;
-                }
-            }
-            WM_CTLCOLOREDIT | WM_CTLCOLORLISTBOX => {
-                if let Some(res) = control_color_edit(handle, lparam as HWND, wparam as HDC) {
-                    return res;
-                }
-            }
-            WM_CREATE => {
-                refresh_font(handle);
-            }
-            WM_DPICHANGED => {
-                unsafe {
-                    let new_rect = lparam as *const RECT;
-                    if let Some(new_rect) = new_rect.as_ref() {
-                        SetWindowPos(
-                            handle,
-                            null_mut(),
-                            new_rect.left,
-                            new_rect.top,
-                            new_rect.right - new_rect.left,
-                            new_rect.bottom - new_rect.top,
-                            SWP_NOZORDER | SWP_NOACTIVATE,
-                        );
-                    }
-                }
-                refresh_font(handle);
-            }
-            _ => {}
-        }
         DefWindowProcW(handle, msg, wparam, lparam)
     }
 }

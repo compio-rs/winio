@@ -129,7 +129,7 @@ impl Component for MainModel {
             sender, default: MainMessage::Noop,
             self.window => {
                 WindowEvent::Close => MainMessage::Close,
-                WindowEvent::Resize => MainMessage::Redraw,
+                WindowEvent::Resize | WindowEvent::ThemeChanged => MainMessage::Redraw,
             },
             self.tabview => {
                 TabViewEvent::Select => MainMessage::Redraw,

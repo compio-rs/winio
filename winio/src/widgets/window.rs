@@ -102,6 +102,8 @@ pub enum WindowEvent {
     Move,
     /// The window has been resized.
     Resize,
+    /// The window theme has been changed.
+    ThemeChanged,
 }
 
 impl Component for Window {
@@ -134,7 +136,13 @@ impl Component for Window {
                 sender.output(WindowEvent::Resize);
             }
         };
-        futures_util::future::join3(fut_close, fut_move, fut_resize)
+        let fut_theme = async {
+            loop {
+                self.widget.wait_theme_changed().await;
+                sender.output(WindowEvent::ThemeChanged);
+            }
+        };
+        futures_util::future::join4(fut_close, fut_move, fut_resize, fut_theme)
             .await
             .0
     }
