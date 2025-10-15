@@ -1,6 +1,7 @@
 use std::cell::Cell;
 
 use winio_primitive::ColorTheme;
+
 thread_local! {
     pub(crate) static COLOR_THEME: Cell<ColorTheme> = const { Cell::new(ColorTheme::Light) };
 }

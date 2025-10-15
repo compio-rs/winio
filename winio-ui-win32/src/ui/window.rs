@@ -5,6 +5,7 @@ use std::{
 };
 
 use compio::driver::syscall;
+use futures_util::FutureExt;
 use inherit_methods_macro::inherit_methods;
 use widestring::{U16CStr, U16CString, U16Str, u16cstr};
 use windows_sys::Win32::{
@@ -18,7 +19,8 @@ use windows_sys::Win32::{
             HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW, IMAGE_ICON, LR_DEFAULTCOLOR, LR_DEFAULTSIZE,
             LR_SHARED, LoadCursorW, LoadImageW, RegisterClassExW, SW_HIDE, SW_SHOW, SWP_NOMOVE,
             SWP_NOSIZE, SWP_NOZORDER, SendMessageW, SetWindowLongPtrW, SetWindowPos,
-            SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE, WM_SETICON, WM_SIZE, WNDCLASSEXW,
+            SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE, WM_SETICON, WM_SETTINGCHANGE,
+            WM_SHOWWINDOW, WM_SIZE, WM_THEMECHANGED, WM_WINDOWPOSCHANGED, WNDCLASSEXW,
             WS_CHILDWINDOW, WS_CLIPCHILDREN, WS_EX_CONTROLPARENT, WS_EX_TRANSPARENT,
             WS_OVERLAPPEDWINDOW, WS_VISIBLE,
         },
@@ -30,14 +32,12 @@ use winio_handle::{
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{
     Backdrop, PreferredAppMode, control_use_dark_mode, get_current_module_handle,
-    set_preferred_app_mode, window_use_dark_mode,
+    set_preferred_app_mode,
 };
 
 use crate::{
     font::measure_string,
-    get_backdrop,
-    runtime::{WindowMessage, wait, window_proc},
-    set_backdrop,
+    runtime::{WindowMessage, get_backdrop, set_backdrop, wait, window_proc},
     tooltip::{get_tooltip, remove_tooltip, set_tooltip},
     ui::{
         dpi::{DpiAware, get_dpi_for_window},
@@ -419,9 +419,7 @@ impl Window {
             WS_EX_CONTROLPARENT | WS_EX_TRANSPARENT,
             null_mut(),
         );
-        let this = Self { handle };
-        unsafe { window_use_dark_mode(this.as_raw_window().as_win32()) };
-        this
+        Self { handle }
     }
 
     pub fn is_visible(&self) -> bool;
@@ -483,7 +481,11 @@ impl Window {
     }
 
     pub async fn wait_size(&self) {
-        self.handle.wait(WM_SIZE).await;
+        futures_util::select! {
+            _ = self.handle.wait(WM_SIZE).fuse() => {},
+            _ = self.handle.wait(WM_SHOWWINDOW).fuse() => {},
+            _ = self.handle.wait(WM_WINDOWPOSCHANGED).fuse() => {},
+        }
     }
 
     pub async fn wait_move(&self) {
@@ -492,6 +494,13 @@ impl Window {
 
     pub async fn wait_close(&self) {
         self.handle.wait(WM_CLOSE).await;
+    }
+
+    pub async fn wait_theme_changed(&self) {
+        futures_util::select! {
+            _ = self.handle.wait(WM_THEMECHANGED).fuse() => {},
+            _ = self.handle.wait(WM_SETTINGCHANGE).fuse() => {},
+        }
     }
 }
 
@@ -520,9 +529,7 @@ impl View {
             WS_EX_CONTROLPARENT,
             parent,
         );
-        let this = Self { handle };
-        unsafe { window_use_dark_mode(this.handle.as_raw_window().as_win32()) };
-        this
+        Self { handle }
     }
 
     pub fn is_visible(&self) -> bool;

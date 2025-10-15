@@ -2,7 +2,6 @@ use std::{mem::MaybeUninit, sync::Arc, time::Duration};
 
 use compio::driver::syscall;
 use inherit_methods_macro::inherit_methods;
-use send_wrapper::SendWrapper;
 use windows::{
     Win32::{
         Media::MediaFoundation::{
@@ -20,24 +19,23 @@ use windows::{
     core::{BSTR, Interface, Result, implement},
 };
 use windows_sys::Win32::{
-    Foundation::HWND,
     System::SystemServices::SS_OWNERDRAW,
     UI::{
         Controls::WC_STATICW,
-        WindowsAndMessaging::{GetClientRect, PostMessageW, WS_CHILD, WS_VISIBLE},
+        WindowsAndMessaging::{GetClientRect, WS_CHILD, WS_VISIBLE},
     },
 };
-use winio_callback::Callback;
+use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, AsRawWidget, AsRawWindow};
 use winio_primitive::{Point, Size};
 
-use crate::{UserCallback, WM_USER_CALLBACK, Widget, ui::with_u16c};
+use crate::{Widget, ui::with_u16c};
 
 #[derive(Debug)]
 pub struct Media {
     handle: Widget,
     engine: IMFMediaEngine,
-    notify: Arc<SendWrapper<Callback<bool>>>,
+    notify: Arc<SyncCallback<bool>>,
     #[allow(dead_code)]
     callback: IMFMediaEngineNotify,
     _guard: MFGuard,
@@ -58,8 +56,8 @@ impl Media {
                 CoCreateInstance(&CLSID_MFMediaEngineClassFactory, None, CLSCTX_INPROC_SERVER)
                     .unwrap();
 
-            let notify = Arc::new(SendWrapper::new(Callback::new()));
-            let callback: IMFMediaEngineNotify = MediaNotify::new(notify.clone(), parent).into();
+            let notify = Arc::new(SyncCallback::new());
+            let callback: IMFMediaEngineNotify = MediaNotify::new(notify.clone()).into();
 
             let mut attrs = None;
             MFCreateAttributes(&mut attrs, 1).unwrap();
@@ -206,16 +204,12 @@ impl Drop for MFGuard {
 
 #[implement(IMFMediaEngineNotify)]
 struct MediaNotify {
-    notify: Arc<SendWrapper<Callback<bool>>>,
-    parent: usize,
+    notify: Arc<SyncCallback<bool>>,
 }
 
 impl MediaNotify {
-    pub fn new(notify: Arc<SendWrapper<Callback<bool>>>, parent: HWND) -> Self {
-        Self {
-            notify,
-            parent: parent as _,
-        }
+    pub fn new(notify: Arc<SyncCallback<bool>>) -> Self {
+        Self { notify }
     }
 }
 
@@ -227,19 +221,7 @@ impl IMFMediaEngineNotify_Impl for MediaNotify_Impl {
             _ => None,
         };
         if let Some(msg) = msg {
-            let notify = self.notify.clone();
-            syscall!(
-                BOOL,
-                PostMessageW(
-                    self.parent as _,
-                    WM_USER_CALLBACK,
-                    0,
-                    UserCallback::new(move || {
-                        notify.signal::<()>(msg);
-                    })
-                    .into_raw(),
-                )
-            )?;
+            self.notify.signal(msg);
         }
         Ok(())
     }

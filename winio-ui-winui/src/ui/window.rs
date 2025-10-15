@@ -1,9 +1,10 @@
-use std::{mem::MaybeUninit, rc::Rc};
+use std::{cell::RefCell, mem::MaybeUninit, rc::Rc, sync::Arc};
 
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows::{
     Foundation::TypedEventHandler,
+    UI::ViewManagement::UISettings,
     Win32::Foundation::E_NOINTERFACE,
     core::{Interface, Ref},
 };
@@ -13,7 +14,7 @@ use windows_sys::Win32::UI::{
         GetClientRect, IMAGE_ICON, LR_DEFAULTCOLOR, LR_DEFAULTSIZE, LR_SHARED, LoadImageW,
     },
 };
-use winio_callback::Callback;
+use winio_callback::{Callback, SyncCallback};
 use winio_handle::{AsContainer, AsRawContainer, AsRawWindow, RawContainer, RawWindow};
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{Backdrop, get_current_module_handle};
@@ -40,6 +41,7 @@ pub struct Window {
     on_size: SendWrapper<Rc<Callback>>,
     on_move: SendWrapper<Rc<Callback>>,
     on_close: SendWrapper<Rc<Callback>>,
+    theme_watcher: ColorThemeWatcher,
     handle: MUX::Window,
     app_window: AppWindow,
     canvas: MUXC::Canvas,
@@ -49,6 +51,7 @@ impl Window {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         let handle = MUX::Window::new().unwrap();
+        ROOT_WINDOWS.with_borrow_mut(|map| map.push(handle.clone()));
 
         let app_window = match handle.AppWindow() {
             Ok(w) => w,
@@ -128,11 +131,13 @@ impl Window {
                 }))
                 .unwrap();
         }
+        let theme_watcher = ColorThemeWatcher::new();
 
         Self {
             on_size,
             on_move,
             on_close,
+            theme_watcher,
             handle,
             app_window,
             canvas,
@@ -300,6 +305,10 @@ impl Window {
     pub async fn wait_close(&self) {
         self.on_close.wait().await
     }
+
+    pub async fn wait_theme_changed(&self) {
+        self.theme_watcher.wait().await
+    }
 }
 
 impl AsRawWindow for Window {
@@ -317,6 +326,64 @@ impl AsRawContainer for Window {
 }
 
 winio_handle::impl_as_container!(Window);
+
+thread_local! {
+    static ROOT_WINDOWS: RefCell<Vec<MUX::Window>> = const { RefCell::new(vec![]) };
+}
+
+pub(crate) fn get_root_window(e: &MUX::FrameworkElement) -> Option<MUX::Window> {
+    let e_root = e.XamlRoot().ok()?;
+    ROOT_WINDOWS.with_borrow(|windows| {
+        for w in windows {
+            if let Ok(c) = w.Content() {
+                if let Ok(r) = c.XamlRoot() {
+                    if r == e_root {
+                        return Some(w.clone());
+                    }
+                }
+            }
+        }
+        None
+    })
+}
+
+#[derive(Debug)]
+struct ColorThemeWatcher {
+    settings: UISettings,
+    notify: Arc<SyncCallback>,
+    token: i64,
+}
+
+impl ColorThemeWatcher {
+    pub fn new() -> Self {
+        let settings = UISettings::new().unwrap();
+        let notify = Arc::new(SyncCallback::new());
+        let token = {
+            let notify = notify.clone();
+            settings
+                .ColorValuesChanged(&TypedEventHandler::new(move |_, _| {
+                    notify.signal(());
+                    Ok(())
+                }))
+                .unwrap()
+        };
+        Self {
+            settings,
+            notify,
+            token,
+        }
+    }
+
+    pub async fn wait(&self) {
+        self.notify.wait().await
+    }
+}
+
+impl Drop for ColorThemeWatcher {
+    fn drop(&mut self) {
+        self.settings.RemoveColorValuesChanged(self.token).unwrap();
+    }
+}
 
 #[derive(Debug)]
 pub struct View {

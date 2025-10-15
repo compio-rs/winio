@@ -5,6 +5,7 @@ use objc2::{
     DeclaredClass, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained, Weak},
     runtime::ProtocolObject,
+    sel,
 };
 use objc2_app_kit::{
     NSAppKitVersionNumber, NSAppKitVersionNumber10_10, NSAppKitVersionNumber10_11,
@@ -13,7 +14,8 @@ use objc2_app_kit::{
     NSVisualEffectView, NSWindow, NSWindowDelegate, NSWindowOrderingMode, NSWindowStyleMask,
 };
 use objc2_foundation::{
-    MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSPoint, NSRect, NSSize, NSString,
+    MainThreadMarker, NSDistributedNotificationCenter, NSNotification, NSObject, NSObjectProtocol,
+    NSPoint, NSRect, NSSize, NSString, ns_string,
 };
 use winio_callback::Callback;
 use winio_handle::{
@@ -59,6 +61,14 @@ impl Window {
             wnd.setDelegate(Some(del_obj));
             wnd.setAcceptsMouseMovedEvents(true);
             wnd.makeKeyWindow();
+
+            NSDistributedNotificationCenter::defaultCenter().addObserver_selector_name_object(
+                &delegate,
+                sel!(userDefaultsDidChange),
+                Some(ns_string!("AppleInterfaceThemeChangedNotification")),
+                None,
+            );
+
             let mut this = Self {
                 wnd,
                 delegate,
@@ -179,6 +189,10 @@ impl Window {
     pub async fn wait_close(&self) {
         self.delegate.ivars().should_close.wait().await
     }
+
+    pub async fn wait_theme_changed(&self) {
+        self.delegate.ivars().defaults_change.wait().await
+    }
 }
 
 impl AsRawWindow for Window {
@@ -197,11 +211,20 @@ impl AsRawContainer for Window {
 
 winio_handle::impl_as_container!(Window);
 
+impl Drop for Window {
+    fn drop(&mut self) {
+        unsafe {
+            NSDistributedNotificationCenter::defaultCenter().removeObserver(&self.delegate);
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 struct WindowDelegateIvars {
     did_resize: Callback,
     did_move: Callback,
     should_close: Callback,
+    defaults_change: Callback,
 }
 
 define_class! {
@@ -212,11 +235,17 @@ define_class! {
     #[derive(Debug)]
     struct WindowDelegate;
 
+    #[allow(non_snake_case)]
     impl WindowDelegate {
         #[unsafe(method_id(init))]
         fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
             let this = this.set_ivars(WindowDelegateIvars::default());
             unsafe { msg_send![super(this), init] }
+        }
+
+        #[unsafe(method(userDefaultsDidChange))]
+        unsafe fn userDefaultsDidChange(&self) {
+            self.ivars().defaults_change.signal::<GlobalRuntime>(());
         }
     }
 
