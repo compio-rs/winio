@@ -5,7 +5,7 @@ use send_wrapper::SendWrapper;
 use windows::{
     Foundation::TypedEventHandler,
     UI::ViewManagement::UISettings,
-    Win32::Foundation::E_NOINTERFACE,
+    Win32::Foundation::{E_NOINTERFACE, REGDB_E_CLASSNOTREG},
     core::{Interface, Ref},
 };
 use windows_sys::Win32::UI::{
@@ -17,7 +17,9 @@ use windows_sys::Win32::UI::{
 use winio_callback::{Callback, SyncCallback};
 use winio_handle::{AsContainer, AsRawContainer, AsRawWindow, RawContainer, RawWindow};
 use winio_primitive::{Point, Size};
-use winio_ui_windows_common::{Backdrop, get_current_module_handle};
+use winio_ui_windows_common::{
+    Backdrop, get_current_module_handle, set_backdrop, window_use_dark_mode,
+};
 use winui3::{
     IWindowNative,
     Microsoft::UI::{
@@ -53,26 +55,23 @@ impl Window {
         let handle = MUX::Window::new().unwrap();
         ROOT_WINDOWS.with_borrow_mut(|map| map.push(handle.clone()));
 
-        let app_window = match handle.AppWindow() {
-            Ok(w) => w,
-            // Available since 1.3
-            Err(e) if e.code() == E_NOINTERFACE => {
-                let hwnd = unsafe {
-                    handle
-                        .cast::<IWindowNative>()
-                        .unwrap()
-                        .WindowHandle()
-                        .unwrap()
-                };
-                AppWindow::GetFromWindowId(WindowId { Value: hwnd.0 as _ }).unwrap()
-            }
-            Err(e) => panic!("{e:?}"),
+        let hwnd = unsafe {
+            handle
+                .cast::<IWindowNative>()
+                .unwrap()
+                .WindowHandle()
+                .unwrap()
         };
+        let app_window = AppWindow::GetFromWindowId(WindowId { Value: hwnd.0 as _ }).unwrap();
         let titlebar = app_window.TitleBar().unwrap();
         match titlebar.SetPreferredTheme(TitleBarTheme::UseDefaultAppMode) {
             Ok(()) => {}
             // Available since 1.7
-            Err(e) if e.code() == E_NOINTERFACE => {}
+            Err(e) if e.code() == E_NOINTERFACE => unsafe {
+                window_use_dark_mode(hwnd.0);
+                // Set to DWMSBT_AUTO.
+                set_backdrop(hwnd.0, Backdrop::None);
+            },
             Err(e) => panic!("{e:?}"),
         }
 
@@ -259,12 +258,12 @@ impl Window {
         match self.set_backdrop_impl(backdrop) {
             Ok(_) => {}
             // Available since 1.3
-            Err(e) if e.code() == E_NOINTERFACE => {}
+            Err(e) if matches!(e.code(), E_NOINTERFACE | REGDB_E_CLASSNOTREG) => return,
             Err(e) => panic!("{e:?}"),
         }
         unsafe {
             let hwnd = self.app_window.Id().unwrap().Value as _;
-            winio_ui_windows_common::set_backdrop(hwnd, backdrop);
+            set_backdrop(hwnd, backdrop);
         }
     }
 
