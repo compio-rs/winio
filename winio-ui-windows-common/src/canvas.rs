@@ -588,10 +588,30 @@ pub struct DrawingImage {
 
 impl DrawingImage {
     fn new(target: &ID2D1RenderTarget, image: DynamicImage) -> Self {
-        let image = match image {
-            DynamicImage::ImageRgba8(image) => image,
-            _ => image.into_rgba8(),
+        let (mut image, has_alpha) = match image {
+            DynamicImage::ImageRgb8(_)
+            | DynamicImage::ImageRgb16(_)
+            | DynamicImage::ImageRgb32F(_) => (image.into_rgba8(), false),
+            DynamicImage::ImageRgba8(image) => (image, true),
+            _ => (image.into_rgba8(), true),
         };
+        // alpha premultiplication
+        if has_alpha {
+            for Rgba(ref mut pixel) in image.pixels_mut() {
+                if pixel[3] == 0 {
+                    pixel[0] = 0;
+                    pixel[1] = 0;
+                    pixel[2] = 0;
+                } else if pixel[3] == 255 {
+                    // do nothing
+                } else {
+                    let a = pixel[3] as f32 / 255.0;
+                    pixel[0] = ((pixel[0] as f32) * a).round() as u8;
+                    pixel[1] = ((pixel[1] as f32) * a).round() as u8;
+                    pixel[2] = ((pixel[2] as f32) * a).round() as u8;
+                }
+            }
+        }
         let bitmap = Self::create_bitmap(target, &image);
         Self {
             image,
