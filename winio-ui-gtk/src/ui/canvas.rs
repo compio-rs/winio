@@ -15,7 +15,7 @@ use gtk4::{
     pango::{FontDescription, SCALE as PANGO_SCALE, Style, Weight},
     prelude::{DrawingAreaExtManual, GestureSingleExt, WidgetExt},
 };
-use image::DynamicImage;
+use image::{DynamicImage, Rgba, Rgba32FImage};
 use inherit_methods_macro::inherit_methods;
 use pangocairo::functions::show_layout;
 use winio_callback::Callback;
@@ -557,14 +557,43 @@ pub struct DrawingImage(ImageSurface);
 
 impl DrawingImage {
     fn new(image: DynamicImage) -> Self {
+        fn alpha_premultiply(mut image: Rgba32FImage) -> Rgba32FImage {
+            for Rgba(ref mut pixel) in image.pixels_mut() {
+                let a = pixel[3];
+                if a == 0.0 {
+                    pixel[0] = 0.0;
+                    pixel[1] = 0.0;
+                    pixel[2] = 0.0;
+                } else if a == 1.0 {
+                    // do nothing
+                } else {
+                    pixel[0] *= a;
+                    pixel[1] *= a;
+                    pixel[2] *= a;
+                }
+            }
+            image
+        }
+
         let width = image.width();
         let height = image.height();
+
+        const CAIRO_FORMAT_RGB96F: Format = Format::__Unknown(6);
+        const CAIRO_FORMAT_RGBA128F: Format = Format::__Unknown(7);
+
         let (format, buffer) = match image {
-            DynamicImage::ImageRgb32F(_) => (Format::__Unknown(6), image.into_bytes()), /* CAIRO_FORMAT_RGB96F */
-            DynamicImage::ImageRgba32F(_) => (Format::__Unknown(7), image.into_bytes()), /* CAIRO_FORMAT_RGBA128F */
+            DynamicImage::ImageRgb32F(_) => (CAIRO_FORMAT_RGB96F, image.into_bytes()),
+            DynamicImage::ImageRgb8(_) | DynamicImage::ImageRgb16(_) => (
+                CAIRO_FORMAT_RGB96F,
+                DynamicImage::ImageRgb32F(image.into_rgb32f()).into_bytes(),
+            ),
+            DynamicImage::ImageRgba32F(image) => (
+                CAIRO_FORMAT_RGBA128F,
+                DynamicImage::ImageRgba32F(alpha_premultiply(image)).into_bytes(),
+            ),
             _ => (
-                Format::__Unknown(7),
-                DynamicImage::ImageRgba32F(image.into_rgba32f()).into_bytes(),
+                CAIRO_FORMAT_RGBA128F,
+                DynamicImage::ImageRgba32F(alpha_premultiply(image.into_rgba32f())).into_bytes(),
             ),
         };
         let stride = format.stride_for_width(width).unwrap();
