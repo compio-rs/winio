@@ -116,17 +116,15 @@ impl TextBox {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>);
 
     pub fn text(&self) -> String {
-        unsafe { from_nsstring(&self.text_view.string()) }
+        from_nsstring(&self.text_view.string())
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
-        unsafe {
-            self.text_view.setString(&NSString::from_str(s.as_ref()));
-        }
+        self.text_view.setString(&NSString::from_str(s.as_ref()));
     }
 
     pub fn halign(&self) -> HAlign {
-        let align = unsafe { self.text_view.alignment() };
+        let align = self.text_view.alignment();
         match align {
             NSTextAlignment::Right => HAlign::Right,
             NSTextAlignment::Center => HAlign::Center,
@@ -136,15 +134,13 @@ impl TextBox {
     }
 
     pub fn set_halign(&mut self, align: HAlign) {
-        unsafe {
-            let align = match align {
-                HAlign::Left => NSTextAlignment::Left,
-                HAlign::Center => NSTextAlignment::Center,
-                HAlign::Right => NSTextAlignment::Right,
-                HAlign::Stretch => NSTextAlignment::Justified,
-            };
-            self.text_view.setAlignment(align);
-        }
+        let align = match align {
+            HAlign::Left => NSTextAlignment::Left,
+            HAlign::Center => NSTextAlignment::Center,
+            HAlign::Right => NSTextAlignment::Right,
+            HAlign::Stretch => NSTextAlignment::Justified,
+        };
+        self.text_view.setAlignment(align);
     }
 
     pub async fn wait_change(&self) {

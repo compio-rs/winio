@@ -124,17 +124,15 @@ impl ListBox {
     }
 
     pub fn is_selected(&self, i: usize) -> bool {
-        unsafe { self.table.isRowSelected(i as _) }
+        self.table.isRowSelected(i as _)
     }
 
     pub fn set_selected(&mut self, i: usize, v: bool) {
-        unsafe {
-            if v {
-                self.table
-                    .selectRowIndexes_byExtendingSelection(&NSIndexSet::indexSetWithIndex(i), true);
-            } else {
-                self.table.deselectRow(i as _);
-            }
+        if v {
+            self.table
+                .selectRowIndexes_byExtendingSelection(&NSIndexSet::indexSetWithIndex(i), true);
+        } else {
+            self.table.deselectRow(i as _);
         }
     }
 
@@ -148,7 +146,7 @@ impl ListBox {
 
     pub fn clear(&mut self) {
         self.delegate.ivars().data.borrow_mut().clear();
-        unsafe { self.table.reloadData() };
+        self.table.reloadData();
     }
 
     pub fn get(&self, i: usize) -> String {
@@ -157,7 +155,7 @@ impl ListBox {
 
     pub fn set(&mut self, i: usize, s: impl AsRef<str>) {
         self.delegate.ivars().data.borrow_mut()[i] = s.as_ref().to_string();
-        unsafe { self.table.reloadData() };
+        self.table.reloadData();
     }
 
     pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
@@ -166,12 +164,12 @@ impl ListBox {
             .data
             .borrow_mut()
             .insert(i, s.as_ref().to_string());
-        unsafe { self.table.reloadData() };
+        self.table.reloadData();
     }
 
     pub fn remove(&mut self, i: usize) {
         self.delegate.ivars().data.borrow_mut().remove(i);
-        unsafe { self.table.reloadData() };
+        self.table.reloadData();
     }
 }
 

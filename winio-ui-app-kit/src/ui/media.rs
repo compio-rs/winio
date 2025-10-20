@@ -77,7 +77,7 @@ impl Media {
     pub fn url(&self) -> String {
         self.url
             .as_ref()
-            .and_then(|url| unsafe { url.absoluteString() })
+            .and_then(|url| url.absoluteString())
             .map(|s| from_nsstring(&s))
             .unwrap_or_default()
     }

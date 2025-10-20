@@ -66,7 +66,7 @@ impl Slider {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>);
 
     pub fn tick_pos(&self) -> TickPosition {
-        let tpos = unsafe { self.view.tickMarkPosition() };
+        let tpos = self.view.tickMarkPosition();
         match tpos {
             NSTickMarkPosition::Below => TickPosition::BottomRight,
             NSTickMarkPosition::Above => TickPosition::TopLeft,
@@ -79,13 +79,11 @@ impl Slider {
             TickPosition::BottomRight => NSTickMarkPosition::Below,
             _ => NSTickMarkPosition::Above,
         };
-        unsafe {
-            self.view.setTickMarkPosition(tpos);
-        }
+        self.view.setTickMarkPosition(tpos);
     }
 
     pub fn orient(&self) -> Orient {
-        let vertical: bool = unsafe { msg_send![&*self.view, isVertical] };
+        let vertical = self.view.isVertical();
         if vertical {
             Orient::Vertical
         } else {
@@ -94,52 +92,42 @@ impl Slider {
     }
 
     pub fn set_orient(&mut self, v: Orient) {
-        unsafe {
-            self.view.setVertical(matches!(v, Orient::Vertical));
-        }
+        self.view.setVertical(matches!(v, Orient::Vertical));
     }
 
     pub fn minimum(&self) -> usize {
-        unsafe { self.view.minValue() as _ }
+        self.view.minValue() as _
     }
 
     pub fn set_minimum(&mut self, v: usize) {
-        unsafe {
-            self.view.setMinValue(v as _);
-        }
+        self.view.setMinValue(v as _);
     }
 
     pub fn maximum(&self) -> usize {
-        unsafe { self.view.maxValue() as _ }
+        self.view.maxValue() as _
     }
 
     pub fn set_maximum(&mut self, v: usize) {
-        unsafe {
-            self.view.setMaxValue(v as _);
-        }
+        self.view.setMaxValue(v as _);
     }
 
     pub fn freq(&self) -> usize {
-        let nmarks = unsafe { self.view.numberOfTickMarks() } as usize;
+        let nmarks = self.view.numberOfTickMarks() as usize;
         let range = self.maximum() - self.minimum();
         range / nmarks
     }
 
     pub fn set_freq(&mut self, v: usize) {
-        unsafe {
-            let range = self.maximum() - self.minimum();
-            self.view.setNumberOfTickMarks((range / v) as _);
-        }
+        let range = self.maximum() - self.minimum();
+        self.view.setNumberOfTickMarks((range / v) as _);
     }
 
     pub fn pos(&self) -> usize {
-        unsafe { self.view.doubleValue() as _ }
+        self.view.doubleValue() as _
     }
 
     pub fn set_pos(&mut self, pos: usize) {
-        unsafe {
-            self.view.setDoubleValue(pos as _);
-        }
+        self.view.setDoubleValue(pos as _);
     }
 
     pub async fn wait_change(&self) {

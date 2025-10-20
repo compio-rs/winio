@@ -74,43 +74,33 @@ impl ComboBox {
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>);
 
-    pub fn text(&self) -> String {
-        unsafe { from_nsstring(&self.view.stringValue()) }
-    }
+    pub fn text(&self) -> String;
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
-        unsafe {
-            self.view.setStringValue(&NSString::from_str(s.as_ref()));
-        }
-    }
+    pub fn set_text(&mut self, s: impl AsRef<str>);
 
     pub fn selection(&self) -> Option<usize> {
-        let index = unsafe { self.view.indexOfSelectedItem() };
+        let index = self.view.indexOfSelectedItem();
         if index < 0 { None } else { Some(index as _) }
     }
 
     pub fn set_selection(&mut self, i: usize) {
-        unsafe {
-            let old_sel = self.selection();
-            if Some(i) != old_sel {
-                if let Some(i) = self.selection() {
-                    self.view.deselectItemAtIndex(i as _);
-                }
-                self.view.selectItemAtIndex(i as _);
+        let old_sel = self.selection();
+        if Some(i) != old_sel {
+            if let Some(i) = self.selection() {
+                self.view.deselectItemAtIndex(i as _);
             }
+            self.view.selectItemAtIndex(i as _);
         }
     }
 
     pub fn is_editable(&self) -> bool {
-        unsafe { self.view.isEditable() }
+        self.view.isEditable()
     }
 
     pub fn set_editable(&mut self, v: bool) {
-        unsafe {
-            self.view.setDrawsBackground(v);
-            self.view.setEditable(v);
-            self.view.setSelectable(v);
-        }
+        self.view.setDrawsBackground(v);
+        self.view.setEditable(v);
+        self.view.setSelectable(v);
     }
 
     pub async fn wait_change(&self) {
@@ -122,7 +112,7 @@ impl ComboBox {
     }
 
     pub fn len(&self) -> usize {
-        unsafe { self.view.numberOfItems() as _ }
+        self.view.numberOfItems() as _
     }
 
     pub fn is_empty(&self) -> bool {
@@ -130,9 +120,7 @@ impl ComboBox {
     }
 
     pub fn clear(&mut self) {
-        unsafe {
-            self.view.removeAllItems();
-        }
+        self.view.removeAllItems();
     }
 
     pub fn get(&self, i: usize) -> String {
@@ -158,17 +146,15 @@ impl ComboBox {
     }
 
     pub fn remove(&mut self, i: usize) {
-        unsafe {
-            let i = i as isize;
-            let remove_current = self.view.indexOfSelectedItem() == i;
-            self.view.removeItemAtIndex(i);
-            let len = self.view.numberOfItems();
-            if remove_current && (!self.is_editable()) {
-                if len > 0 {
-                    self.view.selectItemAtIndex(i.min(len - 1));
-                } else {
-                    self.view.setStringValue(ns_string!(""));
-                }
+        let i = i as isize;
+        let remove_current = self.view.indexOfSelectedItem() == i;
+        self.view.removeItemAtIndex(i);
+        let len = self.view.numberOfItems();
+        if remove_current && (!self.is_editable()) {
+            if len > 0 {
+                self.view.selectItemAtIndex(i.min(len - 1));
+            } else {
+                self.view.setStringValue(ns_string!(""));
             }
         }
     }

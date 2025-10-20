@@ -58,17 +58,13 @@ impl TabView {
     pub fn set_size(&mut self, v: Size);
 
     pub fn selection(&self) -> Option<usize> {
-        unsafe {
-            self.view
-                .selectedTabViewItem()
-                .map(|item| self.view.indexOfTabViewItem(&item) as _)
-        }
+        self.view
+            .selectedTabViewItem()
+            .map(|item| self.view.indexOfTabViewItem(&item) as _)
     }
 
     pub fn set_selection(&mut self, i: usize) {
-        unsafe {
-            self.view.selectTabViewItemAtIndex(i as _);
-        }
+        self.view.selectTabViewItemAtIndex(i as _);
     }
 
     pub async fn wait_select(&self) {
@@ -76,20 +72,16 @@ impl TabView {
     }
 
     pub fn insert(&mut self, i: usize, item: &TabViewItem) {
-        unsafe {
-            self.view.insertTabViewItem_atIndex(&item.item, i as _);
-        }
+        self.view.insertTabViewItem_atIndex(&item.item, i as _);
     }
 
     pub fn remove(&mut self, i: usize) {
-        unsafe {
-            self.view
-                .removeTabViewItem(&self.view.tabViewItemAtIndex(i as _));
-        }
+        self.view
+            .removeTabViewItem(&self.view.tabViewItemAtIndex(i as _));
     }
 
     pub fn len(&self) -> usize {
-        unsafe { self.view.numberOfTabViewItems() as _ }
+        self.view.numberOfTabViewItems() as _
     }
 
     pub fn is_empty(&self) -> bool {
@@ -155,35 +147,29 @@ pub struct TabViewItem {
 
 impl TabViewItem {
     pub fn new(parent: &TabView) -> Self {
-        unsafe {
-            let item = NSTabViewItem::new();
-            let mtm = parent.view.mtm();
-            item.setView(Some(&NSView::new(mtm)));
-            Self { item, mtm }
-        }
+        let item = NSTabViewItem::new();
+        let mtm = parent.view.mtm();
+        item.setView(Some(&NSView::new(mtm)));
+        Self { item, mtm }
     }
 
     pub fn text(&self) -> String {
-        unsafe { from_nsstring(&self.item.label()) }
+        from_nsstring(&self.item.label())
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
-        unsafe {
-            self.item.setLabel(&NSString::from_str(s.as_ref()));
-        }
+        self.item.setLabel(&NSString::from_str(s.as_ref()));
     }
 
     pub fn size(&self) -> Size {
-        unsafe {
-            let frame = self.item.view(self.mtm).unwrap().frame().size;
-            from_cgsize(frame)
-        }
+        let frame = self.item.view(self.mtm).unwrap().frame().size;
+        from_cgsize(frame)
     }
 }
 
 impl AsRawContainer for TabViewItem {
     fn as_raw_container(&self) -> RawContainer {
-        unsafe { self.item.view(self.mtm).unwrap().clone() }
+        self.item.view(self.mtm).unwrap().clone()
     }
 }
 

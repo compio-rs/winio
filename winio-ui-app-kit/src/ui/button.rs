@@ -70,13 +70,11 @@ impl Button {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>);
 
     pub fn text(&self) -> String {
-        unsafe { from_nsstring(&self.view.title()) }
+        from_nsstring(&self.view.title())
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
-        unsafe {
-            self.view.setTitle(&NSString::from_str(s.as_ref()));
-        }
+        self.view.setTitle(&NSString::from_str(s.as_ref()));
     }
 
     pub async fn wait_click(&self) {
@@ -95,10 +93,8 @@ pub struct CheckBox {
 impl CheckBox {
     pub fn new(parent: impl AsContainer) -> Self {
         let handle = Button::new(parent);
-        unsafe {
-            handle.view.setButtonType(NSButtonType::Switch);
-            handle.view.setAllowsMixedState(false);
-        }
+        handle.view.setButtonType(NSButtonType::Switch);
+        handle.view.setAllowsMixedState(false);
         Self { handle }
     }
 
@@ -129,17 +125,15 @@ impl CheckBox {
     pub fn set_text(&mut self, s: impl AsRef<str>);
 
     pub fn is_checked(&self) -> bool {
-        unsafe { self.handle.view.state() == NSControlStateValueOn }
+        self.handle.view.state() == NSControlStateValueOn
     }
 
     pub fn set_checked(&mut self, v: bool) {
-        unsafe {
-            self.handle.view.setState(if v {
-                NSControlStateValueOn
-            } else {
-                NSControlStateValueOff
-            })
-        }
+        self.handle.view.setState(if v {
+            NSControlStateValueOn
+        } else {
+            NSControlStateValueOff
+        })
     }
 
     pub async fn wait_click(&self) {
@@ -158,10 +152,8 @@ pub struct RadioButton {
 impl RadioButton {
     pub fn new(parent: impl AsContainer) -> Self {
         let handle = Button::new(parent);
-        unsafe {
-            handle.view.setButtonType(NSButtonType::Radio);
-            handle.view.setAllowsMixedState(false);
-        }
+        handle.view.setButtonType(NSButtonType::Radio);
+        handle.view.setAllowsMixedState(false);
         Self { handle }
     }
 
@@ -192,17 +184,15 @@ impl RadioButton {
     pub fn set_text(&mut self, s: impl AsRef<str>);
 
     pub fn is_checked(&self) -> bool {
-        unsafe { self.handle.view.state() == NSControlStateValueOn }
+        self.handle.view.state() == NSControlStateValueOn
     }
 
     pub fn set_checked(&mut self, v: bool) {
-        unsafe {
-            self.handle.view.setState(if v {
-                NSControlStateValueOn
-            } else {
-                NSControlStateValueOff
-            })
-        }
+        self.handle.view.setState(if v {
+            NSControlStateValueOn
+        } else {
+            NSControlStateValueOff
+        })
     }
 
     pub async fn wait_click(&self) {

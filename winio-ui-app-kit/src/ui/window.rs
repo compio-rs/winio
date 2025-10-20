@@ -89,7 +89,7 @@ impl Window {
     }
 
     pub fn set_visible(&mut self, v: bool) {
-        unsafe { self.wnd.setIsVisible(v) }
+        self.wnd.setIsVisible(v)
     }
 
     pub fn loc(&self) -> Point {
@@ -334,16 +334,14 @@ pub(crate) struct Widget {
 
 impl Widget {
     pub fn from_nsview(parent: impl AsContainer, view: Retained<NSView>) -> Self {
-        unsafe {
-            let parent = parent.as_container().as_raw_container();
-            parent.addSubview(&view);
-            let mut this = Self {
-                parent: Weak::from_retained(&parent),
-                view,
-            };
-            this.set_loc(Point::zero());
-            this
-        }
+        let parent = parent.as_container().as_raw_container();
+        parent.addSubview(&view);
+        let mut this = Self {
+            parent: Weak::from_retained(&parent),
+            view,
+        };
+        this.set_loc(Point::zero());
+        this
     }
 
     pub fn parent(&self) -> Retained<NSView> {
@@ -351,7 +349,7 @@ impl Widget {
     }
 
     pub fn is_visible(&self) -> bool {
-        unsafe { !self.view.isHidden() }
+        !self.view.isHidden()
     }
 
     pub fn set_visible(&mut self, v: bool) {
@@ -359,21 +357,23 @@ impl Widget {
     }
 
     pub fn is_enabled(&self) -> bool {
-        unsafe { Retained::cast_unchecked::<NSControl>(self.view.clone()).isEnabled() }
+        self.view
+            .downcast_ref::<NSControl>()
+            .map(|c| c.isEnabled())
+            .unwrap_or(true)
     }
 
     pub fn set_enabled(&mut self, v: bool) {
-        unsafe {
-            Retained::cast_unchecked::<NSControl>(self.view.clone()).setEnabled(v);
+        if let Some(c) = self.view.downcast_ref::<NSControl>() {
+            c.setEnabled(v);
         }
     }
 
     pub fn preferred_size(&self) -> Size {
-        unsafe {
-            from_cgsize(
-                Retained::cast_unchecked::<NSControl>(self.view.clone()).sizeThatFits(NSSize::ZERO),
-            )
-        }
+        self.view
+            .downcast_ref::<NSControl>()
+            .map(|c| from_cgsize(c.sizeThatFits(NSSize::new(f64::INFINITY, f64::INFINITY))))
+            .unwrap_or_default()
     }
 
     pub fn loc(&self) -> Point {
@@ -389,9 +389,7 @@ impl Widget {
             from_cgsize(screen_frame.size),
             Rect::new(p, from_cgsize(frame.size)),
         );
-        unsafe {
-            self.view.setFrame(frame);
-        }
+        self.view.setFrame(frame);
     }
 
     pub fn size(&self) -> Size {
@@ -403,18 +401,27 @@ impl Widget {
         let ydiff = v.height - frame.size.height;
         frame.size = to_cgsize(v);
         frame.origin.y -= ydiff;
-        unsafe {
-            self.view.setFrame(frame);
+        self.view.setFrame(frame);
+    }
+
+    pub fn text(&self) -> String {
+        self.view
+            .downcast_ref::<NSControl>()
+            .map(|c| from_nsstring(&c.stringValue()))
+            .unwrap_or_default()
+    }
+
+    pub fn set_text(&mut self, s: impl AsRef<str>) {
+        if let Some(c) = self.view.downcast_ref::<NSControl>() {
+            c.setStringValue(&NSString::from_str(s.as_ref()));
         }
     }
 
     pub fn tooltip(&self) -> String {
-        unsafe {
-            self.view
-                .toolTip()
-                .map(|s| from_nsstring(&s))
-                .unwrap_or_default()
-        }
+        self.view
+            .toolTip()
+            .map(|s| from_nsstring(&s))
+            .unwrap_or_default()
     }
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) {
@@ -424,17 +431,13 @@ impl Widget {
         } else {
             Some(NSString::from_str(s))
         };
-        unsafe {
-            self.view.setToolTip(s.as_deref());
-        }
+        self.view.setToolTip(s.as_deref());
     }
 }
 
 impl Drop for Widget {
     fn drop(&mut self) {
-        unsafe {
-            self.view.removeFromSuperview();
-        }
+        self.view.removeFromSuperview();
     }
 }
 

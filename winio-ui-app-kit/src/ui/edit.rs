@@ -8,15 +8,12 @@ use objc2_app_kit::{
     NSControlTextEditingDelegate, NSSecureTextField, NSTextAlignment, NSTextField,
     NSTextFieldDelegate,
 };
-use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString};
+use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol};
 use winio_callback::Callback;
 use winio_handle::{AsContainer, BorrowedContainer};
 use winio_primitive::{HAlign, Point, Size};
 
-use crate::{
-    GlobalRuntime,
-    ui::{Widget, from_nsstring},
-};
+use crate::{GlobalRuntime, ui::Widget};
 
 #[derive(Debug)]
 struct EditImpl {
@@ -72,18 +69,12 @@ impl EditImpl {
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>);
 
-    pub fn text(&self) -> String {
-        unsafe { from_nsstring(&self.view.stringValue()) }
-    }
+    pub fn text(&self) -> String;
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
-        unsafe {
-            self.view.setStringValue(&NSString::from_str(s.as_ref()));
-        }
-    }
+    pub fn set_text(&mut self, s: impl AsRef<str>);
 
     pub fn halign(&self) -> HAlign {
-        let align = unsafe { self.view.alignment() };
+        let align = self.view.alignment();
         match align {
             NSTextAlignment::Right => HAlign::Right,
             NSTextAlignment::Center => HAlign::Center,
@@ -93,15 +84,13 @@ impl EditImpl {
     }
 
     pub fn set_halign(&mut self, align: HAlign) {
-        unsafe {
-            let align = match align {
-                HAlign::Left => NSTextAlignment::Left,
-                HAlign::Center => NSTextAlignment::Center,
-                HAlign::Right => NSTextAlignment::Right,
-                HAlign::Stretch => NSTextAlignment::Justified,
-            };
-            self.view.setAlignment(align);
-        }
+        let align = match align {
+            HAlign::Left => NSTextAlignment::Left,
+            HAlign::Center => NSTextAlignment::Center,
+            HAlign::Right => NSTextAlignment::Right,
+            HAlign::Stretch => NSTextAlignment::Justified,
+        };
+        self.view.setAlignment(align);
     }
 
     pub async fn wait_change(&self) {
@@ -120,17 +109,15 @@ pub struct Edit {
 #[inherit_methods(from = "self.handle")]
 impl Edit {
     pub fn new(parent: impl AsContainer) -> Self {
-        unsafe {
-            let parent = parent.as_container();
-            let mtm = parent.mtm();
+        let parent = parent.as_container();
+        let mtm = parent.mtm();
 
-            let view = NSTextField::new(mtm);
-            let delegate = EditDelegate::new(mtm);
-            let handle = EditImpl::new(&parent, view, delegate);
-            Self {
-                handle,
-                password: false,
-            }
+        let view = NSTextField::new(mtm);
+        let delegate = EditDelegate::new(mtm);
+        let handle = EditImpl::new(&parent, view, delegate);
+        Self {
+            handle,
+            password: false,
         }
     }
 

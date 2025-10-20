@@ -96,7 +96,7 @@ impl Canvas {
         self.view
             .window()
             .map(|w| {
-                let p = unsafe { w.mouseLocationOutsideOfEventStream() };
+                let p = w.mouseLocationOutsideOfEventStream();
                 transform_cgpoint(self.size(), p)
             })
             .unwrap()
@@ -382,9 +382,7 @@ impl Drop for DrawingContext<'_> {
                 .map(|w| w.backingScaleFactor())
                 .unwrap_or(1.0),
         );
-        unsafe {
-            self.canvas.view.setNeedsDisplay(true);
-        }
+        self.canvas.view.setNeedsDisplay(true);
     }
 }
 
@@ -509,7 +507,7 @@ impl DrawingPathBuilder {
         );
 
         let rate = radius.height / radius.width;
-        let transform = unsafe { CGAffineTransformMake(1.0, 0.0, 0.0, rate, 0.0, 0.0) };
+        let transform = CGAffineTransformMake(1.0, 0.0, 0.0, rate, 0.0, 0.0);
 
         self.add_line(startp);
         let center = transform_point(self.size, center);
@@ -564,7 +562,7 @@ fn path_arc(s: Size, rect: Rect, start: f64, end: f64, pie: bool) -> CFRetained<
     );
 
     let rate = radius.height / radius.width;
-    let transform = unsafe { CGAffineTransformMake(1.0, 0.0, 0.0, rate, 0.0, 0.0) };
+    let transform = CGAffineTransformMake(1.0, 0.0, 0.0, rate, 0.0, 0.0);
 
     unsafe {
         let path = CGMutablePath::new();
@@ -701,14 +699,12 @@ fn create_attr_str(
 }
 
 fn to_cgcolor(c: Color) -> CFRetained<CGColor> {
-    unsafe {
-        CGColor::new_generic_rgb(
-            c.r as f64 / 255.0,
-            c.g as f64 / 255.0,
-            c.b as f64 / 255.0,
-            c.a as f64 / 255.0,
-        )
-    }
+    CGColor::new_generic_rgb(
+        c.r as f64 / 255.0,
+        c.g as f64 / 255.0,
+        c.b as f64 / 255.0,
+        c.a as f64 / 255.0,
+    )
 }
 
 fn real_point(p: RelativePoint, rect: NSRect) -> NSPoint {
@@ -794,7 +790,7 @@ fn linear_gradient(b: &LinearGradientBrush, rect: NSRect) -> DrawGradientAction 
 
 impl Brush for LinearGradientBrush {
     fn create_action(&self, path: CFRetained<CGPath>) -> DrawAction {
-        let rect = unsafe { CGPath::bounding_box(Some(&path)) };
+        let rect = CGPath::bounding_box(Some(&path));
         DrawAction::GradientPath(path, linear_gradient(self, rect), None)
     }
 
@@ -824,7 +820,7 @@ fn radial_gradient(b: &RadialGradientBrush, rect: NSRect) -> DrawGradientAction 
 
 impl Brush for RadialGradientBrush {
     fn create_action(&self, path: CFRetained<CGPath>) -> DrawAction {
-        let rect = unsafe { CGPath::bounding_box(Some(&path)) };
+        let rect = CGPath::bounding_box(Some(&path));
         DrawAction::GradientPath(path, radial_gradient(self, rect), None)
     }
 
@@ -919,6 +915,6 @@ impl DrawingImage {
     }
 
     pub fn size(&self) -> Size {
-        from_cgsize(unsafe { self.rep.size() })
+        from_cgsize(self.rep.size())
     }
 }

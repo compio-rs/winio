@@ -66,17 +66,15 @@ mod tab_view;
 pub use tab_view::*;
 
 pub fn color_theme() -> ColorTheme {
-    unsafe {
-        let osx_mode =
-            NSUserDefaults::standardUserDefaults().stringForKey(ns_string!("AppleInterfaceStyle"));
-        let is_dark = osx_mode
-            .map(|mode| mode.isEqualToString(ns_string!("Dark")))
-            .unwrap_or_default();
-        if is_dark {
-            ColorTheme::Dark
-        } else {
-            ColorTheme::Light
-        }
+    let osx_mode =
+        NSUserDefaults::standardUserDefaults().stringForKey(ns_string!("AppleInterfaceStyle"));
+    let is_dark = osx_mode
+        .map(|mode| mode.isEqualToString(ns_string!("Dark")))
+        .unwrap_or_default();
+    if is_dark {
+        ColorTheme::Dark
+    } else {
+        ColorTheme::Light
     }
 }
 

@@ -1,11 +1,10 @@
 use inherit_methods_macro::inherit_methods;
 use objc2::{MainThreadOnly, rc::Retained};
 use objc2_app_kit::{NSTextAlignment, NSTextField};
-use objc2_foundation::NSString;
 use winio_handle::AsContainer;
 use winio_primitive::{HAlign, Point, Size};
 
-use crate::ui::{Widget, from_nsstring};
+use crate::ui::Widget;
 
 #[derive(Debug)]
 pub struct Label {
@@ -56,18 +55,12 @@ impl Label {
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>);
 
-    pub fn text(&self) -> String {
-        unsafe { from_nsstring(&self.view.stringValue()) }
-    }
+    pub fn text(&self) -> String;
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
-        unsafe {
-            self.view.setStringValue(&NSString::from_str(s.as_ref()));
-        }
-    }
+    pub fn set_text(&mut self, s: impl AsRef<str>);
 
     pub fn halign(&self) -> HAlign {
-        let align = unsafe { self.view.alignment() };
+        let align = self.view.alignment();
         match align {
             NSTextAlignment::Right => HAlign::Right,
             NSTextAlignment::Center => HAlign::Center,
@@ -77,15 +70,13 @@ impl Label {
     }
 
     pub fn set_halign(&mut self, align: HAlign) {
-        unsafe {
-            let align = match align {
-                HAlign::Left => NSTextAlignment::Left,
-                HAlign::Center => NSTextAlignment::Center,
-                HAlign::Right => NSTextAlignment::Right,
-                HAlign::Stretch => NSTextAlignment::Justified,
-            };
-            self.view.setAlignment(align);
-        }
+        let align = match align {
+            HAlign::Left => NSTextAlignment::Left,
+            HAlign::Center => NSTextAlignment::Center,
+            HAlign::Right => NSTextAlignment::Right,
+            HAlign::Stretch => NSTextAlignment::Justified,
+        };
+        self.view.setAlignment(align);
     }
 }
 

@@ -88,25 +88,21 @@ impl ScrollBarImpl {
     }
 
     pub fn page(&self) -> usize {
-        (unsafe { self.view.knobProportion() } * (self.max - self.min) as f64) as usize
+        (self.view.knobProportion() * (self.max - self.min) as f64) as usize
     }
 
     pub fn set_page(&mut self, v: usize) {
-        unsafe {
-            self.view
-                .setKnobProportion(v as f64 / ((self.max - self.min) as f64));
-        }
+        self.view
+            .setKnobProportion(v as f64 / ((self.max - self.min) as f64));
     }
 
     pub fn pos(&self) -> usize {
-        (unsafe { self.view.doubleValue() } * (self.max - self.page() - self.min) as f64) as usize
+        (self.view.doubleValue() * (self.max - self.page() - self.min) as f64) as usize
     }
 
     pub fn set_pos(&mut self, v: usize) {
-        unsafe {
-            self.view
-                .setDoubleValue(v as f64 / ((self.max - self.page() - self.min) as f64));
-        }
+        self.view
+            .setDoubleValue(v as f64 / ((self.max - self.page() - self.min) as f64));
     }
 
     pub async fn wait_change(&self) {
@@ -192,13 +188,11 @@ impl ScrollBar {
     pub fn set_enabled(&mut self, v: bool);
 
     pub fn preferred_size(&self) -> Size {
-        let width = unsafe {
-            NSScroller::scrollerWidthForControlSize_scrollerStyle(
-                NSControlSize::Regular,
-                NSScrollerStyle::Overlay,
-                self.handle.view.mtm(),
-            )
-        };
+        let width = NSScroller::scrollerWidthForControlSize_scrollerStyle(
+            NSControlSize::Regular,
+            NSScrollerStyle::Overlay,
+            self.handle.view.mtm(),
+        );
         if self.vertical {
             Size::new(width, 0.0)
         } else {

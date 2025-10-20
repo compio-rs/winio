@@ -53,37 +53,31 @@ impl Progress {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>);
 
     pub fn minimum(&self) -> usize {
-        unsafe { self.view.minValue() as _ }
+        self.view.minValue() as _
     }
 
     pub fn set_minimum(&mut self, v: usize) {
-        unsafe {
-            self.view.setMinValue(v as _);
-        }
+        self.view.setMinValue(v as _);
     }
 
     pub fn maximum(&self) -> usize {
-        unsafe { self.view.maxValue() as _ }
+        self.view.maxValue() as _
     }
 
     pub fn set_maximum(&mut self, v: usize) {
-        unsafe {
-            self.view.setMaxValue(v as _);
-        }
+        self.view.setMaxValue(v as _);
     }
 
     pub fn pos(&self) -> usize {
-        unsafe { self.view.doubleValue() as _ }
+        self.view.doubleValue() as _
     }
 
     pub fn set_pos(&mut self, pos: usize) {
-        unsafe {
-            self.view.setDoubleValue(pos as _);
-        }
+        self.view.setDoubleValue(pos as _);
     }
 
     pub fn is_indeterminate(&self) -> bool {
-        unsafe { self.view.isIndeterminate() }
+        self.view.isIndeterminate()
     }
 
     pub fn set_indeterminate(&mut self, v: bool) {
