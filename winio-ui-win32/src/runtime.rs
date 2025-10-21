@@ -16,6 +16,8 @@ use windows::Win32::Graphics::Direct2D::{
 };
 #[cfg(target_pointer_width = "64")]
 use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongPtrW;
+#[cfg(not(target_pointer_width = "64"))]
+use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongW as SetClassLongPtrW;
 use windows_sys::{
     Win32::{
         Foundation::{HANDLE, HWND, LPARAM, LRESULT, RECT, WAIT_FAILED, WPARAM},
