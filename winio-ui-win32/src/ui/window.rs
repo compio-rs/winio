@@ -19,10 +19,9 @@ use windows_sys::Win32::{
             HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW, IMAGE_ICON, LR_DEFAULTCOLOR, LR_DEFAULTSIZE,
             LR_SHARED, LoadCursorW, LoadImageW, RegisterClassExW, SW_HIDE, SW_SHOW, SWP_NOMOVE,
             SWP_NOSIZE, SWP_NOZORDER, SendMessageW, SetWindowLongPtrW, SetWindowPos,
-            SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE, WM_SETICON, WM_SETTINGCHANGE,
-            WM_SHOWWINDOW, WM_SIZE, WM_THEMECHANGED, WM_WINDOWPOSCHANGED, WNDCLASSEXW,
-            WS_CHILDWINDOW, WS_CLIPCHILDREN, WS_EX_CONTROLPARENT, WS_EX_TRANSPARENT,
-            WS_OVERLAPPEDWINDOW, WS_VISIBLE,
+            SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE, WM_SETICON, WM_SETTINGCHANGE, WM_SIZE,
+            WM_THEMECHANGED, WM_WINDOWPOSCHANGED, WNDCLASSEXW, WS_CHILDWINDOW, WS_CLIPCHILDREN,
+            WS_EX_CONTROLPARENT, WS_EX_TRANSPARENT, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
         },
     },
 };
@@ -483,13 +482,15 @@ impl Window {
     pub async fn wait_size(&self) {
         futures_util::select! {
             _ = self.handle.wait(WM_SIZE).fuse() => {},
-            _ = self.handle.wait(WM_SHOWWINDOW).fuse() => {},
             _ = self.handle.wait(WM_WINDOWPOSCHANGED).fuse() => {},
         }
     }
 
     pub async fn wait_move(&self) {
-        self.handle.wait(WM_MOVE).await;
+        futures_util::select! {
+            _ = self.handle.wait(WM_MOVE).fuse() => {},
+            _ = self.handle.wait(WM_WINDOWPOSCHANGED).fuse() => {},
+        }
     }
 
     pub async fn wait_close(&self) {
