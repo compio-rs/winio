@@ -1,6 +1,6 @@
 [package]
 name = "winio-ui-win32"
-version = "0.3.1"
+version = "0.3.2"
 description = "Win32 backend for winio."
 edition = { workspace = true }
 authors = { workspace = true }
