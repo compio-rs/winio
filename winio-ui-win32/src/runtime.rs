@@ -1,5 +1,5 @@
 use std::{
-    cell::{Cell, OnceCell, RefCell},
+    cell::{OnceCell, RefCell},
     collections::HashMap,
     future::Future,
     mem::MaybeUninit,
@@ -16,8 +16,6 @@ use windows::Win32::Graphics::Direct2D::{
 };
 #[cfg(target_pointer_width = "64")]
 use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongPtrW;
-#[cfg(not(target_pointer_width = "64"))]
-use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongW as SetClassLongPtrW;
 use windows_sys::{
     Win32::{
         Foundation::{HANDLE, HWND, LPARAM, LRESULT, RECT, WAIT_FAILED, WPARAM},
@@ -28,15 +26,13 @@ use windows_sys::{
         System::Threading::INFINITE,
         UI::{
             Controls::{MARGINS, NMHDR},
-            Input::KeyboardAndMouse::{GetFocus, SetFocus},
             WindowsAndMessaging::{
                 DefWindowProcW, DispatchMessageW, EnumChildWindows, GA_ROOT, GCLP_HBRBACKGROUND,
                 GetAncestor, IsDialogMessageW, MWMO_ALERTABLE, MWMO_INPUTAVAILABLE,
                 MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW, QS_ALLINPUT, SWP_NOACTIVATE,
-                SWP_NOZORDER, SendMessageW, SetWindowPos, TranslateMessage, WA_INACTIVE,
-                WM_ACTIVATE, WM_COMMAND, WM_CREATE, WM_CTLCOLORBTN, WM_CTLCOLOREDIT,
-                WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC, WM_DPICHANGED, WM_NOTIFY, WM_SETFOCUS,
-                WM_SETFONT, WM_SETTINGCHANGE,
+                SWP_NOZORDER, SendMessageW, SetWindowPos, TranslateMessage, WM_COMMAND, WM_CREATE,
+                WM_CTLCOLORBTN, WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC,
+                WM_DPICHANGED, WM_NOTIFY, WM_SETFONT, WM_SETTINGCHANGE,
             },
         },
     },
@@ -280,10 +276,6 @@ pub(crate) unsafe fn wait(handle: HWND, msg: u32) -> impl Future<Output = Window
     RUNTIME.with(|runtime| runtime.register_message(handle, msg))
 }
 
-thread_local! {
-    static FOCUS: Cell<HWND> = const { Cell::new(null_mut()) };
-}
-
 pub(crate) unsafe extern "system" fn window_proc(
     handle: HWND,
     msg: u32,
@@ -297,20 +289,6 @@ pub(crate) unsafe extern "system" fn window_proc(
             window_use_dark_mode(handle);
             refresh_background(handle);
             refresh_font(handle);
-        }
-        WM_ACTIVATE => {
-            let state = (wparam & 0xFFFF) as u32;
-            if state == WA_INACTIVE {
-                FOCUS.set(GetFocus());
-            }
-            return 0;
-        }
-        WM_SETFOCUS => {
-            let focus = FOCUS.get();
-            if !focus.is_null() {
-                SetFocus(focus);
-            }
-            return 0;
         }
         WM_SETTINGCHANGE => {
             window_use_dark_mode(handle);
