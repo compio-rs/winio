@@ -655,7 +655,6 @@ pub unsafe fn control_use_dark_mode(hwnd: HWND, misc_task_dialog: bool) {
             }
         } else if u16_string_eq_ignore_case(class, PROGRESS_CLASSW)
             || (u16_string_eq_ignore_case(class, WC_BUTTONW) && misc_task_dialog)
-            || u16_string_starts_with_ignore_case(class, w!("WinioWindowVersion"))
         {
             null()
         } else {

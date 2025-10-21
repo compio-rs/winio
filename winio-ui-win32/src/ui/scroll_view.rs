@@ -104,10 +104,10 @@ impl ScrollView {
         unsafe {
             EnumChildWindows(view, Some(enum_callback), &mut rect as *mut _ as LPARAM);
         }
-        let cwidth = rect.right - rect.left;
-        let cheight = rect.bottom - rect.top;
-        self.view.set_size(self.handle.size_d2l((cwidth, cheight)));
         let (vwidth, vheight) = self.handle.size_l2d(v);
+        let cwidth = (rect.right - rect.left).max(vwidth - 2);
+        let cheight = (rect.bottom - rect.top).max(vheight - 2);
+        self.view.set_size(self.handle.size_d2l((cwidth, cheight)));
 
         let mut si = SCROLLINFO {
             cbSize: size_of::<SCROLLINFO>() as u32,

@@ -288,7 +288,6 @@ pub(crate) unsafe extern "system" fn window_proc(
         WM_CREATE => {
             window_use_dark_mode(handle);
             refresh_background(handle);
-            refresh_font(handle);
         }
         WM_SETTINGCHANGE => {
             window_use_dark_mode(handle);
