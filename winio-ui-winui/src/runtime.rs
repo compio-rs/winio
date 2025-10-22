@@ -258,9 +258,3 @@ impl XamlAppOverrides for App {
         Ok(())
     }
 }
-
-impl Drop for App {
-    fn drop(&mut self) {
-        debug!("App::drop");
-    }
-}

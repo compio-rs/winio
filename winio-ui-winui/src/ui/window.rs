@@ -326,6 +326,14 @@ impl AsRawContainer for Window {
 
 winio_handle::impl_as_container!(Window);
 
+impl Drop for Window {
+    fn drop(&mut self) {
+        ROOT_WINDOWS.with_borrow_mut(|map| {
+            map.retain(|w| w != &self.handle);
+        });
+    }
+}
+
 thread_local! {
     static ROOT_WINDOWS: RefCell<Vec<MUX::Window>> = const { RefCell::new(vec![]) };
 }
