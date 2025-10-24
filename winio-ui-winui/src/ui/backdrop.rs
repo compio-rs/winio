@@ -1,8 +1,7 @@
 use std::cell::RefCell;
 
 use windows::{
-    Foundation::TypedEventHandler,
-    UI::{Color, ViewManagement::UISettings},
+    UI::Color,
     core::{IInspectable_Vtbl, Interface, Ref, Result, imp::WeakRefCount, implement},
 };
 use winio_primitive::ColorTheme;
@@ -13,7 +12,6 @@ use winui3::{
             ICompositionSupportsSystemBackdrop,
             SystemBackdrops::{DesktopAcrylicController, SystemBackdropConfiguration},
         },
-        Dispatching::{DispatcherQueue, DispatcherQueueController, DispatcherQueueHandler},
         Xaml::{
             self as MUX,
             Media::{
@@ -25,13 +23,6 @@ use winui3::{
 };
 
 use crate::color_theme;
-
-fn ensure_windows_system_dispatcher_controller() -> Result<Option<DispatcherQueueController>> {
-    if DispatcherQueue::GetForCurrentThread().is_err() {
-        return Ok(Some(DispatcherQueueController::CreateOnCurrentThread()?));
-    }
-    Ok(None)
-}
 
 // Magic colors to match Win32.
 const fn color(dark: bool) -> Color {
@@ -62,37 +53,17 @@ fn update_color(controller: &DesktopAcrylicController) -> Result<()> {
 struct CustomDesktopAcrylicBackdropControllerEntry {
     controller: DesktopAcrylicController,
     target: ICompositionSupportsSystemBackdrop,
-    settings: UISettings,
-    token: i64,
 }
 
 impl CustomDesktopAcrylicBackdropControllerEntry {
     pub fn new(
-        dispatcher: DispatcherQueue,
         target: ICompositionSupportsSystemBackdrop,
         controller: DesktopAcrylicController,
         configuration: &SystemBackdropConfiguration,
-        settings: UISettings,
     ) -> Result<Self> {
-        let token = {
-            let controller = controller.clone();
-            settings.ColorValuesChanged(&TypedEventHandler::new(move |_, _| {
-                let controller = controller.clone();
-                dispatcher.TryEnqueue(&DispatcherQueueHandler::new(move || {
-                    update_color(&controller)
-                }))?;
-                Ok(())
-            }))?
-        };
-
         controller.AddSystemBackdropTarget(&target)?;
         controller.SetSystemBackdropConfiguration(configuration)?;
-        Ok(Self {
-            target,
-            controller,
-            settings,
-            token,
-        })
+        Ok(Self { target, controller })
     }
 }
 
@@ -102,23 +73,17 @@ impl Drop for CustomDesktopAcrylicBackdropControllerEntry {
             .RemoveSystemBackdropTarget(&self.target)
             .ok();
         self.controller.Close().ok();
-        self.settings.RemoveColorValuesChanged(self.token).ok();
     }
 }
 
-#[implement(ISystemBackdropOverrides)]
+#[implement(ISystemBackdropOverrides, Agile = false)]
 pub struct CustomDesktopAcrylicBackdrop {
-    settings: UISettings,
     controllers: RefCell<Vec<CustomDesktopAcrylicBackdropControllerEntry>>,
-    dispatcher: Option<DispatcherQueueController>,
 }
 
 impl CustomDesktopAcrylicBackdrop {
     pub fn compose() -> Result<SystemBackdrop> {
-        let dispatcher = ensure_windows_system_dispatcher_controller()?;
         Compose::compose(Self {
-            settings: UISettings::new()?,
-            dispatcher,
             controllers: RefCell::new(vec![]),
         })
     }
@@ -148,19 +113,12 @@ impl ISystemBackdropOverrides_Impl for CustomDesktopAcrylicBackdrop_Impl {
         controller.SetLuminosityOpacity(0.65)?;
         update_color(&controller)?;
 
-        let dispatcher = if let Some(controller) = &self.dispatcher {
-            controller.DispatcherQueue()?
-        } else {
-            DispatcherQueue::GetForCurrentThread()?
-        };
         self.controllers
             .borrow_mut()
             .push(CustomDesktopAcrylicBackdropControllerEntry::new(
-                dispatcher,
                 target.clone(),
                 controller,
                 &configuration,
-                self.settings.clone(),
             )?);
         Ok(())
     }
@@ -184,18 +142,25 @@ impl ISystemBackdropOverrides_Impl for CustomDesktopAcrylicBackdrop_Impl {
         target: Ref<ICompositionSupportsSystemBackdrop>,
         root: Ref<MUX::XamlRoot>,
     ) -> Result<()> {
+        let base = unsafe { Compose::<CustomDesktopAcrylicBackdrop>::base(self) };
+        let target = target.ok()?;
+        let root = root.ok()?;
         unsafe {
-            let base = Compose::<CustomDesktopAcrylicBackdrop>::base(self)
-                .cast::<ISystemBackdropOverrides>()?;
-            let target = target.ok()?;
-            let root = root.ok()?;
+            let base = base.cast::<ISystemBackdropOverrides>()?;
             (base.vtable().OnDefaultSystemBackdropConfigurationChanged)(
                 base.as_raw(),
                 target.as_raw(),
                 root.as_raw(),
             )
-            .ok()
+            .ok()?;
         }
+        for entry in self.controllers.borrow().iter() {
+            if entry.target == *target {
+                update_color(&entry.controller)?;
+                break;
+            }
+        }
+        Ok(())
     }
 }
 
