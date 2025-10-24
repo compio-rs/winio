@@ -3,6 +3,21 @@ use std::ops::Deref;
 use tuplex::IntoArray;
 use winio::prelude::*;
 
+cfg_if::cfg_if! {
+    if #[cfg(windows)] {
+        #[path = "misc/backdrop_win.rs"]
+        mod backdrop;
+    } else if #[cfg(target_os = "macos")] {
+        #[path = "misc/backdrop_appkit.rs"]
+        mod backdrop;
+    } else {
+        #[path = "misc/backdrop_stub.rs"]
+        mod backdrop;
+    }
+}
+
+use backdrop::*;
+
 pub struct MiscPage {
     window: Child<TabViewItem>,
     ulabel: Child<Label>,
@@ -22,11 +37,16 @@ pub struct MiscPage {
     show_button: Child<Button>,
     progress: Child<Progress>,
     mltext: Child<TextBox>,
+    backdrop: Child<BackdropChooser>,
 }
 
 #[derive(Debug)]
 pub enum MiscPageEvent {
     ShowMessage(MessageBox),
+    #[cfg(windows)]
+    ChooseBackdrop(Backdrop),
+    #[cfg(target_os = "macos")]
+    ChooseVibrancy(Option<Vibrancy>),
 }
 
 #[derive(Debug)]
@@ -39,6 +59,10 @@ pub enum MiscPageMessage {
     Show,
     RSelect(usize),
     PasswordCheck,
+    #[cfg(windows)]
+    ChooseBackdrop(Backdrop),
+    #[cfg(target_os = "macos")]
+    ChooseVibrancy(Option<Vibrancy>),
 }
 
 impl Component for MiscPage {
@@ -49,7 +73,7 @@ impl Component for MiscPage {
     fn init(webview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
         init! {
             window: TabViewItem = (webview) => {
-                text: "MISC",
+                text: "Widgets",
             },
             canvas: Canvas = (&window),
             ulabel: Label = (&window) => {
@@ -109,6 +133,7 @@ impl Component for MiscPage {
             mltext: TextBox = (&window) => {
                 text: "This is an example of\nmulti-line text box.",
             },
+            backdrop: BackdropChooser = (&window),
         }
 
         sender.post(MiscPageMessage::RSelect(0));
@@ -132,6 +157,7 @@ impl Component for MiscPage {
             show_button,
             progress,
             mltext,
+            backdrop,
         }
     }
 
@@ -159,6 +185,12 @@ impl Component for MiscPage {
             },
             radio_group => {
                 |i| Some(MiscPageMessage::RSelect(i))
+            },
+            self.backdrop => {
+                #[cfg(windows)]
+                BackdropChooserEvent::ChooseBackdrop(b) => MiscPageMessage::ChooseBackdrop(b),
+                #[cfg(target_os = "macos")]
+                BackdropChooserEvent::ChooseVibrancy(v) => MiscPageMessage::ChooseVibrancy(v),
             }
         }
     }
@@ -182,6 +214,7 @@ impl Component for MiscPage {
             self.show_button.update(),
             self.progress.update(),
             self.mltext.update(),
+            self.backdrop.update(),
         )
         .into_array()
         .into_iter()
@@ -246,6 +279,16 @@ impl Component for MiscPage {
                 ));
                 false
             }
+            #[cfg(windows)]
+            MiscPageMessage::ChooseBackdrop(b) => {
+                sender.output(MiscPageEvent::ChooseBackdrop(b));
+                false
+            }
+            #[cfg(target_os = "macos")]
+            MiscPageMessage::ChooseVibrancy(v) => {
+                sender.output(MiscPageEvent::ChooseVibrancy(v));
+                false
+            }
         }
     }
 
@@ -277,6 +320,7 @@ impl Component for MiscPage {
 
             let mut root_panel = layout! {
                 Grid::from_str("1*,1*,1*", "1*,auto,1*").unwrap(),
+                self.backdrop => { column: 0, row: 0, halign: HAlign::Stretch, valign: VAlign::Center, margin: Margin::new_all_same(8.0) },
                 cred_panel    => { column: 1, row: 0 },
                 rgroup_panel  => { column: 2, row: 0, halign: HAlign::Center },
                 self.canvas   => { column: 0, row: 1, row_span: 2 },
@@ -287,6 +331,7 @@ impl Component for MiscPage {
             };
 
             root_panel.set_size(csize);
+            self.backdrop.render();
         }
 
         let size = self.canvas.size();

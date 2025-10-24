@@ -106,7 +106,11 @@ impl CheckBox {
 
     pub fn set_enabled(&mut self, v: bool);
 
-    pub fn preferred_size(&self) -> Size;
+    pub fn preferred_size(&self) -> Size {
+        let mut s = self.handle.preferred_size();
+        s.width += 4.0;
+        s
+    }
 
     pub fn loc(&self) -> Point;
 

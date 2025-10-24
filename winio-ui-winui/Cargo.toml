@@ -1,6 +1,6 @@
 [package]
 name = "winio-ui-winui"
-version = "0.3.2"
+version = "0.3.3"
 description = "WinUI backend for winio."
 edition = { workspace = true }
 authors = { workspace = true }
@@ -51,6 +51,7 @@ windows = { workspace = true, features = [
     "Win32_Graphics_Direct3D11",
     "Win32_Graphics_Dxgi",
 ] }
+windows-core = { workspace = true }
 
 slim-detours-sys = { workspace = true }
 sync-unsafe-cell = { workspace = true }

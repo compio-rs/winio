@@ -1,4 +1,9 @@
-use std::{cell::RefCell, mem::MaybeUninit, rc::Rc, sync::Arc};
+use std::{
+    cell::{OnceCell, RefCell},
+    mem::MaybeUninit,
+    rc::Rc,
+    sync::Arc,
+};
 
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
@@ -6,7 +11,7 @@ use windows::{
     Foundation::TypedEventHandler,
     UI::ViewManagement::UISettings,
     Win32::Foundation::{E_NOINTERFACE, REGDB_E_CLASSNOTREG},
-    core::{Interface, Ref},
+    core::{Interface, Ref, Result},
 };
 use windows_sys::Win32::UI::{
     HiDpi::GetDpiForWindow,
@@ -30,13 +35,13 @@ use winui3::{
         },
         Xaml::{
             self as MUX, Controls as MUXC,
-            Media::{DesktopAcrylicBackdrop, MicaBackdrop},
+            Media::{MicaBackdrop, SystemBackdrop},
             RoutedEventHandler,
         },
     },
 };
 
-use crate::{GlobalRuntime, Widget, ui::Convertible};
+use crate::{CustomDesktopAcrylicBackdrop, GlobalRuntime, Widget, ui::Convertible};
 
 #[derive(Debug)]
 pub struct Window {
@@ -238,16 +243,14 @@ impl Window {
     pub fn backdrop(&self) -> Backdrop {
         match self.handle.SystemBackdrop() {
             Ok(brush) => {
-                if brush.cast::<DesktopAcrylicBackdrop>().is_ok() {
-                    Backdrop::Acrylic
-                } else if let Ok(brush) = brush.cast::<MicaBackdrop>() {
+                if let Ok(brush) = brush.cast::<MicaBackdrop>() {
                     match brush.Kind() {
                         Ok(MicaKind::Base) => Backdrop::Mica,
                         Ok(MicaKind::BaseAlt) => Backdrop::MicaAlt,
                         _ => Backdrop::None,
                     }
                 } else {
-                    Backdrop::None
+                    Backdrop::Acrylic
                 }
             }
             Err(_) => Backdrop::None,
@@ -267,22 +270,20 @@ impl Window {
         }
     }
 
-    fn set_backdrop_impl(&mut self, backdrop: Backdrop) -> windows::core::Result<bool> {
+    fn set_backdrop_impl(&mut self, backdrop: Backdrop) -> Result<bool> {
         match backdrop {
             Backdrop::Acrylic => {
-                let brush = DesktopAcrylicBackdrop::new()?;
+                let brush = acrylic_backdrop()?;
                 self.handle.SetSystemBackdrop(&brush)?;
                 Ok(true)
             }
             Backdrop::Mica => {
-                let brush = MicaBackdrop::new()?;
-                brush.SetKind(MicaKind::Base)?;
+                let brush = mica_backdrop()?;
                 self.handle.SetSystemBackdrop(&brush)?;
                 Ok(true)
             }
             Backdrop::MicaAlt => {
-                let brush = MicaBackdrop::new()?;
-                brush.SetKind(MicaKind::BaseAlt)?;
+                let brush = mica_alt_backdrop()?;
                 self.handle.SetSystemBackdrop(&brush)?;
                 Ok(true)
             }
@@ -390,6 +391,47 @@ impl Drop for ColorThemeWatcher {
     fn drop(&mut self) {
         self.settings.RemoveColorValuesChanged(self.token).unwrap();
     }
+}
+
+fn acrylic_backdrop() -> Result<SystemBackdrop> {
+    thread_local! {
+        static ACRYLIC_BACKDROP: OnceCell<Result<SystemBackdrop>> = const { OnceCell::new() };
+    }
+
+    ACRYLIC_BACKDROP.with(|cell| {
+        cell.get_or_init(CustomDesktopAcrylicBackdrop::compose)
+            .clone()
+    })
+}
+
+fn mica_backdrop() -> Result<MicaBackdrop> {
+    thread_local! {
+        static MICA_BACKDROP: OnceCell<Result<MicaBackdrop>> = const { OnceCell::new() };
+    }
+
+    MICA_BACKDROP.with(|cell| {
+        cell.get_or_init(|| {
+            let brush = MicaBackdrop::new()?;
+            brush.SetKind(MicaKind::Base)?;
+            Ok(brush)
+        })
+        .clone()
+    })
+}
+
+fn mica_alt_backdrop() -> Result<MicaBackdrop> {
+    thread_local! {
+        static MICA_ALT_BACKDROP: OnceCell<Result<MicaBackdrop>> = const { OnceCell::new() };
+    }
+
+    MICA_ALT_BACKDROP.with(|cell| {
+        cell.get_or_init(|| {
+            let brush = MicaBackdrop::new()?;
+            brush.SetKind(MicaKind::BaseAlt)?;
+            Ok(brush)
+        })
+        .clone()
+    })
 }
 
 #[derive(Debug)]
