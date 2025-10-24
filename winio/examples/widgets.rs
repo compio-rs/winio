@@ -57,6 +57,8 @@ enum MainMessage {
     OpenMarkdown(PathBuf),
     #[cfg(windows)]
     ChooseBackdrop(Backdrop),
+    #[cfg(target_os = "macos")]
+    ChooseVibrancy(Option<Vibrancy>),
 }
 
 impl Component for MainModel {
@@ -95,14 +97,14 @@ impl Component for MainModel {
             markdown: DummyPage = ((&*tabview, "Markdown", "webview")),
         }
 
-        tabview.append(&misc);
-        tabview.append(&fs);
-        tabview.append(&net);
-        tabview.append(&gallery);
-        tabview.append(&scroll);
-        tabview.append(&media);
-        tabview.append(&webview);
-        tabview.append(&markdown);
+        tabview.push(&misc);
+        tabview.push(&fs);
+        tabview.push(&net);
+        tabview.push(&gallery);
+        tabview.push(&scroll);
+        tabview.push(&media);
+        tabview.push(&webview);
+        tabview.push(&markdown);
 
         sender.post(MainMessage::Redraw);
 
@@ -136,6 +138,8 @@ impl Component for MainModel {
                 MiscPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
                 #[cfg(windows)]
                 MiscPageEvent::ChooseBackdrop(b) => MainMessage::ChooseBackdrop(b),
+                #[cfg(target_os = "macos")]
+                MiscPageEvent::ChooseVibrancy(v) => MainMessage::ChooseVibrancy(v),
             },
             self.fs => {
                 FsPageEvent::ChooseFile => MainMessage::ChooseFile,
@@ -288,6 +292,11 @@ impl Component for MainModel {
             #[cfg(windows)]
             MainMessage::ChooseBackdrop(backdrop) => {
                 self.window.set_backdrop(backdrop);
+                true
+            }
+            #[cfg(target_os = "macos")]
+            MainMessage::ChooseVibrancy(vibrancy) => {
+                self.window.set_vibrancy(vibrancy);
                 true
             }
         }

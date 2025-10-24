@@ -3,13 +3,18 @@ use std::ops::Deref;
 use tuplex::IntoArray;
 use winio::prelude::*;
 
-#[cfg(windows)]
-#[path = "misc/backdrop_win.rs"]
-mod backdrop;
-
-#[cfg(not(any(windows, target_os = "macos")))]
-#[path = "misc/backdrop_stub.rs"]
-mod backdrop;
+cfg_if::cfg_if! {
+    if #[cfg(windows)] {
+        #[path = "misc/backdrop_win.rs"]
+        mod backdrop;
+    } else if #[cfg(target_os = "macos")] {
+        #[path = "misc/backdrop_appkit.rs"]
+        mod backdrop;
+    } else {
+        #[path = "misc/backdrop_stub.rs"]
+        mod backdrop;
+    }
+}
 
 use backdrop::*;
 
@@ -40,6 +45,8 @@ pub enum MiscPageEvent {
     ShowMessage(MessageBox),
     #[cfg(windows)]
     ChooseBackdrop(Backdrop),
+    #[cfg(target_os = "macos")]
+    ChooseVibrancy(Option<Vibrancy>),
 }
 
 #[derive(Debug)]
@@ -54,6 +61,8 @@ pub enum MiscPageMessage {
     PasswordCheck,
     #[cfg(windows)]
     ChooseBackdrop(Backdrop),
+    #[cfg(target_os = "macos")]
+    ChooseVibrancy(Option<Vibrancy>),
 }
 
 impl Component for MiscPage {
@@ -180,6 +189,8 @@ impl Component for MiscPage {
             self.backdrop => {
                 #[cfg(windows)]
                 BackdropChooserEvent::ChooseBackdrop(b) => MiscPageMessage::ChooseBackdrop(b),
+                #[cfg(target_os = "macos")]
+                BackdropChooserEvent::ChooseVibrancy(v) => MiscPageMessage::ChooseVibrancy(v),
             }
         }
     }
@@ -271,6 +282,11 @@ impl Component for MiscPage {
             #[cfg(windows)]
             MiscPageMessage::ChooseBackdrop(b) => {
                 sender.output(MiscPageEvent::ChooseBackdrop(b));
+                false
+            }
+            #[cfg(target_os = "macos")]
+            MiscPageMessage::ChooseVibrancy(v) => {
+                sender.output(MiscPageEvent::ChooseVibrancy(v));
                 false
             }
         }

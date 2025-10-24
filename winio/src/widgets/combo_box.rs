@@ -40,26 +40,40 @@ impl ComboBox {
     /// Set if the combo box is editable.
     pub fn set_editable(&mut self, v: bool);
 
-    /// The length of selection list.
+    /// The length of list.
     pub fn len(&self) -> usize;
 
-    /// If the selection list is empty.
+    /// If the list is empty.
     pub fn is_empty(&self) -> bool;
 
-    /// Clear the selection list.
+    /// Clear the list.
     pub fn clear(&mut self);
 
-    /// Get the selection item by index.
+    /// Get the item by index.
     pub fn get(&self, i: usize) -> String;
 
-    /// Set the selection item by index.
+    /// Set the item by index.
     pub fn set(&mut self, i: usize, s: impl AsRef<str>);
 
-    /// Insert the selection item by index.
+    /// Insert an item by index.
     pub fn insert(&mut self, i: usize, s: impl AsRef<str>);
 
-    /// Remove the selection item by index.
+    /// Remove the item by index.
     pub fn remove(&mut self, i: usize);
+
+    /// Push an item to the end of the list.
+    pub fn push(&mut self, s: impl AsRef<str>) {
+        let len = self.len();
+        self.insert(len, s);
+    }
+
+    /// Clears all items, and appends the new items one by one.
+    pub fn set_items<U: Into<String>>(&mut self, items: impl IntoIterator<Item = U>) {
+        self.clear();
+        for it in items {
+            self.push(it.into());
+        }
+    }
 }
 
 #[inherit_methods(from = "self.widget")]

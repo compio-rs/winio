@@ -26,7 +26,13 @@ impl TabView {
     }
 
     /// Append a new tab item.
+    #[deprecated = "use `push` instead"]
     pub fn append(&mut self, item: &TabViewItem) {
+        self.push(item);
+    }
+
+    /// Push a new tab item to the end.
+    pub fn push(&mut self, item: &TabViewItem) {
         self.insert(self.len(), item)
     }
 
