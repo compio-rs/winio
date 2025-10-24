@@ -26,7 +26,7 @@ impl Component for BackdropChooser {
             combo: ComboBox = (&init) => {
                 items: [
                     "None",
-                    "Apperance Based",
+                    "Appearance Based",
                     "Light",
                     "Dark",
                     "Titlebar",
