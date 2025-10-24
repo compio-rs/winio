@@ -2,12 +2,7 @@ use std::cell::RefCell;
 
 use windows::{
     Foundation::TypedEventHandler,
-    System::{DispatcherQueue, DispatcherQueueController, DispatcherQueueHandler},
     UI::{Color, ViewManagement::UISettings},
-    Win32::System::WinRT::{
-        CreateDispatcherQueueController, DQTAT_COM_STA, DQTYPE_THREAD_CURRENT,
-        DispatcherQueueOptions,
-    },
     core::{IInspectable_Vtbl, Interface, Ref, Result, imp::WeakRefCount, implement},
 };
 use winio_primitive::ColorTheme;
@@ -18,6 +13,7 @@ use winui3::{
             ICompositionSupportsSystemBackdrop,
             SystemBackdrops::{DesktopAcrylicController, SystemBackdropConfiguration},
         },
+        Dispatching::{DispatcherQueue, DispatcherQueueController, DispatcherQueueHandler},
         Xaml::{
             self as MUX,
             Media::{
@@ -32,14 +28,7 @@ use crate::color_theme;
 
 fn ensure_windows_system_dispatcher_controller() -> Result<Option<DispatcherQueueController>> {
     if DispatcherQueue::GetForCurrentThread().is_err() {
-        let dispatcher = unsafe {
-            CreateDispatcherQueueController(DispatcherQueueOptions {
-                dwSize: std::mem::size_of::<DispatcherQueueOptions>() as _,
-                threadType: DQTYPE_THREAD_CURRENT,
-                apartmentType: DQTAT_COM_STA,
-            })?
-        };
-        return Ok(Some(dispatcher));
+        return Ok(Some(DispatcherQueueController::CreateOnCurrentThread()?));
     }
     Ok(None)
 }
@@ -71,8 +60,8 @@ fn update_color(controller: &DesktopAcrylicController) -> Result<()> {
 }
 
 struct CustomDesktopAcrylicBackdropControllerEntry {
-    target: ICompositionSupportsSystemBackdrop,
     controller: DesktopAcrylicController,
+    target: ICompositionSupportsSystemBackdrop,
     settings: UISettings,
     token: i64,
 }

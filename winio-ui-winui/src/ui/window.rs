@@ -1,4 +1,9 @@
-use std::{cell::RefCell, mem::MaybeUninit, rc::Rc, sync::Arc};
+use std::{
+    cell::{OnceCell, RefCell},
+    mem::MaybeUninit,
+    rc::Rc,
+    sync::Arc,
+};
 
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
@@ -6,7 +11,7 @@ use windows::{
     Foundation::TypedEventHandler,
     UI::ViewManagement::UISettings,
     Win32::Foundation::{E_NOINTERFACE, REGDB_E_CLASSNOTREG},
-    core::{Interface, Ref},
+    core::{Interface, Ref, Result},
 };
 use windows_sys::Win32::UI::{
     HiDpi::GetDpiForWindow,
@@ -28,7 +33,11 @@ use winui3::{
         Windowing::{
             AppWindow, AppWindowChangedEventArgs, AppWindowClosingEventArgs, TitleBarTheme,
         },
-        Xaml::{self as MUX, Controls as MUXC, Media::MicaBackdrop, RoutedEventHandler},
+        Xaml::{
+            self as MUX, Controls as MUXC,
+            Media::{MicaBackdrop, SystemBackdrop},
+            RoutedEventHandler,
+        },
     },
 };
 
@@ -261,22 +270,20 @@ impl Window {
         }
     }
 
-    fn set_backdrop_impl(&mut self, backdrop: Backdrop) -> windows::core::Result<bool> {
+    fn set_backdrop_impl(&mut self, backdrop: Backdrop) -> Result<bool> {
         match backdrop {
             Backdrop::Acrylic => {
-                let brush = CustomDesktopAcrylicBackdrop::compose()?;
+                let brush = acrylic_backdrop()?;
                 self.handle.SetSystemBackdrop(&brush)?;
                 Ok(true)
             }
             Backdrop::Mica => {
-                let brush = MicaBackdrop::new()?;
-                brush.SetKind(MicaKind::Base)?;
+                let brush = mica_backdrop()?;
                 self.handle.SetSystemBackdrop(&brush)?;
                 Ok(true)
             }
             Backdrop::MicaAlt => {
-                let brush = MicaBackdrop::new()?;
-                brush.SetKind(MicaKind::BaseAlt)?;
+                let brush = mica_alt_backdrop()?;
                 self.handle.SetSystemBackdrop(&brush)?;
                 Ok(true)
             }
@@ -384,6 +391,47 @@ impl Drop for ColorThemeWatcher {
     fn drop(&mut self) {
         self.settings.RemoveColorValuesChanged(self.token).unwrap();
     }
+}
+
+fn acrylic_backdrop() -> Result<SystemBackdrop> {
+    thread_local! {
+        static ACRYLIC_BACKDROP: OnceCell<Result<SystemBackdrop>> = const { OnceCell::new() };
+    }
+
+    ACRYLIC_BACKDROP.with(|cell| {
+        cell.get_or_init(CustomDesktopAcrylicBackdrop::compose)
+            .clone()
+    })
+}
+
+fn mica_backdrop() -> Result<MicaBackdrop> {
+    thread_local! {
+        static MICA_BACKDROP: OnceCell<Result<MicaBackdrop>> = const { OnceCell::new() };
+    }
+
+    MICA_BACKDROP.with(|cell| {
+        cell.get_or_init(|| {
+            let brush = MicaBackdrop::new()?;
+            brush.SetKind(MicaKind::Base)?;
+            Ok(brush)
+        })
+        .clone()
+    })
+}
+
+fn mica_alt_backdrop() -> Result<MicaBackdrop> {
+    thread_local! {
+        static MICA_ALT_BACKDROP: OnceCell<Result<MicaBackdrop>> = const { OnceCell::new() };
+    }
+
+    MICA_ALT_BACKDROP.with(|cell| {
+        cell.get_or_init(|| {
+            let brush = MicaBackdrop::new()?;
+            brush.SetKind(MicaKind::BaseAlt)?;
+            Ok(brush)
+        })
+        .clone()
+    })
 }
 
 #[derive(Debug)]
