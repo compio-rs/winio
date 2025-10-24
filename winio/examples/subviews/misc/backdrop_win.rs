@@ -108,7 +108,12 @@ impl Component for BackdropChooser {
             self.r_mica_alt,
         };
 
-        panel.set_size(csize);
+        let mut grid = layout! {
+            Grid::from_str("1*,auto,1*", "auto").unwrap(),
+            panel => { column: 1, row: 0 }
+        };
+
+        grid.set_size(csize);
     }
 
     fn render_children(&mut self) {
