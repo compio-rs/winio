@@ -56,6 +56,8 @@ enum MainMessage {
     ChooseMarkdown,
     #[cfg(feature = "webview")]
     OpenMarkdown(PathBuf),
+    #[cfg(windows)]
+    ChooseBackdrop(Backdrop),
 }
 
 impl Component for MainModel {
@@ -147,6 +149,8 @@ impl Component for MainModel {
             },
             self.misc => {
                 MiscPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
+                #[cfg(windows)]
+                MiscPageEvent::ChooseBackdrop(b) => MainMessage::ChooseBackdrop(b),
             },
             self.media => {
                 #[cfg(feature = "media")]
@@ -286,6 +290,11 @@ impl Component for MainModel {
             #[cfg(feature = "webview")]
             MainMessage::OpenMarkdown(p) => {
                 self.markdown.emit(MarkdownPageMessage::OpenFile(p)).await
+            }
+            #[cfg(windows)]
+            MainMessage::ChooseBackdrop(backdrop) => {
+                self.window.set_backdrop(backdrop);
+                true
             }
         }
     }

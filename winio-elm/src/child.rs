@@ -113,7 +113,7 @@ impl<T: Component> Child<T> {
 
     /// Respond to the child message.
     pub async fn update(&mut self) -> bool {
-        let mut need_render = false;
+        let mut need_render = self.model.update_children().await;
         for message in self.msg_cache.drain(..) {
             need_render |= self.model.update(message, &self.sender).await;
         }
@@ -123,6 +123,7 @@ impl<T: Component> Child<T> {
     /// Render the child component.
     pub fn render(&mut self) {
         self.model.render(&self.sender);
+        self.model.render_children();
     }
 }
 

@@ -3,6 +3,12 @@ use std::ops::Deref;
 use tuplex::IntoArray;
 use winio::prelude::*;
 
+#[cfg(windows)]
+#[path = "misc/windows.rs"]
+mod backdrop;
+
+use backdrop::*;
+
 pub struct MiscPage {
     window: Child<TabViewItem>,
     ulabel: Child<Label>,
@@ -22,11 +28,14 @@ pub struct MiscPage {
     show_button: Child<Button>,
     progress: Child<Progress>,
     mltext: Child<TextBox>,
+    backdrop: Child<BackdropChooser>,
 }
 
 #[derive(Debug)]
 pub enum MiscPageEvent {
     ShowMessage(MessageBox),
+    #[cfg(windows)]
+    ChooseBackdrop(Backdrop),
 }
 
 #[derive(Debug)]
@@ -39,6 +48,8 @@ pub enum MiscPageMessage {
     Show,
     RSelect(usize),
     PasswordCheck,
+    #[cfg(windows)]
+    ChooseBackdrop(Backdrop),
 }
 
 impl Component for MiscPage {
@@ -109,6 +120,7 @@ impl Component for MiscPage {
             mltext: TextBox = (&window) => {
                 text: "This is an example of\nmulti-line text box.",
             },
+            backdrop: BackdropChooser = (&window),
         }
 
         sender.post(MiscPageMessage::RSelect(0));
@@ -132,6 +144,7 @@ impl Component for MiscPage {
             show_button,
             progress,
             mltext,
+            backdrop,
         }
     }
 
@@ -159,6 +172,10 @@ impl Component for MiscPage {
             },
             radio_group => {
                 |i| Some(MiscPageMessage::RSelect(i))
+            },
+            self.backdrop => {
+                #[cfg(windows)]
+                BackdropChooserEvent::ChooseBackdrop(b) => MiscPageMessage::ChooseBackdrop(b),
             }
         }
     }
@@ -182,6 +199,7 @@ impl Component for MiscPage {
             self.show_button.update(),
             self.progress.update(),
             self.mltext.update(),
+            self.backdrop.update(),
         )
         .into_array()
         .into_iter()
@@ -246,6 +264,11 @@ impl Component for MiscPage {
                 ));
                 false
             }
+            #[cfg(windows)]
+            MiscPageMessage::ChooseBackdrop(b) => {
+                sender.output(MiscPageEvent::ChooseBackdrop(b));
+                false
+            }
         }
     }
 
@@ -277,6 +300,7 @@ impl Component for MiscPage {
 
             let mut root_panel = layout! {
                 Grid::from_str("1*,1*,1*", "1*,auto,1*").unwrap(),
+                self.backdrop => { column: 0, row: 0, halign: HAlign::Center, valign: VAlign::Center },
                 cred_panel    => { column: 1, row: 0 },
                 rgroup_panel  => { column: 2, row: 0, halign: HAlign::Center },
                 self.canvas   => { column: 0, row: 1, row_span: 2 },
@@ -287,6 +311,7 @@ impl Component for MiscPage {
             };
 
             root_panel.set_size(csize);
+            self.backdrop.render();
         }
 
         let size = self.canvas.size();

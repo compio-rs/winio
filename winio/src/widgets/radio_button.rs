@@ -112,7 +112,7 @@ impl<'a, T: AsMut<[&'a mut RadioButton]>> RadioButtonGroup<T> {
         sender: &ComponentSender<C>,
         mut f: impl FnMut(usize) -> Option<C::Message>,
         _propagate: impl FnMut() -> C::Message,
-    ) {
+    ) -> ! {
         if self.radios.as_mut().is_empty() {
             std::future::pending::<()>().await;
         }
