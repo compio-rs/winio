@@ -28,15 +28,11 @@ use winui3::{
         Windowing::{
             AppWindow, AppWindowChangedEventArgs, AppWindowClosingEventArgs, TitleBarTheme,
         },
-        Xaml::{
-            self as MUX, Controls as MUXC,
-            Media::{DesktopAcrylicBackdrop, MicaBackdrop},
-            RoutedEventHandler,
-        },
+        Xaml::{self as MUX, Controls as MUXC, Media::MicaBackdrop, RoutedEventHandler},
     },
 };
 
-use crate::{GlobalRuntime, Widget, ui::Convertible};
+use crate::{CustomDesktopAcrylicBackdrop, GlobalRuntime, Widget, ui::Convertible};
 
 #[derive(Debug)]
 pub struct Window {
@@ -238,16 +234,14 @@ impl Window {
     pub fn backdrop(&self) -> Backdrop {
         match self.handle.SystemBackdrop() {
             Ok(brush) => {
-                if brush.cast::<DesktopAcrylicBackdrop>().is_ok() {
-                    Backdrop::Acrylic
-                } else if let Ok(brush) = brush.cast::<MicaBackdrop>() {
+                if let Ok(brush) = brush.cast::<MicaBackdrop>() {
                     match brush.Kind() {
                         Ok(MicaKind::Base) => Backdrop::Mica,
                         Ok(MicaKind::BaseAlt) => Backdrop::MicaAlt,
                         _ => Backdrop::None,
                     }
                 } else {
-                    Backdrop::None
+                    Backdrop::Acrylic
                 }
             }
             Err(_) => Backdrop::None,
@@ -270,7 +264,7 @@ impl Window {
     fn set_backdrop_impl(&mut self, backdrop: Backdrop) -> windows::core::Result<bool> {
         match backdrop {
             Backdrop::Acrylic => {
-                let brush = DesktopAcrylicBackdrop::new()?;
+                let brush = CustomDesktopAcrylicBackdrop::compose()?;
                 self.handle.SetSystemBackdrop(&brush)?;
                 Ok(true)
             }

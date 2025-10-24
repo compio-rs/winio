@@ -51,6 +51,7 @@ windows = { workspace = true, features = [
     "Win32_Graphics_Direct3D11",
     "Win32_Graphics_Dxgi",
 ] }
+windows-core = { workspace = true }
 
 slim-detours-sys = { workspace = true }
 sync-unsafe-cell = { workspace = true }

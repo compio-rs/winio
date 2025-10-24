@@ -130,6 +130,9 @@ pub fn color_theme() -> ColorTheme {
 mod window;
 pub use window::*;
 
+mod backdrop;
+pub(crate) use backdrop::*;
+
 mod widget;
 pub(crate) use widget::*;
 
