@@ -4,7 +4,11 @@ use tuplex::IntoArray;
 use winio::prelude::*;
 
 #[cfg(windows)]
-#[path = "misc/windows.rs"]
+#[path = "misc/backdrop_win.rs"]
+mod backdrop;
+
+#[cfg(not(any(windows, target_os = "macos")))]
+#[path = "misc/backdrop_stub.rs"]
 mod backdrop;
 
 use backdrop::*;
