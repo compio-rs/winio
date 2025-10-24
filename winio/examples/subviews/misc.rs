@@ -64,7 +64,7 @@ impl Component for MiscPage {
     fn init(webview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
         init! {
             window: TabViewItem = (webview) => {
-                text: "MISC",
+                text: "Widgets",
             },
             canvas: Canvas = (&window),
             ulabel: Label = (&window) => {

@@ -18,12 +18,11 @@ use subviews::*;
 struct MainModel {
     window: Child<Window>,
     tabview: Child<TabView>,
-    basic: Child<BasicPage>,
+    misc: Child<MiscPage>,
     fs: Child<FsPage>,
     net: Child<NetPage>,
     gallery: Child<GalleryPage>,
     scroll: Child<ScrollViewPage>,
-    misc: Child<MiscPage>,
     #[cfg(feature = "media")]
     media: Child<MediaPage>,
     #[cfg(not(feature = "media"))]
@@ -77,12 +76,11 @@ impl Component for MainModel {
                 },
             },
             tabview: TabView = (&window),
-            basic: BasicPage = (&*tabview),
+            misc: MiscPage = (&*tabview),
             fs: FsPage = (&*tabview),
             net: NetPage = (&*tabview),
             gallery: GalleryPage = (&*tabview),
             scroll: ScrollViewPage = (&*tabview),
-            misc: MiscPage = (&*tabview),
             #[cfg(feature = "media")]
             media: MediaPage = (&*tabview),
             #[cfg(not(feature = "media"))]
@@ -97,12 +95,11 @@ impl Component for MainModel {
             markdown: DummyPage = ((&*tabview, "Markdown", "webview")),
         }
 
-        tabview.append(&basic);
+        tabview.append(&misc);
         tabview.append(&fs);
         tabview.append(&net);
         tabview.append(&gallery);
         tabview.append(&scroll);
-        tabview.append(&misc);
         tabview.append(&media);
         tabview.append(&webview);
         tabview.append(&markdown);
@@ -114,12 +111,11 @@ impl Component for MainModel {
         Self {
             window,
             tabview,
-            basic,
+            misc,
             fs,
             net,
             gallery,
             scroll,
-            misc,
             media,
             webview,
             markdown,
@@ -136,7 +132,11 @@ impl Component for MainModel {
             self.tabview => {
                 TabViewEvent::Select => MainMessage::Redraw,
             },
-            self.basic => {},
+            self.misc => {
+                MiscPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
+                #[cfg(windows)]
+                MiscPageEvent::ChooseBackdrop(b) => MainMessage::ChooseBackdrop(b),
+            },
             self.fs => {
                 FsPageEvent::ChooseFile => MainMessage::ChooseFile,
             },
@@ -146,11 +146,6 @@ impl Component for MainModel {
             },
             self.scroll => {
                 ScrollViewPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
-            },
-            self.misc => {
-                MiscPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
-                #[cfg(windows)]
-                MiscPageEvent::ChooseBackdrop(b) => MainMessage::ChooseBackdrop(b),
             },
             self.media => {
                 #[cfg(feature = "media")]
@@ -170,12 +165,11 @@ impl Component for MainModel {
 
     async fn update_children(&mut self) -> bool {
         let mut subviews: Vec<Pin<Box<dyn Future<Output = bool>>>> = vec![
-            Box::pin(self.basic.update()),
+            Box::pin(self.misc.update()),
             Box::pin(self.fs.update()),
             Box::pin(self.net.update()),
             Box::pin(self.gallery.update()),
             Box::pin(self.scroll.update()),
-            Box::pin(self.misc.update()),
             Box::pin(self.media.update()),
             Box::pin(self.webview.update()),
             Box::pin(self.markdown.update()),
@@ -317,15 +311,14 @@ impl Component for MainModel {
     fn render_children(&mut self) {
         if let Some(index) = self.tabview.selection() {
             match index {
-                0 => self.basic.render(),
+                0 => self.misc.render(),
                 1 => self.fs.render(),
                 2 => self.net.render(),
                 3 => self.gallery.render(),
                 4 => self.scroll.render(),
-                5 => self.misc.render(),
-                6 => self.media.render(),
-                7 => self.webview.render(),
-                8 => self.markdown.render(),
+                5 => self.media.render(),
+                6 => self.webview.render(),
+                7 => self.markdown.render(),
                 _ => {}
             }
         }

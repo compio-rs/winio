@@ -84,7 +84,7 @@ impl Component for GalleryPage {
         let path = dirs::picture_dir();
         init! {
             window: TabViewItem = (tabview) => {
-                text: "Gallery",
+                text: "Images",
             },
             canvas: Canvas = (&window),
             scrollbar: ScrollBar = (&window) => {
