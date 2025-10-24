@@ -63,7 +63,7 @@ impl Component for BackdropChooser {
     #[allow(deprecated)]
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
         match message {
-            BackdropChooserMessage::Noop => {}
+            BackdropChooserMessage::Noop => false,
             BackdropChooserMessage::Select => {
                 let vibrancy = match self.combo.selection() {
                     Some(0) => None,
@@ -92,9 +92,9 @@ impl Component for BackdropChooser {
                     _ => None,
                 };
                 sender.output(BackdropChooserEvent::ChooseVibrancy(vibrancy));
+                true
             }
         }
-        false
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) {}

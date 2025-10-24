@@ -39,7 +39,7 @@ impl Label {
 
     pub fn preferred_size(&self) -> Size {
         let mut size = self.handle.preferred_size();
-        size.width += 4.0;
+        size.width += 8.0;
         size
     }
 

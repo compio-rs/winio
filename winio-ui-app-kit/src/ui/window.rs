@@ -370,9 +370,13 @@ impl Widget {
     }
 
     pub fn preferred_size(&self) -> Size {
+        let s = self.view.fittingSize();
+        if s != NSSize::ZERO {
+            return from_cgsize(s);
+        }
         self.view
             .downcast_ref::<NSControl>()
-            .map(|c| from_cgsize(c.sizeThatFits(NSSize::new(f64::INFINITY, f64::INFINITY))))
+            .map(|c| from_cgsize(c.sizeThatFits(NSSize::ZERO)))
             .unwrap_or_default()
     }
 

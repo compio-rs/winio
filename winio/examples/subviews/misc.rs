@@ -320,7 +320,7 @@ impl Component for MiscPage {
 
             let mut root_panel = layout! {
                 Grid::from_str("1*,1*,1*", "1*,auto,1*").unwrap(),
-                self.backdrop => { column: 0, row: 0, halign: HAlign::Center, valign: VAlign::Center },
+                self.backdrop => { column: 0, row: 0, halign: HAlign::Stretch, valign: VAlign::Center, margin: Margin::new_all_same(8.0) },
                 cred_panel    => { column: 1, row: 0 },
                 rgroup_panel  => { column: 2, row: 0, halign: HAlign::Center },
                 self.canvas   => { column: 0, row: 1, row_span: 2 },
