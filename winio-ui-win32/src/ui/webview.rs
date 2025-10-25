@@ -69,12 +69,12 @@ impl WebViewImpl for WebViewInner {
         unsafe {
             CreateCoreWebView2Environment(&CreateEnvHandler::create(move |env| {
                 let env = env?;
-                let env = env.unwrap();
+                let env = env.ok()?;
                 env.CreateCoreWebView2Controller(
                     HWND(hwnd),
                     &CreateControllerHandler::create(move |host| {
                         let host = host?;
-                        let host = host.unwrap();
+                        let host = host.ok()?;
                         let view = host.CoreWebView2()?;
                         tx.send((host.clone(), view)).ok();
                         Ok(())
