@@ -13,7 +13,9 @@ use windows::{
     Win32::Graphics::Direct2D::{
         D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1CreateFactory, ID2D1Factory2,
     },
-    core::{Ref, Result, h},
+    core::{
+        Array, HSTRING, IInspectable_Vtbl, Interface, Ref, Result, h, imp::WeakRefCount, implement,
+    },
 };
 use windows_sys::Win32::{
     Foundation::{WAIT_FAILED, WAIT_OBJECT_0},
@@ -21,16 +23,23 @@ use windows_sys::Win32::{
 };
 use winio_ui_windows_common::{PreferredAppMode, init_dark, set_preferred_app_mode};
 use winui3::{
-    ApartmentType,
+    ApartmentType, ChildClass, ChildClassImpl, Compose, CreateInstanceFn,
     Microsoft::UI::{
         Dispatching::{DispatcherQueue, DispatcherQueueHandler},
         Xaml::{
             Application, ApplicationInitializationCallback,
-            ApplicationInitializationCallbackParams, Controls::XamlControlsResources,
-            LaunchActivatedEventArgs, ResourceDictionary, UnhandledExceptionEventHandler,
+            ApplicationInitializationCallbackParams,
+            Controls::XamlControlsResources,
+            IApplicationFactory, IApplicationFactory_Vtbl, IApplicationOverrides,
+            IApplicationOverrides_Impl, LaunchActivatedEventArgs,
+            Markup::{
+                IXamlMetadataProvider, IXamlMetadataProvider_Impl, IXamlType, XmlnsDefinition,
+            },
+            ResourceDictionary, UnhandledExceptionEventHandler,
+            XamlTypeInfo::XamlControlsXamlMetaDataProvider,
         },
     },
-    XamlApp, XamlAppOverrides,
+    Windows::UI::Xaml::Interop::TypeName,
     bootstrap::{PackageDependency, WindowsAppSDKVersion},
     init_apartment,
 };
@@ -167,7 +176,7 @@ fn resume_foreground<T: Send + 'static>(
 fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> {
     debug!("Application::Start");
 
-    let app = App::create()?;
+    let app = App::compose()?;
     app.UnhandledException(Some(&UnhandledExceptionEventHandler::new(
         |_sender, args| {
             #[allow(clippy::single_match)]
@@ -231,20 +240,26 @@ fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> 
     Ok(())
 }
 
-struct App {}
+#[implement(IApplicationOverrides, IXamlMetadataProvider)]
+struct App {
+    provider: XamlControlsXamlMetaDataProvider,
+}
 
 impl App {
-    pub(crate) fn create() -> Result<Application> {
-        let app = Self {};
-        XamlApp::compose(app)
+    pub(crate) fn compose() -> Result<Application> {
+        Compose::compose(Self {
+            provider: XamlControlsXamlMetaDataProvider::new()?,
+        })
     }
 }
 
-impl XamlAppOverrides for App {
-    fn OnLaunched(&self, base: &Application, _: Option<&LaunchActivatedEventArgs>) -> Result<()> {
+impl ChildClassImpl for App_Impl {}
+
+impl IApplicationOverrides_Impl for App_Impl {
+    fn OnLaunched(&self, _: Ref<LaunchActivatedEventArgs>) -> Result<()> {
         debug!("App::OnLaunched");
 
-        let resources = base.Resources()?;
+        let resources = self.base()?.cast::<Application>()?.Resources()?;
         let merged_dictionaries = resources.MergedDictionaries()?;
         let xaml_controls_resources = XamlControlsResources::new()?;
         merged_dictionaries.Append(&xaml_controls_resources)?;
@@ -256,5 +271,40 @@ impl XamlAppOverrides for App {
         merged_dictionaries.Append(&compact_resources)?;
 
         Ok(())
+    }
+}
+
+impl IXamlMetadataProvider_Impl for App_Impl {
+    fn GetXamlType(&self, ty: &TypeName) -> Result<IXamlType> {
+        self.provider.GetXamlType(ty)
+    }
+
+    fn GetXamlTypeByFullName(&self, name: &HSTRING) -> Result<IXamlType> {
+        self.provider.GetXamlTypeByFullName(name)
+    }
+
+    fn GetXmlnsDefinitions(&self) -> Result<Array<XmlnsDefinition>> {
+        self.provider.GetXmlnsDefinitions()
+    }
+}
+
+impl ChildClass for App {
+    type BaseType = Application;
+    type FactoryInterface = IApplicationFactory;
+
+    fn create_interface_fn(vtable: &IApplicationFactory_Vtbl) -> CreateInstanceFn {
+        vtable.CreateInstance
+    }
+
+    fn identity_vtable(vtable: &mut Self::Outer) -> &mut &'static IInspectable_Vtbl {
+        &mut vtable.identity
+    }
+
+    fn ref_count(vtable: &Self::Outer) -> &WeakRefCount {
+        &vtable.count
+    }
+
+    fn into_outer(self) -> Self::Outer {
+        Self::into_outer(self)
     }
 }
