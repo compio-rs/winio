@@ -2,7 +2,7 @@ use std::cell::RefCell;
 
 use windows::{
     UI::Color,
-    core::{IInspectable_Vtbl, Interface, Ref, Result, imp::WeakRefCount, implement},
+    core::{IInspectable_Vtbl, Ref, Result, imp::WeakRefCount, implement},
 };
 use winio_primitive::ColorTheme;
 use winui3::{
@@ -15,8 +15,8 @@ use winui3::{
         Xaml::{
             self as MUX,
             Media::{
-                ISystemBackdropFactory, ISystemBackdropOverrides, ISystemBackdropOverrides_Impl,
-                SystemBackdrop,
+                ISystemBackdropFactory, ISystemBackdropFactory_Vtbl, ISystemBackdropOverrides,
+                ISystemBackdropOverrides_Impl, SystemBackdrop,
             },
         },
     },
@@ -89,25 +89,40 @@ impl CustomDesktopAcrylicBackdrop {
     }
 }
 
+macro_rules! base {
+    ($this:ident : $t:ty) => {{
+        #[allow(unused_unsafe)]
+        unsafe {
+            let base = winui3::Compose::<<Self as windows_core::IUnknownImpl>::Impl>::base($this);
+            windows_core::Interface::cast::<$t>(base)
+        }
+    }};
+    ($this:ident : $t:ty, $f:ident ($($args:expr),* $(,)?)) => {{
+        #[allow(unused_unsafe)]
+        unsafe {
+            base!($this: $t).and_then(|b| {
+                (windows_core::Interface::vtable(&b).$f)(windows_core::Interface::as_raw(&b), $(windows_core::Param::param($args).abi()),*).ok()
+            })
+        }
+    }};
+}
+
 impl ISystemBackdropOverrides_Impl for CustomDesktopAcrylicBackdrop_Impl {
     fn OnTargetConnected(
         &self,
         target: Ref<ICompositionSupportsSystemBackdrop>,
         root: Ref<MUX::XamlRoot>,
     ) -> Result<()> {
-        let base = unsafe { Compose::<CustomDesktopAcrylicBackdrop>::base(self) };
+        base!(
+            self: ISystemBackdropOverrides,
+            OnTargetConnected(target.as_ref(), root.as_ref())
+        )?;
+
         let target = target.ok()?;
         let root = root.ok()?;
 
-        unsafe {
-            let base = base.cast::<ISystemBackdropOverrides>()?;
-            (base.vtable().OnTargetConnected)(base.as_raw(), target.as_raw(), root.as_raw())
-                .ok()?;
-        }
-
-        let configuration = base
-            .cast::<SystemBackdrop>()?
-            .GetDefaultSystemBackdropConfiguration(target, root)?;
+        let configuration =
+            base!(self: SystemBackdrop)?.GetDefaultSystemBackdropConfiguration(target, root)?;
         let controller = DesktopAcrylicController::new()?;
         // Magic number to match Win32.
         controller.SetLuminosityOpacity(0.65)?;
@@ -124,12 +139,13 @@ impl ISystemBackdropOverrides_Impl for CustomDesktopAcrylicBackdrop_Impl {
     }
 
     fn OnTargetDisconnected(&self, target: Ref<ICompositionSupportsSystemBackdrop>) -> Result<()> {
-        let base = unsafe { Compose::<CustomDesktopAcrylicBackdrop>::base(self) };
+        base!(
+            self: ISystemBackdropOverrides,
+            OnTargetDisconnected(target.as_ref())
+        )?;
+
         let target = target.ok()?;
-        unsafe {
-            let base = base.cast::<ISystemBackdropOverrides>()?;
-            (base.vtable().OnTargetDisconnected)(base.as_raw(), target.as_raw()).ok()?;
-        }
+
         let mut controllers = self.controllers.borrow_mut();
         if let Some(pos) = controllers.iter().position(|entry| entry.target == *target) {
             controllers.remove(pos);
@@ -142,18 +158,13 @@ impl ISystemBackdropOverrides_Impl for CustomDesktopAcrylicBackdrop_Impl {
         target: Ref<ICompositionSupportsSystemBackdrop>,
         root: Ref<MUX::XamlRoot>,
     ) -> Result<()> {
-        let base = unsafe { Compose::<CustomDesktopAcrylicBackdrop>::base(self) };
+        base!(
+            self: ISystemBackdropOverrides,
+            OnDefaultSystemBackdropConfigurationChanged(target.as_ref(), root.as_ref())
+        )?;
+
         let target = target.ok()?;
-        let root = root.ok()?;
-        unsafe {
-            let base = base.cast::<ISystemBackdropOverrides>()?;
-            (base.vtable().OnDefaultSystemBackdropConfigurationChanged)(
-                base.as_raw(),
-                target.as_raw(),
-                root.as_raw(),
-            )
-            .ok()?;
-        }
+
         for entry in self.controllers.borrow().iter() {
             if entry.target == *target {
                 update_color(&entry.controller)?;
@@ -168,9 +179,7 @@ impl ChildClass for CustomDesktopAcrylicBackdrop {
     type BaseType = SystemBackdrop;
     type FactoryInterface = ISystemBackdropFactory;
 
-    fn create_interface_fn(
-        vtable: &<Self::FactoryInterface as Interface>::Vtable,
-    ) -> CreateInstanceFn {
+    fn create_interface_fn(vtable: &ISystemBackdropFactory_Vtbl) -> CreateInstanceFn {
         vtable.CreateInstance
     }
 
