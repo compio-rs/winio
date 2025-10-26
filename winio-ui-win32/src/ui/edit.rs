@@ -30,7 +30,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-struct EditImpl {
+pub(crate) struct EditImpl {
     handle: Widget,
 }
 

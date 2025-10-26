@@ -46,8 +46,8 @@ impl LazyInitParams {
 }
 
 #[allow(async_fn_in_trait)]
-pub trait WebViewImpl {
-    async fn new(parent: impl AsContainer) -> Self;
+pub trait WebViewImpl: Sized {
+    async fn new(parent: impl AsContainer) -> windows::core::Result<Self>;
 
     fn is_visible(&self) -> bool;
     fn set_visible(&mut self, v: bool);
@@ -78,22 +78,43 @@ pub trait WebViewImpl {
     fn wait_navigated(&self) -> impl Future<Output = ()> + 'static + use<Self>;
 }
 
-enum WebViewInner<W> {
-    Params(LazyInitParams),
-    Widget(W),
+pub trait WebViewErrLabelImpl: Sized {
+    fn new(parent: impl AsContainer) -> Self;
+
+    fn is_visible(&self) -> bool;
+    fn set_visible(&mut self, v: bool);
+
+    fn is_enabled(&self) -> bool;
+    fn set_enabled(&mut self, v: bool);
+
+    fn loc(&self) -> Point;
+    fn set_loc(&mut self, v: Point);
+
+    fn size(&self) -> Size;
+    fn set_size(&mut self, v: Size);
+
+    fn text(&self) -> String;
+    fn set_text(&mut self, s: impl AsRef<str>);
 }
 
-impl<W> Debug for WebViewInner<W> {
+enum WebViewInner<W, L> {
+    Params(LazyInitParams),
+    Widget(W),
+    ErrLabel(L),
+}
+
+impl<W, L> Debug for WebViewInner<W, L> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WebViewInner").finish_non_exhaustive()
     }
 }
 
-impl<W: WebViewImpl> WebViewInner<W> {
+impl<W: WebViewImpl, L: WebViewErrLabelImpl> WebViewInner<W, L> {
     pub fn is_visible(&self) -> bool {
         match self {
             Self::Params(p) => p.visible,
             Self::Widget(w) => w.is_visible(),
+            Self::ErrLabel(l) => l.is_visible(),
         }
     }
 
@@ -101,6 +122,7 @@ impl<W: WebViewImpl> WebViewInner<W> {
         match self {
             Self::Params(p) => p.visible = v,
             Self::Widget(w) => w.set_visible(v),
+            Self::ErrLabel(l) => l.set_visible(v),
         }
     }
 
@@ -108,6 +130,7 @@ impl<W: WebViewImpl> WebViewInner<W> {
         match self {
             Self::Params(p) => p.enabled,
             Self::Widget(w) => w.is_enabled(),
+            Self::ErrLabel(l) => l.is_enabled(),
         }
     }
 
@@ -115,6 +138,7 @@ impl<W: WebViewImpl> WebViewInner<W> {
         match self {
             Self::Params(p) => p.enabled = v,
             Self::Widget(w) => w.set_enabled(v),
+            Self::ErrLabel(l) => l.set_enabled(v),
         }
     }
 
@@ -122,6 +146,7 @@ impl<W: WebViewImpl> WebViewInner<W> {
         match self {
             Self::Params(p) => p.loc,
             Self::Widget(w) => w.loc(),
+            Self::ErrLabel(l) => l.loc(),
         }
     }
 
@@ -129,6 +154,7 @@ impl<W: WebViewImpl> WebViewInner<W> {
         match self {
             Self::Params(p) => p.loc = v,
             Self::Widget(w) => w.set_loc(v),
+            Self::ErrLabel(l) => l.set_loc(v),
         }
     }
 
@@ -136,6 +162,7 @@ impl<W: WebViewImpl> WebViewInner<W> {
         match self {
             Self::Params(p) => p.size,
             Self::Widget(w) => w.size(),
+            Self::ErrLabel(l) => l.size(),
         }
     }
 
@@ -143,6 +170,7 @@ impl<W: WebViewImpl> WebViewInner<W> {
         match self {
             Self::Params(p) => p.size = v,
             Self::Widget(w) => w.set_size(v),
+            Self::ErrLabel(l) => l.set_size(v),
         }
     }
 
@@ -153,6 +181,7 @@ impl<W: WebViewImpl> WebViewInner<W> {
                 LazyInitSource::Html(_) => String::new(),
             },
             Self::Widget(w) => w.source(),
+            Self::ErrLabel(_) => String::new(),
         }
     }
 
@@ -160,6 +189,7 @@ impl<W: WebViewImpl> WebViewInner<W> {
         match self {
             Self::Params(p) => p.source = LazyInitSource::Url(s.as_ref().into()),
             Self::Widget(w) => w.set_source(s),
+            Self::ErrLabel(_) => {}
         }
     }
 
@@ -167,81 +197,83 @@ impl<W: WebViewImpl> WebViewInner<W> {
         match self {
             Self::Params(p) => p.source = LazyInitSource::Html(s.as_ref().into()),
             Self::Widget(w) => w.set_html(s),
+            Self::ErrLabel(_) => {}
         }
     }
 
     pub fn can_go_forward(&self) -> bool {
         match self {
-            Self::Params(_) => false,
+            Self::Params(_) | Self::ErrLabel(_) => false,
             Self::Widget(w) => w.can_go_forward(),
         }
     }
 
     pub fn go_forward(&mut self) {
         match self {
-            Self::Params(_) => unreachable!("cannot go forward before initialized"),
+            Self::Params(_) | Self::ErrLabel(_) => {}
             Self::Widget(w) => w.go_forward(),
         }
     }
 
     pub fn can_go_back(&self) -> bool {
         match self {
-            Self::Params(_) => false,
+            Self::Params(_) | Self::ErrLabel(_) => false,
             Self::Widget(w) => w.can_go_back(),
         }
     }
 
     pub fn go_back(&mut self) {
         match self {
-            Self::Params(_) => unreachable!("cannot go back before initialized"),
+            Self::Params(_) | Self::ErrLabel(_) => {}
             Self::Widget(w) => w.go_back(),
         }
     }
 
     pub fn reload(&mut self) {
         match self {
-            Self::Params(_) => unreachable!("cannot reload before initialized"),
+            Self::Params(_) | Self::ErrLabel(_) => {}
             Self::Widget(w) => w.reload(),
         }
     }
 
     pub fn stop(&mut self) {
         match self {
-            Self::Params(_) => unreachable!("cannot stop before initialized"),
+            Self::Params(_) | Self::ErrLabel(_) => {}
             Self::Widget(w) => w.stop(),
         }
     }
 
     pub fn wait_navigating(&self) -> impl Future<Output = ()> + 'static {
         match self {
-            Self::Params(_) => Either::Left(std::future::pending()),
+            Self::Params(_) | Self::ErrLabel(_) => Either::Left(std::future::pending()),
             Self::Widget(w) => Either::Right(w.wait_navigating()),
         }
     }
 
     pub fn wait_navigated(&self) -> impl Future<Output = ()> + 'static {
         match self {
-            Self::Params(_) => Either::Left(std::future::pending()),
+            Self::Params(_) | Self::ErrLabel(_) => Either::Left(std::future::pending()),
             Self::Widget(w) => Either::Right(w.wait_navigated()),
         }
     }
 }
 
-impl<W: AsRawWidget> AsRawWidget for WebViewInner<W> {
+impl<W: AsRawWidget, L: AsRawWidget> AsRawWidget for WebViewInner<W, L> {
     fn as_raw_widget(&self) -> RawWidget {
         match self {
             Self::Params(_) => unreachable!("cannot get raw widget before initialized"),
             Self::Widget(w) => w.as_raw_widget(),
+            Self::ErrLabel(l) => l.as_raw_widget(),
         }
     }
 }
 
 #[derive(Debug)]
-pub struct WebViewLazy<W> {
-    inner: Rc<RefCell<WebViewInner<W>>>,
+pub struct WebViewLazy<W, L> {
+    inner: Rc<RefCell<WebViewInner<W, L>>>,
 }
 
-impl<W: WebViewImpl + 'static> WebViewLazy<W> {
+impl<W: WebViewImpl + 'static, L: WebViewErrLabelImpl + 'static> WebViewLazy<W, L> {
     pub fn new(parent: impl AsContainer) -> Self {
         let inner = Rc::new(RefCell::new(
             WebViewInner::Params(LazyInitParams::default()),
@@ -250,11 +282,26 @@ impl<W: WebViewImpl + 'static> WebViewLazy<W> {
             let inner = inner.clone();
             let parent = parent.as_container().as_raw_container();
             async move {
-                let mut w = W::new(unsafe { BorrowedContainer::borrow_raw(parent) }).await;
+                let w = W::new(unsafe { BorrowedContainer::borrow_raw(parent.clone()) }).await;
                 let mut inner = inner.borrow_mut();
                 if let WebViewInner::Params(p) = &*inner {
-                    p.init(&mut w);
-                    *inner = WebViewInner::Widget(w);
+                    match w {
+                        Ok(mut w) => {
+                            p.init(&mut w);
+                            *inner = WebViewInner::Widget(w);
+                        }
+                        Err(e) => {
+                            let mut l = L::new(unsafe { BorrowedContainer::borrow_raw(parent) });
+                            l.set_text(format!(
+                                "WebView2 failed to initialize: {}\n\n\
+                                 This application requires the Microsoft Edge WebView2 Runtime.\n\n\
+                                 Please download and install the runtime from:\n  \
+                                 https://aka.ms/webview2installer",
+                                e
+                            ));
+                            *inner = WebViewInner::ErrLabel(l);
+                        }
+                    }
                 }
             }
         })
@@ -263,7 +310,7 @@ impl<W: WebViewImpl + 'static> WebViewLazy<W> {
     }
 }
 
-impl<W: WebViewImpl> WebViewLazy<W> {
+impl<W: WebViewImpl, L: WebViewErrLabelImpl> WebViewLazy<W, L> {
     pub fn is_visible(&self) -> bool {
         self.inner.borrow().is_visible()
     }
@@ -347,13 +394,13 @@ impl<W: WebViewImpl> WebViewLazy<W> {
     }
 }
 
-impl<W: AsRawWidget> AsRawWidget for WebViewLazy<W> {
+impl<W: AsRawWidget, L: AsRawWidget> AsRawWidget for WebViewLazy<W, L> {
     fn as_raw_widget(&self) -> RawWidget {
         self.inner.borrow().as_raw_widget()
     }
 }
 
-impl<W: AsRawWidget> AsWidget for WebViewLazy<W> {
+impl<W: AsRawWidget, L: AsRawWidget> AsWidget for WebViewLazy<W, L> {
     fn as_widget(&self) -> BorrowedWidget<'_> {
         unsafe { BorrowedWidget::borrow_raw(self.as_raw_widget()) }
     }

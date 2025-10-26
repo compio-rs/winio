@@ -1,15 +1,16 @@
 use std::{future::Future, rc::Rc};
 
+use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows::{
     Foundation::{TypedEventHandler, Uri},
-    core::{HSTRING, Interface},
+    core::{HSTRING, Interface, Result},
 };
 use winio_callback::Callback;
 use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Point, Size};
-use winio_ui_windows_common::{WebViewImpl, WebViewLazy};
-use winui3::Microsoft::UI::Xaml::Controls as MUXC;
+use winio_ui_windows_common::{WebViewErrLabelImpl, WebViewImpl, WebViewLazy};
+use winui3::Microsoft::UI::Xaml::{Controls as MUXC, TextWrapping};
 
 use crate::{GlobalRuntime, Widget};
 
@@ -22,7 +23,7 @@ pub struct WebViewInner {
 }
 
 impl WebViewImpl for WebViewInner {
-    async fn new(parent: impl AsContainer) -> Self {
+    async fn new(parent: impl AsContainer) -> Result<Self> {
         #[cfg(feature = "webview-system")]
         {
             fn add_webview2sdk_path() {
@@ -67,16 +68,15 @@ impl WebViewImpl for WebViewInner {
 
             ADD_PATH.call_once(add_webview2sdk_path);
         }
-        let view = MUXC::WebView2::new().unwrap();
-        view.EnsureCoreWebView2Async().unwrap().await.unwrap();
+        let view = MUXC::WebView2::new()?;
+        view.EnsureCoreWebView2Async()?.await?;
         let on_navigating = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_navigating = on_navigating.clone();
             view.NavigationStarting(&TypedEventHandler::new(move |_, _| {
                 on_navigating.signal::<GlobalRuntime>(());
                 Ok(())
-            }))
-            .unwrap();
+            }))?;
         }
         let on_navigated = SendWrapper::new(Rc::new(Callback::new()));
         {
@@ -84,15 +84,14 @@ impl WebViewImpl for WebViewInner {
             view.NavigationCompleted(&TypedEventHandler::new(move |_, _| {
                 on_navigated.signal::<GlobalRuntime>(());
                 Ok(())
-            }))
-            .unwrap();
+            }))?;
         }
-        Self {
+        Ok(Self {
             on_navigating,
             on_navigated,
             handle: Widget::new(parent, view.cast().unwrap()),
             view,
-        }
+        })
     }
 
     fn is_visible(&self) -> bool {
@@ -197,4 +196,52 @@ impl AsRawWidget for WebViewInner {
     }
 }
 
-pub type WebView = WebViewLazy<WebViewInner>;
+#[derive(Debug)]
+pub struct WebViewErrLabelInner {
+    handle: Widget,
+    text_box: MUXC::TextBox,
+}
+
+#[inherit_methods(from = "self.handle")]
+impl WebViewErrLabelImpl for WebViewErrLabelInner {
+    fn new(parent: impl AsContainer) -> Self {
+        let text_box = MUXC::TextBox::new().unwrap();
+        text_box.SetIsReadOnly(true).unwrap();
+        text_box.SetTextWrapping(TextWrapping::Wrap).unwrap();
+        Self {
+            handle: Widget::new(parent, text_box.cast().unwrap()),
+            text_box,
+        }
+    }
+
+    fn is_visible(&self) -> bool;
+
+    fn set_visible(&mut self, v: bool);
+
+    fn is_enabled(&self) -> bool;
+
+    fn set_enabled(&mut self, v: bool);
+
+    fn loc(&self) -> Point;
+
+    fn set_loc(&mut self, v: Point);
+
+    fn size(&self) -> Size;
+
+    fn set_size(&mut self, v: Size);
+
+    fn text(&self) -> String {
+        self.text_box.Text().unwrap().to_string_lossy()
+    }
+
+    fn set_text(&mut self, s: impl AsRef<str>) {
+        self.text_box.SetText(&HSTRING::from(s.as_ref())).unwrap();
+    }
+}
+
+#[inherit_methods(from = "self.handle")]
+impl AsRawWidget for WebViewErrLabelInner {
+    fn as_raw_widget(&self) -> RawWidget;
+}
+
+pub type WebView = WebViewLazy<WebViewInner, WebViewErrLabelInner>;

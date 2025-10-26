@@ -1,5 +1,6 @@
 use std::{cell::RefCell, future::Future, rc::Rc};
 
+use inherit_methods_macro::inherit_methods;
 use webview2::{
     CreateCoreWebView2Environment, ICoreWebView2, ICoreWebView2Controller,
     ICoreWebView2CreateCoreWebView2ControllerCompletedHandler,
@@ -11,16 +12,21 @@ use webview2::{
     ICoreWebView2NavigationStartingEventHandler, ICoreWebView2NavigationStartingEventHandler_Impl,
 };
 use windows::{
-    Win32::Foundation::{HWND, RECT},
-    core::{HRESULT, PCWSTR, Ref, Result, implement},
+    Win32::Foundation::{E_FAIL, HWND, RECT},
+    core::{Error, HRESULT, PCWSTR, Ref, Result, implement},
 };
-use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
+use windows_sys::Win32::UI::{
+    HiDpi::GetDpiForWindow,
+    WindowsAndMessaging::{
+        ES_AUTOVSCROLL, ES_LEFT, ES_MULTILINE, ES_READONLY, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
+    },
+};
 use winio_callback::Callback;
 use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Point, Rect, Size};
-use winio_ui_windows_common::{CoTaskMemPtr, WebViewImpl, WebViewLazy};
+use winio_ui_windows_common::{CoTaskMemPtr, WebViewErrLabelImpl, WebViewImpl, WebViewLazy};
 
-use crate::ui::with_u16c;
+use crate::ui::{EditImpl, fix_crlf, with_u16c};
 
 #[derive(Debug)]
 pub struct WebViewInner {
@@ -63,7 +69,7 @@ impl WebViewInner {
 }
 
 impl WebViewImpl for WebViewInner {
-    async fn new(parent: impl AsContainer) -> Self {
+    async fn new(parent: impl AsContainer) -> Result<Self> {
         let (tx, rx) = local_sync::oneshot::channel();
         let hwnd = parent.as_container().as_win32();
         unsafe {
@@ -81,18 +87,16 @@ impl WebViewImpl for WebViewInner {
                     }),
                 )?;
                 Ok(())
-            }))
-            .unwrap();
+            }))?;
         }
-        let (host, view) = rx.await.unwrap();
+        let (host, view) = rx.await.map_err(|_| Error::from_hresult(E_FAIL))?;
         let navigating = Rc::new(Callback::new());
         unsafe {
             let navigating = navigating.clone();
             view.NavigationStarting(&NavStartingHandler::create(move |_, _| {
                 navigating.signal::<()>(());
                 Ok(())
-            }))
-            .unwrap();
+            }))?;
         }
         let navigated = Rc::new(Callback::new());
         unsafe {
@@ -100,15 +104,14 @@ impl WebViewImpl for WebViewInner {
             view.NavigationCompleted(&NavCompletedHandler::create(move |_, _| {
                 navigated.signal::<()>(());
                 Ok(())
-            }))
-            .unwrap();
+            }))?;
         }
-        Self {
+        Ok(Self {
             host,
             view,
             navigating,
             navigated,
-        }
+        })
     }
 
     fn is_visible(&self) -> bool {
@@ -223,7 +226,59 @@ impl AsRawWidget for WebViewInner {
     }
 }
 
-pub type WebView = WebViewLazy<WebViewInner>;
+#[derive(Debug)]
+pub struct WebViewErrLabelInner {
+    handle: EditImpl,
+}
+
+#[inherit_methods(from = "self.handle")]
+impl WebViewErrLabelImpl for WebViewErrLabelInner {
+    fn new(parent: impl AsContainer) -> Self {
+        Self {
+            handle: EditImpl::new(
+                parent,
+                WS_CHILD
+                    | WS_VISIBLE
+                    | WS_TABSTOP
+                    | ES_LEFT as u32
+                    | ES_MULTILINE as u32
+                    | ES_AUTOVSCROLL as u32
+                    | ES_READONLY as u32,
+            ),
+        }
+    }
+
+    fn is_visible(&self) -> bool;
+
+    fn set_visible(&mut self, v: bool);
+
+    fn is_enabled(&self) -> bool;
+
+    fn set_enabled(&mut self, v: bool);
+
+    fn loc(&self) -> Point;
+
+    fn set_loc(&mut self, v: Point);
+
+    fn size(&self) -> Size;
+
+    fn set_size(&mut self, v: Size);
+
+    fn text(&self) -> String {
+        self.handle.text().replace("\r\n", "\n")
+    }
+
+    fn set_text(&mut self, s: impl AsRef<str>) {
+        self.handle.set_text(fix_crlf(s.as_ref()))
+    }
+}
+
+#[inherit_methods(from = "self.handle")]
+impl AsRawWidget for WebViewErrLabelInner {
+    fn as_raw_widget(&self) -> RawWidget;
+}
+
+pub type WebView = WebViewLazy<WebViewInner, WebViewErrLabelInner>;
 
 #[implement(
     ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,
