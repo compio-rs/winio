@@ -73,6 +73,9 @@ impl Edit {
     }
 
     pub fn set_password(&mut self, v: bool) {
+        if v {
+            self.set_readonly(false);
+        }
         self.widget.set_input_purpose(if v {
             gtk4::InputPurpose::Password
         } else {
@@ -99,6 +102,20 @@ impl Edit {
             _ => 0.5,
         };
         EditableExt::set_alignment(&self.widget, align);
+    }
+
+    pub fn is_readonly(&self) -> bool {
+        if self.is_password() {
+            false
+        } else {
+            !self.widget.is_editable()
+        }
+    }
+
+    pub fn set_readonly(&mut self, r: bool) {
+        if !self.is_password() {
+            self.widget.set_editable(!r);
+        }
     }
 
     pub async fn wait_change(&self) {

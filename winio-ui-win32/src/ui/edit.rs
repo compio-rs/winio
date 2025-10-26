@@ -204,6 +204,7 @@ impl Edit {
             self.handle
                 .handle
                 .send_message(EM_SETPASSWORDCHAR, self.pchar as _, 0);
+            self.handle.set_readonly(false);
         } else {
             self.handle.handle.send_message(EM_SETPASSWORDCHAR, 0, 0);
         }
