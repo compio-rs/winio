@@ -293,8 +293,10 @@ impl<W: WebViewImpl + 'static, L: WebViewErrLabelImpl + 'static> WebViewLazy<W, 
                         Err(e) => {
                             let mut l = L::new(unsafe { BorrowedContainer::borrow_raw(parent) });
                             l.set_text(format!(
-                                "WebView2 failed to initialize: {}\n\nThis application requires \
-                                 the Microsoft Edge WebView2 Runtime.",
+                                "WebView2 failed to initialize: {}\n\n\
+                                 This application requires the Microsoft Edge WebView2 Runtime.\n\n\
+                                 Please download and install the runtime from:\n  \
+                                 https://aka.ms/webview2installer",
                                 e
                             ));
                             *inner = WebViewInner::ErrLabel(l);

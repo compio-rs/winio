@@ -15,13 +15,18 @@ use windows::{
     Win32::Foundation::{E_FAIL, HWND, RECT},
     core::{Error, HRESULT, PCWSTR, Ref, Result, implement},
 };
-use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
+use windows_sys::Win32::UI::{
+    HiDpi::GetDpiForWindow,
+    WindowsAndMessaging::{
+        ES_AUTOVSCROLL, ES_LEFT, ES_MULTILINE, ES_READONLY, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
+    },
+};
 use winio_callback::Callback;
 use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Point, Rect, Size};
 use winio_ui_windows_common::{CoTaskMemPtr, WebViewErrLabelImpl, WebViewImpl, WebViewLazy};
 
-use crate::{Label, ui::with_u16c};
+use crate::ui::{EditImpl, fix_crlf, with_u16c};
 
 #[derive(Debug)]
 pub struct WebViewInner {
@@ -223,14 +228,23 @@ impl AsRawWidget for WebViewInner {
 
 #[derive(Debug)]
 pub struct WebViewErrLabelInner {
-    label: Label,
+    handle: EditImpl,
 }
 
-#[inherit_methods(from = "self.label")]
+#[inherit_methods(from = "self.handle")]
 impl WebViewErrLabelImpl for WebViewErrLabelInner {
     fn new(parent: impl AsContainer) -> Self {
         Self {
-            label: Label::new(parent),
+            handle: EditImpl::new(
+                parent,
+                WS_CHILD
+                    | WS_VISIBLE
+                    | WS_TABSTOP
+                    | ES_LEFT as u32
+                    | ES_MULTILINE as u32
+                    | ES_AUTOVSCROLL as u32
+                    | ES_READONLY as u32,
+            ),
         }
     }
 
@@ -250,12 +264,16 @@ impl WebViewErrLabelImpl for WebViewErrLabelInner {
 
     fn set_size(&mut self, v: Size);
 
-    fn text(&self) -> String;
+    fn text(&self) -> String {
+        self.handle.text().replace("\r\n", "\n")
+    }
 
-    fn set_text(&mut self, s: impl AsRef<str>);
+    fn set_text(&mut self, s: impl AsRef<str>) {
+        self.handle.set_text(fix_crlf(s.as_ref()))
+    }
 }
 
-#[inherit_methods(from = "self.label")]
+#[inherit_methods(from = "self.handle")]
 impl AsRawWidget for WebViewErrLabelInner {
     fn as_raw_widget(&self) -> RawWidget;
 }
