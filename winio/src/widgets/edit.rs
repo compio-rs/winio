@@ -39,6 +39,14 @@ impl Edit {
 
     /// Set the horizontal alignment.
     pub fn set_halign(&mut self, align: HAlign);
+
+    /// If the text input is read-only.
+    /// A password edit cannot be read-only.
+    pub fn is_readonly(&self) -> bool;
+
+    /// Set if the text input is read-only.
+    /// A password edit cannot be read-only.
+    pub fn set_readonly(&mut self, v: bool);
 }
 
 #[inherit_methods(from = "self.widget")]

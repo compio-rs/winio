@@ -143,6 +143,14 @@ impl TextBox {
         self.text_view.setAlignment(align);
     }
 
+    pub fn is_readonly(&self) -> bool {
+        !self.text_view.isEditable()
+    }
+
+    pub fn set_readonly(&mut self, v: bool) {
+        self.text_view.setEditable(!v);
+    }
+
     pub async fn wait_change(&self) {
         self.delegate.ivars().changed.wait().await
     }

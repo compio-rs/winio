@@ -10,9 +10,9 @@ use winio_callback::Callback;
 use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{WebViewErrLabelImpl, WebViewImpl, WebViewLazy};
-use winui3::Microsoft::UI::Xaml::{Controls as MUXC, TextWrapping};
+use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
-use crate::{GlobalRuntime, Widget};
+use crate::{GlobalRuntime, TextBox, Widget};
 
 #[derive(Debug)]
 pub struct WebViewInner {
@@ -198,20 +198,15 @@ impl AsRawWidget for WebViewInner {
 
 #[derive(Debug)]
 pub struct WebViewErrLabelInner {
-    handle: Widget,
-    text_box: MUXC::TextBox,
+    handle: TextBox,
 }
 
 #[inherit_methods(from = "self.handle")]
 impl WebViewErrLabelImpl for WebViewErrLabelInner {
     fn new(parent: impl AsContainer) -> Self {
-        let text_box = MUXC::TextBox::new().unwrap();
-        text_box.SetIsReadOnly(true).unwrap();
-        text_box.SetTextWrapping(TextWrapping::Wrap).unwrap();
-        Self {
-            handle: Widget::new(parent, text_box.cast().unwrap()),
-            text_box,
-        }
+        let mut handle = TextBox::new(parent);
+        handle.set_readonly(true);
+        Self { handle }
     }
 
     fn is_visible(&self) -> bool;
@@ -230,13 +225,9 @@ impl WebViewErrLabelImpl for WebViewErrLabelInner {
 
     fn set_size(&mut self, v: Size);
 
-    fn text(&self) -> String {
-        self.text_box.Text().unwrap().to_string_lossy()
-    }
+    fn text(&self) -> String;
 
-    fn set_text(&mut self, s: impl AsRef<str>) {
-        self.text_box.SetText(&HSTRING::from(s.as_ref())).unwrap();
-    }
+    fn set_text(&mut self, s: impl AsRef<str>);
 }
 
 #[inherit_methods(from = "self.handle")]

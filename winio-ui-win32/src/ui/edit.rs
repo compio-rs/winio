@@ -8,14 +8,15 @@ use windows_sys::{
         Graphics::Gdi::InvalidateRect,
         UI::{
             Controls::{
-                EM_GETPASSWORDCHAR, EM_REPLACESEL, EM_SETPASSWORDCHAR, ShowScrollBar, WC_EDITW,
+                EM_GETPASSWORDCHAR, EM_REPLACESEL, EM_SETPASSWORDCHAR, EM_SETREADONLY,
+                ShowScrollBar, WC_EDITW,
             },
             Input::KeyboardAndMouse::VK_RETURN,
             Shell::{DefSubclassProc, SetWindowSubclass},
             WindowsAndMessaging::{
                 DLGC_WANTALLKEYS, EN_UPDATE, ES_AUTOHSCROLL, ES_AUTOVSCROLL, ES_CENTER, ES_LEFT,
-                ES_MULTILINE, ES_PASSWORD, ES_RIGHT, SB_VERT, WM_COMMAND, WM_GETDLGCODE, WM_KEYUP,
-                WS_CHILD, WS_EX_CLIENTEDGE, WS_TABSTOP, WS_VISIBLE,
+                ES_MULTILINE, ES_PASSWORD, ES_READONLY, ES_RIGHT, SB_VERT, WM_COMMAND,
+                WM_GETDLGCODE, WM_KEYUP, WS_CHILD, WS_EX_CLIENTEDGE, WS_TABSTOP, WS_VISIBLE,
             },
         },
     },
@@ -98,6 +99,16 @@ impl EditImpl {
         self.handle.set_style(style)
     }
 
+    pub fn is_readonly(&self) -> bool {
+        let style = self.handle.style() as i32;
+        (style & ES_READONLY) == ES_READONLY
+    }
+
+    pub fn set_readonly(&mut self, v: bool) {
+        self.handle
+            .send_message(EM_SETREADONLY, if v { 1 } else { 0 }, 0);
+    }
+
     pub async fn wait_change(&self) {
         loop {
             let WindowMessageCommand {
@@ -170,6 +181,20 @@ impl Edit {
 
     pub fn set_halign(&mut self, align: HAlign);
 
+    pub fn is_readonly(&self) -> bool {
+        if self.is_password() {
+            false
+        } else {
+            self.handle.is_readonly()
+        }
+    }
+
+    pub fn set_readonly(&mut self, v: bool) {
+        if !self.is_password() {
+            self.handle.set_readonly(v);
+        }
+    }
+
     pub fn is_password(&self) -> bool {
         self.handle.handle.send_message(EM_GETPASSWORDCHAR, 0, 0) != 0
     }
@@ -179,6 +204,7 @@ impl Edit {
             self.handle
                 .handle
                 .send_message(EM_SETPASSWORDCHAR, self.pchar as _, 0);
+            self.handle.set_readonly(false);
         } else {
             self.handle.handle.send_message(EM_SETPASSWORDCHAR, 0, 0);
         }
@@ -269,6 +295,10 @@ impl TextBox {
     pub fn halign(&self) -> HAlign;
 
     pub fn set_halign(&mut self, align: HAlign);
+
+    pub fn is_readonly(&self) -> bool;
+
+    pub fn set_readonly(&mut self, v: bool);
 
     pub async fn wait_change(&self) {
         self.handle.wait_change().await

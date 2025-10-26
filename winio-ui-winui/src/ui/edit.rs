@@ -184,6 +184,32 @@ impl Edit {
         }
     }
 
+    pub fn is_readonly(&self) -> bool {
+        if self.password {
+            false
+        } else {
+            self.handle
+                .as_raw_widget()
+                .as_winui()
+                .cast::<MUXC::TextBox>()
+                .unwrap()
+                .IsReadOnly()
+                .unwrap_or_default()
+        }
+    }
+
+    pub fn set_readonly(&mut self, v: bool) {
+        if !self.password {
+            let text_box = self
+                .handle
+                .as_raw_widget()
+                .as_winui()
+                .cast::<MUXC::TextBox>()
+                .unwrap();
+            text_box.SetIsReadOnly(v).unwrap();
+        }
+    }
+
     pub async fn wait_change(&self) {
         self.on_change.wait().await
     }
@@ -261,6 +287,14 @@ impl TextBox {
 
     pub fn set_halign(&mut self, align: HAlign) {
         self.text_box.SetTextAlignment(align.to_native()).unwrap();
+    }
+
+    pub fn is_readonly(&self) -> bool {
+        self.text_box.IsReadOnly().unwrap_or_default()
+    }
+
+    pub fn set_readonly(&mut self, v: bool) {
+        self.text_box.SetIsReadOnly(v).unwrap();
     }
 
     pub async fn wait_change(&self) {

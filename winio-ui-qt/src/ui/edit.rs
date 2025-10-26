@@ -67,6 +67,9 @@ impl Edit {
     }
 
     pub fn set_password(&mut self, v: bool) {
+        if v {
+            self.set_readonly(false);
+        }
         self.widget.pin_mut().setEchoMode(if v {
             QLineEditEchoMode::Password
         } else {
@@ -97,6 +100,20 @@ impl Edit {
             HAlign::Stretch => flag |= QtAlignmentFlag::AlignJustify,
         }
         self.widget.pin_mut().setAlignment(flag);
+    }
+
+    pub fn is_readonly(&self) -> bool {
+        if self.is_password() {
+            false
+        } else {
+            self.widget.as_ref().isReadOnly()
+        }
+    }
+
+    pub fn set_readonly(&mut self, r: bool) {
+        if !self.is_password() {
+            self.widget.pin_mut().setReadOnly(r);
+        }
     }
 
     fn on_changed(c: *const u8) {
@@ -193,6 +210,14 @@ impl TextBox {
         self.widget.pin_mut().setAlignment(flag);
     }
 
+    pub fn is_readonly(&self) -> bool {
+        self.widget.as_ref().isReadOnly()
+    }
+
+    pub fn set_readonly(&mut self, r: bool) {
+        self.widget.pin_mut().setReadOnly(r);
+    }
+
     fn on_changed(c: *const u8) {
         let c = c as *const Callback<()>;
         if let Some(c) = unsafe { c.as_ref() } {
@@ -268,6 +293,8 @@ mod ffi {
         fn setText(self: Pin<&mut QLineEdit>, s: &QString);
         fn echoMode(self: &QLineEdit) -> QLineEditEchoMode;
         fn setEchoMode(self: Pin<&mut QLineEdit>, m: QLineEditEchoMode);
+        fn isReadOnly(self: &QLineEdit) -> bool;
+        fn setReadOnly(self: Pin<&mut QLineEdit>, r: bool);
 
         unsafe fn new_text_edit(parent: *mut QWidget) -> UniquePtr<QTextEdit>;
         unsafe fn text_edit_connect_changed(
@@ -280,5 +307,7 @@ mod ffi {
         fn setAlignment(self: Pin<&mut QTextEdit>, flag: QtAlignmentFlag);
         fn toPlainText(self: &QTextEdit) -> QString;
         fn setText(self: Pin<&mut QTextEdit>, s: &QString);
+        fn isReadOnly(self: &QTextEdit) -> bool;
+        fn setReadOnly(self: Pin<&mut QTextEdit>, r: bool);
     }
 }

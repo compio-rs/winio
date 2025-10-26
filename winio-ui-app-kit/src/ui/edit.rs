@@ -93,6 +93,14 @@ impl EditImpl {
         self.view.setAlignment(align);
     }
 
+    pub fn is_readonly(&self) -> bool {
+        !self.view.isEditable()
+    }
+
+    pub fn set_readonly(&mut self, v: bool) {
+        self.view.setEditable(!v);
+    }
+
     pub async fn wait_change(&self) {
         self.delegate.ivars().changed.wait().await
     }
@@ -183,6 +191,20 @@ impl Edit {
     pub fn halign(&self) -> HAlign;
 
     pub fn set_halign(&mut self, align: HAlign);
+
+    pub fn is_readonly(&self) -> bool {
+        if self.is_password() {
+            false
+        } else {
+            self.handle.is_readonly()
+        }
+    }
+
+    pub fn set_readonly(&mut self, v: bool) {
+        if !self.is_password() {
+            self.handle.set_readonly(v);
+        }
+    }
 
     pub async fn wait_change(&self) {
         self.handle.wait_change().await

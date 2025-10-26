@@ -103,6 +103,14 @@ impl TextBox {
         self.widget.set_justification(align);
     }
 
+    pub fn is_readonly(&self) -> bool {
+        !self.widget.is_editable()
+    }
+
+    pub fn set_readonly(&mut self, r: bool) {
+        self.widget.set_editable(!r);
+    }
+
     pub async fn wait_change(&self) {
         self.on_changed.wait().await
     }
