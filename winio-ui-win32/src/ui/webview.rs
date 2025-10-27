@@ -15,18 +15,13 @@ use windows::{
     Win32::Foundation::{E_FAIL, HWND, RECT},
     core::{Error, HRESULT, PCWSTR, Ref, Result, implement},
 };
-use windows_sys::Win32::UI::{
-    HiDpi::GetDpiForWindow,
-    WindowsAndMessaging::{
-        ES_AUTOVSCROLL, ES_LEFT, ES_MULTILINE, ES_READONLY, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
-    },
-};
+use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
 use winio_callback::Callback;
 use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Point, Rect, Size};
 use winio_ui_windows_common::{CoTaskMemPtr, WebViewErrLabelImpl, WebViewImpl, WebViewLazy};
 
-use crate::ui::{EditImpl, fix_crlf, with_u16c};
+use crate::ui::{TextBox, fix_crlf, with_u16c};
 
 #[derive(Debug)]
 pub struct WebViewInner {
@@ -228,24 +223,15 @@ impl AsRawWidget for WebViewInner {
 
 #[derive(Debug)]
 pub struct WebViewErrLabelInner {
-    handle: EditImpl,
+    handle: TextBox,
 }
 
 #[inherit_methods(from = "self.handle")]
 impl WebViewErrLabelImpl for WebViewErrLabelInner {
     fn new(parent: impl AsContainer) -> Self {
-        Self {
-            handle: EditImpl::new(
-                parent,
-                WS_CHILD
-                    | WS_VISIBLE
-                    | WS_TABSTOP
-                    | ES_LEFT as u32
-                    | ES_MULTILINE as u32
-                    | ES_AUTOVSCROLL as u32
-                    | ES_READONLY as u32,
-            ),
-        }
+        let mut handle = TextBox::new_raw(parent);
+        handle.set_readonly(true);
+        Self { handle }
     }
 
     fn is_visible(&self) -> bool;

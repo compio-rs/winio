@@ -31,7 +31,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(crate) struct EditImpl {
+struct EditImpl {
     handle: Widget,
 }
 
@@ -228,6 +228,22 @@ pub struct TextBox {
 #[inherit_methods(from = "self.handle")]
 impl TextBox {
     pub fn new(parent: impl AsContainer) -> Self {
+        let this = Self::new_raw(parent);
+        unsafe { ShowScrollBar(this.handle.as_raw_widget().as_win32(), SB_VERT, 1) };
+        syscall!(
+            BOOL,
+            SetWindowSubclass(
+                this.handle.as_raw_widget().as_win32(),
+                Some(multiline_edit_wnd_proc),
+                0,
+                0,
+            )
+        )
+        .unwrap();
+        this
+    }
+
+    pub(crate) fn new_raw(parent: impl AsContainer) -> Self {
         let handle = EditImpl::new(
             parent,
             WS_CHILD
@@ -237,17 +253,6 @@ impl TextBox {
                 | ES_MULTILINE as u32
                 | ES_AUTOVSCROLL as u32,
         );
-        unsafe { ShowScrollBar(handle.as_raw_widget().as_win32(), SB_VERT, 1) };
-        syscall!(
-            BOOL,
-            SetWindowSubclass(
-                handle.as_raw_widget().as_win32(),
-                Some(multiline_edit_wnd_proc),
-                0,
-                0,
-            )
-        )
-        .unwrap();
         Self { handle }
     }
 
