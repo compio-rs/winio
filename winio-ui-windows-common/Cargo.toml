@@ -44,7 +44,11 @@ windows-sys = { workspace = true, features = [
     "Win32_UI_WindowsAndMessaging",
 ] }
 windows-numerics = "0.3"
-winui3 = { workspace = true, optional = true, features = ["native"] }
+winui3 = { workspace = true, optional = true, features = [
+    "native",
+    "UI_Xaml",
+    "UI_Composition",
+] }
 
 slim-detours-sys = { workspace = true, optional = true }
 sync-unsafe-cell = { workspace = true, optional = true }
