@@ -5,7 +5,8 @@
 
 use std::hint::unreachable_unchecked;
 
-use futures_util::FutureExt;
+use async_stream::stream;
+use futures_util::{FutureExt, Stream, StreamExt};
 
 /// Foundamental GUI component.
 #[allow(async_fn_in_trait)]
@@ -95,35 +96,47 @@ impl<T: Component> Clone for ComponentSender<T> {
     }
 }
 
-/// Runs a root component, and exits when the component outputs an event.
+/// Initiates and runs a root component, and exits when the component outputs an
+/// event.
 pub async fn run<'a, T: Component>(init: impl Into<T::Init<'a>>) -> T::Event {
-    let sender = ComponentSender::new();
-    let mut model = T::init(init.into(), &sender);
-    model.render(&sender);
-    'outer: loop {
-        let fut_start = model.start(&sender);
-        let fut_recv = sender.wait();
-        futures_util::select! {
-            // SAFETY: never type
-            _ = fut_start.fuse() => unsafe { unreachable_unchecked() },
-            _ = fut_recv.fuse() => {
-                let mut need_render = false;
-                let mut children_need_render = false;
-                for msg in sender.fetch_all() {
-                    match msg {
-                        ComponentMessage::Message(msg) => {
-                            need_render |= model.update(msg, &sender).await;
-                            children_need_render |= model.update_children().await;
-                        }
-                        ComponentMessage::Event(e) => break 'outer e,
-                    };
-                }
-                children_need_render |= need_render;
-                if need_render {
-                    model.render(&sender);
-                }
-                if children_need_render {
-                    model.render_children();
+    let stream = run_component::<T>(init);
+    let mut stream = std::pin::pin!(stream);
+    stream.next().await.expect("component exits without event")
+}
+
+/// Initiates and runs a root component, and yields the events.
+pub fn run_component<'a, T: Component>(
+    init: impl Into<T::Init<'a>>,
+) -> impl Stream<Item = T::Event> {
+    stream! {
+        let sender = ComponentSender::new();
+        let mut model = T::init(init.into(), &sender);
+        model.render(&sender);
+        loop {
+            let fut_start = model.start(&sender);
+            let fut_recv = sender.wait();
+            futures_util::select! {
+                // SAFETY: never type
+                _ = fut_start.fuse() => unsafe { unreachable_unchecked() },
+                _ = fut_recv.fuse() => {
+                    let mut need_render = false;
+                    let mut children_need_render = false;
+                    for msg in sender.fetch_all() {
+                        match msg {
+                            ComponentMessage::Message(msg) => {
+                                need_render |= model.update(msg, &sender).await;
+                                children_need_render |= model.update_children().await;
+                            }
+                            ComponentMessage::Event(e) => yield e,
+                        };
+                    }
+                    children_need_render |= need_render;
+                    if need_render {
+                        model.render(&sender);
+                    }
+                    if children_need_render {
+                        model.render_children();
+                    }
                 }
             }
         }
@@ -141,3 +154,77 @@ pub use collection::*;
 
 mod macros;
 pub use macros::*;
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    struct TestComponent;
+
+    #[derive(Debug, PartialEq, Eq)]
+    enum TestEvent {
+        Event1,
+        Event2,
+    }
+
+    enum TestMessage {
+        Msg1,
+        Msg2,
+    }
+
+    impl Component for TestComponent {
+        type Event = TestEvent;
+        type Init<'a> = Vec<TestMessage>;
+        type Message = TestMessage;
+
+        fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+            for m in init {
+                sender.post(m);
+            }
+            Self
+        }
+
+        async fn start(&mut self, _sender: &ComponentSender<Self>) -> ! {
+            std::future::pending().await
+        }
+
+        async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
+            match message {
+                TestMessage::Msg1 => {
+                    sender.output(TestEvent::Event1);
+                    false
+                }
+                TestMessage::Msg2 => {
+                    sender.output(TestEvent::Event2);
+                    false
+                }
+            }
+        }
+
+        fn render(&mut self, _sender: &ComponentSender<Self>) {}
+    }
+
+    #[compio::test]
+    async fn test_run() {
+        let event = run::<TestComponent>(vec![TestMessage::Msg1]).await;
+        assert_eq!(event, TestEvent::Event1);
+
+        let event = run::<TestComponent>(vec![TestMessage::Msg2, TestMessage::Msg1]).await;
+        assert_eq!(event, TestEvent::Event2);
+    }
+
+    #[compio::test]
+    async fn test_run_component() {
+        let events = run_component::<TestComponent>(vec![
+            TestMessage::Msg1,
+            TestMessage::Msg2,
+            TestMessage::Msg1,
+        ]);
+        let expects = [TestEvent::Event1, TestEvent::Event2, TestEvent::Event1];
+        let zip = events.zip(futures_util::stream::iter(expects.into_iter()));
+        let mut zip = std::pin::pin!(zip);
+        while let Some((e, ex)) = zip.next().await {
+            assert_eq!(e, ex);
+        }
+    }
+}
