@@ -106,6 +106,11 @@ impl<T: Component> Child<T> {
         futures_util::future::join(fut_start, fut_forward).await.0
     }
 
+    /// Post message to the child component.
+    pub fn post(&mut self, message: T::Message) {
+        self.sender.post(message);
+    }
+
     /// Emit message to the child component.
     pub async fn emit(&mut self, message: T::Message) -> bool {
         self.model.update(message, &self.sender).await
