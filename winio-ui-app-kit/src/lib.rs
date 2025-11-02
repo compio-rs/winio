@@ -1,6 +1,6 @@
 //! AppKit backend for winio.
 
-#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg(target_os = "macos")]
 
 use winio_callback::Runnable;

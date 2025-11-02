@@ -1,6 +1,6 @@
 //! Windows common methods for winio.
 
-#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg(windows)]
 
 use windows_sys::Win32::Foundation::HWND;

@@ -1,6 +1,6 @@
 //! GTK backend for winio.
 
-#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg(not(any(windows, target_os = "macos")))]
 
 use winio_callback::Runnable;
