@@ -99,40 +99,56 @@ impl<T: Component> Clone for ComponentSender<T> {
 /// Initiates and runs a root component, and exits when the component outputs an
 /// event.
 pub async fn run<'a, T: Component>(init: impl Into<T::Init<'a>>) -> T::Event {
-    let stream = run_component::<T>(init);
+    let stream = run_events::<T>(init);
     let mut stream = std::pin::pin!(stream);
     stream.next().await.expect("component exits without event")
 }
 
 /// Initiates and runs a root component, and yields the events.
+#[deprecated = "renamed to run_events"]
 pub fn run_component<'a, T: Component>(
     init: impl Into<T::Init<'a>>,
 ) -> impl Stream<Item = T::Event> {
+    run_events::<T>(init)
+}
+
+/// Initiates and runs a root component, and yields the events.
+pub fn run_events<'a, T: Component>(init: impl Into<T::Init<'a>>) -> impl Stream<Item = T::Event> {
     stream! {
         let sender = ComponentSender::new();
         let mut model = T::init(init.into(), &sender);
         model.render(&sender);
+        for await event in run_events_impl(&mut model, &sender) {
+            yield event;
+        }
+    }
+}
+
+fn run_events_impl<'a, T: Component>(
+    model: &'a mut T,
+    sender: &'a ComponentSender<T>,
+) -> impl Stream<Item = T::Event> + 'a {
+    stream! {
         loop {
-            let fut_start = model.start(&sender);
+            let fut_start = model.start(sender);
             let fut_recv = sender.wait();
             futures_util::select! {
                 // SAFETY: never type
                 _ = fut_start.fuse() => unsafe { unreachable_unchecked() },
                 _ = fut_recv.fuse() => {
                     let mut need_render = false;
-                    let mut children_need_render = false;
+                    let mut children_need_render = model.update_children().await;
                     for msg in sender.fetch_all() {
                         match msg {
                             ComponentMessage::Message(msg) => {
-                                need_render |= model.update(msg, &sender).await;
-                                children_need_render |= model.update_children().await;
+                                need_render |= model.update(msg, sender).await;
                             }
                             ComponentMessage::Event(e) => yield e,
                         };
                     }
                     children_need_render |= need_render;
                     if need_render {
-                        model.render(&sender);
+                        model.render(sender);
                     }
                     if children_need_render {
                         model.render_children();
@@ -215,7 +231,7 @@ mod test {
 
     #[compio::test]
     async fn test_run_component() {
-        let events = run_component::<TestComponent>(vec![
+        let events = run_events::<TestComponent>(vec![
             TestMessage::Msg1,
             TestMessage::Msg2,
             TestMessage::Msg1,

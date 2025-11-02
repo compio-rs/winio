@@ -3,6 +3,8 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+use async_stream::stream;
+use futures_util::Stream;
 #[cfg(feature = "layout")]
 use inherit_methods_macro::inherit_methods;
 use smallvec::SmallVec;
@@ -129,6 +131,23 @@ impl<T: Component> Child<T> {
     pub fn render(&mut self) {
         self.model.render(&self.sender);
         self.model.render_children();
+    }
+
+    /// Get the sender of the child component.
+    pub fn sender(&self) -> &ComponentSender<T> {
+        &self.sender
+    }
+
+    /// Run the child component, and yield its events.
+    pub fn run(&mut self) -> impl Stream<Item = T::Event> + use<'_, T> {
+        stream! {
+            if self.update().await {
+                self.render();
+            }
+            for await event in super::run_events_impl(&mut self.model, &self.sender) {
+                yield event;
+            }
+        }
     }
 }
 
