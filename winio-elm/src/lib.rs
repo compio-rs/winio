@@ -75,9 +75,7 @@ impl<T: Component> ComponentSender<T> {
         self.0.wait().await
     }
 
-    pub(crate) fn fetch_all(
-        &self,
-    ) -> impl IntoIterator<Item = ComponentMessage<T::Message, T::Event>> {
+    pub(crate) fn fetch_all(&self) -> SmallVec<[ComponentMessage<T::Message, T::Event>; 1]> {
         self.0.fetch_all()
     }
 
@@ -170,6 +168,7 @@ pub use collection::*;
 
 mod macros;
 pub use macros::*;
+use smallvec::SmallVec;
 
 #[cfg(test)]
 mod test {
@@ -236,6 +235,7 @@ mod test {
             TestMessage::Msg2,
             TestMessage::Msg1,
         ]);
+        assert_send_sync(&events);
         let expects = [TestEvent::Event1, TestEvent::Event2, TestEvent::Event1];
         let zip = events.zip(futures_util::stream::iter(expects.into_iter()));
         let mut zip = std::pin::pin!(zip);
@@ -243,4 +243,6 @@ mod test {
             assert_eq!(e, ex);
         }
     }
+
+    fn assert_send_sync<T: Send + Sync>(_: &T) {}
 }
