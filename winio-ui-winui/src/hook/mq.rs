@@ -2,7 +2,7 @@
 
 use slim_detours_sys::SlimDetoursInlineHook;
 use sync_unsafe_cell::SyncUnsafeCell;
-use windows::core::{Error, Result};
+use windows::core::Result;
 use windows_sys::Win32::{
     Foundation::HWND,
     UI::WindowsAndMessaging::{GetMessageW, MSG},
@@ -35,19 +35,11 @@ impl Drop for HookGuard {
 fn attach_hook() -> Result<()> {
     let res =
         unsafe { SlimDetoursInlineHook(1, TRUE_GET_MESSAGE_W.get().cast(), get_message as _) };
-    if res < 0 {
-        Err(Error::from_hresult(windows::core::HRESULT(res)))
-    } else {
-        Ok(())
-    }
+    windows::core::HRESULT(res).ok()
 }
 
 fn detach_hook() -> Result<()> {
     let res =
         unsafe { SlimDetoursInlineHook(0, TRUE_GET_MESSAGE_W.get().cast(), get_message as _) };
-    if res < 0 {
-        Err(Error::from_hresult(windows::core::HRESULT(res)))
-    } else {
-        Ok(())
-    }
+    windows::core::HRESULT(res).ok()
 }
