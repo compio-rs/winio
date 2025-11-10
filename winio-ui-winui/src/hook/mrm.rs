@@ -10,7 +10,7 @@ use windows::{
         Com::CoTaskMemAlloc,
         LibraryLoader::{GetProcAddress, LoadLibraryW},
     },
-    core::{Error, HSTRING, Result, s, w},
+    core::{HSTRING, Result, s, w},
 };
 use windows_sys::{
     Win32::{
@@ -80,11 +80,7 @@ fn detour_attach() -> Result<()> {
             TRUE_MRM_GET_FILE_PATH_FROM_NAME.get().cast(),
             mrm_get_file_path_from_name as _,
         );
-        if res < 0 {
-            Err(Error::from_hresult(windows::core::HRESULT(res)))
-        } else {
-            Ok(())
-        }
+        windows::core::HRESULT(res).ok()
     }
 }
 

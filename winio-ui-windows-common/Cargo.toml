@@ -11,6 +11,7 @@ repository = { workspace = true }
 [target.'cfg(windows)'.dependencies]
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true }
+winio-pollable = { workspace = true }
 
 compio = { workspace = true }
 
@@ -36,6 +37,7 @@ windows-sys = { workspace = true, features = [
     "Win32_Graphics_Gdi",
     "Win32_System_LibraryLoader",
     "Win32_System_SystemServices",
+    "Win32_System_Threading",
     "Win32_UI",
     "Win32_UI_Accessibility",
     "Win32_UI_Controls",

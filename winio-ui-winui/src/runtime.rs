@@ -1,43 +1,25 @@
-use std::{
-    cell::{OnceCell, RefCell},
-    future::Future,
-    os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle, RawHandle},
-    ptr::null,
-    time::Duration,
-};
+use std::future::Future;
 
-use compio::driver::AsRawFd;
 use compio_log::*;
 use windows::{
     Foundation::Uri,
-    Win32::Graphics::Direct2D::{
-        D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1CreateFactory, ID2D1Factory2,
-    },
+    Win32::Graphics::Direct2D::ID2D1Factory2,
     core::{
         Array, HSTRING, IInspectable_Vtbl, Interface, Ref, Result, h, imp::WeakRefCount, implement,
     },
 };
-use windows_sys::Win32::{
-    Foundation::{WAIT_FAILED, WAIT_OBJECT_0},
-    System::Threading::{CreateEventW, INFINITE, SetEvent, WaitForMultipleObjects},
-};
+use windows_sys::Win32::{Foundation::HWND, UI::WindowsAndMessaging::MSG};
 use winio_ui_windows_common::{PreferredAppMode, init_dark, set_preferred_app_mode};
 use winui3::{
     ApartmentType, ChildClass, ChildClassImpl, Compose, CreateInstanceFn,
-    Microsoft::UI::{
-        Dispatching::{DispatcherQueue, DispatcherQueueHandler},
-        Xaml::{
-            Application, ApplicationInitializationCallback,
-            ApplicationInitializationCallbackParams,
-            Controls::XamlControlsResources,
-            IApplicationFactory, IApplicationFactory_Vtbl, IApplicationOverrides,
-            IApplicationOverrides_Impl, LaunchActivatedEventArgs,
-            Markup::{
-                IXamlMetadataProvider, IXamlMetadataProvider_Impl, IXamlType, XmlnsDefinition,
-            },
-            ResourceDictionary, UnhandledExceptionEventHandler,
-            XamlTypeInfo::XamlControlsXamlMetaDataProvider,
-        },
+    Microsoft::UI::Xaml::{
+        Application, ApplicationInitializationCallback, ApplicationInitializationCallbackParams,
+        Controls::XamlControlsResources,
+        IApplicationFactory, IApplicationFactory_Vtbl, IApplicationOverrides,
+        IApplicationOverrides_Impl, LaunchActivatedEventArgs,
+        Markup::{IXamlMetadataProvider, IXamlMetadataProvider_Impl, IXamlType, XmlnsDefinition},
+        ResourceDictionary, UnhandledExceptionEventHandler,
+        XamlTypeInfo::XamlControlsXamlMetaDataProvider,
     },
     Windows::UI::Xaml::Interop::TypeName,
     bootstrap::{PackageDependency, WindowsAppSDKVersion},
@@ -47,11 +29,9 @@ use winui3::{
 use crate::RUNTIME;
 
 pub struct Runtime {
-    runtime: compio::runtime::Runtime,
-    shutdown_event: OwnedHandle,
+    runtime: winio_ui_windows_common::Runtime,
     #[allow(dead_code)]
     winui_dependency: PackageDependency,
-    d2d1: OnceCell<ID2D1Factory2>,
 }
 
 impl Default for Runtime {
@@ -102,28 +82,19 @@ impl Runtime {
         init_dark();
         set_preferred_app_mode(PreferredAppMode::AllowDark);
 
-        crate::ui::mrm_hook::init_hook();
+        crate::hook::mrm::init_hook();
+        crate::hook::mq::init_hook();
 
-        let runtime = compio::runtime::Runtime::new().unwrap();
-
-        let event = unsafe { CreateEventW(null(), 0, 0, null()) };
-        if event.is_null() {
-            panic!("{:?}", std::io::Error::last_os_error());
-        }
-        let shutdown_event = unsafe { OwnedHandle::from_raw_handle(event) };
+        let runtime = winio_ui_windows_common::Runtime::new().unwrap();
 
         Self {
             runtime,
-            shutdown_event,
             winui_dependency,
-            d2d1: OnceCell::new(),
         }
     }
 
     pub(crate) fn d2d1(&self) -> &ID2D1Factory2 {
-        self.d2d1.get_or_init(|| unsafe {
-            D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None).unwrap()
-        })
+        self.runtime.d2d1()
     }
 
     pub(crate) fn run(&self) -> bool {
@@ -147,30 +118,9 @@ impl Runtime {
 
             Application::Start(&ApplicationInitializationCallback::new(app_start)).unwrap();
 
-            unsafe {
-                SetEvent(self.shutdown_event.as_raw_handle());
-            }
-
-            result.unwrap()
+            result.expect("Application exits but no result")
         })
     }
-}
-
-fn resume_foreground<T: Send + 'static>(
-    dispatcher: &DispatcherQueue,
-    f: impl (Fn() -> T) + Send + 'static,
-) -> Option<T> {
-    let (tx, rx) = oneshot::channel();
-    let tx = RefCell::new(Some(tx));
-    let queued = dispatcher
-        .TryEnqueue(&DispatcherQueueHandler::new(move || {
-            if let Some(tx) = tx.borrow_mut().take() {
-                tx.send(f()).ok();
-            }
-            Ok(())
-        }))
-        .unwrap_or_default();
-    if queued { rx.recv().ok() } else { None }
 }
 
 fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> {
@@ -194,50 +144,22 @@ fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> 
         },
     )))?;
 
-    let dispatcher = DispatcherQueue::GetForCurrentThread()?;
-    let (handle, shutdown_event) = RUNTIME.with(|runtime| {
-        (
-            runtime.runtime.as_raw_fd() as isize,
-            runtime.shutdown_event.as_raw_fd() as isize,
-        )
-    });
-
-    compio::runtime::spawn_blocking(move || {
-        loop {
-            let timeout = resume_foreground(&dispatcher, {
-                move || {
-                    RUNTIME.with(|runtime| {
-                        runtime.runtime.poll_with(Some(Duration::ZERO));
-                        let remaining_tasks = runtime.run();
-                        if remaining_tasks {
-                            Some(Duration::ZERO)
-                        } else {
-                            runtime.runtime.current_timeout()
-                        }
-                    })
-                }
-            });
-            let Some(timeout) = timeout else {
-                break;
-            };
-            debug!("waiting in {timeout:?}");
-            let timeout = match timeout {
-                Some(timeout) => timeout.as_millis() as u32,
-                None => INFINITE,
-            };
-            let handles = [shutdown_event as RawHandle, handle as RawHandle];
-            let res = unsafe { WaitForMultipleObjects(2, handles.as_ptr(), 0, timeout) };
-            if res == WAIT_OBJECT_0 {
-                break;
-            } else if res == WAIT_FAILED {
-                panic!("{:?}", std::io::Error::last_os_error());
-            }
-        }
-        debug!("exit polling thread");
-    })
-    .detach();
-
     Ok(())
+}
+
+pub(crate) unsafe fn run_runtime(msg: *mut MSG, hwnd: HWND, min: u32, max: u32) -> Option<i32> {
+    if RUNTIME.is_set() {
+        let res = RUNTIME.with(|runtime| {
+            loop {
+                if let Some(res) = runtime.runtime.get_message(msg, hwnd, min, max) {
+                    return res;
+                }
+            }
+        });
+        Some(res)
+    } else {
+        None
+    }
 }
 
 #[implement(IApplicationOverrides, IXamlMetadataProvider)]

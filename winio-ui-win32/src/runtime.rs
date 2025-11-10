@@ -1,5 +1,5 @@
 use std::{
-    cell::{OnceCell, RefCell},
+    cell::RefCell,
     collections::HashMap,
     future::Future,
     mem::MaybeUninit,
@@ -8,31 +8,26 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
-use compio::driver::AsRawFd;
 use compio_log::*;
 use slab::Slab;
-use windows::Win32::Graphics::Direct2D::{
-    D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1CreateFactory, ID2D1Factory,
-};
+use windows::Win32::Graphics::Direct2D::ID2D1Factory2;
 #[cfg(target_pointer_width = "64")]
 use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongPtrW;
 #[cfg(not(target_pointer_width = "64"))]
 use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongW as SetClassLongPtrW;
 use windows_sys::{
     Win32::{
-        Foundation::{HANDLE, HWND, LPARAM, LRESULT, RECT, WAIT_FAILED, WPARAM},
+        Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM},
         Graphics::{
             Dwm::DwmExtendFrameIntoClientArea,
             Gdi::{BLACK_BRUSH, GetStockObject, HDC, InvalidateRect, WHITE_BRUSH},
         },
-        System::Threading::INFINITE,
         UI::{
             Controls::{MARGINS, NMHDR},
             WindowsAndMessaging::{
                 DefWindowProcW, DispatchMessageW, EnumChildWindows, GA_ROOT, GCLP_HBRBACKGROUND,
-                GetAncestor, IsDialogMessageW, MWMO_ALERTABLE, MWMO_INPUTAVAILABLE,
-                MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW, QS_ALLINPUT, SWP_NOACTIVATE,
-                SWP_NOZORDER, SendMessageW, SetWindowPos, TranslateMessage, WM_COMMAND, WM_CREATE,
+                GetAncestor, IsDialogMessageW, PostQuitMessage, SWP_NOACTIVATE, SWP_NOZORDER,
+                SendMessageW, SetWindowPos, TranslateMessage, WM_COMMAND, WM_CREATE,
                 WM_CTLCOLORBTN, WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC,
                 WM_DPICHANGED, WM_NOTIFY, WM_SETFONT, WM_SETTINGCHANGE,
             },
@@ -116,8 +111,7 @@ impl Default for FutureState {
 }
 
 pub struct Runtime {
-    runtime: winio_pollable::Runtime,
-    d2d1: OnceCell<ID2D1Factory>,
+    runtime: winio_ui_windows_common::Runtime,
     registry: RefCell<HashMap<(HWND, u32), Slab<FutureState>>>,
 }
 
@@ -131,19 +125,16 @@ impl Runtime {
     pub fn new() -> Self {
         init_dark();
 
-        let runtime = winio_pollable::Runtime::new().unwrap();
+        let runtime = winio_ui_windows_common::Runtime::new().unwrap();
 
         Self {
             runtime,
-            d2d1: OnceCell::new(),
             registry: RefCell::new(HashMap::new()),
         }
     }
 
-    pub(crate) fn d2d1(&self) -> &ID2D1Factory {
-        self.d2d1.get_or_init(|| unsafe {
-            D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None).unwrap()
-        })
+    pub(crate) fn d2d1(&self) -> &ID2D1Factory2 {
+        self.runtime.d2d1()
     }
 
     fn enter<T, F: FnOnce() -> T>(&self, f: F) -> T {
@@ -152,32 +143,20 @@ impl Runtime {
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
         self.enter(|| {
-            self.runtime.block_on(future, |timeout| {
-                let timeout = match timeout {
-                    Some(timeout) => timeout.as_millis() as u32,
-                    None => INFINITE,
-                };
-                let handle = self.runtime.as_raw_fd() as HANDLE;
-                trace!("MWMO start");
-                let res = unsafe {
-                    MsgWaitForMultipleObjectsEx(
-                        1,
-                        &handle,
-                        timeout,
-                        QS_ALLINPUT,
-                        MWMO_ALERTABLE | MWMO_INPUTAVAILABLE,
-                    )
-                };
-                trace!("MWMO wake up");
-                if res == WAIT_FAILED {
-                    panic!("{:?}", std::io::Error::last_os_error());
-                }
+            let mut result = None;
+            unsafe {
+                self.runtime.spawn_unchecked(async {
+                    result = Some(future.await);
+                    PostQuitMessage(0);
+                })
+            }
+            .detach();
 
-                loop {
-                    let mut msg = MaybeUninit::uninit();
-                    let res =
-                        unsafe { PeekMessageW(msg.as_mut_ptr(), null_mut(), 0, 0, PM_REMOVE) };
-                    if res != 0 {
+            loop {
+                let mut msg = MaybeUninit::uninit();
+                let res = unsafe { self.runtime.get_message(msg.as_mut_ptr(), null_mut(), 0, 0) };
+                if let Some(res) = res {
+                    if res > 0 {
                         let msg = unsafe { msg.assume_init() };
                         unsafe {
                             let root = GetAncestor(msg.hwnd, GA_ROOT);
@@ -187,11 +166,16 @@ impl Runtime {
                                 DispatchMessageW(&msg);
                             }
                         }
+                    } else if res == 0 {
+                        debug!("received WM_QUIT");
+                        break result.take().expect("received WM_QUIT but no result");
                     } else {
-                        break;
+                        panic!("{:?}", std::io::Error::last_os_error());
                     }
+                } else if let Some(result) = result.take() {
+                    break result;
                 }
-            })
+            }
         })
     }
 
