@@ -1,4 +1,4 @@
-use std::{cell::OnceCell, ops::Deref, time::Duration};
+use std::{cell::OnceCell, ops::Deref};
 
 use compio::driver::AsRawFd;
 use windows::Win32::Graphics::Direct2D::{
@@ -14,13 +14,13 @@ use windows_sys::Win32::{
 };
 
 pub struct Runtime {
-    runtime: compio::runtime::Runtime,
+    runtime: winio_pollable::Runtime,
     d2d1: OnceCell<ID2D1Factory2>,
 }
 
 impl Runtime {
     pub fn new() -> std::io::Result<Self> {
-        let runtime = compio::runtime::Runtime::new()?;
+        let runtime = winio_pollable::Runtime::new()?;
         Ok(Self {
             runtime,
             d2d1: OnceCell::new(),
@@ -40,13 +40,7 @@ impl Runtime {
     /// # Safety
     /// This function calls [`PeekMessageW`] internally.
     pub unsafe fn get_message(&self, msg: *mut MSG, hwnd: HWND, min: u32, max: u32) -> Option<i32> {
-        self.runtime.poll_with(Some(Duration::ZERO));
-        let remaining_tasks = self.run();
-        let timeout = if remaining_tasks {
-            Some(Duration::ZERO)
-        } else {
-            self.runtime.current_timeout()
-        };
+        let timeout = self.runtime.poll_and_run();
         let timeout = match timeout {
             Some(timeout) => timeout.as_millis() as u32,
             None => INFINITE,
@@ -80,7 +74,7 @@ impl Runtime {
 }
 
 impl Deref for Runtime {
-    type Target = compio::runtime::Runtime;
+    type Target = winio_pollable::Runtime;
 
     fn deref(&self) -> &Self::Target {
         &self.runtime

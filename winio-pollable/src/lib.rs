@@ -70,6 +70,19 @@ impl Runtime {
 }
 
 impl Runtime {
+    /// Poll the runtime. Returns the next timeout.
+    pub fn poll_and_run(&self) -> Option<Duration> {
+        self.runtime.poll_with(Some(Duration::ZERO));
+
+        let remaining_tasks = self.runtime.run();
+
+        if remaining_tasks {
+            Some(Duration::ZERO)
+        } else {
+            self.runtime.current_timeout()
+        }
+    }
+
     /// Block on the future till it completes. Users should enter the runtime
     /// before calling this function, and poll the runtime themselves.
     pub fn block_on<F: Future>(&self, future: F, poll: impl Fn(Option<Duration>)) -> F::Output {
@@ -80,18 +93,10 @@ impl Runtime {
         }
         .detach();
         loop {
-            self.runtime.poll_with(Some(Duration::ZERO));
-
-            let remaining_tasks = self.runtime.run();
+            let timeout = self.poll_and_run();
             if let Some(result) = result.take() {
                 break result;
             }
-
-            let timeout = if remaining_tasks {
-                Some(Duration::ZERO)
-            } else {
-                self.runtime.current_timeout()
-            };
 
             poll(timeout);
 
