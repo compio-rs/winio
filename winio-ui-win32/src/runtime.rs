@@ -10,7 +10,7 @@ use std::{
 
 use compio_log::*;
 use slab::Slab;
-use windows::Win32::Graphics::Direct2D::ID2D1Factory;
+use windows::Win32::Graphics::Direct2D::ID2D1Factory2;
 #[cfg(target_pointer_width = "64")]
 use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongPtrW;
 #[cfg(not(target_pointer_width = "64"))]
@@ -133,7 +133,7 @@ impl Runtime {
         }
     }
 
-    pub(crate) fn d2d1(&self) -> &ID2D1Factory {
+    pub(crate) fn d2d1(&self) -> &ID2D1Factory2 {
         self.runtime.d2d1()
     }
 
