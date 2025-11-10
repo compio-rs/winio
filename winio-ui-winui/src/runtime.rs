@@ -83,6 +83,7 @@ impl Runtime {
         set_preferred_app_mode(PreferredAppMode::AllowDark);
 
         crate::hook::mrm::init_hook();
+        crate::hook::mq::init_hook();
 
         let runtime = winio_ui_windows_common::Runtime::new().unwrap();
 
@@ -106,7 +107,6 @@ impl Runtime {
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
         self.enter(|| {
-            let _guard = crate::hook::mq::HookGuard::new().unwrap();
             let mut result = None;
             unsafe {
                 self.runtime.spawn_unchecked(async {
@@ -147,14 +147,19 @@ fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> 
     Ok(())
 }
 
-pub(crate) unsafe fn run_runtime(msg: *mut MSG, hwnd: HWND, min: u32, max: u32) -> i32 {
-    RUNTIME.with(|runtime| {
-        loop {
-            if let Some(res) = runtime.runtime.get_message(msg, hwnd, min, max) {
-                return res;
+pub(crate) unsafe fn run_runtime(msg: *mut MSG, hwnd: HWND, min: u32, max: u32) -> Option<i32> {
+    if RUNTIME.is_set() {
+        let res = RUNTIME.with(|runtime| {
+            loop {
+                if let Some(res) = runtime.runtime.get_message(msg, hwnd, min, max) {
+                    return res;
+                }
             }
-        }
-    })
+        });
+        Some(res)
+    } else {
+        None
+    }
 }
 
 #[implement(IApplicationOverrides, IXamlMetadataProvider)]
