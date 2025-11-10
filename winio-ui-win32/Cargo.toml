@@ -12,7 +12,6 @@ repository = { workspace = true }
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true, features = ["win32"] }
 winio-callback = { workspace = true, optional = true }
-winio-pollable = { workspace = true }
 winio-ui-windows-common = { workspace = true, features = ["win32"] }
 
 compio = { workspace = true, features = ["arrayvec"] }

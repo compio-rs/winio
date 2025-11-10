@@ -1,24 +1,14 @@
-use std::{cell::OnceCell, future::Future, time::Duration};
+use std::future::Future;
 
-use compio::driver::AsRawFd;
 use compio_log::*;
 use windows::{
     Foundation::Uri,
-    Win32::Graphics::Direct2D::{
-        D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1CreateFactory, ID2D1Factory2,
-    },
+    Win32::Graphics::Direct2D::ID2D1Factory2,
     core::{
         Array, HSTRING, IInspectable_Vtbl, Interface, Ref, Result, h, imp::WeakRefCount, implement,
     },
 };
-use windows_sys::Win32::{
-    Foundation::{HWND, WAIT_FAILED, WAIT_OBJECT_0},
-    System::Threading::INFINITE,
-    UI::WindowsAndMessaging::{
-        MSG, MWMO_ALERTABLE, MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx, PM_REMOVE,
-        PeekMessageW, QS_ALLINPUT, WM_QUIT,
-    },
-};
+use windows_sys::Win32::{Foundation::HWND, UI::WindowsAndMessaging::MSG};
 use winio_ui_windows_common::{PreferredAppMode, init_dark, set_preferred_app_mode};
 use winui3::{
     ApartmentType, ChildClass, ChildClassImpl, Compose, CreateInstanceFn,
@@ -39,10 +29,9 @@ use winui3::{
 use crate::RUNTIME;
 
 pub struct Runtime {
-    runtime: compio::runtime::Runtime,
+    runtime: winio_ui_windows_common::Runtime,
     #[allow(dead_code)]
     winui_dependency: PackageDependency,
-    d2d1: OnceCell<ID2D1Factory2>,
 }
 
 impl Default for Runtime {
@@ -95,19 +84,16 @@ impl Runtime {
 
         crate::hook::mrm::init_hook();
 
-        let runtime = compio::runtime::Runtime::new().unwrap();
+        let runtime = winio_ui_windows_common::Runtime::new().unwrap();
 
         Self {
             runtime,
             winui_dependency,
-            d2d1: OnceCell::new(),
         }
     }
 
     pub(crate) fn d2d1(&self) -> &ID2D1Factory2 {
-        self.d2d1.get_or_init(|| unsafe {
-            D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None).unwrap()
-        })
+        self.runtime.d2d1()
     }
 
     pub(crate) fn run(&self) -> bool {
@@ -132,7 +118,7 @@ impl Runtime {
 
             Application::Start(&ApplicationInitializationCallback::new(app_start)).unwrap();
 
-            result.unwrap()
+            result.expect("Application exits but no result")
         })
     }
 }
@@ -161,45 +147,11 @@ fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> 
     Ok(())
 }
 
-pub(crate) fn run_runtime(msg: *mut MSG, hwnd: HWND, min: u32, max: u32) -> i32 {
+pub(crate) unsafe fn run_runtime(msg: *mut MSG, hwnd: HWND, min: u32, max: u32) -> i32 {
     RUNTIME.with(|runtime| {
         loop {
-            runtime.runtime.poll_with(Some(Duration::ZERO));
-            let remaining_tasks = runtime.run();
-            let timeout = if remaining_tasks {
-                Some(Duration::ZERO)
-            } else {
-                runtime.runtime.current_timeout()
-            };
-            debug!("waiting in {timeout:?}");
-            let timeout = match timeout {
-                Some(timeout) => timeout.as_millis() as u32,
-                None => INFINITE,
-            };
-            let handle = runtime.runtime.as_raw_fd();
-            let res = unsafe {
-                MsgWaitForMultipleObjectsEx(
-                    1,
-                    &handle,
-                    timeout,
-                    QS_ALLINPUT,
-                    MWMO_ALERTABLE | MWMO_INPUTAVAILABLE,
-                )
-            };
-            const WAIT_OBJECT_1: u32 = WAIT_OBJECT_0 + 1;
-            match res {
-                WAIT_OBJECT_1 => {
-                    let res = unsafe { PeekMessageW(msg, hwnd, min, max, PM_REMOVE) };
-                    if res != 0 {
-                        if unsafe { (*msg).message } == WM_QUIT {
-                            return 0;
-                        } else {
-                            return 1;
-                        }
-                    }
-                }
-                WAIT_FAILED => return -1,
-                _ => {}
+            if let Some(res) = runtime.runtime.get_message(msg, hwnd, min, max) {
+                return res;
             }
         }
     })
