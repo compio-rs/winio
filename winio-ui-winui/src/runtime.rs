@@ -162,15 +162,15 @@ fn resume_foreground<T: Send + 'static>(
 ) -> Option<T> {
     let (tx, rx) = oneshot::channel();
     let tx = RefCell::new(Some(tx));
-    dispatcher
+    let queued = dispatcher
         .TryEnqueue(&DispatcherQueueHandler::new(move || {
             if let Some(tx) = tx.borrow_mut().take() {
                 tx.send(f()).ok();
             }
             Ok(())
         }))
-        .unwrap();
-    rx.recv().ok()
+        .unwrap_or_default();
+    if queued { rx.recv().ok() } else { None }
 }
 
 fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> {
