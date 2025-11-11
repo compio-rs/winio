@@ -39,36 +39,36 @@ impl Runtime {
 
     /// # Safety
     /// This function calls [`PeekMessageW`] internally.
-    pub unsafe fn get_message(&self, msg: *mut MSG, hwnd: HWND, min: u32, max: u32) -> Option<i32> {
-        let timeout = self.runtime.poll_and_run();
-        let timeout = match timeout {
-            Some(timeout) => timeout.as_millis() as u32,
-            None => INFINITE,
-        };
-        let handle = self.runtime.as_raw_fd();
-        let res = MsgWaitForMultipleObjectsEx(
-            1,
-            &handle,
-            timeout,
-            QS_ALLINPUT,
-            MWMO_ALERTABLE | MWMO_INPUTAVAILABLE,
-        );
-        const WAIT_OBJECT_1: u32 = WAIT_OBJECT_0 + 1;
-        match res {
-            WAIT_OBJECT_1 => {
-                let res = PeekMessageW(msg, hwnd, min, max, PM_REMOVE);
-                if res != 0 {
-                    if (*msg).message == WM_QUIT {
-                        Some(0)
-                    } else {
-                        Some(1)
+    pub unsafe fn get_message(&self, msg: *mut MSG, hwnd: HWND, min: u32, max: u32) -> i32 {
+        loop {
+            let timeout = self.runtime.poll_and_run();
+            let timeout = match timeout {
+                Some(timeout) => timeout.as_millis() as u32,
+                None => INFINITE,
+            };
+            let handle = self.runtime.as_raw_fd();
+            let res = MsgWaitForMultipleObjectsEx(
+                1,
+                &handle,
+                timeout,
+                QS_ALLINPUT,
+                MWMO_ALERTABLE | MWMO_INPUTAVAILABLE,
+            );
+            const WAIT_OBJECT_1: u32 = WAIT_OBJECT_0 + 1;
+            match res {
+                WAIT_OBJECT_1 => {
+                    let res = PeekMessageW(msg, hwnd, min, max, PM_REMOVE);
+                    if res != 0 {
+                        if (*msg).message == WM_QUIT {
+                            return 0;
+                        } else {
+                            return 1;
+                        }
                     }
-                } else {
-                    None
                 }
+                WAIT_FAILED => return -1,
+                _ => {}
             }
-            WAIT_FAILED => Some(-1),
-            _ => None,
         }
     }
 }

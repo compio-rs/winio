@@ -155,25 +155,21 @@ impl Runtime {
             loop {
                 let mut msg = MaybeUninit::uninit();
                 let res = unsafe { self.runtime.get_message(msg.as_mut_ptr(), null_mut(), 0, 0) };
-                if let Some(res) = res {
-                    if res > 0 {
-                        let msg = unsafe { msg.assume_init() };
-                        unsafe {
-                            let root = GetAncestor(msg.hwnd, GA_ROOT);
-                            let handled = !root.is_null() && (IsDialogMessageW(root, &msg) != 0);
-                            if !handled {
-                                TranslateMessage(&msg);
-                                DispatchMessageW(&msg);
-                            }
+                if res > 0 {
+                    let msg = unsafe { msg.assume_init() };
+                    unsafe {
+                        let root = GetAncestor(msg.hwnd, GA_ROOT);
+                        let handled = !root.is_null() && (IsDialogMessageW(root, &msg) != 0);
+                        if !handled {
+                            TranslateMessage(&msg);
+                            DispatchMessageW(&msg);
                         }
-                    } else if res == 0 {
-                        debug!("received WM_QUIT");
-                        break result.take().expect("received WM_QUIT but no result");
-                    } else {
-                        panic!("{:?}", std::io::Error::last_os_error());
                     }
-                } else if let Some(result) = result.take() {
-                    break result;
+                } else if res == 0 {
+                    debug!("received WM_QUIT");
+                    break result.take().expect("received WM_QUIT but no result");
+                } else {
+                    panic!("{:?}", std::io::Error::last_os_error());
                 }
             }
         })
