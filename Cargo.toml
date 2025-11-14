@@ -30,8 +30,8 @@ winio-callback = { path = "winio-callback", version = "0.1.1" }
 winio-layout = { path = "winio-layout", version = "0.1.2" }
 winio-handle = { path = "winio-handle", version = "0.4.0" }
 winio-elm = { path = "winio-elm", version = "0.3.1" }
-winio-pollable = { path = "winio-pollable", version = "0.2.0" }
-winio-ui-windows-common = { path = "winio-ui-windows-common", version = "0.4.0" }
+winio-pollable = { path = "winio-pollable", version = "0.2.1" }
+winio-ui-windows-common = { path = "winio-ui-windows-common", version = "0.4.1" }
 winio-ui-win32 = { path = "winio-ui-win32", version = "0.3.4" }
 winio-ui-winui = { path = "winio-ui-winui", version = "0.3.4" }
 winio-ui-gtk = { path = "winio-ui-gtk", version = "0.3.2" }
