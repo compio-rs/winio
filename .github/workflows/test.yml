@@ -21,9 +21,12 @@ jobs:
         setup:
           - os: 'ubuntu-24.04'
             deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev libgtk-4-dev libwebkitgtk-6.0-dev'
-            features: 'media,webview'
+            features: 'media,webview,qt-opengl'
           - os: 'ubuntu-24.04'
             deps: 'qt6-base-dev libgtk-4-dev'
+          - os: 'ubuntu-24.04'
+            deps: 'qt6-base-dev libgtk-4-dev'
+            features: 'qt-opengl'
           - os: 'ubuntu-24.04'
             deps: 'qt6-base-dev qt6-multimedia-dev libgtk-4-dev'
             features: 'media'
