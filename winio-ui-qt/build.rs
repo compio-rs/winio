@@ -18,6 +18,8 @@ fn main() {
             "WebEngineCore".into(),
             #[cfg(feature = "webview")]
             "WebEngineWidgets".into(),
+            #[cfg(feature = "opengl")]
+            "OpenGLWidgets".into(),
         ])
         .unwrap();
 
@@ -71,6 +73,9 @@ fn main() {
             }))
             .includes(inc)
             .cpp(true);
+        if cfg!(feature = "opengl") {
+            build.define("WINIO_UI_QT_OPENGL", None);
+        }
         qbuild.cargo_link_libraries(&mut build);
         build.compile("winio");
     }
