@@ -6,7 +6,7 @@ fn main() {
     let target_os = std::env::var("CARGO_CFG_TARGET_OS");
 
     if target_os.as_deref() != Ok("windows") && target_os.as_deref() != Ok("macos") {
-        let qbuild = qt_build_utils::QtBuild::new(vec![
+        let mut modules = vec![
             "Core".into(),
             "Gui".into(),
             "Widgets".into(),
@@ -18,14 +18,16 @@ fn main() {
             "WebEngineCore".into(),
             #[cfg(feature = "webview")]
             "WebEngineWidgets".into(),
-            #[cfg(feature = "opengl")]
-            "OpenGLWidgets".into(),
-        ])
-        .unwrap();
+        ];
+        let mut qbuild = qt_build_utils::QtBuild::new(modules.clone()).unwrap();
 
         let major = qbuild.version().major;
         if major != 5 && major != 6 {
             panic!("Unsupported Qt version: {major}");
+        }
+        if major == 6 && cfg!(feature = "opengl") {
+            modules.push("OpenGLWidgets".into());
+            qbuild = qt_build_utils::QtBuild::new(modules).unwrap();
         }
         println!("cargo::rustc-check-cfg=cfg(qtver, values(\"5\", \"6\"))");
         println!("cargo::rustc-cfg=qtver=\"{major}\"");
