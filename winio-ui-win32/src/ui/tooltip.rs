@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::BTreeMap};
+use std::{cell::RefCell, collections::BTreeMap, io};
 
 use widestring::U16CString;
 use windows_sys::Win32::{
@@ -18,16 +18,25 @@ thread_local! {
     static TOOLTIPS: RefCell<BTreeMap<HWND, ToolTip>> = const { RefCell::new(BTreeMap::new()) };
 }
 
-pub(crate) fn set_tooltip(hwnd: HWND, s: impl AsRef<str>) {
+pub(crate) fn set_tooltip(hwnd: HWND, s: impl AsRef<str>) -> io::Result<()> {
     let s = s.as_ref();
     if s.is_empty() {
         remove_tooltip(hwnd);
+        Ok(())
     } else {
         TOOLTIPS.with_borrow_mut(|m| {
-            m.entry(hwnd)
-                .or_insert_with(|| ToolTip::new(hwnd))
-                .set_tooltip(s);
-        });
+            match m.get_mut(&hwnd) {
+                Some(t) => {
+                    t.set_tooltip(s);
+                }
+                None => {
+                    let mut t = ToolTip::new(hwnd)?;
+                    t.set_tooltip(s);
+                    m.insert(hwnd, t);
+                }
+            }
+            Ok(())
+        })
     }
 }
 
@@ -46,14 +55,14 @@ pub(crate) struct ToolTip {
 }
 
 impl ToolTip {
-    pub fn new(hwnd: HWND) -> Self {
+    pub fn new(hwnd: HWND) -> io::Result<Self> {
         let parent = unsafe { GetParent(hwnd) };
         let handle = Widget::new(
             TOOLTIPS_CLASSW,
             WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
             0,
             parent,
-        );
+        )?;
 
         // Enable support for multiline tooltips
         // -1 doesn't work, we use SM_CXMAXTRACK like WinForms does
@@ -65,11 +74,11 @@ impl ToolTip {
         info.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
         info.hwnd = parent;
         info.uId = hwnd as _;
-        Self {
+        Ok(Self {
             handle,
             info,
             text: U16CString::new(),
-        }
+        })
     }
 
     pub fn tooltip(&self) -> String {

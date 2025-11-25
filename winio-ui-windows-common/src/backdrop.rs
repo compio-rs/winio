@@ -1,5 +1,7 @@
 #![warn(missing_docs)]
 
+use std::io;
+
 use windows_sys::Win32::{
     Foundation::HWND,
     Graphics::Dwm::{
@@ -25,7 +27,7 @@ pub enum Backdrop {
 /// Get the current backdrop effect of a window.
 /// # Safety
 /// The caller must ensure that `handle` is a valid window handle.
-pub unsafe fn get_backdrop(handle: HWND) -> Backdrop {
+pub unsafe fn get_backdrop(handle: HWND) -> io::Result<Backdrop> {
     let mut style = 0;
     let res = unsafe {
         DwmGetWindowAttribute(
@@ -36,20 +38,21 @@ pub unsafe fn get_backdrop(handle: HWND) -> Backdrop {
         )
     };
     if res < 0 {
-        return Backdrop::None;
+        return Err(io::Error::from_raw_os_error(res));
     }
-    match style {
+    let style = match style {
         DWMSBT_TRANSIENTWINDOW => Backdrop::Acrylic,
         DWMSBT_MAINWINDOW => Backdrop::Mica,
         DWMSBT_TABBEDWINDOW => Backdrop::MicaAlt,
         _ => Backdrop::None,
-    }
+    };
+    Ok(style)
 }
 
 /// Set the backdrop effect of a window.
 /// # Safety
 /// The caller must ensure that `handle` is a valid window handle.
-pub unsafe fn set_backdrop(handle: HWND, backdrop: Backdrop) -> bool {
+pub unsafe fn set_backdrop(handle: HWND, backdrop: Backdrop) -> io::Result<bool> {
     let style = match backdrop {
         Backdrop::Acrylic => DWMSBT_TRANSIENTWINDOW,
         Backdrop::Mica => DWMSBT_MAINWINDOW,
@@ -62,5 +65,9 @@ pub unsafe fn set_backdrop(handle: HWND, backdrop: Backdrop) -> bool {
         &style as *const _ as _,
         4,
     );
-    res >= 0 && style > 0
+    if res >= 0 {
+        Ok(style > 0)
+    } else {
+        Err(io::Error::from_raw_os_error(res))
+    }
 }

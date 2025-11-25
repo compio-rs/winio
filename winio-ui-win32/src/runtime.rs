@@ -2,12 +2,14 @@ use std::{
     cell::RefCell,
     collections::HashMap,
     future::Future,
+    io,
     mem::MaybeUninit,
     pin::Pin,
     ptr::{null, null_mut},
     task::{Context, Poll, Waker},
 };
 
+use compio::driver::syscall;
 use compio_log::*;
 use slab::Slab;
 use windows::Win32::Graphics::Direct2D::ID2D1Factory2;
@@ -17,7 +19,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongPtrW;
 use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongW as SetClassLongPtrW;
 use windows_sys::{
     Win32::{
-        Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM},
+        Foundation::{HWND, LPARAM, LRESULT, RECT, SetLastError, WPARAM},
         Graphics::{
             Dwm::DwmExtendFrameIntoClientArea,
             Gdi::{BLACK_BRUSH, GetStockObject, HDC, InvalidateRect, WHITE_BRUSH},
@@ -115,25 +117,19 @@ pub struct Runtime {
     registry: RefCell<HashMap<(HWND, u32), Slab<FutureState>>>,
 }
 
-impl Default for Runtime {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Runtime {
-    pub fn new() -> Self {
+    pub fn new() -> io::Result<Self> {
         init_dark();
 
-        let runtime = winio_ui_windows_common::Runtime::new().unwrap();
+        let runtime = winio_ui_windows_common::Runtime::new()?;
 
-        Self {
+        Ok(Self {
             runtime,
             registry: RefCell::new(HashMap::new()),
-        }
+        })
     }
 
-    pub(crate) fn d2d1(&self) -> &ID2D1Factory2 {
+    pub(crate) fn d2d1(&self) -> io::Result<&ID2D1Factory2> {
         self.runtime.d2d1()
     }
 
@@ -321,8 +317,8 @@ pub(crate) unsafe extern "system" fn window_proc(
     }
 }
 
-pub(crate) unsafe fn refresh_font(handle: HWND) {
-    let font = default_font(get_dpi_for_window(handle));
+pub(crate) unsafe fn refresh_font(handle: HWND) -> io::Result<()> {
+    let font = default_font(get_dpi_for_window(handle))?;
 
     unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
         SendMessageW(hwnd, WM_SETFONT, lparam as _, 1);
@@ -331,6 +327,7 @@ pub(crate) unsafe fn refresh_font(handle: HWND) {
     }
 
     enum_callback(handle, font as _);
+    Ok(())
 }
 
 struct MsgFuture {
@@ -362,26 +359,27 @@ impl Drop for MsgFuture {
     }
 }
 
-pub(crate) unsafe fn set_backdrop(handle: HWND, backdrop: Backdrop) {
-    let old_backdrop = unsafe { get_backdrop(handle) };
+pub(crate) unsafe fn set_backdrop(handle: HWND, backdrop: Backdrop) -> io::Result<()> {
+    let old_backdrop = unsafe { get_backdrop(handle)? };
     if old_backdrop != backdrop {
-        set_backdrop_impl(handle, backdrop);
-        refresh_background(handle);
+        set_backdrop_impl(handle, backdrop)?;
+        refresh_background(handle)?;
     }
+    Ok(())
 }
 
 pub(crate) use winio_ui_windows_common::get_backdrop;
 
-unsafe fn set_backdrop_impl(handle: HWND, backdrop: Backdrop) {
-    let res = winio_ui_windows_common::set_backdrop(handle, backdrop);
-    if res {
+unsafe fn set_backdrop_impl(handle: HWND, backdrop: Backdrop) -> io::Result<()> {
+    let res = winio_ui_windows_common::set_backdrop(handle, backdrop)?;
+    let res = if res {
         let margins = MARGINS {
             cxLeftWidth: -1,
             cxRightWidth: -1,
             cyTopHeight: -1,
             cyBottomHeight: -1,
         };
-        DwmExtendFrameIntoClientArea(handle, &margins);
+        DwmExtendFrameIntoClientArea(handle, &margins)
     } else {
         let margins = MARGINS {
             cxLeftWidth: 0,
@@ -389,17 +387,31 @@ unsafe fn set_backdrop_impl(handle: HWND, backdrop: Backdrop) {
             cyTopHeight: 0,
             cyBottomHeight: 0,
         };
-        DwmExtendFrameIntoClientArea(handle, &margins);
+        DwmExtendFrameIntoClientArea(handle, &margins)
+    };
+    if res >= 0 {
+        Ok(())
+    } else {
+        Err(io::Error::from_raw_os_error(res))
     }
 }
 
-unsafe fn refresh_background(handle: HWND) {
-    let backdrop = get_backdrop(GetAncestor(handle, GA_ROOT));
+unsafe fn refresh_background(handle: HWND) -> io::Result<()> {
+    let backdrop = get_backdrop(GetAncestor(handle, GA_ROOT))?;
     let black = !matches!(backdrop, Backdrop::None) || is_dark_mode_allowed_for_app();
     let brush = if black {
         GetStockObject(BLACK_BRUSH)
     } else {
         GetStockObject(WHITE_BRUSH)
     };
-    SetClassLongPtrW(handle, GCLP_HBRBACKGROUND, brush as _);
+    SetLastError(0);
+    let res = syscall!(
+        BOOL,
+        SetClassLongPtrW(handle, GCLP_HBRBACKGROUND, brush as _)
+    );
+    match res {
+        Ok(_) => Ok(()),
+        Err(e) if e.raw_os_error() == Some(0) => Ok(()),
+        Err(e) => Err(e),
+    }
 }

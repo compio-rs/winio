@@ -21,6 +21,7 @@ futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
 local-sync = { workspace = true, optional = true }
 image = { workspace = true, default-features = false }
+once_cell = { workspace = true }
 scoped-tls = { workspace = true }
 slab = "0.4"
 widestring = { workspace = true }
@@ -61,3 +62,6 @@ webview = [
 ]
 
 dark-mode = ["winio-ui-windows-common/dark-mode"]
+
+once_cell_try = ["winio-ui-windows-common/once_cell_try"]
+nightly = ["once_cell_try"]

@@ -1,5 +1,7 @@
 #![allow(clippy::missing_safety_doc)]
 
+use std::io;
+
 use windows_sys::{
     Win32::{
         Foundation::{HWND, LPARAM, S_OK},
@@ -16,7 +18,9 @@ pub fn is_dark_mode_allowed_for_app() -> bool {
 
 pub(crate) const TASK_DIALOG_CALLBACK: PFTASKDIALOGCALLBACK = None;
 
-pub unsafe fn control_use_dark_mode(_: HWND, _: bool) {}
+pub unsafe fn control_use_dark_mode(_: HWND, _: bool) -> io::Result<()> {
+    Ok(())
+}
 
 pub fn set_preferred_app_mode(_: PreferredAppMode) -> PreferredAppMode {
     PreferredAppMode::Default
