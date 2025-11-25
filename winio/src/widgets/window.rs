@@ -1,13 +1,16 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
-use winio_layout::{Layoutable, TextWidget, Visible};
-use winio_primitive::{Point, Size};
+use winio_layout::Layoutable;
+use winio_primitive::{Failable, Point, Size, TextWidget, Visible};
 
-use crate::sys;
 #[cfg(windows)]
 pub use crate::sys::Backdrop;
 #[cfg(target_os = "macos")]
 pub use crate::sys::Vibrancy;
+use crate::{
+    sys,
+    sys::{Error, Result},
+};
 
 /// A simple window.
 ///
@@ -19,37 +22,41 @@ pub struct Window {
     widget: sys::Window,
 }
 
+impl Failable for Window {
+    type Error = Error;
+}
+
 #[inherit_methods(from = "self.widget")]
 impl TextWidget for Window {
-    fn text(&self) -> String;
+    fn text(&self) -> Result<String>;
 
-    fn set_text(&mut self, s: impl AsRef<str>);
+    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Window {
     /// The inner client size.
-    pub fn client_size(&self) -> Size;
+    pub fn client_size(&self) -> Result<Size>;
 
     /// Set window icon by resource ID.
     #[cfg(windows)]
-    pub fn set_icon_by_id(&mut self, id: u16);
+    pub fn set_icon_by_id(&mut self, id: u16) -> Result<()>;
 
     /// Get window style.
     #[cfg(all(windows, feature = "win32"))]
-    pub fn style(&self) -> u32;
+    pub fn style(&self) -> Result<u32>;
 
     /// Set window style.
     #[cfg(all(windows, feature = "win32"))]
-    pub fn set_style(&mut self, s: u32);
+    pub fn set_style(&mut self, s: u32) -> Result<()>;
 
     /// Get window extended style.
     #[cfg(all(windows, feature = "win32"))]
-    pub fn ex_style(&self) -> u32;
+    pub fn ex_style(&self) -> Result<u32>;
 
     /// Set window extended style.
     #[cfg(all(windows, feature = "win32"))]
-    pub fn set_ex_style(&mut self, s: u32);
+    pub fn set_ex_style(&mut self, s: u32) -> Result<()>;
 
     /// Get the backdrop effect of the window.
     ///
@@ -59,37 +66,37 @@ impl Window {
     /// * WinUI: Supported on 1.3 and later; the color of the title bar might be
     ///   different from the client area if the backdrop is set to `Acrylic`.
     #[cfg(windows)]
-    pub fn backdrop(&self) -> Backdrop;
+    pub fn backdrop(&self) -> Result<Backdrop>;
 
     /// Set the backdrop effect of the window.
     #[cfg(windows)]
-    pub fn set_backdrop(&mut self, backdrop: Backdrop);
+    pub fn set_backdrop(&mut self, backdrop: Backdrop) -> Result<()>;
 
     /// Get the visual effect of the window.
     #[cfg(target_os = "macos")]
-    pub fn vibrancy(&self) -> Option<Vibrancy>;
+    pub fn vibrancy(&self) -> Result<Option<Vibrancy>>;
 
     /// Set the visual effect of the window.
     #[cfg(target_os = "macos")]
-    pub fn set_vibrancy(&mut self, v: Option<Vibrancy>);
+    pub fn set_vibrancy(&mut self, v: Option<Vibrancy>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Visible for Window {
-    fn is_visible(&self) -> bool;
+    fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool);
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for Window {
-    fn loc(&self) -> Point;
+    fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point);
+    fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    fn size(&self) -> Size;
+    fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size);
+    fn set_size(&mut self, v: Size) -> Result<()>;
 }
 
 /// Events of [`Window`].
@@ -111,10 +118,9 @@ impl Component for Window {
     type Init<'a> = ();
     type Message = ();
 
-    fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        Self {
-            widget: sys::Window::new(),
-        }
+    fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        let widget = sys::Window::new()?;
+        Ok(Self { widget })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -146,12 +152,6 @@ impl Component for Window {
             .await
             .0
     }
-
-    async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
-        false
-    }
-
-    fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
 
 winio_handle::impl_as_window!(Window, widget);

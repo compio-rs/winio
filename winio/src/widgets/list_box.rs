@@ -1,10 +1,12 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender, ObservableVecEvent};
 use winio_handle::BorrowedContainer;
-use winio_layout::{Enable, Layoutable, ToolTip, Visible};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Enable, Failable, Layoutable, Point, Size, ToolTip, Visible};
 
-use crate::sys;
+use crate::{
+    sys,
+    sys::{Error, Result},
+};
 
 /// A simple list box.
 #[derive(Debug)]
@@ -12,84 +14,89 @@ pub struct ListBox {
     widget: sys::ListBox,
 }
 
+impl Failable for ListBox {
+    type Error = Error;
+}
+
 #[inherit_methods(from = "self.widget")]
 impl ToolTip for ListBox {
-    fn tooltip(&self) -> String;
+    fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>);
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl ListBox {
     /// Get the selected state by index.
-    pub fn is_selected(&self, i: usize) -> bool;
+    pub fn is_selected(&self, i: usize) -> Result<bool>;
 
     /// Set the selected state by index.
-    pub fn set_selected(&mut self, i: usize, v: bool);
+    pub fn set_selected(&mut self, i: usize, v: bool) -> Result<()>;
 
     /// The length of the list.
-    pub fn len(&self) -> usize;
+    pub fn len(&self) -> Result<usize>;
 
     /// If the list is empty.
-    pub fn is_empty(&self) -> bool;
+    pub fn is_empty(&self) -> Result<bool>;
 
     /// Clear the list.
-    pub fn clear(&mut self);
+    pub fn clear(&mut self) -> Result<()>;
 
     /// Get the item by index.
-    pub fn get(&self, i: usize) -> String;
+    pub fn get(&self, i: usize) -> Result<String>;
 
     /// Set the item by index.
-    pub fn set(&mut self, i: usize, s: impl AsRef<str>);
+    pub fn set(&mut self, i: usize, s: impl AsRef<str>) -> Result<()>;
 
     /// Insert an item by index.
-    pub fn insert(&mut self, i: usize, s: impl AsRef<str>);
+    pub fn insert(&mut self, i: usize, s: impl AsRef<str>) -> Result<()>;
 
     /// Remove the item by index.
-    pub fn remove(&mut self, i: usize);
+    pub fn remove(&mut self, i: usize) -> Result<()>;
 
     /// Push an item to the end of the list.
-    pub fn push(&mut self, s: impl AsRef<str>) {
-        let len = self.len();
-        self.insert(len, s);
+    pub fn push(&mut self, s: impl AsRef<str>) -> Result<()> {
+        let len = self.len()?;
+        self.insert(len, s)
     }
 
     /// Clears all items, and appends the new items one by one.
-    pub fn set_items<U: Into<String>>(&mut self, items: impl IntoIterator<Item = U>) {
-        self.clear();
+    pub fn set_items<U: Into<String>>(&mut self, items: impl IntoIterator<Item = U>) -> Result<()> {
+        self.clear()?;
         for it in items {
-            self.push(it.into());
+            self.push(it.into())?;
         }
+        Ok(())
     }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Visible for ListBox {
-    fn is_visible(&self) -> bool;
+    fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool);
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for ListBox {
-    fn is_enabled(&self) -> bool;
+    fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool);
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for ListBox {
-    fn loc(&self) -> Point;
+    fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point);
+    fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    fn size(&self) -> Size;
+    fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size);
+    fn set_size(&mut self, v: Size) -> Result<()>;
 
-    fn preferred_size(&self) -> Size;
+    fn preferred_size(&self) -> Result<Size>;
 
-    fn min_size(&self) -> Size;
+    fn min_size(&self) -> Result<Size>;
 }
 
 /// Events of [`ListBox`].
@@ -154,9 +161,9 @@ impl Component for ListBox {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ListBoxMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = sys::ListBox::new(init);
-        Self { widget }
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        let widget = sys::ListBox::new(init)?;
+        Ok(Self { widget })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -166,17 +173,19 @@ impl Component for ListBox {
         }
     }
 
-    async fn update(&mut self, message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
         match message {
-            ListBoxMessage::Insert { at, value } => self.insert(at, value),
-            ListBoxMessage::Remove { at } => self.remove(at),
-            ListBoxMessage::Replace { at, value } => self.set(at, value),
-            ListBoxMessage::Clear => self.clear(),
+            ListBoxMessage::Insert { at, value } => self.insert(at, value)?,
+            ListBoxMessage::Remove { at } => self.remove(at)?,
+            ListBoxMessage::Replace { at, value } => self.set(at, value)?,
+            ListBoxMessage::Clear => self.clear()?,
         }
-        true
+        Ok(true)
     }
-
-    fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
 
 winio_handle::impl_as_widget!(ListBox, widget);

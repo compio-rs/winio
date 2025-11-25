@@ -1,10 +1,14 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_layout::{Enable, Layoutable, ToolTip, Visible};
-use winio_primitive::{Orient, Point, Size, TickPosition};
+use winio_primitive::{
+    Enable, Failable, Layoutable, Orient, Point, Size, TickPosition, ToolTip, Visible,
+};
 
-use crate::sys;
+use crate::{
+    sys,
+    sys::{Error, Result},
+};
 
 /// A simple button.
 #[derive(Debug)]
@@ -12,77 +16,81 @@ pub struct Slider {
     widget: sys::Slider,
 }
 
+impl Failable for Slider {
+    type Error = Error;
+}
+
 #[inherit_methods(from = "self.widget")]
 impl ToolTip for Slider {
-    fn tooltip(&self) -> String;
+    fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>);
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Slider {
     /// The tick position.
-    pub fn tick_pos(&self) -> TickPosition;
+    pub fn tick_pos(&self) -> Result<TickPosition>;
 
     /// Set the tick position.
-    pub fn set_tick_pos(&mut self, v: TickPosition);
+    pub fn set_tick_pos(&mut self, v: TickPosition) -> Result<()>;
 
     /// The orientation.
-    pub fn orient(&self) -> Orient;
+    pub fn orient(&self) -> Result<Orient>;
 
     /// Set the orientation.
-    pub fn set_orient(&mut self, v: Orient);
+    pub fn set_orient(&mut self, v: Orient) -> Result<()>;
 
     /// Value minimum.
-    pub fn minimum(&self) -> usize;
+    pub fn minimum(&self) -> Result<usize>;
 
     /// Set value minimum.
-    pub fn set_minimum(&mut self, v: usize);
+    pub fn set_minimum(&mut self, v: usize) -> Result<()>;
 
     /// Value maximum.
-    pub fn maximum(&self) -> usize;
+    pub fn maximum(&self) -> Result<usize>;
 
     /// Set value maximum.
-    pub fn set_maximum(&mut self, v: usize);
+    pub fn set_maximum(&mut self, v: usize) -> Result<()>;
 
     /// The tick frequency.
-    pub fn freq(&self) -> usize;
+    pub fn freq(&self) -> Result<usize>;
 
     /// Set the tick frequency.
-    pub fn set_freq(&mut self, v: usize);
+    pub fn set_freq(&mut self, v: usize) -> Result<()>;
 
     /// The position.
-    pub fn pos(&self) -> usize;
+    pub fn pos(&self) -> Result<usize>;
 
     /// Set the position.
-    pub fn set_pos(&mut self, v: usize);
+    pub fn set_pos(&mut self, v: usize) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Visible for Slider {
-    fn is_visible(&self) -> bool;
+    fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool);
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for Slider {
-    fn is_enabled(&self) -> bool;
+    fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool);
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for Slider {
-    fn loc(&self) -> Point;
+    fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point);
+    fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    fn size(&self) -> Size;
+    fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size);
+    fn set_size(&mut self, v: Size) -> Result<()>;
 
-    fn preferred_size(&self) -> Size;
+    fn preferred_size(&self) -> Result<Size>;
 }
 
 /// Events of [`Slider`].
@@ -97,9 +105,9 @@ impl Component for Slider {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = sys::Slider::new(init);
-        Self { widget }
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        let widget = sys::Slider::new(init)?;
+        Ok(Self { widget })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -108,12 +116,6 @@ impl Component for Slider {
             sender.output(SliderEvent::Change);
         }
     }
-
-    async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
-        false
-    }
-
-    fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
 
 winio_handle::impl_as_widget!(Slider, widget);

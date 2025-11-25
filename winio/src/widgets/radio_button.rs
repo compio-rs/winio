@@ -1,10 +1,12 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_layout::{Enable, Layoutable, TextWidget, ToolTip, Visible};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Enable, Failable, Layoutable, Point, Size, TextWidget, ToolTip, Visible};
 
-use crate::sys;
+use crate::{
+    sys,
+    sys::{Error, Result},
+};
 
 /// A simple radio box. See [`RadioButtonGroup`] for making selection groups.
 #[derive(Debug)]
@@ -12,54 +14,58 @@ pub struct RadioButton {
     widget: sys::RadioButton,
 }
 
+impl Failable for RadioButton {
+    type Error = Error;
+}
+
 #[inherit_methods(from = "self.widget")]
 impl ToolTip for RadioButton {
-    fn tooltip(&self) -> String;
+    fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>);
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl TextWidget for RadioButton {
-    fn text(&self) -> String;
+    fn text(&self) -> Result<String>;
 
-    fn set_text(&mut self, s: impl AsRef<str>);
+    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl RadioButton {
     /// If the box is checked.
-    pub fn is_checked(&self) -> bool;
+    pub fn is_checked(&self) -> Result<bool>;
 
     /// Set the checked state.
-    pub fn set_checked(&mut self, v: bool);
+    pub fn set_checked(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Visible for RadioButton {
-    fn is_visible(&self) -> bool;
+    fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool);
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for RadioButton {
-    fn is_enabled(&self) -> bool;
+    fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool);
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for RadioButton {
-    fn loc(&self) -> Point;
+    fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point);
+    fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    fn size(&self) -> Size;
+    fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size);
+    fn set_size(&mut self, v: Size) -> Result<()>;
 
-    fn preferred_size(&self) -> Size;
+    fn preferred_size(&self) -> Result<Size>;
 }
 
 /// Events of [`RadioButton`].
@@ -74,9 +80,9 @@ impl Component for RadioButton {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = sys::RadioButton::new(init);
-        Self { widget }
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        let widget = sys::RadioButton::new(init)?;
+        Ok(Self { widget })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -85,12 +91,6 @@ impl Component for RadioButton {
             sender.output(RadioButtonEvent::Click);
         }
     }
-
-    async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
-        false
-    }
-
-    fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
 
 winio_handle::impl_as_widget!(RadioButton, widget);

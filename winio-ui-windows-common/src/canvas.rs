@@ -731,8 +731,8 @@ impl DrawingImage {
         Ok(self.bitmap.borrow())
     }
 
-    pub fn size(&self) -> Size {
+    pub fn size(&self) -> io::Result<Size> {
         let size = unsafe { self.bitmap.borrow().GetSize() };
-        Size::new(size.width as _, size.height as _)
+        Ok(Size::new(size.width as _, size.height as _))
     }
 }

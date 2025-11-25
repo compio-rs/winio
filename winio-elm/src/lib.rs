@@ -5,12 +5,14 @@
 
 use std::hint::unreachable_unchecked;
 
-use async_stream::stream;
+use async_stream::try_stream;
 use futures_util::{FutureExt, Stream, StreamExt};
+use smallvec::SmallVec;
+use winio_primitive::Failable;
 
 /// Foundamental GUI component.
 #[allow(async_fn_in_trait)]
-pub trait Component: Sized {
+pub trait Component: Sized + Failable {
     /// Initial parameter type.
     type Init<'a>;
     /// The input message type to update.
@@ -19,25 +21,41 @@ pub trait Component: Sized {
     type Event;
 
     /// Create the initial component.
-    fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self;
+    fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self, Self::Error>;
 
     /// Start the event listening.
-    async fn start(&mut self, sender: &ComponentSender<Self>) -> !;
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
+        let _ = sender;
+        std::future::pending().await
+    }
 
     /// Respond to the message. Return true if need render.
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool;
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        sender: &ComponentSender<Self>,
+    ) -> Result<bool, Self::Error> {
+        let _ = message;
+        let _ = sender;
+        Ok(false)
+    }
 
     /// Render the widgets.
-    fn render(&mut self, sender: &ComponentSender<Self>);
+    fn render(&mut self, sender: &ComponentSender<Self>) -> Result<(), Self::Error> {
+        let _ = sender;
+        Ok(())
+    }
 
     /// Update the children components. Return true if any child needs render.
-    async fn update_children(&mut self) -> bool {
-        false
+    async fn update_children(&mut self) -> Result<bool, Self::Error> {
+        Ok(false)
     }
 
     /// Render the children components. It will be called if any child or self
     /// needs render.
-    fn render_children(&mut self) {}
+    fn render_children(&mut self) -> Result<(), Self::Error> {
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -96,7 +114,7 @@ impl<T: Component> Clone for ComponentSender<T> {
 
 /// Initiates and runs a root component, and exits when the component outputs an
 /// event.
-pub async fn run<'a, T: Component>(init: impl Into<T::Init<'a>>) -> T::Event {
+pub async fn run<'a, T: Component>(init: impl Into<T::Init<'a>>) -> Result<T::Event, T::Error> {
     let stream = run_events::<T>(init);
     let mut stream = std::pin::pin!(stream);
     stream.next().await.expect("component exits without event")
@@ -106,18 +124,20 @@ pub async fn run<'a, T: Component>(init: impl Into<T::Init<'a>>) -> T::Event {
 #[deprecated = "renamed to run_events"]
 pub fn run_component<'a, T: Component>(
     init: impl Into<T::Init<'a>>,
-) -> impl Stream<Item = T::Event> {
+) -> impl Stream<Item = Result<T::Event, T::Error>> {
     run_events::<T>(init)
 }
 
 /// Initiates and runs a root component, and yields the events.
-pub fn run_events<'a, T: Component>(init: impl Into<T::Init<'a>>) -> impl Stream<Item = T::Event> {
-    stream! {
+pub fn run_events<'a, T: Component>(
+    init: impl Into<T::Init<'a>>,
+) -> impl Stream<Item = Result<T::Event, T::Error>> {
+    try_stream! {
         let sender = ComponentSender::new();
-        let mut model = T::init(init.into(), &sender);
-        model.render(&sender);
+        let mut model = T::init(init.into(), &sender)?;
+        model.render(&sender)?;
         for await event in run_events_impl(&mut model, &sender) {
-            yield event;
+            yield event?;
         }
     }
 }
@@ -125,33 +145,32 @@ pub fn run_events<'a, T: Component>(init: impl Into<T::Init<'a>>) -> impl Stream
 fn run_events_impl<'a, T: Component>(
     model: &'a mut T,
     sender: &'a ComponentSender<T>,
-) -> impl Stream<Item = T::Event> + 'a {
-    stream! {
+) -> impl Stream<Item = Result<T::Event, T::Error>> + 'a {
+    try_stream! {
         loop {
             let fut_start = model.start(sender);
             let fut_recv = sender.wait();
             futures_util::select! {
                 // SAFETY: never type
                 _ = fut_start.fuse() => unsafe { unreachable_unchecked() },
-                _ = fut_recv.fuse() => {
-                    let mut need_render = false;
-                    let mut children_need_render = model.update_children().await;
-                    for msg in sender.fetch_all() {
-                        match msg {
-                            ComponentMessage::Message(msg) => {
-                                need_render |= model.update(msg, sender).await;
-                            }
-                            ComponentMessage::Event(e) => yield e,
-                        };
+                _ = fut_recv.fuse() => {}
+            }
+            let mut need_render = false;
+            let mut children_need_render = model.update_children().await?;
+            for msg in sender.fetch_all() {
+                match msg {
+                    ComponentMessage::Message(msg) => {
+                        need_render |= model.update(msg, sender).await?;
                     }
-                    children_need_render |= need_render;
-                    if need_render {
-                        model.render(sender);
-                    }
-                    if children_need_render {
-                        model.render_children();
-                    }
-                }
+                    ComponentMessage::Event(e) => yield e,
+                };
+            }
+            children_need_render |= need_render;
+            if need_render {
+                model.render(sender)?;
+            }
+            if children_need_render {
+                model.render_children()?;
             }
         }
     }
@@ -168,7 +187,6 @@ pub use collection::*;
 
 mod macros;
 pub use macros::*;
-use smallvec::SmallVec;
 
 #[cfg(test)]
 mod test {
@@ -187,45 +205,55 @@ mod test {
         Msg2,
     }
 
+    impl Failable for TestComponent {
+        type Error = ();
+    }
+
     impl Component for TestComponent {
         type Event = TestEvent;
         type Init<'a> = Vec<TestMessage>;
         type Message = TestMessage;
 
-        fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+        fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self, ()> {
             for m in init {
                 sender.post(m);
             }
-            Self
+            Ok(Self)
         }
 
         async fn start(&mut self, _sender: &ComponentSender<Self>) -> ! {
             std::future::pending().await
         }
 
-        async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
+        async fn update(
+            &mut self,
+            message: Self::Message,
+            sender: &ComponentSender<Self>,
+        ) -> Result<bool, ()> {
             match message {
                 TestMessage::Msg1 => {
                     sender.output(TestEvent::Event1);
-                    false
+                    Ok(false)
                 }
                 TestMessage::Msg2 => {
                     sender.output(TestEvent::Event2);
-                    false
+                    Ok(false)
                 }
             }
         }
 
-        fn render(&mut self, _sender: &ComponentSender<Self>) {}
+        fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<(), ()> {
+            Ok(())
+        }
     }
 
     #[compio::test]
     async fn test_run() {
         let event = run::<TestComponent>(vec![TestMessage::Msg1]).await;
-        assert_eq!(event, TestEvent::Event1);
+        assert_eq!(event, Ok(TestEvent::Event1));
 
         let event = run::<TestComponent>(vec![TestMessage::Msg2, TestMessage::Msg1]).await;
-        assert_eq!(event, TestEvent::Event2);
+        assert_eq!(event, Ok(TestEvent::Event2));
     }
 
     #[compio::test]
@@ -240,7 +268,7 @@ mod test {
         let zip = events.zip(futures_util::stream::iter(expects.into_iter()));
         let mut zip = std::pin::pin!(zip);
         while let Some((e, ex)) = zip.next().await {
-            assert_eq!(e, ex);
+            assert_eq!(e, Ok(ex));
         }
     }
 

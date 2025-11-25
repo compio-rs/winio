@@ -9,12 +9,12 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-winio-primitive = { workspace = true, optional = true }
+winio-primitive = { workspace = true }
 winio-handle = { workspace = true, optional = true }
 
 async-stream = "0.3"
 futures-util = { workspace = true }
-inherit-methods-macro = { workspace = true, optional = true }
+inherit-methods-macro = { workspace = true }
 paste = { workspace = true }
 smallvec = "1"
 
@@ -23,4 +23,3 @@ compio = { workspace = true, features = ["macros"] }
 
 [features]
 handle = ["dep:winio-handle"]
-primitive = ["dep:winio-primitive", "dep:inherit-methods-macro"]

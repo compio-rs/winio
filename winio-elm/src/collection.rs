@@ -1,5 +1,7 @@
 use std::ops::Deref;
 
+use winio_primitive::Failable;
+
 use crate::{Component, ComponentSender};
 
 /// An observable vector. It outputs events after being changed.
@@ -121,25 +123,19 @@ pub enum ObservableVecEvent<T> {
     Clear,
 }
 
+impl<T: Clone> Failable for ObservableVec<T> {
+    type Error = std::convert::Infallible;
+}
+
 impl<T: Clone> Component for ObservableVec<T> {
     type Event = ObservableVecEvent<T>;
     type Init<'a> = ();
     type Message = ();
 
-    fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
-        Self {
+    fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self, Self::Error> {
+        Ok(Self {
             vec: vec![],
             sender: sender.clone(),
-        }
+        })
     }
-
-    async fn start(&mut self, _sender: &ComponentSender<Self>) -> ! {
-        std::future::pending().await
-    }
-
-    async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
-        false
-    }
-
-    fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }

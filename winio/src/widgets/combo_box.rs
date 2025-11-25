@@ -1,10 +1,12 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender, ObservableVecEvent};
 use winio_handle::BorrowedContainer;
-use winio_layout::{Enable, Layoutable, TextWidget, ToolTip, Visible};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Enable, Failable, Layoutable, Point, Size, TextWidget, ToolTip, Visible};
 
-use crate::sys;
+use crate::{
+    sys,
+    sys::{Error, Result},
+};
 
 /// A simple combo box.
 #[derive(Debug)]
@@ -12,103 +14,110 @@ pub struct ComboBox {
     widget: sys::ComboBox,
 }
 
+impl Failable for ComboBox {
+    type Error = Error;
+}
+
 #[inherit_methods(from = "self.widget")]
 impl ToolTip for ComboBox {
-    fn tooltip(&self) -> String;
+    fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>);
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl TextWidget for ComboBox {
-    fn text(&self) -> String;
+    fn text(&self) -> Result<String>;
 
-    fn set_text(&mut self, s: impl AsRef<str>);
+    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl ComboBox {
     /// The selection index.
-    pub fn selection(&self) -> Option<usize>;
+    pub fn selection(&self) -> Result<Option<usize>>;
 
     /// Set the selection.
-    pub fn set_selection(&mut self, i: usize);
+    pub fn set_selection(&mut self, i: usize) -> Result<()>;
 
     /// If the combo box is editable.
-    pub fn is_editable(&self) -> bool;
+    pub fn is_editable(&self) -> Result<bool>;
 
     /// Set if the combo box is editable.
-    pub fn set_editable(&mut self, v: bool);
+    pub fn set_editable(&mut self, v: bool) -> Result<()>;
 
     /// The length of list.
-    pub fn len(&self) -> usize;
+    pub fn len(&self) -> Result<usize>;
 
     /// If the list is empty.
-    pub fn is_empty(&self) -> bool;
+    pub fn is_empty(&self) -> Result<bool>;
 
     /// Clear the list.
-    pub fn clear(&mut self);
+    pub fn clear(&mut self) -> Result<()>;
 
     /// Get the item by index.
-    pub fn get(&self, i: usize) -> String;
+    pub fn get(&self, i: usize) -> Result<String>;
 
     /// Set the item by index.
-    pub fn set(&mut self, i: usize, s: impl AsRef<str>);
+    pub fn set(&mut self, i: usize, s: impl AsRef<str>) -> Result<()>;
 
     /// Insert an item by index.
-    pub fn insert(&mut self, i: usize, s: impl AsRef<str>);
+    pub fn insert(&mut self, i: usize, s: impl AsRef<str>) -> Result<()>;
 
     /// Remove the item by index.
-    pub fn remove(&mut self, i: usize);
+    pub fn remove(&mut self, i: usize) -> Result<()>;
 
     /// Push an item to the end of the list.
-    pub fn push(&mut self, s: impl AsRef<str>) {
-        let len = self.len();
-        self.insert(len, s);
+    pub fn push(&mut self, s: impl AsRef<str>) -> Result<()> {
+        let len = self.len()?;
+        self.insert(len, s)
     }
 
     /// Clears all items, and appends the new items one by one.
-    pub fn set_items<U: Into<String>>(&mut self, items: impl IntoIterator<Item = U>) {
-        self.clear();
+    pub fn set_items<U: Into<String>>(&mut self, items: impl IntoIterator<Item = U>) -> Result<()> {
+        self.clear()?;
         for it in items {
-            self.push(it.into());
+            self.push(it.into())?;
         }
+        Ok(())
     }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Visible for ComboBox {
-    fn is_visible(&self) -> bool;
+    fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool);
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for ComboBox {
-    fn is_enabled(&self) -> bool;
+    fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool);
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for ComboBox {
-    fn loc(&self) -> Point;
+    fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) {
-        if !super::approx_eq_point(self.loc(), p) {
-            self.widget.set_loc(p);
+    fn set_loc(&mut self, p: Point) -> Result<()> {
+        if !super::approx_eq_point(self.loc()?, p) {
+            self.widget.set_loc(p)?;
         }
+        Ok(())
     }
 
-    fn size(&self) -> Size;
+    fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) {
-        if !super::approx_eq_size(self.size(), v) {
-            self.widget.set_size(v);
+    fn set_size(&mut self, v: Size) -> Result<()> {
+        if !super::approx_eq_size(self.size()?, v) {
+            self.widget.set_size(v)?;
         }
+        Ok(())
     }
 
-    fn preferred_size(&self) -> Size;
+    fn preferred_size(&self) -> Result<Size>;
 }
 
 /// Events of [`ComboBox`].
@@ -175,9 +184,9 @@ impl Component for ComboBox {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ComboBoxMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = sys::ComboBox::new(init);
-        Self { widget }
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        let widget = sys::ComboBox::new(init)?;
+        Ok(Self { widget })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -196,17 +205,19 @@ impl Component for ComboBox {
         futures_util::future::join(fut_select, fut_change).await.0
     }
 
-    async fn update(&mut self, message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
         match message {
-            ComboBoxMessage::Insert { at, value } => self.insert(at, value),
-            ComboBoxMessage::Remove { at } => self.remove(at),
-            ComboBoxMessage::Replace { at, value } => self.set(at, value),
-            ComboBoxMessage::Clear => self.clear(),
+            ComboBoxMessage::Insert { at, value } => self.insert(at, value)?,
+            ComboBoxMessage::Remove { at } => self.remove(at)?,
+            ComboBoxMessage::Replace { at, value } => self.set(at, value)?,
+            ComboBoxMessage::Clear => self.clear()?,
         }
-        true
+        Ok(true)
     }
-
-    fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
 
 winio_handle::impl_as_widget!(ComboBox, widget);

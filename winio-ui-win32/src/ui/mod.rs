@@ -62,11 +62,11 @@ pub use webview::*;
 mod tab_view;
 pub use tab_view::*;
 
-pub fn color_theme() -> ColorTheme {
+pub fn color_theme() -> io::Result<ColorTheme> {
     if winio_ui_windows_common::is_dark_mode_allowed_for_app() {
-        ColorTheme::Dark
+        Ok(ColorTheme::Dark)
     } else {
-        ColorTheme::Light
+        Ok(ColorTheme::Light)
     }
 }
 

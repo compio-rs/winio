@@ -1,10 +1,14 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_layout::{Enable, Layoutable, TextWidget, ToolTip, Visible};
-use winio_primitive::{HAlign, Point, Size};
+use winio_primitive::{
+    Enable, Failable, HAlign, Layoutable, Point, Size, TextWidget, ToolTip, Visible,
+};
 
-use crate::sys;
+use crate::{
+    sys,
+    sys::{Error, Result},
+};
 
 /// A simple multi-line text input box.
 #[derive(Debug)]
@@ -12,62 +16,66 @@ pub struct TextBox {
     widget: sys::TextBox,
 }
 
+impl Failable for TextBox {
+    type Error = Error;
+}
+
 #[inherit_methods(from = "self.widget")]
 impl ToolTip for TextBox {
-    fn tooltip(&self) -> String;
+    fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>);
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl TextWidget for TextBox {
-    fn text(&self) -> String;
+    fn text(&self) -> Result<String>;
 
-    fn set_text(&mut self, s: impl AsRef<str>);
+    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl TextBox {
     /// The horizontal alignment.
-    pub fn halign(&self) -> HAlign;
+    pub fn halign(&self) -> Result<HAlign>;
 
     /// Set the horizontal alignment.
-    pub fn set_halign(&mut self, align: HAlign);
+    pub fn set_halign(&mut self, align: HAlign) -> Result<()>;
 
     /// If the text input is read-only.
-    pub fn is_readonly(&self) -> bool;
+    pub fn is_readonly(&self) -> Result<bool>;
 
     /// Set if the text input is read-only.
-    pub fn set_readonly(&mut self, v: bool);
+    pub fn set_readonly(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Visible for TextBox {
-    fn is_visible(&self) -> bool;
+    fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool);
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for TextBox {
-    fn is_enabled(&self) -> bool;
+    fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool);
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for TextBox {
-    fn loc(&self) -> Point;
+    fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point);
+    fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    fn size(&self) -> Size;
+    fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size);
+    fn set_size(&mut self, v: Size) -> Result<()>;
 
-    fn preferred_size(&self) -> Size;
+    fn preferred_size(&self) -> Result<Size>;
 
-    fn min_size(&self) -> Size;
+    fn min_size(&self) -> Result<Size>;
 }
 
 /// Events of [`TextBox`].
@@ -82,9 +90,9 @@ impl Component for TextBox {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = sys::TextBox::new(init);
-        Self { widget }
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        let widget = sys::TextBox::new(init)?;
+        Ok(Self { widget })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -93,12 +101,6 @@ impl Component for TextBox {
             sender.output(TextBoxEvent::Change);
         }
     }
-
-    async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
-        false
-    }
-
-    fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
 
 winio_handle::impl_as_widget!(TextBox, widget);

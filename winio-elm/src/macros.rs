@@ -23,7 +23,7 @@ macro_rules! init {
         $(
             #[allow(unused_mut)]
             $(#[$m])*
-            let mut $name = $crate::Child::<$t>::init($init);
+            let mut $name = $crate::Child::<$t>::init($init)?;
             $(#[$m])*
             {
                 $(
@@ -42,7 +42,7 @@ macro_rules! __init_assign {
         $(
             $(#[$m])*
             $crate::__paste! {
-                $name.[<set_ $prop>]($value);
+                $name.[<set_ $prop>]($value)?;
             }
         )*
     };

@@ -1,7 +1,7 @@
 use winio_handle::MaybeBorrowedWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
-use crate::sys;
+use crate::{sys, sys::Result};
 
 /// Message box.
 #[derive(Debug, Default, Clone)]
@@ -14,7 +14,10 @@ impl MessageBox {
     }
 
     /// Show message box.
-    pub async fn show(self, parent: impl Into<MaybeBorrowedWindow<'_>>) -> MessageBoxResponse {
+    pub async fn show(
+        self,
+        parent: impl Into<MaybeBorrowedWindow<'_>>,
+    ) -> Result<MessageBoxResponse> {
         self.0.show(parent.into().0).await
     }
 

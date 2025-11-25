@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use winio_handle::MaybeBorrowedWindow;
 
-use crate::sys;
+use crate::{sys, sys::Result};
 
 /// File open/save box.
 #[derive(Debug, Default, Clone)]
@@ -39,22 +39,28 @@ impl FileBox {
     }
 
     /// Show open file dialog.
-    pub async fn open(self, parent: impl Into<MaybeBorrowedWindow<'_>>) -> Option<PathBuf> {
+    pub async fn open(self, parent: impl Into<MaybeBorrowedWindow<'_>>) -> Result<Option<PathBuf>> {
         self.0.open(parent.into().0).await
     }
 
     /// Show open file dialog, allowing multiple selection.
-    pub async fn open_multiple(self, parent: impl Into<MaybeBorrowedWindow<'_>>) -> Vec<PathBuf> {
+    pub async fn open_multiple(
+        self,
+        parent: impl Into<MaybeBorrowedWindow<'_>>,
+    ) -> Result<Vec<PathBuf>> {
         self.0.open_multiple(parent.into().0).await
     }
 
     /// Show open file dialog, select folder only.
-    pub async fn open_folder(self, parent: impl Into<MaybeBorrowedWindow<'_>>) -> Option<PathBuf> {
+    pub async fn open_folder(
+        self,
+        parent: impl Into<MaybeBorrowedWindow<'_>>,
+    ) -> Result<Option<PathBuf>> {
         self.0.open_folder(parent.into().0).await
     }
 
     /// Show save file dialog.
-    pub async fn save(self, parent: impl Into<MaybeBorrowedWindow<'_>>) -> Option<PathBuf> {
+    pub async fn save(self, parent: impl Into<MaybeBorrowedWindow<'_>>) -> Result<Option<PathBuf>> {
         self.0.save(parent.into().0).await
     }
 }

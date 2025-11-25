@@ -3,9 +3,8 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use async_stream::stream;
+use async_stream::try_stream;
 use futures_util::Stream;
-#[cfg(feature = "primitive")]
 use inherit_methods_macro::inherit_methods;
 use smallvec::SmallVec;
 #[cfg(feature = "handle")]
@@ -13,7 +12,6 @@ use winio_handle::{
     AsContainer, AsRawContainer, AsRawWidget, AsRawWindow, AsWidget, AsWindow, BorrowedContainer,
     BorrowedWidget, BorrowedWindow, RawContainer, RawWidget, RawWindow,
 };
-#[cfg(feature = "primitive")]
 use winio_primitive::{Failable, Layoutable, Point, Rect, Size};
 
 use super::ComponentMessage;
@@ -29,14 +27,14 @@ pub struct Child<T: Component> {
 
 impl<T: Component> Child<T> {
     /// Create and initialize the child component.
-    pub fn init<'a>(init: impl Into<T::Init<'a>>) -> Self {
+    pub fn init<'a>(init: impl Into<T::Init<'a>>) -> Result<Self, T::Error> {
         let sender = ComponentSender::new();
-        let model = T::init(init.into(), &sender);
-        Self {
+        let model = T::init(init.into(), &sender)?;
+        Ok(Self {
             model,
             sender,
             msg_cache: SmallVec::new(),
-        }
+        })
     }
 
     /// Start to receive and interp the events of the child component.
@@ -112,23 +110,23 @@ impl<T: Component> Child<T> {
     }
 
     /// Emit message to the child component.
-    pub async fn emit(&mut self, message: T::Message) -> bool {
+    pub async fn emit(&mut self, message: T::Message) -> Result<bool, T::Error> {
         self.model.update(message, &self.sender).await
     }
 
     /// Respond to the child message.
-    pub async fn update(&mut self) -> bool {
-        let mut need_render = self.model.update_children().await;
+    pub async fn update(&mut self) -> Result<bool, T::Error> {
+        let mut need_render = self.model.update_children().await?;
         for message in self.msg_cache.drain(..) {
-            need_render |= self.model.update(message, &self.sender).await;
+            need_render |= self.model.update(message, &self.sender).await?;
         }
-        need_render
+        Ok(need_render)
     }
 
     /// Render the child component.
-    pub fn render(&mut self) {
-        self.model.render(&self.sender);
-        self.model.render_children();
+    pub fn render(&mut self) -> Result<(), T::Error> {
+        self.model.render(&self.sender)?;
+        self.model.render_children()
     }
 
     /// Get the sender of the child component.
@@ -137,13 +135,13 @@ impl<T: Component> Child<T> {
     }
 
     /// Run the child component, and yield its events.
-    pub fn run(&mut self) -> impl Stream<Item = T::Event> + use<'_, T> {
-        stream! {
-            if self.update().await {
-                self.render();
+    pub fn run(&mut self) -> impl Stream<Item = Result<T::Event, T::Error>> + use<'_, T> {
+        try_stream! {
+            if self.update().await? {
+                self.render()?;
             }
             for await event in super::run_events_impl(&mut self.model, &self.sender) {
-                yield event;
+                yield event?;
             }
         }
     }
@@ -211,12 +209,10 @@ impl<T: Component + Debug> Debug for Child<T> {
     }
 }
 
-#[cfg(feature = "primitive")]
 impl<T: Component + Failable> Failable for Child<T> {
     type Error = T::Error;
 }
 
-#[cfg(feature = "primitive")]
 #[inherit_methods(from = "self.model")]
 impl<T: Component + Layoutable> Layoutable for Child<T> {
     fn loc(&self) -> Result<Point, Self::Error>;
