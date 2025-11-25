@@ -3,6 +3,9 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(missing_docs)]
 
+mod traits;
+pub use traits::*;
+
 mod drawing;
 pub use drawing::*;
 
