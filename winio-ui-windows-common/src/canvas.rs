@@ -1,5 +1,6 @@
 use std::{
     cell::{Ref, RefCell},
+    io,
     mem::MaybeUninit,
 };
 
@@ -119,19 +120,25 @@ impl DrawingContext {
     }
 
     #[inline]
-    fn get_brush(&self, brush: impl Brush, rect: Rect) -> ID2D1Brush {
+    fn get_brush(&self, brush: impl Brush, rect: Rect) -> io::Result<ID2D1Brush> {
         brush.create(&self.target, to_trans(rect))
     }
 
     #[inline]
-    fn get_pen(&self, pen: impl Pen, rect: Rect) -> (ID2D1Brush, f32) {
+    fn get_pen(&self, pen: impl Pen, rect: Rect) -> io::Result<(ID2D1Brush, f32)> {
         pen.create(&self.target, to_trans(rect))
     }
 
-    fn get_arc_geo(&self, rect: Rect, start: f64, end: f64, close: bool) -> ID2D1Geometry {
+    fn get_arc_geo(
+        &self,
+        rect: Rect,
+        start: f64,
+        end: f64,
+        close: bool,
+    ) -> io::Result<ID2D1Geometry> {
         unsafe {
-            let geo = self.d2d.CreatePathGeometry().unwrap();
-            let sink = geo.Open().unwrap();
+            let geo = self.d2d.CreatePathGeometry()?;
+            let sink = geo.Open()?;
             let (radius, centerp, startp, endp) = get_arc(rect, start, end);
             sink.BeginFigure(point_2f(startp), D2D1_FIGURE_BEGIN_HOLLOW);
             sink.AddArc(&D2D1_ARC_SEGMENT {
@@ -153,43 +160,44 @@ impl DrawingContext {
             } else {
                 D2D1_FIGURE_END_OPEN
             });
-            sink.Close().unwrap();
-            geo.cast().unwrap()
+            sink.Close()?;
+            Ok(geo.cast()?)
         }
     }
 
-    fn get_str_layout(&self, font: DrawingFont, pos: Point, s: &str) -> (Rect, IDWriteTextLayout) {
+    fn get_str_layout(
+        &self,
+        font: DrawingFont,
+        pos: Point,
+        s: &str,
+    ) -> io::Result<(Rect, IDWriteTextLayout)> {
         unsafe {
             let f = U16CString::from_str_truncate(&font.family);
-            let format = self
-                .dwrite
-                .CreateTextFormat(
-                    windows::core::PCWSTR::from_raw(f.as_ptr()),
-                    None,
-                    if font.bold {
-                        DWRITE_FONT_WEIGHT_BOLD
-                    } else {
-                        DWRITE_FONT_WEIGHT_NORMAL
-                    },
-                    if font.italic {
-                        DWRITE_FONT_STYLE_ITALIC
-                    } else {
-                        DWRITE_FONT_STYLE_NORMAL
-                    },
-                    DWRITE_FONT_STRETCH_NORMAL,
-                    font.size as f32,
-                    windows::core::w!(""),
-                )
-                .unwrap();
+            let format = self.dwrite.CreateTextFormat(
+                windows::core::PCWSTR::from_raw(f.as_ptr()),
+                None,
+                if font.bold {
+                    DWRITE_FONT_WEIGHT_BOLD
+                } else {
+                    DWRITE_FONT_WEIGHT_NORMAL
+                },
+                if font.italic {
+                    DWRITE_FONT_STYLE_ITALIC
+                } else {
+                    DWRITE_FONT_STYLE_NORMAL
+                },
+                DWRITE_FONT_STRETCH_NORMAL,
+                font.size as f32,
+                windows::core::w!(""),
+            )?;
             let size = self.target.GetSize();
             let mut rect = Rect::new(pos, pos.to_vector().to_size());
             let s = U16CString::from_str_truncate(s);
-            let layout = self
-                .dwrite
-                .CreateTextLayout(s.as_slice(), &format, size.width, size.height)
-                .unwrap();
+            let layout =
+                self.dwrite
+                    .CreateTextLayout(s.as_slice(), &format, size.width, size.height)?;
             let mut metrics = MaybeUninit::uninit();
-            layout.GetMetrics(metrics.as_mut_ptr()).unwrap();
+            layout.GetMetrics(metrics.as_mut_ptr())?;
             let metrics = metrics.assume_init();
             match font.halign {
                 HAlign::Center => {
@@ -210,16 +218,15 @@ impl DrawingContext {
                 _ => {}
             }
             rect.size = Size::new(metrics.width as f64, metrics.height as f64);
-            (rect, layout)
+            Ok((rect, layout))
         }
     }
 
-    pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) {
+    pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) -> io::Result<()> {
         let width = pen.width();
         let rect = unsafe {
             path.geo
-                .GetWidenedBounds(width, None, None, D2D1_DEFAULT_FLATTENING_TOLERANCE)
-                .unwrap()
+                .GetWidenedBounds(width, None, None, D2D1_DEFAULT_FLATTENING_TOLERANCE)?
         };
         let (b, width) = self.get_pen(
             pen,
@@ -228,14 +235,15 @@ impl DrawingContext {
                 Point::new(rect.right as _, rect.bottom as _),
             )
             .to_rect(),
-        );
+        )?;
         unsafe {
             self.target.DrawGeometry(&path.geo, &b, width, None);
         }
+        Ok(())
     }
 
-    pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) {
-        let rect = unsafe { path.geo.GetBounds(None).unwrap() };
+    pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) -> io::Result<()> {
+        let rect = unsafe { path.geo.GetBounds(None)? };
         let b = self.get_brush(
             brush,
             RectBox::new(
@@ -243,81 +251,96 @@ impl DrawingContext {
                 Point::new(rect.right as _, rect.bottom as _),
             )
             .to_rect(),
-        );
+        )?;
         unsafe {
             self.target.FillGeometry(&path.geo, &b, None);
         }
+        Ok(())
     }
 
-    pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
-        let geo = self.get_arc_geo(rect, start, end, false);
-        let (b, width) = self.get_pen(pen, rect);
+    pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> io::Result<()> {
+        let geo = self.get_arc_geo(rect, start, end, false)?;
+        let (b, width) = self.get_pen(pen, rect)?;
         unsafe {
             self.target.DrawGeometry(&geo, &b, width, None);
         }
+        Ok(())
     }
 
-    pub fn draw_pie(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
-        let geo = self.get_arc_geo(rect, start, end, true);
-        let (b, width) = self.get_pen(pen, rect);
+    pub fn draw_pie(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> io::Result<()> {
+        let geo = self.get_arc_geo(rect, start, end, true)?;
+        let (b, width) = self.get_pen(pen, rect)?;
         unsafe {
             self.target.DrawGeometry(&geo, &b, width, None);
         }
+        Ok(())
     }
 
-    pub fn fill_pie(&mut self, brush: impl Brush, rect: Rect, start: f64, end: f64) {
-        let geo = self.get_arc_geo(rect, start, end, true);
-        let b = self.get_brush(brush, rect);
+    pub fn fill_pie(
+        &mut self,
+        brush: impl Brush,
+        rect: Rect,
+        start: f64,
+        end: f64,
+    ) -> io::Result<()> {
+        let geo = self.get_arc_geo(rect, start, end, true)?;
+        let b = self.get_brush(brush, rect)?;
         unsafe {
             self.target.FillGeometry(&geo, &b, None);
         }
+        Ok(())
     }
 
-    pub fn draw_ellipse(&mut self, pen: impl Pen, rect: Rect) {
+    pub fn draw_ellipse(&mut self, pen: impl Pen, rect: Rect) -> io::Result<()> {
         let e = ellipse(rect);
-        let (b, width) = self.get_pen(pen, rect);
+        let (b, width) = self.get_pen(pen, rect)?;
         unsafe {
             self.target.DrawEllipse(&e, &b, width, None);
         }
+        Ok(())
     }
 
-    pub fn fill_ellipse(&mut self, brush: impl Brush, rect: Rect) {
+    pub fn fill_ellipse(&mut self, brush: impl Brush, rect: Rect) -> io::Result<()> {
         let e = ellipse(rect);
-        let b = self.get_brush(brush, rect);
+        let b = self.get_brush(brush, rect)?;
         unsafe {
             self.target.FillEllipse(&e, &b);
         }
+        Ok(())
     }
 
-    pub fn draw_line(&mut self, pen: impl Pen, start: Point, end: Point) {
+    pub fn draw_line(&mut self, pen: impl Pen, start: Point, end: Point) -> io::Result<()> {
         let rect = RectBox::new(
             Point::new(start.x.min(end.x), start.y.min(end.y)),
             Point::new(start.x.max(end.x), start.y.max(end.y)),
         )
         .to_rect();
-        let (b, width) = self.get_pen(pen, rect);
+        let (b, width) = self.get_pen(pen, rect)?;
         unsafe {
             self.target
                 .DrawLine(point_2f(start), point_2f(end), &b, width, None);
         }
+        Ok(())
     }
 
-    pub fn draw_rect(&mut self, pen: impl Pen, rect: Rect) {
-        let (b, width) = self.get_pen(pen, rect);
+    pub fn draw_rect(&mut self, pen: impl Pen, rect: Rect) -> io::Result<()> {
+        let (b, width) = self.get_pen(pen, rect)?;
         unsafe {
             self.target.DrawRectangle(&rect_f(rect), &b, width, None);
         }
+        Ok(())
     }
 
-    pub fn fill_rect(&mut self, brush: impl Brush, rect: Rect) {
-        let b = self.get_brush(brush, rect);
+    pub fn fill_rect(&mut self, brush: impl Brush, rect: Rect) -> io::Result<()> {
+        let b = self.get_brush(brush, rect)?;
         unsafe {
             self.target.FillRectangle(&rect_f(rect), &b);
         }
+        Ok(())
     }
 
-    pub fn draw_round_rect(&mut self, pen: impl Pen, rect: Rect, round: Size) {
-        let (b, width) = self.get_pen(pen, rect);
+    pub fn draw_round_rect(&mut self, pen: impl Pen, rect: Rect, round: Size) -> io::Result<()> {
+        let (b, width) = self.get_pen(pen, rect)?;
         unsafe {
             self.target.DrawRoundedRectangle(
                 &D2D1_ROUNDED_RECT {
@@ -330,10 +353,16 @@ impl DrawingContext {
                 None,
             );
         }
+        Ok(())
     }
 
-    pub fn fill_round_rect(&mut self, brush: impl Brush, rect: Rect, round: Size) {
-        let b = self.get_brush(brush, rect);
+    pub fn fill_round_rect(
+        &mut self,
+        brush: impl Brush,
+        rect: Rect,
+        round: Size,
+    ) -> io::Result<()> {
+        let b = self.get_brush(brush, rect)?;
         unsafe {
             self.target.FillRoundedRectangle(
                 &D2D1_ROUNDED_RECT {
@@ -344,11 +373,18 @@ impl DrawingContext {
                 &b,
             );
         }
+        Ok(())
     }
 
-    pub fn draw_str(&mut self, brush: impl Brush, font: DrawingFont, pos: Point, text: &str) {
-        let (rect, layout) = self.get_str_layout(font, pos, text.as_ref());
-        let b = self.get_brush(brush, rect);
+    pub fn draw_str(
+        &mut self,
+        brush: impl Brush,
+        font: DrawingFont,
+        pos: Point,
+        text: &str,
+    ) -> io::Result<()> {
+        let (rect, layout) = self.get_str_layout(font, pos, text.as_ref())?;
+        let b = self.get_brush(brush, rect)?;
         unsafe {
             self.target.DrawTextLayout(
                 point_2f(rect.origin),
@@ -357,26 +393,33 @@ impl DrawingContext {
                 D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
             );
         }
+        Ok(())
     }
 
-    pub fn create_image(&self, image: DynamicImage) -> DrawingImage {
+    pub fn create_image(&self, image: DynamicImage) -> io::Result<DrawingImage> {
         DrawingImage::new(&self.target, image)
     }
 
-    pub fn draw_image(&mut self, image: &DrawingImage, rect: Rect, clip: Option<Rect>) {
+    pub fn draw_image(
+        &mut self,
+        image: &DrawingImage,
+        rect: Rect,
+        clip: Option<Rect>,
+    ) -> io::Result<()> {
         unsafe {
             let clip = clip.map(rect_f);
             self.target.DrawBitmap(
-                &*image.get_bitmap(&self.target),
+                &*image.get_bitmap(&self.target)?,
                 Some(&rect_f(rect)),
                 1.0,
                 D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR,
                 clip.as_ref().map(|r| r as *const _),
             );
         }
+        Ok(())
     }
 
-    pub fn create_path_builder(&self, start: Point) -> DrawingPathBuilder {
+    pub fn create_path_builder(&self, start: Point) -> io::Result<DrawingPathBuilder> {
         DrawingPathBuilder::new(&self.d2d, start)
     }
 }
@@ -397,12 +440,12 @@ pub struct DrawingPathBuilder {
 }
 
 impl DrawingPathBuilder {
-    fn new(d2d: &ID2D1Factory, start: Point) -> Self {
+    fn new(d2d: &ID2D1Factory, start: Point) -> io::Result<Self> {
         unsafe {
-            let geo = d2d.CreatePathGeometry().unwrap();
-            let sink = geo.Open().unwrap();
+            let geo = d2d.CreatePathGeometry()?;
+            let sink = geo.Open()?;
             sink.BeginFigure(point_2f(start), D2D1_FIGURE_BEGIN_HOLLOW);
-            Self { geo, sink }
+            Ok(Self { geo, sink })
         }
     }
 
@@ -446,15 +489,15 @@ impl DrawingPathBuilder {
         }
     }
 
-    pub fn build(self, close: bool) -> DrawingPath {
+    pub fn build(self, close: bool) -> io::Result<DrawingPath> {
         unsafe {
             self.sink.EndFigure(if close {
                 D2D1_FIGURE_END_CLOSED
             } else {
                 D2D1_FIGURE_END_OPEN
             });
-            self.sink.Close().unwrap();
-            DrawingPath::new(self.geo.cast().unwrap())
+            self.sink.Close()?;
+            Ok(DrawingPath::new(self.geo.cast()?))
         }
     }
 }
@@ -476,53 +519,71 @@ const BRUSH_PROPERTIES_DEFAULT: D2D1_BRUSH_PROPERTIES = D2D1_BRUSH_PROPERTIES {
 /// Drawing brush.
 pub trait Brush {
     #[doc(hidden)]
-    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToLogical) -> ID2D1Brush;
+    fn create(
+        &self,
+        target: &ID2D1RenderTarget,
+        trans: RelativeToLogical,
+    ) -> io::Result<ID2D1Brush>;
 }
 
 impl<B: Brush> Brush for &'_ B {
-    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToLogical) -> ID2D1Brush {
+    fn create(
+        &self,
+        target: &ID2D1RenderTarget,
+        trans: RelativeToLogical,
+    ) -> io::Result<ID2D1Brush> {
         (**self).create(target, trans)
     }
 }
 
 impl Brush for SolidColorBrush {
-    fn create(&self, target: &ID2D1RenderTarget, _trans: RelativeToLogical) -> ID2D1Brush {
+    fn create(
+        &self,
+        target: &ID2D1RenderTarget,
+        _trans: RelativeToLogical,
+    ) -> io::Result<ID2D1Brush> {
         unsafe {
-            target
-                .CreateSolidColorBrush(&color_f(self.color), Some(&BRUSH_PROPERTIES_DEFAULT))
-                .unwrap()
-                .cast()
-                .unwrap()
+            Ok(target
+                .CreateSolidColorBrush(&color_f(self.color), Some(&BRUSH_PROPERTIES_DEFAULT))?
+                .cast()?)
         }
     }
 }
 
 impl Brush for LinearGradientBrush {
-    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToLogical) -> ID2D1Brush {
+    fn create(
+        &self,
+        target: &ID2D1RenderTarget,
+        trans: RelativeToLogical,
+    ) -> io::Result<ID2D1Brush> {
         let props = D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES {
             startPoint: point_2f(trans.transform_point(self.start)),
             endPoint: point_2f(trans.transform_point(self.end)),
         };
         let stops = self.stops.iter().map(gradient_stop).collect::<Vec<_>>();
         unsafe {
-            let stop_collection = target
-                .CreateGradientStopCollection(&stops, D2D1_GAMMA_2_2, D2D1_EXTEND_MODE_CLAMP)
-                .unwrap();
-            target
+            let stop_collection = target.CreateGradientStopCollection(
+                &stops,
+                D2D1_GAMMA_2_2,
+                D2D1_EXTEND_MODE_CLAMP,
+            )?;
+            Ok(target
                 .CreateLinearGradientBrush(
                     &props,
                     Some(&BRUSH_PROPERTIES_DEFAULT),
                     &stop_collection,
-                )
-                .unwrap()
-                .cast()
-                .unwrap()
+                )?
+                .cast()?)
         }
     }
 }
 
 impl Brush for RadialGradientBrush {
-    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToLogical) -> ID2D1Brush {
+    fn create(
+        &self,
+        target: &ID2D1RenderTarget,
+        trans: RelativeToLogical,
+    ) -> io::Result<ID2D1Brush> {
         let radius = self.radius.to_vector();
         let radius = trans.transform_vector(radius);
         let props = D2D1_RADIAL_GRADIENT_BRUSH_PROPERTIES {
@@ -535,18 +596,18 @@ impl Brush for RadialGradientBrush {
         };
         let stops = self.stops.iter().map(gradient_stop).collect::<Vec<_>>();
         unsafe {
-            let stop_collection = target
-                .CreateGradientStopCollection(&stops, D2D1_GAMMA_2_2, D2D1_EXTEND_MODE_CLAMP)
-                .unwrap();
-            target
+            let stop_collection = target.CreateGradientStopCollection(
+                &stops,
+                D2D1_GAMMA_2_2,
+                D2D1_EXTEND_MODE_CLAMP,
+            )?;
+            Ok(target
                 .CreateRadialGradientBrush(
                     &props,
                     Some(&BRUSH_PROPERTIES_DEFAULT),
                     &stop_collection,
-                )
-                .unwrap()
-                .cast()
-                .unwrap()
+                )?
+                .cast()?)
         }
     }
 }
@@ -554,13 +615,21 @@ impl Brush for RadialGradientBrush {
 /// Drawing pen.
 pub trait Pen {
     #[doc(hidden)]
-    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToLogical) -> (ID2D1Brush, f32);
+    fn create(
+        &self,
+        target: &ID2D1RenderTarget,
+        trans: RelativeToLogical,
+    ) -> io::Result<(ID2D1Brush, f32)>;
     #[doc(hidden)]
     fn width(&self) -> f32;
 }
 
 impl<P: Pen> Pen for &'_ P {
-    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToLogical) -> (ID2D1Brush, f32) {
+    fn create(
+        &self,
+        target: &ID2D1RenderTarget,
+        trans: RelativeToLogical,
+    ) -> io::Result<(ID2D1Brush, f32)> {
         (**self).create(target, trans)
     }
 
@@ -570,9 +639,13 @@ impl<P: Pen> Pen for &'_ P {
 }
 
 impl<B: Brush> Pen for BrushPen<B> {
-    fn create(&self, target: &ID2D1RenderTarget, trans: RelativeToLogical) -> (ID2D1Brush, f32) {
-        let brush = self.brush.create(target, trans);
-        (brush, self.width as _)
+    fn create(
+        &self,
+        target: &ID2D1RenderTarget,
+        trans: RelativeToLogical,
+    ) -> io::Result<(ID2D1Brush, f32)> {
+        let brush = self.brush.create(target, trans)?;
+        Ok((brush, self.width as _))
     }
 
     fn width(&self) -> f32 {
@@ -587,7 +660,7 @@ pub struct DrawingImage {
 }
 
 impl DrawingImage {
-    fn new(target: &ID2D1RenderTarget, image: DynamicImage) -> Self {
+    fn new(target: &ID2D1RenderTarget, image: DynamicImage) -> io::Result<Self> {
         let (mut image, has_alpha) = match image {
             DynamicImage::ImageRgb8(_)
             | DynamicImage::ImageRgb16(_)
@@ -612,15 +685,15 @@ impl DrawingImage {
                 }
             }
         }
-        let bitmap = Self::create_bitmap(target, &image);
-        Self {
+        let bitmap = Self::create_bitmap(target, &image)?;
+        Ok(Self {
             image,
             target: RefCell::new(target.clone()),
             bitmap: RefCell::new(bitmap),
-        }
+        })
     }
 
-    fn create_bitmap(target: &ID2D1RenderTarget, image: &RgbaImage) -> ID2D1Bitmap {
+    fn create_bitmap(target: &ID2D1RenderTarget, image: &RgbaImage) -> io::Result<ID2D1Bitmap> {
         let mut dpix = 0.0;
         let mut dpiy = 0.0;
         unsafe { target.GetDpi(&mut dpix, &mut dpiy) };
@@ -633,30 +706,29 @@ impl DrawingImage {
             dpiY: dpiy,
         };
         unsafe {
-            target
-                .CreateBitmap(
-                    D2D_SIZE_U {
-                        width: image.width(),
-                        height: image.height(),
-                    },
-                    Some(image.as_ptr().cast()),
-                    image.width() * Rgba::<u8>::CHANNEL_COUNT as u32,
-                    &prop,
-                )
-                .unwrap()
+            Ok(target.CreateBitmap(
+                D2D_SIZE_U {
+                    width: image.width(),
+                    height: image.height(),
+                },
+                Some(image.as_ptr().cast()),
+                image.width() * Rgba::<u8>::CHANNEL_COUNT as u32,
+                &prop,
+            )?)
         }
     }
 
-    fn recreate(&self, target: &ID2D1RenderTarget) {
-        *self.bitmap.borrow_mut() = Self::create_bitmap(target, &self.image);
+    fn recreate(&self, target: &ID2D1RenderTarget) -> io::Result<()> {
+        *self.bitmap.borrow_mut() = Self::create_bitmap(target, &self.image)?;
         *self.target.borrow_mut() = target.clone();
+        Ok(())
     }
 
-    pub fn get_bitmap(&self, target: &ID2D1RenderTarget) -> Ref<'_, ID2D1Bitmap> {
+    pub fn get_bitmap(&self, target: &ID2D1RenderTarget) -> io::Result<Ref<'_, ID2D1Bitmap>> {
         if self.target.borrow().as_raw() != target.as_raw() {
-            self.recreate(target);
+            self.recreate(target)?;
         }
-        self.bitmap.borrow()
+        Ok(self.bitmap.borrow())
     }
 
     pub fn size(&self) -> Size {

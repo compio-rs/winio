@@ -14,7 +14,7 @@ use windows_sys::{
 };
 use winio_primitive::{Monitor, Point, Rect, Size};
 
-pub fn monitor_get_all() -> Vec<Monitor> {
+pub fn monitor_get_all() -> std::io::Result<Vec<Monitor>> {
     let mut res = vec![];
     syscall!(
         BOOL,
@@ -24,9 +24,8 @@ pub fn monitor_get_all() -> Vec<Monitor> {
             Some(enum_monitor),
             addr_of_mut!(res) as _
         )
-    )
-    .unwrap();
-    res
+    )?;
+    Ok(res)
 }
 
 unsafe extern "system" fn enum_monitor(m: HMONITOR, _: HDC, _: *mut RECT, res: LPARAM) -> BOOL {

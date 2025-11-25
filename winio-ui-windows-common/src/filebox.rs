@@ -1,4 +1,4 @@
-use std::{panic::resume_unwind, path::PathBuf};
+use std::{io, panic::resume_unwind, path::PathBuf};
 
 use widestring::{U16CStr, U16CString};
 use windows::{
@@ -47,7 +47,7 @@ impl FileBox {
         self.filters.push(filter);
     }
 
-    pub async fn open(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
+    pub async fn open(self, parent: Option<impl AsWindow>) -> io::Result<Option<PathBuf>> {
         let parent = parent_handle(parent).map(|h| h as isize);
         compio::runtime::spawn_blocking(move || {
             let parent = parent.map(|w| HWND(w as _));
@@ -59,14 +59,14 @@ impl FileBox {
                 true,
                 false,
                 false,
-            )
+            )?
             .result()
         })
         .await
         .unwrap_or_else(|e| resume_unwind(e))
     }
 
-    pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Vec<PathBuf> {
+    pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> io::Result<Vec<PathBuf>> {
         let parent = parent_handle(parent).map(|h| h as isize);
         compio::runtime::spawn_blocking(move || {
             let parent = parent.map(|w| HWND(w as _));
@@ -78,14 +78,14 @@ impl FileBox {
                 true,
                 true,
                 false,
-            )
+            )?
             .results()
         })
         .await
         .unwrap_or_else(|e| resume_unwind(e))
     }
 
-    pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
+    pub async fn open_folder(self, parent: Option<impl AsWindow>) -> io::Result<Option<PathBuf>> {
         let parent = parent_handle(parent).map(|h| h as isize);
         compio::runtime::spawn_blocking(move || {
             let parent = parent.map(|w| HWND(w as _));
@@ -97,14 +97,14 @@ impl FileBox {
                 true,
                 false,
                 true,
-            )
+            )?
             .result()
         })
         .await
         .unwrap_or_else(|e| resume_unwind(e))
     }
 
-    pub async fn save(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
+    pub async fn save(self, parent: Option<impl AsWindow>) -> io::Result<Option<PathBuf>> {
         let parent = parent_handle(parent).map(|h| h as isize);
         compio::runtime::spawn_blocking(move || {
             let parent = parent.map(|w| HWND(w as _));
@@ -116,7 +116,7 @@ impl FileBox {
                 false,
                 false,
                 false,
-            )
+            )?
             .result()
         })
         .await
@@ -147,21 +147,21 @@ fn filebox(
     open: bool,
     multiple: bool,
     folder: bool,
-) -> FileBoxInner {
-    let init = CoInitialize::init();
+) -> io::Result<FileBoxInner> {
+    let init = CoInitialize::init()?;
 
     unsafe {
         let handle: IFileDialog = if open {
-            CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER).unwrap()
+            CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER)?
         } else {
-            CoCreateInstance(&FileSaveDialog, None, CLSCTX_INPROC_SERVER).unwrap()
+            CoCreateInstance(&FileSaveDialog, None, CLSCTX_INPROC_SERVER)?
         };
 
         if !title.is_empty() {
-            handle.SetTitle(PCWSTR(title.as_ptr())).unwrap();
+            handle.SetTitle(PCWSTR(title.as_ptr()))?;
         }
         if !filename.is_empty() {
-            handle.SetFileName(PCWSTR(filename.as_ptr())).unwrap();
+            handle.SetFileName(PCWSTR(filename.as_ptr()))?;
         }
 
         let types = filters
@@ -171,69 +171,69 @@ fn filebox(
                 pszSpec: PCWSTR(filter.pattern.as_ptr()),
             })
             .collect::<Vec<_>>();
-        handle.SetFileTypes(&types).unwrap();
+        handle.SetFileTypes(&types)?;
 
         if multiple {
             debug_assert!(open, "Cannot save to multiple targets.");
 
-            let mut opts = handle.GetOptions().unwrap();
+            let mut opts = handle.GetOptions()?;
             opts |= FOS_ALLOWMULTISELECT;
-            handle.SetOptions(opts).unwrap();
+            handle.SetOptions(opts)?;
         }
 
         if folder {
             debug_assert!(open, "Cannot save to a folder.");
 
-            let mut opts = handle.GetOptions().unwrap();
+            let mut opts = handle.GetOptions()?;
             opts |= FOS_PICKFOLDERS;
-            handle.SetOptions(opts).unwrap();
+            handle.SetOptions(opts)?;
         }
 
         let handle = match handle.Show(parent) {
             Ok(()) => Some(handle),
             Err(e) if e.code() == HRESULT::from(ERROR_CANCELLED) => None,
-            Err(e) => panic!("{e:?}"),
+            Err(e) => return Err(e.into()),
         };
 
-        FileBoxInner(handle, init)
+        Ok(FileBoxInner(handle, init))
     }
 }
 
 struct FileBoxInner(Option<IFileDialog>, CoInitialize);
 
 impl FileBoxInner {
-    pub fn result(self) -> Option<PathBuf> {
+    pub fn result(self) -> io::Result<Option<PathBuf>> {
         if let Some(dialog) = self.0 {
             unsafe {
-                let item = dialog.GetResult().unwrap();
-                let name_ptr = item.GetDisplayName(SIGDN_FILESYSPATH).unwrap();
+                let item = dialog.GetResult()?;
+                let name_ptr = item.GetDisplayName(SIGDN_FILESYSPATH)?;
                 let name_ptr = CoTaskMemPtr(name_ptr.0);
                 let name = U16CStr::from_ptr_str(name_ptr.0).to_os_string();
-                Some(PathBuf::from(name))
+                Ok(Some(PathBuf::from(name)))
             }
         } else {
-            None
+            Ok(None)
         }
     }
 
-    pub fn results(self) -> Vec<PathBuf> {
+    pub fn results(self) -> io::Result<Vec<PathBuf>> {
         if let Some(dialog) = self.0 {
             unsafe {
-                let handle: IFileOpenDialog = dialog.cast().unwrap();
-                let results = handle.GetResults().unwrap();
-                let count = results.GetCount().unwrap();
+                let handle: IFileOpenDialog = dialog.cast()?;
+                let results = handle.GetResults()?;
+                let count = results.GetCount()?;
                 let mut names = vec![];
                 for i in 0..count {
-                    let item = results.GetItemAt(i).unwrap();
-                    let name_ptr = item.GetDisplayName(SIGDN_FILESYSPATH).unwrap();
+                    let item = results.GetItemAt(i)?;
+                    let name_ptr = item.GetDisplayName(SIGDN_FILESYSPATH)?;
                     let name_ptr = CoTaskMemPtr(name_ptr.0);
                     let name = U16CStr::from_ptr_str(name_ptr.0).to_os_string();
                     names.push(PathBuf::from(name));
                 }
-                names
+                Ok(names)
             }
         } else {
-            vec![]
+            Ok(vec![])
         }
     }
 }
@@ -266,11 +266,11 @@ impl<T> Drop for CoTaskMemPtr<T> {
 struct CoInitialize;
 
 impl CoInitialize {
-    pub fn init() -> Self {
+    pub fn init() -> io::Result<Self> {
         unsafe {
-            CoInitializeEx(None, COINIT_APARTMENTTHREADED).unwrap();
+            CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok()?;
         }
-        Self
+        Ok(Self)
     }
 }
 

@@ -1,4 +1,5 @@
 use std::{
+    io,
     panic::resume_unwind,
     ptr::{null, null_mut},
 };
@@ -28,7 +29,7 @@ async fn msgbox(
     style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
-) -> MessageBoxResponse {
+) -> io::Result<MessageBoxResponse> {
     let parent_handle = parent.map(|p| p as isize).unwrap_or_default();
     let (res, result) = compio::runtime::spawn_blocking(move || {
         let cbtn_ptrs = cbtns
@@ -85,7 +86,7 @@ async fn msgbox(
     .await
     .unwrap_or_else(|e| resume_unwind(e));
 
-    match res {
+    let res = match res {
         S_OK => match result {
             IDCANCEL => MessageBoxResponse::Cancel,
             IDNO => MessageBoxResponse::No,
@@ -95,16 +96,11 @@ async fn msgbox(
             IDCLOSE => MessageBoxResponse::Close,
             _ => MessageBoxResponse::Custom(result as _),
         },
-        E_OUTOFMEMORY => panic!(
-            "{:?}",
-            std::io::Error::from(std::io::ErrorKind::OutOfMemory)
-        ),
-        E_INVALIDARG => panic!(
-            "{:?}",
-            std::io::Error::from(std::io::ErrorKind::InvalidInput)
-        ),
-        _ => panic!("{:?}", std::io::Error::from_raw_os_error(res)),
-    }
+        E_OUTOFMEMORY => return Err(io::Error::from(io::ErrorKind::OutOfMemory)),
+        E_INVALIDARG => return Err(io::Error::from(io::ErrorKind::InvalidInput)),
+        _ => return Err(io::Error::from_raw_os_error(res)),
+    };
+    Ok(res)
 }
 
 #[derive(Debug, Clone)]
@@ -135,7 +131,7 @@ impl MessageBox {
         }
     }
 
-    pub async fn show(self, parent: Option<impl AsWindow>) -> MessageBoxResponse {
+    pub async fn show(self, parent: Option<impl AsWindow>) -> io::Result<MessageBoxResponse> {
         let parent = parent_handle(parent);
         msgbox(
             parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
