@@ -14,7 +14,7 @@ use windows_sys::{
 };
 use winio_primitive::{Monitor, Point, Rect, Size};
 
-pub fn monitor_get_all() -> std::io::Result<Vec<Monitor>> {
+pub fn monitor_get_all() -> crate::Result<Vec<Monitor>> {
     let mut res = vec![];
     syscall!(
         BOOL,

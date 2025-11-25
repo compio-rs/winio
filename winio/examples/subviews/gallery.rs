@@ -5,10 +5,13 @@ use std::{
 };
 
 use compio::runtime::spawn_blocking;
+use futures_util::TryFutureExt;
 use image::{DynamicImage, ImageReader};
 use itertools::Itertools;
 use tuplex::IntoArray;
 use winio::prelude::*;
+
+use crate::{Error, Result};
 
 pub struct GalleryPage {
     window: Child<TabViewItem>,
@@ -25,10 +28,10 @@ pub struct GalleryPage {
 const MAX_COLUMN: usize = 3;
 
 impl GalleryPage {
-    fn update_scrollbar(&mut self) {
-        let pos = self.scrollbar.pos();
+    fn update_scrollbar(&mut self) -> Result<()> {
+        let pos = self.scrollbar.pos()?;
 
-        let size = self.canvas.size();
+        let size = self.canvas.size()?;
         let occupy_width = size.width / (MAX_COLUMN as f64);
         let content_width = occupy_width - 10.0;
         let content_height: f64 = self
@@ -51,9 +54,10 @@ impl GalleryPage {
                     + 10.0
             })
             .sum();
-        self.scrollbar.set_maximum(content_height as _);
-        self.scrollbar.set_page(size.height as _);
-        self.scrollbar.set_pos(pos);
+        self.scrollbar.set_maximum(content_height as _)?;
+        self.scrollbar.set_page(size.height as _)?;
+        self.scrollbar.set_pos(pos)?;
+        Ok(())
     }
 }
 
@@ -75,12 +79,16 @@ pub enum GalleryPageMessage {
     Wheel(Vector),
 }
 
+impl Failable for GalleryPage {
+    type Error = Error;
+}
+
 impl Component for GalleryPage {
     type Event = GalleryPageEvent;
     type Init<'a> = &'a TabView;
     type Message = GalleryPageMessage;
 
-    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let path = dirs::picture_dir();
         init! {
             window: TabViewItem = (tabview) => {
@@ -108,7 +116,7 @@ impl Component for GalleryPage {
             spawn_blocking(move || fetch(path, sender)).detach();
         }
 
-        Self {
+        Ok(Self {
             window,
             canvas,
             scrollbar,
@@ -118,7 +126,7 @@ impl Component for GalleryPage {
             listbox,
             images: vec![],
             sel_images: BTreeMap::new(),
-        }
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -142,78 +150,81 @@ impl Component for GalleryPage {
         }
     }
 
-    async fn update_children(&mut self) -> bool {
-        futures_util::join!(
+    async fn update_children(&mut self) -> Result<bool> {
+        Ok(futures_util::try_join!(
             self.window.update(),
             self.canvas.update(),
             self.scrollbar.update(),
             self.button.update(),
             self.entry.update(),
-            self.list.update(),
+            self.list.update().map_err(|e| match e {}),
             self.listbox.update(),
-        )
+        )?
         .into_array()
         .into_iter()
-        .any(|b| b)
+        .any(|b| b))
     }
 
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
-        self.update_scrollbar();
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        self.update_scrollbar()?;
         match message {
-            GalleryPageMessage::Noop => false,
-            GalleryPageMessage::Redraw => true,
+            GalleryPageMessage::Noop => Ok(false),
+            GalleryPageMessage::Redraw => Ok(true),
             GalleryPageMessage::ChooseFolder => {
                 sender.output(GalleryPageEvent::ChooseFolder);
-                false
+                Ok(false)
             }
             GalleryPageMessage::OpenFolder(p) => {
-                self.entry.set_text(p.to_str().unwrap_or_default());
+                self.entry.set_text(p.to_str().unwrap_or_default())?;
                 let sender = sender.clone();
                 spawn_blocking(move || fetch(p, sender)).detach();
-                true
+                Ok(true)
             }
             GalleryPageMessage::Clear => {
                 self.list.clear();
                 self.images.clear();
                 self.sel_images.clear();
-                true
+                Ok(true)
             }
             GalleryPageMessage::Append(path, image) => {
                 if let Some(filename) = path.file_name() {
                     self.list.push(filename.to_string_lossy().into_owned());
                     self.images.push(image);
-                    true
+                    Ok(true)
                 } else {
-                    false
+                    Ok(false)
                 }
             }
-            GalleryPageMessage::List(e) => {
-                self.listbox
-                    .emit(ListBoxMessage::from_observable_vec_event(e))
-                    .await
-            }
+            GalleryPageMessage::List(e) => Ok(self
+                .listbox
+                .emit(ListBoxMessage::from_observable_vec_event(e))
+                .await?),
             GalleryPageMessage::Select => {
                 for i in 0..self.list.len() {
-                    if self.listbox.is_selected(i) {
+                    if self.listbox.is_selected(i)? {
                         self.sel_images.entry(i).or_insert(None);
                     } else {
                         self.sel_images.remove(&i);
                     }
                 }
-                true
+                Ok(true)
             }
             GalleryPageMessage::Wheel(w) => {
                 let delta = w.y;
-                let pos = self.scrollbar.pos();
+                let pos = self.scrollbar.pos()?;
                 self.scrollbar
-                    .set_pos((pos as f64 - delta).max(0.0) as usize);
-                true
+                    .set_pos((pos as f64 - delta).max(0.0) as usize)?;
+                Ok(true)
             }
         }
     }
 
-    fn render(&mut self, _sender: &ComponentSender<Self>) {
-        let csize = self.window.size();
+    fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
+        let csize = self.window.size()?;
 
         {
             let mut header_panel = layout! {
@@ -232,14 +243,14 @@ impl Component for GalleryPage {
                 header_panel,
                 content_panel => { grow: true },
             };
-            root_panel.set_size(csize);
+            root_panel.set_size(csize)?;
         }
 
-        let pos = self.scrollbar.pos();
+        let pos = self.scrollbar.pos()?;
 
-        let size = self.canvas.size();
-        let mut ctx = self.canvas.context();
-        let is_dark = ColorTheme::current() == ColorTheme::Dark;
+        let size = self.canvas.size()?;
+        let mut ctx = self.canvas.context()?;
+        let is_dark = ColorTheme::current()? == ColorTheme::Dark;
         let brush = SolidColorBrush::new(if is_dark {
             Color::new(255, 255, 255, 255)
         } else {
@@ -251,7 +262,7 @@ impl Component for GalleryPage {
         let content_width = occupy_width - 10.0;
         for (i, image) in self.sel_images.iter_mut() {
             if image.is_none() {
-                let cache = ctx.create_image(self.images[*i].clone());
+                let cache = ctx.create_image(self.images[*i].clone())?;
                 *image = Some(cache);
             }
         }
@@ -262,11 +273,13 @@ impl Component for GalleryPage {
             .into_iter()
             .map(|images| {
                 (images
-                    .map(|image| {
-                        let image_size = image.as_ref().unwrap().size();
-                        (image_size.height
-                            * (content_width / image_size.width.max(image_size.height)))
-                            as usize
+                    .filter_map(|image| {
+                        let image_size = image.as_ref()?.size().ok()?;
+                        Some(
+                            (image_size.height
+                                * (content_width / image_size.width.max(image_size.height)))
+                                as usize,
+                        )
                     })
                     .max()
                     .unwrap_or_default() as f64)
@@ -274,26 +287,30 @@ impl Component for GalleryPage {
             })
             .collect::<Vec<_>>();
         for (i, image) in self.sel_images.values().enumerate() {
-            let image = image.as_ref().unwrap();
-            let image_size = image.size();
-            let c = i % MAX_COLUMN;
-            let r = i / MAX_COLUMN;
-            let x = c as f64 * occupy_width + 5.0;
-            let y = content_heights[..r].iter().map(|h| h + 10.0).sum::<f64>() + 5.0 - pos as f64;
-            let content_height = content_heights[r];
-            let rect = Rect::new(Point::new(x, y), Size::new(content_width, content_height));
-            let rate = (content_width / image_size.width).min(content_height / image_size.height);
-            let real_width = image_size.width * rate;
-            let real_height = image_size.height * rate;
-            let real_x = (content_width - real_width) / 2.0;
-            let real_y = (content_height - real_height) / 2.0;
-            let real_rect = Rect::new(
-                Point::new(x + real_x, y + real_y),
-                Size::new(real_width, real_height),
-            );
-            ctx.draw_image(image, real_rect, None);
-            ctx.draw_rect(&pen, rect);
+            if let Some(image) = image {
+                let image_size = image.size()?;
+                let c = i % MAX_COLUMN;
+                let r = i / MAX_COLUMN;
+                let x = c as f64 * occupy_width + 5.0;
+                let y =
+                    content_heights[..r].iter().map(|h| h + 10.0).sum::<f64>() + 5.0 - pos as f64;
+                let content_height = content_heights[r];
+                let rect = Rect::new(Point::new(x, y), Size::new(content_width, content_height));
+                let rate =
+                    (content_width / image_size.width).min(content_height / image_size.height);
+                let real_width = image_size.width * rate;
+                let real_height = image_size.height * rate;
+                let real_x = (content_width - real_width) / 2.0;
+                let real_y = (content_height - real_height) / 2.0;
+                let real_rect = Rect::new(
+                    Point::new(x + real_x, y + real_y),
+                    Size::new(real_width, real_height),
+                );
+                ctx.draw_image(image, real_rect, None)?;
+                ctx.draw_rect(&pen, rect)?;
+            }
         }
+        Ok(())
     }
 }
 

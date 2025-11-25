@@ -1,4 +1,4 @@
-use std::{io, mem::MaybeUninit};
+use std::mem::MaybeUninit;
 
 use widestring::{U16CStr, U16CString};
 use winio_primitive::ColorTheme;
@@ -62,7 +62,7 @@ pub use webview::*;
 mod tab_view;
 pub use tab_view::*;
 
-pub fn color_theme() -> io::Result<ColorTheme> {
+pub fn color_theme() -> crate::Result<ColorTheme> {
     if winio_ui_windows_common::is_dark_mode_allowed_for_app() {
         Ok(ColorTheme::Dark)
     } else {
@@ -85,7 +85,7 @@ fn fix_crlf(s: &str) -> String {
 }
 
 #[inline]
-fn with_u16c<T>(s: &str, f: impl FnOnce(&U16CStr) -> io::Result<T>) -> io::Result<T> {
+fn with_u16c<T>(s: &str, f: impl FnOnce(&U16CStr) -> crate::Result<T>) -> crate::Result<T> {
     if s.len() < 32 {
         // A UTF-8 string with length < 32 is guaranteed to fit in a
         // `ArrayVec<u16, 32>`.
@@ -104,8 +104,8 @@ fn with_u16c<T>(s: &str, f: impl FnOnce(&U16CStr) -> io::Result<T>) -> io::Resul
 #[inline]
 unsafe fn get_u16c(
     len: usize,
-    f: impl FnOnce(&mut [MaybeUninit<u16>]) -> io::Result<usize>,
-) -> io::Result<U16CString> {
+    f: impl FnOnce(&mut [MaybeUninit<u16>]) -> crate::Result<usize>,
+) -> crate::Result<U16CString> {
     if len == 0 {
         return Ok(U16CString::new());
     }

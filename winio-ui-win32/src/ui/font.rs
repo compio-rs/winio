@@ -28,8 +28,9 @@ use windows_sys::Win32::{
 use winio_primitive::Size;
 
 use super::dpi::DpiAware;
+use crate::Result;
 
-unsafe fn system_default_font() -> io::Result<LOGFONTW> {
+unsafe fn system_default_font() -> Result<LOGFONTW> {
     let mut ncm: NONCLIENTMETRICSW = unsafe { std::mem::zeroed() };
     ncm.cbSize = std::mem::size_of::<NONCLIENTMETRICSW>() as u32;
     syscall!(
@@ -58,13 +59,13 @@ unsafe impl Sync for WinFont {}
 
 static DEFAULT_FONT: OnceLock<LOGFONTW> = OnceLock::new();
 
-fn default_log_font() -> io::Result<&'static LOGFONTW> {
+fn default_log_font() -> Result<&'static LOGFONTW> {
     DEFAULT_FONT.get_or_try_init(|| unsafe { system_default_font() })
 }
 
 static DPI_FONTS: Mutex<BTreeMap<u32, WinFont>> = Mutex::new(BTreeMap::new());
 
-pub fn default_font(dpi: u32) -> io::Result<HFONT> {
+pub fn default_font(dpi: u32) -> Result<HFONT> {
     let mut map = DPI_FONTS.lock().unwrap();
     match map.get(&dpi) {
         Some(f) => Ok(f.0),
@@ -74,7 +75,7 @@ pub fn default_font(dpi: u32) -> io::Result<HFONT> {
             f.lfWidth = f.lfWidth.to_device(dpi);
             let res = CreateFontIndirectW(&f);
             if res.is_null() {
-                return Err(io::Error::last_os_error());
+                return Err(io::Error::last_os_error().into());
             }
             map.insert(dpi, WinFont(res));
             Ok(res)
@@ -84,12 +85,12 @@ pub fn default_font(dpi: u32) -> io::Result<HFONT> {
 
 static DWRITE_FACTORY: OnceLock<IDWriteFactory> = OnceLock::new();
 
-pub fn dwrite_factory() -> io::Result<&'static IDWriteFactory> {
+pub fn dwrite_factory() -> Result<&'static IDWriteFactory> {
     Ok(DWRITE_FACTORY
         .get_or_try_init(|| unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED) })?)
 }
 
-pub fn measure_string(hwnd: HWND, s: &U16Str) -> io::Result<Size> {
+pub fn measure_string(hwnd: HWND, s: &U16Str) -> Result<Size> {
     unsafe {
         let hfont = SendMessageW(hwnd, WM_GETFONT, 0, 0) as HFONT;
         let mut font = MaybeUninit::<LOGFONTW>::uninit();

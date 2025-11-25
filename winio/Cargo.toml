@@ -23,6 +23,7 @@ cfg-if = { workspace = true }
 futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true, default-features = false }
+thiserror = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 winio-ui-win32 = { workspace = true, optional = true }

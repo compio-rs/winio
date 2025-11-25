@@ -1,4 +1,4 @@
-use std::{io, ptr::null_mut};
+use std::ptr::null_mut;
 
 use compio::driver::syscall;
 use compio_log::error;
@@ -37,16 +37,16 @@ use winio_ui_windows_common::{Backdrop, is_dark_mode_allowed_for_app};
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 
 use crate::{
-    RUNTIME, get_backdrop,
+    RUNTIME, Result, get_backdrop,
     ui::{Widget, font::dwrite_factory},
 };
 
 #[inline]
-fn d2d1<T>(f: impl FnOnce(&ID2D1Factory) -> io::Result<T>) -> io::Result<T> {
+fn d2d1<T>(f: impl FnOnce(&ID2D1Factory) -> Result<T>) -> Result<T> {
     RUNTIME.with(|runtime| f(runtime.d2d1()?))
 }
 
-fn create_target(handle: HWND) -> io::Result<ID2D1HwndRenderTarget> {
+fn create_target(handle: HWND) -> Result<ID2D1HwndRenderTarget> {
     unsafe {
         d2d1(|d2d| {
             Ok(d2d.CreateHwndRenderTarget(
@@ -79,7 +79,7 @@ pub struct Canvas {
 
 #[inherit_methods(from = "self.handle")]
 impl Canvas {
-    pub fn new(parent: impl AsContainer) -> io::Result<Self> {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
         let handle = Widget::new(
             WC_STATICW,
             WS_CHILD | WS_VISIBLE | SS_OWNERDRAW,
@@ -90,27 +90,27 @@ impl Canvas {
         Ok(Self { handle, target })
     }
 
-    pub fn is_visible(&self) -> io::Result<bool>;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> io::Result<bool>;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn loc(&self) -> io::Result<Point>;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point) -> io::Result<()>;
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> io::Result<Size>;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) -> io::Result<()>;
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> io::Result<String>;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> io::Result<()>;
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn context(&mut self) -> io::Result<DrawingContext<'_>> {
+    pub fn context(&mut self) -> Result<DrawingContext<'_>> {
         unsafe {
             let size = self.handle.size_l2d(self.handle.size()?);
             loop {
@@ -149,7 +149,7 @@ impl Canvas {
         DrawingContext::new(self)
     }
 
-    fn handle_lost(&mut self) -> io::Result<()> {
+    fn handle_lost(&mut self) -> Result<()> {
         self.target = create_target(self.handle.as_raw_window().as_win32())?;
         Ok(())
     }
@@ -242,7 +242,7 @@ pub struct DrawingContext<'a> {
 }
 
 impl DrawingContext<'_> {
-    fn end_draw(&mut self) -> io::Result<()> {
+    fn end_draw(&mut self) -> Result<()> {
         unsafe {
             match self.ctx.render_target().EndDraw(None, None) {
                 Ok(()) => Ok(()),
@@ -265,7 +265,7 @@ impl Drop for DrawingContext<'_> {
 }
 
 impl<'a> DrawingContext<'a> {
-    fn new(canvas: &'a mut Canvas) -> io::Result<Self> {
+    fn new(canvas: &'a mut Canvas) -> Result<Self> {
         Ok(Self {
             ctx: winio_ui_windows_common::DrawingContext::new(
                 d2d1(|f| Ok(f.clone()))?,
@@ -279,36 +279,29 @@ impl<'a> DrawingContext<'a> {
 
 #[inherit_methods(from = "self.ctx")]
 impl DrawingContext<'_> {
-    pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) -> io::Result<()>;
+    pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) -> Result<()>;
 
-    pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) -> io::Result<()>;
+    pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) -> Result<()>;
 
-    pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> io::Result<()>;
+    pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> Result<()>;
 
-    pub fn draw_pie(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> io::Result<()>;
+    pub fn draw_pie(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> Result<()>;
 
-    pub fn fill_pie(
-        &mut self,
-        brush: impl Brush,
-        rect: Rect,
-        start: f64,
-        end: f64,
-    ) -> io::Result<()>;
+    pub fn fill_pie(&mut self, brush: impl Brush, rect: Rect, start: f64, end: f64) -> Result<()>;
 
-    pub fn draw_ellipse(&mut self, pen: impl Pen, rect: Rect) -> io::Result<()>;
+    pub fn draw_ellipse(&mut self, pen: impl Pen, rect: Rect) -> Result<()>;
 
-    pub fn fill_ellipse(&mut self, brush: impl Brush, rect: Rect) -> io::Result<()>;
+    pub fn fill_ellipse(&mut self, brush: impl Brush, rect: Rect) -> Result<()>;
 
-    pub fn draw_line(&mut self, pen: impl Pen, start: Point, end: Point) -> io::Result<()>;
+    pub fn draw_line(&mut self, pen: impl Pen, start: Point, end: Point) -> Result<()>;
 
-    pub fn draw_rect(&mut self, pen: impl Pen, rect: Rect) -> io::Result<()>;
+    pub fn draw_rect(&mut self, pen: impl Pen, rect: Rect) -> Result<()>;
 
-    pub fn fill_rect(&mut self, brush: impl Brush, rect: Rect) -> io::Result<()>;
+    pub fn fill_rect(&mut self, brush: impl Brush, rect: Rect) -> Result<()>;
 
-    pub fn draw_round_rect(&mut self, pen: impl Pen, rect: Rect, round: Size) -> io::Result<()>;
+    pub fn draw_round_rect(&mut self, pen: impl Pen, rect: Rect, round: Size) -> Result<()>;
 
-    pub fn fill_round_rect(&mut self, brush: impl Brush, rect: Rect, round: Size)
-    -> io::Result<()>;
+    pub fn fill_round_rect(&mut self, brush: impl Brush, rect: Rect, round: Size) -> Result<()>;
 
     pub fn draw_str(
         &mut self,
@@ -316,16 +309,16 @@ impl DrawingContext<'_> {
         font: DrawingFont,
         pos: Point,
         text: &str,
-    ) -> io::Result<()>;
+    ) -> Result<()>;
 
-    pub fn create_image(&self, image: DynamicImage) -> io::Result<DrawingImage>;
+    pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage>;
 
     pub fn draw_image(
         &mut self,
         image: &DrawingImage,
         rect: Rect,
         clip: Option<Rect>,
-    ) -> io::Result<()>;
+    ) -> Result<()>;
 
-    pub fn create_path_builder(&self, start: Point) -> io::Result<DrawingPathBuilder>;
+    pub fn create_path_builder(&self, start: Point) -> Result<DrawingPathBuilder>;
 }

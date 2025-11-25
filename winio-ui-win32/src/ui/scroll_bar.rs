@@ -1,5 +1,3 @@
-use std::io;
-
 use compio::driver::syscall;
 use inherit_methods_macro::inherit_methods;
 use windows_sys::Win32::UI::{
@@ -12,7 +10,7 @@ use windows_sys::Win32::UI::{
 use winio_handle::{AsContainer, AsRawWidget, BorrowedContainer, RawContainer, RawWidget};
 use winio_primitive::{Orient, Point, Size};
 
-use crate::Widget;
+use crate::{Result, Widget};
 
 #[derive(Debug)]
 struct ScrollBarImpl {
@@ -21,7 +19,7 @@ struct ScrollBarImpl {
 
 #[inherit_methods(from = "self.handle")]
 impl ScrollBarImpl {
-    pub fn new(parent: impl AsContainer, style: u32) -> io::Result<Self> {
+    pub fn new(parent: impl AsContainer, style: u32) -> Result<Self> {
         let handle = Widget::new(
             WC_SCROLLBARW,
             WS_CHILD | style,
@@ -31,27 +29,27 @@ impl ScrollBarImpl {
         Ok(Self { handle })
     }
 
-    pub fn is_visible(&self) -> io::Result<bool>;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> io::Result<bool>;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn loc(&self) -> io::Result<Point>;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point) -> io::Result<()>;
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> io::Result<Size>;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) -> io::Result<()>;
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> io::Result<String>;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> io::Result<()>;
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    fn info(&self, mask: u32) -> io::Result<SCROLLINFO> {
+    fn info(&self, mask: u32) -> Result<SCROLLINFO> {
         let mut info: SCROLLINFO = unsafe { std::mem::zeroed() };
         info.cbSize = std::mem::size_of::<SCROLLINFO>() as _;
         info.fMask = mask;
@@ -72,17 +70,17 @@ impl ScrollBarImpl {
         }
     }
 
-    pub fn minimum(&self) -> io::Result<usize> {
+    pub fn minimum(&self) -> Result<usize> {
         let info = self.info(SIF_RANGE)?;
         Ok(info.nMin as _)
     }
 
-    pub fn maximum(&self) -> io::Result<usize> {
+    pub fn maximum(&self) -> Result<usize> {
         let info = self.info(SIF_RANGE)?;
         Ok(info.nMax as _)
     }
 
-    pub fn set_minimum(&mut self, v: usize) -> io::Result<()> {
+    pub fn set_minimum(&mut self, v: usize) -> Result<()> {
         let max = self.maximum()?;
         self.set_info(SIF_RANGE, |info| {
             info.nMin = v as _;
@@ -91,7 +89,7 @@ impl ScrollBarImpl {
         Ok(())
     }
 
-    pub fn set_maximum(&mut self, v: usize) -> io::Result<()> {
+    pub fn set_maximum(&mut self, v: usize) -> Result<()> {
         let min = self.minimum()?;
         self.set_info(SIF_RANGE, |info| {
             info.nMin = min as _;
@@ -100,24 +98,24 @@ impl ScrollBarImpl {
         Ok(())
     }
 
-    pub fn page(&self) -> io::Result<usize> {
+    pub fn page(&self) -> Result<usize> {
         let info = self.info(SIF_PAGE)?;
         Ok(info.nPage as _)
     }
 
-    pub fn set_page(&mut self, v: usize) -> io::Result<()> {
+    pub fn set_page(&mut self, v: usize) -> Result<()> {
         self.set_info(SIF_PAGE, |info| {
             info.nPage = v as _;
         });
         Ok(())
     }
 
-    pub fn pos(&self) -> io::Result<usize> {
+    pub fn pos(&self) -> Result<usize> {
         let info = self.info(SIF_TRACKPOS)?;
         Ok(info.nTrackPos as _)
     }
 
-    pub fn set_pos(&mut self, v: usize) -> io::Result<()> {
+    pub fn set_pos(&mut self, v: usize) -> Result<()> {
         self.set_info(SIF_POS, |info| {
             info.nPos = v as _;
         });
@@ -139,7 +137,7 @@ pub struct ScrollBar {
 
 #[inherit_methods(from = "self.handle")]
 impl ScrollBar {
-    pub fn new(parent: impl AsContainer) -> io::Result<Self> {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
         let handle = ScrollBarImpl::new(&parent, WS_VISIBLE | SBS_HORZ as u32)?;
         Ok(Self {
             handle,
@@ -147,7 +145,7 @@ impl ScrollBar {
         })
     }
 
-    fn recreate(&mut self, vertical: bool) -> io::Result<()> {
+    fn recreate(&mut self, vertical: bool) -> Result<()> {
         let parent = unsafe { GetParent(self.handle.as_raw_widget().as_win32()) };
         let mut new_handle = ScrollBarImpl::new(
             unsafe { BorrowedContainer::borrow_raw(RawContainer::Win32(parent)) },
@@ -170,15 +168,15 @@ impl ScrollBar {
         Ok(())
     }
 
-    pub fn is_visible(&self) -> io::Result<bool>;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> io::Result<bool>;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> io::Result<Size> {
+    pub fn preferred_size(&self) -> Result<Size> {
         let size = if self.vertical {
             Size::new(20.0, 0.0)
         } else {
@@ -187,19 +185,19 @@ impl ScrollBar {
         Ok(size)
     }
 
-    pub fn loc(&self) -> io::Result<Point>;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point) -> io::Result<()>;
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> io::Result<Size>;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) -> io::Result<()>;
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> io::Result<String>;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> io::Result<()>;
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn orient(&self) -> io::Result<Orient> {
+    pub fn orient(&self) -> Result<Orient> {
         let orient = if self.vertical {
             Orient::Vertical
         } else {
@@ -208,7 +206,7 @@ impl ScrollBar {
         Ok(orient)
     }
 
-    pub fn set_orient(&mut self, v: Orient) -> io::Result<()> {
+    pub fn set_orient(&mut self, v: Orient) -> Result<()> {
         let v = matches!(v, Orient::Vertical);
         if self.vertical != v {
             self.recreate(v)?;
@@ -217,21 +215,21 @@ impl ScrollBar {
         Ok(())
     }
 
-    pub fn minimum(&self) -> io::Result<usize>;
+    pub fn minimum(&self) -> Result<usize>;
 
-    pub fn set_minimum(&mut self, v: usize) -> io::Result<()>;
+    pub fn set_minimum(&mut self, v: usize) -> Result<()>;
 
-    pub fn maximum(&self) -> io::Result<usize>;
+    pub fn maximum(&self) -> Result<usize>;
 
-    pub fn set_maximum(&mut self, v: usize) -> io::Result<()>;
+    pub fn set_maximum(&mut self, v: usize) -> Result<()>;
 
-    pub fn page(&self) -> io::Result<usize>;
+    pub fn page(&self) -> Result<usize>;
 
-    pub fn set_page(&mut self, v: usize) -> io::Result<()>;
+    pub fn set_page(&mut self, v: usize) -> Result<()>;
 
-    pub fn pos(&self) -> io::Result<usize>;
+    pub fn pos(&self) -> Result<usize>;
 
-    pub fn set_pos(&mut self, v: usize) -> io::Result<()>;
+    pub fn set_pos(&mut self, v: usize) -> Result<()>;
 
     pub async fn wait_change(&self) {
         if self.vertical {

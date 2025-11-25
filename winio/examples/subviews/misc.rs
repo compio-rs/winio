@@ -1,7 +1,10 @@
 use std::ops::Deref;
 
+use futures_util::TryFutureExt;
 use tuplex::IntoArray;
 use winio::prelude::*;
+
+use crate::{Error, Result};
 
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
@@ -65,12 +68,16 @@ pub enum MiscPageMessage {
     ChooseVibrancy(Option<Vibrancy>),
 }
 
+impl Failable for MiscPage {
+    type Error = Error;
+}
+
 impl Component for MiscPage {
     type Event = MiscPageEvent;
     type Init<'a> = &'a TabView;
     type Message = MiscPageMessage;
 
-    fn init(webview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+    fn init(webview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             window: TabViewItem = (webview) => {
                 text: "Widgets",
@@ -138,7 +145,7 @@ impl Component for MiscPage {
 
         sender.post(MiscPageMessage::RSelect(0));
 
-        Self {
+        Ok(Self {
             window,
             ulabel,
             plabel,
@@ -158,7 +165,7 @@ impl Component for MiscPage {
             progress,
             mltext,
             backdrop,
-        }
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -195,46 +202,51 @@ impl Component for MiscPage {
         }
     }
 
-    async fn update_children(&mut self) -> bool {
-        futures_util::join!(
-            self.window.update(),
-            self.ulabel.update(),
-            self.plabel.update(),
-            self.uentry.update(),
-            self.pentry.update(),
-            self.pcheck.update(),
-            self.canvas.update(),
-            self.combo.update(),
-            self.list.update(),
-            self.r1.update(),
-            self.r2.update(),
-            self.r3.update(),
-            self.push_button.update(),
-            self.pop_button.update(),
-            self.show_button.update(),
-            self.progress.update(),
-            self.mltext.update(),
+    async fn update_children(&mut self) -> Result<bool> {
+        Ok(futures_util::try_join!(
+            self.window.update().map_err(Error::from),
+            self.ulabel.update().map_err(Error::from),
+            self.plabel.update().map_err(Error::from),
+            self.uentry.update().map_err(Error::from),
+            self.pentry.update().map_err(Error::from),
+            self.pcheck.update().map_err(Error::from),
+            self.canvas.update().map_err(Error::from),
+            self.combo.update().map_err(Error::from),
+            self.list.update().map_err(Error::from),
+            self.r1.update().map_err(Error::from),
+            self.r2.update().map_err(Error::from),
+            self.r3.update().map_err(Error::from),
+            self.push_button.update().map_err(Error::from),
+            self.pop_button.update().map_err(Error::from),
+            self.show_button.update().map_err(Error::from),
+            self.progress.update().map_err(Error::from),
+            self.mltext.update().map_err(Error::from),
             self.backdrop.update(),
-        )
+        )?
         .into_array()
         .into_iter()
-        .any(|b| b)
+        .any(|b| b))
     }
 
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
         match message {
-            MiscPageMessage::Noop => false,
+            MiscPageMessage::Noop => Ok(false),
             MiscPageMessage::PasswordCheck => {
-                self.pentry.set_password(!self.pcheck.is_checked());
-                true
+                self.pentry.set_password(!self.pcheck.is_checked()?)?;
+                Ok(true)
             }
             MiscPageMessage::List(e) => {
-                self.pop_button.set_enabled(!self.list.is_empty());
-                self.combo
+                self.pop_button.set_enabled(!self.list.is_empty())?;
+                Ok(self
+                    .combo
                     .emit(ComboBoxMessage::from_observable_vec_event(e))
-                    .await
+                    .await?)
             }
-            MiscPageMessage::Select => true,
+            MiscPageMessage::Select => Ok(true),
             MiscPageMessage::Push => {
                 self.list.push(
                     match self.rindex {
@@ -243,13 +255,13 @@ impl Component for MiscPage {
                         2 => &self.r3,
                         _ => unreachable!(),
                     }
-                    .text(),
+                    .text()?,
                 );
-                false
+                Ok(false)
             }
             MiscPageMessage::Pop => {
                 self.list.pop();
-                false
+                Ok(false)
             }
             MiscPageMessage::RSelect(i) => {
                 self.rindex = i;
@@ -259,10 +271,10 @@ impl Component for MiscPage {
                     2 => &self.r3,
                     _ => unreachable!(),
                 }
-                .text();
+                .text()?;
                 self.push_button
-                    .set_tooltip(format!("Push \"{text}\" to the back of the combo box."));
-                false
+                    .set_tooltip(format!("Push \"{text}\" to the back of the combo box."))?;
+                Ok(false)
             }
             MiscPageMessage::Show => {
                 sender.output(MiscPageEvent::ShowMessage(
@@ -270,30 +282,30 @@ impl Component for MiscPage {
                         .title("Show selected item")
                         .message(
                             self.combo
-                                .selection()
+                                .selection()?
                                 .and_then(|index| self.list.get(index))
                                 .map(|s| s.as_str())
                                 .unwrap_or("No selection."),
                         )
                         .buttons(MessageBoxButton::Ok),
                 ));
-                false
+                Ok(false)
             }
             #[cfg(windows)]
             MiscPageMessage::ChooseBackdrop(b) => {
                 sender.output(MiscPageEvent::ChooseBackdrop(b));
-                false
+                Ok(false)
             }
             #[cfg(target_os = "macos")]
             MiscPageMessage::ChooseVibrancy(v) => {
                 sender.output(MiscPageEvent::ChooseVibrancy(v));
-                false
+                Ok(false)
             }
         }
     }
 
-    fn render(&mut self, _sender: &ComponentSender<Self>) {
-        let csize = self.window.size();
+    fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
+        let csize = self.window.size()?;
         {
             let mut cred_panel = layout! {
                 Grid::from_str("auto,1*,auto", "1*,auto,auto,1*").unwrap(),
@@ -330,12 +342,12 @@ impl Component for MiscPage {
                 buttons_panel => { column: 2, row: 2 },
             };
 
-            root_panel.set_size(csize);
-            self.backdrop.render();
+            root_panel.set_size(csize)?;
+            self.backdrop.render()?;
         }
 
-        let size = self.canvas.size();
-        let is_dark = ColorTheme::current() == ColorTheme::Dark;
+        let size = self.canvas.size()?;
+        let is_dark = ColorTheme::current()? == ColorTheme::Dark;
         let back_color = if is_dark {
             Color::new(255, 255, 255, 255)
         } else {
@@ -343,7 +355,7 @@ impl Component for MiscPage {
         };
         let brush = SolidColorBrush::new(back_color);
         let pen = BrushPen::new(&brush, 1.0);
-        let mut ctx = self.canvas.context();
+        let mut ctx = self.canvas.context()?;
         let cx = size.width / 2.0;
         let cy = size.height / 2.0;
         let r = cx.min(cy) - 2.0;
@@ -352,7 +364,7 @@ impl Component for MiscPage {
             Rect::new(Point::new(cx - r, cy - r), Size::new(r * 2.0, r * 2.0)),
             std::f64::consts::PI,
             std::f64::consts::PI * 2.0,
-        );
+        )?;
 
         let brush2 = LinearGradientBrush::new(
             [
@@ -371,7 +383,7 @@ impl Component for MiscPage {
             ),
             Size::new(r / 10.0, r / 10.0),
         );
-        let mut path = ctx.create_path_builder(Point::new(cx + r + 1.0 - r / 10.0, cy));
+        let mut path = ctx.create_path_builder(Point::new(cx + r + 1.0 - r / 10.0, cy))?;
         path.add_arc(
             Point::new(cx, cy + r * 0.618 + 1.0),
             Size::new(r + 1.0 - r / 10.0, r * 0.382 / 2.0),
@@ -380,8 +392,8 @@ impl Component for MiscPage {
             true,
         );
         path.add_line(Point::new(cx - r - 1.0 + r / 10.0, cy));
-        let path = path.build(false);
-        ctx.draw_path(&pen, &path);
+        let path = path.build(false)?;
+        ctx.draw_path(&pen, &path)?;
         let brush3 = RadialGradientBrush::new(
             [
                 GradientStop::new(Color::new(0xF5, 0xF5, 0xF5, 0xFF), 0.0),
@@ -400,7 +412,8 @@ impl Component for MiscPage {
             .halign(HAlign::Center)
             .valign(VAlign::Bottom)
             .build();
-        ctx.draw_str(&brush3, font, Point::new(cx, cy), "Hello world!");
+        ctx.draw_str(&brush3, font, Point::new(cx, cy), "Hello world!")?;
+        Ok(())
     }
 }
 

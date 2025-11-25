@@ -5,6 +5,8 @@ use cyper::Client;
 use tuplex::IntoArray;
 use winio::prelude::*;
 
+use crate::{Error, Result};
+
 pub struct NetPage {
     window: Child<TabViewItem>,
     canvas: Child<Canvas>,
@@ -29,12 +31,16 @@ pub enum NetPageMessage {
     Fetch(NetFetchStatus),
 }
 
+impl Failable for NetPage {
+    type Error = Error;
+}
+
 impl Component for NetPage {
     type Event = ();
     type Init<'a> = &'a TabView;
     type Message = NetPageMessage;
 
-    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let url = "https://www.example.com/";
         init! {
             window: TabViewItem = (tabview) => {
@@ -54,14 +60,14 @@ impl Component for NetPage {
         let url = url.to_string();
         spawn(fetch(client.clone(), url, sender.clone())).detach();
 
-        Self {
+        Ok(Self {
             window,
             canvas,
             button,
             entry,
             text: NetFetchStatus::Loading,
             client,
-        }
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -74,40 +80,44 @@ impl Component for NetPage {
         }
     }
 
-    async fn update_children(&mut self) -> bool {
-        futures_util::future::join4(
+    async fn update_children(&mut self) -> Result<bool> {
+        Ok(futures_util::future::try_join4(
             self.window.update(),
             self.canvas.update(),
             self.entry.update(),
             self.button.update(),
         )
-        .await
+        .await?
         .into_array()
         .into_iter()
-        .any(|b| b)
+        .any(|b| b))
     }
 
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
         match message {
-            NetPageMessage::Noop => false,
+            NetPageMessage::Noop => Ok(false),
             NetPageMessage::Go => {
                 spawn(fetch(
                     self.client.clone(),
-                    self.entry.text(),
+                    self.entry.text()?,
                     sender.clone(),
                 ))
                 .detach();
-                false
+                Ok(false)
             }
             NetPageMessage::Fetch(status) => {
                 self.text = status;
-                true
+                Ok(true)
             }
         }
     }
 
-    fn render(&mut self, _sender: &ComponentSender<Self>) {
-        let csize = self.window.size();
+    fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
+        let csize = self.window.size()?;
 
         {
             let mut header_panel = layout! {
@@ -120,11 +130,11 @@ impl Component for NetPage {
                 header_panel,
                 self.canvas => { grow: true },
             };
-            root_panel.set_size(csize);
+            root_panel.set_size(csize)?;
         }
 
-        let mut ctx = self.canvas.context();
-        let is_dark = ColorTheme::current() == ColorTheme::Dark;
+        let mut ctx = self.canvas.context()?;
+        let is_dark = ColorTheme::current()? == ColorTheme::Dark;
         let brush = SolidColorBrush::new(if is_dark {
             Color::new(255, 255, 255, 255)
         } else {
@@ -145,7 +155,8 @@ impl Component for NetPage {
                 NetFetchStatus::Error(e) => e.as_str(),
                 NetFetchStatus::Timedout => "Timed out.",
             },
-        );
+        )?;
+        Ok(())
     }
 }
 

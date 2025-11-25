@@ -71,17 +71,31 @@ impl<T: Clone> ObservableVec<T> {
         self.vec.shrink_to_fit();
     }
 
+    /// Length of the vector.
+    pub fn len(&self) -> usize {
+        self.vec.len()
+    }
+
+    /// Checks if the vector is empty.
+    pub fn is_empty(&self) -> bool {
+        self.vec.is_empty()
+    }
+
     /// Gets the inner items.
     pub fn items(&self) -> &[T] {
         &self.vec
     }
 
     /// Clears the vector, and appends the items one by one.
-    pub fn set_items<U: Into<T>>(&mut self, items: impl IntoIterator<Item = U>) {
+    pub fn set_items<U: Into<T>>(
+        &mut self,
+        items: impl IntoIterator<Item = U>,
+    ) -> Result<(), std::convert::Infallible> {
         self.clear();
         for it in items {
             self.push(it.into());
         }
+        Ok(())
     }
 }
 

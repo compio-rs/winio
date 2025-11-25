@@ -1,15 +1,56 @@
-use std::{future::Future, path::PathBuf, pin::Pin};
+use std::{convert::Infallible, future::Future, path::PathBuf, pin::Pin};
 
+use futures_util::TryFutureExt;
+use thiserror::Error;
 use tuplex::IntoArray;
 use winio::prelude::*;
 
-fn main() {
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    /// An error from the UI backend.
+    #[error("UI error: {0}")]
+    Ui(#[from] winio::Error),
+
+    /// An error from [`winio_layout`].
+    #[error("Layout error: {0}")]
+    Layout(#[from] TaffyError),
+
+    /// An IO error.
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+}
+
+impl<E: Into<Error> + std::fmt::Display> From<LayoutError<E>> for Error {
+    fn from(e: LayoutError<E>) -> Self {
+        match e {
+            LayoutError::Taffy(te) => Error::Layout(te),
+            LayoutError::Child(ce) => ce.into(),
+            _ => Error::Io(std::io::Error::other(e.to_string())),
+        }
+    }
+}
+
+impl From<std::io::ErrorKind> for Error {
+    fn from(e: std::io::ErrorKind) -> Self {
+        Error::Io(e.into())
+    }
+}
+
+impl From<Infallible> for Error {
+    fn from(e: Infallible) -> Self {
+        match e {}
+    }
+}
+
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+
+fn main() -> Result<()> {
     #[cfg(feature = "enable_log")]
     tracing_subscriber::fmt()
         .with_max_level(compio_log::Level::INFO)
         .init();
 
-    App::new("rs.compio.winio.widgets").run::<MainModel>(());
+    App::new("rs.compio.winio.widgets")?.run::<MainModel>(())
 }
 
 mod subviews;
@@ -61,20 +102,24 @@ enum MainMessage {
     ChooseVibrancy(Option<Vibrancy>),
 }
 
+impl Failable for MainModel {
+    type Error = Error;
+}
+
 impl Component for MainModel {
     type Event = ();
     type Init<'a> = ();
     type Message = MainMessage;
 
-    fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+    fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             window: Window = (()) => {
                 text: "Widgets example",
                 size: Size::new(800.0, 600.0),
                 loc: {
-                    let monitors = Monitor::all();
+                    let monitors = Monitor::all()?;
                     let region = monitors[0].client_scaled();
-                    region.origin + region.size / 2.0 - window.size() / 2.0
+                    region.origin + region.size / 2.0 - window.size()? / 2.0
                 },
             },
             tabview: TabView = (&window),
@@ -97,20 +142,20 @@ impl Component for MainModel {
             markdown: DummyPage = ((&*tabview, "Markdown", "webview")),
         }
 
-        tabview.push(&misc);
-        tabview.push(&fs);
-        tabview.push(&net);
-        tabview.push(&gallery);
-        tabview.push(&scroll);
-        tabview.push(&media);
-        tabview.push(&webview);
-        tabview.push(&markdown);
+        tabview.push(&misc)?;
+        tabview.push(&fs)?;
+        tabview.push(&net)?;
+        tabview.push(&gallery)?;
+        tabview.push(&scroll)?;
+        tabview.push(&media)?;
+        tabview.push(&webview)?;
+        tabview.push(&markdown)?;
 
         sender.post(MainMessage::Redraw);
 
-        window.show();
+        window.show()?;
 
-        Self {
+        Ok(Self {
             window,
             tabview,
             misc,
@@ -121,7 +166,7 @@ impl Component for MainModel {
             media,
             webview,
             markdown,
-        }
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -167,8 +212,8 @@ impl Component for MainModel {
         }
     }
 
-    async fn update_children(&mut self) -> bool {
-        let mut subviews: Vec<Pin<Box<dyn Future<Output = bool>>>> = vec![
+    async fn update_children(&mut self) -> Result<bool> {
+        let mut subviews: Vec<Pin<Box<dyn Future<Output = Result<bool>>>>> = vec![
             Box::pin(self.misc.update()),
             Box::pin(self.fs.update()),
             Box::pin(self.net.update()),
@@ -178,34 +223,43 @@ impl Component for MainModel {
             Box::pin(self.webview.update()),
             Box::pin(self.markdown.update()),
         ];
-        if let Some(index) = self.tabview.selection() {
+        let res = if let Some(index) = self.tabview.selection()? {
             let visible_subview = subviews.remove(index);
-            futures_util::join!(
-                self.window.update(),
-                self.tabview.update(),
+            futures_util::try_join!(
+                self.window.update().map_err(Error::from),
+                self.tabview.update().map_err(Error::from),
                 visible_subview,
                 async {
-                    futures_util::future::join_all(subviews.into_iter()).await;
-                    false
+                    futures_util::future::try_join_all(subviews.into_iter()).await?;
+                    Ok(false)
                 },
-            )
+            )?
             .into_array()
             .into_iter()
             .any(|b| b)
         } else {
-            futures_util::join!(self.window.update(), self.tabview.update(), async {
-                futures_util::future::join_all(subviews.into_iter()).await;
-                false
-            })
+            futures_util::try_join!(
+                self.window.update().map_err(Error::from),
+                self.tabview.update().map_err(Error::from),
+                async {
+                    futures_util::future::try_join_all(subviews.into_iter()).await?;
+                    Ok(false)
+                }
+            )?
             .into_array()
             .into_iter()
             .any(|b| b)
-        }
+        };
+        Ok(res)
     }
 
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
         match message {
-            MainMessage::Noop => false,
+            MainMessage::Noop => Ok(false),
             MainMessage::Close => {
                 match MessageBox::new()
                     .title("Example")
@@ -215,47 +269,44 @@ impl Component for MainModel {
                     .buttons(MessageBoxButton::Yes | MessageBoxButton::No)
                     .custom_button(CustomButton::new(114, "114"))
                     .show(&self.window)
-                    .await
+                    .await?
                 {
                     MessageBoxResponse::Yes | MessageBoxResponse::Custom(114) => {
                         sender.output(());
                     }
                     _ => {}
                 }
-                false
+                Ok(false)
             }
-            MainMessage::Redraw => {
-                self.gallery.emit(GalleryPageMessage::Redraw).await;
-                true
-            }
+            MainMessage::Redraw => self.gallery.emit(GalleryPageMessage::Redraw).await,
             MainMessage::ChooseFile => {
                 if let Some(p) = FileBox::new()
                     .title("Open file")
                     .add_filter(("All files", "*.*"))
                     .open(&self.window)
-                    .await
+                    .await?
                 {
                     sender.post(MainMessage::OpenFile(p));
                 }
-                false
+                Ok(false)
             }
             MainMessage::OpenFile(p) => self.fs.emit(FsPageMessage::OpenFile(p)).await,
             MainMessage::ChooseFolder => {
                 if let Some(p) = FileBox::new()
                     .title("Open folder")
                     .open_folder(&self.window)
-                    .await
+                    .await?
                 {
                     sender.post(MainMessage::OpenFolder(p));
                 }
-                false
+                Ok(false)
             }
             MainMessage::OpenFolder(p) => {
                 self.gallery.emit(GalleryPageMessage::OpenFolder(p)).await
             }
             MainMessage::ShowMessage(mb) => {
-                mb.show(&self.window).await;
-                false
+                mb.show(&self.window).await?;
+                Ok(false)
             }
             #[cfg(feature = "media")]
             MainMessage::ChooseMedia => {
@@ -264,11 +315,11 @@ impl Component for MainModel {
                     .add_filter(("MP4 video", "*.mp4"))
                     .add_filter(("All files", "*.*"))
                     .open(&self.window)
-                    .await
+                    .await?
                 {
                     sender.post(MainMessage::OpenMedia(p));
                 }
-                false
+                Ok(false)
             }
             #[cfg(feature = "media")]
             MainMessage::OpenMedia(p) => self.media.emit(MediaPageMessage::OpenFile(p)).await,
@@ -279,11 +330,11 @@ impl Component for MainModel {
                     .add_filter(("Markdown files", "*.md"))
                     .add_filter(("All files", "*.*"))
                     .open(&self.window)
-                    .await
+                    .await?
                 {
                     sender.post(MainMessage::OpenMarkdown(p));
                 }
-                false
+                Ok(false)
             }
             #[cfg(feature = "webview")]
             MainMessage::OpenMarkdown(p) => {
@@ -291,19 +342,23 @@ impl Component for MainModel {
             }
             #[cfg(windows)]
             MainMessage::ChooseBackdrop(backdrop) => {
-                self.window.set_backdrop(backdrop);
-                true
+                if let Err(_e) = self.window.set_backdrop(backdrop) {
+                    use compio_log::error;
+
+                    error!("Failed to set backdrop: {}", _e);
+                }
+                Ok(true)
             }
             #[cfg(target_os = "macos")]
             MainMessage::ChooseVibrancy(vibrancy) => {
-                self.window.set_vibrancy(vibrancy);
-                true
+                self.window.set_vibrancy(vibrancy)?;
+                Ok(true)
             }
         }
     }
 
-    fn render(&mut self, _sender: &ComponentSender<Self>) {
-        let csize = self.window.client_size();
+    fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
+        let csize = self.window.client_size()?;
         {
             let mut root_panel = layout! {
                 Grid::from_str("1*", "1*").unwrap(),
@@ -313,23 +368,25 @@ impl Component for MainModel {
                     valign: VAlign::Stretch
                 }
             };
-            root_panel.set_size(csize);
+            root_panel.set_size(csize)?;
         }
+        Ok(())
     }
 
-    fn render_children(&mut self) {
-        if let Some(index) = self.tabview.selection() {
+    fn render_children(&mut self) -> Result<()> {
+        if let Some(index) = self.tabview.selection()? {
             match index {
-                0 => self.misc.render(),
-                1 => self.fs.render(),
-                2 => self.net.render(),
-                3 => self.gallery.render(),
-                4 => self.scroll.render(),
-                5 => self.media.render(),
-                6 => self.webview.render(),
-                7 => self.markdown.render(),
+                0 => self.misc.render()?,
+                1 => self.fs.render()?,
+                2 => self.net.render()?,
+                3 => self.gallery.render()?,
+                4 => self.scroll.render()?,
+                5 => self.media.render()?,
+                6 => self.webview.render()?,
+                7 => self.markdown.render()?,
                 _ => {}
             }
         }
+        Ok(())
     }
 }

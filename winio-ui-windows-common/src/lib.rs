@@ -21,6 +21,27 @@ pub(crate) fn parent_handle(parent: Option<impl AsWindow>) -> Option<HWND> {
     })
 }
 
+/// Common windows error.
+#[derive(Debug)]
+pub struct Error(std::io::Error);
+
+impl<T: Into<std::io::Error>> From<T> for Error {
+    fn from(e: T) -> Self {
+        Self(e.into())
+    }
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl std::error::Error for Error {}
+
+/// Common result type for windows operations.
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+
 mod accent;
 pub use accent::*;
 

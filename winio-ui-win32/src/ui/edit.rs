@@ -1,5 +1,3 @@
-use std::io;
-
 use compio::driver::syscall;
 use inherit_methods_macro::inherit_methods;
 use windows_sys::{
@@ -25,6 +23,7 @@ use winio_handle::{AsContainer, AsRawWidget, AsRawWindow};
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
+    Result,
     runtime::WindowMessageCommand,
     ui::{Widget, fix_crlf},
 };
@@ -36,7 +35,7 @@ struct EditImpl {
 
 #[inherit_methods(from = "self.handle")]
 impl EditImpl {
-    pub fn new(parent: impl AsContainer, style: u32) -> io::Result<Self> {
+    pub fn new(parent: impl AsContainer, style: u32) -> Result<Self> {
         let handle = Widget::new(
             WC_EDITW,
             style,
@@ -46,36 +45,36 @@ impl EditImpl {
         Ok(Self { handle })
     }
 
-    pub fn is_visible(&self) -> io::Result<bool>;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> io::Result<bool>;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> io::Result<Size> {
+    pub fn preferred_size(&self) -> Result<Size> {
         let s = self.handle.measure_text()?;
         Ok(Size::new(s.width + 8.0, s.height + 4.0))
     }
 
-    pub fn loc(&self) -> io::Result<Point>;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point) -> io::Result<()>;
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> io::Result<Size>;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) -> io::Result<()>;
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> io::Result<String>;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> io::Result<()>;
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn text(&self) -> io::Result<String>;
+    pub fn text(&self) -> Result<String>;
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) -> io::Result<()>;
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn halign(&self) -> io::Result<HAlign> {
+    pub fn halign(&self) -> Result<HAlign> {
         let style = self.handle.style()? as i32;
         let style = if (style & ES_RIGHT) == ES_RIGHT {
             HAlign::Right
@@ -87,7 +86,7 @@ impl EditImpl {
         Ok(style)
     }
 
-    pub fn set_halign(&mut self, align: HAlign) -> io::Result<()> {
+    pub fn set_halign(&mut self, align: HAlign) -> Result<()> {
         let mut style = self.handle.style()?;
         style &= !(ES_RIGHT as u32);
         match align {
@@ -98,12 +97,12 @@ impl EditImpl {
         self.handle.set_style(style)
     }
 
-    pub fn is_readonly(&self) -> io::Result<bool> {
+    pub fn is_readonly(&self) -> Result<bool> {
         let style = self.handle.style()? as i32;
         Ok((style & ES_READONLY) == ES_READONLY)
     }
 
-    pub fn set_readonly(&mut self, v: bool) -> io::Result<()> {
+    pub fn set_readonly(&mut self, v: bool) -> Result<()> {
         self.handle
             .send_message(EM_SETREADONLY, if v { 1 } else { 0 }, 0);
         Ok(())
@@ -133,7 +132,7 @@ pub struct Edit {
 
 #[inherit_methods(from = "self.handle")]
 impl Edit {
-    pub fn new(parent: impl AsContainer) -> io::Result<Self> {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
         let handle = EditImpl::new(
             parent,
             WS_CHILD
@@ -151,37 +150,37 @@ impl Edit {
         Ok(Self { handle, pchar })
     }
 
-    pub fn is_visible(&self) -> io::Result<bool>;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> io::Result<bool>;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> io::Result<Size>;
+    pub fn preferred_size(&self) -> Result<Size>;
 
-    pub fn loc(&self) -> io::Result<Point>;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point) -> io::Result<()>;
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> io::Result<Size>;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) -> io::Result<()>;
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> io::Result<String>;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> io::Result<()>;
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn text(&self) -> io::Result<String>;
+    pub fn text(&self) -> Result<String>;
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) -> io::Result<()>;
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn halign(&self) -> io::Result<HAlign>;
+    pub fn halign(&self) -> Result<HAlign>;
 
-    pub fn set_halign(&mut self, align: HAlign) -> io::Result<()>;
+    pub fn set_halign(&mut self, align: HAlign) -> Result<()>;
 
-    pub fn is_readonly(&self) -> io::Result<bool> {
+    pub fn is_readonly(&self) -> Result<bool> {
         if self.is_password()? {
             Ok(false)
         } else {
@@ -189,18 +188,18 @@ impl Edit {
         }
     }
 
-    pub fn set_readonly(&mut self, v: bool) -> io::Result<()> {
+    pub fn set_readonly(&mut self, v: bool) -> Result<()> {
         if !self.is_password()? {
             self.handle.set_readonly(v)?;
         }
         Ok(())
     }
 
-    pub fn is_password(&self) -> io::Result<bool> {
+    pub fn is_password(&self) -> Result<bool> {
         Ok(self.handle.handle.send_message(EM_GETPASSWORDCHAR, 0, 0) != 0)
     }
 
-    pub fn set_password(&mut self, v: bool) -> io::Result<()> {
+    pub fn set_password(&mut self, v: bool) -> Result<()> {
         if v {
             self.handle
                 .handle
@@ -226,7 +225,7 @@ pub struct TextBox {
 
 #[inherit_methods(from = "self.handle")]
 impl TextBox {
-    pub fn new(parent: impl AsContainer) -> io::Result<Self> {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
         let this = Self::new_raw(parent)?;
         syscall!(
             BOOL,
@@ -244,7 +243,7 @@ impl TextBox {
         Ok(this)
     }
 
-    pub(crate) fn new_raw(parent: impl AsContainer) -> io::Result<Self> {
+    pub(crate) fn new_raw(parent: impl AsContainer) -> Result<Self> {
         let handle = EditImpl::new(
             parent,
             WS_CHILD
@@ -257,17 +256,17 @@ impl TextBox {
         Ok(Self { handle })
     }
 
-    pub fn is_visible(&self) -> io::Result<bool>;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> io::Result<bool>;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> io::Result<Size>;
+    pub fn preferred_size(&self) -> Result<Size>;
 
-    pub fn min_size(&self) -> io::Result<Size> {
+    pub fn min_size(&self) -> Result<Size> {
         let text = self.handle.handle.text_u16()?;
         let index = text.as_slice().iter().position(|c| *c == '\r' as u16);
         if let Some(index) = index {
@@ -278,33 +277,33 @@ impl TextBox {
         }
     }
 
-    pub fn loc(&self) -> io::Result<Point>;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point) -> io::Result<()>;
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> io::Result<Size>;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) -> io::Result<()>;
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> io::Result<String>;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> io::Result<()>;
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn text(&self) -> io::Result<String> {
+    pub fn text(&self) -> Result<String> {
         Ok(self.handle.text()?.replace("\r\n", "\n"))
     }
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) -> io::Result<()> {
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         self.handle.set_text(fix_crlf(s.as_ref()))
     }
 
-    pub fn halign(&self) -> io::Result<HAlign>;
+    pub fn halign(&self) -> Result<HAlign>;
 
-    pub fn set_halign(&mut self, align: HAlign) -> io::Result<()>;
+    pub fn set_halign(&mut self, align: HAlign) -> Result<()>;
 
-    pub fn is_readonly(&self) -> io::Result<bool>;
+    pub fn is_readonly(&self) -> Result<bool>;
 
-    pub fn set_readonly(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_readonly(&mut self, v: bool) -> Result<()>;
 
     pub async fn wait_change(&self) {
         self.handle.wait_change().await

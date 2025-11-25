@@ -1,6 +1,7 @@
-use inherit_methods_macro::inherit_methods;
 use tuplex::IntoArray;
 use winio::prelude::*;
+
+use crate::{Error, Result};
 
 pub struct BackdropChooser {
     view: Child<View>,
@@ -21,12 +22,16 @@ pub enum BackdropChooserMessage {
     RSelect(usize),
 }
 
+impl Failable for BackdropChooser {
+    type Error = Error;
+}
+
 impl Component for BackdropChooser {
     type Event = BackdropChooserEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = BackdropChooserMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             view: View = (&init),
             r_none: RadioButton = (&view) => {
@@ -43,13 +48,13 @@ impl Component for BackdropChooser {
                 text: "Mica Alt"
             },
         }
-        Self {
+        Ok(Self {
             view,
             r_none,
             r_acrylic,
             r_mica,
             r_mica_alt,
-        }
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -67,22 +72,26 @@ impl Component for BackdropChooser {
         }
     }
 
-    async fn update_children(&mut self) -> bool {
-        futures_util::join!(
+    async fn update_children(&mut self) -> Result<bool> {
+        Ok(futures_util::try_join!(
             self.view.update(),
             self.r_none.update(),
             self.r_acrylic.update(),
             self.r_mica.update(),
             self.r_mica_alt.update(),
-        )
+        )?
         .into_array()
         .into_iter()
-        .any(|b| b)
+        .any(|b| b))
     }
 
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
         match message {
-            BackdropChooserMessage::Noop => false,
+            BackdropChooserMessage::Noop => {}
             BackdropChooserMessage::RSelect(i) => {
                 let backdrop = match i {
                     0 => Backdrop::None,
@@ -92,13 +101,13 @@ impl Component for BackdropChooser {
                     _ => unreachable!(),
                 };
                 sender.output(BackdropChooserEvent::ChooseBackdrop(backdrop));
-                false
             }
         }
+        Ok(false)
     }
 
-    fn render(&mut self, _sender: &ComponentSender<Self>) {
-        let csize = self.view.size();
+    fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
+        let csize = self.view.size()?;
 
         let mut panel = layout! {
             StackPanel::new(Orient::Vertical),
@@ -113,29 +122,40 @@ impl Component for BackdropChooser {
             panel => { column: 1, row: 0 }
         };
 
-        grid.set_size(csize);
+        grid.set_size(csize)?;
+        Ok(())
     }
 
-    fn render_children(&mut self) {
-        self.view.render();
-        self.r_none.render();
-        self.r_acrylic.render();
-        self.r_mica.render();
-        self.r_mica_alt.render();
+    fn render_children(&mut self) -> Result<()> {
+        self.view.render()?;
+        self.r_none.render()?;
+        self.r_acrylic.render()?;
+        self.r_mica.render()?;
+        self.r_mica_alt.render()?;
+        Ok(())
     }
 }
 
-#[inherit_methods(from = "self.view")]
 impl Layoutable for BackdropChooser {
-    fn loc(&self) -> Point;
+    fn loc(&self) -> Result<Point> {
+        Ok(self.view.loc()?)
+    }
 
-    fn set_loc(&mut self, p: Point);
+    fn set_loc(&mut self, p: Point) -> Result<()> {
+        self.view.set_loc(p)?;
+        Ok(())
+    }
 
-    fn size(&self) -> Size;
+    fn size(&self) -> Result<Size> {
+        Ok(self.view.size()?)
+    }
 
-    fn set_size(&mut self, s: Size);
+    fn set_size(&mut self, s: Size) -> Result<()> {
+        self.view.set_size(s)?;
+        Ok(())
+    }
 
-    fn preferred_size(&self) -> Size {
+    fn preferred_size(&self) -> Result<Size> {
         let mut width = 0.0f64;
         let mut height = 0.0f64;
         for rb in [
@@ -144,14 +164,14 @@ impl Layoutable for BackdropChooser {
             &self.r_mica,
             &self.r_mica_alt,
         ] {
-            let ps = rb.preferred_size();
+            let ps = rb.preferred_size()?;
             width = width.max(ps.width);
             height += ps.height;
         }
-        Size::new(width, height)
+        Ok(Size::new(width, height))
     }
 
-    fn min_size(&self) -> Size {
+    fn min_size(&self) -> Result<Size> {
         self.preferred_size()
     }
 }

@@ -5,6 +5,8 @@ use tuplex::IntoArray;
 use url::Url;
 use winio::prelude::*;
 
+use crate::{Error, Result};
+
 pub struct MediaPage {
     window: Child<TabViewItem>,
     media: Child<Media>,
@@ -18,10 +20,11 @@ pub struct MediaPage {
 }
 
 impl MediaPage {
-    fn set_playing(&mut self, v: bool) {
+    fn set_playing(&mut self, v: bool) -> Result<()> {
         self.playing = v;
         self.play_button
-            .set_text(if self.playing { "⏸️" } else { "▶️" });
+            .set_text(if self.playing { "⏸️" } else { "▶️" })?;
+        Ok(())
     }
 }
 
@@ -42,12 +45,16 @@ pub enum MediaPageMessage {
     OpenFile(PathBuf),
 }
 
+impl Failable for MediaPage {
+    type Error = Error;
+}
+
 impl Component for MediaPage {
     type Event = MediaPageEvent;
     type Init<'a> = &'a TabView;
     type Message = MediaPageMessage;
 
-    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             window: TabViewItem = (tabview) => {
                 text: "Media",
@@ -90,7 +97,7 @@ impl Component for MediaPage {
         })
         .detach();
 
-        Self {
+        Ok(Self {
             window,
             media,
             playing: false,
@@ -100,7 +107,7 @@ impl Component for MediaPage {
             time_label,
             volume_slider,
             volume_label,
-        }
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -121,8 +128,8 @@ impl Component for MediaPage {
         }
     }
 
-    async fn update_children(&mut self) -> bool {
-        futures_util::join!(
+    async fn update_children(&mut self) -> Result<bool> {
+        Ok(futures_util::try_join!(
             self.window.update(),
             self.media.update(),
             self.play_button.update(),
@@ -130,15 +137,19 @@ impl Component for MediaPage {
             self.time_slider.update(),
             self.volume_slider.update(),
             self.volume_label.update(),
-        )
+        )?
         .into_array()
         .into_iter()
-        .any(|x| x)
+        .any(|x| x))
     }
 
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
         match message {
-            MediaPageMessage::Noop => false,
+            MediaPageMessage::Noop => Ok(false),
             MediaPageMessage::Tick => {
                 fn format_duration(dur: Duration) -> String {
                     let secs = dur.as_secs();
@@ -152,82 +163,86 @@ impl Component for MediaPage {
                     }
                 }
 
-                let ct = self.media.current_time();
-                let ft = self.media.full_time();
+                let ct = self.media.current_time()?;
+                let ft = self.media.full_time()?;
                 if let Some(ft) = ft {
                     let ft_secs = ft.as_secs_f64();
-                    self.time_slider.set_freq((ft_secs * 100.0) as usize / 10);
-                    self.time_slider.set_maximum((ft_secs * 100.0) as _);
-                    self.time_slider.set_pos((ct.as_secs_f64() * 100.0) as _);
+                    self.time_slider.set_freq((ft_secs * 100.0) as usize / 10)?;
+                    self.time_slider.set_maximum((ft_secs * 100.0) as _)?;
+                    self.time_slider.set_pos((ct.as_secs_f64() * 100.0) as _)?;
                     self.time_label.set_text(format!(
                         "{} / {}",
                         format_duration(ct),
                         format_duration(ft)
-                    ));
+                    ))?;
                 } else {
-                    self.time_slider.set_maximum(1);
-                    self.time_slider.set_pos(0);
-                    self.time_slider.set_freq(1);
-                    self.time_label.set_text(format_duration(ct));
+                    self.time_slider.set_maximum(1)?;
+                    self.time_slider.set_pos(0)?;
+                    self.time_slider.set_freq(1)?;
+                    self.time_label.set_text(format_duration(ct))?;
                 }
-                true
+                Ok(true)
             }
             MediaPageMessage::Volume => {
-                let pos = self.volume_slider.pos();
-                self.volume_label.set_text(pos.to_string());
-                self.media.set_volume(pos as f64 / 100.0);
-                true
+                let pos = self.volume_slider.pos()?;
+                self.volume_label.set_text(pos.to_string())?;
+                self.media.set_volume(pos as f64 / 100.0)?;
+                Ok(true)
             }
             MediaPageMessage::Time => {
-                let pos = self.time_slider.pos();
-                let ft = self.media.full_time();
+                let pos = self.time_slider.pos()?;
+                let ft = self.media.full_time()?;
                 if ft.is_some() {
                     self.media
-                        .set_current_time(Duration::from_secs_f64(pos as f64 / 100.0));
+                        .set_current_time(Duration::from_secs_f64(pos as f64 / 100.0))?;
                 }
-                true
+                Ok(true)
             }
             MediaPageMessage::Play => {
                 if self.playing {
-                    self.media.pause();
-                    self.set_playing(false);
+                    self.media.pause()?;
+                    self.set_playing(false)?;
                 } else {
-                    self.media.play();
-                    self.set_playing(true);
+                    self.media.play()?;
+                    self.set_playing(true)?;
                 }
-                true
+                Ok(true)
             }
             MediaPageMessage::ChooseFile => {
                 sender.output(MediaPageEvent::ChooseFile);
-                false
+                Ok(false)
             }
             MediaPageMessage::OpenFile(p) => {
-                let url = Url::from_file_path(&p).unwrap();
-                if self.media.load(url.as_str()).await {
-                    self.volume_slider.enable();
-                    self.time_slider.enable();
-                    self.play_button.enable();
-                    self.media.play();
-                    self.set_playing(true);
-                } else {
-                    self.volume_slider.disable();
-                    self.time_slider.disable();
-                    self.play_button.disable();
-                    self.set_playing(false);
-                    sender.output(MediaPageEvent::ShowMessage(
-                        MessageBox::new()
-                            .buttons(MessageBoxButton::Ok)
-                            .style(MessageBoxStyle::Error)
-                            .message("Failed to load media file."),
-                    ));
+                let url =
+                    Url::from_file_path(&p).map_err(|_| std::io::ErrorKind::InvalidFilename)?;
+                match self.media.load(url.as_str()).await {
+                    Ok(()) => {
+                        self.volume_slider.enable();
+                        self.time_slider.enable();
+                        self.play_button.enable();
+                        self.media.play();
+                        self.set_playing(true);
+                    }
+                    Err(e) => {
+                        self.volume_slider.disable();
+                        self.time_slider.disable();
+                        self.play_button.disable();
+                        self.set_playing(false);
+                        sender.output(MediaPageEvent::ShowMessage(
+                            MessageBox::new()
+                                .buttons(MessageBoxButton::Ok)
+                                .style(MessageBoxStyle::Error)
+                                .message(format!("Failed to load media file: {}", e)),
+                        ));
+                    }
                 }
-                true
+                Ok(true)
             }
         }
     }
 
-    fn render(&mut self, _sender: &ComponentSender<Self>) {
-        let csize = self.window.size();
+    fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
+        let csize = self.window.size()?;
         {
             let margin = Margin::new_all_same(4.0);
 
@@ -245,8 +260,9 @@ impl Component for MediaPage {
                 self.media => { column: 0, row: 0 },
                 bottom_bar => { column: 0, row: 1 },
             };
-            grid.set_size(csize);
+            grid.set_size(csize)?;
         }
+        Ok(())
     }
 }
 

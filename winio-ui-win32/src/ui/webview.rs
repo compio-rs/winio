@@ -13,7 +13,7 @@ use webview2::{
 };
 use windows::{
     Win32::Foundation::{E_FAIL, HWND, RECT},
-    core::{HRESULT, PCWSTR, Ref, Result, implement},
+    core::{HRESULT, PCWSTR, Ref, Result as WinResult, implement},
 };
 use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
 use winio_callback::Callback;
@@ -21,7 +21,10 @@ use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Point, Rect, Size};
 use winio_ui_windows_common::{CoTaskMemPtr, WebViewErrLabelImpl, WebViewImpl, WebViewLazy};
 
-use crate::ui::{TextBox, fix_crlf, with_u16c};
+use crate::{
+    Result,
+    ui::{TextBox, fix_crlf, with_u16c},
+};
 
 #[derive(Debug)]
 pub struct WebViewInner {
@@ -32,14 +35,14 @@ pub struct WebViewInner {
 }
 
 impl WebViewInner {
-    fn dpi(&self) -> io::Result<f64> {
+    fn dpi(&self) -> Result<f64> {
         unsafe {
             let hwnd = self.host.ParentWindow()?;
             Ok(GetDpiForWindow(hwnd.0) as f64 / 96.0)
         }
     }
 
-    fn rect(&self) -> io::Result<Rect> {
+    fn rect(&self) -> Result<Rect> {
         let rect = unsafe { self.host.Bounds() }?;
         Ok(Rect::new(
             Point::new(rect.left as _, rect.top as _),
@@ -47,7 +50,7 @@ impl WebViewInner {
         ) / self.dpi()?)
     }
 
-    fn set_rect(&mut self, r: Rect) -> io::Result<()> {
+    fn set_rect(&mut self, r: Rect) -> Result<()> {
         let r = r * self.dpi()?;
         unsafe {
             self.host.SetBounds(RECT {
@@ -62,7 +65,7 @@ impl WebViewInner {
 }
 
 impl WebViewImpl for WebViewInner {
-    async fn new(parent: impl AsContainer) -> io::Result<Self> {
+    async fn new(parent: impl AsContainer) -> Result<Self> {
         let (tx, rx) = local_sync::oneshot::channel();
         let hwnd = parent.as_container().as_win32();
         unsafe {
@@ -109,55 +112,55 @@ impl WebViewImpl for WebViewInner {
         })
     }
 
-    fn is_visible(&self) -> io::Result<bool> {
+    fn is_visible(&self) -> Result<bool> {
         unsafe { Ok(self.host.IsVisible()?.as_bool()) }
     }
 
-    fn set_visible(&mut self, v: bool) -> io::Result<()> {
+    fn set_visible(&mut self, v: bool) -> Result<()> {
         unsafe {
             self.host.SetIsVisible(v)?;
             Ok(())
         }
     }
 
-    fn is_enabled(&self) -> io::Result<bool> {
+    fn is_enabled(&self) -> Result<bool> {
         Ok(true)
     }
 
-    fn set_enabled(&mut self, _: bool) -> io::Result<()> {
+    fn set_enabled(&mut self, _: bool) -> Result<()> {
         Ok(())
     }
 
-    fn loc(&self) -> io::Result<Point> {
+    fn loc(&self) -> Result<Point> {
         Ok(self.rect()?.origin)
     }
 
-    fn set_loc(&mut self, p: Point) -> io::Result<()> {
+    fn set_loc(&mut self, p: Point) -> Result<()> {
         let mut rect = self.rect()?;
         rect.origin = p;
         self.set_rect(rect)
     }
 
-    fn size(&self) -> io::Result<Size> {
+    fn size(&self) -> Result<Size> {
         Ok(self.rect()?.size)
     }
 
-    fn set_size(&mut self, v: Size) -> io::Result<()> {
+    fn set_size(&mut self, v: Size) -> Result<()> {
         let mut rect = self.rect()?;
         rect.size = v;
         self.set_rect(rect)
     }
 
-    fn source(&self) -> io::Result<String> {
+    fn source(&self) -> Result<String> {
         unsafe {
             let source = CoTaskMemPtr::new(self.view.Source()?.0);
-            PCWSTR(source.as_ptr())
+            Ok(PCWSTR(source.as_ptr())
                 .to_string()
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?)
         }
     }
 
-    fn set_source(&mut self, s: impl AsRef<str>) -> io::Result<()> {
+    fn set_source(&mut self, s: impl AsRef<str>) -> Result<()> {
         let s = s.as_ref();
         if s.is_empty() {
             return self.set_html("");
@@ -168,43 +171,43 @@ impl WebViewImpl for WebViewInner {
         })
     }
 
-    fn set_html(&mut self, s: impl AsRef<str>) -> io::Result<()> {
+    fn set_html(&mut self, s: impl AsRef<str>) -> Result<()> {
         with_u16c(s.as_ref(), |s| unsafe {
             self.view.NavigateToString(PCWSTR(s.as_ptr()))?;
             Ok(())
         })
     }
 
-    fn can_go_forward(&self) -> io::Result<bool> {
+    fn can_go_forward(&self) -> Result<bool> {
         unsafe { Ok(self.view.CanGoForward()?.as_bool()) }
     }
 
-    fn go_forward(&mut self) -> io::Result<()> {
+    fn go_forward(&mut self) -> Result<()> {
         unsafe {
             self.view.GoForward()?;
             Ok(())
         }
     }
 
-    fn can_go_back(&self) -> io::Result<bool> {
+    fn can_go_back(&self) -> Result<bool> {
         unsafe { Ok(self.view.CanGoBack()?.as_bool()) }
     }
 
-    fn go_back(&mut self) -> io::Result<()> {
+    fn go_back(&mut self) -> Result<()> {
         unsafe {
             self.view.GoBack()?;
             Ok(())
         }
     }
 
-    fn reload(&mut self) -> io::Result<()> {
+    fn reload(&mut self) -> Result<()> {
         unsafe {
             self.view.Reload()?;
             Ok(())
         }
     }
 
-    fn stop(&mut self) -> io::Result<()> {
+    fn stop(&mut self) -> Result<()> {
         unsafe {
             self.view.Stop()?;
             Ok(())
@@ -239,33 +242,33 @@ pub struct WebViewErrLabelInner {
 
 #[inherit_methods(from = "self.handle")]
 impl WebViewErrLabelImpl for WebViewErrLabelInner {
-    fn new(parent: impl AsContainer) -> io::Result<Self> {
+    fn new(parent: impl AsContainer) -> Result<Self> {
         let mut handle = TextBox::new_raw(parent)?;
         handle.set_readonly(true)?;
         Ok(Self { handle })
     }
 
-    fn is_visible(&self) -> io::Result<bool>;
+    fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> io::Result<()>;
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    fn is_enabled(&self) -> io::Result<bool>;
+    fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> io::Result<()>;
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    fn loc(&self) -> io::Result<Point>;
+    fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, v: Point) -> io::Result<()>;
+    fn set_loc(&mut self, v: Point) -> Result<()>;
 
-    fn size(&self) -> io::Result<Size>;
+    fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> io::Result<()>;
+    fn set_size(&mut self, v: Size) -> Result<()>;
 
-    fn text(&self) -> io::Result<String> {
+    fn text(&self) -> Result<String> {
         Ok(self.handle.text()?.replace("\r\n", "\n"))
     }
 
-    fn set_text(&mut self, s: impl AsRef<str>) -> io::Result<()> {
+    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         self.handle.set_text(fix_crlf(s.as_ref()))
     }
 }
@@ -283,14 +286,14 @@ pub type WebView = WebViewLazy<WebViewInner, WebViewErrLabelInner>;
 )]
 struct CreateEnvHandler<F>
 where
-    F: FnOnce(Result<Ref<ICoreWebView2Environment>>) -> Result<()> + 'static,
+    F: FnOnce(WinResult<Ref<ICoreWebView2Environment>>) -> WinResult<()> + 'static,
 {
     f: RefCell<Option<F>>,
 }
 
 impl<F> CreateEnvHandler<F>
 where
-    F: FnOnce(Result<Ref<ICoreWebView2Environment>>) -> Result<()> + 'static,
+    F: FnOnce(WinResult<Ref<ICoreWebView2Environment>>) -> WinResult<()> + 'static,
 {
     pub fn create(f: F) -> ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler {
         Self {
@@ -302,13 +305,13 @@ where
 
 impl<F> ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler_Impl for CreateEnvHandler_Impl<F>
 where
-    F: FnOnce(Result<Ref<ICoreWebView2Environment>>) -> Result<()> + 'static,
+    F: FnOnce(WinResult<Ref<ICoreWebView2Environment>>) -> WinResult<()> + 'static,
 {
     fn Invoke(
         &self,
         errorcode: HRESULT,
         createdenvironment: Ref<ICoreWebView2Environment>,
-    ) -> Result<()> {
+    ) -> WinResult<()> {
         let f = self.f.borrow_mut().take();
         if let Some(f) = f {
             f(errorcode.map(|| createdenvironment))
@@ -324,14 +327,14 @@ where
 )]
 struct CreateControllerHandler<F>
 where
-    F: FnOnce(Result<Ref<ICoreWebView2Controller>>) -> Result<()> + 'static,
+    F: FnOnce(WinResult<Ref<ICoreWebView2Controller>>) -> WinResult<()> + 'static,
 {
     f: RefCell<Option<F>>,
 }
 
 impl<F> CreateControllerHandler<F>
 where
-    F: FnOnce(Result<Ref<ICoreWebView2Controller>>) -> Result<()> + 'static,
+    F: FnOnce(WinResult<Ref<ICoreWebView2Controller>>) -> WinResult<()> + 'static,
 {
     pub fn create(f: F) -> ICoreWebView2CreateCoreWebView2ControllerCompletedHandler {
         Self {
@@ -344,13 +347,13 @@ where
 impl<F> ICoreWebView2CreateCoreWebView2ControllerCompletedHandler_Impl
     for CreateControllerHandler_Impl<F>
 where
-    F: FnOnce(Result<Ref<ICoreWebView2Controller>>) -> Result<()> + 'static,
+    F: FnOnce(WinResult<Ref<ICoreWebView2Controller>>) -> WinResult<()> + 'static,
 {
     fn Invoke(
         &self,
         errorcode: HRESULT,
         createdcontroller: Ref<ICoreWebView2Controller>,
-    ) -> Result<()> {
+    ) -> WinResult<()> {
         let f = self.f.borrow_mut().take();
         if let Some(f) = f {
             f(errorcode.map(|| createdcontroller))
@@ -363,7 +366,7 @@ where
 #[implement(ICoreWebView2NavigationStartingEventHandler, Agile = false)]
 struct NavStartingHandler<F>
 where
-    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> Result<()>
+    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> WinResult<()>
         + 'static,
 {
     f: F,
@@ -371,7 +374,7 @@ where
 
 impl<F> NavStartingHandler<F>
 where
-    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> Result<()>
+    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> WinResult<()>
         + 'static,
 {
     pub fn create(f: F) -> ICoreWebView2NavigationStartingEventHandler {
@@ -381,14 +384,14 @@ where
 
 impl<F> ICoreWebView2NavigationStartingEventHandler_Impl for NavStartingHandler_Impl<F>
 where
-    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> Result<()>
+    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> WinResult<()>
         + 'static,
 {
     fn Invoke(
         &self,
         sender: Ref<ICoreWebView2>,
         args: Ref<ICoreWebView2NavigationStartingEventArgs>,
-    ) -> Result<()> {
+    ) -> WinResult<()> {
         (self.f)(sender, args)
     }
 }
@@ -396,7 +399,7 @@ where
 #[implement(ICoreWebView2NavigationCompletedEventHandler, Agile = false)]
 struct NavCompletedHandler<F>
 where
-    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> Result<()>
+    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> WinResult<()>
         + 'static,
 {
     f: F,
@@ -404,7 +407,7 @@ where
 
 impl<F> NavCompletedHandler<F>
 where
-    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> Result<()>
+    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> WinResult<()>
         + 'static,
 {
     pub fn create(f: F) -> ICoreWebView2NavigationCompletedEventHandler {
@@ -414,14 +417,14 @@ where
 
 impl<F> ICoreWebView2NavigationCompletedEventHandler_Impl for NavCompletedHandler_Impl<F>
 where
-    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> Result<()>
+    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> WinResult<()>
         + 'static,
 {
     fn Invoke(
         &self,
         sender: Ref<ICoreWebView2>,
         args: Ref<ICoreWebView2NavigationCompletedEventArgs>,
-    ) -> Result<()> {
+    ) -> WinResult<()> {
         (self.f)(sender, args)
     }
 }

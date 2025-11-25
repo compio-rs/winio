@@ -1,5 +1,4 @@
 use std::{
-    io,
     mem::MaybeUninit,
     ptr::{null, null_mut},
     sync::Once,
@@ -36,6 +35,7 @@ use winio_ui_windows_common::{
 };
 
 use crate::{
+    Result,
     font::measure_string,
     runtime::{WindowMessage, get_backdrop, set_backdrop, wait, window_proc},
     tooltip::{get_tooltip, remove_tooltip, set_tooltip},
@@ -82,12 +82,7 @@ impl AsRawContainer for OwnedWindow {
 pub(crate) struct Widget(OwnedWindow);
 
 impl Widget {
-    pub fn new(
-        class_name: *const u16,
-        style: u32,
-        ex_style: u32,
-        parent: HWND,
-    ) -> io::Result<Self> {
+    pub fn new(class_name: *const u16, style: u32, ex_style: u32, parent: HWND) -> Result<Self> {
         let handle = unsafe {
             CreateWindowExW(
                 ex_style,
@@ -105,7 +100,7 @@ impl Widget {
             )
         };
         if handle.is_null() {
-            return Err(std::io::Error::last_os_error());
+            return Err(std::io::Error::last_os_error().into());
         }
         unsafe {
             control_use_dark_mode(handle, false)?;
@@ -122,11 +117,11 @@ impl Widget {
         unsafe { wait(GetParent(self.as_raw_window().as_win32()), msg) }.await
     }
 
-    pub fn measure(&self, s: &U16Str) -> io::Result<Size> {
+    pub fn measure(&self, s: &U16Str) -> Result<Size> {
         measure_string(self.as_raw_window().as_win32(), s)
     }
 
-    pub fn measure_text(&self) -> io::Result<Size> {
+    pub fn measure_text(&self) -> Result<Size> {
         self.measure(self.text_u16()?.as_ustr())
     }
 
@@ -156,7 +151,7 @@ impl Widget {
         (p.x as i32, p.y as i32)
     }
 
-    fn sized(&self) -> io::Result<(i32, i32)> {
+    fn sized(&self) -> Result<(i32, i32)> {
         let handle = self.as_raw_window().as_win32();
         let mut rect = MaybeUninit::uninit();
         syscall!(BOOL, unsafe { GetWindowRect(handle, rect.as_mut_ptr()) })?;
@@ -164,7 +159,7 @@ impl Widget {
         Ok((rect.right - rect.left, rect.bottom - rect.top))
     }
 
-    fn set_sized(&mut self, v: (i32, i32)) -> io::Result<()> {
+    fn set_sized(&mut self, v: (i32, i32)) -> Result<()> {
         let handle = self.as_raw_window().as_win32();
         if v != self.sized()? {
             syscall!(
@@ -183,15 +178,15 @@ impl Widget {
         Ok(())
     }
 
-    pub fn size(&self) -> io::Result<Size> {
+    pub fn size(&self) -> Result<Size> {
         Ok(self.size_d2l(self.sized()?))
     }
 
-    pub fn set_size(&mut self, v: Size) -> io::Result<()> {
+    pub fn set_size(&mut self, v: Size) -> Result<()> {
         self.set_sized(self.size_l2d(v))
     }
 
-    fn locd(&self) -> io::Result<(i32, i32)> {
+    fn locd(&self) -> Result<(i32, i32)> {
         let handle = self.as_raw_window().as_win32();
         unsafe {
             let mut rect = MaybeUninit::uninit();
@@ -204,13 +199,13 @@ impl Widget {
             ) {
                 Ok(_) => {}
                 Err(e) if e.raw_os_error() == Some(0) => {}
-                Err(e) => return Err(e),
+                Err(e) => return Err(e.into()),
             }
             Ok((rect.left, rect.right))
         }
     }
 
-    fn set_locd(&mut self, p: (i32, i32)) -> io::Result<()> {
+    fn set_locd(&mut self, p: (i32, i32)) -> Result<()> {
         let handle = self.as_raw_window().as_win32();
         if p != self.locd()? {
             syscall!(
@@ -229,19 +224,19 @@ impl Widget {
         Ok(())
     }
 
-    pub fn loc(&self) -> io::Result<Point> {
+    pub fn loc(&self) -> Result<Point> {
         Ok(self.point_d2l(self.locd()?))
     }
 
-    pub fn set_loc(&mut self, p: Point) -> io::Result<()> {
+    pub fn set_loc(&mut self, p: Point) -> Result<()> {
         self.set_locd(self.point_l2d(p))
     }
 
-    pub fn is_visible(&self) -> io::Result<bool> {
+    pub fn is_visible(&self) -> Result<bool> {
         Ok((self.style()? & WS_VISIBLE) != 0)
     }
 
-    pub fn set_visible(&mut self, v: bool) -> io::Result<()> {
+    pub fn set_visible(&mut self, v: bool) -> Result<()> {
         unsafe {
             ShowWindow(
                 self.as_raw_window().as_win32(),
@@ -251,52 +246,52 @@ impl Widget {
         Ok(())
     }
 
-    pub fn is_enabled(&self) -> io::Result<bool> {
+    pub fn is_enabled(&self) -> Result<bool> {
         Ok(unsafe { IsWindowEnabled(self.as_raw_window().as_win32()) != 0 })
     }
 
-    pub fn set_enabled(&mut self, v: bool) -> io::Result<()> {
+    pub fn set_enabled(&mut self, v: bool) -> Result<()> {
         unsafe {
             EnableWindow(self.as_raw_window().as_win32(), if v { 1 } else { 0 });
         }
         Ok(())
     }
 
-    pub fn tooltip(&self) -> io::Result<String> {
+    pub fn tooltip(&self) -> Result<String> {
         Ok(get_tooltip(self.as_raw_window().as_win32()).unwrap_or_default())
     }
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> io::Result<()> {
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
         set_tooltip(self.as_raw_window().as_win32(), s)
     }
 
-    pub fn text(&self) -> io::Result<String> {
+    pub fn text(&self) -> Result<String> {
         Ok(self.text_u16()?.to_string_lossy())
     }
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) -> io::Result<()> {
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         let handle = self.as_raw_window().as_win32();
         with_u16c(s.as_ref(), |s| {
-            syscall!(BOOL, unsafe { SetWindowTextW(handle, s.as_ptr()) })
-        })?;
-        Ok(())
+            syscall!(BOOL, unsafe { SetWindowTextW(handle, s.as_ptr()) })?;
+            Ok(())
+        })
     }
 
-    pub fn text_u16(&self) -> io::Result<U16CString> {
+    pub fn text_u16(&self) -> Result<U16CString> {
         let handle = self.as_raw_window().as_win32();
         let len = unsafe { GetWindowTextLengthW(handle) };
         unsafe {
             get_u16c(len as usize, |buf| {
-                syscall!(
+                let len = syscall!(
                     BOOL,
                     GetWindowTextW(handle, buf.as_mut_ptr().cast(), buf.len() as _)
-                )
-                .map(|len| len as usize)
+                )?;
+                Ok(len as usize)
             })
         }
     }
 
-    pub fn invalidate(&self, erase: bool) -> io::Result<()> {
+    pub fn invalidate(&self, erase: bool) -> Result<()> {
         syscall!(
             BOOL,
             InvalidateRect(
@@ -308,14 +303,14 @@ impl Widget {
         Ok(())
     }
 
-    pub fn style(&self) -> io::Result<u32> {
-        syscall!(
+    pub fn style(&self) -> Result<u32> {
+        Ok(syscall!(
             BOOL,
             GetWindowLongPtrW(self.as_raw_window().as_win32(), GWL_STYLE) as u32
-        )
+        )?)
     }
 
-    pub fn set_style(&mut self, style: u32) -> io::Result<()> {
+    pub fn set_style(&mut self, style: u32) -> Result<()> {
         unsafe { SetLastError(0) };
         let res = syscall!(
             BOOL,
@@ -324,18 +319,18 @@ impl Widget {
         match res {
             Ok(_) => Ok(()),
             Err(e) if e.raw_os_error() == Some(0) => Ok(()),
-            Err(e) => Err(e),
+            Err(e) => Err(e.into()),
         }
     }
 
-    pub fn ex_style(&self) -> io::Result<u32> {
-        syscall!(
+    pub fn ex_style(&self) -> Result<u32> {
+        Ok(syscall!(
             BOOL,
             GetWindowLongPtrW(self.as_raw_window().as_win32(), GWL_EXSTYLE) as u32
-        )
+        )?)
     }
 
-    pub fn set_ex_style(&mut self, style: u32) -> io::Result<()> {
+    pub fn set_ex_style(&mut self, style: u32) -> Result<()> {
         unsafe { SetLastError(0) };
         let res = syscall!(
             BOOL,
@@ -349,7 +344,7 @@ impl Widget {
             {
                 Ok(())
             }
-            Err(e) => Err(e),
+            Err(e) => Err(e.into()),
         }
     }
 
@@ -433,7 +428,7 @@ pub struct Window {
 #[inherit_methods(from = "self.handle")]
 impl Window {
     #[allow(clippy::new_without_default)]
-    pub fn new() -> io::Result<Self> {
+    pub fn new() -> Result<Self> {
         let handle = Widget::new(
             window_class_name(),
             WS_OVERLAPPEDWINDOW,
@@ -443,19 +438,19 @@ impl Window {
         Ok(Self { handle })
     }
 
-    pub fn is_visible(&self) -> io::Result<bool>;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn loc(&self) -> io::Result<Point>;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point) -> io::Result<()>;
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> io::Result<Size>;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) -> io::Result<()>;
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn client_size(&self) -> io::Result<Size> {
+    pub fn client_size(&self) -> Result<Size> {
         let handle = self.as_raw_window().as_win32();
         let mut rect = MaybeUninit::uninit();
         syscall!(BOOL, unsafe { GetClientRect(handle, rect.as_mut_ptr()) })?;
@@ -465,19 +460,19 @@ impl Window {
             .size_d2l((rect.right - rect.left, rect.bottom - rect.top)))
     }
 
-    pub fn text(&self) -> io::Result<String>;
+    pub fn text(&self) -> Result<String>;
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) -> io::Result<()>;
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn style(&self) -> io::Result<u32>;
+    pub fn style(&self) -> Result<u32>;
 
-    pub fn set_style(&mut self, v: u32) -> io::Result<()>;
+    pub fn set_style(&mut self, v: u32) -> Result<()>;
 
-    pub fn ex_style(&self) -> io::Result<u32>;
+    pub fn ex_style(&self) -> Result<u32>;
 
-    pub fn set_ex_style(&mut self, v: u32) -> io::Result<()>;
+    pub fn set_ex_style(&mut self, v: u32) -> Result<()>;
 
-    pub fn set_icon_by_id(&mut self, id: u16) -> io::Result<()> {
+    pub fn set_icon_by_id(&mut self, id: u16) -> Result<()> {
         let icon = unsafe {
             LoadImageW(
                 get_current_module_handle(),
@@ -489,17 +484,17 @@ impl Window {
             )
         };
         if icon.is_null() {
-            return Err(std::io::Error::last_os_error());
+            return Err(std::io::Error::last_os_error().into());
         }
         self.handle.set_icon(icon);
         Ok(())
     }
 
-    pub fn backdrop(&self) -> io::Result<Backdrop> {
+    pub fn backdrop(&self) -> Result<Backdrop> {
         unsafe { get_backdrop(self.as_raw_window().as_win32()) }
     }
 
-    pub fn set_backdrop(&mut self, backdrop: Backdrop) -> io::Result<()> {
+    pub fn set_backdrop(&mut self, backdrop: Backdrop) -> Result<()> {
         unsafe { set_backdrop(self.as_raw_window().as_win32(), backdrop) }
     }
 
@@ -539,15 +534,15 @@ pub struct View {
 
 #[inherit_methods(from = "self.handle")]
 impl View {
-    pub fn new(parent: impl AsContainer) -> io::Result<Self> {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
         Self::new_impl(parent.as_container().as_win32(), WS_VISIBLE)
     }
 
-    pub(crate) fn new_hidden(parent: HWND) -> io::Result<Self> {
+    pub(crate) fn new_hidden(parent: HWND) -> Result<Self> {
         Self::new_impl(parent, 0)
     }
 
-    fn new_impl(parent: HWND, style: u32) -> io::Result<Self> {
+    fn new_impl(parent: HWND, style: u32) -> Result<Self> {
         let handle = Widget::new(
             window_class_name(),
             WS_CHILDWINDOW | WS_CLIPCHILDREN | style,
@@ -557,17 +552,17 @@ impl View {
         Ok(Self { handle })
     }
 
-    pub fn is_visible(&self) -> io::Result<bool>;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn loc(&self) -> io::Result<Point>;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point) -> io::Result<()>;
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> io::Result<Size>;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) -> io::Result<()>;
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 }
 
 winio_handle::impl_as_widget!(View, handle);

@@ -5,6 +5,7 @@
 
 #[doc(hidden)]
 pub use paste::paste as __paste;
+pub use taffy::TaffyError;
 use taffy::{Layout, NodeId, TaffyTree};
 use thiserror::Error;
 #[doc(hidden)]
@@ -153,10 +154,11 @@ pub(crate) use __layout_child as layout_child;
 
 /// Errors that can occur during layout.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum LayoutError<E> {
     /// Taffy layout error.
     #[error("Taffy layout error: {0}")]
-    Taffy(#[from] taffy::TaffyError),
+    Taffy(#[from] TaffyError),
     /// Child layout error.
     #[error("Child layout error: {0}")]
     Child(E),

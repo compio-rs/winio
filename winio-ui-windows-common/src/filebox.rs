@@ -1,4 +1,4 @@
-use std::{io, panic::resume_unwind, path::PathBuf};
+use std::{panic::resume_unwind, path::PathBuf};
 
 use widestring::{U16CStr, U16CString};
 use windows::{
@@ -17,7 +17,7 @@ use windows::{
 };
 use winio_handle::AsWindow;
 
-use crate::parent_handle;
+use crate::{Result, parent_handle};
 
 #[derive(Debug, Default, Clone)]
 pub struct FileBox {
@@ -47,7 +47,7 @@ impl FileBox {
         self.filters.push(filter);
     }
 
-    pub async fn open(self, parent: Option<impl AsWindow>) -> io::Result<Option<PathBuf>> {
+    pub async fn open(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
         let parent = parent_handle(parent).map(|h| h as isize);
         compio::runtime::spawn_blocking(move || {
             let parent = parent.map(|w| HWND(w as _));
@@ -66,7 +66,7 @@ impl FileBox {
         .unwrap_or_else(|e| resume_unwind(e))
     }
 
-    pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> io::Result<Vec<PathBuf>> {
+    pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Result<Vec<PathBuf>> {
         let parent = parent_handle(parent).map(|h| h as isize);
         compio::runtime::spawn_blocking(move || {
             let parent = parent.map(|w| HWND(w as _));
@@ -85,7 +85,7 @@ impl FileBox {
         .unwrap_or_else(|e| resume_unwind(e))
     }
 
-    pub async fn open_folder(self, parent: Option<impl AsWindow>) -> io::Result<Option<PathBuf>> {
+    pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
         let parent = parent_handle(parent).map(|h| h as isize);
         compio::runtime::spawn_blocking(move || {
             let parent = parent.map(|w| HWND(w as _));
@@ -104,7 +104,7 @@ impl FileBox {
         .unwrap_or_else(|e| resume_unwind(e))
     }
 
-    pub async fn save(self, parent: Option<impl AsWindow>) -> io::Result<Option<PathBuf>> {
+    pub async fn save(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
         let parent = parent_handle(parent).map(|h| h as isize);
         compio::runtime::spawn_blocking(move || {
             let parent = parent.map(|w| HWND(w as _));
@@ -147,7 +147,7 @@ fn filebox(
     open: bool,
     multiple: bool,
     folder: bool,
-) -> io::Result<FileBoxInner> {
+) -> Result<FileBoxInner> {
     let init = CoInitialize::init()?;
 
     unsafe {
@@ -202,7 +202,7 @@ fn filebox(
 struct FileBoxInner(Option<IFileDialog>, CoInitialize);
 
 impl FileBoxInner {
-    pub fn result(self) -> io::Result<Option<PathBuf>> {
+    pub fn result(self) -> Result<Option<PathBuf>> {
         if let Some(dialog) = self.0 {
             unsafe {
                 let item = dialog.GetResult()?;
@@ -216,7 +216,7 @@ impl FileBoxInner {
         }
     }
 
-    pub fn results(self) -> io::Result<Vec<PathBuf>> {
+    pub fn results(self) -> Result<Vec<PathBuf>> {
         if let Some(dialog) = self.0 {
             unsafe {
                 let handle: IFileOpenDialog = dialog.cast()?;
@@ -266,7 +266,7 @@ impl<T> Drop for CoTaskMemPtr<T> {
 struct CoInitialize;
 
 impl CoInitialize {
-    pub fn init() -> io::Result<Self> {
+    pub fn init() -> Result<Self> {
         unsafe {
             CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok()?;
         }

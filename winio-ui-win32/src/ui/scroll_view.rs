@@ -1,5 +1,4 @@
 use std::{
-    io,
     mem::{MaybeUninit, size_of},
     ptr::null_mut,
 };
@@ -29,7 +28,7 @@ use windows_sys::{
 use winio_handle::{AsContainer, AsRawWidget};
 use winio_primitive::{Point, Size};
 
-use crate::{View, ui::Widget, window_class_name};
+use crate::{Result, View, ui::Widget, window_class_name};
 
 #[derive(Debug)]
 pub struct ScrollView {
@@ -41,7 +40,7 @@ pub struct ScrollView {
 
 #[inherit_methods(from = "self.handle")]
 impl ScrollView {
-    pub fn new(parent: impl AsContainer) -> io::Result<Self> {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
         let handle = Widget::new(
             window_class_name(),
             WS_CHILDWINDOW | WS_CLIPCHILDREN | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL,
@@ -57,21 +56,21 @@ impl ScrollView {
         })
     }
 
-    pub fn is_visible(&self) -> io::Result<bool>;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> io::Result<bool>;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn loc(&self) -> io::Result<Point>;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point) -> io::Result<()>;
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> io::Result<Size>;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) -> io::Result<()> {
+    pub fn set_size(&mut self, v: Size) -> Result<()> {
         self.handle.set_size(v)?;
         let handle = self.handle.as_raw_widget().as_win32();
         let view = self.view.as_raw_widget().as_win32();
@@ -150,11 +149,11 @@ impl ScrollView {
         self.scroll_view(x, y)
     }
 
-    pub fn hscroll(&self) -> io::Result<bool> {
+    pub fn hscroll(&self) -> Result<bool> {
         Ok(self.hscroll)
     }
 
-    pub fn set_hscroll(&mut self, v: bool) -> io::Result<()> {
+    pub fn set_hscroll(&mut self, v: bool) -> Result<()> {
         self.hscroll = v;
         syscall!(
             BOOL,
@@ -167,11 +166,11 @@ impl ScrollView {
         Ok(())
     }
 
-    pub fn vscroll(&self) -> io::Result<bool> {
+    pub fn vscroll(&self) -> Result<bool> {
         Ok(self.vscroll)
     }
 
-    pub fn set_vscroll(&mut self, v: bool) -> io::Result<()> {
+    pub fn set_vscroll(&mut self, v: bool) -> Result<()> {
         self.vscroll = v;
         syscall!(
             BOOL,
@@ -184,7 +183,7 @@ impl ScrollView {
         Ok(())
     }
 
-    fn scroll_view(&self, x: i32, y: i32) -> io::Result<()> {
+    fn scroll_view(&self, x: i32, y: i32) -> Result<()> {
         syscall!(
             BOOL,
             SetWindowPos(
@@ -200,7 +199,7 @@ impl ScrollView {
         Ok(())
     }
 
-    fn scroll(&self, dir: i32, wparam: WPARAM, wheel: bool) -> io::Result<()> {
+    fn scroll(&self, dir: i32, wparam: WPARAM, wheel: bool) -> Result<()> {
         let parent = self.handle.as_raw_widget().as_win32();
         unsafe {
             let mut si = SCROLLINFO {

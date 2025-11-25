@@ -1,5 +1,3 @@
-use std::io;
-
 use inherit_methods_macro::inherit_methods;
 use windows_sys::Win32::UI::{
     Controls::{
@@ -14,7 +12,7 @@ use windows_sys::Win32::UI::{
 use winio_handle::{AsContainer, AsRawWidget, BorrowedContainer, RawContainer, RawWidget};
 use winio_primitive::{Orient, Point, Size, TickPosition};
 
-use crate::Widget;
+use crate::{Result, Widget};
 
 #[derive(Debug)]
 struct SliderImpl {
@@ -24,7 +22,7 @@ struct SliderImpl {
 
 #[inherit_methods(from = "self.handle")]
 impl SliderImpl {
-    pub fn new(parent: impl AsContainer, style: u32) -> io::Result<Self> {
+    pub fn new(parent: impl AsContainer, style: u32) -> Result<Self> {
         let handle = Widget::new(
             TRACKBAR_CLASSW,
             WS_CHILD | WS_TABSTOP | TBS_AUTOTICKS | style,
@@ -34,61 +32,61 @@ impl SliderImpl {
         Ok(Self { handle, freq: 1 })
     }
 
-    pub fn is_visible(&self) -> io::Result<bool>;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> io::Result<bool>;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn loc(&self) -> io::Result<Point>;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point) -> io::Result<()>;
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> io::Result<Size>;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) -> io::Result<()>;
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> io::Result<String>;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> io::Result<()>;
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn minimum(&self) -> io::Result<usize> {
+    pub fn minimum(&self) -> Result<usize> {
         Ok(self.handle.send_message(TBM_GETRANGEMIN, 0, 0) as _)
     }
 
-    pub fn set_minimum(&mut self, v: usize) -> io::Result<()> {
+    pub fn set_minimum(&mut self, v: usize) -> Result<()> {
         self.handle.send_message(TBM_SETRANGEMIN, 1, v as _);
         Ok(())
     }
 
-    pub fn maximum(&self) -> io::Result<usize> {
+    pub fn maximum(&self) -> Result<usize> {
         Ok(self.handle.send_message(TBM_GETRANGEMAX, 0, 0) as _)
     }
 
-    pub fn set_maximum(&mut self, v: usize) -> io::Result<()> {
+    pub fn set_maximum(&mut self, v: usize) -> Result<()> {
         self.handle.send_message(TBM_SETRANGEMAX, 1, v as _);
         Ok(())
     }
 
-    pub fn freq(&self) -> io::Result<usize> {
+    pub fn freq(&self) -> Result<usize> {
         Ok(self.freq)
     }
 
-    pub fn set_freq(&mut self, v: usize) -> io::Result<()> {
+    pub fn set_freq(&mut self, v: usize) -> Result<()> {
         self.freq = v;
         self.handle.send_message(TBM_SETTICFREQ, v, 0);
         Ok(())
     }
 
-    pub fn pos(&self) -> io::Result<usize> {
+    pub fn pos(&self) -> Result<usize> {
         // Why isn't it in `windows-sys`?
         const TBM_GETPOS: u32 = WM_USER;
         Ok(self.handle.send_message(TBM_GETPOS, 0, 0) as _)
     }
 
-    pub fn set_pos(&mut self, v: usize) -> io::Result<()> {
+    pub fn set_pos(&mut self, v: usize) -> Result<()> {
         self.handle.send_message(TBM_SETPOSNOTIFY, 0, v as _);
         Ok(())
     }
@@ -109,7 +107,7 @@ pub struct Slider {
 
 #[inherit_methods(from = "self.handle")]
 impl Slider {
-    pub fn new(parent: impl AsContainer) -> io::Result<Self> {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
         let handle = SliderImpl::new(&parent, WS_VISIBLE | TBS_BOTH | TBS_HORZ)?;
         Ok(Self {
             handle,
@@ -118,7 +116,7 @@ impl Slider {
         })
     }
 
-    fn recreate(&mut self, vertical: bool, tick_pos: TickPosition) -> io::Result<()> {
+    fn recreate(&mut self, vertical: bool, tick_pos: TickPosition) -> Result<()> {
         let parent = unsafe { GetParent(self.handle.as_raw_widget().as_win32()) };
         let mut style = WS_VISIBLE;
         style |= match tick_pos {
@@ -145,15 +143,15 @@ impl Slider {
         Ok(())
     }
 
-    pub fn is_visible(&self) -> io::Result<bool>;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> io::Result<bool>;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> io::Result<Size> {
+    pub fn preferred_size(&self) -> Result<Size> {
         let base_length = match self.tick_pos {
             TickPosition::None => 20.0,
             TickPosition::TopLeft | TickPosition::BottomRight => 30.0,
@@ -167,23 +165,23 @@ impl Slider {
         Ok(size)
     }
 
-    pub fn loc(&self) -> io::Result<Point>;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point) -> io::Result<()>;
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> io::Result<Size>;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) -> io::Result<()>;
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> io::Result<String>;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> io::Result<()>;
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn tick_pos(&self) -> io::Result<TickPosition> {
+    pub fn tick_pos(&self) -> Result<TickPosition> {
         Ok(self.tick_pos)
     }
 
-    pub fn set_tick_pos(&mut self, v: TickPosition) -> io::Result<()> {
+    pub fn set_tick_pos(&mut self, v: TickPosition) -> Result<()> {
         if self.tick_pos != v {
             self.recreate(self.vertical, v)?;
             self.tick_pos = v;
@@ -191,7 +189,7 @@ impl Slider {
         Ok(())
     }
 
-    pub fn orient(&self) -> io::Result<Orient> {
+    pub fn orient(&self) -> Result<Orient> {
         let orient = if self.vertical {
             Orient::Vertical
         } else {
@@ -200,7 +198,7 @@ impl Slider {
         Ok(orient)
     }
 
-    pub fn set_orient(&mut self, v: Orient) -> io::Result<()> {
+    pub fn set_orient(&mut self, v: Orient) -> Result<()> {
         let v = matches!(v, Orient::Vertical);
         if self.vertical != v {
             self.recreate(v, self.tick_pos)?;
@@ -209,21 +207,21 @@ impl Slider {
         Ok(())
     }
 
-    pub fn minimum(&self) -> io::Result<usize>;
+    pub fn minimum(&self) -> Result<usize>;
 
-    pub fn set_minimum(&mut self, v: usize) -> io::Result<()>;
+    pub fn set_minimum(&mut self, v: usize) -> Result<()>;
 
-    pub fn maximum(&self) -> io::Result<usize>;
+    pub fn maximum(&self) -> Result<usize>;
 
-    pub fn set_maximum(&mut self, v: usize) -> io::Result<()>;
+    pub fn set_maximum(&mut self, v: usize) -> Result<()>;
 
-    pub fn freq(&self) -> io::Result<usize>;
+    pub fn freq(&self) -> Result<usize>;
 
-    pub fn set_freq(&mut self, v: usize) -> io::Result<()>;
+    pub fn set_freq(&mut self, v: usize) -> Result<()>;
 
-    pub fn pos(&self) -> io::Result<usize>;
+    pub fn pos(&self) -> Result<usize>;
 
-    pub fn set_pos(&mut self, v: usize) -> io::Result<()>;
+    pub fn set_pos(&mut self, v: usize) -> Result<()>;
 
     pub async fn wait_change(&self) {
         if self.vertical {

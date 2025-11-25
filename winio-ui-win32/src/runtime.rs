@@ -43,7 +43,10 @@ use winio_ui_windows_common::{
 };
 
 use super::RUNTIME;
-use crate::ui::{dpi::get_dpi_for_window, font::default_font};
+use crate::{
+    Result,
+    ui::{dpi::get_dpi_for_window, font::default_font},
+};
 
 #[derive(Clone, Copy)]
 pub(crate) enum WindowMessage {
@@ -118,7 +121,7 @@ pub struct Runtime {
 }
 
 impl Runtime {
-    pub fn new() -> io::Result<Self> {
+    pub fn new() -> Result<Self> {
         init_dark();
 
         let runtime = winio_ui_windows_common::Runtime::new()?;
@@ -129,7 +132,7 @@ impl Runtime {
         })
     }
 
-    pub(crate) fn d2d1(&self) -> io::Result<&ID2D1Factory2> {
+    pub(crate) fn d2d1(&self) -> Result<&ID2D1Factory2> {
         self.runtime.d2d1()
     }
 
@@ -317,7 +320,7 @@ pub(crate) unsafe extern "system" fn window_proc(
     }
 }
 
-pub(crate) unsafe fn refresh_font(handle: HWND) -> io::Result<()> {
+pub(crate) unsafe fn refresh_font(handle: HWND) -> Result<()> {
     let font = default_font(get_dpi_for_window(handle))?;
 
     unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
@@ -359,7 +362,7 @@ impl Drop for MsgFuture {
     }
 }
 
-pub(crate) unsafe fn set_backdrop(handle: HWND, backdrop: Backdrop) -> io::Result<()> {
+pub(crate) unsafe fn set_backdrop(handle: HWND, backdrop: Backdrop) -> Result<()> {
     let old_backdrop = unsafe { get_backdrop(handle)? };
     if old_backdrop != backdrop {
         set_backdrop_impl(handle, backdrop)?;
@@ -370,7 +373,7 @@ pub(crate) unsafe fn set_backdrop(handle: HWND, backdrop: Backdrop) -> io::Resul
 
 pub(crate) use winio_ui_windows_common::get_backdrop;
 
-unsafe fn set_backdrop_impl(handle: HWND, backdrop: Backdrop) -> io::Result<()> {
+unsafe fn set_backdrop_impl(handle: HWND, backdrop: Backdrop) -> Result<()> {
     let res = winio_ui_windows_common::set_backdrop(handle, backdrop)?;
     let res = if res {
         let margins = MARGINS {
@@ -392,11 +395,11 @@ unsafe fn set_backdrop_impl(handle: HWND, backdrop: Backdrop) -> io::Result<()> 
     if res >= 0 {
         Ok(())
     } else {
-        Err(io::Error::from_raw_os_error(res))
+        Err(io::Error::from_raw_os_error(res).into())
     }
 }
 
-unsafe fn refresh_background(handle: HWND) -> io::Result<()> {
+unsafe fn refresh_background(handle: HWND) -> Result<()> {
     let backdrop = get_backdrop(GetAncestor(handle, GA_ROOT))?;
     let black = !matches!(backdrop, Backdrop::None) || is_dark_mode_allowed_for_app();
     let brush = if black {
@@ -412,6 +415,6 @@ unsafe fn refresh_background(handle: HWND) -> io::Result<()> {
     match res {
         Ok(_) => Ok(()),
         Err(e) if e.raw_os_error() == Some(0) => Ok(()),
-        Err(e) => Err(e),
+        Err(e) => Err(e.into()),
     }
 }

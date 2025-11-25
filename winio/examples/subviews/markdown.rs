@@ -14,6 +14,8 @@ use send_wrapper::SendWrapper;
 use tuplex::IntoArray;
 use winio::prelude::*;
 
+use crate::{Error, Result};
+
 pub struct MarkdownPage {
     window: Child<TabViewItem>,
     webview: Child<WebView>,
@@ -45,12 +47,16 @@ pub enum MarkdownPageMessage {
     Fetch(MarkdownFetchStatus),
 }
 
+impl Failable for MarkdownPage {
+    type Error = Error;
+}
+
 impl Component for MarkdownPage {
     type Event = MarkdownPageEvent;
     type Init<'a> = &'a TabView;
     type Message = MarkdownPageMessage;
 
-    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let path = "README.md";
         init! {
             window: TabViewItem = (tabview) => {
@@ -72,7 +78,7 @@ impl Component for MarkdownPage {
             let markdown_path = SendWrapper::new(markdown_path.clone());
             let sender = sender.clone();
             spawn(async move {
-                let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+                let listener = TcpListener::bind("127.0.0.1:0").await?;
                 let serve = cyper_axum::serve(
                     listener,
                     axum::routing::get(move |req: Uri| {
@@ -97,7 +103,7 @@ impl Component for MarkdownPage {
                 .with_graceful_shutdown(async move {
                     shutdown_rx.await.ok();
                 });
-                let local_addr = serve.local_addr().unwrap();
+                let local_addr = serve.local_addr()?;
                 sender.post(MarkdownPageMessage::SetAddr(local_addr));
                 serve.await
             })
@@ -107,7 +113,7 @@ impl Component for MarkdownPage {
         let path = path.to_string();
         spawn(fetch(path, sender.clone())).detach();
 
-        Self {
+        Ok(Self {
             window,
             webview,
             button,
@@ -115,7 +121,7 @@ impl Component for MarkdownPage {
             markdown_path,
             addr: None,
             shutdown_tx: Some(shutdown_tx),
-        }
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -127,35 +133,39 @@ impl Component for MarkdownPage {
         }
     }
 
-    async fn update_children(&mut self) -> bool {
-        futures_util::future::join4(
+    async fn update_children(&mut self) -> Result<bool> {
+        Ok(futures_util::future::try_join4(
             self.window.update(),
             self.webview.update(),
             self.button.update(),
             self.label.update(),
         )
-        .await
+        .await?
         .into_array()
         .into_iter()
-        .any(|b| b)
+        .any(|b| b))
     }
 
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
         match message {
-            MarkdownPageMessage::Noop => false,
+            MarkdownPageMessage::Noop => Ok(false),
             MarkdownPageMessage::SetAddr(addr) => {
                 self.addr = Some(addr);
-                false
+                Ok(false)
             }
             MarkdownPageMessage::ChooseFile => {
                 sender.output(MarkdownPageEvent::ChooseFile);
-                false
+                Ok(false)
             }
             MarkdownPageMessage::OpenFile(p) => {
-                self.label.set_text(p.to_str().unwrap_or_default());
+                self.label.set_text(p.to_str().unwrap_or_default())?;
                 *self.markdown_path.borrow_mut() = p.clone();
                 spawn(fetch(p, sender.clone())).detach();
-                true
+                Ok(true)
             }
             MarkdownPageMessage::Fetch(status) => {
                 match status {
@@ -219,13 +229,13 @@ impl Component for MarkdownPage {
                         ));
                     }
                 }
-                true
+                Ok(true)
             }
         }
     }
 
-    fn render(&mut self, _sender: &ComponentSender<Self>) {
-        let csize = self.window.size();
+    fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
+        let csize = self.window.size()?;
 
         {
             let mut panel = layout! {
@@ -233,8 +243,9 @@ impl Component for MarkdownPage {
                 self.label, self.button,
                 self.webview => { grow: true }
             };
-            panel.set_size(csize);
+            panel.set_size(csize)?;
         }
+        Ok(())
     }
 }
 

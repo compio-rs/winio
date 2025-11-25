@@ -19,7 +19,7 @@ use windows_sys::Win32::{
 use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
-use crate::{darkmode::TASK_DIALOG_CALLBACK, parent_handle};
+use crate::{Result, darkmode::TASK_DIALOG_CALLBACK, parent_handle};
 
 async fn msgbox(
     parent: Option<HWND>,
@@ -29,7 +29,7 @@ async fn msgbox(
     style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
-) -> io::Result<MessageBoxResponse> {
+) -> Result<MessageBoxResponse> {
     let parent_handle = parent.map(|p| p as isize).unwrap_or_default();
     let (res, result) = compio::runtime::spawn_blocking(move || {
         let cbtn_ptrs = cbtns
@@ -96,9 +96,9 @@ async fn msgbox(
             IDCLOSE => MessageBoxResponse::Close,
             _ => MessageBoxResponse::Custom(result as _),
         },
-        E_OUTOFMEMORY => return Err(io::Error::from(io::ErrorKind::OutOfMemory)),
-        E_INVALIDARG => return Err(io::Error::from(io::ErrorKind::InvalidInput)),
-        _ => return Err(io::Error::from_raw_os_error(res)),
+        E_OUTOFMEMORY => return Err(io::ErrorKind::OutOfMemory.into()),
+        E_INVALIDARG => return Err(io::ErrorKind::InvalidInput.into()),
+        _ => return Err(io::Error::from_raw_os_error(res).into()),
     };
     Ok(res)
 }
@@ -131,7 +131,7 @@ impl MessageBox {
         }
     }
 
-    pub async fn show(self, parent: Option<impl AsWindow>) -> io::Result<MessageBoxResponse> {
+    pub async fn show(self, parent: Option<impl AsWindow>) -> Result<MessageBoxResponse> {
         let parent = parent_handle(parent);
         msgbox(
             parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,

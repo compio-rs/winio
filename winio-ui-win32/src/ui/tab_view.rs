@@ -1,6 +1,5 @@
 use std::{
     cell::{Cell, RefCell},
-    io,
     mem::MaybeUninit,
     rc::Rc,
 };
@@ -22,7 +21,7 @@ use winio_handle::{AsContainer, AsRawContainer, AsRawWidget, RawContainer};
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::children_refresh_dark_mode;
 
-use crate::{View, Widget, WindowMessageNotify, ui::with_u16c};
+use crate::{Result, View, Widget, WindowMessageNotify, ui::with_u16c};
 
 #[derive(Debug)]
 pub struct TabView {
@@ -33,7 +32,7 @@ pub struct TabView {
 
 #[inherit_methods(from = "self.handle")]
 impl TabView {
-    pub fn new(parent: impl AsContainer) -> io::Result<Self> {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
         let handle = Widget::new(
             WC_TABCONTROLW,
             WS_TABSTOP | WS_CLIPCHILDREN | WS_VISIBLE | WS_CHILD | TCS_TABS,
@@ -47,21 +46,21 @@ impl TabView {
         })
     }
 
-    pub fn is_visible(&self) -> io::Result<bool>;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> io::Result<bool>;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool) -> io::Result<()>;
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn loc(&self) -> io::Result<Point>;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point) -> io::Result<()>;
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> io::Result<Size>;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) -> io::Result<()> {
+    pub fn set_size(&mut self, v: Size) -> Result<()> {
         self.handle.set_size(v)?;
         let mut rect = MaybeUninit::uninit();
         syscall!(
@@ -92,11 +91,11 @@ impl TabView {
         if i < 0 { None } else { Some(i as _) }
     }
 
-    pub fn selection(&self) -> io::Result<Option<usize>> {
+    pub fn selection(&self) -> Result<Option<usize>> {
         Ok(self.selection_impl())
     }
 
-    pub fn set_selection(&mut self, i: usize) -> io::Result<()> {
+    pub fn set_selection(&mut self, i: usize) -> Result<()> {
         self.handle.send_message(TCM_SETCURSEL, i as _, 0);
         Ok(())
     }
@@ -139,7 +138,7 @@ impl TabView {
         }
     }
 
-    pub fn insert(&mut self, i: usize, item: &TabViewItem) -> io::Result<()> {
+    pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
         self.views.insert(i, item.clone());
         {
             let mut inner = item.inner.borrow_mut();
@@ -170,7 +169,7 @@ impl TabView {
         Ok(())
     }
 
-    pub fn remove(&mut self, i: usize) -> io::Result<()> {
+    pub fn remove(&mut self, i: usize) -> Result<()> {
         let cur = self.selection()?;
         let need_reselect = cur == Some(i);
         self.handle.send_message(TCM_DELETEITEM, i, 0);
@@ -182,15 +181,15 @@ impl TabView {
         Ok(())
     }
 
-    pub fn len(&self) -> io::Result<usize> {
+    pub fn len(&self) -> Result<usize> {
         Ok(self.handle.send_message(TCM_GETITEMCOUNT, 0, 0) as _)
     }
 
-    pub fn is_empty(&self) -> io::Result<bool> {
+    pub fn is_empty(&self) -> Result<bool> {
         Ok(self.len()? == 0)
     }
 
-    pub fn clear(&mut self) -> io::Result<()> {
+    pub fn clear(&mut self) -> Result<()> {
         self.handle.send_message(TCM_DELETEALLITEMS, 0, 0);
         for item in self.views.drain(..) {
             item.inner.borrow_mut().index = None;
@@ -214,7 +213,7 @@ pub struct TabViewItem {
 }
 
 impl TabViewItem {
-    pub fn new(parent: &TabView) -> io::Result<Self> {
+    pub fn new(parent: &TabView) -> Result<Self> {
         Ok(Self {
             inner: Rc::new(RefCell::new(TabViewItemInner {
                 view: View::new_hidden(parent.as_raw_widget().as_win32())?,
@@ -224,11 +223,11 @@ impl TabViewItem {
         })
     }
 
-    pub fn text(&self) -> io::Result<String> {
+    pub fn text(&self) -> Result<String> {
         Ok(self.inner.borrow().title.clone())
     }
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) -> io::Result<()> {
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         let mut inner = self.inner.borrow_mut();
         inner.title = s.as_ref().to_string();
         unsafe {
@@ -259,7 +258,7 @@ impl TabViewItem {
         Ok(())
     }
 
-    pub fn size(&self) -> io::Result<Size> {
+    pub fn size(&self) -> Result<Size> {
         self.inner.borrow().view.size()
     }
 }

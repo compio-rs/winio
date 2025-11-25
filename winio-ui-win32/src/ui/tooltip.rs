@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::BTreeMap, io};
+use std::{cell::RefCell, collections::BTreeMap};
 
 use widestring::U16CString;
 use windows_sys::Win32::{
@@ -12,13 +12,13 @@ use windows_sys::Win32::{
     },
 };
 
-use crate::{Widget, ui::fix_crlf};
+use crate::{Result, Widget, ui::fix_crlf};
 
 thread_local! {
     static TOOLTIPS: RefCell<BTreeMap<HWND, ToolTip>> = const { RefCell::new(BTreeMap::new()) };
 }
 
-pub(crate) fn set_tooltip(hwnd: HWND, s: impl AsRef<str>) -> io::Result<()> {
+pub(crate) fn set_tooltip(hwnd: HWND, s: impl AsRef<str>) -> Result<()> {
     let s = s.as_ref();
     if s.is_empty() {
         remove_tooltip(hwnd);
@@ -55,7 +55,7 @@ pub(crate) struct ToolTip {
 }
 
 impl ToolTip {
-    pub fn new(hwnd: HWND) -> io::Result<Self> {
+    pub fn new(hwnd: HWND) -> Result<Self> {
         let parent = unsafe { GetParent(hwnd) };
         let handle = Widget::new(
             TOOLTIPS_CLASSW,

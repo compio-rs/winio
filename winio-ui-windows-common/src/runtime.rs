@@ -23,7 +23,7 @@ pub struct Runtime {
 }
 
 impl Runtime {
-    pub fn new() -> std::io::Result<Self> {
+    pub fn new() -> crate::Result<Self> {
         let runtime = winio_pollable::Runtime::new()?;
         Ok(Self {
             runtime,
@@ -31,7 +31,7 @@ impl Runtime {
         })
     }
 
-    pub fn d2d1(&self) -> std::io::Result<&ID2D1Factory2> {
+    pub fn d2d1(&self) -> crate::Result<&ID2D1Factory2> {
         self.d2d1.get_or_try_init(|| unsafe {
             Ok(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None)?)
         })

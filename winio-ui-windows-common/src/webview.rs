@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fmt::Debug, future::Future, io, rc::Rc};
+use std::{cell::RefCell, fmt::Debug, future::Future, rc::Rc};
 
 use compio_log::error;
 use futures_util::future::Either;
@@ -7,6 +7,8 @@ use winio_handle::{
     RawWidget,
 };
 use winio_primitive::{Point, Size};
+
+use crate::Result;
 
 enum LazyInitSource {
     Url(String),
@@ -34,7 +36,7 @@ impl Default for LazyInitParams {
 }
 
 impl LazyInitParams {
-    fn init<W: WebViewImpl>(&self, w: &mut W) -> io::Result<()> {
+    fn init<W: WebViewImpl>(&self, w: &mut W) -> Result<()> {
         w.set_visible(self.visible)?;
         w.set_enabled(self.enabled)?;
         w.set_loc(self.loc)?;
@@ -48,54 +50,54 @@ impl LazyInitParams {
 
 #[allow(async_fn_in_trait)]
 pub trait WebViewImpl: Sized {
-    async fn new(parent: impl AsContainer) -> io::Result<Self>;
+    async fn new(parent: impl AsContainer) -> Result<Self>;
 
-    fn is_visible(&self) -> io::Result<bool>;
-    fn set_visible(&mut self, v: bool) -> io::Result<()>;
+    fn is_visible(&self) -> Result<bool>;
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    fn is_enabled(&self) -> io::Result<bool>;
-    fn set_enabled(&mut self, v: bool) -> io::Result<()>;
+    fn is_enabled(&self) -> Result<bool>;
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    fn loc(&self) -> io::Result<Point>;
-    fn set_loc(&mut self, v: Point) -> io::Result<()>;
+    fn loc(&self) -> Result<Point>;
+    fn set_loc(&mut self, v: Point) -> Result<()>;
 
-    fn size(&self) -> io::Result<Size>;
-    fn set_size(&mut self, v: Size) -> io::Result<()>;
+    fn size(&self) -> Result<Size>;
+    fn set_size(&mut self, v: Size) -> Result<()>;
 
-    fn source(&self) -> io::Result<String>;
-    fn set_source(&mut self, s: impl AsRef<str>) -> io::Result<()>;
-    fn set_html(&mut self, s: impl AsRef<str>) -> io::Result<()>;
+    fn source(&self) -> Result<String>;
+    fn set_source(&mut self, s: impl AsRef<str>) -> Result<()>;
+    fn set_html(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    fn can_go_forward(&self) -> io::Result<bool>;
-    fn go_forward(&mut self) -> io::Result<()>;
+    fn can_go_forward(&self) -> Result<bool>;
+    fn go_forward(&mut self) -> Result<()>;
 
-    fn can_go_back(&self) -> io::Result<bool>;
-    fn go_back(&mut self) -> io::Result<()>;
+    fn can_go_back(&self) -> Result<bool>;
+    fn go_back(&mut self) -> Result<()>;
 
-    fn reload(&mut self) -> io::Result<()>;
-    fn stop(&mut self) -> io::Result<()>;
+    fn reload(&mut self) -> Result<()>;
+    fn stop(&mut self) -> Result<()>;
 
     fn wait_navigating(&self) -> impl Future<Output = ()> + 'static + use<Self>;
     fn wait_navigated(&self) -> impl Future<Output = ()> + 'static + use<Self>;
 }
 
 pub trait WebViewErrLabelImpl: Sized {
-    fn new(parent: impl AsContainer) -> io::Result<Self>;
+    fn new(parent: impl AsContainer) -> Result<Self>;
 
-    fn is_visible(&self) -> io::Result<bool>;
-    fn set_visible(&mut self, v: bool) -> io::Result<()>;
+    fn is_visible(&self) -> Result<bool>;
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    fn is_enabled(&self) -> io::Result<bool>;
-    fn set_enabled(&mut self, v: bool) -> io::Result<()>;
+    fn is_enabled(&self) -> Result<bool>;
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    fn loc(&self) -> io::Result<Point>;
-    fn set_loc(&mut self, v: Point) -> io::Result<()>;
+    fn loc(&self) -> Result<Point>;
+    fn set_loc(&mut self, v: Point) -> Result<()>;
 
-    fn size(&self) -> io::Result<Size>;
-    fn set_size(&mut self, v: Size) -> io::Result<()>;
+    fn size(&self) -> Result<Size>;
+    fn set_size(&mut self, v: Size) -> Result<()>;
 
-    fn text(&self) -> io::Result<String>;
-    fn set_text(&mut self, s: impl AsRef<str>) -> io::Result<()>;
+    fn text(&self) -> Result<String>;
+    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 enum WebViewInner<W, L> {
@@ -111,7 +113,7 @@ impl<W, L> Debug for WebViewInner<W, L> {
 }
 
 impl<W: WebViewImpl, L: WebViewErrLabelImpl> WebViewInner<W, L> {
-    pub fn is_visible(&self) -> io::Result<bool> {
+    pub fn is_visible(&self) -> Result<bool> {
         match self {
             Self::Params(p) => Ok(p.visible),
             Self::Widget(w) => w.is_visible(),
@@ -119,7 +121,7 @@ impl<W: WebViewImpl, L: WebViewErrLabelImpl> WebViewInner<W, L> {
         }
     }
 
-    pub fn set_visible(&mut self, v: bool) -> io::Result<()> {
+    pub fn set_visible(&mut self, v: bool) -> Result<()> {
         match self {
             Self::Params(p) => {
                 p.visible = v;
@@ -130,7 +132,7 @@ impl<W: WebViewImpl, L: WebViewErrLabelImpl> WebViewInner<W, L> {
         }
     }
 
-    pub fn is_enabled(&self) -> io::Result<bool> {
+    pub fn is_enabled(&self) -> Result<bool> {
         match self {
             Self::Params(p) => Ok(p.enabled),
             Self::Widget(w) => w.is_enabled(),
@@ -138,7 +140,7 @@ impl<W: WebViewImpl, L: WebViewErrLabelImpl> WebViewInner<W, L> {
         }
     }
 
-    pub fn set_enabled(&mut self, v: bool) -> io::Result<()> {
+    pub fn set_enabled(&mut self, v: bool) -> Result<()> {
         match self {
             Self::Params(p) => {
                 p.enabled = v;
@@ -149,7 +151,7 @@ impl<W: WebViewImpl, L: WebViewErrLabelImpl> WebViewInner<W, L> {
         }
     }
 
-    pub fn loc(&self) -> io::Result<Point> {
+    pub fn loc(&self) -> Result<Point> {
         match self {
             Self::Params(p) => Ok(p.loc),
             Self::Widget(w) => w.loc(),
@@ -157,7 +159,7 @@ impl<W: WebViewImpl, L: WebViewErrLabelImpl> WebViewInner<W, L> {
         }
     }
 
-    pub fn set_loc(&mut self, v: Point) -> io::Result<()> {
+    pub fn set_loc(&mut self, v: Point) -> Result<()> {
         match self {
             Self::Params(p) => {
                 p.loc = v;
@@ -168,7 +170,7 @@ impl<W: WebViewImpl, L: WebViewErrLabelImpl> WebViewInner<W, L> {
         }
     }
 
-    pub fn size(&self) -> io::Result<Size> {
+    pub fn size(&self) -> Result<Size> {
         match self {
             Self::Params(p) => Ok(p.size),
             Self::Widget(w) => w.size(),
@@ -176,7 +178,7 @@ impl<W: WebViewImpl, L: WebViewErrLabelImpl> WebViewInner<W, L> {
         }
     }
 
-    pub fn set_size(&mut self, v: Size) -> io::Result<()> {
+    pub fn set_size(&mut self, v: Size) -> Result<()> {
         match self {
             Self::Params(p) => {
                 p.size = v;
@@ -187,7 +189,7 @@ impl<W: WebViewImpl, L: WebViewErrLabelImpl> WebViewInner<W, L> {
         }
     }
 
-    pub fn source(&self) -> io::Result<String> {
+    pub fn source(&self) -> Result<String> {
         match self {
             Self::Params(p) => match &p.source {
                 LazyInitSource::Url(s) => Ok(s.clone()),
@@ -198,7 +200,7 @@ impl<W: WebViewImpl, L: WebViewErrLabelImpl> WebViewInner<W, L> {
         }
     }
 
-    pub fn set_source(&mut self, s: impl AsRef<str>) -> io::Result<()> {
+    pub fn set_source(&mut self, s: impl AsRef<str>) -> Result<()> {
         match self {
             Self::Params(p) => {
                 p.source = LazyInitSource::Url(s.as_ref().into());
@@ -209,7 +211,7 @@ impl<W: WebViewImpl, L: WebViewErrLabelImpl> WebViewInner<W, L> {
         }
     }
 
-    pub fn set_html(&mut self, s: impl AsRef<str>) -> io::Result<()> {
+    pub fn set_html(&mut self, s: impl AsRef<str>) -> Result<()> {
         match self {
             Self::Params(p) => {
                 p.source = LazyInitSource::Html(s.as_ref().into());
@@ -220,42 +222,42 @@ impl<W: WebViewImpl, L: WebViewErrLabelImpl> WebViewInner<W, L> {
         }
     }
 
-    pub fn can_go_forward(&self) -> io::Result<bool> {
+    pub fn can_go_forward(&self) -> Result<bool> {
         match self {
             Self::Params(_) | Self::ErrLabel(_) => Ok(false),
             Self::Widget(w) => w.can_go_forward(),
         }
     }
 
-    pub fn go_forward(&mut self) -> io::Result<()> {
+    pub fn go_forward(&mut self) -> Result<()> {
         match self {
             Self::Params(_) | Self::ErrLabel(_) => Ok(()),
             Self::Widget(w) => w.go_forward(),
         }
     }
 
-    pub fn can_go_back(&self) -> io::Result<bool> {
+    pub fn can_go_back(&self) -> Result<bool> {
         match self {
             Self::Params(_) | Self::ErrLabel(_) => Ok(false),
             Self::Widget(w) => w.can_go_back(),
         }
     }
 
-    pub fn go_back(&mut self) -> io::Result<()> {
+    pub fn go_back(&mut self) -> Result<()> {
         match self {
             Self::Params(_) | Self::ErrLabel(_) => Ok(()),
             Self::Widget(w) => w.go_back(),
         }
     }
 
-    pub fn reload(&mut self) -> io::Result<()> {
+    pub fn reload(&mut self) -> Result<()> {
         match self {
             Self::Params(_) | Self::ErrLabel(_) => Ok(()),
             Self::Widget(w) => w.reload(),
         }
     }
 
-    pub fn stop(&mut self) -> io::Result<()> {
+    pub fn stop(&mut self) -> Result<()> {
         match self {
             Self::Params(_) | Self::ErrLabel(_) => Ok(()),
             Self::Widget(w) => w.stop(),
@@ -293,7 +295,7 @@ pub struct WebViewLazy<W, L> {
 }
 
 impl<W: WebViewImpl + 'static, L: WebViewErrLabelImpl + 'static> WebViewLazy<W, L> {
-    pub fn new(parent: impl AsContainer) -> io::Result<Self> {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
         let inner = Rc::new(RefCell::new(
             WebViewInner::Params(LazyInitParams::default()),
         ));
@@ -304,7 +306,7 @@ impl<W: WebViewImpl + 'static, L: WebViewErrLabelImpl + 'static> WebViewLazy<W, 
                 let w = W::new(unsafe { BorrowedContainer::borrow_raw(parent.clone()) }).await;
                 let mut inner = inner.borrow_mut();
                 if let WebViewInner::Params(p) = &*inner {
-                    let init = || -> io::Result<_> {
+                    let init = || -> Result<_> {
                         let mut w = w?;
                         p.init(&mut w)?;
                         Ok(w)
@@ -314,7 +316,7 @@ impl<W: WebViewImpl + 'static, L: WebViewErrLabelImpl + 'static> WebViewLazy<W, 
                             *inner = WebViewInner::Widget(w);
                         }
                         Err(e) => {
-                            let creat = || -> io::Result<_> {
+                            let creat = || -> Result<_> {
                                 let mut l = L::new(unsafe { BorrowedContainer::borrow_raw(parent) })?;
                                 l.set_text(format!(
                                     "WebView2 failed to initialize: {}\n\n\
@@ -344,75 +346,75 @@ impl<W: WebViewImpl + 'static, L: WebViewErrLabelImpl + 'static> WebViewLazy<W, 
 }
 
 impl<W: WebViewImpl, L: WebViewErrLabelImpl> WebViewLazy<W, L> {
-    pub fn is_visible(&self) -> io::Result<bool> {
+    pub fn is_visible(&self) -> Result<bool> {
         self.inner.borrow().is_visible()
     }
 
-    pub fn set_visible(&mut self, v: bool) -> io::Result<()> {
+    pub fn set_visible(&mut self, v: bool) -> Result<()> {
         self.inner.borrow_mut().set_visible(v)
     }
 
-    pub fn is_enabled(&self) -> io::Result<bool> {
+    pub fn is_enabled(&self) -> Result<bool> {
         self.inner.borrow().is_enabled()
     }
 
-    pub fn set_enabled(&mut self, v: bool) -> io::Result<()> {
+    pub fn set_enabled(&mut self, v: bool) -> Result<()> {
         self.inner.borrow_mut().set_enabled(v)
     }
 
-    pub fn loc(&self) -> io::Result<Point> {
+    pub fn loc(&self) -> Result<Point> {
         self.inner.borrow().loc()
     }
 
-    pub fn set_loc(&mut self, v: Point) -> io::Result<()> {
+    pub fn set_loc(&mut self, v: Point) -> Result<()> {
         self.inner.borrow_mut().set_loc(v)
     }
 
-    pub fn size(&self) -> io::Result<Size> {
+    pub fn size(&self) -> Result<Size> {
         self.inner.borrow().size()
     }
 
-    pub fn set_size(&mut self, v: Size) -> io::Result<()> {
+    pub fn set_size(&mut self, v: Size) -> Result<()> {
         self.inner.borrow_mut().set_size(v)
     }
 
-    pub fn preferred_size(&self) -> io::Result<Size> {
+    pub fn preferred_size(&self) -> Result<Size> {
         Ok(Size::zero())
     }
 
-    pub fn source(&self) -> io::Result<String> {
+    pub fn source(&self) -> Result<String> {
         self.inner.borrow().source()
     }
 
-    pub fn set_source(&mut self, s: impl AsRef<str>) -> io::Result<()> {
+    pub fn set_source(&mut self, s: impl AsRef<str>) -> Result<()> {
         self.inner.borrow_mut().set_source(s)
     }
 
-    pub fn set_html(&mut self, s: impl AsRef<str>) -> io::Result<()> {
+    pub fn set_html(&mut self, s: impl AsRef<str>) -> Result<()> {
         self.inner.borrow_mut().set_html(s)
     }
 
-    pub fn can_go_forward(&self) -> io::Result<bool> {
+    pub fn can_go_forward(&self) -> Result<bool> {
         self.inner.borrow().can_go_forward()
     }
 
-    pub fn go_forward(&mut self) -> io::Result<()> {
+    pub fn go_forward(&mut self) -> Result<()> {
         self.inner.borrow_mut().go_forward()
     }
 
-    pub fn can_go_back(&self) -> io::Result<bool> {
+    pub fn can_go_back(&self) -> Result<bool> {
         self.inner.borrow().can_go_back()
     }
 
-    pub fn go_back(&mut self) -> io::Result<()> {
+    pub fn go_back(&mut self) -> Result<()> {
         self.inner.borrow_mut().go_back()
     }
 
-    pub fn reload(&mut self) -> io::Result<()> {
+    pub fn reload(&mut self) -> Result<()> {
         self.inner.borrow_mut().reload()
     }
 
-    pub fn stop(&mut self) -> io::Result<()> {
+    pub fn stop(&mut self) -> Result<()> {
         self.inner.borrow_mut().stop()
     }
 

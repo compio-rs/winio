@@ -10,6 +10,8 @@ use windows_sys::Win32::{
     },
 };
 
+use crate::Result;
+
 /// Backdrop effects for windows.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 #[non_exhaustive]
@@ -27,7 +29,7 @@ pub enum Backdrop {
 /// Get the current backdrop effect of a window.
 /// # Safety
 /// The caller must ensure that `handle` is a valid window handle.
-pub unsafe fn get_backdrop(handle: HWND) -> io::Result<Backdrop> {
+pub unsafe fn get_backdrop(handle: HWND) -> Result<Backdrop> {
     let mut style = 0;
     let res = unsafe {
         DwmGetWindowAttribute(
@@ -38,7 +40,7 @@ pub unsafe fn get_backdrop(handle: HWND) -> io::Result<Backdrop> {
         )
     };
     if res < 0 {
-        return Err(io::Error::from_raw_os_error(res));
+        return Err(io::Error::from_raw_os_error(res).into());
     }
     let style = match style {
         DWMSBT_TRANSIENTWINDOW => Backdrop::Acrylic,
@@ -52,7 +54,7 @@ pub unsafe fn get_backdrop(handle: HWND) -> io::Result<Backdrop> {
 /// Set the backdrop effect of a window.
 /// # Safety
 /// The caller must ensure that `handle` is a valid window handle.
-pub unsafe fn set_backdrop(handle: HWND, backdrop: Backdrop) -> io::Result<bool> {
+pub unsafe fn set_backdrop(handle: HWND, backdrop: Backdrop) -> Result<bool> {
     let style = match backdrop {
         Backdrop::Acrylic => DWMSBT_TRANSIENTWINDOW,
         Backdrop::Mica => DWMSBT_MAINWINDOW,
@@ -68,6 +70,6 @@ pub unsafe fn set_backdrop(handle: HWND, backdrop: Backdrop) -> io::Result<bool>
     if res >= 0 {
         Ok(style > 0)
     } else {
-        Err(io::Error::from_raw_os_error(res))
+        Err(io::Error::from_raw_os_error(res).into())
     }
 }
