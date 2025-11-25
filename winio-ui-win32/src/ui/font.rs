@@ -59,7 +59,7 @@ unsafe impl Sync for WinFont {}
 static DEFAULT_FONT: OnceLock<LOGFONTW> = OnceLock::new();
 
 fn default_log_font() -> io::Result<&'static LOGFONTW> {
-    Ok(DEFAULT_FONT.get_or_try_init(|| unsafe { system_default_font() })?)
+    DEFAULT_FONT.get_or_try_init(|| unsafe { system_default_font() })
 }
 
 static DPI_FONTS: Mutex<BTreeMap<u32, WinFont>> = Mutex::new(BTreeMap::new());

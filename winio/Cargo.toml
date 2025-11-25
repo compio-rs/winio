@@ -82,7 +82,12 @@ webview = [
 ]
 all = ["media", "webview"]
 
-nightly = ["compio/nightly", "cyper/nightly", "cyper-axum/nightly"]
+nightly = [
+    "winio-ui-win32?/nightly",
+    "compio/nightly",
+    "cyper/nightly",
+    "cyper-axum/nightly",
+]
 win32-dark-mode = [
     "winio-ui-win32?/dark-mode",
     "winio-ui-winui?/win32-dark-mode",

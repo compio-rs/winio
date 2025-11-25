@@ -6,7 +6,7 @@ use windows_sys::Win32::UI::{
     Controls::{SetScrollInfo, WC_SCROLLBARW},
     WindowsAndMessaging::{
         GetParent, GetScrollInfo, SB_CTL, SBS_HORZ, SBS_VERT, SCROLLINFO, SIF_PAGE, SIF_POS,
-        SIF_RANGE, SIF_TRACKPOS, WM_HSCROLL, WS_CHILD, WS_VISIBLE,
+        SIF_RANGE, SIF_TRACKPOS, WM_HSCROLL, WM_VSCROLL, WS_CHILD, WS_VISIBLE,
     },
 };
 use winio_handle::{AsContainer, AsRawWidget, BorrowedContainer, RawContainer, RawWidget};
@@ -234,7 +234,11 @@ impl ScrollBar {
     pub fn set_pos(&mut self, v: usize) -> io::Result<()>;
 
     pub async fn wait_change(&self) {
-        self.handle.handle.wait_parent(WM_HSCROLL).await;
+        if self.vertical {
+            self.handle.handle.wait_parent(WM_VSCROLL).await;
+        } else {
+            self.handle.handle.wait_parent(WM_HSCROLL).await;
+        }
     }
 }
 

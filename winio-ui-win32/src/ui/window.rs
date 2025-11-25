@@ -109,7 +109,7 @@ impl Widget {
         }
         unsafe {
             control_use_dark_mode(handle, false)?;
-            crate::runtime::refresh_font(handle);
+            crate::runtime::refresh_font(handle)?;
             Ok(Self(OwnedWindow::from_raw_window(handle)))
         }
     }
@@ -411,7 +411,7 @@ fn register() {
         lpszClassName: WINDOW_CLASS_NAME.as_ptr(),
         hIconSm: null_mut(),
     };
-    syscall!(BOOL, RegisterClassExW(&cls)).unwrap();
+    syscall!(BOOL, RegisterClassExW(&cls)).expect("RegisterClassExW failed");
 }
 
 static REGISTER: Once = Once::new();

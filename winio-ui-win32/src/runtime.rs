@@ -265,12 +265,12 @@ pub(crate) unsafe extern "system" fn window_proc(
     match msg {
         WM_CREATE => {
             window_use_dark_mode(handle);
-            refresh_background(handle);
+            refresh_background(handle).ok();
         }
         WM_SETTINGCHANGE => {
             window_use_dark_mode(handle);
             children_refresh_dark_mode(handle, 0);
-            refresh_background(handle);
+            refresh_background(handle).ok();
             InvalidateRect(handle, null(), 1);
         }
         WM_CTLCOLORSTATIC => {
@@ -301,7 +301,7 @@ pub(crate) unsafe extern "system" fn window_proc(
                     );
                 }
             }
-            refresh_font(handle);
+            refresh_font(handle).ok();
         }
         _ => {}
     }

@@ -1,14 +1,16 @@
 use std::{
+    io,
     mem::{MaybeUninit, size_of},
     ptr::null_mut,
 };
 
 use compio::driver::syscall;
+use compio_log::error;
 use futures_util::FutureExt;
 use inherit_methods_macro::inherit_methods;
 use windows_sys::{
     Win32::{
-        Foundation::{HWND, LPARAM, RECT, WPARAM},
+        Foundation::{GetLastError, HWND, LPARAM, RECT, SetLastError, WPARAM},
         Graphics::Gdi::MapWindowPoints,
         UI::{
             Controls::{SetScrollInfo, ShowScrollBar},
@@ -39,39 +41,38 @@ pub struct ScrollView {
 
 #[inherit_methods(from = "self.handle")]
 impl ScrollView {
-    pub fn new(parent: impl AsContainer) -> Self {
-        let mut handle = Widget::new(
+    pub fn new(parent: impl AsContainer) -> io::Result<Self> {
+        let handle = Widget::new(
             window_class_name(),
             WS_CHILDWINDOW | WS_CLIPCHILDREN | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL,
             WS_EX_CONTROLPARENT,
             parent.as_container().as_win32(),
-        );
-        handle.set_size(handle.size_d2l((100, 100)));
-        let view = View::new(&handle);
-        Self {
+        )?;
+        let view = View::new(&handle)?;
+        Ok(Self {
             handle,
             view,
             hscroll: true,
             vscroll: true,
-        }
+        })
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> io::Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> io::Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> io::Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> io::Result<()>;
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> io::Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> io::Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> io::Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) {
-        self.handle.set_size(v);
+    pub fn set_size(&mut self, v: Size) -> io::Result<()> {
+        self.handle.set_size(v)?;
         let handle = self.handle.as_raw_widget().as_win32();
         let view = self.view.as_raw_widget().as_win32();
 
@@ -83,8 +84,15 @@ impl ScrollView {
         };
         unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
             let mut rect = MaybeUninit::uninit();
-            GetWindowRect(hwnd, rect.as_mut_ptr());
-            MapWindowPoints(HWND_DESKTOP, GetParent(hwnd), &mut rect as *mut _ as _, 2);
+            if GetWindowRect(hwnd, rect.as_mut_ptr()) == 0 {
+                return 0;
+            }
+            SetLastError(0);
+            if MapWindowPoints(HWND_DESKTOP, GetParent(hwnd), &mut rect as *mut _ as _, 2) == 0
+                && GetLastError() != 0
+            {
+                return 0;
+            }
             let rect = rect.assume_init();
             let old_rect = unsafe { &mut *(lparam as *mut RECT) };
             if rect.left < old_rect.left {
@@ -107,7 +115,8 @@ impl ScrollView {
         let (vwidth, vheight) = self.handle.size_l2d(v);
         let cwidth = (rect.right - rect.left).max(vwidth - 2);
         let cheight = (rect.bottom - rect.top).max(vheight - 2);
-        self.view.set_size(self.handle.size_d2l((cwidth, cheight)));
+        self.view
+            .set_size(self.handle.size_d2l((cwidth, cheight)))?;
 
         let mut si = SCROLLINFO {
             cbSize: size_of::<SCROLLINFO>() as u32,
@@ -126,7 +135,7 @@ impl ScrollView {
             si.fMask = SIF_PAGE | SIF_RANGE;
             unsafe { SetScrollInfo(handle, SB_HORZ, &si, 1) };
             si.fMask = SIF_POS;
-            syscall!(BOOL, GetScrollInfo(handle, SB_HORZ, &mut si)).unwrap();
+            syscall!(BOOL, GetScrollInfo(handle, SB_HORZ, &mut si))?;
             x = -si.nPos;
         }
         if self.vscroll {
@@ -135,17 +144,17 @@ impl ScrollView {
             si.fMask = SIF_PAGE | SIF_RANGE;
             unsafe { SetScrollInfo(handle, SB_VERT, &si, 1) };
             si.fMask = SIF_POS;
-            syscall!(BOOL, GetScrollInfo(handle, SB_VERT, &mut si)).unwrap();
+            syscall!(BOOL, GetScrollInfo(handle, SB_VERT, &mut si))?;
             y = -si.nPos;
         }
-        self.scroll_view(x, y);
+        self.scroll_view(x, y)
     }
 
-    pub fn hscroll(&self) -> bool {
-        self.hscroll
+    pub fn hscroll(&self) -> io::Result<bool> {
+        Ok(self.hscroll)
     }
 
-    pub fn set_hscroll(&mut self, v: bool) {
+    pub fn set_hscroll(&mut self, v: bool) -> io::Result<()> {
         self.hscroll = v;
         syscall!(
             BOOL,
@@ -154,15 +163,15 @@ impl ScrollView {
                 SB_HORZ,
                 if v { 1 } else { 0 }
             )
-        )
-        .unwrap();
+        )?;
+        Ok(())
     }
 
-    pub fn vscroll(&self) -> bool {
-        self.vscroll
+    pub fn vscroll(&self) -> io::Result<bool> {
+        Ok(self.vscroll)
     }
 
-    pub fn set_vscroll(&mut self, v: bool) {
+    pub fn set_vscroll(&mut self, v: bool) -> io::Result<()> {
         self.vscroll = v;
         syscall!(
             BOOL,
@@ -171,11 +180,11 @@ impl ScrollView {
                 SB_VERT,
                 if v { 1 } else { 0 }
             )
-        )
-        .unwrap();
+        )?;
+        Ok(())
     }
 
-    fn scroll_view(&self, x: i32, y: i32) {
+    fn scroll_view(&self, x: i32, y: i32) -> io::Result<()> {
         syscall!(
             BOOL,
             SetWindowPos(
@@ -187,11 +196,11 @@ impl ScrollView {
                 0,
                 SWP_NOSIZE | SWP_NOZORDER
             )
-        )
-        .unwrap();
+        )?;
+        Ok(())
     }
 
-    fn scroll(&self, dir: i32, wparam: WPARAM, wheel: bool) {
+    fn scroll(&self, dir: i32, wparam: WPARAM, wheel: bool) -> io::Result<()> {
         let parent = self.handle.as_raw_widget().as_win32();
         unsafe {
             let mut si = SCROLLINFO {
@@ -203,7 +212,7 @@ impl ScrollView {
                 nPos: 0,
                 nTrackPos: 0,
             };
-            syscall!(BOOL, GetScrollInfo(parent, dir, &mut si)).unwrap();
+            syscall!(BOOL, GetScrollInfo(parent, dir, &mut si))?;
 
             if wheel {
                 let delta = ((wparam >> 16) & 0xFFFF) as i16 as isize;
@@ -222,20 +231,20 @@ impl ScrollView {
             }
             si.fMask = SIF_POS;
             SetScrollInfo(parent, dir, &si, 1);
-            syscall!(BOOL, GetScrollInfo(parent, dir, &mut si)).unwrap();
+            syscall!(BOOL, GetScrollInfo(parent, dir, &mut si))?;
 
             let (x, y) = if dir == SB_HORZ {
                 (-si.nPos, 0)
             } else {
                 (0, -si.nPos)
             };
-            self.scroll_view(x, y);
+            self.scroll_view(x, y)
         }
     }
 
     pub async fn start(&self) -> ! {
         loop {
-            futures_util::select! {
+            let res = futures_util::select! {
                 msg = self.handle.wait(WM_VSCROLL).fuse() => {
                     self.scroll(SB_VERT, msg.wparam(), false)
                 },
@@ -248,6 +257,12 @@ impl ScrollView {
                 msg = self.handle.wait(WM_MOUSEHWHEEL).fuse() => {
                     self.scroll(SB_HORZ, msg.wparam(), true)
                 },
+            };
+            match res {
+                Ok(()) => {}
+                Err(_e) => {
+                    error!("scroll error: {_e:?}");
+                }
             }
         }
     }

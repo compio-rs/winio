@@ -219,7 +219,10 @@ impl Canvas {
         match syscall!(BOOL, MapWindowPoints(parent, handle, &mut p, 1)) {
             Ok(_) => {}
             Err(e) if e.raw_os_error() == Some(0) => {}
-            Err(e) => panic!("{e:?}"),
+            Err(_e) => {
+                error!("MapWindowPoints: {_e:?}");
+                return None;
+            }
         }
         let p = self.handle.point_d2l((p.x, p.y));
         let size = self.size().ok()?;
@@ -244,7 +247,7 @@ impl DrawingContext<'_> {
             match self.ctx.render_target().EndDraw(None, None) {
                 Ok(()) => Ok(()),
                 Err(e) if e.code() == D2DERR_RECREATE_TARGET => self.canvas.handle_lost(),
-                Err(e) => return Err(e.into()),
+                Err(e) => Err(e.into()),
             }
         }
     }
