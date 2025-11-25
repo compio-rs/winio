@@ -128,9 +128,10 @@ impl ComboBoxImpl {
                 self.handle.send_message(CB_SETCURSEL, -1isize as _, 0);
             }
         }
-        unsafe {
-            InvalidateRect(self.handle.as_raw_window().as_win32(), std::ptr::null(), 1);
-        }
+        syscall!(
+            BOOL,
+            InvalidateRect(self.handle.as_raw_window().as_win32(), null(), 1)
+        )?;
     }
 
     fn get_u16(&self, i: usize) -> U16CString {

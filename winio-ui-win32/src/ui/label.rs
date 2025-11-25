@@ -1,16 +1,14 @@
-use std::{io, ptr::null};
+use std::io;
 
-use compio::driver::syscall;
 use inherit_methods_macro::inherit_methods;
 use windows_sys::Win32::{
-    Graphics::Gdi::InvalidateRect,
     System::SystemServices::{SS_CENTER, SS_LEFT, SS_NOTIFY, SS_RIGHT},
     UI::{
         Controls::WC_STATICW,
         WindowsAndMessaging::{WS_CHILD, WS_EX_TRANSPARENT, WS_VISIBLE},
     },
 };
-use winio_handle::{AsContainer, AsRawWindow};
+use winio_handle::AsContainer;
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::ui::Widget;
@@ -23,7 +21,7 @@ pub struct Label {
 #[inherit_methods(from = "self.handle")]
 impl Label {
     pub fn new(parent: impl AsContainer) -> io::Result<Self> {
-        let mut handle = Widget::new(
+        let handle = Widget::new(
             WC_STATICW,
             // Without SS_NOTIFY ToolTip won't work
             WS_CHILD | WS_VISIBLE | SS_LEFT | SS_NOTIFY,
@@ -53,11 +51,7 @@ impl Label {
 
     pub fn set_size(&mut self, v: Size) -> io::Result<()> {
         self.handle.set_size(v)?;
-        syscall!(
-            BOOL,
-            InvalidateRect(self.handle.as_raw_window().as_win32(), null(), 1)
-        )?;
-        Ok(())
+        self.handle.invalidate(true)
     }
 
     pub fn tooltip(&self) -> io::Result<String>;

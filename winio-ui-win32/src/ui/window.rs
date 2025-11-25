@@ -11,7 +11,7 @@ use inherit_methods_macro::inherit_methods;
 use widestring::{U16CStr, U16CString, U16Str, u16cstr};
 use windows_sys::Win32::{
     Foundation::{ERROR_INVALID_HANDLE, HWND, LPARAM, LRESULT, SetLastError, WPARAM},
-    Graphics::Gdi::{GetStockObject, MapWindowPoints, WHITE_BRUSH},
+    Graphics::Gdi::{GetStockObject, InvalidateRect, MapWindowPoints, WHITE_BRUSH},
     UI::{
         Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled},
         WindowsAndMessaging::{
@@ -294,6 +294,18 @@ impl Widget {
                 .map(|len| len as usize)
             })
         }
+    }
+
+    pub fn invalidate(&self, erase: bool) -> io::Result<()> {
+        syscall!(
+            BOOL,
+            InvalidateRect(
+                self.as_raw_window().as_win32(),
+                null(),
+                if erase { 1 } else { 0 }
+            )
+        )?;
+        Ok(())
     }
 
     pub fn style(&self) -> io::Result<u32> {

@@ -632,7 +632,9 @@ pub unsafe fn children_refresh_dark_mode(handle: HWND, lparam: LPARAM) {
         if control_use_dark_mode(hwnd, lparam != 0).is_err() {
             return 0;
         }
-        InvalidateRect(hwnd, null(), 1);
+        if InvalidateRect(hwnd, null(), 1) == 0 {
+            return 0;
+        }
         EnumChildWindows(hwnd, Some(enum_callback), lparam);
         1
     }

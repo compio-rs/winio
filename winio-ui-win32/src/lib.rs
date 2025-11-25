@@ -4,6 +4,8 @@
 #![cfg_attr(feature = "once_cell_try", feature(once_cell_try))]
 #![cfg(windows)]
 
+pub use std::io::{Error, Result};
+
 scoped_tls::scoped_thread_local!(pub(crate) static RUNTIME: Runtime);
 
 mod runtime;

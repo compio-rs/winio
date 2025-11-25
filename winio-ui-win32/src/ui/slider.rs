@@ -1,3 +1,5 @@
+use std::io;
+
 use inherit_methods_macro::inherit_methods;
 use windows_sys::Win32::UI::{
     Controls::{
@@ -22,70 +24,73 @@ struct SliderImpl {
 
 #[inherit_methods(from = "self.handle")]
 impl SliderImpl {
-    pub fn new(parent: impl AsContainer, style: u32) -> Self {
-        let mut handle = Widget::new(
+    pub fn new(parent: impl AsContainer, style: u32) -> io::Result<Self> {
+        let handle = Widget::new(
             TRACKBAR_CLASSW,
             WS_CHILD | WS_TABSTOP | TBS_AUTOTICKS | style,
             0,
             parent.as_container().as_win32(),
-        );
-        handle.set_size(handle.size_d2l((50, 14)));
-        Self { handle, freq: 1 }
+        )?;
+        Ok(Self { handle, freq: 1 })
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> io::Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> io::Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> io::Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> io::Result<()>;
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> io::Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> io::Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> io::Result<Size>;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&mut self, v: Size) -> io::Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> io::Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> io::Result<()>;
 
-    pub fn minimum(&self) -> usize {
-        self.handle.send_message(TBM_GETRANGEMIN, 0, 0) as _
+    pub fn minimum(&self) -> io::Result<usize> {
+        Ok(self.handle.send_message(TBM_GETRANGEMIN, 0, 0) as _)
     }
 
-    pub fn set_minimum(&mut self, v: usize) {
+    pub fn set_minimum(&mut self, v: usize) -> io::Result<()> {
         self.handle.send_message(TBM_SETRANGEMIN, 1, v as _);
+        Ok(())
     }
 
-    pub fn maximum(&self) -> usize {
-        self.handle.send_message(TBM_GETRANGEMAX, 0, 0) as _
+    pub fn maximum(&self) -> io::Result<usize> {
+        Ok(self.handle.send_message(TBM_GETRANGEMAX, 0, 0) as _)
     }
 
-    pub fn set_maximum(&mut self, v: usize) {
+    pub fn set_maximum(&mut self, v: usize) -> io::Result<()> {
         self.handle.send_message(TBM_SETRANGEMAX, 1, v as _);
+        Ok(())
     }
 
-    pub fn freq(&self) -> usize {
-        self.freq
+    pub fn freq(&self) -> io::Result<usize> {
+        Ok(self.freq)
     }
 
-    pub fn set_freq(&mut self, v: usize) {
+    pub fn set_freq(&mut self, v: usize) -> io::Result<()> {
         self.freq = v;
         self.handle.send_message(TBM_SETTICFREQ, v, 0);
+        Ok(())
     }
 
-    pub fn pos(&self) -> usize {
+    pub fn pos(&self) -> io::Result<usize> {
         // Why isn't it in `windows-sys`?
         const TBM_GETPOS: u32 = WM_USER;
-        self.handle.send_message(TBM_GETPOS, 0, 0) as _
+        Ok(self.handle.send_message(TBM_GETPOS, 0, 0) as _)
     }
 
-    pub fn set_pos(&mut self, v: usize) {
+    pub fn set_pos(&mut self, v: usize) -> io::Result<()> {
         self.handle.send_message(TBM_SETPOSNOTIFY, 0, v as _);
+        Ok(())
     }
 }
 
@@ -104,16 +109,16 @@ pub struct Slider {
 
 #[inherit_methods(from = "self.handle")]
 impl Slider {
-    pub fn new(parent: impl AsContainer) -> Self {
-        let handle = SliderImpl::new(&parent, WS_VISIBLE | TBS_BOTH | TBS_HORZ);
-        Self {
+    pub fn new(parent: impl AsContainer) -> io::Result<Self> {
+        let handle = SliderImpl::new(&parent, WS_VISIBLE | TBS_BOTH | TBS_HORZ)?;
+        Ok(Self {
             handle,
             vertical: false,
             tick_pos: TickPosition::Both,
-        }
+        })
     }
 
-    fn recreate(&mut self, vertical: bool, tick_pos: TickPosition) {
+    fn recreate(&mut self, vertical: bool, tick_pos: TickPosition) -> io::Result<()> {
         let parent = unsafe { GetParent(self.handle.as_raw_widget().as_win32()) };
         let mut style = WS_VISIBLE;
         style |= match tick_pos {
@@ -126,94 +131,99 @@ impl Slider {
         let mut new_handle = SliderImpl::new(
             unsafe { BorrowedContainer::borrow_raw(RawContainer::Win32(parent)) },
             style,
-        );
-        new_handle.set_visible(self.handle.is_visible());
-        new_handle.set_enabled(self.handle.is_enabled());
-        new_handle.set_loc(self.handle.loc());
-        new_handle.set_size(self.handle.size());
-        new_handle.set_tooltip(self.handle.tooltip());
-        new_handle.set_minimum(self.handle.minimum());
-        new_handle.set_maximum(self.handle.maximum());
-        new_handle.set_freq(self.handle.freq());
-        new_handle.set_pos(self.handle.pos());
+        )?;
+        new_handle.set_visible(self.handle.is_visible()?)?;
+        new_handle.set_enabled(self.handle.is_enabled()?)?;
+        new_handle.set_loc(self.handle.loc()?)?;
+        new_handle.set_size(self.handle.size()?)?;
+        new_handle.set_tooltip(self.handle.tooltip()?)?;
+        new_handle.set_minimum(self.handle.minimum()?)?;
+        new_handle.set_maximum(self.handle.maximum()?)?;
+        new_handle.set_freq(self.handle.freq()?)?;
+        new_handle.set_pos(self.handle.pos()?)?;
         self.handle = new_handle;
+        Ok(())
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> io::Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> io::Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> io::Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> io::Result<()>;
 
-    pub fn preferred_size(&self) -> Size {
+    pub fn preferred_size(&self) -> io::Result<Size> {
         let base_length = match self.tick_pos {
             TickPosition::None => 20.0,
             TickPosition::TopLeft | TickPosition::BottomRight => 30.0,
             TickPosition::Both => 40.0,
         };
-        if self.vertical {
+        let size = if self.vertical {
             Size::new(base_length, 0.0)
         } else {
             Size::new(0.0, base_length)
-        }
+        };
+        Ok(size)
     }
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> io::Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> io::Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> io::Result<Size>;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&mut self, v: Size) -> io::Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> io::Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> io::Result<()>;
 
-    pub fn tick_pos(&self) -> TickPosition {
-        self.tick_pos
+    pub fn tick_pos(&self) -> io::Result<TickPosition> {
+        Ok(self.tick_pos)
     }
 
-    pub fn set_tick_pos(&mut self, v: TickPosition) {
+    pub fn set_tick_pos(&mut self, v: TickPosition) -> io::Result<()> {
         if self.tick_pos != v {
-            self.recreate(self.vertical, v);
+            self.recreate(self.vertical, v)?;
             self.tick_pos = v;
         }
+        Ok(())
     }
 
-    pub fn orient(&self) -> Orient {
-        if self.vertical {
+    pub fn orient(&self) -> io::Result<Orient> {
+        let orient = if self.vertical {
             Orient::Vertical
         } else {
             Orient::Horizontal
-        }
+        };
+        Ok(orient)
     }
 
-    pub fn set_orient(&mut self, v: Orient) {
+    pub fn set_orient(&mut self, v: Orient) -> io::Result<()> {
         let v = matches!(v, Orient::Vertical);
         if self.vertical != v {
-            self.recreate(v, self.tick_pos);
+            self.recreate(v, self.tick_pos)?;
             self.vertical = v;
         }
+        Ok(())
     }
 
-    pub fn minimum(&self) -> usize;
+    pub fn minimum(&self) -> io::Result<usize>;
 
-    pub fn set_minimum(&mut self, v: usize);
+    pub fn set_minimum(&mut self, v: usize) -> io::Result<()>;
 
-    pub fn maximum(&self) -> usize;
+    pub fn maximum(&self) -> io::Result<usize>;
 
-    pub fn set_maximum(&mut self, v: usize);
+    pub fn set_maximum(&mut self, v: usize) -> io::Result<()>;
 
-    pub fn freq(&self) -> usize;
+    pub fn freq(&self) -> io::Result<usize>;
 
-    pub fn set_freq(&mut self, v: usize);
+    pub fn set_freq(&mut self, v: usize) -> io::Result<()>;
 
-    pub fn pos(&self) -> usize;
+    pub fn pos(&self) -> io::Result<usize>;
 
-    pub fn set_pos(&mut self, v: usize);
+    pub fn set_pos(&mut self, v: usize) -> io::Result<()>;
 
     pub async fn wait_change(&self) {
         if self.vertical {
