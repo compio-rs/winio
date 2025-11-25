@@ -48,7 +48,7 @@ impl<T: Clone> ObservableVec<T> {
 
     /// Replaces the element at specified position, and return the old value.
     pub fn replace(&mut self, i: usize, v: T) -> T {
-        let element = self.vec.get_mut(i).unwrap();
+        let element = &mut self.vec[i];
         let old = std::mem::replace(element, v.clone());
         self.sender.output(ObservableVecEvent::Replace {
             at: i,

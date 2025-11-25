@@ -5,7 +5,7 @@ use std::{
 
 use async_stream::stream;
 use futures_util::Stream;
-#[cfg(feature = "layout")]
+#[cfg(feature = "primitive")]
 use inherit_methods_macro::inherit_methods;
 use smallvec::SmallVec;
 #[cfg(feature = "handle")]
@@ -13,10 +13,8 @@ use winio_handle::{
     AsContainer, AsRawContainer, AsRawWidget, AsRawWindow, AsWidget, AsWindow, BorrowedContainer,
     BorrowedWidget, BorrowedWindow, RawContainer, RawWidget, RawWindow,
 };
-#[cfg(feature = "layout")]
-use winio_layout::Layoutable;
-#[cfg(feature = "layout")]
-use winio_primitive::{Point, Rect, Size};
+#[cfg(feature = "primitive")]
+use winio_primitive::{Failable, Layoutable, Point, Rect, Size};
 
 use super::ComponentMessage;
 use crate::{Component, ComponentSender};
@@ -213,22 +211,27 @@ impl<T: Component + Debug> Debug for Child<T> {
     }
 }
 
-#[cfg(feature = "layout")]
+#[cfg(feature = "primitive")]
+impl<T: Component + Failable> Failable for Child<T> {
+    type Error = T::Error;
+}
+
+#[cfg(feature = "primitive")]
 #[inherit_methods(from = "self.model")]
 impl<T: Component + Layoutable> Layoutable for Child<T> {
-    fn loc(&self) -> Point;
+    fn loc(&self) -> Result<Point, Self::Error>;
 
-    fn set_loc(&mut self, p: Point);
+    fn set_loc(&mut self, p: Point) -> Result<(), Self::Error>;
 
-    fn size(&self) -> Size;
+    fn size(&self) -> Result<Size, Self::Error>;
 
-    fn set_size(&mut self, s: Size);
+    fn set_size(&mut self, s: Size) -> Result<(), Self::Error>;
 
-    fn rect(&self) -> Rect;
+    fn rect(&self) -> Result<Rect, Self::Error>;
 
-    fn set_rect(&mut self, r: Rect);
+    fn set_rect(&mut self, r: Rect) -> Result<(), Self::Error>;
 
-    fn preferred_size(&self) -> Size;
+    fn preferred_size(&self) -> Result<Size, Self::Error>;
 
-    fn min_size(&self) -> Size;
+    fn min_size(&self) -> Result<Size, Self::Error>;
 }

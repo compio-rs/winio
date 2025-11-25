@@ -14,7 +14,7 @@ repository = { workspace = true }
 winio-primitive = { workspace = true }
 winio-layout = { workspace = true }
 winio-handle = { workspace = true }
-winio-elm = { workspace = true, features = ["handle", "layout"] }
+winio-elm = { workspace = true, features = ["handle", "primitive"] }
 
 compio = { workspace = true }
 compio-log = { workspace = true }
