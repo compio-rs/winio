@@ -114,14 +114,17 @@ impl<'a, E> StackPanel<'a, E> {
         render(tree, root, nodes, self.loc, self.size, &mut self.children)
     }
 
+    /// Move the location.
     pub fn set_loc(&mut self, p: Point) -> Result<(), LayoutError<E>> {
         LayoutChild::set_child_loc(self, p)
     }
 
+    /// Resize.
     pub fn set_size(&mut self, s: Size) -> Result<(), LayoutError<E>> {
         LayoutChild::set_child_size(self, s)
     }
 
+    /// Set the location and size.
     pub fn set_rect(&mut self, r: Rect) -> Result<(), LayoutError<E>> {
         LayoutChild::set_child_rect(self, r)
     }
