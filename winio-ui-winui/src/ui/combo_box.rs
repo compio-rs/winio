@@ -11,7 +11,7 @@ use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::Xaml::Controls::{self as MUXC, SelectionChangedEventHandler};
 
-use crate::{GlobalRuntime, Widget, ui::ToIReference};
+use crate::{GlobalRuntime, Result, Widget, ui::ToIReference};
 
 #[derive(Debug)]
 pub struct ComboBox {
@@ -23,34 +23,30 @@ pub struct ComboBox {
 
 #[inherit_methods(from = "self.handle")]
 impl ComboBox {
-    pub fn new(parent: impl AsContainer) -> Self {
-        let combo_box = MUXC::ComboBox::new().unwrap();
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let combo_box = MUXC::ComboBox::new()?;
         let on_select = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_select = on_select.clone();
-            combo_box
-                .SelectionChanged(&SelectionChangedEventHandler::new(move |_, _| {
-                    on_select.signal::<GlobalRuntime>(());
-                    Ok(())
-                }))
-                .unwrap();
+            combo_box.SelectionChanged(&SelectionChangedEventHandler::new(move |_, _| {
+                on_select.signal::<GlobalRuntime>(());
+                Ok(())
+            }))?;
         }
         let on_edit = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_edit = on_edit.clone();
-            combo_box
-                .TextSubmitted(&TypedEventHandler::new(move |_, _| {
-                    on_edit.signal::<GlobalRuntime>(());
-                    Ok(())
-                }))
-                .unwrap();
+            combo_box.TextSubmitted(&TypedEventHandler::new(move |_, _| {
+                on_edit.signal::<GlobalRuntime>(());
+                Ok(())
+            }))?;
         }
-        Self {
+        Ok(Self {
             on_select,
             on_edit,
-            handle: Widget::new(parent, combo_box.cast().unwrap()),
+            handle: Widget::new(parent, combo_box.cast()?)?,
             combo_box,
-        }
+        })
     }
 
     pub fn is_visible(&self) -> bool;
@@ -76,28 +72,28 @@ impl ComboBox {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>);
 
     pub fn text(&self) -> String {
-        self.combo_box.Text().unwrap().to_string_lossy()
+        self.combo_box.Text()?.to_string_lossy()
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.combo_box.SetText(&HSTRING::from(s.as_ref())).unwrap();
+        self.combo_box.SetText(&HSTRING::from(s.as_ref()))?;
     }
 
     pub fn selection(&self) -> Option<usize> {
-        let i = self.combo_box.SelectedIndex().unwrap();
+        let i = self.combo_box.SelectedIndex()?;
         if i < 0 { None } else { Some(i as usize) }
     }
 
     pub fn set_selection(&mut self, i: usize) {
-        self.combo_box.SetSelectedIndex(i as _).unwrap();
+        self.combo_box.SetSelectedIndex(i as _)?;
     }
 
     pub fn is_editable(&self) -> bool {
-        self.combo_box.IsEditable().unwrap()
+        self.combo_box.IsEditable()?
     }
 
     pub fn set_editable(&self, v: bool) {
-        self.combo_box.SetIsEditable(v).unwrap();
+        self.combo_box.SetIsEditable(v)?;
     }
 
     pub async fn wait_select(&self) {
@@ -109,14 +105,11 @@ impl ComboBox {
     }
 
     pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
-        let item = MUXC::ComboBoxItem::new().unwrap();
-        item.SetContent(&HSTRING::from(s.as_ref()).to_reference())
-            .unwrap();
+        let item = MUXC::ComboBoxItem::new()?;
+        item.SetContent(&HSTRING::from(s.as_ref()).to_reference())?;
         self.combo_box
-            .Items()
-            .unwrap()
-            .InsertAt(i as _, &item.cast::<IInspectable>().unwrap())
-            .unwrap();
+            .Items()?
+            .InsertAt(i as _, &item.cast::<IInspectable>()?)?;
         if (!self.is_editable()) && self.len() == 1 {
             self.set_selection(0);
         }
@@ -124,40 +117,34 @@ impl ComboBox {
 
     pub fn remove(&mut self, i: usize) {
         let remove_current = self.selection() == Some(i);
-        self.combo_box.Items().unwrap().RemoveAt(i as _).unwrap();
+        self.combo_box.Items()?.RemoveAt(i as _)?;
         let len = self.len();
         if remove_current && (!self.is_editable()) {
             if len > 0 {
                 self.set_selection(i.min(len - 1));
             } else {
-                self.combo_box.SetSelectedIndex(-1).unwrap();
+                self.combo_box.SetSelectedIndex(-1)?;
             }
         }
     }
 
     pub fn get(&self, i: usize) -> String {
-        let item = self.combo_box.Items().unwrap().GetAt(i as _).unwrap();
-        item.cast::<MUXC::ComboBoxItem>()
-            .unwrap()
-            .Content()
-            .unwrap()
-            .cast::<IReference<HSTRING>>()
-            .unwrap()
-            .Value()
-            .unwrap()
+        let item = self.combo_box.Items()?.GetAt(i as _)?;
+        item.cast::<MUXC::ComboBoxItem>()?
+            .Content()?
+            .cast::<IReference<HSTRING>>()?
+            .Value()?
             .to_string_lossy()
     }
 
     pub fn set(&mut self, i: usize, s: impl AsRef<str>) {
-        let item = self.combo_box.Items().unwrap().GetAt(i as _).unwrap();
-        item.cast::<MUXC::ComboBoxItem>()
-            .unwrap()
-            .SetContent(&HSTRING::from(s.as_ref()).to_reference())
-            .unwrap();
+        let item = self.combo_box.Items()?.GetAt(i as _)?;
+        item.cast::<MUXC::ComboBoxItem>()?
+            .SetContent(&HSTRING::from(s.as_ref()).to_reference())?;
     }
 
     pub fn len(&self) -> usize {
-        self.combo_box.Items().unwrap().Size().unwrap() as usize
+        self.combo_box.Items()?.Size()? as usize
     }
 
     pub fn is_empty(&self) -> bool {
@@ -165,7 +152,7 @@ impl ComboBox {
     }
 
     pub fn clear(&mut self) {
-        self.combo_box.Items().unwrap().Clear().unwrap();
+        self.combo_box.Items()?.Clear()?;
     }
 }
 

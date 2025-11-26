@@ -11,7 +11,7 @@ use winui3::Microsoft::UI::Xaml::{
     RoutedEventHandler, TextWrapping, Visibility,
 };
 
-use crate::{GlobalRuntime, Widget, ui::Convertible};
+use crate::{GlobalRuntime, Result, Widget, ui::Convertible};
 
 #[derive(Debug)]
 pub struct Edit {
@@ -23,37 +23,33 @@ pub struct Edit {
 
 #[inherit_methods(from = "self.handle")]
 impl Edit {
-    pub fn new(parent: impl AsContainer) -> Self {
-        let text_box = MUXC::TextBox::new().unwrap();
-        let password_box = MUXC::PasswordBox::new().unwrap();
-        password_box.SetVisibility(Visibility::Collapsed).unwrap();
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let text_box = MUXC::TextBox::new()?;
+        let password_box = MUXC::PasswordBox::new()?;
+        password_box.SetVisibility(Visibility::Collapsed)?;
 
         let on_change = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_change = on_change.clone();
-            text_box
-                .TextChanged(&TextChangedEventHandler::new(move |_, _| {
-                    on_change.signal::<GlobalRuntime>(());
-                    Ok(())
-                }))
-                .unwrap();
+            text_box.TextChanged(&TextChangedEventHandler::new(move |_, _| {
+                on_change.signal::<GlobalRuntime>(());
+                Ok(())
+            }))?;
         }
         {
             let on_change = on_change.clone();
-            password_box
-                .PasswordChanged(&RoutedEventHandler::new(move |_, _| {
-                    on_change.signal::<GlobalRuntime>(());
-                    Ok(())
-                }))
-                .unwrap();
+            password_box.PasswordChanged(&RoutedEventHandler::new(move |_, _| {
+                on_change.signal::<GlobalRuntime>(());
+                Ok(())
+            }))?;
         }
 
-        Self {
+        Ok(Self {
             on_change,
-            handle: Widget::new(&parent, text_box.cast().unwrap()),
+            handle: Widget::new(&parent, text_box.cast()?)?,
             password: false,
             halign: HAlign::Left,
-        }
+        })
     }
 
     fn parent(&self) -> BorrowedContainer<'_> {
@@ -61,118 +57,114 @@ impl Edit {
         unsafe { BorrowedContainer::borrow_raw(RawContainer::WinUI(parent)) }
     }
 
-    fn recreate(&mut self, password: bool) {
+    fn recreate(&mut self, password: bool) -> Result<()> {
         let mut widget = if password {
-            let password_box = MUXC::PasswordBox::new().unwrap();
+            let password_box = MUXC::PasswordBox::new()?;
             let text_box = self
                 .handle
                 .as_raw_widget()
                 .as_winui()
-                .cast::<MUXC::TextBox>()
-                .unwrap();
-            password_box.SetPassword(&text_box.Text().unwrap()).unwrap();
-            Widget::new(self.parent(), password_box.cast().unwrap())
+                .cast::<MUXC::TextBox>()?;
+            password_box.SetPassword(&text_box.Text()?)?;
+            Widget::new(self.parent(), password_box.cast()?)?
         } else {
-            let text_box = MUXC::TextBox::new().unwrap();
+            let text_box = MUXC::TextBox::new()?;
             let password_box = self
                 .handle
                 .as_raw_widget()
                 .as_winui()
-                .cast::<MUXC::PasswordBox>()
-                .unwrap();
-            text_box.SetText(&password_box.Password().unwrap()).unwrap();
-            text_box.SetTextAlignment(self.halign.to_native()).unwrap();
-            Widget::new(self.parent(), text_box.cast().unwrap())
+                .cast::<MUXC::PasswordBox>()?;
+            text_box.SetText(&password_box.Password()?)?;
+            text_box.SetTextAlignment(self.halign.to_native())?;
+            Widget::new(self.parent(), text_box.cast()?)?
         };
-        widget.set_visible(self.handle.is_visible());
-        widget.set_enabled(self.handle.is_enabled());
-        widget.set_loc(self.handle.loc());
-        widget.set_size(self.handle.size());
-        widget.set_tooltip(self.handle.tooltip());
+        widget.set_visible(self.handle.is_visible()?)?;
+        widget.set_enabled(self.handle.is_enabled()?)?;
+        widget.set_loc(self.handle.loc()?)?;
+        widget.set_size(self.handle.size()?)?;
+        widget.set_tooltip(self.handle.tooltip()?)?;
         self.handle = widget;
+        Ok(())
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Size;
+    pub fn preferred_size(&self) -> Result<Size>;
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn text(&self) -> String {
-        if self.password {
+    pub fn text(&self) -> Result<String> {
+        let text = if self.password {
             self.handle
                 .as_raw_widget()
                 .as_winui()
-                .cast::<MUXC::PasswordBox>()
-                .unwrap()
-                .Password()
-                .unwrap()
+                .cast::<MUXC::PasswordBox>()?
+                .Password()?
                 .to_string_lossy()
         } else {
             self.handle
                 .as_raw_widget()
                 .as_winui()
-                .cast::<MUXC::TextBox>()
-                .unwrap()
-                .Text()
-                .unwrap()
+                .cast::<MUXC::TextBox>()?
+                .Text()?
                 .to_string_lossy()
-        }
+        };
+        Ok(text)
     }
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         let s = HSTRING::from(s.as_ref());
         if self.password {
             let password_box = self
                 .handle
                 .as_raw_widget()
                 .as_winui()
-                .cast::<MUXC::PasswordBox>()
-                .unwrap();
-            password_box.SetPassword(&s).unwrap();
+                .cast::<MUXC::PasswordBox>()?;
+            password_box.SetPassword(&s)?;
         } else {
             let text_box = self
                 .handle
                 .as_raw_widget()
                 .as_winui()
-                .cast::<MUXC::TextBox>()
-                .unwrap();
-            text_box.SetText(&s).unwrap();
+                .cast::<MUXC::TextBox>()?;
+            text_box.SetText(&s)?;
         }
+        Ok(())
     }
 
-    pub fn is_password(&self) -> bool {
-        self.password
+    pub fn is_password(&self) -> Result<bool> {
+        Ok(self.password)
     }
 
-    pub fn set_password(&mut self, v: bool) {
+    pub fn set_password(&mut self, v: bool) -> Result<()> {
         if self.password != v {
-            self.recreate(v);
+            self.recreate(v)?;
             self.password = v;
         }
+        Ok(())
     }
 
-    pub fn halign(&self) -> HAlign {
-        self.halign
+    pub fn halign(&self) -> Result<HAlign> {
+        Ok(self.halign)
     }
 
-    pub fn set_halign(&mut self, align: HAlign) {
+    pub fn set_halign(&mut self, align: HAlign) -> Result<()> {
         self.halign = align;
         if let Ok(text_box) = self
             .handle
@@ -180,34 +172,34 @@ impl Edit {
             .as_winui()
             .cast::<MUXC::TextBox>()
         {
-            text_box.SetTextAlignment(align.to_native()).unwrap();
+            text_box.SetTextAlignment(align.to_native())?;
         }
+        Ok(())
     }
 
-    pub fn is_readonly(&self) -> bool {
+    pub fn is_readonly(&self) -> Result<bool> {
         if self.password {
-            false
+            Ok(false)
         } else {
-            self.handle
+            Ok(self
+                .handle
                 .as_raw_widget()
                 .as_winui()
-                .cast::<MUXC::TextBox>()
-                .unwrap()
-                .IsReadOnly()
-                .unwrap_or_default()
+                .cast::<MUXC::TextBox>()?
+                .IsReadOnly()?)
         }
     }
 
-    pub fn set_readonly(&mut self, v: bool) {
+    pub fn set_readonly(&mut self, v: bool) -> Result<()> {
         if !self.password {
             let text_box = self
                 .handle
                 .as_raw_widget()
                 .as_winui()
-                .cast::<MUXC::TextBox>()
-                .unwrap();
-            text_box.SetIsReadOnly(v).unwrap();
+                .cast::<MUXC::TextBox>()?;
+            text_box.SetIsReadOnly(v)?;
         }
+        Ok(())
     }
 
     pub async fn wait_change(&self) {
@@ -226,75 +218,73 @@ pub struct TextBox {
 
 #[inherit_methods(from = "self.handle")]
 impl TextBox {
-    pub fn new(parent: impl AsContainer) -> Self {
-        let text_box = MUXC::TextBox::new().unwrap();
-        text_box.SetAcceptsReturn(true).unwrap();
-        text_box.SetTextWrapping(TextWrapping::Wrap).unwrap();
-        ScrollViewer::SetVerticalScrollBarVisibility2(&text_box, ScrollBarVisibility::Auto)
-            .unwrap();
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let text_box = MUXC::TextBox::new()?;
+        text_box.SetAcceptsReturn(true)?;
+        text_box.SetTextWrapping(TextWrapping::Wrap)?;
+        ScrollViewer::SetVerticalScrollBarVisibility2(&text_box, ScrollBarVisibility::Auto)?;
         let on_change = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_change = on_change.clone();
-            text_box
-                .TextChanged(&TextChangedEventHandler::new(move |_, _| {
-                    on_change.signal::<GlobalRuntime>(());
-                    Ok(())
-                }))
-                .unwrap();
+            text_box.TextChanged(&TextChangedEventHandler::new(move |_, _| {
+                on_change.signal::<GlobalRuntime>(());
+                Ok(())
+            }))?;
         }
-        Self {
+        Ok(Self {
             on_change,
-            handle: Widget::new(parent, text_box.cast().unwrap()),
+            handle: Widget::new(parent, text_box.cast()?)?,
             text_box,
-        }
+        })
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Size;
+    pub fn preferred_size(&self) -> Result<Size>;
 
-    pub fn min_size(&self) -> Size;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn loc(&self) -> Point;
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn size(&self) -> Size;
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
-
-    pub fn text(&self) -> String {
-        self.text_box.Text().unwrap().to_string_lossy()
+    pub fn text(&self) -> Result<String> {
+        Ok(self.text_box.Text()?.to_string_lossy())
     }
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.text_box.SetText(&HSTRING::from(s.as_ref())).unwrap();
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.text_box.SetText(&HSTRING::from(s.as_ref()))?;
+        Ok(())
     }
 
-    pub fn halign(&self) -> HAlign {
-        HAlign::from_native(self.text_box.TextAlignment().unwrap())
+    pub fn halign(&self) -> Result<HAlign> {
+        Ok(HAlign::from_native(self.text_box.TextAlignment()?))
     }
 
-    pub fn set_halign(&mut self, align: HAlign) {
-        self.text_box.SetTextAlignment(align.to_native()).unwrap();
+    pub fn set_halign(&mut self, align: HAlign) -> Result<()> {
+        self.text_box.SetTextAlignment(align.to_native())?;
+        Ok(())
     }
 
-    pub fn is_readonly(&self) -> bool {
-        self.text_box.IsReadOnly().unwrap_or_default()
+    pub fn is_readonly(&self) -> Result<bool> {
+        Ok(self.text_box.IsReadOnly()?)
     }
 
-    pub fn set_readonly(&mut self, v: bool) {
-        self.text_box.SetIsReadOnly(v).unwrap();
+    pub fn set_readonly(&mut self, v: bool) -> Result<()> {
+        self.text_box.SetIsReadOnly(v)?;
+        Ok(())
     }
 
     pub async fn wait_change(&self) {

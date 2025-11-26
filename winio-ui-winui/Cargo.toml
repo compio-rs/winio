@@ -20,6 +20,7 @@ compio-log = { workspace = true }
 
 image = { workspace = true, default-features = false }
 inherit-methods-macro = { workspace = true }
+once_cell = { workspace = true }
 oneshot = { version = "0.1", default-features = false, features = ["std"] }
 scoped-tls = { workspace = true }
 send_wrapper = { workspace = true }
@@ -68,3 +69,6 @@ enable-cbs = []
 webview-system = []
 
 win32-dark-mode = ["winio-ui-windows-common/dark-mode"]
+
+once_cell_try = ["winio-ui-windows-common/once_cell_try"]
+nightly = ["once_cell_try"]
