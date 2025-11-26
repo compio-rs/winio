@@ -6,10 +6,7 @@ use crate::{Error, Result};
 
 pub struct BackdropChooser {
     view: Child<View>,
-    r_none: Child<RadioButton>,
-    r_acrylic: Child<RadioButton>,
-    r_mica: Child<RadioButton>,
-    r_mica_alt: Child<RadioButton>,
+    radios: Child<RadioButtonGroup>,
 }
 
 #[derive(Debug)]
@@ -49,42 +46,28 @@ impl Component for BackdropChooser {
             r_mica_alt: RadioButton = (&view) => {
                 text: "Mica Alt"
             },
+            radios: RadioButtonGroup = ([r_none, r_acrylic, r_mica, r_mica_alt]),
         }
-        Ok(Self {
-            view,
-            r_none,
-            r_acrylic,
-            r_mica,
-            r_mica_alt,
-        })
+        Ok(Self { view, radios })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        let mut group = RadioButtonGroup::new([
-            &mut *self.r_none,
-            &mut *self.r_acrylic,
-            &mut *self.r_mica,
-            &mut *self.r_mica_alt,
-        ]);
         start! {
             sender, default: BackdropChooserMessage::Noop,
-            group => {
-                |i| Some(BackdropChooserMessage::RSelect(i))
+            self.radios => {
+                RadioButtonGroupEvent::Click(i) => BackdropChooserMessage::RSelect(i)
             }
         }
     }
 
     async fn update_children(&mut self) -> Result<bool> {
-        Ok(futures_util::try_join!(
-            self.view.update(),
-            self.r_none.update(),
-            self.r_acrylic.update(),
-            self.r_mica.update(),
-            self.r_mica_alt.update(),
-        )?
-        .into_array()
-        .into_iter()
-        .any(|b| b))
+        Ok(
+            futures_util::future::try_join(self.view.update(), self.radios.update())
+                .await?
+                .into_array()
+                .into_iter()
+                .any(|b| b),
+        )
     }
 
     async fn update(
@@ -111,13 +94,10 @@ impl Component for BackdropChooser {
     fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
         let csize = self.view.size()?;
 
-        let mut panel = layout! {
-            StackPanel::new(Orient::Vertical),
-            self.r_none,
-            self.r_acrylic,
-            self.r_mica,
-            self.r_mica_alt,
-        };
+        let mut panel = StackPanel::new(Orient::Vertical);
+        for r in &mut self.radios[..] {
+            panel.push(r).finish();
+        }
 
         let mut grid = layout! {
             Grid::from_str("1*,auto,1*", "auto").unwrap(),
@@ -130,10 +110,7 @@ impl Component for BackdropChooser {
 
     fn render_children(&mut self) -> Result<()> {
         self.view.render()?;
-        self.r_none.render()?;
-        self.r_acrylic.render()?;
-        self.r_mica.render()?;
-        self.r_mica_alt.render()?;
+        self.radios.render()?;
         Ok(())
     }
 }
@@ -151,12 +128,7 @@ impl Layoutable for BackdropChooser {
     fn preferred_size(&self) -> SysResult<Size> {
         let mut width = 0.0f64;
         let mut height = 0.0f64;
-        for rb in [
-            &self.r_none,
-            &self.r_acrylic,
-            &self.r_mica,
-            &self.r_mica_alt,
-        ] {
+        for rb in &self.radios[..] {
             let ps = rb.preferred_size()?;
             width = width.max(ps.width);
             height += ps.height;

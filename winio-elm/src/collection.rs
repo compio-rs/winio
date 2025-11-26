@@ -138,13 +138,15 @@ pub enum ObservableVecEvent<T> {
 impl<T: Clone> Component for ObservableVec<T> {
     type Error = std::convert::Infallible;
     type Event = ObservableVecEvent<T>;
-    type Init<'a> = ();
+    type Init<'a> = Vec<T>;
     type Message = ();
 
-    fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self, Self::Error> {
-        Ok(Self {
+    fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self, Self::Error> {
+        let mut this = Self {
             vec: vec![],
             sender: sender.clone(),
-        })
+        };
+        this.set_items(init)?;
+        Ok(this)
     }
 }

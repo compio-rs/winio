@@ -104,7 +104,7 @@ impl Component for GalleryPage {
                           .map(|p| p.to_string_lossy().into_owned())
                           .unwrap_or_default(),
             },
-            list: ObservableVec<String> = (()),
+            list: ObservableVec<String> = ([]),
             listbox: ListBox = (&window),
         }
 

@@ -8,7 +8,7 @@ use crate::{Error, Result};
 pub struct ScrollViewPage {
     window: Child<TabViewItem>,
     scroll: Child<ScrollView>,
-    radios: Vec<Child<RadioButton>>,
+    radios: Child<RadioButtonGroup>,
     add_btn: Child<Button>,
     del_btn: Child<Button>,
     show_btn: Child<Button>,
@@ -53,9 +53,8 @@ impl Component for ScrollViewPage {
             show_btn: Button = (&window) => {
                 text: "Show Selected",
             },
+            radios: RadioButtonGroup = ([]),
         }
-
-        let radios = Vec::new();
 
         Ok(Self {
             window,
@@ -69,8 +68,6 @@ impl Component for ScrollViewPage {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        let radios = self.radios.iter_mut().map(|r| &mut **r).collect::<Vec<_>>();
-        let mut radio_group = RadioButtonGroup::new(radios);
         start! {
             sender, default: ScrollViewPageMessage::Noop,
             self.add_btn => {
@@ -83,21 +80,21 @@ impl Component for ScrollViewPage {
                 ButtonEvent::Click => ScrollViewPageMessage::Show,
             },
             self.scroll => {},
-            radio_group => {
-                |i| Some(ScrollViewPageMessage::Select(i))
+            self.radios => {
+                RadioButtonGroupEvent::Click(i) => ScrollViewPageMessage::Select(i)
             }
         }
     }
 
     async fn update_children(&mut self) -> Result<bool> {
-        Ok(futures_util::future::try_join5(
+        Ok(futures_util::try_join!(
             self.window.update(),
             self.scroll.update(),
             self.add_btn.update(),
             self.del_btn.update(),
             self.show_btn.update(),
-        )
-        .await?
+            self.radios.update(),
+        )?
         .into_array()
         .into_iter()
         .any(|b| b))

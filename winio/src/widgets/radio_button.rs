@@ -1,5 +1,7 @@
+use std::ops::{Deref, DerefMut};
+
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender};
+use winio_elm::{Child, Component, ComponentSender};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{Enable, Failable, Layoutable, Point, Size, TextWidget, ToolTip, Visible};
 
@@ -97,42 +99,83 @@ impl Component for RadioButton {
 winio_handle::impl_as_widget!(RadioButton, widget);
 
 /// A group of [`RadioButton`]. Only one of them could be checked.
-pub struct RadioButtonGroup<T> {
-    radios: T,
+pub struct RadioButtonGroup {
+    radios: Vec<Child<RadioButton>>,
 }
 
-impl<'a, T: AsMut<[&'a mut RadioButton]>> RadioButtonGroup<T> {
-    /// Create [`RadioButtonGroup`].
-    pub fn new(radios: T) -> Self {
-        Self { radios }
+/// Events of [`RadioButtonGroup`].
+#[non_exhaustive]
+pub enum RadioButtonGroupEvent {
+    /// A radio button has been selected, with its index.
+    Click(usize),
+}
+
+/// Messages of [`RadioButtonGroup`].
+#[non_exhaustive]
+pub enum RadioButtonGroupMessage {
+    /// No operation.
+    Noop,
+    /// A radio button has been selected, with its index.
+    Click(usize),
+}
+
+impl Component for RadioButtonGroup {
+    type Error = Error;
+    type Event = RadioButtonGroupEvent;
+    type Init<'a> = Vec<Child<RadioButton>>;
+    type Message = RadioButtonGroupMessage;
+
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        Ok(Self { radios: init })
     }
 
-    /// Start listening the click events of the radio boxes.
-    pub async fn start<C: Component>(
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
+        let futures = self
+            .radios
+            .iter_mut()
+            .enumerate()
+            .map(|(i, c)| {
+                c.start(
+                    sender,
+                    move |e| match e {
+                        RadioButtonEvent::Click => Some(RadioButtonGroupMessage::Click(i)),
+                    },
+                    || RadioButtonGroupMessage::Noop,
+                )
+            })
+            .collect::<Vec<_>>();
+        futures_util::future::join_all(futures).await;
+        std::future::pending().await
+    }
+
+    async fn update(
         &mut self,
-        sender: &ComponentSender<C>,
-        mut f: impl FnMut(usize) -> Option<C::Message>,
-        _propagate: impl FnMut() -> C::Message,
-    ) -> ! {
-        if self.radios.as_mut().is_empty() {
-            std::future::pending::<()>().await;
-        }
-        loop {
-            let ((), index, _) = futures_util::future::select_all(
-                self.radios
-                    .as_mut()
-                    .iter()
-                    .map(|r| Box::pin(r.widget.wait_click())),
-            )
-            .await;
-            for (i, r) in self.radios.as_mut().iter_mut().enumerate() {
-                if i != index {
-                    r.set_checked(false);
+        message: Self::Message,
+        sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            RadioButtonGroupMessage::Noop => Ok(false),
+            RadioButtonGroupMessage::Click(i) => {
+                for (idx, r) in self.radios.iter_mut().enumerate() {
+                    r.set_checked(idx == i)?;
                 }
-            }
-            if let Some(message) = f(index) {
-                sender.post(message);
+                sender.output(RadioButtonGroupEvent::Click(i));
+                Ok(false)
             }
         }
+    }
+}
+
+impl Deref for RadioButtonGroup {
+    type Target = Vec<Child<RadioButton>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.radios
+    }
+}
+
+impl DerefMut for RadioButtonGroup {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.radios
     }
 }

@@ -31,9 +31,7 @@ pub struct MiscPage {
     canvas: Child<Canvas>,
     combo: Child<ComboBox>,
     list: Child<ObservableVec<String>>,
-    r1: Child<RadioButton>,
-    r2: Child<RadioButton>,
-    r3: Child<RadioButton>,
+    radios: Child<RadioButtonGroup>,
     rindex: usize,
     push_button: Child<Button>,
     pop_button: Child<Button>,
@@ -101,7 +99,7 @@ impl Component for MiscPage {
                 checked: false,
             },
             combo: ComboBox = (&window),
-            list: ObservableVec<String> = (()) => {
+            list: ObservableVec<String> = ([]) => {
                 // https://www.zhihu.com/question/23600507/answer/140640887
                 items: [
                     "烫烫烫",
@@ -120,6 +118,7 @@ impl Component for MiscPage {
             r3: RadioButton = (&window) => {
                 text: "╠╠╠"
             },
+            radios: RadioButtonGroup = ([r1, r2, r3]),
             push_button: Button = (&window) => {
                 text: "Push",
             },
@@ -152,9 +151,7 @@ impl Component for MiscPage {
             canvas,
             combo,
             list,
-            r1,
-            r2,
-            r3,
+            radios,
             rindex: 0,
             push_button,
             pop_button,
@@ -166,7 +163,6 @@ impl Component for MiscPage {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        let mut radio_group = RadioButtonGroup::new([&mut *self.r1, &mut self.r2, &mut self.r3]);
         start! {
             sender, default: MiscPageMessage::Noop,
             self.pcheck => {
@@ -187,8 +183,8 @@ impl Component for MiscPage {
             self.list => {
                 e => MiscPageMessage::List(e),
             },
-            radio_group => {
-                |i| Some(MiscPageMessage::RSelect(i))
+            self.radios => {
+                RadioButtonGroupEvent::Click(i) => MiscPageMessage::RSelect(i)
             },
             self.backdrop => {
                 #[cfg(windows)]
@@ -210,9 +206,7 @@ impl Component for MiscPage {
             self.canvas.update().map_err(Error::from),
             self.combo.update().map_err(Error::from),
             self.list.update().map_err(Error::from),
-            self.r1.update().map_err(Error::from),
-            self.r2.update().map_err(Error::from),
-            self.r3.update().map_err(Error::from),
+            self.radios.update().map_err(Error::from),
             self.push_button.update().map_err(Error::from),
             self.pop_button.update().map_err(Error::from),
             self.show_button.update().map_err(Error::from),
@@ -245,15 +239,7 @@ impl Component for MiscPage {
             }
             MiscPageMessage::Select => Ok(true),
             MiscPageMessage::Push => {
-                self.list.push(
-                    match self.rindex {
-                        0 => &self.r1,
-                        1 => &self.r2,
-                        2 => &self.r3,
-                        _ => unreachable!(),
-                    }
-                    .text()?,
-                );
+                self.list.push(self.radios[self.rindex].text()?);
                 Ok(false)
             }
             MiscPageMessage::Pop => {
@@ -262,13 +248,7 @@ impl Component for MiscPage {
             }
             MiscPageMessage::RSelect(i) => {
                 self.rindex = i;
-                let text = match self.rindex {
-                    0 => &self.r1,
-                    1 => &self.r2,
-                    2 => &self.r3,
-                    _ => unreachable!(),
-                }
-                .text()?;
+                let text = self.radios[self.rindex].text()?;
                 self.push_button
                     .set_tooltip(format!("Push \"{text}\" to the back of the combo box."))?;
                 Ok(false)
@@ -313,12 +293,11 @@ impl Component for MiscPage {
                 self.pcheck => { column: 2, row: 2 },
             };
 
-            let mut rgroup_panel = layout! {
-                Grid::from_str("auto", "1*,auto,auto,auto,1*").unwrap(),
-                self.r1 => { row: 1 },
-                self.r2 => { row: 2 },
-                self.r3 => { row: 3 },
-            };
+            let mut rgroup_panel = Grid::from_str("auto", "1*,auto,auto,auto,1*").unwrap();
+
+            for (i, rb) in self.radios.iter_mut().enumerate() {
+                rgroup_panel.push(rb).row(i + 1).finish();
+            }
 
             let mut buttons_panel = layout! {
                 StackPanel::new(Orient::Vertical),
