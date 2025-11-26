@@ -17,6 +17,7 @@ futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true, optional = true }
 paste = { workspace = true }
 smallvec = "1"
+tuplex = { workspace = true }
 
 [dev-dependencies]
 compio = { workspace = true, features = ["macros"] }

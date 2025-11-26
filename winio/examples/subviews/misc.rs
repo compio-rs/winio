@@ -1,7 +1,5 @@
 use std::ops::Deref;
 
-use futures_util::TryFutureExt;
-use tuplex::IntoArray;
 use winio::prelude::*;
 
 use crate::{Error, Result};
@@ -196,27 +194,24 @@ impl Component for MiscPage {
     }
 
     async fn update_children(&mut self) -> Result<bool> {
-        Ok(futures_util::try_join!(
-            self.window.update().map_err(Error::from),
-            self.ulabel.update().map_err(Error::from),
-            self.plabel.update().map_err(Error::from),
-            self.uentry.update().map_err(Error::from),
-            self.pentry.update().map_err(Error::from),
-            self.pcheck.update().map_err(Error::from),
-            self.canvas.update().map_err(Error::from),
-            self.combo.update().map_err(Error::from),
-            self.list.update().map_err(Error::from),
-            self.radios.update().map_err(Error::from),
-            self.push_button.update().map_err(Error::from),
-            self.pop_button.update().map_err(Error::from),
-            self.show_button.update().map_err(Error::from),
-            self.progress.update().map_err(Error::from),
-            self.mltext.update().map_err(Error::from),
-            self.backdrop.update(),
-        )?
-        .into_array()
-        .into_iter()
-        .any(|b| b))
+        update_children!(
+            self.window,
+            self.ulabel,
+            self.plabel,
+            self.uentry,
+            self.pentry,
+            self.pcheck,
+            self.canvas,
+            self.combo,
+            self.list,
+            self.radios,
+            self.push_button,
+            self.pop_button,
+            self.show_button,
+            self.progress,
+            self.mltext,
+            self.backdrop
+        )
     }
 
     async fn update(

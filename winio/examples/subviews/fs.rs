@@ -5,7 +5,6 @@ use std::{
 };
 
 use compio::{buf::buf_try, fs::File, io::AsyncReadAtExt, runtime::spawn};
-use tuplex::IntoArray;
 use winio::prelude::*;
 
 use crate::{Error, Result};
@@ -82,16 +81,7 @@ impl Component for FsPage {
     }
 
     async fn update_children(&mut self) -> Result<bool> {
-        Ok(futures_util::future::try_join4(
-            self.window.update(),
-            self.canvas.update(),
-            self.button.update(),
-            self.label.update(),
-        )
-        .await?
-        .into_array()
-        .into_iter()
-        .any(|b| b))
+        update_children!(self.window, self.canvas, self.button, self.label)
     }
 
     async fn update(

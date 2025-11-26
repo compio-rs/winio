@@ -1,8 +1,6 @@
 use std::{convert::Infallible, future::Future, path::PathBuf, pin::Pin};
 
-use futures_util::TryFutureExt;
 use thiserror::Error;
-use tuplex::IntoArray;
 use winio::prelude::*;
 
 #[derive(Debug, thiserror::Error)]
@@ -222,32 +220,22 @@ impl Component for MainModel {
         ];
         let res = if let Some(index) = self.tabview.selection()? {
             let visible_subview = subviews.remove(index);
-            futures_util::try_join!(
-                self.window.update().map_err(Error::from),
-                self.tabview.update().map_err(Error::from),
+            try_join_update!(
+                self.window.update(),
+                self.tabview.update(),
                 visible_subview,
                 async {
                     futures_util::future::try_join_all(subviews.into_iter()).await?;
-                    Ok(false)
+                    Ok::<_, Error>(false)
                 },
-            )?
-            .into_array()
-            .into_iter()
-            .any(|b| b)
+            )
         } else {
-            futures_util::try_join!(
-                self.window.update().map_err(Error::from),
-                self.tabview.update().map_err(Error::from),
-                async {
-                    futures_util::future::try_join_all(subviews.into_iter()).await?;
-                    Ok(false)
-                }
-            )?
-            .into_array()
-            .into_iter()
-            .any(|b| b)
+            try_join_update!(self.window.update(), self.tabview.update(), async {
+                futures_util::future::try_join_all(subviews.into_iter()).await?;
+                Ok::<_, Error>(false)
+            })
         };
-        Ok(res)
+        res
     }
 
     async fn update(

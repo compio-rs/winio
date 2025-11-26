@@ -1,7 +1,9 @@
 #[doc(hidden)]
-pub use futures_util::join as __join;
+pub use futures_util::{TryFutureExt as __TryFutureExt, join as __join, try_join as __try_join};
 #[doc(hidden)]
 pub use paste::paste as __paste;
+#[doc(hidden)]
+pub use tuplex::IntoArray as __IntoArray;
 
 /// Helper macro for `Component::init`.
 ///
@@ -117,4 +119,39 @@ macro_rules! __start_map {
             _ => None,
         }
     }
+}
+
+/// Helper macro for `Component::update` to update multiple children.
+#[macro_export]
+macro_rules! update_children {
+    () => {
+        $crate::try_join_update!()
+    };
+    ($c:expr) => {
+        $crate::try_join_update!($c.update())
+    };
+    ($($c:expr),+$(,)?) => {
+        $crate::try_join_update!($($c.update()),+)
+    };
+}
+
+/// Helper macro for joining multiple update futures that return
+/// [`Result<bool>`].
+#[macro_export]
+macro_rules! try_join_update {
+    () => {
+        Ok(false)
+    };
+    ($e:expr) => {
+        Ok($e.await?)
+    };
+    ($($e:expr),+$(,)?) => {
+        $crate::__try_join!($(
+            $crate::__TryFutureExt::map_err($e, std::convert::From::from),
+        )*).map(|res|{
+            $crate::__IntoArray::into_array(res)
+            .into_iter()
+            .any(|b| b)
+        })
+    };
 }
