@@ -49,7 +49,7 @@ fn d2d1<T>(f: impl FnOnce(&ID2D1Factory) -> Result<T>) -> Result<T> {
 fn create_target(handle: HWND) -> Result<ID2D1HwndRenderTarget> {
     unsafe {
         d2d1(|d2d| {
-            Ok(d2d.CreateHwndRenderTarget(
+            d2d.CreateHwndRenderTarget(
                 &D2D1_RENDER_TARGET_PROPERTIES {
                     r#type: D2D1_RENDER_TARGET_TYPE_HARDWARE,
                     pixelFormat: D2D1_PIXEL_FORMAT {
@@ -66,7 +66,7 @@ fn create_target(handle: HWND) -> Result<ID2D1HwndRenderTarget> {
                     pixelSize: D2D_SIZE_U::default(),
                     presentOptions: D2D1_PRESENT_OPTIONS_NONE,
                 },
-            )?)
+            )
         })
     }
 }
@@ -120,7 +120,7 @@ impl Canvas {
                 }) {
                     Ok(()) => break,
                     Err(e) if e.code() == D2DERR_RECREATE_TARGET => self.handle_lost()?,
-                    Err(e) => return Err(e.into()),
+                    Err(e) => return Err(e),
                 }
             }
             self.target.BeginDraw();
@@ -247,7 +247,7 @@ impl DrawingContext<'_> {
             match self.ctx.render_target().EndDraw(None, None) {
                 Ok(()) => Ok(()),
                 Err(e) if e.code() == D2DERR_RECREATE_TARGET => self.canvas.handle_lost(),
-                Err(e) => Err(e.into()),
+                Err(e) => Err(e),
             }
         }
     }

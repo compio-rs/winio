@@ -1,12 +1,12 @@
 use std::{
-    io,
     panic::resume_unwind,
     ptr::{null, null_mut},
 };
 
 use widestring::U16CString;
+use windows::core::HRESULT;
 use windows_sys::Win32::{
-    Foundation::{E_INVALIDARG, E_OUTOFMEMORY, HWND, S_OK},
+    Foundation::HWND,
     UI::{
         Controls::{
             TASKDIALOG_BUTTON, TASKDIALOGCONFIG, TASKDIALOGCONFIG_0, TASKDIALOGCONFIG_1,
@@ -19,7 +19,7 @@ use windows_sys::Win32::{
 use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
-use crate::{Result, darkmode::TASK_DIALOG_CALLBACK, parent_handle};
+use crate::{Error, Result, darkmode::TASK_DIALOG_CALLBACK, parent_handle};
 
 async fn msgbox(
     parent: Option<HWND>,
@@ -86,8 +86,8 @@ async fn msgbox(
     .await
     .unwrap_or_else(|e| resume_unwind(e));
 
-    let res = match res {
-        S_OK => match result {
+    if res >= 0 {
+        let res = match result {
             IDCANCEL => MessageBoxResponse::Cancel,
             IDNO => MessageBoxResponse::No,
             IDOK => MessageBoxResponse::Ok,
@@ -95,12 +95,11 @@ async fn msgbox(
             IDYES => MessageBoxResponse::Yes,
             IDCLOSE => MessageBoxResponse::Close,
             _ => MessageBoxResponse::Custom(result as _),
-        },
-        E_OUTOFMEMORY => return Err(io::ErrorKind::OutOfMemory.into()),
-        E_INVALIDARG => return Err(io::ErrorKind::InvalidInput.into()),
-        _ => return Err(io::Error::from_raw_os_error(res).into()),
-    };
-    Ok(res)
+        };
+        Ok(res)
+    } else {
+        Err(Error::from_hresult(HRESULT(res)))
+    }
 }
 
 #[derive(Debug, Clone)]

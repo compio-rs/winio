@@ -4,10 +4,7 @@ use compio_log::*;
 use windows::{
     Foundation::Uri,
     Win32::Graphics::Direct2D::ID2D1Factory2,
-    core::{
-        Array, HSTRING, IInspectable_Vtbl, Interface, Ref, Result as WinResult, h,
-        imp::WeakRefCount, implement,
-    },
+    core::{Array, HSTRING, IInspectable_Vtbl, Interface, Ref, h, imp::WeakRefCount, implement},
 };
 use windows_sys::Win32::{Foundation::HWND, UI::WindowsAndMessaging::MSG};
 use winio_ui_windows_common::{PreferredAppMode, init_dark, set_preferred_app_mode};
@@ -37,7 +34,7 @@ pub struct Runtime {
 
 fn init_appsdk_with(
     vers: impl IntoIterator<Item = WindowsAppSDKVersion>,
-) -> WinResult<PackageDependency> {
+) -> Result<PackageDependency> {
     for ver in vers {
         if let Ok(p) = PackageDependency::initialize_version(ver) {
             return Ok(p);
@@ -121,7 +118,7 @@ impl Runtime {
     }
 }
 
-fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> WinResult<()> {
+fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> {
     debug!("Application::Start");
 
     let app = App::compose()?;
@@ -160,7 +157,7 @@ struct App {
 }
 
 impl App {
-    pub(crate) fn compose() -> WinResult<Application> {
+    pub(crate) fn compose() -> Result<Application> {
         Compose::compose(Self {
             provider: XamlControlsXamlMetaDataProvider::new()?,
         })
@@ -170,7 +167,7 @@ impl App {
 impl ChildClassImpl for App_Impl {}
 
 impl IApplicationOverrides_Impl for App_Impl {
-    fn OnLaunched(&self, _: Ref<LaunchActivatedEventArgs>) -> WinResult<()> {
+    fn OnLaunched(&self, _: Ref<LaunchActivatedEventArgs>) -> Result<()> {
         debug!("App::OnLaunched");
 
         let resources = self.base()?.cast::<Application>()?.Resources()?;
@@ -189,15 +186,15 @@ impl IApplicationOverrides_Impl for App_Impl {
 }
 
 impl IXamlMetadataProvider_Impl for App_Impl {
-    fn GetXamlType(&self, ty: &TypeName) -> WinResult<IXamlType> {
+    fn GetXamlType(&self, ty: &TypeName) -> Result<IXamlType> {
         self.provider.GetXamlType(ty)
     }
 
-    fn GetXamlTypeByFullName(&self, name: &HSTRING) -> WinResult<IXamlType> {
+    fn GetXamlTypeByFullName(&self, name: &HSTRING) -> Result<IXamlType> {
         self.provider.GetXamlTypeByFullName(name)
     }
 
-    fn GetXmlnsDefinitions(&self) -> WinResult<Array<XmlnsDefinition>> {
+    fn GetXmlnsDefinitions(&self) -> Result<Array<XmlnsDefinition>> {
         self.provider.GetXmlnsDefinitions()
     }
 }

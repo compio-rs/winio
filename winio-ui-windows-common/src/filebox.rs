@@ -192,7 +192,7 @@ fn filebox(
         let handle = match handle.Show(parent) {
             Ok(()) => Some(handle),
             Err(e) if e.code() == HRESULT::from(ERROR_CANCELLED) => None,
-            Err(e) => return Err(e.into()),
+            Err(e) => return Err(e),
         };
 
         Ok(FileBoxInner(handle, init))

@@ -13,7 +13,7 @@ use winui3::Microsoft::UI::Xaml::Controls::{
     self as MUXC, SelectionChangedEventHandler, SelectionMode,
 };
 
-use crate::{GlobalRuntime, Widget, ui::ToIReference};
+use crate::{GlobalRuntime, Result, Widget, ui::ToIReference};
 
 #[derive(Debug)]
 pub struct ListBox {
@@ -24,124 +24,111 @@ pub struct ListBox {
 
 #[inherit_methods(from = "self.handle")]
 impl ListBox {
-    pub fn new(parent: impl AsContainer) -> Self {
-        let list_box = MUXC::ListBox::new().unwrap();
-        list_box.SetSelectionMode(SelectionMode::Multiple).unwrap();
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let list_box = MUXC::ListBox::new()?;
+        list_box.SetSelectionMode(SelectionMode::Multiple)?;
         let on_select = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_select = on_select.clone();
-            list_box
-                .SelectionChanged(&SelectionChangedEventHandler::new(move |_, _| {
-                    on_select.signal::<GlobalRuntime>(());
-                    Ok(())
-                }))
-                .unwrap();
+            list_box.SelectionChanged(&SelectionChangedEventHandler::new(move |_, _| {
+                on_select.signal::<GlobalRuntime>(());
+                Ok(())
+            }))?;
         }
-        Self {
+        Ok(Self {
             on_select,
-            handle: Widget::new(parent, list_box.cast().unwrap()),
+            handle: Widget::new(parent, list_box.cast()?)?,
             list_box,
-        }
+        })
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Size;
+    pub fn preferred_size(&self) -> Result<Size>;
 
-    pub fn min_size(&self) -> Size;
+    pub fn min_size(&self) -> Result<Size>;
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn is_selected(&self, i: usize) -> bool {
+    pub fn is_selected(&self, i: usize) -> Result<bool> {
         self.list_box
-            .Items()
-            .unwrap()
-            .GetAt(i as _)
-            .unwrap()
-            .cast::<MUXC::ListBoxItem>()
-            .unwrap()
+            .Items()?
+            .GetAt(i as _)?
+            .cast::<MUXC::ListBoxItem>()?
             .IsSelected()
-            .unwrap()
     }
 
-    pub fn set_selected(&mut self, i: usize, v: bool) {
+    pub fn set_selected(&mut self, i: usize, v: bool) -> Result<()> {
         self.list_box
-            .Items()
-            .unwrap()
-            .GetAt(i as _)
-            .unwrap()
-            .cast::<MUXC::ListBoxItem>()
-            .unwrap()
-            .SetIsSelected(v)
-            .unwrap();
+            .Items()?
+            .GetAt(i as _)?
+            .cast::<MUXC::ListBoxItem>()?
+            .SetIsSelected(v)?;
+        Ok(())
     }
 
     pub async fn wait_select(&self) {
         self.on_select.wait().await;
     }
 
-    pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
-        let item = MUXC::ListBoxItem::new().unwrap();
-        item.SetContent(&HSTRING::from(s.as_ref()).to_reference())
-            .unwrap();
+    pub fn insert(&mut self, i: usize, s: impl AsRef<str>) -> Result<()> {
+        let item = MUXC::ListBoxItem::new()?;
+        item.SetContent(&HSTRING::from(s.as_ref()).to_reference()?)?;
         self.list_box
-            .Items()
-            .unwrap()
-            .InsertAt(i as _, &item.cast::<IInspectable>().unwrap())
-            .unwrap();
+            .Items()?
+            .InsertAt(i as _, &item.cast::<IInspectable>()?)?;
+        Ok(())
     }
 
-    pub fn remove(&mut self, i: usize) {
-        self.list_box.Items().unwrap().RemoveAt(i as _).unwrap();
+    pub fn remove(&mut self, i: usize) -> Result<()> {
+        self.list_box.Items()?.RemoveAt(i as _)?;
+        Ok(())
     }
 
-    pub fn get(&self, i: usize) -> String {
-        let item = self.list_box.Items().unwrap().GetAt(i as _).unwrap();
-        item.cast::<MUXC::ListBoxItem>()
-            .unwrap()
-            .Content()
-            .unwrap()
-            .cast::<IReference<HSTRING>>()
-            .unwrap()
-            .Value()
-            .unwrap()
-            .to_string_lossy()
+    pub fn get(&self, i: usize) -> Result<String> {
+        let item = self.list_box.Items()?.GetAt(i as _)?;
+        Ok(item
+            .cast::<MUXC::ListBoxItem>()?
+            .Content()?
+            .cast::<IReference<HSTRING>>()?
+            .Value()?
+            .to_string_lossy())
     }
 
-    pub fn set(&mut self, i: usize, s: impl AsRef<str>) {
-        let item = self.list_box.Items().unwrap().GetAt(i as _).unwrap();
-        item.cast::<MUXC::ListBoxItem>()
-            .unwrap()
-            .SetContent(&HSTRING::from(s.as_ref()).to_reference())
-            .unwrap();
+    pub fn set(&mut self, i: usize, s: impl AsRef<str>) -> Result<()> {
+        let item = self.list_box.Items()?.GetAt(i as _)?;
+        item.cast::<MUXC::ListBoxItem>()?
+            .SetContent(&HSTRING::from(s.as_ref()).to_reference()?)?;
+        Ok(())
     }
 
-    pub fn len(&self) -> usize {
-        self.list_box.Items().unwrap().Size().unwrap() as usize
+    pub fn len(&self) -> Result<usize> {
+        Ok(self.list_box.Items()?.Size()? as usize)
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
+    pub fn is_empty(&self) -> Result<bool> {
+        Ok(self.len()? == 0)
     }
 
-    pub fn clear(&mut self) {
-        self.list_box.Items().unwrap().Clear().unwrap();
+    pub fn clear(&mut self) -> Result<()> {
+        self.list_box.Items()?.Clear()?;
+        Ok(())
     }
 }
 

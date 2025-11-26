@@ -33,7 +33,7 @@ impl Runtime {
 
     pub fn d2d1(&self) -> crate::Result<&ID2D1Factory2> {
         self.d2d1.get_or_try_init(|| unsafe {
-            Ok(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None)?)
+            D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None)
         })
     }
 

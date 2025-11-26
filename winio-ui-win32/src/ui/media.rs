@@ -17,8 +17,9 @@ use windows::{
             CoUninitialize,
         },
     },
-    core::{BSTR, Interface, Result as WinResult, implement},
+    core::{BSTR, HRESULT, Interface, implement},
 };
+use windows_core::Error;
 use windows_sys::Win32::{
     System::SystemServices::SS_OWNERDRAW,
     UI::{
@@ -218,12 +219,10 @@ impl MediaNotify {
 }
 
 impl IMFMediaEngineNotify_Impl for MediaNotify_Impl {
-    fn EventNotify(&self, event: u32, _param1: usize, param2: u32) -> WinResult<()> {
+    fn EventNotify(&self, event: u32, _param1: usize, param2: u32) -> Result<()> {
         let msg = match MF_MEDIA_ENGINE_EVENT(event as _) {
             MF_MEDIA_ENGINE_EVENT_CANPLAY => Some(Ok(())),
-            MF_MEDIA_ENGINE_EVENT_ERROR => {
-                Some(Err(io::Error::from_raw_os_error(param2 as _).into()))
-            }
+            MF_MEDIA_ENGINE_EVENT_ERROR => Some(Err(Error::from_hresult(HRESULT(param2 as _)))),
             _ => None,
         };
         if let Some(msg) = msg {

@@ -156,7 +156,7 @@ impl DrawingContext {
                 D2D1_FIGURE_END_OPEN
             });
             sink.Close()?;
-            Ok(geo.cast()?)
+            geo.cast()
         }
     }
 
@@ -515,9 +515,9 @@ impl<B: Brush> Brush for &'_ B {
 impl Brush for SolidColorBrush {
     fn create(&self, target: &ID2D1RenderTarget, _trans: RelativeToLogical) -> Result<ID2D1Brush> {
         unsafe {
-            Ok(target
+            target
                 .CreateSolidColorBrush(&color_f(self.color), Some(&BRUSH_PROPERTIES_DEFAULT))?
-                .cast()?)
+                .cast()
         }
     }
 }
@@ -535,13 +535,13 @@ impl Brush for LinearGradientBrush {
                 D2D1_GAMMA_2_2,
                 D2D1_EXTEND_MODE_CLAMP,
             )?;
-            Ok(target
+            target
                 .CreateLinearGradientBrush(
                     &props,
                     Some(&BRUSH_PROPERTIES_DEFAULT),
                     &stop_collection,
                 )?
-                .cast()?)
+                .cast()
         }
     }
 }
@@ -565,13 +565,13 @@ impl Brush for RadialGradientBrush {
                 D2D1_GAMMA_2_2,
                 D2D1_EXTEND_MODE_CLAMP,
             )?;
-            Ok(target
+            target
                 .CreateRadialGradientBrush(
                     &props,
                     Some(&BRUSH_PROPERTIES_DEFAULT),
                     &stop_collection,
                 )?
-                .cast()?)
+                .cast()
         }
     }
 }
@@ -670,7 +670,7 @@ impl DrawingImage {
             dpiY: dpiy,
         };
         unsafe {
-            Ok(target.CreateBitmap(
+            target.CreateBitmap(
                 D2D_SIZE_U {
                     width: image.width(),
                     height: image.height(),
@@ -678,7 +678,7 @@ impl DrawingImage {
                 Some(image.as_ptr().cast()),
                 image.width() * Rgba::<u8>::CHANNEL_COUNT as u32,
                 &prop,
-            )?)
+            )
         }
     }
 

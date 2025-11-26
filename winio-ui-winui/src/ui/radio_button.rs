@@ -72,7 +72,7 @@ impl RadioButton {
     }
 
     pub fn is_checked(&self) -> Result<bool> {
-        Ok(self.button.IsChecked()?.GetBoolean()?)
+        self.button.IsChecked()?.GetBoolean()
     }
 
     pub fn set_checked(&mut self, v: bool) -> Result<()> {

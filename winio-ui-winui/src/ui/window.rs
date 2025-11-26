@@ -11,7 +11,7 @@ use windows::{
     Foundation::TypedEventHandler,
     UI::ViewManagement::UISettings,
     Win32::Foundation::E_NOINTERFACE,
-    core::{Interface, Ref, Result as WinResult},
+    core::{Interface, Ref},
 };
 use windows_sys::Win32::UI::{
     HiDpi::GetDpiForWindow,
@@ -69,7 +69,7 @@ impl Window {
             Err(e) if e.code() == E_NOINTERFACE => unsafe {
                 window_use_dark_mode(hwnd.0);
                 // Set to DWMSBT_AUTO.
-                set_backdrop(hwnd.0, Backdrop::None);
+                set_backdrop(hwnd.0, Backdrop::None)?;
             },
             Err(e) => panic!("{e:?}"),
         }
@@ -133,7 +133,7 @@ impl Window {
     }
 
     pub fn is_visible(&self) -> Result<bool> {
-        Ok(self.app_window.IsVisible()?)
+        self.app_window.IsVisible()
     }
 
     pub fn set_visible(&self, v: bool) -> Result<()> {
@@ -237,7 +237,7 @@ impl Window {
                 }
             }
             Err(e) if e.code().0 == 0 => Ok(Backdrop::None),
-            Err(e) => Err(e.into()),
+            Err(e) => Err(e),
         }
     }
 
@@ -368,7 +368,7 @@ impl Drop for ColorThemeWatcher {
     }
 }
 
-fn acrylic_backdrop() -> WinResult<SystemBackdrop> {
+fn acrylic_backdrop() -> Result<SystemBackdrop> {
     thread_local! {
         static ACRYLIC_BACKDROP: OnceCell<SystemBackdrop> = const { OnceCell::new() };
     }
@@ -379,7 +379,7 @@ fn acrylic_backdrop() -> WinResult<SystemBackdrop> {
     })
 }
 
-fn mica_backdrop() -> WinResult<MicaBackdrop> {
+fn mica_backdrop() -> Result<MicaBackdrop> {
     thread_local! {
         static MICA_BACKDROP: OnceCell<MicaBackdrop> = const { OnceCell::new() };
     }
@@ -394,7 +394,7 @@ fn mica_backdrop() -> WinResult<MicaBackdrop> {
     })
 }
 
-fn mica_alt_backdrop() -> WinResult<MicaBackdrop> {
+fn mica_alt_backdrop() -> Result<MicaBackdrop> {
     thread_local! {
         static MICA_ALT_BACKDROP: OnceCell<MicaBackdrop> = const { OnceCell::new() };
     }

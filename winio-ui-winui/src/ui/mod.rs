@@ -120,15 +120,11 @@ impl ToIReference for bool {
     }
 }
 
-pub(crate) fn color_theme_impl() -> Result<ColorTheme> {
+pub fn color_theme() -> Result<ColorTheme> {
     match Application::Current()?.RequestedTheme()?.0 {
         1 => Ok(ColorTheme::Dark),
         _ => Ok(ColorTheme::Light),
     }
-}
-
-pub fn color_theme() -> crate::Result<ColorTheme> {
-    Ok(color_theme_impl()?)
 }
 
 mod window;

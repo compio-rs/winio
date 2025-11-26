@@ -86,8 +86,7 @@ pub fn default_font(dpi: u32) -> Result<HFONT> {
 static DWRITE_FACTORY: OnceLock<IDWriteFactory> = OnceLock::new();
 
 pub fn dwrite_factory() -> Result<&'static IDWriteFactory> {
-    Ok(DWRITE_FACTORY
-        .get_or_try_init(|| unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED) })?)
+    DWRITE_FACTORY.get_or_try_init(|| unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED) })
 }
 
 pub fn measure_string(hwnd: HWND, s: &U16Str) -> Result<Size> {

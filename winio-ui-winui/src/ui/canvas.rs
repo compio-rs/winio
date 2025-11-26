@@ -35,7 +35,7 @@ use windows::{
             },
         },
     },
-    core::{BOOL, Error as WinError, Interface, Result as WinResult},
+    core::{BOOL, Interface},
 };
 use winio_callback::Callback;
 use winio_handle::AsContainer;
@@ -53,7 +53,7 @@ use winui3::{
 };
 
 use crate::{
-    GlobalRuntime, RUNTIME, Result, Widget, color_theme_impl, get_root_window, ui::Convertible,
+    Error, GlobalRuntime, RUNTIME, Result, Widget, color_theme, get_root_window, ui::Convertible,
 };
 
 #[inline]
@@ -62,7 +62,7 @@ fn d2d1<T>(f: impl FnOnce(&ID2D1Factory2) -> Result<T>) -> Result<T> {
 }
 
 #[inline]
-fn is_lost(e: &WinError) -> bool {
+fn is_lost(e: &Error) -> bool {
     matches!(
         e.code(),
         D2DERR_RECREATE_TARGET | DXGI_ERROR_DEVICE_REMOVED | DXGI_ERROR_DEVICE_RESET
@@ -104,9 +104,9 @@ impl SwapChain {
                 None,
                 Some(&mut context),
             )?;
-            let d3d11_device = device.ok_or(WinError::from_hresult(E_POINTER))?;
+            let d3d11_device = device.ok_or(Error::from_hresult(E_POINTER))?;
             let dxdi_device = d3d11_device.cast::<IDXGIDevice1>()?;
-            let d3d11_context = context.ok_or(WinError::from_hresult(E_POINTER))?;
+            let d3d11_context = context.ok_or(Error::from_hresult(E_POINTER))?;
             let d2d1_device: ID2D1Device =
                 d2d1(|d2d1| Ok(d2d1.CreateDevice(&dxdi_device)?.into()))?;
             let d2d1_context = d2d1_device.CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE)?;
@@ -141,7 +141,7 @@ impl SwapChain {
         }
     }
 
-    pub fn set_to_panel(&self, panel: &SwapChainPanel) -> WinResult<()> {
+    pub fn set_to_panel(&self, panel: &SwapChainPanel) -> Result<()> {
         let native = panel.cast::<ISwapChainPanelNative>()?;
         unsafe {
             native.SetSwapChain(&self.swap_chain)?;
@@ -155,7 +155,7 @@ impl SwapChain {
         size: Size,
         scalex: f32,
         scaley: f32,
-    ) -> WinResult<()> {
+    ) -> Result<()> {
         const DPI: f32 = 96.0;
 
         let context = &self.d2d1_context;
@@ -200,7 +200,7 @@ impl SwapChain {
                 .unwrap_or_default();
             let clear_color = if has_backdrop {
                 None
-            } else if matches!(color_theme_impl()?, ColorTheme::Dark) {
+            } else if matches!(color_theme()?, ColorTheme::Dark) {
                 Some(D2D1_COLOR_F {
                     r: 0.0,
                     g: 0.0,
@@ -220,7 +220,7 @@ impl SwapChain {
         Ok(())
     }
 
-    pub fn end_draw(&mut self) -> WinResult<()> {
+    pub fn end_draw(&mut self) -> Result<()> {
         unsafe {
             self.d2d1_context.EndDraw(None, None)?;
             self.swap_chain.Present(1, DXGI_PRESENT(0)).ok()?;
@@ -364,7 +364,7 @@ impl Canvas {
             {
                 Ok(()) => break,
                 Err(e) if is_lost(&e) => self.handle_lost()?,
-                Err(e) => return Err(e.into()),
+                Err(e) => return Err(e),
             }
         }
         DrawingContext::new(self)
@@ -395,7 +395,7 @@ impl Canvas {
 
 winio_handle::impl_as_widget!(Canvas, handle);
 
-fn mouse_button(panel: &SwapChainPanel, args: &PointerRoutedEventArgs) -> WinResult<MouseButton> {
+fn mouse_button(panel: &SwapChainPanel, args: &PointerRoutedEventArgs) -> Result<MouseButton> {
     let pointer = args.Pointer()?;
     if pointer.PointerDeviceType() == Ok(PointerDeviceType::Mouse) {
         let pt = args.GetCurrentPoint(panel)?;
@@ -406,7 +406,7 @@ fn mouse_button(panel: &SwapChainPanel, args: &PointerRoutedEventArgs) -> WinRes
     }
 }
 
-fn mouse_button_from_point(props: &PointerPointProperties) -> WinResult<MouseButton> {
+fn mouse_button_from_point(props: &PointerPointProperties) -> Result<MouseButton> {
     let res = if props.IsLeftButtonPressed()? {
         MouseButton::Left
     } else if props.IsRightButtonPressed()? {
@@ -426,7 +426,7 @@ pub struct DrawingContext<'a> {
 
 impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
-        match self.drop_impl() {
+        match self.end_draw() {
             Ok(()) => {}
             Err(_e) => {
                 error!("EndDraw: {_e:?}");
@@ -447,11 +447,11 @@ impl<'a> DrawingContext<'a> {
         })
     }
 
-    fn drop_impl(&mut self) -> Result<()> {
+    fn end_draw(&mut self) -> Result<()> {
         match self.canvas.swap_chain.end_draw() {
             Ok(()) => {}
             Err(e) if is_lost(&e) => self.canvas.handle_lost()?,
-            Err(e) => return Err(e.into()),
+            Err(e) => return Err(e),
         }
         Ok(())
     }

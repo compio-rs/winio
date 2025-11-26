@@ -22,7 +22,7 @@ use winui3::{
     },
 };
 
-use crate::color_theme_impl;
+use crate::color_theme;
 
 // Magic colors to match Win32.
 const fn color(dark: bool) -> Color {
@@ -44,7 +44,7 @@ const fn color(dark: bool) -> Color {
 }
 
 fn update_color(controller: &DesktopAcrylicController) -> Result<()> {
-    let color = color(color_theme_impl()? == ColorTheme::Dark);
+    let color = color(color_theme()? == ColorTheme::Dark);
     controller.SetTintColor(color)?;
     controller.SetFallbackColor(color)?;
     Ok(())

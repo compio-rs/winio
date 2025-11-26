@@ -13,7 +13,7 @@ use webview2::{
 };
 use windows::{
     Win32::Foundation::{E_FAIL, HWND, RECT},
-    core::{HRESULT, PCWSTR, Ref, Result as WinResult, implement},
+    core::{HRESULT, PCWSTR, Ref, implement},
 };
 use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
 use winio_callback::Callback;
@@ -286,14 +286,14 @@ pub type WebView = WebViewLazy<WebViewInner, WebViewErrLabelInner>;
 )]
 struct CreateEnvHandler<F>
 where
-    F: FnOnce(WinResult<Ref<ICoreWebView2Environment>>) -> WinResult<()> + 'static,
+    F: FnOnce(Result<Ref<ICoreWebView2Environment>>) -> Result<()> + 'static,
 {
     f: RefCell<Option<F>>,
 }
 
 impl<F> CreateEnvHandler<F>
 where
-    F: FnOnce(WinResult<Ref<ICoreWebView2Environment>>) -> WinResult<()> + 'static,
+    F: FnOnce(Result<Ref<ICoreWebView2Environment>>) -> Result<()> + 'static,
 {
     pub fn create(f: F) -> ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler {
         Self {
@@ -305,13 +305,13 @@ where
 
 impl<F> ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler_Impl for CreateEnvHandler_Impl<F>
 where
-    F: FnOnce(WinResult<Ref<ICoreWebView2Environment>>) -> WinResult<()> + 'static,
+    F: FnOnce(Result<Ref<ICoreWebView2Environment>>) -> Result<()> + 'static,
 {
     fn Invoke(
         &self,
         errorcode: HRESULT,
         createdenvironment: Ref<ICoreWebView2Environment>,
-    ) -> WinResult<()> {
+    ) -> Result<()> {
         let f = self.f.borrow_mut().take();
         if let Some(f) = f {
             f(errorcode.map(|| createdenvironment))
@@ -327,14 +327,14 @@ where
 )]
 struct CreateControllerHandler<F>
 where
-    F: FnOnce(WinResult<Ref<ICoreWebView2Controller>>) -> WinResult<()> + 'static,
+    F: FnOnce(Result<Ref<ICoreWebView2Controller>>) -> Result<()> + 'static,
 {
     f: RefCell<Option<F>>,
 }
 
 impl<F> CreateControllerHandler<F>
 where
-    F: FnOnce(WinResult<Ref<ICoreWebView2Controller>>) -> WinResult<()> + 'static,
+    F: FnOnce(Result<Ref<ICoreWebView2Controller>>) -> Result<()> + 'static,
 {
     pub fn create(f: F) -> ICoreWebView2CreateCoreWebView2ControllerCompletedHandler {
         Self {
@@ -347,13 +347,13 @@ where
 impl<F> ICoreWebView2CreateCoreWebView2ControllerCompletedHandler_Impl
     for CreateControllerHandler_Impl<F>
 where
-    F: FnOnce(WinResult<Ref<ICoreWebView2Controller>>) -> WinResult<()> + 'static,
+    F: FnOnce(Result<Ref<ICoreWebView2Controller>>) -> Result<()> + 'static,
 {
     fn Invoke(
         &self,
         errorcode: HRESULT,
         createdcontroller: Ref<ICoreWebView2Controller>,
-    ) -> WinResult<()> {
+    ) -> Result<()> {
         let f = self.f.borrow_mut().take();
         if let Some(f) = f {
             f(errorcode.map(|| createdcontroller))
@@ -366,7 +366,7 @@ where
 #[implement(ICoreWebView2NavigationStartingEventHandler, Agile = false)]
 struct NavStartingHandler<F>
 where
-    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> WinResult<()>
+    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> Result<()>
         + 'static,
 {
     f: F,
@@ -374,7 +374,7 @@ where
 
 impl<F> NavStartingHandler<F>
 where
-    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> WinResult<()>
+    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> Result<()>
         + 'static,
 {
     pub fn create(f: F) -> ICoreWebView2NavigationStartingEventHandler {
@@ -384,14 +384,14 @@ where
 
 impl<F> ICoreWebView2NavigationStartingEventHandler_Impl for NavStartingHandler_Impl<F>
 where
-    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> WinResult<()>
+    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> Result<()>
         + 'static,
 {
     fn Invoke(
         &self,
         sender: Ref<ICoreWebView2>,
         args: Ref<ICoreWebView2NavigationStartingEventArgs>,
-    ) -> WinResult<()> {
+    ) -> Result<()> {
         (self.f)(sender, args)
     }
 }
@@ -399,7 +399,7 @@ where
 #[implement(ICoreWebView2NavigationCompletedEventHandler, Agile = false)]
 struct NavCompletedHandler<F>
 where
-    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> WinResult<()>
+    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> Result<()>
         + 'static,
 {
     f: F,
@@ -407,7 +407,7 @@ where
 
 impl<F> NavCompletedHandler<F>
 where
-    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> WinResult<()>
+    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> Result<()>
         + 'static,
 {
     pub fn create(f: F) -> ICoreWebView2NavigationCompletedEventHandler {
@@ -417,14 +417,14 @@ where
 
 impl<F> ICoreWebView2NavigationCompletedEventHandler_Impl for NavCompletedHandler_Impl<F>
 where
-    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> WinResult<()>
+    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> Result<()>
         + 'static,
 {
     fn Invoke(
         &self,
         sender: Ref<ICoreWebView2>,
         args: Ref<ICoreWebView2NavigationCompletedEventArgs>,
-    ) -> WinResult<()> {
+    ) -> Result<()> {
         (self.f)(sender, args)
     }
 }

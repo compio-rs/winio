@@ -6,7 +6,7 @@ use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
-use crate::Widget;
+use crate::{Result, Widget};
 
 #[derive(Debug)]
 pub struct Media {
@@ -16,113 +16,121 @@ pub struct Media {
 
 #[inherit_methods(from = "self.handle")]
 impl Media {
-    pub fn new(parent: impl AsContainer) -> Self {
-        let mpe = MUXC::MediaPlayerElement::new().unwrap();
-        Self {
-            handle: Widget::new(parent, mpe.cast().unwrap()),
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let mpe = MUXC::MediaPlayerElement::new()?;
+        Ok(Self {
+            handle: Widget::new(parent, mpe.cast()?)?,
             mpe,
-        }
+        })
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Size {
-        Size::zero()
+    pub fn preferred_size(&self) -> Result<Size> {
+        Ok(Size::zero())
     }
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn url(&self) -> String {
-        self.mpe
+    pub fn url(&self) -> Result<String> {
+        Ok(self
+            .mpe
             .Source()
             .and_then(|source| source.cast::<MediaSource>())
             .and_then(|source| source.Uri())
             .and_then(|uri| uri.ToString())
             .map(|s| s.to_string_lossy())
-            .unwrap_or_default()
+            .unwrap_or_default())
     }
 
-    pub async fn load(&mut self, url: impl AsRef<str>) -> bool {
-        let source =
-            MediaSource::CreateFromUri(&Uri::CreateUri(&url.as_ref().into()).unwrap()).unwrap();
-        self.mpe.SetSource(&source).unwrap();
-        source.OpenAsync().unwrap().await.is_ok()
+    pub async fn load(&mut self, url: impl AsRef<str>) -> Result<()> {
+        let source = MediaSource::CreateFromUri(&Uri::CreateUri(&url.as_ref().into())?)?;
+        self.mpe.SetSource(&source)?;
+        source.OpenAsync()?.await
     }
 
-    pub fn play(&mut self) {
+    pub fn play(&mut self) -> Result<()> {
         if let Ok(player) = self.mpe.MediaPlayer() {
-            player.Play().unwrap();
+            player.Play()?;
         }
+        Ok(())
     }
 
-    pub fn pause(&mut self) {
+    pub fn pause(&mut self) -> Result<()> {
         if let Ok(player) = self.mpe.MediaPlayer() {
-            player.Pause().unwrap();
+            player.Pause()?;
         }
+        Ok(())
     }
 
-    pub fn full_time(&self) -> Option<Duration> {
-        self.mpe
+    pub fn full_time(&self) -> Result<Option<Duration>> {
+        Ok(self
+            .mpe
             .MediaPlayer()
             .and_then(|player| player.NaturalDuration())
             .map(|d| d.into())
-            .ok()
+            .ok())
     }
 
-    pub fn current_time(&self) -> Duration {
-        self.mpe
-            .MediaPlayer()
-            .and_then(|player| player.Position())
-            .map(|d| d.into())
-            .unwrap_or_default()
+    pub fn current_time(&self) -> Result<Duration> {
+        if let Ok(player) = self.mpe.MediaPlayer() {
+            Ok(player.Position()?.into())
+        } else {
+            Ok(Duration::ZERO)
+        }
     }
 
-    pub fn set_current_time(&mut self, t: Duration) {
+    pub fn set_current_time(&mut self, t: Duration) -> Result<()> {
         if let Ok(player) = self.mpe.MediaPlayer() {
             player.SetPosition(t.into()).ok();
         }
+        Ok(())
     }
 
-    pub fn volume(&self) -> f64 {
-        self.mpe
-            .MediaPlayer()
-            .and_then(|player| player.Volume())
-            .unwrap_or_default()
-    }
-
-    pub fn set_volume(&mut self, v: f64) {
+    pub fn volume(&self) -> Result<f64> {
         if let Ok(player) = self.mpe.MediaPlayer() {
-            player.SetVolume(v).ok();
+            Ok(player.Volume()?)
+        } else {
+            Ok(0.0)
         }
     }
 
-    pub fn is_muted(&self) -> bool {
-        self.mpe
-            .MediaPlayer()
-            .and_then(|player| player.IsMuted())
-            .unwrap_or_default()
+    pub fn set_volume(&mut self, v: f64) -> Result<()> {
+        if let Ok(player) = self.mpe.MediaPlayer() {
+            player.SetVolume(v)?;
+        }
+        Ok(())
     }
 
-    pub fn set_muted(&mut self, v: bool) {
+    pub fn is_muted(&self) -> Result<bool> {
         if let Ok(player) = self.mpe.MediaPlayer() {
-            player.SetIsMuted(v).ok();
+            Ok(player.IsMuted()?)
+        } else {
+            Ok(false)
         }
+    }
+
+    pub fn set_muted(&mut self, v: bool) -> Result<()> {
+        if let Ok(player) = self.mpe.MediaPlayer() {
+            player.SetIsMuted(v)?;
+        }
+        Ok(())
     }
 }
 

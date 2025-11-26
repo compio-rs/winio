@@ -248,6 +248,8 @@ impl TextBox {
 
     pub fn preferred_size(&self) -> Result<Size>;
 
+    pub fn min_size(&self) -> Result<Size>;
+
     pub fn loc(&self) -> Result<Point>;
 
     pub fn set_loc(&mut self, p: Point) -> Result<()>;
@@ -279,7 +281,7 @@ impl TextBox {
     }
 
     pub fn is_readonly(&self) -> Result<bool> {
-        Ok(self.text_box.IsReadOnly()?)
+        self.text_box.IsReadOnly()
     }
 
     pub fn set_readonly(&mut self, v: bool) -> Result<()> {
