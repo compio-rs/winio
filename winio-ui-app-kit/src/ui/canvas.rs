@@ -36,7 +36,7 @@ use winio_primitive::{
 };
 
 use crate::{
-    GlobalRuntime, Result, catch,
+    Error, GlobalRuntime, Result, catch,
     ui::{TollFreeBridge, Widget, from_cgsize, transform_cgpoint, transform_point, transform_rect},
 };
 
@@ -462,7 +462,8 @@ impl DrawingContext<'_> {
         pos: Point,
         text: &str,
     ) -> Result<()> {
-        let (framesetter, rect) = measure_str(font, &brush.text_color(), pos, text, self.size);
+        let color = brush.text_color()?;
+        let (framesetter, rect) = measure_str(font, &color, pos, text, self.size);
         let rect = transform_rect(self.size, rect);
         self.actions
             .push(brush.create_text_action(framesetter, rect));
@@ -736,7 +737,7 @@ pub trait Brush {
     fn create_action(&self, path: CFRetained<CGPath>) -> DrawAction;
 
     #[doc(hidden)]
-    fn text_color(&self) -> CFRetained<CGColor>;
+    fn text_color(&self) -> Result<CFRetained<CGColor>>;
 
     #[doc(hidden)]
     fn create_text_action(
@@ -751,7 +752,7 @@ impl<B: Brush> Brush for &'_ B {
         (**self).create_action(path)
     }
 
-    fn text_color(&self) -> CFRetained<CGColor> {
+    fn text_color(&self) -> Result<CFRetained<CGColor>> {
         (**self).text_color()
     }
 
@@ -769,8 +770,8 @@ impl Brush for SolidColorBrush {
         DrawAction::Path(path, to_cgcolor(self.color), None)
     }
 
-    fn text_color(&self) -> CFRetained<CGColor> {
-        to_cgcolor(self.color)
+    fn text_color(&self) -> Result<CFRetained<CGColor>> {
+        Ok(to_cgcolor(self.color))
     }
 
     fn create_text_action(
@@ -809,8 +810,8 @@ impl Brush for LinearGradientBrush {
         DrawAction::GradientPath(path, linear_gradient(self, rect), None)
     }
 
-    fn text_color(&self) -> CFRetained<CGColor> {
-        unsafe { CGColor::constant_color(Some(kCGColorWhite)).unwrap() }
+    fn text_color(&self) -> Result<CFRetained<CGColor>> {
+        unsafe { CGColor::constant_color(Some(kCGColorWhite)).ok_or(Error::NullPointer) }
     }
 
     fn create_text_action(
@@ -839,8 +840,8 @@ impl Brush for RadialGradientBrush {
         DrawAction::GradientPath(path, radial_gradient(self, rect), None)
     }
 
-    fn text_color(&self) -> CFRetained<CGColor> {
-        unsafe { CGColor::constant_color(Some(kCGColorWhite)).unwrap() }
+    fn text_color(&self) -> Result<CFRetained<CGColor>> {
+        unsafe { CGColor::constant_color(Some(kCGColorWhite)).ok_or(Error::NullPointer) }
     }
 
     fn create_text_action(
@@ -908,21 +909,21 @@ impl DrawingImage {
         let mut ptr = buffer.as_mut_ptr();
         let rep = catch(|| unsafe {
             NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bitmapFormat_bytesPerRow_bitsPerPixel(
-                    NSBitmapImageRep::alloc(),
-                    &mut ptr,
-                    width as _,
-                    height as _,
-                    8,
-                    spp,
-                    alpha,
-                    false,
-                    NSDeviceRGBColorSpace,
-                    NSBitmapFormat::empty(),
-                    (spp as u32 * width) as _,
-                    spp * 8,
-                )
-                .unwrap()
-        })?;
+                NSBitmapImageRep::alloc(),
+                &mut ptr,
+                width as _,
+                height as _,
+                8,
+                spp,
+                alpha,
+                false,
+                NSDeviceRGBColorSpace,
+                NSBitmapFormat::empty(),
+                (spp as u32 * width) as _,
+                spp * 8,
+            )
+        })?
+        .ok_or(Error::NullPointer)?;
         Ok(Self {
             buffer: Rc::new(buffer),
             rep,

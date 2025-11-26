@@ -48,8 +48,9 @@ impl Runtime {
             run_loop.add_source(Some(&source), kCFRunLoopDefaultMode);
         }
 
+        let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
         let ns_app = catch(|| {
-            let ns_app = NSApplication::sharedApplication(MainThreadMarker::new().unwrap());
+            let ns_app = NSApplication::sharedApplication(mtm);
             ns_app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
             #[allow(deprecated)]
             ns_app.activateIgnoringOtherApps(true);

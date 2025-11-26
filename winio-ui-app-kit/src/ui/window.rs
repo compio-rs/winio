@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use inherit_methods_macro::inherit_methods;
 use objc2::{
     DeclaredClass, MainThreadOnly, define_class, msg_send,
@@ -133,7 +131,16 @@ impl Window {
     }
 
     pub fn client_size(&self) -> Result<Size> {
-        catch(|| from_cgsize(self.wnd.contentView().unwrap().frame().size))
+        catch(|| {
+            Ok(from_cgsize(
+                self.wnd
+                    .contentView()
+                    .ok_or(Error::NullPointer)?
+                    .frame()
+                    .size,
+            ))
+        })
+        .flatten()
     }
 
     pub fn text(&self) -> Result<String> {
@@ -160,7 +167,7 @@ impl Window {
 
             catch(|| {
                 if let Some(v) = v {
-                    let view = self.wnd.contentView().unwrap();
+                    let view = self.wnd.contentView().ok_or(Error::NullPointer)?;
                     let bounds = view.bounds();
                     let vev: Retained<NSVisualEffectView> = NSVisualEffectView::initWithFrame(
                         self.wnd.mtm().alloc::<NSVisualEffectView>(),
@@ -188,7 +195,9 @@ impl Window {
                 } else if let Some(vv) = self.vibrancy_view.take() {
                     vv.removeFromSuperview();
                 }
+                Ok(())
             })
+            .flatten()
         }
     }
 
@@ -219,7 +228,7 @@ winio_handle::impl_as_window!(Window);
 
 impl AsRawContainer for Window {
     fn as_raw_container(&self) -> RawContainer {
-        self.wnd.contentView().unwrap()
+        self.wnd.contentView().expect("window has no content view")
     }
 }
 

@@ -17,7 +17,7 @@ use winio_handle::AsContainer;
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
-    GlobalRuntime, Result, catch,
+    Error, GlobalRuntime, Result, catch,
     ui::{Widget, from_cgsize, from_nsstring},
 };
 
@@ -36,7 +36,9 @@ impl TextBox {
 
         catch(|| unsafe {
             let view = NSTextView::scrollableTextView(mtm);
-            let text_view = Retained::cast_unchecked::<NSTextView>(view.documentView().unwrap());
+            let text_view = Retained::cast_unchecked::<NSTextView>(
+                view.documentView().ok_or(Error::NullPointer)?,
+            );
             text_view.setRichText(false);
             text_view.setEditable(true);
             text_view.setSelectable(true);

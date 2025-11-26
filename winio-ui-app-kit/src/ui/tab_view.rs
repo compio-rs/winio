@@ -10,7 +10,7 @@ use winio_callback::Callback;
 use winio_handle::{AsContainer, AsRawContainer, RawContainer};
 use winio_primitive::{Point, Size};
 
-use crate::{GlobalRuntime, Result, catch, from_cgsize, from_nsstring, ui::Widget};
+use crate::{Error, GlobalRuntime, Result, catch, from_cgsize, from_nsstring, ui::Widget};
 
 #[derive(Debug)]
 pub struct TabView {
@@ -173,15 +173,24 @@ impl TabViewItem {
 
     pub fn size(&self) -> Result<Size> {
         catch(|| {
-            let frame = self.item.view(self.mtm).unwrap().frame().size;
-            from_cgsize(frame)
+            let frame = self
+                .item
+                .view(self.mtm)
+                .ok_or(Error::NullPointer)?
+                .frame()
+                .size;
+            Ok(from_cgsize(frame))
         })
+        .flatten()
     }
 }
 
 impl AsRawContainer for TabViewItem {
     fn as_raw_container(&self) -> RawContainer {
-        self.item.view(self.mtm).unwrap().clone()
+        self.item
+            .view(self.mtm)
+            .expect("tab view item has no view")
+            .clone()
     }
 }
 
