@@ -10,6 +10,8 @@ use objc2_foundation::{MainThreadMarker, NSString, ns_string};
 use winio_handle::{AsRawWindow, AsWindow};
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
+use crate::{Error, Result, catch};
+
 async fn msgbox_custom(
     parent: Option<impl AsWindow>,
     msg: Retained<NSString>,
@@ -18,18 +20,20 @@ async fn msgbox_custom(
     style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
-) -> MessageBoxResponse {
-    unsafe {
-        let parent = parent.map(|p| p.as_window().as_raw_window());
-        let mtm = parent
-            .as_ref()
-            .map(|w| w.mtm())
-            .or_else(MainThreadMarker::new)
-            .unwrap();
+) -> Result<MessageBoxResponse> {
+    let parent = parent.map(|p| p.as_window().as_raw_window());
+    let mtm = parent
+        .as_ref()
+        .map(|w| w.mtm())
+        .or_else(MainThreadMarker::new)
+        .ok_or(Error::NotMainThread)?;
 
+    let (alert, responses) = catch(|| {
         let alert = NSAlert::new(mtm);
         if let Some(parent) = &parent {
-            alert.window().setParentWindow(Some(parent));
+            unsafe {
+                alert.window().setParentWindow(Some(parent));
+            }
         }
         alert.setAlertStyle(match style {
             MessageBoxStyle::Info => NSAlertStyle::Informational,
@@ -37,13 +41,15 @@ async fn msgbox_custom(
             _ => NSAlertStyle::Warning,
         });
         let image = match style {
-            MessageBoxStyle::Info => NSImage::imageNamed(NSImageNameInfo),
+            MessageBoxStyle::Info => NSImage::imageNamed(unsafe { NSImageNameInfo }),
             MessageBoxStyle::Warning | MessageBoxStyle::Error => {
-                NSImage::imageNamed(NSImageNameCaution)
+                NSImage::imageNamed(unsafe { NSImageNameCaution })
             }
             _ => None,
         };
-        alert.setIcon(image.as_deref());
+        unsafe {
+            alert.setIcon(image.as_deref());
+        }
 
         alert.window().setTitle(&title);
         if instr.is_empty() {
@@ -84,25 +90,28 @@ async fn msgbox_custom(
             alert.addButtonWithTitle(&b.text);
             responses.push(MessageBoxResponse::Custom(b.result));
         }
+        Ok((alert, responses))
+    })
+    .flatten()?;
 
-        if let Some(parent) = &parent {
-            let (tx, rx) = local_sync::oneshot::channel();
-            let tx = Rc::new(Cell::new(Some(tx)));
-            let block = StackBlock::new(move |res| {
-                tx.take()
-                    .expect("the handler should only be called once")
-                    .send(responses[(res - NSAlertFirstButtonReturn) as usize])
-                    .ok();
-            });
-            alert.beginSheetModalForWindow_completionHandler(parent, Some(&block));
-            let res = rx.await.expect("NSAlert cancelled");
-            parent.makeKeyWindow();
-            res
-        } else {
-            let res = alert.runModal();
-            responses[res as usize - NSAlertFirstButtonReturn as usize]
-        }
-    }
+    let res = if let Some(parent) = &parent {
+        let (tx, rx) = local_sync::oneshot::channel();
+        let tx = Rc::new(Cell::new(Some(tx)));
+        let block = StackBlock::new(move |res| {
+            tx.take()
+                .expect("the handler should only be called once")
+                .send(responses[(res - NSAlertFirstButtonReturn) as usize])
+                .ok();
+        });
+        catch(|| alert.beginSheetModalForWindow_completionHandler(parent, Some(&block)))?;
+        let res = rx.await.expect("NSAlert cancelled");
+        catch(|| parent.makeKeyWindow())?;
+        res
+    } else {
+        let res = catch(|| alert.runModal())?;
+        responses[res as usize - NSAlertFirstButtonReturn as usize]
+    };
+    Ok(res)
 }
 
 #[derive(Debug, Default, Clone)]
@@ -120,7 +129,7 @@ impl MessageBox {
         Self::default()
     }
 
-    pub async fn show(self, parent: Option<impl AsWindow>) -> MessageBoxResponse {
+    pub async fn show(self, parent: Option<impl AsWindow>) -> Result<MessageBoxResponse> {
         msgbox_custom(
             parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )

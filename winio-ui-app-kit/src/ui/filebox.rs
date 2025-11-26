@@ -7,7 +7,7 @@ use objc2_foundation::{MainThreadMarker, NSArray, NSString};
 use objc2_uniform_type_identifiers::UTType;
 use winio_handle::{AsRawWindow, AsWindow};
 
-use crate::ui::from_nsstring;
+use crate::{Error, Result, catch, ui::from_nsstring};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileFilter {
@@ -52,7 +52,7 @@ impl FileBox {
         self.filters.push(filter);
     }
 
-    pub async fn open(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
+    pub async fn open(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
         unsafe {
             filebox(
                 parent,
@@ -63,12 +63,12 @@ impl FileBox {
                 false,
                 false,
             )
-            .await
+            .await?
             .result()
         }
     }
 
-    pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Vec<PathBuf> {
+    pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Result<Vec<PathBuf>> {
         unsafe {
             filebox(
                 parent,
@@ -79,12 +79,12 @@ impl FileBox {
                 true,
                 false,
             )
-            .await
+            .await?
             .results()
         }
     }
 
-    pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
+    pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
         unsafe {
             filebox(
                 parent,
@@ -95,12 +95,12 @@ impl FileBox {
                 false,
                 true,
             )
-            .await
+            .await?
             .result()
         }
     }
 
-    pub async fn save(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
+    pub async fn save(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
         unsafe {
             filebox(
                 parent,
@@ -111,7 +111,7 @@ impl FileBox {
                 false,
                 false,
             )
-            .await
+            .await?
             .result()
         }
     }
@@ -125,69 +125,72 @@ async unsafe fn filebox(
     open: bool,
     multiple: bool,
     folder: bool,
-) -> FileBoxInner {
+) -> Result<FileBoxInner> {
     let parent = parent.map(|p| p.as_window().as_raw_window());
     let mtm = parent
         .as_ref()
         .map(|w| w.mtm())
         .or_else(MainThreadMarker::new)
-        .unwrap();
+        .ok_or(Error::NotMainThread)?;
 
-    let handle: Retained<NSSavePanel> = if open {
-        let handle = NSOpenPanel::openPanel(mtm);
-        handle.setCanChooseFiles(!folder);
-        handle.setCanChooseDirectories(folder);
-        handle.setResolvesAliases(false);
-        if multiple {
-            handle.setAllowsMultipleSelection(true);
+    let handle = catch(|| {
+        let handle: Retained<NSSavePanel> = if open {
+            let handle = NSOpenPanel::openPanel(mtm);
+            handle.setCanChooseFiles(!folder);
+            handle.setCanChooseDirectories(folder);
+            handle.setResolvesAliases(false);
+            if multiple {
+                handle.setAllowsMultipleSelection(true);
+            }
+            Retained::into_super(handle)
+        } else {
+            let handle = NSSavePanel::savePanel(mtm);
+            handle.setCanCreateDirectories(true);
+            handle
+        };
+        handle.setShowsHiddenFiles(true);
+        handle.setExtensionHidden(false);
+        handle.setCanSelectHiddenExtension(false);
+        handle.setTreatsFilePackagesAsDirectories(true);
+
+        if let Some(parent) = &parent {
+            handle.setParentWindow(Some(parent));
         }
-        Retained::into_super(handle)
-    } else {
-        let handle = NSSavePanel::savePanel(mtm);
-        handle.setCanCreateDirectories(true);
-        handle
-    };
-    handle.setShowsHiddenFiles(true);
-    handle.setExtensionHidden(false);
-    handle.setCanSelectHiddenExtension(false);
-    handle.setTreatsFilePackagesAsDirectories(true);
 
-    if let Some(parent) = &parent {
-        handle.setParentWindow(Some(parent));
-    }
+        if !title.is_empty() {
+            handle.setTitle(Some(&title));
+        }
 
-    if !title.is_empty() {
-        handle.setTitle(Some(&title));
-    }
+        handle.setNameFieldStringValue(&filename);
+        if !filters.is_empty() {
+            let allow_others = filters
+                .iter()
+                .any(|f| f.pattern == "*.*" || f.pattern == "*");
+            handle.setAllowsOtherFileTypes(allow_others);
 
-    handle.setNameFieldStringValue(&filename);
-    if !filters.is_empty() {
-        let allow_others = filters
-            .iter()
-            .any(|f| f.pattern == "*.*" || f.pattern == "*");
-        handle.setAllowsOtherFileTypes(allow_others);
-
-        if !(open && allow_others) {
-            let ns_filters = NSArray::from_retained_slice(
-                &filters
-                    .into_iter()
-                    .filter_map(|f| {
-                        let pattern = f.pattern;
-                        if pattern == "*.*" || pattern == "*" {
-                            None
-                        } else {
-                            UTType::typeWithFilenameExtension(&NSString::from_str(
-                                pattern.strip_prefix("*.").unwrap_or(&pattern),
-                            ))
-                        }
-                    })
-                    .collect::<Vec<_>>(),
-            );
-            if !ns_filters.is_empty() {
-                handle.setAllowedContentTypes(&ns_filters);
+            if !(open && allow_others) {
+                let ns_filters = NSArray::from_retained_slice(
+                    &filters
+                        .into_iter()
+                        .filter_map(|f| {
+                            let pattern = f.pattern;
+                            if pattern == "*.*" || pattern == "*" {
+                                None
+                            } else {
+                                UTType::typeWithFilenameExtension(&NSString::from_str(
+                                    pattern.strip_prefix("*.").unwrap_or(&pattern),
+                                ))
+                            }
+                        })
+                        .collect::<Vec<_>>(),
+                );
+                if !ns_filters.is_empty() {
+                    handle.setAllowedContentTypes(&ns_filters);
+                }
             }
         }
-    }
+        handle
+    })?;
 
     let res = if let Some(parent) = &parent {
         let (tx, rx) = local_sync::oneshot::channel();
@@ -198,43 +201,47 @@ async unsafe fn filebox(
                 .send(res)
                 .ok();
         });
-        handle.beginSheetModalForWindow_completionHandler(parent, &block);
+        catch(|| handle.beginSheetModalForWindow_completionHandler(parent, &block))?;
         rx.await.expect("NSAlert cancelled")
     } else {
-        handle.runModal()
+        catch(|| handle.runModal())?
     };
     handle.close();
-    FileBoxInner(if res == NSModalResponseOK {
+    Ok(FileBoxInner(if res == NSModalResponseOK {
         Some(handle)
     } else {
         None
-    })
+    }))
 }
 
 struct FileBoxInner(Option<Retained<NSSavePanel>>);
 
 impl FileBoxInner {
-    pub unsafe fn result(self) -> Option<PathBuf> {
+    pub unsafe fn result(self) -> Result<Option<PathBuf>> {
         if let Some(dialog) = self.0 {
-            dialog
-                .URL()
-                .and_then(|url| url.path())
-                .map(|s| PathBuf::from(from_nsstring(&s)))
+            catch(|| {
+                dialog
+                    .URL()
+                    .and_then(|url| url.path())
+                    .map(|s| PathBuf::from(from_nsstring(&s)))
+            })
         } else {
-            None
+            Ok(None)
         }
     }
 
-    pub unsafe fn results(self) -> Vec<PathBuf> {
+    pub unsafe fn results(self) -> Result<Vec<PathBuf>> {
         if let Some(dialog) = self.0 {
             let dialog: Retained<NSOpenPanel> = Retained::cast_unchecked(dialog);
-            dialog
-                .URLs()
-                .iter()
-                .filter_map(|url| url.path().map(|s| PathBuf::from(from_nsstring(&s))))
-                .collect()
+            catch(|| {
+                dialog
+                    .URLs()
+                    .iter()
+                    .filter_map(|url| url.path().map(|s| PathBuf::from(from_nsstring(&s))))
+                    .collect()
+            })
         } else {
-            vec![]
+            Ok(vec![])
         }
     }
 }

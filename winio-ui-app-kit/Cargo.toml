@@ -21,9 +21,10 @@ inherit-methods-macro = { workspace = true }
 image = { workspace = true, default-features = false }
 local-sync = { workspace = true }
 scoped-tls = { workspace = true }
+thiserror = { workspace = true }
 
 block2 = "0.6"
-objc2 = { workspace = true }
+objc2 = { workspace = true, features = ["exception"] }
 objc2-core-foundation = "0.3"
 objc2-core-graphics = "0.3"
 objc2-core-text = "0.3"

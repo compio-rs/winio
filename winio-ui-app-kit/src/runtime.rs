@@ -9,21 +9,17 @@ use objc2_core_foundation::{
 };
 use objc2_foundation::{MainThreadMarker, NSDate, NSDefaultRunLoopMode};
 
+use crate::{Error, Result, catch};
+
 pub struct Runtime {
     runtime: winio_pollable::Runtime,
     fd_source: CFRetained<CFFileDescriptor>,
     ns_app: Retained<NSApplication>,
 }
 
-impl Default for Runtime {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Runtime {
-    pub fn new() -> Self {
-        let runtime = winio_pollable::Runtime::new().unwrap();
+    pub fn new() -> Result<Self> {
+        let runtime = winio_pollable::Runtime::new()?;
 
         unsafe extern "C-unwind" fn callback(
             _fdref: *mut CFFileDescriptor,
@@ -41,26 +37,29 @@ impl Runtime {
                 null(),
             )
         }
-        .unwrap();
+        .ok_or(Error::NullPointer)?;
         let source = unsafe {
             CFFileDescriptor::new_run_loop_source(kCFAllocatorDefault, Some(&fd_source), 0)
         }
-        .unwrap();
+        .ok_or(Error::NullPointer)?;
 
         unsafe {
-            let run_loop = CFRunLoop::current().unwrap();
+            let run_loop = CFRunLoop::current().ok_or(Error::NullPointer)?;
             run_loop.add_source(Some(&source), kCFRunLoopDefaultMode);
         }
 
-        let ns_app = NSApplication::sharedApplication(MainThreadMarker::new().unwrap());
-        ns_app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
-        #[allow(deprecated)]
-        ns_app.activateIgnoringOtherApps(true);
-        Self {
+        let ns_app = catch(|| {
+            let ns_app = NSApplication::sharedApplication(MainThreadMarker::new().unwrap());
+            ns_app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
+            #[allow(deprecated)]
+            ns_app.activateIgnoringOtherApps(true);
+            ns_app
+        })?;
+        Ok(Self {
             runtime,
             fd_source,
             ns_app,
-        }
+        })
     }
 
     pub(crate) fn run(&self) {
