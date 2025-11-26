@@ -10,7 +10,7 @@ use winio_callback::Callback;
 use winio_handle::{AsContainer, AsRawContainer, RawContainer};
 use winio_primitive::{Point, Size};
 
-use crate::{GlobalRuntime, from_cgsize, from_nsstring, ui::Widget};
+use crate::{GlobalRuntime, Result, catch, from_cgsize, from_nsstring, ui::Widget};
 
 #[derive(Debug)]
 pub struct TabView {
@@ -21,77 +21,85 @@ pub struct TabView {
 
 #[inherit_methods(from = "self.handle")]
 impl TabView {
-    pub fn new(parent: impl AsContainer) -> Self {
-        unsafe {
-            let parent = parent.as_container();
-            let mtm = parent.mtm();
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let parent = parent.as_container();
+        let mtm = parent.mtm();
 
+        catch(|| unsafe {
             let view = NSTabView::new(mtm);
-            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
+            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()))?;
 
             let delegate = TabViewDelegate::new(mtm);
             let del_obj = ProtocolObject::from_ref(&*delegate);
             view.setDelegate(Some(del_obj));
 
-            Self {
+            Ok(Self {
                 handle,
                 view,
                 delegate,
-            }
-        }
+            })
+        })
+        .flatten()
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn selection(&self) -> Option<usize> {
-        self.view
-            .selectedTabViewItem()
-            .map(|item| self.view.indexOfTabViewItem(&item) as _)
+    pub fn selection(&self) -> Result<Option<usize>> {
+        catch(|| {
+            self.view
+                .selectedTabViewItem()
+                .map(|item| self.view.indexOfTabViewItem(&item) as _)
+        })
     }
 
-    pub fn set_selection(&mut self, i: usize) {
-        self.view.selectTabViewItemAtIndex(i as _);
+    pub fn set_selection(&mut self, i: usize) -> Result<()> {
+        catch(|| self.view.selectTabViewItemAtIndex(i as _))
     }
 
     pub async fn wait_select(&self) {
         self.delegate.ivars().did_select.wait().await
     }
 
-    pub fn insert(&mut self, i: usize, item: &TabViewItem) {
-        self.view.insertTabViewItem_atIndex(&item.item, i as _);
+    pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
+        catch(|| self.view.insertTabViewItem_atIndex(&item.item, i as _))
     }
 
-    pub fn remove(&mut self, i: usize) {
-        self.view
-            .removeTabViewItem(&self.view.tabViewItemAtIndex(i as _));
+    pub fn remove(&mut self, i: usize) -> Result<()> {
+        catch(|| {
+            self.view
+                .removeTabViewItem(&self.view.tabViewItemAtIndex(i as _))
+        })
     }
 
-    pub fn len(&self) -> usize {
-        self.view.numberOfTabViewItems() as _
+    pub fn len(&self) -> Result<usize> {
+        catch(|| self.view.numberOfTabViewItems() as _)
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
+    pub fn is_empty(&self) -> Result<bool> {
+        Ok(self.len()? == 0)
     }
 
-    pub fn clear(&mut self) {
-        while !self.is_empty() {
-            self.remove(0);
-        }
+    pub fn clear(&mut self) -> Result<()> {
+        catch(|| {
+            while self.view.numberOfTabViewItems() > 0 {
+                self.view
+                    .removeTabViewItem(&self.view.tabViewItemAtIndex(0));
+            }
+        })
     }
 }
 
@@ -146,24 +154,28 @@ pub struct TabViewItem {
 }
 
 impl TabViewItem {
-    pub fn new(parent: &TabView) -> Self {
-        let item = NSTabViewItem::new();
-        let mtm = parent.view.mtm();
-        item.setView(Some(&NSView::new(mtm)));
-        Self { item, mtm }
+    pub fn new(parent: &TabView) -> Result<Self> {
+        catch(|| {
+            let item = NSTabViewItem::new();
+            let mtm = parent.view.mtm();
+            item.setView(Some(&NSView::new(mtm)));
+            Self { item, mtm }
+        })
     }
 
-    pub fn text(&self) -> String {
-        from_nsstring(&self.item.label())
+    pub fn text(&self) -> Result<String> {
+        catch(|| from_nsstring(&self.item.label()))
     }
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.item.setLabel(&NSString::from_str(s.as_ref()));
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
+        catch(|| self.item.setLabel(&NSString::from_str(s.as_ref())))
     }
 
-    pub fn size(&self) -> Size {
-        let frame = self.item.view(self.mtm).unwrap().frame().size;
-        from_cgsize(frame)
+    pub fn size(&self) -> Result<Size> {
+        catch(|| {
+            let frame = self.item.view(self.mtm).unwrap().frame().size;
+            from_cgsize(frame)
+        })
     }
 }
 

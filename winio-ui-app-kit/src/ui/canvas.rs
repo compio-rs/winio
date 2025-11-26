@@ -36,7 +36,7 @@ use winio_primitive::{
 };
 
 use crate::{
-    GlobalRuntime,
+    GlobalRuntime, Result, catch,
     ui::{TollFreeBridge, Widget, from_cgsize, transform_cgpoint, transform_point, transform_rect},
 };
 
@@ -48,39 +48,39 @@ pub struct Canvas {
 
 #[inherit_methods(from = "self.handle")]
 impl Canvas {
-    pub fn new(parent: impl AsContainer) -> Self {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
         let parent = parent.as_container();
-        let view = CanvasView::new(parent.mtm());
-        let handle = Widget::from_nsview(parent, view.clone().into_super());
-        Self { view, handle }
+        let view = catch(|| CanvasView::new(parent.mtm()))?;
+        let handle = Widget::from_nsview(parent, view.clone().into_super())?;
+        Ok(Self { view, handle })
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn context(&mut self) -> DrawingContext<'_> {
-        DrawingContext {
-            size: self.size(),
+    pub fn context(&mut self) -> Result<DrawingContext<'_>> {
+        Ok(DrawingContext {
+            size: self.size()?,
             actions: self.view.ivars().take_buffer(),
             canvas: self,
-        }
+        })
     }
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
@@ -97,9 +97,9 @@ impl Canvas {
             .window()
             .map(|w| {
                 let p = w.mouseLocationOutsideOfEventStream();
-                transform_cgpoint(self.size(), p)
+                transform_cgpoint(self.size().unwrap_or_default(), p)
             })
-            .unwrap()
+            .unwrap_or_default()
     }
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
@@ -387,92 +387,107 @@ impl Drop for DrawingContext<'_> {
 }
 
 impl DrawingContext<'_> {
-    fn draw(&mut self, pen: impl Pen, path: CFRetained<CGPath>) {
+    fn draw(&mut self, pen: impl Pen, path: CFRetained<CGPath>) -> Result<()> {
         self.actions.push(pen.create_action(path));
+        Ok(())
     }
 
-    fn fill(&mut self, brush: impl Brush, path: CFRetained<CGPath>) {
+    fn fill(&mut self, brush: impl Brush, path: CFRetained<CGPath>) -> Result<()> {
         self.actions.push(brush.create_action(path));
+        Ok(())
     }
 
-    pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) {
-        self.draw(pen, path.0.clone());
+    pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) -> Result<()> {
+        self.draw(pen, path.0.clone())
     }
 
-    pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) {
+    pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) -> Result<()> {
         self.fill(brush, path.0.clone())
     }
 
-    pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
+    pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> Result<()> {
         let path = path_arc(self.size, rect, start, end, false);
         self.draw(pen, unsafe { CFRetained::cast_unchecked(path) })
     }
 
-    pub fn draw_pie(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
+    pub fn draw_pie(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> Result<()> {
         let path = path_arc(self.size, rect, start, end, true);
         self.draw(pen, unsafe { CFRetained::cast_unchecked(path) })
     }
 
-    pub fn fill_pie(&mut self, brush: impl Brush, rect: Rect, start: f64, end: f64) {
+    pub fn fill_pie(&mut self, brush: impl Brush, rect: Rect, start: f64, end: f64) -> Result<()> {
         let path = path_arc(self.size, rect, start, end, true);
         self.fill(brush, unsafe { CFRetained::cast_unchecked(path) })
     }
 
-    pub fn draw_ellipse(&mut self, pen: impl Pen, rect: Rect) {
+    pub fn draw_ellipse(&mut self, pen: impl Pen, rect: Rect) -> Result<()> {
         let path = path_ellipse(self.size, rect);
         self.draw(pen, path)
     }
 
-    pub fn fill_ellipse(&mut self, brush: impl Brush, rect: Rect) {
+    pub fn fill_ellipse(&mut self, brush: impl Brush, rect: Rect) -> Result<()> {
         let path = path_ellipse(self.size, rect);
         self.fill(brush, path)
     }
 
-    pub fn draw_line(&mut self, pen: impl Pen, start: Point, end: Point) {
+    pub fn draw_line(&mut self, pen: impl Pen, start: Point, end: Point) -> Result<()> {
         let path = path_line(self.size, start, end);
         self.draw(pen, unsafe { CFRetained::cast_unchecked(path) })
     }
 
-    pub fn draw_rect(&mut self, pen: impl Pen, rect: Rect) {
+    pub fn draw_rect(&mut self, pen: impl Pen, rect: Rect) -> Result<()> {
         let path = path_rect(self.size, rect);
         self.draw(pen, path)
     }
 
-    pub fn fill_rect(&mut self, brush: impl Brush, rect: Rect) {
+    pub fn fill_rect(&mut self, brush: impl Brush, rect: Rect) -> Result<()> {
         let path = path_rect(self.size, rect);
         self.fill(brush, path)
     }
 
-    pub fn draw_round_rect(&mut self, pen: impl Pen, rect: Rect, round: Size) {
+    pub fn draw_round_rect(&mut self, pen: impl Pen, rect: Rect, round: Size) -> Result<()> {
         let path = path_round_rect(self.size, rect, round);
         self.draw(pen, path)
     }
 
-    pub fn fill_round_rect(&mut self, brush: impl Brush, rect: Rect, round: Size) {
+    pub fn fill_round_rect(&mut self, brush: impl Brush, rect: Rect, round: Size) -> Result<()> {
         let path = path_round_rect(self.size, rect, round);
         self.fill(brush, path)
     }
 
-    pub fn draw_str(&mut self, brush: impl Brush, font: DrawingFont, pos: Point, text: &str) {
+    pub fn draw_str(
+        &mut self,
+        brush: impl Brush,
+        font: DrawingFont,
+        pos: Point,
+        text: &str,
+    ) -> Result<()> {
         let (framesetter, rect) = measure_str(font, &brush.text_color(), pos, text, self.size);
         let rect = transform_rect(self.size, rect);
         self.actions
-            .push(brush.create_text_action(framesetter, rect))
+            .push(brush.create_text_action(framesetter, rect));
+        Ok(())
     }
 
-    pub fn create_image(&self, image: DynamicImage) -> DrawingImage {
+    pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage> {
         DrawingImage::new(image)
     }
 
-    pub fn draw_image(&mut self, image_rep: &DrawingImage, rect: Rect, clip: Option<Rect>) {
+    pub fn draw_image(
+        &mut self,
+        image_rep: &DrawingImage,
+        rect: Rect,
+        clip: Option<Rect>,
+    ) -> Result<()> {
         let rect = transform_rect(self.size, rect);
         let clip = clip.map(|clip| transform_rect(self.size, clip));
         self.actions
-            .push(DrawAction::Image(image_rep.clone(), rect, clip))
+            .push(DrawAction::Image(image_rep.clone(), rect, clip));
+        Ok(())
     }
 
-    pub fn create_path_builder(&self, start: Point) -> DrawingPathBuilder {
-        DrawingPathBuilder::new(self.size, start)
+    pub fn create_path_builder(&self, start: Point) -> Result<DrawingPathBuilder> {
+        Ok(DrawingPathBuilder::new(self.size, start))
     }
 }
 
@@ -543,12 +558,12 @@ impl DrawingPathBuilder {
         }
     }
 
-    pub fn build(self, close: bool) -> DrawingPath {
+    pub fn build(self, close: bool) -> Result<DrawingPath> {
         unsafe {
             if close {
                 CGMutablePath::close_subpath(Some(&self.path));
             }
-            DrawingPath(CFRetained::cast_unchecked(self.path))
+            Ok(DrawingPath(CFRetained::cast_unchecked(self.path)))
         }
     }
 }
@@ -878,7 +893,7 @@ pub struct DrawingImage {
 }
 
 impl DrawingImage {
-    fn new(image: DynamicImage) -> Self {
+    fn new(image: DynamicImage) -> Result<Self> {
         let width = image.width();
         let height = image.height();
         let (mut buffer, spp, alpha) = match image {
@@ -891,7 +906,7 @@ impl DrawingImage {
             ),
         };
         let mut ptr = buffer.as_mut_ptr();
-        let rep = unsafe {
+        let rep = catch(|| unsafe {
             NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bitmapFormat_bytesPerRow_bitsPerPixel(
                     NSBitmapImageRep::alloc(),
                     &mut ptr,
@@ -907,14 +922,14 @@ impl DrawingImage {
                     spp * 8,
                 )
                 .unwrap()
-        };
-        Self {
+        })?;
+        Ok(Self {
             buffer: Rc::new(buffer),
             rep,
-        }
+        })
     }
 
-    pub fn size(&self) -> Size {
-        from_cgsize(self.rep.size())
+    pub fn size(&self) -> Result<Size> {
+        catch(|| from_cgsize(self.rep.size()))
     }
 }

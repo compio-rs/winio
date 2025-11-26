@@ -13,7 +13,7 @@ use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{
-    GlobalRuntime,
+    Error, GlobalRuntime, Result, catch,
     ui::{Widget, from_nsstring},
 };
 
@@ -26,114 +26,116 @@ pub struct WebView {
 
 #[inherit_methods(from = "self.handle")]
 impl WebView {
-    pub fn new(parent: impl AsContainer) -> Self {
-        unsafe {
-            let parent = parent.as_container();
-            let mtm = parent.mtm();
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let parent = parent.as_container();
+        let mtm = parent.mtm();
 
+        catch(|| unsafe {
             let frame = parent.frame();
             let config = WKWebViewConfiguration::new(mtm);
             let view =
                 WKWebView::initWithFrame_configuration(WKWebView::alloc(mtm), frame, &config);
-            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
+            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()))?;
 
             let delegate = WebViewDelegate::new(mtm);
             let del_obj = ProtocolObject::from_ref(&*delegate);
             view.setNavigationDelegate(Some(del_obj));
 
-            Self {
+            Ok(Self {
                 handle,
                 view,
                 delegate,
-            }
-        }
+            })
+        })
+        .flatten()
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool {
-        true
+    pub fn is_enabled(&self) -> Result<bool> {
+        Ok(true)
     }
 
-    #[allow(clippy::unused_unit)]
-    pub fn set_enabled(&mut self, _: bool) {
-        ()
+    pub fn set_enabled(&mut self, _: bool) -> Result<()> {
+        Ok(())
     }
 
-    pub fn preferred_size(&self) -> Size {
-        Size::zero()
+    pub fn preferred_size(&self) -> Result<Size> {
+        Ok(Size::zero())
     }
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn source(&self) -> String {
-        unsafe {
+    pub fn source(&self) -> Result<String> {
+        catch(|| unsafe {
             self.view
                 .URL()
                 .and_then(|url| url.absoluteString())
                 .map(|s| from_nsstring(&s))
                 .unwrap_or_default()
-        }
+        })
     }
 
-    pub fn set_source(&mut self, s: impl AsRef<str>) {
+    pub fn set_source(&mut self, s: impl AsRef<str>) -> Result<()> {
         let s = s.as_ref();
         if s.is_empty() {
             return self.set_html("");
         }
-        unsafe {
-            if let Some(url) = NSURL::URLWithString(&NSString::from_str(s)) {
-                let req = NSURLRequest::requestWithURL(&url);
-                self.view.loadRequest(&req);
-            }
-        }
+
+        catch(|| {
+            let url = NSURL::URLWithString(&NSString::from_str(s)).ok_or(Error::NullPointer)?;
+            let req = NSURLRequest::requestWithURL(&url);
+            unsafe { self.view.loadRequest(&req) };
+            Ok(())
+        })
+        .flatten()
     }
 
-    pub fn set_html(&mut self, html: impl AsRef<str>) {
-        unsafe {
+    pub fn set_html(&mut self, html: impl AsRef<str>) -> Result<()> {
+        catch(|| unsafe {
             self.view
                 .loadHTMLString_baseURL(&NSString::from_str(html.as_ref()), None);
-        }
+        })
     }
 
-    pub fn can_go_forward(&self) -> bool {
-        unsafe { self.view.canGoForward() }
+    pub fn can_go_forward(&self) -> Result<bool> {
+        catch(|| unsafe { self.view.canGoForward() })
     }
 
-    pub fn go_forward(&mut self) {
-        unsafe {
+    pub fn go_forward(&mut self) -> Result<()> {
+        catch(|| unsafe {
             self.view.goForward();
-        }
+        })
     }
 
-    pub fn can_go_back(&self) -> bool {
-        unsafe { self.view.canGoBack() }
+    pub fn can_go_back(&self) -> Result<bool> {
+        catch(|| unsafe { self.view.canGoBack() })
     }
 
-    pub fn go_back(&mut self) {
-        unsafe {
+    pub fn go_back(&mut self) -> Result<()> {
+        catch(|| unsafe {
             self.view.goBack();
-        }
+        })
     }
 
-    pub fn reload(&mut self) {
-        unsafe {
+    pub fn reload(&mut self) -> Result<()> {
+        catch(|| unsafe {
             self.view.reload();
-        }
+        })
     }
 
-    pub fn stop(&mut self) {
-        unsafe {
+    pub fn stop(&mut self) -> Result<()> {
+        catch(|| unsafe {
             self.view.stopLoading();
-        }
+        })
     }
 
     pub async fn wait_navigating(&self) {

@@ -19,10 +19,6 @@ pub enum BackdropChooserMessage {
     RSelect(usize),
 }
 
-impl Failable for BackdropChooser {
-    type Error = SysError;
-}
-
 impl Component for BackdropChooser {
     type Error = Error;
     type Event = BackdropChooserEvent;
@@ -106,6 +102,10 @@ impl Component for BackdropChooser {
         self.radios.render()?;
         Ok(())
     }
+}
+
+impl Failable for BackdropChooser {
+    type Error = SysError;
 }
 
 #[inherit_methods(from = "self.view")]
