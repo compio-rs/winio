@@ -33,6 +33,8 @@ impl Media {
     pub fn url(&self) -> Result<String>;
 
     /// Load a media source.
+    ///
+    /// Returns an error if the media source cannot be loaded.
     pub async fn load(&mut self, url: impl AsRef<str>) -> Result<()> {
         self.widget.load(url).await
     }

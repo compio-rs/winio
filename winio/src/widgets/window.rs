@@ -60,11 +60,13 @@ impl Window {
 
     /// Get the backdrop effect of the window.
     ///
+    /// Returns an error if the platform does not support it.
+    ///
     /// # Platform specific
     /// * Win32: Supported on Windows 11 22H2 and later; some controls might
     ///   look weird.
     /// * WinUI: Supported on 1.3 and later; the color of the title bar might be
-    ///   different from the client area if the backdrop is set to `Acrylic`.
+    ///   different from the client area.
     #[cfg(windows)]
     pub fn backdrop(&self) -> Result<Backdrop>;
 
