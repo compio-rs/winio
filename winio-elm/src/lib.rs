@@ -8,17 +8,18 @@ use std::hint::unreachable_unchecked;
 use async_stream::try_stream;
 use futures_util::{FutureExt, Stream, StreamExt};
 use smallvec::SmallVec;
-use winio_primitive::Failable;
 
 /// Foundamental GUI component.
 #[allow(async_fn_in_trait)]
-pub trait Component: Sized + Failable {
+pub trait Component: Sized {
     /// Initial parameter type.
     type Init<'a>;
     /// The input message type to update.
     type Message;
     /// The output event type to the parent.
     type Event;
+    /// The error type.
+    type Error;
 
     /// Create the initial component.
     fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self, Self::Error>;
@@ -205,14 +206,11 @@ mod test {
         Msg2,
     }
 
-    impl Failable for TestComponent {
-        type Error = ();
-    }
-
     impl Component for TestComponent {
         type Event = TestEvent;
         type Init<'a> = Vec<TestMessage>;
         type Message = TestMessage;
+        type Error = ();
 
         fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self, ()> {
             for m in init {

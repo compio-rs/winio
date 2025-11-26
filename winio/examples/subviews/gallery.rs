@@ -79,11 +79,8 @@ pub enum GalleryPageMessage {
     Wheel(Vector),
 }
 
-impl Failable for GalleryPage {
-    type Error = Error;
-}
-
 impl Component for GalleryPage {
+    type Error = Error;
     type Event = GalleryPageEvent;
     type Init<'a> = &'a TabView;
     type Message = GalleryPageMessage;

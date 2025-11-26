@@ -47,11 +47,8 @@ pub enum MarkdownPageMessage {
     Fetch(MarkdownFetchStatus),
 }
 
-impl Failable for MarkdownPage {
-    type Error = Error;
-}
-
 impl Component for MarkdownPage {
+    type Error = Error;
     type Event = MarkdownPageEvent;
     type Init<'a> = &'a TabView;
     type Message = MarkdownPageMessage;
@@ -216,7 +213,7 @@ impl Component for MarkdownPage {
 </html>
 "#
                         );
-                        self.webview.set_html(html);
+                        self.webview.set_html(html)?;
                     }
                     MarkdownFetchStatus::Error(err) => {
                         sender.output(MarkdownPageEvent::MessageBox(

@@ -29,11 +29,8 @@ pub enum ScrollViewPageMessage {
     Select(usize),
 }
 
-impl Failable for ScrollViewPage {
-    type Error = Error;
-}
-
 impl Component for ScrollViewPage {
+    type Error = Error;
     type Event = ScrollViewPageEvent;
     type Init<'a> = &'a TabView;
     type Message = ScrollViewPageMessage;

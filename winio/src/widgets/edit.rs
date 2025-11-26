@@ -92,6 +92,7 @@ pub enum EditEvent {
 }
 
 impl Component for Edit {
+    type Error = Error;
     type Event = EditEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();

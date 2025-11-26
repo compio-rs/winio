@@ -7,7 +7,7 @@ use taffy::{
 use winio_primitive::Failable;
 
 use super::{layout_child, rect_t2e, render};
-use crate::{HAlign, LayoutError, Layoutable, Margin, Point, Rect, Size, VAlign};
+use crate::{HAlign, LayoutChild, LayoutError, Point, Rect, Size, VAlign};
 
 /// Error can be returned when parsing [`GridLength`].
 #[derive(Debug)]
@@ -130,7 +130,7 @@ impl<'a, E> Grid<'a, E> {
     /// Push a child into the panel.
     pub fn push<'b>(
         &'b mut self,
-        widget: &'a mut dyn Layoutable<Error = E>,
+        widget: &'a mut dyn LayoutChild<Error = E>,
     ) -> GridChildBuilder<'a, 'b, E> {
         GridChildBuilder {
             child: GridChild::new(widget),
@@ -142,9 +142,7 @@ impl<'a, E> Grid<'a, E> {
         let mut tree: TaffyTree<()> = TaffyTree::new();
         let mut nodes = vec![];
         for child in &self.children {
-            let mut preferred_size = child.widget.preferred_size().map_err(LayoutError::Child)?;
-            preferred_size.width += child.margin.horizontal();
-            preferred_size.height += child.margin.vertical();
+            let preferred_size = child.child_preferred_size()?;
             let mut style = Style::default();
             style.size.width = match child.width {
                 Some(w) => length(w as f32),
@@ -160,9 +158,7 @@ impl<'a, E> Grid<'a, E> {
                     _ => length(preferred_size.height as f32),
                 },
             };
-            let mut min_size = child.widget.min_size().map_err(LayoutError::Child)?;
-            min_size.width += child.margin.horizontal();
-            min_size.height += child.margin.vertical();
+            let min_size = child.child_min_size()?;
             style.min_size = taffy::Size {
                 width: length(min_size.width as f32),
                 height: length(min_size.height as f32),
@@ -223,46 +219,50 @@ impl<'a, E> Grid<'a, E> {
         let (tree, root, nodes) = self.tree()?;
         render(tree, root, nodes, self.loc, self.size, &mut self.children)
     }
+
+    pub fn set_loc(&mut self, p: Point) -> Result<(), LayoutError<E>> {
+        LayoutChild::set_child_loc(self, p)
+    }
+
+    pub fn set_size(&mut self, s: Size) -> Result<(), LayoutError<E>> {
+        LayoutChild::set_child_size(self, s)
+    }
+
+    pub fn set_rect(&mut self, r: Rect) -> Result<(), LayoutError<E>> {
+        LayoutChild::set_child_rect(self, r)
+    }
 }
 
 impl<E> Failable for Grid<'_, E> {
-    type Error = LayoutError<E>;
+    type Error = E;
 }
 
-impl<E> Layoutable for Grid<'_, E> {
-    fn loc(&self) -> Result<Point, Self::Error> {
-        Ok(self.loc)
-    }
-
-    fn set_loc(&mut self, p: Point) -> Result<(), Self::Error> {
+impl<E> LayoutChild for Grid<'_, E> {
+    fn set_child_loc(&mut self, p: Point) -> Result<(), LayoutError<Self::Error>> {
         self.loc = p;
         self.render()
     }
 
-    fn size(&self) -> Result<Size, Self::Error> {
-        Ok(self.size)
-    }
-
-    fn set_size(&mut self, s: Size) -> Result<(), Self::Error> {
+    fn set_child_size(&mut self, s: Size) -> Result<(), LayoutError<Self::Error>> {
         self.size = s;
         self.render()
     }
 
-    fn set_rect(&mut self, r: Rect) -> Result<(), Self::Error> {
+    fn set_child_rect(&mut self, r: Rect) -> Result<(), LayoutError<Self::Error>> {
         self.loc = r.origin;
         self.size = r.size;
         self.render()
     }
 
-    fn preferred_size(&self) -> Result<Size, Self::Error> {
+    fn child_preferred_size(&self) -> Result<Size, LayoutError<Self::Error>> {
         let (mut tree, root, _) = self.tree()?;
         tree.compute_layout(root, taffy::Size::max_content())?;
-        Ok(rect_t2e(tree.layout(root)?, Margin::zero()).size)
+        Ok(rect_t2e(tree.layout(root)?).size)
     }
 
-    fn min_size(&self) -> Result<Size, Self::Error> {
+    fn child_min_size(&self) -> Result<Size, LayoutError<Self::Error>> {
         let (mut tree, root, _) = self.tree()?;
         tree.compute_layout(root, taffy::Size::min_content())?;
-        Ok(rect_t2e(tree.layout(root)?, Margin::zero()).size)
+        Ok(rect_t2e(tree.layout(root)?).size)
     }
 }

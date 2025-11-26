@@ -86,6 +86,7 @@ pub enum TextBoxEvent {
 }
 
 impl Component for TextBox {
+    type Error = Error;
     type Event = TextBoxEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();

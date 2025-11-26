@@ -76,6 +76,7 @@ pub enum CanvasEvent {
 }
 
 impl Component for Canvas {
+    type Error = Error;
     type Event = CanvasEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();

@@ -5,6 +5,7 @@ use std::{
 
 use async_stream::try_stream;
 use futures_util::Stream;
+#[cfg(feature = "primitive")]
 use inherit_methods_macro::inherit_methods;
 use smallvec::SmallVec;
 #[cfg(feature = "handle")]
@@ -12,6 +13,7 @@ use winio_handle::{
     AsContainer, AsRawContainer, AsRawWidget, AsRawWindow, AsWidget, AsWindow, BorrowedContainer,
     BorrowedWidget, BorrowedWindow, RawContainer, RawWidget, RawWindow,
 };
+#[cfg(feature = "primitive")]
 use winio_primitive::{Failable, Layoutable, Point, Rect, Size};
 
 use super::ComponentMessage;
@@ -209,10 +211,12 @@ impl<T: Component + Debug> Debug for Child<T> {
     }
 }
 
+#[cfg(feature = "primitive")]
 impl<T: Component + Failable> Failable for Child<T> {
-    type Error = T::Error;
+    type Error = <T as Failable>::Error;
 }
 
+#[cfg(feature = "primitive")]
 #[inherit_methods(from = "self.model")]
 impl<T: Component + Layoutable> Layoutable for Child<T> {
     fn loc(&self) -> Result<Point, Self::Error>;

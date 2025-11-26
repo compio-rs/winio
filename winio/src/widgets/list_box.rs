@@ -157,6 +157,7 @@ impl ListBoxMessage {
 }
 
 impl Component for ListBox {
+    type Error = Error;
     type Event = ListBoxEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ListBoxMessage;

@@ -102,11 +102,8 @@ enum MainMessage {
     ChooseVibrancy(Option<Vibrancy>),
 }
 
-impl Failable for MainModel {
-    type Error = Error;
-}
-
 impl Component for MainModel {
+    type Error = Error;
     type Event = ();
     type Init<'a> = ();
     type Message = MainMessage;

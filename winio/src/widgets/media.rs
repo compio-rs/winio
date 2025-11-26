@@ -102,6 +102,7 @@ impl Layoutable for Media {
 pub enum MediaEvent {}
 
 impl Component for Media {
+    type Error = Error;
     type Event = MediaEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();

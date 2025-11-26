@@ -45,11 +45,8 @@ pub enum MediaPageMessage {
     OpenFile(PathBuf),
 }
 
-impl Failable for MediaPage {
-    type Error = Error;
-}
-
 impl Component for MediaPage {
+    type Error = Error;
     type Event = MediaPageEvent;
     type Init<'a> = &'a TabView;
     type Message = MediaPageMessage;
@@ -217,17 +214,17 @@ impl Component for MediaPage {
                     Url::from_file_path(&p).map_err(|_| std::io::ErrorKind::InvalidFilename)?;
                 match self.media.load(url.as_str()).await {
                     Ok(()) => {
-                        self.volume_slider.enable();
-                        self.time_slider.enable();
-                        self.play_button.enable();
-                        self.media.play();
-                        self.set_playing(true);
+                        self.volume_slider.enable()?;
+                        self.time_slider.enable()?;
+                        self.play_button.enable()?;
+                        self.media.play()?;
+                        self.set_playing(true)?;
                     }
                     Err(e) => {
-                        self.volume_slider.disable();
-                        self.time_slider.disable();
-                        self.play_button.disable();
-                        self.set_playing(false);
+                        self.volume_slider.disable()?;
+                        self.time_slider.disable()?;
+                        self.play_button.disable()?;
+                        self.set_playing(false)?;
                         sender.output(MediaPageEvent::ShowMessage(
                             MessageBox::new()
                                 .buttons(MessageBoxButton::Ok)

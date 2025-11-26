@@ -83,6 +83,7 @@ impl Layoutable for Label {
 pub enum LabelEvent {}
 
 impl Component for Label {
+    type Error = Error;
     type Event = LabelEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();

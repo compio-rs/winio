@@ -82,6 +82,7 @@ pub enum TabViewEvent {
 }
 
 impl Component for TabView {
+    type Error = Error;
     type Event = TabViewEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();
@@ -129,6 +130,7 @@ impl TabViewItem {
 pub enum TabViewItemEvent {}
 
 impl Component for TabViewItem {
+    type Error = Error;
     type Event = TabViewItemEvent;
     type Init<'a> = &'a TabView;
     type Message = ();

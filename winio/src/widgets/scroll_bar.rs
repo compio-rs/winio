@@ -93,6 +93,7 @@ pub enum ScrollBarEvent {
 }
 
 impl Component for ScrollBar {
+    type Error = Error;
     type Event = ScrollBarEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();

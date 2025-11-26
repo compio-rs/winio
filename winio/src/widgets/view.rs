@@ -41,6 +41,7 @@ impl Layoutable for View {
 pub enum ViewEvent {}
 
 impl Component for View {
+    type Error = Error;
     type Event = ViewEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();

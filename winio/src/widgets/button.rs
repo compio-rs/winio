@@ -67,6 +67,7 @@ pub enum ButtonEvent {
 }
 
 impl Component for Button {
+    type Error = Error;
     type Event = ButtonEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();

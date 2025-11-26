@@ -180,6 +180,7 @@ impl ComboBoxMessage {
 }
 
 impl Component for ComboBox {
+    type Error = Error;
     type Event = ComboBoxEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ComboBoxMessage;

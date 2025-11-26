@@ -38,11 +38,8 @@ pub enum FsPageMessage {
     Fetch(FsFetchStatus),
 }
 
-impl Failable for FsPage {
-    type Error = Error;
-}
-
 impl Component for FsPage {
+    type Error = Error;
     type Event = FsPageEvent;
     type Init<'a> = &'a TabView;
     type Message = FsPageMessage;
@@ -109,7 +106,7 @@ impl Component for FsPage {
                 Ok(false)
             }
             FsPageMessage::OpenFile(p) => {
-                self.label.set_text(p.to_str().unwrap_or_default());
+                self.label.set_text(p.to_str().unwrap_or_default())?;
                 spawn(fetch(p, sender.clone())).detach();
                 Ok(true)
             }

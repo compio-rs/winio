@@ -101,6 +101,7 @@ pub enum SliderEvent {
 }
 
 impl Component for Slider {
+    type Error = Error;
     type Event = SliderEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();

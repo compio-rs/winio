@@ -76,6 +76,7 @@ pub enum RadioButtonEvent {
 }
 
 impl Component for RadioButton {
+    type Error = Error;
     type Event = RadioButtonEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();

@@ -1,5 +1,6 @@
+use inherit_methods_macro::inherit_methods;
 use tuplex::IntoArray;
-use winio::prelude::*;
+use winio::prelude::{Error as SysError, Result as SysResult, *};
 
 use crate::{Error, Result};
 
@@ -23,10 +24,11 @@ pub enum BackdropChooserMessage {
 }
 
 impl Failable for BackdropChooser {
-    type Error = Error;
+    type Error = SysError;
 }
 
 impl Component for BackdropChooser {
+    type Error = Error;
     type Event = BackdropChooserEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = BackdropChooserMessage;
@@ -136,26 +138,17 @@ impl Component for BackdropChooser {
     }
 }
 
+#[inherit_methods(from = "self.view")]
 impl Layoutable for BackdropChooser {
-    fn loc(&self) -> Result<Point> {
-        Ok(self.view.loc()?)
-    }
+    fn loc(&self) -> SysResult<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()> {
-        self.view.set_loc(p)?;
-        Ok(())
-    }
+    fn set_loc(&mut self, p: Point) -> SysResult<()>;
 
-    fn size(&self) -> Result<Size> {
-        Ok(self.view.size()?)
-    }
+    fn size(&self) -> SysResult<Size>;
 
-    fn set_size(&mut self, s: Size) -> Result<()> {
-        self.view.set_size(s)?;
-        Ok(())
-    }
+    fn set_size(&mut self, s: Size) -> SysResult<()>;
 
-    fn preferred_size(&self) -> Result<Size> {
+    fn preferred_size(&self) -> SysResult<Size> {
         let mut width = 0.0f64;
         let mut height = 0.0f64;
         for rb in [
@@ -171,7 +164,7 @@ impl Layoutable for BackdropChooser {
         Ok(Size::new(width, height))
     }
 
-    fn min_size(&self) -> Result<Size> {
+    fn min_size(&self) -> SysResult<Size> {
         self.preferred_size()
     }
 }

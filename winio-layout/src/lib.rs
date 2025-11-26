@@ -12,13 +12,42 @@ use thiserror::Error;
 pub use winio_primitive::{Failable, HAlign, Layoutable, VAlign};
 use winio_primitive::{Margin, Point, Rect, Size};
 
-trait LayoutChild: Failable {
-    fn margin(&self) -> Margin;
+#[doc(hidden)]
+pub trait LayoutChild: Failable {
+    fn child_preferred_size(&self) -> Result<Size, LayoutError<Self::Error>>;
 
-    fn set_rect(&mut self, r: Rect) -> Result<(), Self::Error>;
+    fn child_min_size(&self) -> Result<Size, LayoutError<Self::Error>>;
 
-    fn layout(&mut self, layout: &Layout, loc: Point) -> Result<(), Self::Error> {
-        self.set_rect(offset(rect_t2e(layout, self.margin()), loc))
+    fn set_child_loc(&mut self, p: Point) -> Result<(), LayoutError<Self::Error>>;
+
+    fn set_child_size(&mut self, s: Size) -> Result<(), LayoutError<Self::Error>>;
+
+    fn set_child_rect(&mut self, r: Rect) -> Result<(), LayoutError<Self::Error>>;
+
+    fn layout(&mut self, layout: &Layout, loc: Point) -> Result<(), LayoutError<Self::Error>> {
+        self.set_child_rect(offset(rect_t2e(layout), loc))
+    }
+}
+
+impl<T: Layoutable> LayoutChild for T {
+    fn child_preferred_size(&self) -> Result<Size, LayoutError<Self::Error>> {
+        self.preferred_size().map_err(LayoutError::Child)
+    }
+
+    fn child_min_size(&self) -> Result<Size, LayoutError<Self::Error>> {
+        self.min_size().map_err(LayoutError::Child)
+    }
+
+    fn set_child_loc(&mut self, p: Point) -> Result<(), LayoutError<Self::Error>> {
+        self.set_loc(p).map_err(LayoutError::Child)
+    }
+
+    fn set_child_size(&mut self, s: Size) -> Result<(), LayoutError<Self::Error>> {
+        self.set_size(s).map_err(LayoutError::Child)
+    }
+
+    fn set_child_rect(&mut self, r: Rect) -> Result<(), LayoutError<Self::Error>> {
+        self.set_rect(r).map_err(LayoutError::Child)
     }
 }
 
@@ -31,16 +60,10 @@ pub use stack_panel::*;
 #[cfg(test)]
 mod test;
 
-fn rect_t2e(rect: &taffy::Layout, margin: Margin) -> Rect {
+fn rect_t2e(rect: &taffy::Layout) -> Rect {
     Rect::new(
-        Point::new(
-            rect.location.x as f64 + margin.left,
-            rect.location.y as f64 + margin.top,
-        ),
-        Size::new(
-            rect.size.width as f64 - margin.horizontal(),
-            rect.size.height as f64 - margin.vertical(),
-        ),
+        Point::new(rect.location.x as f64, rect.location.y as f64),
+        Size::new(rect.size.width as f64, rect.size.height as f64),
     )
 }
 
@@ -49,10 +72,35 @@ fn offset(mut a: Rect, offset: Point) -> Rect {
     a
 }
 
+fn size_add_margin(size: Size, margin: Margin) -> Size {
+    Size::new(
+        size.width + margin.horizontal(),
+        size.height + margin.vertical(),
+    )
+}
+
+fn loc_sub_margin(loc: Point, margin: Margin) -> Point {
+    Point::new(loc.x + margin.left, loc.y + margin.top)
+}
+
+fn size_sub_margin(size: Size, margin: Margin) -> Size {
+    Size::new(
+        size.width - margin.horizontal(),
+        size.height - margin.vertical(),
+    )
+}
+
+fn rect_sub_margin(rect: Rect, margin: Margin) -> Rect {
+    Rect::new(
+        loc_sub_margin(rect.origin, margin),
+        size_sub_margin(rect.size, margin),
+    )
+}
+
 macro_rules! __layout_child {
     ($(#[$sm:meta])* struct $name:ident { $($(#[$m:meta])* $f:ident: $t:ty = $e:expr),*$(,)? }) => {
         struct $name<'a, E> {
-            widget: &'a mut dyn $crate::Layoutable<Error = E>,
+            widget: &'a mut dyn $crate::LayoutChild<Error = E>,
             width: Option<f64>,
             height: Option<f64>,
             margin: $crate::Margin,
@@ -65,7 +113,7 @@ macro_rules! __layout_child {
         }
         impl<'a, E> $name<'a, E> {
             #[allow(unused_doc_comments)]
-            pub fn new(widget: &'a mut dyn $crate::Layoutable<Error = E>) -> Self {
+            pub fn new(widget: &'a mut dyn $crate::LayoutChild<Error = E>) -> Self {
                 Self {
                     widget,
                     width: None,
@@ -84,12 +132,24 @@ macro_rules! __layout_child {
             type Error = E;
         }
         impl<E> $crate::LayoutChild for $name<'_, E> {
-            fn margin(&self) -> $crate::Margin {
-                self.margin
+            fn child_preferred_size(&self) -> Result<$crate::Size, LayoutError<Self::Error>> {
+                Ok($crate::size_add_margin(self.widget.child_preferred_size()?, self.margin))
             }
 
-            fn set_rect(&mut self, r: Rect) -> Result<(), Self::Error> {
-                self.widget.set_rect(r)
+            fn child_min_size(&self) -> Result<$crate::Size, LayoutError<Self::Error>> {
+                Ok($crate::size_add_margin(self.widget.child_min_size()?, self.margin))
+            }
+
+            fn set_child_loc(&mut self, p: Point) -> Result<(), LayoutError<Self::Error>> {
+                self.widget.set_child_loc($crate::loc_sub_margin(p, self.margin))
+            }
+
+            fn set_child_size(&mut self, s: Size) -> Result<(), LayoutError<Self::Error>> {
+                self.widget.set_child_size($crate::size_sub_margin(s, self.margin))
+            }
+
+            fn set_child_rect(&mut self, r: Rect) -> Result<(), LayoutError<Self::Error>> {
+                self.widget.set_child_rect($crate::rect_sub_margin(r, self.margin))
             }
         }
         $crate::__paste! {
@@ -181,7 +241,7 @@ fn render<E>(
     )?;
     for (id, child) in nodes.iter().zip(children) {
         let layout = tree.layout(*id)?;
-        child.layout(layout, loc).map_err(LayoutError::Child)?;
+        child.layout(layout, loc)?;
     }
     Ok(())
 }

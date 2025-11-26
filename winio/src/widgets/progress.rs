@@ -84,6 +84,7 @@ impl Layoutable for Progress {
 pub enum ProgressEvent {}
 
 impl Component for Progress {
+    type Error = Error;
     type Event = ProgressEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();

@@ -68,11 +68,8 @@ pub enum MiscPageMessage {
     ChooseVibrancy(Option<Vibrancy>),
 }
 
-impl Failable for MiscPage {
-    type Error = Error;
-}
-
 impl Component for MiscPage {
+    type Error = Error;
     type Event = MiscPageEvent;
     type Init<'a> = &'a TabView;
     type Message = MiscPageMessage;
@@ -382,7 +379,7 @@ impl Component for MiscPage {
                 Size::new(r * 2.0 + 2.0, r * 1.618 + 2.0),
             ),
             Size::new(r / 10.0, r / 10.0),
-        );
+        )?;
         let mut path = ctx.create_path_builder(Point::new(cx + r + 1.0 - r / 10.0, cy))?;
         path.add_arc(
             Point::new(cx, cy + r * 0.618 + 1.0),

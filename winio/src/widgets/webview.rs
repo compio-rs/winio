@@ -97,6 +97,7 @@ pub enum WebViewEvent {
 }
 
 impl Component for WebView {
+    type Error = Error;
     type Event = WebViewEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();

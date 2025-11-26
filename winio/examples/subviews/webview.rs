@@ -43,11 +43,8 @@ pub enum WebViewPageMessage {
     Navigated,
 }
 
-impl Failable for WebViewPage {
-    type Error = Error;
-}
-
 impl Component for WebViewPage {
+    type Error = Error;
     type Event = ();
     type Init<'a> = &'a TabView;
     type Message = WebViewPageMessage;

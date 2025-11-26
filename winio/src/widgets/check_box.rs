@@ -76,6 +76,7 @@ pub enum CheckBoxEvent {
 }
 
 impl Component for CheckBox {
+    type Error = Error;
     type Event = CheckBoxEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();

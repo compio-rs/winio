@@ -64,6 +64,7 @@ impl Layoutable for ScrollView {
 pub enum ScrollViewEvent {}
 
 impl Component for ScrollView {
+    type Error = Error;
     type Event = ScrollViewEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();

@@ -114,6 +114,7 @@ pub enum WindowEvent {
 }
 
 impl Component for Window {
+    type Error = Error;
     type Event = WindowEvent;
     type Init<'a> = ();
     type Message = ();

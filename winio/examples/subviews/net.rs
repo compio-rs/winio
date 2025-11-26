@@ -31,11 +31,8 @@ pub enum NetPageMessage {
     Fetch(NetFetchStatus),
 }
 
-impl Failable for NetPage {
-    type Error = Error;
-}
-
 impl Component for NetPage {
+    type Error = Error;
     type Event = ();
     type Init<'a> = &'a TabView;
     type Message = NetPageMessage;
