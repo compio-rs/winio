@@ -6,6 +6,7 @@
 use std::panic::AssertUnwindSafe;
 
 use objc2::{exception::Exception, rc::Retained};
+use objc2_foundation::NSError;
 use winio_callback::Runnable;
 
 pub(crate) struct GlobalRuntime;
@@ -34,6 +35,9 @@ pub enum Error {
     /// Objective-C exception.
     #[error("Objective-C exception: {0:?}")]
     ObjC(Option<Retained<Exception>>),
+    /// NSError.
+    #[error("NSError: {0:?}")]
+    NS(Option<Retained<NSError>>),
     /// Null pointer returned.
     #[error("Null pointer returned")]
     NullPointer,
@@ -54,6 +58,18 @@ impl From<Retained<Exception>> for Error {
 impl From<Option<Retained<Exception>>> for Error {
     fn from(exc: Option<Retained<Exception>>) -> Self {
         Error::ObjC(exc)
+    }
+}
+
+impl From<Retained<NSError>> for Error {
+    fn from(err: Retained<NSError>) -> Self {
+        Error::NS(Some(err))
+    }
+}
+
+impl From<Option<Retained<NSError>>> for Error {
+    fn from(err: Option<Retained<NSError>>) -> Self {
+        Error::NS(err)
     }
 }
 

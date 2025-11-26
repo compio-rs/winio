@@ -17,7 +17,7 @@ use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{GlobalRuntime, Widget, from_nsstring};
+use crate::{Error, GlobalRuntime, Result, Widget, catch, from_nsstring};
 
 #[derive(Debug)]
 pub struct Media {
@@ -29,99 +29,108 @@ pub struct Media {
 
 #[inherit_methods(from = "self.handle")]
 impl Media {
-    pub fn new(parent: impl AsContainer) -> Self {
-        unsafe {
-            let parent = parent.as_container();
-            let mtm = parent.mtm();
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let parent = parent.as_container();
+        let mtm = parent.mtm();
 
+        catch(|| unsafe {
             let view = AVPlayerView::new(mtm);
-            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
+            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()))?;
 
             let delegate = PlayerDelegate::new(mtm);
 
             view.setControlsStyle(AVPlayerViewControlsStyle::None);
 
-            Self {
+            Ok(Self {
                 handle,
                 view,
                 url: None,
                 delegate,
-            }
-        }
+            })
+        })
+        .flatten()
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Size {
-        Size::zero()
+    pub fn preferred_size(&self) -> Result<Size> {
+        Ok(Size::zero())
     }
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn url(&self) -> String {
-        self.url
+    pub fn url(&self) -> Result<String> {
+        Ok(self
+            .url
             .as_ref()
             .and_then(|url| url.absoluteString())
             .map(|s| from_nsstring(&s))
-            .unwrap_or_default()
+            .unwrap_or_default())
     }
 
-    pub async fn load(&mut self, url: impl AsRef<str>) -> bool {
-        unsafe {
-            self.url = NSURL::URLWithString(&NSString::from_str(url.as_ref()));
-            if let Some(url) = &self.url {
-                let mtm = self.delegate.mtm();
-                let item = AVPlayerItem::playerItemWithURL(url, mtm);
-                item.addObserver_forKeyPath_options_context(
-                    &self.delegate,
-                    ns_string!("status"),
-                    NSKeyValueObservingOptions::New,
-                    null_mut(),
-                );
-                self.view
-                    .setPlayer(Some(&AVPlayer::playerWithPlayerItem(Some(&item), mtm)));
-                self.delegate.ivars().notify.wait().await;
-                item.status() == AVPlayerItemStatus::ReadyToPlay
+    pub async fn load(&mut self, url: impl AsRef<str>) -> Result<()> {
+        let item = catch(|| unsafe {
+            let url = NSURL::URLWithString(&NSString::from_str(url.as_ref()))
+                .ok_or(Error::NullPointer)?;
+            let mtm = self.delegate.mtm();
+            let item = AVPlayerItem::playerItemWithURL(&url, mtm);
+            item.addObserver_forKeyPath_options_context(
+                &self.delegate,
+                ns_string!("status"),
+                NSKeyValueObservingOptions::New,
+                null_mut(),
+            );
+            self.view
+                .setPlayer(Some(&AVPlayer::playerWithPlayerItem(Some(&item), mtm)));
+            self.url = Some(url);
+            Ok(item)
+        })
+        .flatten()?;
+        self.delegate.ivars().notify.wait().await;
+        catch(|| unsafe {
+            if item.status() == AVPlayerItemStatus::ReadyToPlay {
+                Ok(())
             } else {
-                false
+                Err(Error::NS(item.error()))
             }
-        }
+        })
+        .flatten()
     }
 
-    pub fn play(&mut self) {
-        unsafe {
+    pub fn play(&mut self) -> Result<()> {
+        catch(|| unsafe {
             if let Some(player) = self.view.player() {
                 player.play();
             }
-        }
+        })
     }
 
-    pub fn pause(&mut self) {
-        unsafe {
+    pub fn pause(&mut self) -> Result<()> {
+        catch(|| unsafe {
             if let Some(player) = self.view.player() {
                 player.pause();
             }
-        }
+        })
     }
 
-    pub fn full_time(&self) -> Option<Duration> {
-        unsafe {
+    pub fn full_time(&self) -> Result<Option<Duration>> {
+        catch(|| unsafe {
             self.view
                 .player()
                 .and_then(|player| player.currentItem())
@@ -129,11 +138,11 @@ impl Media {
                     let t = item.duration();
                     Duration::try_from_secs_f64(t.seconds()).ok()
                 })
-        }
+        })
     }
 
-    pub fn current_time(&self) -> Duration {
-        unsafe {
+    pub fn current_time(&self) -> Result<Duration> {
+        catch(|| unsafe {
             self.view
                 .player()
                 .and_then(|player| {
@@ -141,49 +150,49 @@ impl Media {
                     Duration::try_from_secs_f64(ct.seconds()).ok()
                 })
                 .unwrap_or_default()
-        }
+        })
     }
 
-    pub fn set_current_time(&mut self, t: Duration) {
-        unsafe {
+    pub fn set_current_time(&mut self, t: Duration) -> Result<()> {
+        catch(|| unsafe {
             if let Some(player) = self.view.player() {
                 player.seekToTime(CMTime::with_seconds(t.as_secs_f64(), 600));
             }
-        }
+        })
     }
 
-    pub fn volume(&self) -> f64 {
-        unsafe {
+    pub fn volume(&self) -> Result<f64> {
+        catch(|| unsafe {
             self.view
                 .player()
                 .map(|player| player.volume() as _)
                 .unwrap_or_default()
-        }
+        })
     }
 
-    pub fn set_volume(&mut self, v: f64) {
-        unsafe {
+    pub fn set_volume(&mut self, v: f64) -> Result<()> {
+        catch(|| unsafe {
             if let Some(player) = self.view.player() {
                 player.setVolume(v as _);
             }
-        }
+        })
     }
 
-    pub fn is_muted(&self) -> bool {
-        unsafe {
+    pub fn is_muted(&self) -> Result<bool> {
+        catch(|| unsafe {
             self.view
                 .player()
                 .map(|player| player.isMuted())
                 .unwrap_or_default()
-        }
+        })
     }
 
-    pub fn set_muted(&mut self, v: bool) {
-        unsafe {
+    pub fn set_muted(&mut self, v: bool) -> Result<()> {
+        catch(|| unsafe {
             if let Some(player) = self.view.player() {
                 player.setMuted(v);
             }
-        }
+        })
     }
 }
 

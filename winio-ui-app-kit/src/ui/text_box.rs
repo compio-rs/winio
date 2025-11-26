@@ -17,7 +17,7 @@ use winio_handle::AsContainer;
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
-    GlobalRuntime,
+    GlobalRuntime, Result, catch,
     ui::{Widget, from_cgsize, from_nsstring},
 };
 
@@ -30,41 +30,42 @@ pub struct TextBox {
 
 #[inherit_methods(from = "self.handle")]
 impl TextBox {
-    pub fn new(parent: impl AsContainer) -> Self {
-        unsafe {
-            let parent = parent.as_container();
-            let mtm = parent.mtm();
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let parent = parent.as_container();
+        let mtm = parent.mtm();
 
+        catch(|| unsafe {
             let view = NSTextView::scrollableTextView(mtm);
             let text_view = Retained::cast_unchecked::<NSTextView>(view.documentView().unwrap());
             text_view.setRichText(false);
             text_view.setEditable(true);
             text_view.setSelectable(true);
 
-            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
+            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()))?;
 
             let delegate = TextBoxDelegate::new(mtm);
             let del_obj = ProtocolObject::from_ref(&*delegate);
             text_view.setDelegate(Some(del_obj));
-            Self {
+            Ok(Self {
                 handle,
                 text_view,
                 delegate,
-            }
-        }
+            })
+        })
+        .flatten()
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn min_size(&self) -> Size {
-        unsafe {
-            let text = self.text();
+    pub fn min_size(&self) -> Result<Size> {
+        let text = self.text()?;
+        catch(|| unsafe {
             let font = self.text_view.font();
             let text = NSAttributedString::initWithString_attributes(
                 NSAttributedString::alloc(),
@@ -80,11 +81,11 @@ impl TextBox {
                 .as_deref(),
             );
             from_cgsize(text.size())
-        }
+        })
     }
 
-    pub fn preferred_size(&self) -> Size {
-        unsafe {
+    pub fn preferred_size(&self) -> Result<Size> {
+        catch(|| unsafe {
             let font = self.text_view.font();
             let text = NSAttributedString::initWithString_attributes(
                 NSAttributedString::alloc(),
@@ -100,55 +101,56 @@ impl TextBox {
                 .as_deref(),
             );
             from_cgsize(text.size())
-        }
+        })
     }
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn text(&self) -> String {
-        from_nsstring(&self.text_view.string())
+    pub fn text(&self) -> Result<String> {
+        catch(|| from_nsstring(&self.text_view.string()))
     }
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.text_view.setString(&NSString::from_str(s.as_ref()));
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
+        catch(|| self.text_view.setString(&NSString::from_str(s.as_ref())))
     }
 
-    pub fn halign(&self) -> HAlign {
-        let align = self.text_view.alignment();
-        match align {
+    pub fn halign(&self) -> Result<HAlign> {
+        let align = catch(|| self.text_view.alignment())?;
+        let align = match align {
             NSTextAlignment::Right => HAlign::Right,
             NSTextAlignment::Center => HAlign::Center,
             NSTextAlignment::Justified => HAlign::Stretch,
             _ => HAlign::Left,
-        }
+        };
+        Ok(align)
     }
 
-    pub fn set_halign(&mut self, align: HAlign) {
+    pub fn set_halign(&mut self, align: HAlign) -> Result<()> {
         let align = match align {
             HAlign::Left => NSTextAlignment::Left,
             HAlign::Center => NSTextAlignment::Center,
             HAlign::Right => NSTextAlignment::Right,
             HAlign::Stretch => NSTextAlignment::Justified,
         };
-        self.text_view.setAlignment(align);
+        catch(|| self.text_view.setAlignment(align))
     }
 
-    pub fn is_readonly(&self) -> bool {
-        !self.text_view.isEditable()
+    pub fn is_readonly(&self) -> Result<bool> {
+        catch(|| !self.text_view.isEditable())
     }
 
-    pub fn set_readonly(&mut self, v: bool) {
-        self.text_view.setEditable(!v);
+    pub fn set_readonly(&mut self, v: bool) -> Result<()> {
+        catch(|| self.text_view.setEditable(!v))
     }
 
     pub async fn wait_change(&self) {
