@@ -21,3 +21,28 @@ pub use runtime::*;
 
 mod ui;
 pub use ui::*;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    /// IO error.
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    /// Bool error.
+    #[error("Bool error: {0}")]
+    Bool(#[from] gtk4::glib::BoolError),
+    /// Glib error.
+    #[error("Glib error: {0}")]
+    Glib(#[from] gtk4::glib::Error),
+    /// Cairo error.
+    #[error("Cairo error: {0}")]
+    Cairo(#[from] gtk4::cairo::Error),
+    /// Null pointer returned.
+    #[error("Null pointer returned")]
+    NullPointer,
+    /// Cast failed.
+    #[error("Cast failed")]
+    CastFailed,
+}
+
+/// Result type for GTK.
+pub type Result<T, E = Error> = std::result::Result<T, E>;

@@ -17,6 +17,7 @@ winio-pollable = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true, default-features = false }
 scoped-tls = { workspace = true }
+thiserror = { workspace = true }
 
 gtk4 = { workspace = true, features = ["v4_14"] }
 pangocairo = "0.21"
