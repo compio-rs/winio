@@ -1,6 +1,5 @@
 use std::ops::Deref;
 
-use tuplex::IntoArray;
 use winio::prelude::*;
 
 use crate::{Error, Result};
@@ -115,18 +114,15 @@ impl Component for WebViewPage {
     }
 
     async fn update_children(&mut self) -> Result<bool> {
-        Ok(futures_util::try_join!(
-            self.window.update(),
-            self.webview.update(),
-            self.go_button.update(),
-            self.back_button.update(),
-            self.forward_button.update(),
-            self.reload_button.update(),
-            self.entry.update(),
-        )?
-        .into_array()
-        .into_iter()
-        .any(|b| b))
+        update_children!(
+            self.window,
+            self.webview,
+            self.go_button,
+            self.back_button,
+            self.forward_button,
+            self.reload_button,
+            self.entry
+        )
     }
 
     async fn update(

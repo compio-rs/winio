@@ -1,6 +1,5 @@
 use std::ops::Deref;
 
-use tuplex::IntoArray;
 use winio::prelude::*;
 
 use crate::{Error, Result};
@@ -87,17 +86,14 @@ impl Component for ScrollViewPage {
     }
 
     async fn update_children(&mut self) -> Result<bool> {
-        Ok(futures_util::try_join!(
-            self.window.update(),
-            self.scroll.update(),
-            self.add_btn.update(),
-            self.del_btn.update(),
-            self.show_btn.update(),
-            self.radios.update(),
-        )?
-        .into_array()
-        .into_iter()
-        .any(|b| b))
+        update_children!(
+            self.window,
+            self.scroll,
+            self.add_btn,
+            self.del_btn,
+            self.show_btn,
+            self.radios
+        )
     }
 
     async fn update(

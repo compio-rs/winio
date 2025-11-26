@@ -1,7 +1,6 @@
 use std::{ops::Deref, path::PathBuf, time::Duration};
 
 use compio::{runtime::spawn, time::interval};
-use tuplex::IntoArray;
 use url::Url;
 use winio::prelude::*;
 
@@ -126,18 +125,15 @@ impl Component for MediaPage {
     }
 
     async fn update_children(&mut self) -> Result<bool> {
-        Ok(futures_util::try_join!(
-            self.window.update(),
-            self.media.update(),
-            self.play_button.update(),
-            self.browse_button.update(),
-            self.time_slider.update(),
-            self.volume_slider.update(),
-            self.volume_label.update(),
-        )?
-        .into_array()
-        .into_iter()
-        .any(|x| x))
+        update_children!(
+            self.window,
+            self.media,
+            self.play_button,
+            self.browse_button,
+            self.time_slider,
+            self.volume_slider,
+            self.volume_label
+        )
     }
 
     async fn update(

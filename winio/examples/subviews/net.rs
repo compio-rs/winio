@@ -2,7 +2,6 @@ use std::{ops::Deref, time::Duration};
 
 use compio::{runtime::spawn, time::timeout};
 use cyper::Client;
-use tuplex::IntoArray;
 use winio::prelude::*;
 
 use crate::{Error, Result};
@@ -78,16 +77,7 @@ impl Component for NetPage {
     }
 
     async fn update_children(&mut self) -> Result<bool> {
-        Ok(futures_util::future::try_join4(
-            self.window.update(),
-            self.canvas.update(),
-            self.entry.update(),
-            self.button.update(),
-        )
-        .await?
-        .into_array()
-        .into_iter()
-        .any(|b| b))
+        update_children!(self.window, self.canvas, self.entry, self.button)
     }
 
     async fn update(

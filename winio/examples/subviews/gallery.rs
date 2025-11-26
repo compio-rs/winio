@@ -5,10 +5,8 @@ use std::{
 };
 
 use compio::runtime::spawn_blocking;
-use futures_util::TryFutureExt;
 use image::{DynamicImage, ImageReader};
 use itertools::Itertools;
-use tuplex::IntoArray;
 use winio::prelude::*;
 
 use crate::{Error, Result};
@@ -148,18 +146,15 @@ impl Component for GalleryPage {
     }
 
     async fn update_children(&mut self) -> Result<bool> {
-        Ok(futures_util::try_join!(
-            self.window.update(),
-            self.canvas.update(),
-            self.scrollbar.update(),
-            self.button.update(),
-            self.entry.update(),
-            self.list.update().map_err(|e| match e {}),
-            self.listbox.update(),
-        )?
-        .into_array()
-        .into_iter()
-        .any(|b| b))
+        update_children!(
+            self.window,
+            self.canvas,
+            self.scrollbar,
+            self.button,
+            self.entry,
+            self.list,
+            self.listbox
+        )
     }
 
     async fn update(

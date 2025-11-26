@@ -56,7 +56,6 @@ local-sync = { workspace = true }
 pulldown-cmark = "0.13"
 send_wrapper = { workspace = true, features = ["futures"] }
 tracing-subscriber = "0.3"
-tuplex = { workspace = true }
 url = "2"
 
 [features]

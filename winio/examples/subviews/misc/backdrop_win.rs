@@ -1,5 +1,4 @@
 use inherit_methods_macro::inherit_methods;
-use tuplex::IntoArray;
 use winio::prelude::{Error as SysError, Result as SysResult, *};
 
 use crate::{Error, Result};
@@ -61,13 +60,7 @@ impl Component for BackdropChooser {
     }
 
     async fn update_children(&mut self) -> Result<bool> {
-        Ok(
-            futures_util::future::try_join(self.view.update(), self.radios.update())
-                .await?
-                .into_array()
-                .into_iter()
-                .any(|b| b),
-        )
+        update_children!(self.view, self.radios)
     }
 
     async fn update(
