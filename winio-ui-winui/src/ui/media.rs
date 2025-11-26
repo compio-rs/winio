@@ -60,6 +60,7 @@ impl Media {
     }
 
     pub async fn load(&mut self, url: impl AsRef<str>) -> Result<()> {
+        let url = percent_encoding::percent_decode_str(url.as_ref()).decode_utf8_lossy();
         let source = MediaSource::CreateFromUri(&Uri::CreateUri(&url.as_ref().into())?)?;
         self.mpe.SetSource(&source)?;
         source.OpenAsync()?.await

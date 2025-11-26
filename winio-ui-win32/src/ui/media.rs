@@ -130,6 +130,7 @@ impl Media {
     }
 
     pub async fn load(&mut self, url: impl AsRef<str>) -> Result<()> {
+        let url = percent_encoding::percent_decode_str(url.as_ref()).decode_utf8_lossy();
         unsafe {
             with_u16c(url.as_ref(), |s| {
                 self.engine.SetSource(&BSTR::from_wide(s.as_slice()))?;

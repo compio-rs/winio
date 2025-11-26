@@ -22,6 +22,7 @@ inherit-methods-macro = { workspace = true }
 local-sync = { workspace = true, optional = true }
 image = { workspace = true, default-features = false }
 once_cell = { workspace = true }
+percent-encoding = { workspace = true, optional = true }
 scoped-tls = { workspace = true }
 slab = "0.4"
 widestring = { workspace = true }
@@ -51,6 +52,7 @@ webview2 = { workspace = true, optional = true }
 media = [
     "dep:winio-callback",
     "dep:windows-core",
+    "dep:percent-encoding",
     "windows/Win32_Media_MediaFoundation",
 ]
 webview = [
