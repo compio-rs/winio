@@ -6,7 +6,9 @@ use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Orient, Point, Size, TickPosition};
 
-use crate::{GlobalRuntime, StaticCastTo, Widget, impl_static_cast, impl_static_cast_propogate};
+use crate::{
+    GlobalRuntime, Result, StaticCastTo, Widget, impl_static_cast, impl_static_cast_propogate,
+};
 
 pub struct ScrollBarImpl<T>
 where
@@ -22,18 +24,18 @@ impl<T> ScrollBarImpl<T>
 where
     T: StaticCastTo<ffi::QAbstractSlider> + StaticCastTo<ffi::QWidget> + UniquePtrTarget,
 {
-    fn new_impl(mut widget: UniquePtr<T>) -> Self {
+    fn new_impl(mut widget: UniquePtr<T>) -> Result<Self> {
         let on_moved = Box::new(Callback::new());
         unsafe {
             ffi::scroll_bar_connect_moved(
                 widget.pin_mut().static_cast_mut(),
                 Self::on_moved,
                 on_moved.as_ref() as *const _ as _,
-            );
+            )?;
         }
-        let mut widget = Widget::new(widget);
-        widget.set_visible(true);
-        Self { on_moved, widget }
+        let mut widget = Widget::new(widget)?;
+        widget.set_visible(true)?;
+        Ok(Self { on_moved, widget })
     }
 
     fn as_abstract_ref(&self) -> &ffi::QAbstractSlider {
@@ -44,75 +46,80 @@ where
         self.widget.pin_mut().static_cast_mut()
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Size;
+    pub fn preferred_size(&self) -> Result<Size>;
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&mut self, s: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn orient(&self) -> Orient {
-        match self.as_abstract_ref().orientation() {
-            QtOrientation::Horizontal => Orient::Horizontal,
-            QtOrientation::Vertical => Orient::Vertical,
+    pub fn orient(&self) -> Result<Orient> {
+        match self.as_abstract_ref().orientation()? {
+            QtOrientation::Horizontal => Ok(Orient::Horizontal),
+            QtOrientation::Vertical => Ok(Orient::Vertical),
         }
     }
 
-    pub fn set_orient(&mut self, v: Orient) {
+    pub fn set_orient(&mut self, v: Orient) -> Result<()> {
         let v = match v {
             Orient::Horizontal => QtOrientation::Horizontal,
             Orient::Vertical => QtOrientation::Vertical,
         };
-        self.pin_abstract_mut().setOrientation(v);
+        self.pin_abstract_mut().setOrientation(v)?;
+        Ok(())
     }
 
-    pub fn minimum(&self) -> usize {
-        self.as_abstract_ref().minimum() as _
+    pub fn minimum(&self) -> Result<usize> {
+        Ok(self.as_abstract_ref().minimum()? as _)
     }
 
-    pub fn set_minimum(&mut self, v: usize) {
-        self.pin_abstract_mut().setMinimum(v as _);
+    pub fn set_minimum(&mut self, v: usize) -> Result<()> {
+        self.pin_abstract_mut().setMinimum(v as _)?;
+        Ok(())
     }
 
-    pub fn maximum(&self) -> usize {
-        self.as_abstract_ref().maximum() as usize + self.page()
+    pub fn maximum(&self) -> Result<usize> {
+        Ok(self.as_abstract_ref().maximum()? as usize + self.page()?)
     }
 
-    pub fn set_maximum(&mut self, v: usize) {
-        let page = self.page();
+    pub fn set_maximum(&mut self, v: usize) -> Result<()> {
+        let page = self.page()?;
         self.pin_abstract_mut()
-            .setMaximum(v.saturating_sub(page) as _);
+            .setMaximum(v.saturating_sub(page) as _)?;
+        Ok(())
     }
 
-    pub fn page(&self) -> usize {
-        self.as_abstract_ref().pageStep() as _
+    pub fn page(&self) -> Result<usize> {
+        Ok(self.as_abstract_ref().pageStep()? as _)
     }
 
-    pub fn set_page(&mut self, v: usize) {
-        self.pin_abstract_mut().setPageStep(v as _);
+    pub fn set_page(&mut self, v: usize) -> Result<()> {
+        self.pin_abstract_mut().setPageStep(v as _)?;
+        Ok(())
     }
 
-    pub fn pos(&self) -> usize {
-        self.as_abstract_ref().value() as _
+    pub fn pos(&self) -> Result<usize> {
+        Ok(self.as_abstract_ref().value()? as _)
     }
 
-    pub fn set_pos(&mut self, v: usize) {
-        self.pin_abstract_mut().setValue(v as _);
+    pub fn set_pos(&mut self, v: usize) -> Result<()> {
+        self.pin_abstract_mut().setValue(v as _)?;
+        Ok(())
     }
 
     fn on_moved(c: *const u8, _slider: Pin<&mut ffi::QAbstractSlider>) {
@@ -143,32 +150,34 @@ winio_handle::impl_as_widget!(ScrollBar, widget);
 winio_handle::impl_as_widget!(Slider, widget);
 
 impl ScrollBar {
-    pub fn new(parent: impl AsContainer) -> Self {
-        let widget = unsafe { ffi::new_scroll_bar(parent.as_container().as_qt()) };
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let widget = unsafe { ffi::new_scroll_bar(parent.as_container().as_qt()) }?;
         Self::new_impl(widget)
     }
 }
 
 impl Slider {
-    pub fn new(parent: impl AsContainer) -> Self {
-        let widget = unsafe { ffi::new_slider(parent.as_container().as_qt()) };
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let widget = unsafe { ffi::new_slider(parent.as_container().as_qt()) }?;
         Self::new_impl(widget)
     }
 
-    pub fn freq(&self) -> usize {
-        self.widget.as_ref().tickInterval() as _
+    pub fn freq(&self) -> Result<usize> {
+        Ok(self.widget.as_ref().tickInterval()? as _)
     }
 
-    pub fn set_freq(&mut self, v: usize) {
-        self.widget.pin_mut().setTickInterval(v as _);
+    pub fn set_freq(&mut self, v: usize) -> Result<()> {
+        self.widget.pin_mut().setTickInterval(v as _)?;
+        Ok(())
     }
 
-    pub fn tick_pos(&self) -> TickPosition {
-        self.widget.as_ref().tickPosition().into()
+    pub fn tick_pos(&self) -> Result<TickPosition> {
+        Ok(self.widget.as_ref().tickPosition()?.into())
     }
 
-    pub fn set_tick_pos(&mut self, v: TickPosition) {
-        self.widget.pin_mut().setTickPosition(v.into());
+    pub fn set_tick_pos(&mut self, v: TickPosition) -> Result<()> {
+        self.widget.pin_mut().setTickPosition(v.into())?;
+        Ok(())
     }
 }
 
@@ -246,34 +255,34 @@ mod ffi {
         type QtOrientation = super::QtOrientation;
         type QSliderTickPosition = super::QSliderTickPosition;
 
-        unsafe fn new_scroll_bar(parent: *mut QWidget) -> UniquePtr<QScrollBar>;
-        unsafe fn new_slider(parent: *mut QWidget) -> UniquePtr<QSlider>;
+        unsafe fn new_scroll_bar(parent: *mut QWidget) -> Result<UniquePtr<QScrollBar>>;
+        unsafe fn new_slider(parent: *mut QWidget) -> Result<UniquePtr<QSlider>>;
 
         unsafe fn scroll_bar_connect_moved(
             w: Pin<&mut QAbstractSlider>,
             callback: unsafe fn(*const u8, Pin<&mut QAbstractSlider>),
             data: *const u8,
-        );
+        ) -> Result<()>;
 
-        fn maximum(self: &QAbstractSlider) -> i32;
-        fn setMaximum(self: Pin<&mut QAbstractSlider>, v: i32);
+        fn maximum(self: &QAbstractSlider) -> Result<i32>;
+        fn setMaximum(self: Pin<&mut QAbstractSlider>, v: i32) -> Result<()>;
 
-        fn minimum(self: &QAbstractSlider) -> i32;
-        fn setMinimum(self: Pin<&mut QAbstractSlider>, v: i32);
+        fn minimum(self: &QAbstractSlider) -> Result<i32>;
+        fn setMinimum(self: Pin<&mut QAbstractSlider>, v: i32) -> Result<()>;
 
-        fn value(self: &QAbstractSlider) -> i32;
-        fn setValue(self: Pin<&mut QAbstractSlider>, v: i32);
+        fn value(self: &QAbstractSlider) -> Result<i32>;
+        fn setValue(self: Pin<&mut QAbstractSlider>, v: i32) -> Result<()>;
 
-        fn pageStep(self: &QAbstractSlider) -> i32;
-        fn setPageStep(self: Pin<&mut QAbstractSlider>, v: i32);
+        fn pageStep(self: &QAbstractSlider) -> Result<i32>;
+        fn setPageStep(self: Pin<&mut QAbstractSlider>, v: i32) -> Result<()>;
 
-        fn orientation(self: &QAbstractSlider) -> QtOrientation;
-        fn setOrientation(self: Pin<&mut QAbstractSlider>, v: QtOrientation);
+        fn orientation(self: &QAbstractSlider) -> Result<QtOrientation>;
+        fn setOrientation(self: Pin<&mut QAbstractSlider>, v: QtOrientation) -> Result<()>;
 
-        fn tickInterval(self: &QSlider) -> i32;
-        fn setTickInterval(self: Pin<&mut QSlider>, v: i32);
+        fn tickInterval(self: &QSlider) -> Result<i32>;
+        fn setTickInterval(self: Pin<&mut QSlider>, v: i32) -> Result<()>;
 
-        fn tickPosition(self: &QSlider) -> QSliderTickPosition;
-        fn setTickPosition(self: Pin<&mut QSlider>, v: QSliderTickPosition);
+        fn tickPosition(self: &QSlider) -> Result<QSliderTickPosition>;
+        fn setTickPosition(self: Pin<&mut QSlider>, v: QSliderTickPosition) -> Result<()>;
     }
 }

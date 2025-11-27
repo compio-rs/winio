@@ -5,6 +5,8 @@ use local_sync::oneshot;
 use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
+use crate::Result;
+
 fn msgbox_finished(data: *const u8, res: i32) {
     if let Some(tx) = unsafe { (data.cast_mut() as *mut Option<oneshot::Sender<i32>>).as_mut() } {
         if let Some(tx) = tx.take() {
@@ -21,46 +23,46 @@ async fn msgbox_custom(
     style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
-) -> MessageBoxResponse {
+) -> Result<MessageBoxResponse> {
     let parent = parent.map(|p| p.as_window().as_qt()).unwrap_or(null_mut());
-    let mut b = unsafe { ffi::new_message_box(parent) };
+    let mut b = unsafe { ffi::new_message_box(parent) }?;
 
     let mut results = HashMap::<usize, MessageBoxResponse>::new();
     if btns.contains(MessageBoxButton::Ok) {
-        let key = b.pin_mut().addButton(QMessageBoxStandardButton::Ok) as usize;
+        let key = b.pin_mut().addButton(QMessageBoxStandardButton::Ok)? as usize;
         results.insert(key, MessageBoxResponse::Ok);
     }
     if btns.contains(MessageBoxButton::Yes) {
-        let key = b.pin_mut().addButton(QMessageBoxStandardButton::Yes) as usize;
+        let key = b.pin_mut().addButton(QMessageBoxStandardButton::Yes)? as usize;
         results.insert(key, MessageBoxResponse::Yes);
     }
     if btns.contains(MessageBoxButton::No) {
-        let key = b.pin_mut().addButton(QMessageBoxStandardButton::No) as usize;
+        let key = b.pin_mut().addButton(QMessageBoxStandardButton::No)? as usize;
         results.insert(key, MessageBoxResponse::No);
     }
     if btns.contains(MessageBoxButton::Cancel) {
-        let key = b.pin_mut().addButton(QMessageBoxStandardButton::Cancel) as usize;
+        let key = b.pin_mut().addButton(QMessageBoxStandardButton::Cancel)? as usize;
         results.insert(key, MessageBoxResponse::Cancel);
     }
     if btns.contains(MessageBoxButton::Retry) {
-        let key = b.pin_mut().addButton(QMessageBoxStandardButton::Retry) as usize;
+        let key = b.pin_mut().addButton(QMessageBoxStandardButton::Retry)? as usize;
         results.insert(key, MessageBoxResponse::Retry);
     }
     if btns.contains(MessageBoxButton::Close) {
-        let key = b.pin_mut().addButton(QMessageBoxStandardButton::Close) as usize;
+        let key = b.pin_mut().addButton(QMessageBoxStandardButton::Close)? as usize;
         results.insert(key, MessageBoxResponse::Close);
     }
     for btn in &cbtns {
-        let key = ffi::message_box_add_button(b.pin_mut(), &btn.text) as usize;
+        let key = ffi::message_box_add_button(b.pin_mut(), &btn.text)? as usize;
         results.insert(key, MessageBoxResponse::Custom(btn.result));
     }
 
-    b.pin_mut().setWindowTitle(&title.into());
+    b.pin_mut().setWindowTitle(&title.try_into()?)?;
     if instr.is_empty() {
-        b.pin_mut().setText(&msg.into());
+        b.pin_mut().setText(&msg.try_into()?)?;
     } else {
-        b.pin_mut().setText(&instr.into());
-        b.pin_mut().setInformativeText(&msg.into());
+        b.pin_mut().setText(&instr.try_into()?)?;
+        b.pin_mut().setInformativeText(&msg.try_into()?)?;
     }
 
     let icon = match style {
@@ -69,7 +71,7 @@ async fn msgbox_custom(
         MessageBoxStyle::Warning => QMessageBoxIcon::Warning,
         MessageBoxStyle::Error => QMessageBoxIcon::Critical,
     };
-    b.pin_mut().setIcon(icon);
+    b.pin_mut().setIcon(icon)?;
 
     let (tx, rx) = oneshot::channel::<i32>();
     let tx = ManuallyDrop::new(Some(tx));
@@ -78,13 +80,13 @@ async fn msgbox_custom(
             b.pin_mut(),
             msgbox_finished,
             std::ptr::addr_of!(tx).cast(),
-        );
+        )?;
     }
-    b.pin_mut().open();
-    rx.await.unwrap();
+    b.pin_mut().open()?;
+    rx.await?;
 
-    let key = b.clickedButton() as usize;
-    results[&key]
+    let key = b.clickedButton()? as usize;
+    Ok(results[&key])
 }
 
 #[derive(Debug, Clone)]
@@ -115,7 +117,7 @@ impl MessageBox {
         }
     }
 
-    pub async fn show(self, parent: Option<impl AsWindow>) -> MessageBoxResponse {
+    pub async fn show(self, parent: Option<impl AsWindow>) -> Result<MessageBoxResponse> {
         msgbox_custom(
             parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )
@@ -207,23 +209,24 @@ mod ffi {
         type QAbstractButton;
         type QString = crate::ui::QString;
 
-        fn open(self: Pin<&mut QMessageBox>);
-        fn setIcon(self: Pin<&mut QMessageBox>, icon: QMessageBoxIcon);
-        fn setWindowTitle(self: Pin<&mut QMessageBox>, s: &QString);
-        fn setText(self: Pin<&mut QMessageBox>, s: &QString);
-        fn setInformativeText(self: Pin<&mut QMessageBox>, s: &QString);
+        fn open(self: Pin<&mut QMessageBox>) -> Result<()>;
+        fn setIcon(self: Pin<&mut QMessageBox>, icon: QMessageBoxIcon) -> Result<()>;
+        fn setWindowTitle(self: Pin<&mut QMessageBox>, s: &QString) -> Result<()>;
+        fn setText(self: Pin<&mut QMessageBox>, s: &QString) -> Result<()>;
+        fn setInformativeText(self: Pin<&mut QMessageBox>, s: &QString) -> Result<()>;
         fn addButton(
             self: Pin<&mut QMessageBox>,
             button: QMessageBoxStandardButton,
-        ) -> *mut QPushButton;
-        fn clickedButton(self: &QMessageBox) -> *mut QAbstractButton;
+        ) -> Result<*mut QPushButton>;
+        fn clickedButton(self: &QMessageBox) -> Result<*mut QAbstractButton>;
 
-        unsafe fn new_message_box(parent: *mut QWidget) -> UniquePtr<QMessageBox>;
+        unsafe fn new_message_box(parent: *mut QWidget) -> Result<UniquePtr<QMessageBox>>;
         unsafe fn message_box_connect_finished(
             b: Pin<&mut QMessageBox>,
             callback: unsafe fn(*const u8, i32),
             data: *const u8,
-        );
-        fn message_box_add_button(b: Pin<&mut QMessageBox>, text: &str) -> *mut QPushButton;
+        ) -> Result<()>;
+        fn message_box_add_button(b: Pin<&mut QMessageBox>, text: &str)
+        -> Result<*mut QPushButton>;
     }
 }

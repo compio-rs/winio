@@ -112,11 +112,11 @@ where
     }
 
     pub fn tooltip(&self) -> Result<String> {
-        Ok(self.as_ref_qwidget().toolTip()?.into())
+        Ok(self.as_ref_qwidget().toolTip()?.try_into()?)
     }
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.pin_mut_qwidget().setToolTip(&s.as_ref().into())?;
+        self.pin_mut_qwidget().setToolTip(&s.as_ref().try_into()?)?;
         Ok(())
     }
 }
@@ -246,7 +246,7 @@ mod ffi {
     unsafe extern "C++-unwind" {
         include!("winio-ui-qt/src/ui/widget.hpp");
 
-        fn is_dark() -> bool;
+        fn is_dark() -> Result<bool>;
 
         type QWidget;
         type QSize = super::QSize;

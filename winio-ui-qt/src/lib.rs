@@ -30,6 +30,18 @@ pub enum Error {
     /// C++ exception.
     #[error("C++ exception: {0}")]
     Cxx(#[from] cxx::Exception),
+    /// Index error.
+    #[error("Index error: {0}")]
+    Index(usize),
+    /// Channel recv error.
+    #[error("Channel recv error: {0}")]
+    ChannelRecv(#[from] local_sync::oneshot::error::RecvError),
+    /// Media player error.
+    #[error("Media player error: {0:?}")]
+    Media(#[from] ui::QMediaPlayerError),
+    /// Feature not supported.
+    #[error("Feature not supported")]
+    NotSupported,
 }
 
 /// Result type for Qt.

@@ -102,11 +102,12 @@ impl Window {
     }
 
     pub fn text(&self) -> Result<String> {
-        Ok(self.as_ref_qwidget().windowTitle()?.into())
+        Ok(self.as_ref_qwidget().windowTitle()?.try_into()?)
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.pin_mut_qwidget().setWindowTitle(&s.as_ref().into())?;
+        self.pin_mut_qwidget()
+            .setWindowTitle(&s.as_ref().try_into()?)?;
         Ok(())
     }
 

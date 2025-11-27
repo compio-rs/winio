@@ -122,10 +122,10 @@ use std::pin::Pin;
 
 use winio_primitive::ColorTheme;
 
-pub fn color_theme() -> ColorTheme {
-    if is_dark() {
-        ColorTheme::Dark
+pub fn color_theme() -> crate::Result<ColorTheme> {
+    if is_dark()? {
+        Ok(ColorTheme::Dark)
     } else {
-        ColorTheme::Light
+        Ok(ColorTheme::Light)
     }
 }

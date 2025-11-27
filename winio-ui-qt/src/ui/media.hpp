@@ -40,6 +40,8 @@ struct WinioMediaPlayer : public QMediaPlayer {
 
 STATIC_CAST_ASSERT(QVideoWidget, QWidget);
 
+using QMediaPlayerError = QMediaPlayer::Error;
+
 std::unique_ptr<QVideoWidget> new_video(QWidget *parent);
 std::unique_ptr<WinioMediaPlayer> new_player();
 
