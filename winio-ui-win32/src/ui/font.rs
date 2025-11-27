@@ -1,7 +1,7 @@
 use core::f32;
 #[cfg(feature = "once_cell_try")]
 use std::sync::OnceLock;
-use std::{collections::BTreeMap, io, mem::MaybeUninit, sync::Mutex};
+use std::{collections::BTreeMap, mem::MaybeUninit, sync::Mutex};
 
 use compio::driver::syscall;
 #[cfg(not(feature = "once_cell_try"))]
@@ -28,7 +28,7 @@ use windows_sys::Win32::{
 use winio_primitive::Size;
 
 use super::dpi::DpiAware;
-use crate::Result;
+use crate::{Error, Result};
 
 unsafe fn system_default_font() -> Result<LOGFONTW> {
     let mut ncm: NONCLIENTMETRICSW = unsafe { std::mem::zeroed() };
@@ -75,7 +75,7 @@ pub fn default_font(dpi: u32) -> Result<HFONT> {
             f.lfWidth = f.lfWidth.to_device(dpi);
             let res = CreateFontIndirectW(&f);
             if res.is_null() {
-                return Err(io::Error::last_os_error().into());
+                return Err(Error::from_thread());
             }
             map.insert(dpi, WinFont(res));
             Ok(res)

@@ -1,6 +1,5 @@
 use std::{
     collections::BTreeMap,
-    io,
     mem::MaybeUninit,
     ptr::{null, null_mut},
     sync::{LazyLock, Mutex, Once},
@@ -50,7 +49,7 @@ use windows_sys::{
 };
 
 use super::{PreferredAppMode, WHITE, WinBrush, u16_string_eq_ignore_case};
-use crate::darkmode::u16_string_starts_with_ignore_case;
+use crate::{Error, Result, darkmode::u16_string_starts_with_ignore_case};
 
 #[link(name = "ntdll")]
 extern "system" {
@@ -644,11 +643,11 @@ pub unsafe fn children_refresh_dark_mode(handle: HWND, lparam: LPARAM) {
 
 /// # Safety
 /// `hwnd` should be valid.
-pub unsafe fn control_use_dark_mode(hwnd: HWND, misc_task_dialog: bool) -> io::Result<()> {
+pub unsafe fn control_use_dark_mode(hwnd: HWND, misc_task_dialog: bool) -> Result<()> {
     let mut class = [0u16; MAX_CLASS_NAME as usize];
     let res = GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
     if res == 0 {
-        return Err(io::Error::last_os_error());
+        return Err(Error::from_thread());
     }
     let class = U16CStr::from_ptr_str(class.as_ptr());
     let subappname = if is_dark_mode_allowed_for_app() {
@@ -674,11 +673,7 @@ pub unsafe fn control_use_dark_mode(hwnd: HWND, misc_task_dialog: bool) -> io::R
         null()
     };
     let res = SetWindowTheme(hwnd, subappname, null());
-    if res >= 0 {
-        Ok(())
-    } else {
-        Err(io::Error::from_raw_os_error(res))
-    }
+    windows::core::HRESULT(res).ok()
 }
 
 unsafe extern "system" fn task_dialog_subclass(

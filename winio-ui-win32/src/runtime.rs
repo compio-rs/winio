@@ -44,7 +44,7 @@ use winio_ui_windows_common::{
 
 use super::RUNTIME;
 use crate::{
-    Result,
+    Error, Result,
     ui::{dpi::get_dpi_for_window, font::default_font},
 };
 
@@ -168,7 +168,7 @@ impl Runtime {
                     debug!("received WM_QUIT");
                     break result.take().expect("received WM_QUIT but no result");
                 } else {
-                    panic!("{:?}", std::io::Error::last_os_error());
+                    panic!("{:?}", Error::from_thread());
                 }
             }
         })

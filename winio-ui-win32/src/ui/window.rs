@@ -35,7 +35,7 @@ use winio_ui_windows_common::{
 };
 
 use crate::{
-    Result,
+    Error, Result,
     font::measure_string,
     runtime::{WindowMessage, get_backdrop, set_backdrop, wait, window_proc},
     tooltip::{get_tooltip, remove_tooltip, set_tooltip},
@@ -100,7 +100,7 @@ impl Widget {
             )
         };
         if handle.is_null() {
-            return Err(std::io::Error::last_os_error().into());
+            return Err(Error::from_thread());
         }
         unsafe {
             control_use_dark_mode(handle, false)?;
@@ -483,7 +483,7 @@ impl Window {
             )
         };
         if icon.is_null() {
-            return Err(std::io::Error::last_os_error().into());
+            return Err(Error::from_thread());
         }
         self.handle.set_icon(icon);
         Ok(())

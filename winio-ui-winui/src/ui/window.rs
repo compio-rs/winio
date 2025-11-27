@@ -2,6 +2,7 @@
 use std::cell::OnceCell;
 use std::{cell::RefCell, mem::MaybeUninit, rc::Rc, sync::Arc};
 
+use compio::driver::syscall;
 use compio_log::error;
 use inherit_methods_macro::inherit_methods;
 #[cfg(not(feature = "once_cell_try"))]
@@ -41,7 +42,7 @@ use winui3::{
     },
 };
 
-use crate::{CustomDesktopAcrylicBackdrop, GlobalRuntime, Result, Widget, ui::Convertible};
+use crate::{CustomDesktopAcrylicBackdrop, Error, GlobalRuntime, Result, Widget, ui::Convertible};
 
 #[derive(Debug)]
 pub struct Window {
@@ -70,7 +71,7 @@ impl Window {
                 // Set to DWMSBT_AUTO.
                 set_backdrop(hwnd.0, Backdrop::None)?;
             },
-            Err(e) => panic!("{e:?}"),
+            Err(e) => return Err(e),
         }
 
         let canvas = MUXC::Canvas::new()?;
@@ -180,16 +181,14 @@ impl Window {
             // Available since 1.1
             Err(e) if e.code() == E_NOINTERFACE => {
                 let mut rect = MaybeUninit::uninit();
-                if unsafe { GetClientRect(self.app_window.Id()?.Value as _, rect.as_mut_ptr()) }
-                    == 0
-                {
-                    panic!("{:?}", std::io::Error::last_os_error());
-                } else {
-                    let rect = unsafe { rect.assume_init() };
-                    Size::new((rect.right - rect.left) as _, (rect.bottom - rect.top) as _)
-                }
+                syscall!(
+                    BOOL,
+                    GetClientRect(self.app_window.Id()?.Value as _, rect.as_mut_ptr())
+                )?;
+                let rect = unsafe { rect.assume_init() };
+                Size::new((rect.right - rect.left) as _, (rect.bottom - rect.top) as _)
             }
-            Err(e) => panic!("{e:?}"),
+            Err(e) => return Err(e),
         };
         Ok(size / self.scale())
     }
@@ -215,7 +214,7 @@ impl Window {
             )
         };
         if icon.is_null() {
-            panic!("{:?}", std::io::Error::last_os_error());
+            return Err(Error::from_thread());
         }
         self.app_window
             .SetIconWithIconId(IconId { Value: icon as _ })?;
