@@ -150,20 +150,30 @@ pub struct DrawingPathBuilder(sys::DrawingPathBuilder);
 
 impl DrawingPathBuilder {
     /// Line from current point to the target point.
-    pub fn add_line(&mut self, p: Point) {
-        self.0.add_line(p);
+    pub fn add_line(&mut self, p: Point) -> Result<()> {
+        self.0.add_line(p)?;
+        Ok(())
     }
 
     /// Add arc. A line will be created implicitly if the start point is not the
     /// current point.
-    pub fn add_arc(&mut self, center: Point, radius: Size, start: f64, end: f64, clockwise: bool) {
+    pub fn add_arc(
+        &mut self,
+        center: Point,
+        radius: Size,
+        start: f64,
+        end: f64,
+        clockwise: bool,
+    ) -> Result<()> {
         self.0
-            .add_arc(center, fix_size(radius), start, end, clockwise);
+            .add_arc(center, fix_size(radius), start, end, clockwise)?;
+        Ok(())
     }
 
     /// Add a cubic Bezier curve.
-    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) {
-        self.0.add_bezier(p1, p2, p3);
+    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) -> Result<()> {
+        self.0.add_bezier(p1, p2, p3)?;
+        Ok(())
     }
 
     /// Build [`DrawingPath`].

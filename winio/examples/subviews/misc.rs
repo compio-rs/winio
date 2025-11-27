@@ -361,8 +361,8 @@ impl Component for MiscPage {
             0.0,
             std::f64::consts::PI,
             true,
-        );
-        path.add_line(Point::new(cx - r - 1.0 + r / 10.0, cy));
+        )?;
+        path.add_line(Point::new(cx - r - 1.0 + r / 10.0, cy))?;
         let path = path.build(false)?;
         ctx.draw_path(&pen, &path)?;
         let brush3 = RadialGradientBrush::new(

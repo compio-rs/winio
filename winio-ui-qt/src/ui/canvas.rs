@@ -1,5 +1,6 @@
 use std::{mem::MaybeUninit, pin::Pin};
 
+use compio_log::error;
 use cxx::{ExternType, UniquePtr, type_id};
 use image::{DynamicImage, Pixel, Rgb, Rgba};
 use inherit_methods_macro::inherit_methods;
@@ -144,8 +145,9 @@ pub struct DrawingContext<'a> {
 
 impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
-        self.painter.pin_mut().end();
-        self.canvas.widget.pin_mut().update();
+        if let Err(_e) = self.end() {
+            error!("Failed to end drawing context: {_e:?}");
+        }
     }
 }
 
@@ -160,6 +162,12 @@ fn drawing_angle(angle: f64) -> i32 {
 }
 
 impl DrawingContext<'_> {
+    fn end(&mut self) -> Result<()> {
+        self.painter.pin_mut().end()?;
+        self.canvas.widget.pin_mut().update()?;
+        Ok(())
+    }
+
     fn set_brush(&mut self, brush: impl Brush, rect: Rect) -> Result<()> {
         self.painter
             .pin_mut()
@@ -355,11 +363,19 @@ impl DrawingPathBuilder {
         Ok(Self(ptr))
     }
 
-    pub fn add_line(&mut self, p: Point) {
-        self.0.pin_mut().lineTo(p.x, p.y);
+    pub fn add_line(&mut self, p: Point) -> Result<()> {
+        self.0.pin_mut().lineTo(p.x, p.y)?;
+        Ok(())
     }
 
-    pub fn add_arc(&mut self, center: Point, radius: Size, start: f64, end: f64, clockwise: bool) {
+    pub fn add_arc(
+        &mut self,
+        center: Point,
+        radius: Size,
+        start: f64,
+        end: f64,
+        clockwise: bool,
+    ) -> Result<()> {
         self.0.pin_mut().arcTo(
             center.x - radius.width,
             center.y - radius.height,
@@ -367,11 +383,15 @@ impl DrawingPathBuilder {
             radius.height * 2.0,
             start,
             if clockwise { start - end } else { end - start } / std::f64::consts::PI * 180.0,
-        );
+        )?;
+        Ok(())
     }
 
-    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) {
-        self.0.pin_mut().cubicTo(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) -> Result<()> {
+        self.0
+            .pin_mut()
+            .cubicTo(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y)?;
+        Ok(())
     }
 
     pub fn build(mut self, close: bool) -> Result<DrawingPath> {

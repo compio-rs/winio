@@ -4,6 +4,7 @@ use std::{
     time::Duration,
 };
 
+use compio_log::error;
 use cxx::{ExternType, UniquePtr, type_id};
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
@@ -154,7 +155,9 @@ winio_handle::impl_as_widget!(Media, widget);
 impl Drop for Media {
     fn drop(&mut self) {
         unsafe {
-            self.player.pin_mut().setVideoOutput(std::ptr::null_mut());
+            if let Err(_e) = self.player.pin_mut().setVideoOutput(std::ptr::null_mut()) {
+                error!("Failed to clear video output: {_e:?}");
+            }
         }
     }
 }
