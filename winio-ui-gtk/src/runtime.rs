@@ -27,8 +27,9 @@ impl Runtime {
         Ok(Self { runtime, app, ctx })
     }
 
-    pub fn set_app_id(&mut self, name: &str) {
+    pub fn set_app_id(&mut self, name: &str) -> Result<()> {
         self.app.set_application_id(Some(name));
+        Ok(())
     }
 
     pub(crate) fn run(&self) {

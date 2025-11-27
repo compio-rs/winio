@@ -102,32 +102,33 @@ pub struct TabViewItem {
 }
 
 impl TabViewItem {
-    pub fn new(_parent: &TabView) -> Self {
+    pub fn new(_parent: &TabView) -> Result<Self> {
         let swindow = gtk4::ScrolledWindow::new();
         swindow.set_hscrollbar_policy(gtk4::PolicyType::External);
         swindow.set_vscrollbar_policy(gtk4::PolicyType::External);
         let fixed = gtk4::Fixed::new();
         swindow.set_child(Some(&fixed));
         let label = gtk4::Label::new(None);
-        Self {
+        Ok(Self {
             swindow,
             fixed,
             label,
-        }
+        })
     }
 
-    pub fn text(&self) -> String {
-        self.label.text().to_string()
+    pub fn text(&self) -> Result<String> {
+        Ok(self.label.text().to_string())
     }
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         self.label.set_text(s.as_ref());
+        Ok(())
     }
 
-    pub fn size(&self) -> Size {
+    pub fn size(&self) -> Result<Size> {
         let width = self.swindow.width();
         let height = self.swindow.height();
-        Size::new(width as _, height as _)
+        Ok(Size::new(width as _, height as _))
     }
 }
 
