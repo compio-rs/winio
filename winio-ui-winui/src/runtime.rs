@@ -230,6 +230,7 @@ fn spawn_runtime_thread(runtime: usize, shutdown: Arc<OwnedHandle>) -> Result<()
                 }
             }
             THREAD_COUNTER.store(0, Ordering::Release);
+            info!("Runtime thread exited");
         })
         .detach();
     }

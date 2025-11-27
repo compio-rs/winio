@@ -4,7 +4,16 @@ use std::sync::LazyLock;
 
 use slim_detours_sys::SlimDetoursInlineHook;
 use sync_unsafe_cell::SyncUnsafeCell;
-use windows::core::Result;
+use windows::{
+    Win32::{
+        Foundation::HANDLE,
+        Storage::Packaging::Appx::{
+            AppPolicyGetWindowingModel, AppPolicyWindowingModel_ClassicDesktop,
+            AppPolicyWindowingModel_None,
+        },
+    },
+    core::Result,
+};
 use windows_sys::Win32::{
     Foundation::HWND,
     UI::WindowsAndMessaging::{GetMessageW, MSG},
@@ -32,5 +41,18 @@ fn detour_attach() -> Result<()> {
 static DETOUR_GUARD: LazyLock<Result<()>> = LazyLock::new(detour_attach);
 
 pub fn init_hook() -> bool {
-    DETOUR_GUARD.is_ok()
+    let desktop = is_desktop().unwrap_or_default();
+    desktop && DETOUR_GUARD.is_ok()
+}
+
+fn is_desktop() -> Result<bool> {
+    let mut policy = AppPolicyWindowingModel_None;
+    unsafe { AppPolicyGetWindowingModel(GetCurrentThreadEffectiveToken(), &mut policy) }.ok()?;
+    Ok(policy == AppPolicyWindowingModel_ClassicDesktop)
+}
+
+#[inline]
+#[allow(non_snake_case)]
+fn GetCurrentThreadEffectiveToken() -> HANDLE {
+    HANDLE(-6_isize as _)
 }
