@@ -31,6 +31,10 @@ pub struct FileBox {
     filters: Vec<FileFilter>,
 }
 
+// SAFETY: NSString is thread-safe.
+unsafe impl Send for FileBox {}
+unsafe impl Sync for FileBox {}
+
 impl FileBox {
     pub fn new() -> Self {
         Self::default()

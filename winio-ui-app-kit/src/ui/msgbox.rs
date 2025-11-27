@@ -124,6 +124,10 @@ pub struct MessageBox {
     cbtns: Vec<CustomButton>,
 }
 
+// SAFETY: NSString is thread-safe.
+unsafe impl Send for MessageBox {}
+unsafe impl Sync for MessageBox {}
+
 impl MessageBox {
     pub fn new() -> Self {
         Self::default()

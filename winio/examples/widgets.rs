@@ -8,14 +8,15 @@ pub enum Error {
     /// An error from the UI backend.
     #[error("UI error: {0}")]
     Ui(#[from] winio::Error),
-
     /// An error from [`winio_layout`].
     #[error("Layout error: {0}")]
     Layout(#[from] TaffyError),
-
     /// An IO error.
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+    /// Image error.
+    #[error("Image error: {0}")]
+    Image(#[from] image::ImageError),
 }
 
 impl<E: Into<Error> + std::fmt::Display> From<LayoutError<E>> for Error {
@@ -187,6 +188,7 @@ impl Component for MainModel {
             self.net => {},
             self.gallery => {
                 GalleryPageEvent::ChooseFolder => MainMessage::ChooseFolder,
+                GalleryPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
             },
             self.scroll => {
                 ScrollViewPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),

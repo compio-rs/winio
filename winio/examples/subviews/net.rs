@@ -155,16 +155,26 @@ impl Deref for NetPage {
     }
 }
 
+async fn fetch_impl(client: Client, url: String) -> Result<NetFetchStatus, NetFetchStatus> {
+    let req = client
+        .get(url)
+        .map_err(|e| NetFetchStatus::Error(e.to_string()))?;
+    let res = timeout(Duration::from_secs(8), req.send())
+        .await
+        .map_err(|_| NetFetchStatus::Timedout)?
+        .map_err(|e| NetFetchStatus::Error(e.to_string()))?;
+    let s = res
+        .text()
+        .await
+        .map_err(|e| NetFetchStatus::Error(e.to_string()))?;
+    Ok(NetFetchStatus::Complete(s))
+}
+
 async fn fetch(client: Client, url: String, sender: ComponentSender<NetPage>) {
     sender.post(NetPageMessage::Fetch(NetFetchStatus::Loading));
-    let status =
-        if let Ok(res) = timeout(Duration::from_secs(8), client.get(url).unwrap().send()).await {
-            match res {
-                Ok(response) => NetFetchStatus::Complete(response.text().await.unwrap()),
-                Err(e) => NetFetchStatus::Error(format!("{e:?}")),
-            }
-        } else {
-            NetFetchStatus::Timedout
-        };
+    let status = match fetch_impl(client.clone(), url.clone()).await {
+        Ok(s) => s,
+        Err(e) => e,
+    };
     sender.post(NetPageMessage::Fetch(status));
 }

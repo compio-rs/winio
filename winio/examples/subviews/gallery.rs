@@ -5,6 +5,7 @@ use std::{
 };
 
 use compio::runtime::spawn_blocking;
+use compio_log::error;
 use image::{DynamicImage, ImageReader};
 use itertools::Itertools;
 use winio::prelude::*;
@@ -61,6 +62,7 @@ impl GalleryPage {
 
 #[derive(Debug)]
 pub enum GalleryPageEvent {
+    ShowMessage(MessageBox),
     ChooseFolder,
 }
 
@@ -70,6 +72,7 @@ pub enum GalleryPageMessage {
     Redraw,
     ChooseFolder,
     OpenFolder(PathBuf),
+    OpenError(String),
     Clear,
     Append(PathBuf, DynamicImage),
     List(ObservableVecEvent<String>),
@@ -175,6 +178,15 @@ impl Component for GalleryPage {
                 let sender = sender.clone();
                 spawn_blocking(move || fetch(p, sender)).detach();
                 Ok(true)
+            }
+            GalleryPageMessage::OpenError(e) => {
+                sender.output(GalleryPageEvent::ShowMessage(
+                    MessageBox::new()
+                        .message(&e)
+                        .style(MessageBoxStyle::Error)
+                        .buttons(MessageBoxButton::Ok),
+                ));
+                Ok(false)
             }
             GalleryPageMessage::Clear => {
                 self.list.clear();
@@ -316,8 +328,21 @@ impl Deref for GalleryPage {
 
 fn fetch(path: impl AsRef<Path>, sender: ComponentSender<GalleryPage>) {
     sender.post(GalleryPageMessage::Clear);
-    for p in path.as_ref().read_dir().unwrap() {
-        let p = p.unwrap().path();
+    let dir = match path.as_ref().read_dir() {
+        Ok(dir) => dir,
+        Err(e) => {
+            sender.post(GalleryPageMessage::OpenError(e.to_string()));
+            return;
+        }
+    };
+    for p in dir {
+        let p = match p {
+            Ok(e) => e.path(),
+            Err(_e) => {
+                error!("Failed to read directory entry: {_e:?}");
+                continue;
+            }
+        };
         if let Ok(reader) = ImageReader::open(&p) {
             if let Ok(image) = reader.decode() {
                 sender.post(GalleryPageMessage::Append(p, image));
