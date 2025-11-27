@@ -23,6 +23,7 @@ mod ui;
 pub use ui::*;
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum Error {
     /// IO error.
     #[error("IO error: {0}")]
@@ -37,6 +38,7 @@ pub enum Error {
     #[error("Channel recv error: {0}")]
     ChannelRecv(#[from] local_sync::oneshot::error::RecvError),
     /// Media player error.
+    #[cfg(feature = "media")]
     #[error("Media player error: {0:?}")]
     Media(#[from] ui::QMediaPlayerError),
     /// Feature not supported.

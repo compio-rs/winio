@@ -23,6 +23,7 @@ mod ui;
 pub use ui::*;
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum Error {
     /// IO error.
     #[error("IO error: {0}")]

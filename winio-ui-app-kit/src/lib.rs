@@ -28,6 +28,7 @@ pub use ui::*;
 
 /// Error type for AppKit.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum Error {
     /// IO error.
     #[error("IO error: {0}")]
