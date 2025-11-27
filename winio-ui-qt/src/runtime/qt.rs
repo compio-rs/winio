@@ -2,6 +2,8 @@ use std::{cell::RefCell, future::Future, os::fd::AsRawFd};
 
 use cxx::UniquePtr;
 
+use crate::Result;
+
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++-unwind" {
@@ -9,13 +11,13 @@ mod ffi {
 
         type WinioQtEventLoop;
 
-        fn new_event_loop(args: Vec<String>, fd: i32) -> UniquePtr<WinioQtEventLoop>;
+        fn new_event_loop(args: Vec<String>, fd: i32) -> Result<UniquePtr<WinioQtEventLoop>>;
 
         fn process(self: Pin<&mut Self>);
         #[rust_name = "process_timeout"]
         fn process(self: Pin<&mut Self>, maxtime: i32);
 
-        fn setAppName(self: Pin<&mut Self>, name: &str);
+        fn setAppName(self: Pin<&mut Self>, name: &str) -> Result<()>;
     }
 }
 
@@ -24,27 +26,22 @@ pub struct Runtime {
     event_loop: RefCell<UniquePtr<ffi::WinioQtEventLoop>>,
 }
 
-impl Default for Runtime {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Runtime {
-    pub fn new() -> Self {
-        let runtime = winio_pollable::Runtime::new().unwrap();
+    pub fn new() -> Result<Self> {
+        let runtime = winio_pollable::Runtime::new()?;
         let poll_fd = runtime.as_raw_fd();
         let args = std::env::args().collect::<Vec<_>>();
-        let event_loop = RefCell::new(ffi::new_event_loop(args, poll_fd));
+        let event_loop = RefCell::new(ffi::new_event_loop(args, poll_fd)?);
 
-        Self {
+        Ok(Self {
             runtime,
             event_loop,
-        }
+        })
     }
 
-    pub fn set_app_id(&mut self, id: &str) {
-        self.event_loop.borrow_mut().pin_mut().setAppName(id);
+    pub fn set_app_id(&mut self, id: &str) -> Result<()> {
+        self.event_loop.borrow_mut().pin_mut().setAppName(id)?;
+        Ok(())
     }
 
     pub(crate) fn run(&self) {

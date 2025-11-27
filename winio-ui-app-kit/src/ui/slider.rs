@@ -10,7 +10,7 @@ use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Orient, Point, Size, TickPosition};
 
-use crate::{GlobalRuntime, Widget};
+use crate::{GlobalRuntime, Result, Widget, catch};
 
 #[derive(Debug)]
 pub struct Slider {
@@ -21,13 +21,13 @@ pub struct Slider {
 
 #[inherit_methods(from = "self.handle")]
 impl Slider {
-    pub fn new(parent: impl AsContainer) -> Self {
-        unsafe {
-            let parent = parent.as_container();
-            let mtm = parent.mtm();
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let parent = parent.as_container();
+        let mtm = parent.mtm();
 
+        catch(|| unsafe {
             let view = NSSlider::new(mtm);
-            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
+            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()))?;
 
             let delegate = SliderDelegate::new(mtm);
             view.setTarget(Some(&delegate));
@@ -35,99 +35,103 @@ impl Slider {
 
             view.setEnabled(true);
 
-            Self {
+            Ok(Self {
                 handle,
                 view,
                 delegate,
-            }
-        }
+            })
+        })
+        .flatten()
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Size;
+    pub fn preferred_size(&self) -> Result<Size>;
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn tick_pos(&self) -> TickPosition {
-        let tpos = self.view.tickMarkPosition();
-        match tpos {
+    pub fn tick_pos(&self) -> Result<TickPosition> {
+        let tpos = catch(|| self.view.tickMarkPosition())?;
+        let tpos = match tpos {
             NSTickMarkPosition::Below => TickPosition::BottomRight,
             NSTickMarkPosition::Above => TickPosition::TopLeft,
             _ => TickPosition::None,
-        }
+        };
+        Ok(tpos)
     }
 
-    pub fn set_tick_pos(&mut self, v: TickPosition) {
+    pub fn set_tick_pos(&mut self, v: TickPosition) -> Result<()> {
         let tpos = match v {
             TickPosition::BottomRight => NSTickMarkPosition::Below,
             _ => NSTickMarkPosition::Above,
         };
-        self.view.setTickMarkPosition(tpos);
+        catch(|| {
+            self.view.setTickMarkPosition(tpos);
+        })
     }
 
-    pub fn orient(&self) -> Orient {
-        let vertical = self.view.isVertical();
+    pub fn orient(&self) -> Result<Orient> {
+        let vertical = catch(|| self.view.isVertical())?;
         if vertical {
-            Orient::Vertical
+            Ok(Orient::Vertical)
         } else {
-            Orient::Horizontal
+            Ok(Orient::Horizontal)
         }
     }
 
-    pub fn set_orient(&mut self, v: Orient) {
-        self.view.setVertical(matches!(v, Orient::Vertical));
+    pub fn set_orient(&mut self, v: Orient) -> Result<()> {
+        catch(|| self.view.setVertical(matches!(v, Orient::Vertical)))
     }
 
-    pub fn minimum(&self) -> usize {
-        self.view.minValue() as _
+    pub fn minimum(&self) -> Result<usize> {
+        catch(|| self.view.minValue() as _)
     }
 
-    pub fn set_minimum(&mut self, v: usize) {
-        self.view.setMinValue(v as _);
+    pub fn set_minimum(&mut self, v: usize) -> Result<()> {
+        catch(|| self.view.setMinValue(v as _))
     }
 
-    pub fn maximum(&self) -> usize {
-        self.view.maxValue() as _
+    pub fn maximum(&self) -> Result<usize> {
+        catch(|| self.view.maxValue() as _)
     }
 
-    pub fn set_maximum(&mut self, v: usize) {
-        self.view.setMaxValue(v as _);
+    pub fn set_maximum(&mut self, v: usize) -> Result<()> {
+        catch(|| self.view.setMaxValue(v as _))
     }
 
-    pub fn freq(&self) -> usize {
-        let nmarks = self.view.numberOfTickMarks() as usize;
-        let range = self.maximum() - self.minimum();
-        range / nmarks
+    pub fn freq(&self) -> Result<usize> {
+        let nmarks = catch(|| self.view.numberOfTickMarks() as usize)?;
+        let range = self.maximum()? - self.minimum()?;
+        Ok(range / nmarks)
     }
 
-    pub fn set_freq(&mut self, v: usize) {
-        let range = self.maximum() - self.minimum();
-        self.view.setNumberOfTickMarks((range / v) as _);
+    pub fn set_freq(&mut self, v: usize) -> Result<()> {
+        let range = self.maximum()? - self.minimum()?;
+        catch(|| self.view.setNumberOfTickMarks((range / v) as _))
     }
 
-    pub fn pos(&self) -> usize {
-        self.view.doubleValue() as _
+    pub fn pos(&self) -> Result<usize> {
+        catch(|| self.view.doubleValue() as _)
     }
 
-    pub fn set_pos(&mut self, pos: usize) {
-        self.view.setDoubleValue(pos as _);
+    pub fn set_pos(&mut self, pos: usize) -> Result<()> {
+        catch(|| self.view.setDoubleValue(pos as _))
     }
 
     pub async fn wait_change(&self) {

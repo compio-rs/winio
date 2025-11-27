@@ -66,7 +66,7 @@ void painter_set_font(QPainter &p, rust::Str family, double size, bool italic,
 QSizeF painter_measure_text(QPainter &p, QRectF rect, rust::Str text);
 void painter_draw_text(QPainter &p, QRectF rect, rust::Str text);
 
-void color_transparent(QColor &c);
+void color_transparent(QColor &c) noexcept;
 bool color_accent(QColor &c);
 
 namespace rust {

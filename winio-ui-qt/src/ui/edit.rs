@@ -5,7 +5,7 @@ use winio_handle::AsContainer;
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
-    GlobalRuntime,
+    GlobalRuntime, Result,
     ui::{Widget, impl_static_cast},
 };
 
@@ -17,69 +17,71 @@ pub struct Edit {
 
 #[inherit_methods(from = "self.widget")]
 impl Edit {
-    pub fn new(parent: impl AsContainer) -> Self {
-        let mut widget = unsafe { ffi::new_line_edit(parent.as_container().as_qt()) };
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let mut widget = unsafe { ffi::new_line_edit(parent.as_container().as_qt()) }?;
         let on_changed = Box::new(Callback::new());
         unsafe {
             ffi::line_edit_connect_changed(
                 widget.pin_mut(),
                 Self::on_changed,
                 on_changed.as_ref() as *const _ as _,
-            );
+            )?;
         }
-        let mut widget = Widget::new(widget);
-        widget.set_visible(true);
-        Self { on_changed, widget }
+        let mut widget = Widget::new(widget)?;
+        widget.set_visible(true)?;
+        Ok(Self { on_changed, widget })
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Size;
+    pub fn preferred_size(&self) -> Result<Size>;
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, s: Size);
+    pub fn set_size(&mut self, s: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn text(&self) -> String {
-        self.widget.as_ref().text().into()
+    pub fn text(&self) -> Result<String> {
+        Ok(self.widget.as_ref().text()?.try_into()?)
     }
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.widget.pin_mut().setText(&s.as_ref().into())
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.widget.pin_mut().setText(&s.as_ref().try_into()?)?;
+        Ok(())
     }
 
-    pub fn is_password(&self) -> bool {
-        self.widget.as_ref().echoMode() != QLineEditEchoMode::Normal
+    pub fn is_password(&self) -> Result<bool> {
+        Ok(self.widget.as_ref().echoMode()? != QLineEditEchoMode::Normal)
     }
 
-    pub fn set_password(&mut self, v: bool) {
+    pub fn set_password(&mut self, v: bool) -> Result<()> {
         if v {
-            self.set_readonly(false);
+            self.set_readonly(false)?;
         }
         self.widget.pin_mut().setEchoMode(if v {
             QLineEditEchoMode::Password
         } else {
             QLineEditEchoMode::Normal
-        });
+        })?;
+        Ok(())
     }
 
-    pub fn halign(&self) -> HAlign {
-        let flag = self.widget.as_ref().alignment();
-        if flag.contains(QtAlignmentFlag::AlignRight) {
+    pub fn halign(&self) -> Result<HAlign> {
+        let flag = self.widget.as_ref().alignment()?;
+        let align = if flag.contains(QtAlignmentFlag::AlignRight) {
             HAlign::Right
         } else if flag.contains(QtAlignmentFlag::AlignHCenter) {
             HAlign::Center
@@ -87,11 +89,12 @@ impl Edit {
             HAlign::Stretch
         } else {
             HAlign::Left
-        }
+        };
+        Ok(align)
     }
 
-    pub fn set_halign(&mut self, align: HAlign) {
-        let mut flag = self.widget.as_ref().alignment();
+    pub fn set_halign(&mut self, align: HAlign) -> Result<()> {
+        let mut flag = self.widget.as_ref().alignment()?;
         flag &= QtAlignmentFlag::from_bits_retain(0xFFF0);
         match align {
             HAlign::Left => flag |= QtAlignmentFlag::AlignLeft,
@@ -99,21 +102,23 @@ impl Edit {
             HAlign::Right => flag |= QtAlignmentFlag::AlignRight,
             HAlign::Stretch => flag |= QtAlignmentFlag::AlignJustify,
         }
-        self.widget.pin_mut().setAlignment(flag);
+        self.widget.pin_mut().setAlignment(flag)?;
+        Ok(())
     }
 
-    pub fn is_readonly(&self) -> bool {
-        if self.is_password() {
-            false
+    pub fn is_readonly(&self) -> Result<bool> {
+        if self.is_password()? {
+            Ok(false)
         } else {
-            self.widget.as_ref().isReadOnly()
+            Ok(self.widget.as_ref().isReadOnly()?)
         }
     }
 
-    pub fn set_readonly(&mut self, r: bool) {
-        if !self.is_password() {
-            self.widget.pin_mut().setReadOnly(r);
+    pub fn set_readonly(&mut self, r: bool) -> Result<()> {
+        if !self.is_password()? {
+            self.widget.pin_mut().setReadOnly(r)?;
         }
+        Ok(())
     }
 
     fn on_changed(c: *const u8) {
@@ -138,56 +143,57 @@ pub struct TextBox {
 
 #[inherit_methods(from = "self.widget")]
 impl TextBox {
-    pub fn new(parent: impl AsContainer) -> Self {
-        let mut widget = unsafe { ffi::new_text_edit(parent.as_container().as_qt()) };
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let mut widget = unsafe { ffi::new_text_edit(parent.as_container().as_qt()) }?;
         let on_changed = Box::new(Callback::new());
         unsafe {
             ffi::text_edit_connect_changed(
                 widget.pin_mut(),
                 Self::on_changed,
                 on_changed.as_ref() as *const _ as _,
-            );
+            )?;
         }
-        let mut widget = Widget::new(widget);
-        widget.set_visible(true);
-        Self { on_changed, widget }
+        let mut widget = Widget::new(widget)?;
+        widget.set_visible(true)?;
+        Ok(Self { on_changed, widget })
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Size;
+    pub fn preferred_size(&self) -> Result<Size>;
 
-    pub fn min_size(&self) -> Size;
+    pub fn min_size(&self) -> Result<Size>;
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, s: Size);
+    pub fn set_size(&mut self, s: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn text(&self) -> String {
-        self.widget.as_ref().toPlainText().into()
+    pub fn text(&self) -> Result<String> {
+        Ok(self.widget.as_ref().toPlainText()?.try_into()?)
     }
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.widget.pin_mut().setText(&s.as_ref().into())
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.widget.pin_mut().setText(&s.as_ref().try_into()?)?;
+        Ok(())
     }
 
-    pub fn halign(&self) -> HAlign {
-        let flag = self.widget.as_ref().alignment();
-        if flag.contains(QtAlignmentFlag::AlignRight) {
+    pub fn halign(&self) -> Result<HAlign> {
+        let flag = self.widget.as_ref().alignment()?;
+        let align = if flag.contains(QtAlignmentFlag::AlignRight) {
             HAlign::Right
         } else if flag.contains(QtAlignmentFlag::AlignHCenter) {
             HAlign::Center
@@ -195,11 +201,12 @@ impl TextBox {
             HAlign::Stretch
         } else {
             HAlign::Left
-        }
+        };
+        Ok(align)
     }
 
-    pub fn set_halign(&mut self, align: HAlign) {
-        let mut flag = self.widget.as_ref().alignment();
+    pub fn set_halign(&mut self, align: HAlign) -> Result<()> {
+        let mut flag = self.widget.as_ref().alignment()?;
         flag &= QtAlignmentFlag::from_bits_retain(0xFFF0);
         match align {
             HAlign::Left => flag |= QtAlignmentFlag::AlignLeft,
@@ -207,15 +214,17 @@ impl TextBox {
             HAlign::Right => flag |= QtAlignmentFlag::AlignRight,
             HAlign::Stretch => flag |= QtAlignmentFlag::AlignJustify,
         }
-        self.widget.pin_mut().setAlignment(flag);
+        self.widget.pin_mut().setAlignment(flag)?;
+        Ok(())
     }
 
-    pub fn is_readonly(&self) -> bool {
-        self.widget.as_ref().isReadOnly()
+    pub fn is_readonly(&self) -> Result<bool> {
+        Ok(self.widget.as_ref().isReadOnly()?)
     }
 
-    pub fn set_readonly(&mut self, r: bool) {
-        self.widget.pin_mut().setReadOnly(r);
+    pub fn set_readonly(&mut self, r: bool) -> Result<()> {
+        self.widget.pin_mut().setReadOnly(r)?;
+        Ok(())
     }
 
     fn on_changed(c: *const u8) {
@@ -280,34 +289,34 @@ mod ffi {
         type QLineEditEchoMode = super::QLineEditEchoMode;
         type QString = crate::ui::QString;
 
-        unsafe fn new_line_edit(parent: *mut QWidget) -> UniquePtr<QLineEdit>;
+        unsafe fn new_line_edit(parent: *mut QWidget) -> Result<UniquePtr<QLineEdit>>;
         unsafe fn line_edit_connect_changed(
             w: Pin<&mut QLineEdit>,
             callback: unsafe fn(*const u8),
             data: *const u8,
-        );
+        ) -> Result<()>;
 
-        fn alignment(self: &QLineEdit) -> QtAlignmentFlag;
-        fn setAlignment(self: Pin<&mut QLineEdit>, flag: QtAlignmentFlag);
-        fn text(self: &QLineEdit) -> QString;
-        fn setText(self: Pin<&mut QLineEdit>, s: &QString);
-        fn echoMode(self: &QLineEdit) -> QLineEditEchoMode;
-        fn setEchoMode(self: Pin<&mut QLineEdit>, m: QLineEditEchoMode);
-        fn isReadOnly(self: &QLineEdit) -> bool;
-        fn setReadOnly(self: Pin<&mut QLineEdit>, r: bool);
+        fn alignment(self: &QLineEdit) -> Result<QtAlignmentFlag>;
+        fn setAlignment(self: Pin<&mut QLineEdit>, flag: QtAlignmentFlag) -> Result<()>;
+        fn text(self: &QLineEdit) -> Result<QString>;
+        fn setText(self: Pin<&mut QLineEdit>, s: &QString) -> Result<()>;
+        fn echoMode(self: &QLineEdit) -> Result<QLineEditEchoMode>;
+        fn setEchoMode(self: Pin<&mut QLineEdit>, m: QLineEditEchoMode) -> Result<()>;
+        fn isReadOnly(self: &QLineEdit) -> Result<bool>;
+        fn setReadOnly(self: Pin<&mut QLineEdit>, r: bool) -> Result<()>;
 
-        unsafe fn new_text_edit(parent: *mut QWidget) -> UniquePtr<QTextEdit>;
+        unsafe fn new_text_edit(parent: *mut QWidget) -> Result<UniquePtr<QTextEdit>>;
         unsafe fn text_edit_connect_changed(
             w: Pin<&mut QTextEdit>,
             callback: unsafe fn(*const u8),
             data: *const u8,
-        );
+        ) -> Result<()>;
 
-        fn alignment(self: &QTextEdit) -> QtAlignmentFlag;
-        fn setAlignment(self: Pin<&mut QTextEdit>, flag: QtAlignmentFlag);
-        fn toPlainText(self: &QTextEdit) -> QString;
-        fn setText(self: Pin<&mut QTextEdit>, s: &QString);
-        fn isReadOnly(self: &QTextEdit) -> bool;
-        fn setReadOnly(self: Pin<&mut QTextEdit>, r: bool);
+        fn alignment(self: &QTextEdit) -> Result<QtAlignmentFlag>;
+        fn setAlignment(self: Pin<&mut QTextEdit>, flag: QtAlignmentFlag) -> Result<()>;
+        fn toPlainText(self: &QTextEdit) -> Result<QString>;
+        fn setText(self: Pin<&mut QTextEdit>, s: &QString) -> Result<()>;
+        fn isReadOnly(self: &QTextEdit) -> Result<bool>;
+        fn setReadOnly(self: Pin<&mut QTextEdit>, r: bool) -> Result<()>;
     }
 }

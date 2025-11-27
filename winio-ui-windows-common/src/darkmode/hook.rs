@@ -49,7 +49,7 @@ use windows_sys::{
 };
 
 use super::{PreferredAppMode, WHITE, WinBrush, u16_string_eq_ignore_case};
-use crate::darkmode::u16_string_starts_with_ignore_case;
+use crate::{Error, Result, darkmode::u16_string_starts_with_ignore_case};
 
 #[link(name = "ntdll")]
 extern "system" {
@@ -628,8 +628,12 @@ pub(crate) const TASK_DIALOG_CALLBACK: PFTASKDIALOGCALLBACK = Some(task_dialog_c
 /// `handle` should be valid.
 pub unsafe fn children_refresh_dark_mode(handle: HWND, lparam: LPARAM) {
     unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
-        control_use_dark_mode(hwnd, lparam != 0);
-        InvalidateRect(hwnd, null(), 1);
+        if control_use_dark_mode(hwnd, lparam != 0).is_err() {
+            return 0;
+        }
+        if InvalidateRect(hwnd, null(), 1) == 0 {
+            return 0;
+        }
         EnumChildWindows(hwnd, Some(enum_callback), lparam);
         1
     }
@@ -639,9 +643,12 @@ pub unsafe fn children_refresh_dark_mode(handle: HWND, lparam: LPARAM) {
 
 /// # Safety
 /// `hwnd` should be valid.
-pub unsafe fn control_use_dark_mode(hwnd: HWND, misc_task_dialog: bool) {
+pub unsafe fn control_use_dark_mode(hwnd: HWND, misc_task_dialog: bool) -> Result<()> {
     let mut class = [0u16; MAX_CLASS_NAME as usize];
-    GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
+    let res = GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
+    if res == 0 {
+        return Err(Error::from_thread());
+    }
     let class = U16CStr::from_ptr_str(class.as_ptr());
     let subappname = if is_dark_mode_allowed_for_app() {
         if u16_string_eq_ignore_case(class, WC_COMBOBOXW) {
@@ -665,7 +672,8 @@ pub unsafe fn control_use_dark_mode(hwnd: HWND, misc_task_dialog: bool) {
     } else {
         null()
     };
-    SetWindowTheme(hwnd, subappname, null());
+    let res = SetWindowTheme(hwnd, subappname, null());
+    windows::core::HRESULT(res).ok()
 }
 
 unsafe extern "system" fn task_dialog_subclass(

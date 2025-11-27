@@ -23,35 +23,47 @@ impl Drop for QString {
     }
 }
 
-impl From<String> for QString {
-    fn from(value: String) -> Self {
-        value.as_str().into()
+impl TryFrom<String> for QString {
+    type Error = cxx::Exception;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        value.as_str().try_into()
     }
 }
 
-impl From<&str> for QString {
-    fn from(value: &str) -> Self {
+impl TryFrom<&str> for QString {
+    type Error = cxx::Exception;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         unsafe { ffi::from_utf8(value.as_ptr(), value.len()) }
     }
 }
 
-impl From<QString> for String {
-    fn from(value: QString) -> Self {
-        (&value).into()
+impl TryFrom<QString> for String {
+    type Error = cxx::Exception;
+
+    fn try_from(value: QString) -> Result<Self, Self::Error> {
+        (&value).try_into()
     }
 }
 
-impl From<&QString> for String {
-    fn from(value: &QString) -> Self {
-        String::from_utf16_lossy(unsafe {
-            std::slice::from_raw_parts(value.utf16(), ffi::string_len(value))
-        })
+impl TryFrom<&QString> for String {
+    type Error = cxx::Exception;
+
+    fn try_from(value: &QString) -> Result<Self, Self::Error> {
+        let utf16_ptr = value.utf16()?;
+        let len = ffi::string_len(value);
+        let slice = unsafe { std::slice::from_raw_parts(utf16_ptr, len) };
+        Ok(String::from_utf16_lossy(slice))
     }
 }
 
 impl Debug for QString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        String::from(self).fmt(f)
+        match String::try_from(self) {
+            Ok(s) => s.fmt(f),
+            Err(_) => write!(f, "<invalid QString>"),
+        }
     }
 }
 
@@ -65,45 +77,59 @@ unsafe impl ExternType for QUrl {
     type Kind = cxx::kind::Trivial;
 }
 
-impl From<&QString> for QUrl {
-    fn from(value: &QString) -> Self {
+impl TryFrom<&QString> for QUrl {
+    type Error = cxx::Exception;
+
+    fn try_from(value: &QString) -> Result<Self, Self::Error> {
         ffi::new_url(value)
     }
 }
 
-impl From<QString> for QUrl {
-    fn from(value: QString) -> Self {
-        ffi::new_url(&value)
+impl TryFrom<QString> for QUrl {
+    type Error = cxx::Exception;
+
+    fn try_from(value: QString) -> Result<Self, Self::Error> {
+        (&value).try_into()
     }
 }
 
-impl From<&QUrl> for QString {
-    fn from(value: &QUrl) -> Self {
+impl TryFrom<&QUrl> for QString {
+    type Error = cxx::Exception;
+
+    fn try_from(value: &QUrl) -> Result<Self, Self::Error> {
         ffi::url_to_qstring(value)
     }
 }
 
-impl From<QUrl> for QString {
-    fn from(value: QUrl) -> Self {
-        ffi::url_to_qstring(&value)
+impl TryFrom<QUrl> for QString {
+    type Error = cxx::Exception;
+
+    fn try_from(value: QUrl) -> Result<Self, Self::Error> {
+        (&value).try_into()
     }
 }
 
-impl From<&str> for QUrl {
-    fn from(value: &str) -> Self {
-        QString::from(value).into()
+impl TryFrom<&str> for QUrl {
+    type Error = cxx::Exception;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        QString::try_from(value).and_then(|qstring| qstring.try_into())
     }
 }
 
-impl From<&QUrl> for String {
-    fn from(value: &QUrl) -> Self {
-        QString::from(value).into()
+impl TryFrom<&QUrl> for String {
+    type Error = cxx::Exception;
+
+    fn try_from(value: &QUrl) -> Result<Self, Self::Error> {
+        QString::try_from(value).and_then(|qstring| qstring.try_into())
     }
 }
 
-impl From<QUrl> for String {
-    fn from(value: QUrl) -> Self {
-        QString::from(value).into()
+impl TryFrom<QUrl> for String {
+    type Error = cxx::Exception;
+
+    fn try_from(value: QUrl) -> Result<Self, Self::Error> {
+        (&value).try_into()
     }
 }
 
@@ -116,14 +142,14 @@ mod ffi {
         type QUrl = super::QUrl;
 
         #[cxx_name = "new_string_utf8"]
-        unsafe fn from_utf8(p: *const u8, size: usize) -> QString;
+        unsafe fn from_utf8(p: *const u8, size: usize) -> Result<QString>;
 
-        fn utf16(self: &QString) -> *const u16;
+        fn utf16(self: &QString) -> Result<*const u16>;
         fn string_len(s: &QString) -> usize;
         fn string_drop(s: Pin<&mut QString>);
 
-        fn new_url(s: &QString) -> QUrl;
+        fn new_url(s: &QString) -> Result<QUrl>;
 
-        fn url_to_qstring(url: &QUrl) -> QString;
+        fn url_to_qstring(url: &QUrl) -> Result<QString>;
     }
 }

@@ -3,11 +3,11 @@ use std::cell::Cell;
 use winio_primitive::ColorTheme;
 
 thread_local! {
-    pub(crate) static COLOR_THEME: Cell<ColorTheme> = const { Cell::new(ColorTheme::Light) };
+    pub(crate) static COLOR_THEME: Cell<Option<ColorTheme>> = const { Cell::new(None) };
 }
 
-pub fn color_theme() -> ColorTheme {
-    COLOR_THEME.get()
+pub fn color_theme() -> crate::Result<ColorTheme> {
+    COLOR_THEME.get().ok_or(crate::Error::NoColorTheme)
 }
 
 mod window;

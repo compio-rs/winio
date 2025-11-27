@@ -7,8 +7,10 @@ use gtk4::{
 };
 use winio_primitive::{Monitor, Point, Rect, Size};
 
-pub fn monitor_get_all() -> Vec<Monitor> {
-    gdk::DisplayManager::get()
+use crate::Result;
+
+pub fn monitor_get_all() -> Result<Vec<Monitor>> {
+    Ok(gdk::DisplayManager::get()
         .list_displays()
         .into_iter()
         .flat_map(|d| {
@@ -22,7 +24,7 @@ pub fn monitor_get_all() -> Vec<Monitor> {
             let scale = m.scale();
             Monitor::new(geo * scale, geo * scale, Size::new(scale, scale))
         })
-        .collect()
+        .collect())
 }
 
 #[inline]

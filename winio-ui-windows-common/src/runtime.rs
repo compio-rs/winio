@@ -1,6 +1,10 @@
-use std::{cell::OnceCell, ops::Deref};
+#[cfg(feature = "once_cell_try")]
+use std::cell::OnceCell;
+use std::ops::Deref;
 
 use compio::driver::AsRawFd;
+#[cfg(not(feature = "once_cell_try"))]
+use once_cell::sync::OnceCell;
 use windows::Win32::Graphics::Direct2D::{
     D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1CreateFactory, ID2D1Factory2,
 };
@@ -19,7 +23,7 @@ pub struct Runtime {
 }
 
 impl Runtime {
-    pub fn new() -> std::io::Result<Self> {
+    pub fn new() -> crate::Result<Self> {
         let runtime = winio_pollable::Runtime::new()?;
         Ok(Self {
             runtime,
@@ -27,9 +31,9 @@ impl Runtime {
         })
     }
 
-    pub fn d2d1(&self) -> &ID2D1Factory2 {
-        self.d2d1.get_or_init(|| unsafe {
-            D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None).unwrap()
+    pub fn d2d1(&self) -> crate::Result<&ID2D1Factory2> {
+        self.d2d1.get_or_try_init(|| unsafe {
+            D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None)
         })
     }
 

@@ -4,6 +4,7 @@ use std::{
     rc::Rc,
 };
 
+use compio_log::error;
 use gtk4::{
     EventControllerMotion, EventControllerScroll, EventControllerScrollFlags, GestureClick,
     cairo::{
@@ -25,7 +26,7 @@ use winio_primitive::{
     Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, VAlign, Vector,
 };
 
-use crate::{GlobalRuntime, ui::Widget};
+use crate::{GlobalRuntime, Result, ui::Widget};
 
 #[derive(Debug)]
 pub struct Canvas {
@@ -40,25 +41,29 @@ pub struct Canvas {
 
 #[inherit_methods(from = "self.handle")]
 impl Canvas {
-    pub fn new(parent: impl AsContainer) -> Self {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
         let widget = gtk4::DrawingArea::new();
-        let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
+        let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() })?;
 
         let on_motion = Rc::new(Callback::new());
         let on_pressed = Rc::new(Callback::new());
         let on_released = Rc::new(Callback::new());
         let on_scroll = Rc::new(Callback::new());
 
-        let surface = Rc::new(RefCell::new(
-            RecordingSurface::create(Content::ColorAlpha, None).unwrap(),
-        ));
+        let surface = Rc::new(RefCell::new(RecordingSurface::create(
+            Content::ColorAlpha,
+            None,
+        )?));
 
         widget.set_draw_func({
             let surface = surface.clone();
             move |_, ctx, _, _| {
-                ctx.set_source_surface(&*surface.borrow(), 0.0, 0.0)
-                    .unwrap();
-                ctx.paint().unwrap();
+                if let Err(_e) = (|| {
+                    ctx.set_source_surface(&*surface.borrow(), 0.0, 0.0)?;
+                    ctx.paint()
+                })() {
+                    error!("Canvas draw error: {_e:?}");
+                }
             }
         });
 
@@ -110,7 +115,7 @@ impl Canvas {
         });
         widget.add_controller(controller);
 
-        Self {
+        Ok(Self {
             on_motion,
             on_pressed,
             on_released,
@@ -118,37 +123,37 @@ impl Canvas {
             widget,
             handle,
             surface,
-        }
+        })
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, s: Size);
+    pub fn set_size(&mut self, s: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn context(&mut self) -> DrawingContext<'_> {
-        let surface = RecordingSurface::create(Content::ColorAlpha, None).unwrap();
-        let ctx = Context::new(&surface).unwrap();
-        DrawingContext {
+    pub fn context(&mut self) -> Result<DrawingContext<'_>> {
+        let surface = RecordingSurface::create(Content::ColorAlpha, None)?;
+        let ctx = Context::new(&surface)?;
+        Ok(DrawingContext {
             surface: Some(surface),
             ctx,
             canvas: self,
-        }
+        })
     }
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
@@ -190,12 +195,12 @@ fn to_trans(mut rect: Rect) -> RelativeToLogical {
 
 impl DrawingContext<'_> {
     #[inline]
-    fn set_brush(&self, brush: impl Brush, rect: Rect) {
+    fn set_brush(&self, brush: impl Brush, rect: Rect) -> Result<()> {
         brush.set(&self.ctx, to_trans(rect))
     }
 
     #[inline]
-    fn set_pen(&self, pen: impl Pen, rect: Rect) {
+    fn set_pen(&self, pen: impl Pen, rect: Rect) -> Result<()> {
         pen.set(&self.ctx, to_trans(rect))
     }
 
@@ -262,55 +267,56 @@ impl DrawingContext<'_> {
         self.ctx.set_matrix(save_matrix);
     }
 
-    pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) {
+    pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) -> Result<()> {
         let (x, y, width, height) = path.surface.ink_extents();
         let rect = Rect::new(Point::new(x, y), Size::new(width, height));
-        pen.set(&path.ctx, to_trans(rect));
-        path.ctx.stroke().ok();
-        self.ctx
-            .set_source_surface(&path.surface, 0.0, 0.0)
-            .unwrap();
-        self.ctx.paint().unwrap();
+        pen.set(&path.ctx, to_trans(rect))?;
+        path.ctx.stroke()?;
+        self.ctx.set_source_surface(&path.surface, 0.0, 0.0)?;
+        self.ctx.paint()?;
+        Ok(())
     }
 
-    pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) {
+    pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) -> Result<()> {
         let (x, y, width, height) = path.surface.ink_extents();
         let rect = Rect::new(Point::new(x, y), Size::new(width, height));
-        brush.set(&path.ctx, to_trans(rect));
-        path.ctx.stroke().ok();
-        self.ctx
-            .set_source_surface(&path.surface, 0.0, 0.0)
-            .unwrap();
-        self.ctx.paint().unwrap();
+        brush.set(&path.ctx, to_trans(rect))?;
+        path.ctx.stroke()?;
+        self.ctx.set_source_surface(&path.surface, 0.0, 0.0)?;
+        self.ctx.paint()?;
+        Ok(())
     }
 
-    pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
+    pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> Result<()> {
         self.path_arc(rect, start, end, false);
-        self.set_pen(pen, rect);
-        self.ctx.stroke().ok();
+        self.set_pen(pen, rect)?;
+        self.ctx.stroke()?;
+        Ok(())
     }
 
-    pub fn draw_pie(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) {
+    pub fn draw_pie(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> Result<()> {
         self.path_arc(rect, start, end, true);
-        self.set_pen(pen, rect);
-        self.ctx.stroke().ok();
+        self.set_pen(pen, rect)?;
+        self.ctx.stroke()?;
+        Ok(())
     }
 
-    pub fn fill_pie(&mut self, brush: impl Brush, rect: Rect, start: f64, end: f64) {
+    pub fn fill_pie(&mut self, brush: impl Brush, rect: Rect, start: f64, end: f64) -> Result<()> {
         self.path_arc(rect, start, end, true);
-        self.set_brush(brush, rect);
-        self.ctx.fill().ok();
+        self.set_brush(brush, rect)?;
+        self.ctx.fill()?;
+        Ok(())
     }
 
-    pub fn draw_ellipse(&mut self, pen: impl Pen, rect: Rect) {
+    pub fn draw_ellipse(&mut self, pen: impl Pen, rect: Rect) -> Result<()> {
         self.draw_arc(pen, rect, 0.0, PI * 2.0)
     }
 
-    pub fn fill_ellipse(&mut self, brush: impl Brush, rect: Rect) {
+    pub fn fill_ellipse(&mut self, brush: impl Brush, rect: Rect) -> Result<()> {
         self.fill_pie(brush, rect, 0.0, PI * 2.0)
     }
 
-    pub fn draw_line(&mut self, pen: impl Pen, start: Point, end: Point) {
+    pub fn draw_line(&mut self, pen: impl Pen, start: Point, end: Point) -> Result<()> {
         let rect = RectBox::new(
             Point::new(start.x.min(end.x), start.y.min(end.y)),
             Point::new(start.x.max(end.x), start.y.max(end.y)),
@@ -319,35 +325,46 @@ impl DrawingContext<'_> {
         self.ctx.new_path();
         self.ctx.move_to(start.x, start.y);
         self.ctx.line_to(end.x, end.y);
-        self.set_pen(pen, rect);
-        self.ctx.stroke().ok();
+        self.set_pen(pen, rect)?;
+        self.ctx.stroke()?;
+        Ok(())
     }
 
-    pub fn draw_rect(&mut self, pen: impl Pen, rect: Rect) {
+    pub fn draw_rect(&mut self, pen: impl Pen, rect: Rect) -> Result<()> {
         self.path_rect(rect);
-        self.set_pen(pen, rect);
-        self.ctx.stroke().ok();
+        self.set_pen(pen, rect)?;
+        self.ctx.stroke()?;
+        Ok(())
     }
 
-    pub fn fill_rect(&mut self, brush: impl Brush, rect: Rect) {
+    pub fn fill_rect(&mut self, brush: impl Brush, rect: Rect) -> Result<()> {
         self.path_rect(rect);
-        self.set_brush(brush, rect);
-        self.ctx.fill().ok();
+        self.set_brush(brush, rect)?;
+        self.ctx.fill()?;
+        Ok(())
     }
 
-    pub fn draw_round_rect(&mut self, pen: impl Pen, rect: Rect, round: Size) {
+    pub fn draw_round_rect(&mut self, pen: impl Pen, rect: Rect, round: Size) -> Result<()> {
         self.path_round_rect(rect, round);
-        self.set_pen(pen, rect);
-        self.ctx.stroke().ok();
+        self.set_pen(pen, rect)?;
+        self.ctx.stroke()?;
+        Ok(())
     }
 
-    pub fn fill_round_rect(&mut self, brush: impl Brush, rect: Rect, round: Size) {
+    pub fn fill_round_rect(&mut self, brush: impl Brush, rect: Rect, round: Size) -> Result<()> {
         self.path_round_rect(rect, round);
-        self.set_brush(brush, rect);
-        self.ctx.fill().ok();
+        self.set_brush(brush, rect)?;
+        self.ctx.fill()?;
+        Ok(())
     }
 
-    pub fn draw_str(&mut self, brush: impl Brush, font: DrawingFont, pos: Point, text: &str) {
+    pub fn draw_str(
+        &mut self,
+        brush: impl Brush,
+        font: DrawingFont,
+        pos: Point,
+        text: &str,
+    ) -> Result<()> {
         let layout = self.canvas.widget.create_pango_layout(Some(text));
         let mut desp = FontDescription::from_string(&font.family);
         desp.set_size((font.size / 1.33) as i32 * PANGO_SCALE);
@@ -378,17 +395,26 @@ impl DrawingContext<'_> {
         let rect = Rect::new(Point::new(x, y), Size::new(width, height));
 
         self.ctx.move_to(rect.origin.x, rect.origin.y);
-        self.set_brush(brush, rect);
+        self.set_brush(brush, rect)?;
         show_layout(&self.ctx, &layout);
+        Ok(())
     }
 
-    pub fn create_image(&self, image: DynamicImage) -> DrawingImage {
+    pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage> {
         DrawingImage::new(image)
     }
 
-    pub fn draw_image(&mut self, image: &DrawingImage, rect: Rect, clip: Option<Rect>) {
-        self.ctx.save().unwrap();
-        let clip = clip.unwrap_or_else(|| Rect::new(Point::zero(), image.size()));
+    pub fn draw_image(
+        &mut self,
+        image: &DrawingImage,
+        rect: Rect,
+        clip: Option<Rect>,
+    ) -> Result<()> {
+        self.ctx.save()?;
+        let clip = match clip {
+            Some(clip) => clip,
+            None => Rect::new(Point::zero(), image.size()?),
+        };
         self.ctx.rectangle(
             clip.origin.x,
             clip.origin.y,
@@ -397,25 +423,26 @@ impl DrawingContext<'_> {
         );
         self.ctx.clip();
         self.ctx.new_path();
-        let size = image.size();
+        let size = image.size()?;
         self.ctx.translate(rect.origin.x, rect.origin.y);
         self.ctx
             .scale(rect.width() / size.width, rect.height() / size.height);
         self.ctx
-            .set_source_surface(&image.0, -clip.origin.x, -clip.origin.y)
-            .unwrap();
-        self.ctx.paint().unwrap();
-        self.ctx.restore().unwrap();
+            .set_source_surface(&image.0, -clip.origin.x, -clip.origin.y)?;
+        self.ctx.paint()?;
+        self.ctx.restore()?;
+        Ok(())
     }
 
-    pub fn create_path_builder(&self, start: Point) -> DrawingPathBuilder {
+    pub fn create_path_builder(&self, start: Point) -> Result<DrawingPathBuilder> {
         DrawingPathBuilder::new(start)
     }
 }
 
 impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
-        *self.canvas.surface.borrow_mut() = self.surface.take().unwrap();
+        *self.canvas.surface.borrow_mut() =
+            self.surface.take().expect("DrawingContext dropped twice");
         self.canvas.widget.queue_draw();
     }
 }
@@ -428,19 +455,27 @@ pub struct DrawingPathBuilder {
 }
 
 impl DrawingPathBuilder {
-    fn new(start: Point) -> Self {
-        let surface = RecordingSurface::create(Content::ColorAlpha, None).unwrap();
-        let ctx = Context::new(&surface).unwrap();
+    fn new(start: Point) -> Result<Self> {
+        let surface = RecordingSurface::create(Content::ColorAlpha, None)?;
+        let ctx = Context::new(&surface)?;
         ctx.new_path();
         ctx.move_to(start.x, start.y);
-        Self { surface, ctx }
+        Ok(Self { surface, ctx })
     }
 
-    pub fn add_line(&mut self, p: Point) {
+    pub fn add_line(&mut self, p: Point) -> Result<()> {
         self.ctx.line_to(p.x, p.y);
+        Ok(())
     }
 
-    pub fn add_arc(&mut self, center: Point, radius: Size, start: f64, end: f64, clockwise: bool) {
+    pub fn add_arc(
+        &mut self,
+        center: Point,
+        radius: Size,
+        start: f64,
+        end: f64,
+        clockwise: bool,
+    ) -> Result<()> {
         let save_matrix = self.ctx.matrix();
         let rate = radius.height / radius.width;
         self.ctx.scale(1.0, rate);
@@ -452,45 +487,48 @@ impl DrawingPathBuilder {
                 .arc_negative(center.x, center.y / rate, radius.width, start, end);
         }
         self.ctx.set_matrix(save_matrix);
+        Ok(())
     }
 
-    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) {
+    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) -> Result<()> {
         self.ctx.curve_to(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+        Ok(())
     }
 
-    pub fn build(self, close: bool) -> DrawingPath {
+    pub fn build(self, close: bool) -> Result<DrawingPath> {
         if close {
             self.ctx.close_path();
         }
-        self
+        Ok(self)
     }
 }
 
 /// Drawing brush.
 pub trait Brush {
     #[doc(hidden)]
-    fn set(&self, ctx: &Context, trans: RelativeToLogical);
+    fn set(&self, ctx: &Context, trans: RelativeToLogical) -> Result<()>;
 }
 
 impl<B: Brush> Brush for &'_ B {
-    fn set(&self, ctx: &Context, trans: RelativeToLogical) {
+    fn set(&self, ctx: &Context, trans: RelativeToLogical) -> Result<()> {
         (**self).set(ctx, trans)
     }
 }
 
 impl Brush for SolidColorBrush {
-    fn set(&self, ctx: &Context, _trans: RelativeToLogical) {
+    fn set(&self, ctx: &Context, _trans: RelativeToLogical) -> Result<()> {
         ctx.set_source_rgba(
             self.color.r as f64 / 255.0,
             self.color.g as f64 / 255.0,
             self.color.b as f64 / 255.0,
             self.color.a as f64 / 255.0,
         );
+        Ok(())
     }
 }
 
 impl Brush for LinearGradientBrush {
-    fn set(&self, ctx: &Context, trans: RelativeToLogical) {
+    fn set(&self, ctx: &Context, trans: RelativeToLogical) -> Result<()> {
         let start = trans.transform_point(self.start);
         let end = trans.transform_point(self.end);
         let p = LinearGradient::new(start.x, start.y, end.x, end.y);
@@ -503,12 +541,13 @@ impl Brush for LinearGradientBrush {
                 stop.color.a as f64 / 255.0,
             );
         }
-        ctx.set_source(&p).unwrap();
+        ctx.set_source(&p)?;
+        Ok(())
     }
 }
 
 impl Brush for RadialGradientBrush {
-    fn set(&self, ctx: &Context, trans: RelativeToLogical) {
+    fn set(&self, ctx: &Context, trans: RelativeToLogical) -> Result<()> {
         let trans = trans.then_scale(1.0, self.radius.height / self.radius.width);
         let p = RadialGradient::new(
             self.origin.x,
@@ -530,33 +569,35 @@ impl Brush for RadialGradientBrush {
                 stop.color.a as f64 / 255.0,
             );
         }
-        ctx.set_source(&p).unwrap();
+        ctx.set_source(&p)?;
+        Ok(())
     }
 }
 
 /// Drawing pen.
 pub trait Pen {
     #[doc(hidden)]
-    fn set(&self, ctx: &Context, trans: RelativeToLogical);
+    fn set(&self, ctx: &Context, trans: RelativeToLogical) -> Result<()>;
 }
 
 impl<P: Pen> Pen for &'_ P {
-    fn set(&self, ctx: &Context, trans: RelativeToLogical) {
+    fn set(&self, ctx: &Context, trans: RelativeToLogical) -> Result<()> {
         (**self).set(ctx, trans)
     }
 }
 
 impl<B: Brush> Pen for BrushPen<B> {
-    fn set(&self, ctx: &Context, trans: RelativeToLogical) {
-        self.brush.set(ctx, trans);
+    fn set(&self, ctx: &Context, trans: RelativeToLogical) -> Result<()> {
+        self.brush.set(ctx, trans)?;
         ctx.set_line_width(self.width);
+        Ok(())
     }
 }
 
 pub struct DrawingImage(ImageSurface);
 
 impl DrawingImage {
-    fn new(image: DynamicImage) -> Self {
+    fn new(image: DynamicImage) -> Result<Self> {
         fn alpha_premultiply(mut image: Rgba32FImage) -> Rgba32FImage {
             for Rgba(ref mut pixel) in image.pixels_mut() {
                 let a = pixel[3];
@@ -596,14 +637,13 @@ impl DrawingImage {
                 DynamicImage::ImageRgba32F(alpha_premultiply(image.into_rgba32f())).into_bytes(),
             ),
         };
-        let stride = format.stride_for_width(width).unwrap();
+        let stride = format.stride_for_width(width)?;
         let surface =
-            ImageSurface::create_for_data(buffer, format, width as _, height as _, stride as _)
-                .unwrap();
-        Self(surface)
+            ImageSurface::create_for_data(buffer, format, width as _, height as _, stride as _)?;
+        Ok(Self(surface))
     }
 
-    pub fn size(&self) -> Size {
-        Size::new(self.0.width() as _, self.0.height() as _)
+    pub fn size(&self) -> Result<Size> {
+        Ok(Size::new(self.0.width() as _, self.0.height() as _))
     }
 }

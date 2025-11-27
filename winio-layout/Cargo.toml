@@ -13,3 +13,4 @@ winio-primitive = { workspace = true }
 
 paste = { workspace = true }
 taffy = "0.9"
+thiserror = { workspace = true }

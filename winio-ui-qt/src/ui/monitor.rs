@@ -1,15 +1,15 @@
 use winio_primitive::{Monitor, Point, Rect, Size};
 
-use crate::ui::QRect;
+use crate::{Result, ui::QRect};
 
-pub fn monitor_get_all() -> Vec<Monitor> {
-    ffi::screen_all()
+pub fn monitor_get_all() -> Result<Vec<Monitor>> {
+    Ok(ffi::screen_all()?
         .into_iter()
         .map(|m| {
             let dpi = Size::new(m.dpix / 96.0, m.dpiy / 96.0);
             Monitor::new(rect_from(m.geo, dpi), rect_from(m.avail_geo, dpi), dpi)
         })
-        .collect()
+        .collect())
 }
 
 #[inline]
@@ -37,6 +37,6 @@ mod ffi {
 
         type QRect = super::QRect;
 
-        fn screen_all() -> Vec<Monitor>;
+        fn screen_all() -> Result<Vec<Monitor>>;
     }
 }

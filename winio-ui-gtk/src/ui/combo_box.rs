@@ -10,7 +10,7 @@ use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{GlobalRuntime, ui::Widget};
+use crate::{Error, GlobalRuntime, Result, ui::Widget};
 
 #[derive(Debug)]
 pub struct ComboBox {
@@ -22,10 +22,10 @@ pub struct ComboBox {
 
 #[inherit_methods(from = "self.handle")]
 impl ComboBox {
-    pub fn new(parent: impl AsContainer) -> Self {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
         let model = StringListModel::new();
         let widget = gtk4::DropDown::new(Some(model.clone()), gtk4::Expression::NONE);
-        let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
+        let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() })?;
         let on_changed = Rc::new(Callback::new());
         widget.connect_selected_notify({
             let on_changed = on_changed.clone();
@@ -33,71 +33,73 @@ impl ComboBox {
                 on_changed.signal::<GlobalRuntime>(());
             }
         });
-        Self {
+        Ok(Self {
             on_changed,
             model,
             widget,
             handle,
+        })
+    }
+
+    pub fn is_visible(&self) -> Result<bool>;
+
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
+
+    pub fn is_enabled(&self) -> Result<bool>;
+
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
+
+    pub fn preferred_size(&self) -> Result<Size>;
+
+    pub fn loc(&self) -> Result<Point>;
+
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
+
+    pub fn size(&self) -> Result<Size>;
+
+    pub fn set_size(&mut self, s: Size) -> Result<()>;
+
+    pub fn tooltip(&self) -> Result<String>;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn text(&self) -> Result<String> {
+        match self.widget.selected_item() {
+            Some(obj) => Ok(obj
+                .downcast::<gtk4::StringObject>()
+                .map_err(|_| Error::CastFailed)?
+                .string()
+                .to_string()),
+            None => Ok(String::new()),
         }
     }
 
-    pub fn is_visible(&self) -> bool;
-
-    pub fn set_visible(&mut self, v: bool);
-
-    pub fn is_enabled(&self) -> bool;
-
-    pub fn set_enabled(&mut self, v: bool);
-
-    pub fn preferred_size(&self) -> Size;
-
-    pub fn loc(&self) -> Point;
-
-    pub fn set_loc(&mut self, p: Point);
-
-    pub fn size(&self) -> Size;
-
-    pub fn set_size(&mut self, s: Size);
-
-    pub fn tooltip(&self) -> String;
-
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
-
-    pub fn text(&self) -> String {
-        self.widget
-            .selected_item()
-            .map(|obj| {
-                obj.downcast::<gtk4::StringObject>()
-                    .unwrap()
-                    .string()
-                    .to_string()
-            })
-            .unwrap_or_default()
-    }
-
-    pub fn set_text(&mut self, _s: impl AsRef<str>) {
+    pub fn set_text(&mut self, _s: impl AsRef<str>) -> Result<()> {
         self.handle.reset_preferred_size();
+        Ok(())
     }
 
-    pub fn selection(&self) -> Option<usize> {
+    pub fn selection(&self) -> Result<Option<usize>> {
         let index = self.widget.selected();
         if index == gtk4::INVALID_LIST_POSITION {
-            None
+            Ok(None)
         } else {
-            Some(index as _)
+            Ok(Some(index as _))
         }
     }
 
-    pub fn set_selection(&mut self, i: usize) {
+    pub fn set_selection(&mut self, i: usize) -> Result<()> {
         self.widget.set_selected(i as _);
+        Ok(())
     }
 
-    pub fn is_editable(&self) -> bool {
-        self.widget.enables_search()
+    pub fn is_editable(&self) -> Result<bool> {
+        Ok(self.widget.enables_search())
     }
 
-    pub fn set_editable(&mut self, v: bool) {
+    pub fn set_editable(&mut self, v: bool) -> Result<()> {
         self.widget.set_enable_search(v);
+        Ok(())
     }
 
     pub async fn wait_change(&self) {
@@ -108,36 +110,40 @@ impl ComboBox {
         self.on_changed.wait().await
     }
 
-    pub fn len(&self) -> usize {
-        self.model.n_items() as _
+    pub fn len(&self) -> Result<usize> {
+        Ok(self.model.n_items() as _)
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
+    pub fn is_empty(&self) -> Result<bool> {
+        Ok(self.len()? == 0)
     }
 
-    pub fn clear(&mut self) {
+    pub fn clear(&mut self) -> Result<()> {
         self.model.clear();
         self.handle.reset_preferred_size();
+        Ok(())
     }
 
-    pub fn get(&self, i: usize) -> String {
+    pub fn get(&self, i: usize) -> Result<String> {
         self.model.get(i)
     }
 
-    pub fn set(&mut self, i: usize, s: impl AsRef<str>) {
-        self.model.set(i, s.as_ref().to_string());
+    pub fn set(&mut self, i: usize, s: impl AsRef<str>) -> Result<()> {
+        self.model.set(i, s.as_ref().to_string())?;
         self.handle.reset_preferred_size();
+        Ok(())
     }
 
-    pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
+    pub fn insert(&mut self, i: usize, s: impl AsRef<str>) -> Result<()> {
         self.model.insert(i, s.as_ref().to_string());
         self.handle.reset_preferred_size();
+        Ok(())
     }
 
-    pub fn remove(&mut self, i: usize) {
-        self.model.remove(i as _);
+    pub fn remove(&mut self, i: usize) -> Result<()> {
+        self.model.remove(i as _)?;
         self.handle.reset_preferred_size();
+        Ok(())
     }
 }
 
@@ -192,18 +198,24 @@ mod imp {
             self.obj().items_changed(i as _, 0, 1);
         }
 
-        pub fn remove(&self, i: usize) {
-            self.strings.borrow_mut().remove(i);
+        pub fn remove(&self, i: usize) -> Option<()> {
+            let mut strings = self.strings.borrow_mut();
+            if i >= strings.len() {
+                return None;
+            }
+            strings.remove(i);
             self.obj().items_changed(i as _, 1, 0);
+            Some(())
         }
 
-        pub fn get(&self, i: usize) -> String {
-            self.strings.borrow()[i].to_string()
+        pub fn get(&self, i: usize) -> Option<String> {
+            self.strings.borrow().get(i).cloned()
         }
 
-        pub fn set(&self, i: usize, s: String) {
-            self.strings.borrow_mut()[i] = s;
+        pub fn set(&self, i: usize, s: String) -> Option<()> {
+            *self.strings.borrow_mut().get_mut(i)? = s;
             self.obj().items_changed(i as _, 1, 1);
+            Some(())
         }
 
         pub fn clear(&self) {
@@ -238,19 +250,25 @@ impl StringListModel {
         imp::StringListModel::from_obj(self).clear();
     }
 
-    pub fn get(&self, i: usize) -> String {
-        imp::StringListModel::from_obj(self).get(i)
+    pub fn get(&self, i: usize) -> Result<String> {
+        imp::StringListModel::from_obj(self)
+            .get(i)
+            .ok_or(Error::Index(i))
     }
 
-    pub fn set(&self, i: usize, s: String) {
-        imp::StringListModel::from_obj(self).set(i, s);
+    pub fn set(&self, i: usize, s: String) -> Result<()> {
+        imp::StringListModel::from_obj(self)
+            .set(i, s)
+            .ok_or(Error::Index(i))
     }
 
     pub fn insert(&self, i: usize, s: String) {
         imp::StringListModel::from_obj(self).insert(i, s);
     }
 
-    pub fn remove(&self, i: usize) {
-        imp::StringListModel::from_obj(self).remove(i);
+    pub fn remove(&self, i: usize) -> Result<()> {
+        imp::StringListModel::from_obj(self)
+            .remove(i)
+            .ok_or(Error::Index(i))
     }
 }

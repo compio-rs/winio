@@ -4,7 +4,7 @@ use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows::{
     Foundation::{TypedEventHandler, Uri},
-    core::{HSTRING, Interface, Result},
+    core::{HSTRING, Interface},
 };
 use winio_callback::Callback;
 use winio_handle::{AsContainer, AsRawWidget, RawWidget};
@@ -12,7 +12,7 @@ use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{WebViewErrLabelImpl, WebViewImpl, WebViewLazy};
 use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
-use crate::{GlobalRuntime, TextBox, Widget};
+use crate::{GlobalRuntime, Result, TextBox, Widget};
 
 #[derive(Debug)]
 pub struct WebViewInner {
@@ -89,90 +89,87 @@ impl WebViewImpl for WebViewInner {
         Ok(Self {
             on_navigating,
             on_navigated,
-            handle: Widget::new(parent, view.cast().unwrap()),
+            handle: Widget::new(parent, view.cast()?)?,
             view,
         })
     }
 
-    fn is_visible(&self) -> bool {
+    fn is_visible(&self) -> Result<bool> {
         self.handle.is_visible()
     }
 
-    fn set_visible(&mut self, v: bool) {
+    fn set_visible(&mut self, v: bool) -> Result<()> {
         self.handle.set_visible(v)
     }
 
-    fn is_enabled(&self) -> bool {
+    fn is_enabled(&self) -> Result<bool> {
         self.handle.is_enabled()
     }
 
-    fn set_enabled(&mut self, v: bool) {
+    fn set_enabled(&mut self, v: bool) -> Result<()> {
         self.handle.set_enabled(v)
     }
 
-    fn loc(&self) -> Point {
+    fn loc(&self) -> Result<Point> {
         self.handle.loc()
     }
 
-    fn set_loc(&mut self, p: Point) {
-        self.handle.set_loc(p)
+    fn set_loc(&mut self, v: Point) -> Result<()> {
+        self.handle.set_loc(v)
     }
 
-    fn size(&self) -> Size {
+    fn size(&self) -> Result<Size> {
         self.handle.size()
     }
 
-    fn set_size(&mut self, v: Size) {
+    fn set_size(&mut self, v: Size) -> Result<()> {
         self.handle.set_size(v)
     }
 
-    fn source(&self) -> String {
-        self.view
-            .Source()
-            .unwrap()
-            .ToString()
-            .unwrap()
-            .to_string_lossy()
+    fn source(&self) -> Result<String> {
+        Ok(self.view.Source()?.ToString()?.to_string_lossy())
     }
 
-    fn set_source(&mut self, s: impl AsRef<str>) {
+    fn set_source(&mut self, s: impl AsRef<str>) -> Result<()> {
         let s = s.as_ref();
         if s.is_empty() {
             return self.set_html("");
         }
-        self.view
-            .SetSource(&Uri::CreateUri(&HSTRING::from(s)).unwrap())
-            .unwrap()
+        self.view.SetSource(&Uri::CreateUri(&HSTRING::from(s))?)?;
+        Ok(())
     }
 
-    fn set_html(&mut self, s: impl AsRef<str>) {
-        self.view
-            .NavigateToString(&HSTRING::from(s.as_ref()))
-            .unwrap();
+    fn set_html(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.view.NavigateToString(&HSTRING::from(s.as_ref()))?;
+        Ok(())
     }
 
-    fn can_go_forward(&self) -> bool {
-        self.view.CanGoForward().unwrap()
+    fn can_go_forward(&self) -> Result<bool> {
+        self.view.CanGoForward()
     }
 
-    fn go_forward(&mut self) {
-        self.view.GoForward().unwrap();
+    fn go_forward(&mut self) -> Result<()> {
+        self.view.GoForward()?;
+        Ok(())
     }
 
-    fn can_go_back(&self) -> bool {
-        self.view.CanGoBack().unwrap()
+    fn can_go_back(&self) -> Result<bool> {
+        self.view.CanGoBack()
     }
 
-    fn go_back(&mut self) {
-        self.view.GoBack().unwrap();
+    fn go_back(&mut self) -> Result<()> {
+        self.view.GoBack()?;
+        Ok(())
     }
 
-    fn reload(&mut self) {
-        self.view.Reload().unwrap();
+    fn reload(&mut self) -> Result<()> {
+        self.view.Reload()?;
+        Ok(())
     }
 
-    fn stop(&mut self) {
-        self.view.CoreWebView2().unwrap().Stop().unwrap();
+    fn stop(&mut self) -> Result<()> {
+        self.view.CoreWebView2()?.Stop()?;
+        Ok(())
     }
 
     fn wait_navigating(&self) -> impl Future<Output = ()> + 'static + use<> {
@@ -203,31 +200,31 @@ pub struct WebViewErrLabelInner {
 
 #[inherit_methods(from = "self.handle")]
 impl WebViewErrLabelImpl for WebViewErrLabelInner {
-    fn new(parent: impl AsContainer) -> Self {
-        let mut handle = TextBox::new(parent);
-        handle.set_readonly(true);
-        Self { handle }
+    fn new(parent: impl AsContainer) -> Result<Self> {
+        let mut handle = TextBox::new(parent)?;
+        handle.set_readonly(true)?;
+        Ok(Self { handle })
     }
 
-    fn is_visible(&self) -> bool;
+    fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool);
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    fn is_enabled(&self) -> bool;
+    fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool);
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    fn loc(&self) -> Point;
+    fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, v: Point);
+    fn set_loc(&mut self, v: Point) -> Result<()>;
 
-    fn size(&self) -> Size;
+    fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size);
+    fn set_size(&mut self, v: Size) -> Result<()>;
 
-    fn text(&self) -> String;
+    fn text(&self) -> Result<String>;
 
-    fn set_text(&mut self, s: impl AsRef<str>);
+    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.handle")]

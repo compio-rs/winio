@@ -3,10 +3,12 @@ use std::time::Duration;
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_layout::{Enable, Layoutable, ToolTip, Visible};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Enable, Failable, Layoutable, Point, Size, ToolTip, Visible};
 
-use crate::sys;
+use crate::{
+    sys,
+    sys::{Error, Result},
+};
 
 /// A media player.
 #[derive(Debug)]
@@ -14,81 +16,87 @@ pub struct Media {
     widget: sys::Media,
 }
 
+impl Failable for Media {
+    type Error = Error;
+}
+
 #[inherit_methods(from = "self.widget")]
 impl ToolTip for Media {
-    fn tooltip(&self) -> String;
+    fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>);
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Media {
     /// The current URL.
-    pub fn url(&self) -> String;
+    pub fn url(&self) -> Result<String>;
 
     /// Load a media source.
-    pub async fn load(&mut self, url: impl AsRef<str>) -> bool {
+    ///
+    /// Returns an error if the media source cannot be loaded.
+    pub async fn load(&mut self, url: impl AsRef<str>) -> Result<()> {
         self.widget.load(url).await
     }
 
     /// Play.
-    pub fn play(&mut self);
+    pub fn play(&mut self) -> Result<()>;
 
     /// Pause.
-    pub fn pause(&mut self);
+    pub fn pause(&mut self) -> Result<()>;
 
     /// Full duration of the media.
-    pub fn full_time(&self) -> Option<Duration>;
+    pub fn full_time(&self) -> Result<Option<Duration>>;
 
     /// The current time.
-    pub fn current_time(&self) -> Duration;
+    pub fn current_time(&self) -> Result<Duration>;
 
     /// Set the current time.
-    pub fn set_current_time(&mut self, t: Duration);
+    pub fn set_current_time(&mut self, t: Duration) -> Result<()>;
 
     /// Seek to a new time.
-    pub fn seek(&mut self, t: Duration) {
-        self.set_current_time(t);
+    pub fn seek(&mut self, t: Duration) -> Result<()> {
+        self.set_current_time(t)
     }
 
     /// Volume.
-    pub fn volume(&self) -> f64;
+    pub fn volume(&self) -> Result<f64>;
 
     /// Set the volume. The value should between 0.0 to 1.0.
-    pub fn set_volume(&mut self, v: f64);
+    pub fn set_volume(&mut self, v: f64) -> Result<()>;
 
     /// If the player is muted.
-    pub fn is_muted(&self) -> bool;
+    pub fn is_muted(&self) -> Result<bool>;
 
     /// Set if the player is muted.
-    pub fn set_muted(&mut self, v: bool);
+    pub fn set_muted(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Visible for Media {
-    fn is_visible(&self) -> bool;
+    fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool);
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for Media {
-    fn is_enabled(&self) -> bool;
+    fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool);
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for Media {
-    fn loc(&self) -> Point;
+    fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point);
+    fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    fn size(&self) -> Size;
+    fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size);
+    fn set_size(&mut self, v: Size) -> Result<()>;
 
-    fn preferred_size(&self) -> Size;
+    fn preferred_size(&self) -> Result<Size>;
 }
 
 /// Events of [`Media`].
@@ -96,24 +104,15 @@ impl Layoutable for Media {
 pub enum MediaEvent {}
 
 impl Component for Media {
+    type Error = Error;
     type Event = MediaEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = sys::Media::new(init);
-        Self { widget }
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        let widget = sys::Media::new(init)?;
+        Ok(Self { widget })
     }
-
-    async fn start(&mut self, _sender: &ComponentSender<Self>) -> ! {
-        std::future::pending().await
-    }
-
-    async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
-        false
-    }
-
-    fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
 
 winio_handle::impl_as_widget!(Media, widget);

@@ -13,6 +13,7 @@ use winio_handle::{AsContainer, AsRawWindow};
 use winio_primitive::{Point, Size};
 
 use crate::{
+    Result,
     runtime::WindowMessageCommand,
     ui::{Widget, get_u16c, with_u16c},
 };
@@ -24,8 +25,8 @@ pub struct ListBox {
 
 #[inherit_methods(from = "self.handle")]
 impl ListBox {
-    pub fn new(parent: impl AsContainer) -> Self {
-        let mut handle = Widget::new(
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let handle = Widget::new(
             WC_LISTBOXW,
             WS_TABSTOP
                 | WS_VISIBLE
@@ -39,62 +40,62 @@ impl ListBox {
                 | LBS_NOINTEGRALHEIGHT as u32,
             0,
             parent.as_container().as_win32(),
-        );
-        handle.set_size(handle.size_d2l((50, 14)));
-        Self { handle }
+        )?;
+        Ok(Self { handle })
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Size {
+    pub fn preferred_size(&self) -> Result<Size> {
         let mut width = 0.0f64;
         let mut height = 0.0f64;
-        for i in 0..self.len() {
-            let data = self.get_u16(i);
-            let s = self.handle.measure(data.as_ustr());
+        for i in 0..self.len()? {
+            let data = self.get_u16(i)?;
+            let s = self.handle.measure(data.as_ustr())?;
             width = width.max(s.width);
             height += s.height;
         }
-        Size::new(width + 20.0, height)
+        Ok(Size::new(width + 20.0, height))
     }
 
-    pub fn min_size(&self) -> Size {
+    pub fn min_size(&self) -> Result<Size> {
         let mut width = 0.0f64;
         let mut height = 0.0f64;
-        for i in 0..self.len() {
-            let data = self.get_u16(i);
-            let s = self.handle.measure(data.as_ustr());
+        for i in 0..self.len()? {
+            let data = self.get_u16(i)?;
+            let s = self.handle.measure(data.as_ustr())?;
             width = width.max(s.width);
             height = height.max(s.height);
         }
-        Size::new(width + 20.0, height)
+        Ok(Size::new(width + 20.0, height))
     }
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn is_selected(&self, i: usize) -> bool {
-        self.handle.send_message(LB_GETSEL, i as _, 0) != 0
+    pub fn is_selected(&self, i: usize) -> Result<bool> {
+        Ok(self.handle.send_message(LB_GETSEL, i as _, 0) != 0)
     }
 
-    pub fn set_selected(&mut self, i: usize, v: bool) {
+    pub fn set_selected(&mut self, i: usize, v: bool) -> Result<()> {
         self.handle
             .send_message(LB_SETSEL, if v { 1 } else { 0 }, i as _);
+        Ok(())
     }
 
     pub async fn wait_select(&self) {
@@ -110,46 +111,51 @@ impl ListBox {
         }
     }
 
-    pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
+    pub fn insert(&mut self, i: usize, s: impl AsRef<str>) -> Result<()> {
         with_u16c(s.as_ref(), |s| {
             self.handle
                 .send_message(LB_INSERTSTRING, i as _, s.as_ptr() as _);
-        });
+            Ok(())
+        })
     }
 
-    pub fn remove(&mut self, i: usize) {
+    pub fn remove(&mut self, i: usize) -> Result<()> {
         self.handle.send_message(LB_DELETESTRING, i as _, 0);
+        Ok(())
     }
 
-    fn get_u16(&self, i: usize) -> U16CString {
+    fn get_u16(&self, i: usize) -> Result<U16CString> {
         let len = self.handle.send_message(LB_GETTEXTLEN, i as _, 0);
         unsafe {
             get_u16c(len as usize, |buf| {
-                self.handle
-                    .send_message(LB_GETTEXT, i as _, buf.as_mut_ptr() as _) as _
+                Ok(self
+                    .handle
+                    .send_message(LB_GETTEXT, i as _, buf.as_mut_ptr() as _)
+                    as _)
             })
         }
     }
 
-    pub fn get(&self, i: usize) -> String {
-        self.get_u16(i).to_string_lossy()
+    pub fn get(&self, i: usize) -> Result<String> {
+        Ok(self.get_u16(i)?.to_string_lossy())
     }
 
-    pub fn set(&mut self, i: usize, s: impl AsRef<str>) {
-        self.remove(i);
-        self.insert(i, s);
+    pub fn set(&mut self, i: usize, s: impl AsRef<str>) -> Result<()> {
+        self.remove(i)?;
+        self.insert(i, s)
     }
 
-    pub fn len(&self) -> usize {
-        self.handle.send_message(LB_GETCOUNT, 0, 0) as _
+    pub fn len(&self) -> Result<usize> {
+        Ok(self.handle.send_message(LB_GETCOUNT, 0, 0) as _)
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
+    pub fn is_empty(&self) -> Result<bool> {
+        Ok(self.len()? == 0)
     }
 
-    pub fn clear(&mut self) {
+    pub fn clear(&mut self) -> Result<()> {
         self.handle.send_message(LB_RESETCONTENT, 0, 0);
+        Ok(())
     }
 }
 

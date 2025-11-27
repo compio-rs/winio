@@ -1,7 +1,7 @@
 use windows::{
     Foundation::{IReference, PropertyValue},
     Graphics::{PointInt32, SizeInt32},
-    core::{HSTRING, Interface, RuntimeType},
+    core::{HSTRING, Interface, Result, RuntimeType},
 };
 use winio_primitive::{ColorTheme, HAlign, Orient, Point, Size};
 pub use winio_ui_windows_common::{
@@ -105,25 +105,25 @@ impl Convertible<Orientation> for Orient {
 }
 
 trait ToIReference: RuntimeType {
-    fn to_reference(&self) -> IReference<Self>;
+    fn to_reference(&self) -> Result<IReference<Self>>;
 }
 
 impl ToIReference for HSTRING {
-    fn to_reference(&self) -> IReference<Self> {
-        PropertyValue::CreateString(self).unwrap().cast().unwrap()
+    fn to_reference(&self) -> Result<IReference<Self>> {
+        PropertyValue::CreateString(self)?.cast()
     }
 }
 
 impl ToIReference for bool {
-    fn to_reference(&self) -> IReference<Self> {
-        PropertyValue::CreateBoolean(*self).unwrap().cast().unwrap()
+    fn to_reference(&self) -> Result<IReference<Self>> {
+        PropertyValue::CreateBoolean(*self)?.cast()
     }
 }
 
-pub fn color_theme() -> ColorTheme {
-    match Application::Current().unwrap().RequestedTheme().unwrap().0 {
-        1 => ColorTheme::Dark,
-        _ => ColorTheme::Light,
+pub fn color_theme() -> Result<ColorTheme> {
+    match Application::Current()?.RequestedTheme()?.0 {
+        1 => Ok(ColorTheme::Dark),
+        _ => Ok(ColorTheme::Light),
     }
 }
 

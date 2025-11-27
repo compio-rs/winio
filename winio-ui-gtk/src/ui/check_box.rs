@@ -9,7 +9,7 @@ use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{GlobalRuntime, ui::Widget};
+use crate::{GlobalRuntime, Result, ui::Widget};
 
 #[derive(Debug)]
 pub struct CheckBox {
@@ -20,9 +20,9 @@ pub struct CheckBox {
 
 #[inherit_methods(from = "self.handle")]
 impl CheckBox {
-    pub(crate) fn new_impl(parent: impl AsContainer, radio: bool) -> Self {
+    pub(crate) fn new_impl(parent: impl AsContainer, radio: bool) -> Result<Self> {
         let widget = gtk4::CheckButton::new();
-        let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() });
+        let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() })?;
         let on_click = Rc::new(Callback::new());
         widget.connect_toggled({
             let on_click = on_click.clone();
@@ -32,57 +32,60 @@ impl CheckBox {
                 }
             }
         });
-        Self {
+        Ok(Self {
             on_click,
             widget,
             handle,
-        }
+        })
     }
 
-    pub fn new(parent: impl AsContainer) -> Self {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
         Self::new_impl(parent, false)
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Size;
+    pub fn preferred_size(&self) -> Result<Size>;
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, s: Size);
+    pub fn set_size(&mut self, s: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn text(&self) -> String {
-        self.widget
+    pub fn text(&self) -> Result<String> {
+        Ok(self
+            .widget
             .label()
             .map(|s| s.to_string())
-            .unwrap_or_default()
+            .unwrap_or_default())
     }
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         self.widget.set_label(Some(s.as_ref()));
         self.handle.reset_preferred_size();
+        Ok(())
     }
 
-    pub fn is_checked(&self) -> bool {
-        self.widget.is_active()
+    pub fn is_checked(&self) -> Result<bool> {
+        Ok(self.widget.is_active())
     }
 
-    pub fn set_checked(&mut self, v: bool) {
+    pub fn set_checked(&mut self, v: bool) -> Result<()> {
         self.widget.set_active(v);
+        Ok(())
     }
 
     pub async fn wait_click(&self) {
@@ -100,48 +103,49 @@ pub struct RadioButton {
 
 #[inherit_methods(from = "self.handle")]
 impl RadioButton {
-    pub fn new(parent: impl AsContainer) -> Self {
-        let handle = CheckBox::new_impl(parent, true);
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let handle = CheckBox::new_impl(parent, true)?;
         let hidden = gtk4::CheckButton::new();
         hidden.set_visible(false);
         handle.widget.set_group(Some(&hidden));
-        Self { handle, hidden }
+        Ok(Self { handle, hidden })
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Size;
+    pub fn preferred_size(&self) -> Result<Size>;
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, s: Size);
+    pub fn set_size(&mut self, s: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn text(&self) -> String;
+    pub fn text(&self) -> Result<String>;
 
-    pub fn set_text(&mut self, s: impl AsRef<str>);
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn is_checked(&self) -> bool;
+    pub fn is_checked(&self) -> Result<bool>;
 
-    pub fn set_checked(&mut self, v: bool) {
+    pub fn set_checked(&mut self, v: bool) -> Result<()> {
         if v {
-            self.handle.set_checked(true);
+            self.handle.set_checked(true)?;
         } else {
             self.hidden.set_active(true);
         }
+        Ok(())
     }
 
     pub async fn wait_click(&self) {

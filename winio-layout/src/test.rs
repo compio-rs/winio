@@ -1,4 +1,4 @@
-use winio_primitive::{HAlign, Orient, Point, Rect, Size, VAlign};
+use winio_primitive::{Failable, HAlign, Orient, Point, Rect, Size, VAlign};
 
 use crate::{Grid, Layoutable, StackPanel, layout};
 
@@ -31,29 +31,35 @@ impl MockChild {
     }
 }
 
+impl Failable for MockChild {
+    type Error = ();
+}
+
 impl Layoutable for MockChild {
-    fn loc(&self) -> Point {
-        self.loc
+    fn loc(&self) -> Result<Point, ()> {
+        Ok(self.loc)
     }
 
-    fn set_loc(&mut self, p: Point) {
-        self.loc = p
+    fn set_loc(&mut self, p: Point) -> Result<(), ()> {
+        self.loc = p;
+        Ok(())
     }
 
-    fn size(&self) -> Size {
-        self.size
+    fn size(&self) -> Result<Size, ()> {
+        Ok(self.size)
     }
 
-    fn set_size(&mut self, s: Size) {
-        self.size = s
+    fn set_size(&mut self, s: Size) -> Result<(), ()> {
+        self.size = s;
+        Ok(())
     }
 
-    fn preferred_size(&self) -> Size {
-        self.preferred_size
+    fn preferred_size(&self) -> Result<Size, ()> {
+        Ok(self.preferred_size)
     }
 
-    fn min_size(&self) -> Size {
-        self.min_size
+    fn min_size(&self) -> Result<Size, ()> {
+        Ok(self.min_size)
     }
 }
 
@@ -67,7 +73,9 @@ fn stack_panel_horizontal() {
         StackPanel::new(Orient::Horizontal),
         c1, c2, c3
     };
-    panel.set_rect(Rect::new(Point::zero(), Size::new(300.0, 200.0)));
+    panel
+        .set_rect(Rect::new(Point::zero(), Size::new(300.0, 200.0)))
+        .unwrap();
     c1.assert_loc(0.0, 0.0);
     c2.assert_loc(200.0, 0.0);
     c3.assert_loc(250.0, 0.0);
@@ -79,7 +87,9 @@ fn stack_panel_horizontal() {
         StackPanel::new(Orient::Horizontal),
         c1, c2, c3
     };
-    panel.set_rect(Rect::new(Point::zero(), Size::new(300.0, 10.0)));
+    panel
+        .set_rect(Rect::new(Point::zero(), Size::new(300.0, 10.0)))
+        .unwrap();
     c1.assert_loc(0.0, 0.0);
     c2.assert_loc(200.0, 0.0);
     c3.assert_loc(250.0, 0.0);
@@ -91,7 +101,9 @@ fn stack_panel_horizontal() {
         StackPanel::new(Orient::Horizontal),
         c1, c2, c3 => { grow: true }
     };
-    panel.set_rect(Rect::new(Point::zero(), Size::new(300.0, 200.0)));
+    panel
+        .set_rect(Rect::new(Point::zero(), Size::new(300.0, 200.0)))
+        .unwrap();
     c1.assert_loc(0.0, 0.0);
     c2.assert_loc(200.0, 0.0);
     c3.assert_loc(250.0, 0.0);
@@ -103,7 +115,9 @@ fn stack_panel_horizontal() {
         StackPanel::new(Orient::Horizontal),
         c1, c2, c3 => { grow: true }
     };
-    panel.set_rect(Rect::new(Point::zero(), Size::new(300.0, 10.0)));
+    panel
+        .set_rect(Rect::new(Point::zero(), Size::new(300.0, 10.0)))
+        .unwrap();
     c1.assert_loc(0.0, 0.0);
     c2.assert_loc(200.0, 0.0);
     c3.assert_loc(250.0, 0.0);
@@ -117,7 +131,9 @@ fn stack_panel_horizontal() {
         c2 => { valign: VAlign::Center },
         c3 => { valign: VAlign::Bottom },
     };
-    panel.set_rect(Rect::new(Point::zero(), Size::new(300.0, 400.0)));
+    panel
+        .set_rect(Rect::new(Point::zero(), Size::new(300.0, 400.0)))
+        .unwrap();
     c1.assert_loc(0.0, 0.0);
     c2.assert_loc(200.0, 175.0);
     c3.assert_loc(250.0, 200.0);
@@ -136,7 +152,9 @@ fn stack_panel_vertical() {
         StackPanel::new(Orient::Vertical),
         c1, c2, c3
     };
-    panel.set_rect(Rect::new(Point::zero(), Size::new(200.0, 400.0)));
+    panel
+        .set_rect(Rect::new(Point::zero(), Size::new(200.0, 400.0)))
+        .unwrap();
     c1.assert_loc(0.0, 0.0);
     c2.assert_loc(0.0, 100.0);
     c3.assert_loc(0.0, 150.0);
@@ -148,7 +166,9 @@ fn stack_panel_vertical() {
         StackPanel::new(Orient::Vertical),
         c1, c2, c3
     };
-    panel.set_rect(Rect::new(Point::zero(), Size::new(10.0, 400.0)));
+    panel
+        .set_rect(Rect::new(Point::zero(), Size::new(10.0, 400.0)))
+        .unwrap();
     c1.assert_loc(0.0, 0.0);
     c2.assert_loc(0.0, 100.0);
     c3.assert_loc(0.0, 150.0);
@@ -160,7 +180,9 @@ fn stack_panel_vertical() {
         StackPanel::new(Orient::Vertical),
         c1, c2, c3 => { grow: true }
     };
-    panel.set_rect(Rect::new(Point::zero(), Size::new(200.0, 400.0)));
+    panel
+        .set_rect(Rect::new(Point::zero(), Size::new(200.0, 400.0)))
+        .unwrap();
     c1.assert_loc(0.0, 0.0);
     c2.assert_loc(0.0, 100.0);
     c3.assert_loc(0.0, 150.0);
@@ -172,7 +194,9 @@ fn stack_panel_vertical() {
         StackPanel::new(Orient::Vertical),
         c1, c2, c3 => { grow: true }
     };
-    panel.set_rect(Rect::new(Point::zero(), Size::new(10.0, 400.0)));
+    panel
+        .set_rect(Rect::new(Point::zero(), Size::new(10.0, 400.0)))
+        .unwrap();
     c1.assert_loc(0.0, 0.0);
     c2.assert_loc(0.0, 100.0);
     c3.assert_loc(0.0, 150.0);
@@ -186,7 +210,9 @@ fn stack_panel_vertical() {
         c2 => { halign: HAlign::Center },
         c3 => { halign: HAlign::Right },
     };
-    panel.set_rect(Rect::new(Point::zero(), Size::new(400.0, 400.0)));
+    panel
+        .set_rect(Rect::new(Point::zero(), Size::new(400.0, 400.0)))
+        .unwrap();
     c1.assert_loc(0.0, 0.0);
     c2.assert_loc(175.0, 100.0);
     c3.assert_loc(390.0, 150.0);
@@ -219,7 +245,8 @@ fn grid_sudoku() {
         c8 => { column: 1, row: 2, halign: HAlign::Center, valign: VAlign::Bottom },
         c9 => { column: 2, row: 2, halign: HAlign::Right,  valign: VAlign::Bottom },
     };
-    grid.set_rect(Rect::new(Point::zero(), Size::new(300.0, 300.0)));
+    grid.set_rect(Rect::new(Point::zero(), Size::new(300.0, 300.0)))
+        .unwrap();
     c1.assert_loc(0.0, 0.0);
     c2.assert_loc(125.0, 0.0);
     c3.assert_loc(250.0, 0.0);

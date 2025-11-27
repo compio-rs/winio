@@ -5,115 +5,49 @@
 
 #[doc(hidden)]
 pub use paste::paste as __paste;
+pub use taffy::TaffyError;
 use taffy::{Layout, NodeId, TaffyTree};
+use thiserror::Error;
 #[doc(hidden)]
-pub use winio_primitive::{HAlign, VAlign};
+pub use winio_primitive::{Failable, HAlign, Layoutable, VAlign};
 use winio_primitive::{Margin, Point, Rect, Size};
 
-/// Trait for a widget to set visibility.
-pub trait Visible {
-    /// If the widget is visible.
-    fn is_visible(&self) -> bool;
+#[doc(hidden)]
+pub trait LayoutChild: Failable {
+    fn child_preferred_size(&self) -> Result<Size, LayoutError<Self::Error>>;
 
-    /// Set the visibility.
-    fn set_visible(&mut self, v: bool);
+    fn child_min_size(&self) -> Result<Size, LayoutError<Self::Error>>;
 
-    /// Show the widget.
-    fn show(&mut self) {
-        self.set_visible(true);
-    }
+    fn set_child_loc(&mut self, p: Point) -> Result<(), LayoutError<Self::Error>>;
 
-    /// Hide the widget.
-    fn hide(&mut self) {
-        self.set_visible(false);
+    fn set_child_size(&mut self, s: Size) -> Result<(), LayoutError<Self::Error>>;
+
+    fn set_child_rect(&mut self, r: Rect) -> Result<(), LayoutError<Self::Error>>;
+
+    fn layout(&mut self, layout: &Layout, loc: Point) -> Result<(), LayoutError<Self::Error>> {
+        self.set_child_rect(offset(rect_t2e(layout), loc))
     }
 }
 
-/// Trait for a widget to enable or disable.
-pub trait Enable {
-    /// If the widget is enabled.
-    fn is_enabled(&self) -> bool;
-
-    /// Set if the widget is enabled.
-    fn set_enabled(&mut self, v: bool);
-
-    /// Enable the widget.
-    fn enable(&mut self) {
-        self.set_enabled(true);
+impl<T: Layoutable> LayoutChild for T {
+    fn child_preferred_size(&self) -> Result<Size, LayoutError<Self::Error>> {
+        self.preferred_size().map_err(LayoutError::Child)
     }
 
-    /// Disable the widget.
-    fn disable(&mut self) {
-        self.set_enabled(false);
-    }
-}
-
-/// Common trait for widgets that have a tooltip.
-pub trait ToolTip {
-    /// Get the tooltip text of the widget.
-    fn tooltip(&self) -> String;
-
-    /// Set the tooltip text of the widget.
-    fn set_tooltip(&mut self, s: impl AsRef<str>);
-}
-
-/// Common trait for widgets that have text.
-pub trait TextWidget {
-    /// Get the text of the widget.
-    fn text(&self) -> String;
-
-    /// Set the text of the widget.
-    ///
-    /// If the widget supports multiline strings, lines are separated with `\n`.
-    /// You don't need to handle CRLF.
-    fn set_text(&mut self, s: impl AsRef<str>);
-}
-
-/// Trait for a layoutable widget.
-///
-/// To create a responsive layout, always set location and size together.
-pub trait Layoutable {
-    /// The left top location.
-    fn loc(&self) -> Point;
-
-    /// Move the location.
-    fn set_loc(&mut self, p: Point);
-
-    /// The size.
-    fn size(&self) -> Size;
-
-    /// Resize.
-    fn set_size(&mut self, s: Size);
-
-    /// The bounding rectangle.
-    fn rect(&self) -> Rect {
-        Rect::new(self.loc(), self.size())
+    fn child_min_size(&self) -> Result<Size, LayoutError<Self::Error>> {
+        self.min_size().map_err(LayoutError::Child)
     }
 
-    /// Set the location and size.
-    fn set_rect(&mut self, r: Rect) {
-        self.set_loc(r.origin);
-        self.set_size(r.size);
+    fn set_child_loc(&mut self, p: Point) -> Result<(), LayoutError<Self::Error>> {
+        self.set_loc(p).map_err(LayoutError::Child)
     }
 
-    /// The preferred size.
-    fn preferred_size(&self) -> Size {
-        Size::zero()
+    fn set_child_size(&mut self, s: Size) -> Result<(), LayoutError<Self::Error>> {
+        self.set_size(s).map_err(LayoutError::Child)
     }
 
-    /// Min acceptable size.
-    fn min_size(&self) -> Size {
-        self.preferred_size()
-    }
-}
-
-trait LayoutChild {
-    fn margin(&self) -> Margin;
-
-    fn set_rect(&mut self, r: Rect);
-
-    fn layout(&mut self, layout: &Layout, loc: Point) {
-        self.set_rect(offset(rect_t2e(layout, self.margin()), loc))
+    fn set_child_rect(&mut self, r: Rect) -> Result<(), LayoutError<Self::Error>> {
+        self.set_rect(r).map_err(LayoutError::Child)
     }
 }
 
@@ -126,16 +60,10 @@ pub use stack_panel::*;
 #[cfg(test)]
 mod test;
 
-fn rect_t2e(rect: &taffy::Layout, margin: Margin) -> Rect {
+fn rect_t2e(rect: &taffy::Layout) -> Rect {
     Rect::new(
-        Point::new(
-            rect.location.x as f64 + margin.left,
-            rect.location.y as f64 + margin.top,
-        ),
-        Size::new(
-            rect.size.width as f64 - margin.horizontal(),
-            rect.size.height as f64 - margin.vertical(),
-        ),
+        Point::new(rect.location.x as f64, rect.location.y as f64),
+        Size::new(rect.size.width as f64, rect.size.height as f64),
     )
 }
 
@@ -144,10 +72,35 @@ fn offset(mut a: Rect, offset: Point) -> Rect {
     a
 }
 
+fn size_add_margin(size: Size, margin: Margin) -> Size {
+    Size::new(
+        size.width + margin.horizontal(),
+        size.height + margin.vertical(),
+    )
+}
+
+fn loc_sub_margin(loc: Point, margin: Margin) -> Point {
+    Point::new(loc.x + margin.left, loc.y + margin.top)
+}
+
+fn size_sub_margin(size: Size, margin: Margin) -> Size {
+    Size::new(
+        size.width - margin.horizontal(),
+        size.height - margin.vertical(),
+    )
+}
+
+fn rect_sub_margin(rect: Rect, margin: Margin) -> Rect {
+    Rect::new(
+        loc_sub_margin(rect.origin, margin),
+        size_sub_margin(rect.size, margin),
+    )
+}
+
 macro_rules! __layout_child {
     ($(#[$sm:meta])* struct $name:ident { $($(#[$m:meta])* $f:ident: $t:ty = $e:expr),*$(,)? }) => {
-        struct $name<'a> {
-            widget: &'a mut dyn $crate::Layoutable,
+        struct $name<'a, E> {
+            widget: &'a mut dyn $crate::LayoutChild<Error = E>,
             width: Option<f64>,
             height: Option<f64>,
             margin: $crate::Margin,
@@ -158,9 +111,9 @@ macro_rules! __layout_child {
                 $f: $t,
             )*
         }
-        impl<'a> $name<'a> {
+        impl<'a, E> $name<'a, E> {
             #[allow(unused_doc_comments)]
-            pub fn new(widget: &'a mut dyn $crate::Layoutable) -> Self {
+            pub fn new(widget: &'a mut dyn $crate::LayoutChild<Error = E>) -> Self {
                 Self {
                     widget,
                     width: None,
@@ -175,22 +128,37 @@ macro_rules! __layout_child {
                 }
             }
         }
-        impl $crate::LayoutChild for $name<'_> {
-            fn margin(&self) -> $crate::Margin {
-                self.margin
+        impl<E> $crate::Failable for $name<'_, E> {
+            type Error = E;
+        }
+        impl<E> $crate::LayoutChild for $name<'_, E> {
+            fn child_preferred_size(&self) -> Result<$crate::Size, LayoutError<Self::Error>> {
+                Ok($crate::size_add_margin(self.widget.child_preferred_size()?, self.margin))
             }
 
-            fn set_rect(&mut self, r: Rect) {
-                self.widget.set_rect(r)
+            fn child_min_size(&self) -> Result<$crate::Size, LayoutError<Self::Error>> {
+                Ok($crate::size_add_margin(self.widget.child_min_size()?, self.margin))
+            }
+
+            fn set_child_loc(&mut self, p: Point) -> Result<(), LayoutError<Self::Error>> {
+                self.widget.set_child_loc($crate::loc_sub_margin(p, self.margin))
+            }
+
+            fn set_child_size(&mut self, s: Size) -> Result<(), LayoutError<Self::Error>> {
+                self.widget.set_child_size($crate::size_sub_margin(s, self.margin))
+            }
+
+            fn set_child_rect(&mut self, r: Rect) -> Result<(), LayoutError<Self::Error>> {
+                self.widget.set_child_rect($crate::rect_sub_margin(r, self.margin))
             }
         }
         $crate::__paste! {
             $(#[$sm])*
-            pub struct [<$name Builder>]<'a, 'b> {
-                child: $name<'a>,
-                children: &'b mut Vec<$name<'a>>,
+            pub struct [<$name Builder>]<'a, 'b, E> {
+                child: $name<'a, E>,
+                children: &'b mut Vec<$name<'a, E>>,
             }
-            impl [<$name Builder>]<'_, '_> {
+            impl<E> [<$name Builder>]<'_, '_, E> {
                 /// Specify the child width.
                 pub fn width(mut self, v: f64) -> Self {
                     self.child.width = Some(v);
@@ -244,26 +212,38 @@ macro_rules! __layout_child {
 }
 pub(crate) use __layout_child as layout_child;
 
-fn render(
+/// Errors that can occur during layout.
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum LayoutError<E> {
+    /// Taffy layout error.
+    #[error("Taffy layout error: {0}")]
+    Taffy(#[from] TaffyError),
+    /// Child layout error.
+    #[error("Child layout error: {0}")]
+    Child(E),
+}
+
+fn render<E>(
     mut tree: TaffyTree,
     root: NodeId,
     nodes: Vec<NodeId>,
     loc: Point,
     size: Size,
-    children: &mut [impl LayoutChild],
-) {
+    children: &mut [impl LayoutChild<Error = E>],
+) -> Result<(), LayoutError<E>> {
     tree.compute_layout(
         root,
         taffy::Size {
             width: taffy::AvailableSpace::Definite(size.width as _),
             height: taffy::AvailableSpace::Definite(size.height as _),
         },
-    )
-    .unwrap();
+    )?;
     for (id, child) in nodes.iter().zip(children) {
-        let layout = tree.layout(*id).unwrap();
-        child.layout(layout, loc);
+        let layout = tree.layout(*id)?;
+        child.layout(layout, loc)?;
     }
+    Ok(())
 }
 
 /// Helper macro for layouts in `Component::render`.

@@ -4,9 +4,7 @@ use compio_log::*;
 use windows::{
     Foundation::Uri,
     Win32::Graphics::Direct2D::ID2D1Factory2,
-    core::{
-        Array, HSTRING, IInspectable_Vtbl, Interface, Ref, Result, h, imp::WeakRefCount, implement,
-    },
+    core::{Array, HSTRING, IInspectable_Vtbl, Interface, Ref, h, imp::WeakRefCount, implement},
 };
 use windows_sys::Win32::{Foundation::HWND, UI::WindowsAndMessaging::MSG};
 use winio_ui_windows_common::{PreferredAppMode, init_dark, set_preferred_app_mode};
@@ -26,18 +24,12 @@ use winui3::{
     init_apartment,
 };
 
-use crate::RUNTIME;
+use crate::{RUNTIME, Result};
 
 pub struct Runtime {
     runtime: winio_ui_windows_common::Runtime,
     #[allow(dead_code)]
     winui_dependency: PackageDependency,
-}
-
-impl Default for Runtime {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 fn init_appsdk_with(
@@ -52,8 +44,8 @@ fn init_appsdk_with(
 }
 
 impl Runtime {
-    pub fn new() -> Self {
-        init_apartment(ApartmentType::SingleThreaded).unwrap();
+    pub fn new() -> Result<Self> {
+        init_apartment(ApartmentType::SingleThreaded)?;
 
         let winui_dependency = init_appsdk_with({
             use WindowsAppSDKVersion::*;
@@ -74,8 +66,7 @@ impl Runtime {
                 #[cfg(not(feature = "media"))]
                 V1_0,
             ]
-        })
-        .unwrap();
+        })?;
 
         debug!("WinUI initialized: {winui_dependency:?}");
 
@@ -85,15 +76,15 @@ impl Runtime {
         crate::hook::mrm::init_hook();
         crate::hook::mq::init_hook();
 
-        let runtime = winio_ui_windows_common::Runtime::new().unwrap();
+        let runtime = winio_ui_windows_common::Runtime::new()?;
 
-        Self {
+        Ok(Self {
             runtime,
             winui_dependency,
-        }
+        })
     }
 
-    pub(crate) fn d2d1(&self) -> &ID2D1Factory2 {
+    pub(crate) fn d2d1(&self) -> Result<&ID2D1Factory2> {
         self.runtime.d2d1()
     }
 
@@ -111,12 +102,16 @@ impl Runtime {
             unsafe {
                 self.runtime.spawn_unchecked(async {
                     result = Some(future.await);
-                    Application::Current().unwrap().Exit().unwrap();
+                    Application::Current()
+                        .expect("Failed to get current application")
+                        .Exit()
+                        .expect("Failed to exit application");
                 })
             }
             .detach();
 
-            Application::Start(&ApplicationInitializationCallback::new(app_start)).unwrap();
+            Application::Start(&ApplicationInitializationCallback::new(app_start))
+                .expect("Failed to start application");
 
             result.expect("Application exits but no result")
         })

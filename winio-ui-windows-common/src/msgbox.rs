@@ -4,8 +4,9 @@ use std::{
 };
 
 use widestring::U16CString;
+use windows::core::HRESULT;
 use windows_sys::Win32::{
-    Foundation::{E_INVALIDARG, E_OUTOFMEMORY, HWND, S_OK},
+    Foundation::HWND,
     UI::{
         Controls::{
             TASKDIALOG_BUTTON, TASKDIALOGCONFIG, TASKDIALOGCONFIG_0, TASKDIALOGCONFIG_1,
@@ -18,7 +19,7 @@ use windows_sys::Win32::{
 use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
-use crate::{darkmode::TASK_DIALOG_CALLBACK, parent_handle};
+use crate::{Error, Result, darkmode::TASK_DIALOG_CALLBACK, parent_handle};
 
 async fn msgbox(
     parent: Option<HWND>,
@@ -28,7 +29,7 @@ async fn msgbox(
     style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
-) -> MessageBoxResponse {
+) -> Result<MessageBoxResponse> {
     let parent_handle = parent.map(|p| p as isize).unwrap_or_default();
     let (res, result) = compio::runtime::spawn_blocking(move || {
         let cbtn_ptrs = cbtns
@@ -85,8 +86,8 @@ async fn msgbox(
     .await
     .unwrap_or_else(|e| resume_unwind(e));
 
-    match res {
-        S_OK => match result {
+    if res >= 0 {
+        let res = match result {
             IDCANCEL => MessageBoxResponse::Cancel,
             IDNO => MessageBoxResponse::No,
             IDOK => MessageBoxResponse::Ok,
@@ -94,16 +95,10 @@ async fn msgbox(
             IDYES => MessageBoxResponse::Yes,
             IDCLOSE => MessageBoxResponse::Close,
             _ => MessageBoxResponse::Custom(result as _),
-        },
-        E_OUTOFMEMORY => panic!(
-            "{:?}",
-            std::io::Error::from(std::io::ErrorKind::OutOfMemory)
-        ),
-        E_INVALIDARG => panic!(
-            "{:?}",
-            std::io::Error::from(std::io::ErrorKind::InvalidInput)
-        ),
-        _ => panic!("{:?}", std::io::Error::from_raw_os_error(res)),
+        };
+        Ok(res)
+    } else {
+        Err(Error::from_hresult(HRESULT(res)))
     }
 }
 
@@ -135,7 +130,7 @@ impl MessageBox {
         }
     }
 
-    pub async fn show(self, parent: Option<impl AsWindow>) -> MessageBoxResponse {
+    pub async fn show(self, parent: Option<impl AsWindow>) -> Result<MessageBoxResponse> {
         let parent = parent_handle(parent);
         msgbox(
             parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,

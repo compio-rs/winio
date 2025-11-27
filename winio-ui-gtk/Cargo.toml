@@ -14,9 +14,12 @@ winio-handle = { workspace = true, features = ["gtk"] }
 winio-callback = { workspace = true }
 winio-pollable = { workspace = true }
 
+compio-log = { workspace = true }
+
 inherit-methods-macro = { workspace = true }
 image = { workspace = true, default-features = false }
 scoped-tls = { workspace = true }
+thiserror = { workspace = true }
 
 gtk4 = { workspace = true, features = ["v4_14"] }
 pangocairo = "0.21"

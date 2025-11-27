@@ -20,7 +20,7 @@ use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{
-    GlobalRuntime,
+    GlobalRuntime, Result, catch,
     ui::{Widget, from_cgsize},
 };
 
@@ -37,11 +37,11 @@ pub struct ListBox {
 
 #[inherit_methods(from = "self.handle")]
 impl ListBox {
-    pub fn new(parent: impl AsContainer) -> Self {
-        unsafe {
-            let parent = parent.as_container();
-            let mtm = parent.mtm();
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let parent = parent.as_container();
+        let mtm = parent.mtm();
 
+        catch(|| unsafe {
             let table = NSTableView::new(mtm);
             let column = NSTableColumn::new(mtm);
             table.addTableColumn(&column);
@@ -54,7 +54,7 @@ impl ListBox {
             let view = NSScrollView::new(mtm);
             view.setHasVerticalScroller(true);
             view.setDocumentView(Some(&table));
-            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
+            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()))?;
 
             let delegate = ListBoxDelegate::new(mtm);
             let del_obj = ProtocolObject::from_ref(&*delegate);
@@ -62,26 +62,27 @@ impl ListBox {
             let del_obj = ProtocolObject::from_ref(&*delegate);
             table.setDataSource(Some(del_obj));
 
-            Self {
+            Ok(Self {
                 handle,
                 view,
                 table,
                 column,
                 delegate,
-            }
-        }
+            })
+        })
+        .flatten()
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn min_size(&self) -> Size {
-        unsafe {
+    pub fn min_size(&self) -> Result<Size> {
+        catch(|| unsafe {
             let font = NSFont::systemFontOfSize(NSFont::systemFontSize());
             let attrs = NSDictionary::from_slices(&[NSFontAttributeName], &[font.as_ref()]);
             let mut width = 0.0f64;
@@ -93,83 +94,85 @@ impl ListBox {
                 height = height.max(size.height);
             }
             Size::new(width + 40.0, height)
-        }
+        })
     }
 
-    pub fn preferred_size(&self) -> Size {
-        unsafe {
-            let mut size = from_cgsize(
+    pub fn preferred_size(&self) -> Result<Size> {
+        let mut size = catch(|| unsafe {
+            from_cgsize(
                 Retained::cast_unchecked::<NSControl>(self.table.clone())
                     .sizeThatFits(NSSize::ZERO),
-            );
-            size.width = self.min_size().width;
-            size
-        }
+            )
+        })?;
+        size.width = self.min_size()?.width;
+        Ok(size)
     }
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub async fn wait_select(&self) {
         self.delegate.ivars().select.wait().await
     }
 
-    pub fn is_selected(&self, i: usize) -> bool {
-        self.table.isRowSelected(i as _)
+    pub fn is_selected(&self, i: usize) -> Result<bool> {
+        catch(|| self.table.isRowSelected(i as _))
     }
 
-    pub fn set_selected(&mut self, i: usize, v: bool) {
-        if v {
-            self.table
-                .selectRowIndexes_byExtendingSelection(&NSIndexSet::indexSetWithIndex(i), true);
-        } else {
-            self.table.deselectRow(i as _);
-        }
+    pub fn set_selected(&mut self, i: usize, v: bool) -> Result<()> {
+        catch(|| {
+            if v {
+                self.table
+                    .selectRowIndexes_byExtendingSelection(&NSIndexSet::indexSetWithIndex(i), true);
+            } else {
+                self.table.deselectRow(i as _);
+            }
+        })
     }
 
-    pub fn len(&self) -> usize {
-        self.delegate.ivars().data.borrow().len()
+    pub fn len(&self) -> Result<usize> {
+        Ok(self.delegate.ivars().data.borrow().len())
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
+    pub fn is_empty(&self) -> Result<bool> {
+        Ok(self.len()? == 0)
     }
 
-    pub fn clear(&mut self) {
+    pub fn clear(&mut self) -> Result<()> {
         self.delegate.ivars().data.borrow_mut().clear();
-        self.table.reloadData();
+        catch(|| self.table.reloadData())
     }
 
-    pub fn get(&self, i: usize) -> String {
-        self.delegate.ivars().data.borrow()[i].clone()
+    pub fn get(&self, i: usize) -> Result<String> {
+        Ok(self.delegate.ivars().data.borrow()[i].clone())
     }
 
-    pub fn set(&mut self, i: usize, s: impl AsRef<str>) {
+    pub fn set(&mut self, i: usize, s: impl AsRef<str>) -> Result<()> {
         self.delegate.ivars().data.borrow_mut()[i] = s.as_ref().to_string();
-        self.table.reloadData();
+        catch(|| self.table.reloadData())
     }
 
-    pub fn insert(&mut self, i: usize, s: impl AsRef<str>) {
+    pub fn insert(&mut self, i: usize, s: impl AsRef<str>) -> Result<()> {
         self.delegate
             .ivars()
             .data
             .borrow_mut()
             .insert(i, s.as_ref().to_string());
-        self.table.reloadData();
+        catch(|| self.table.reloadData())
     }
 
-    pub fn remove(&mut self, i: usize) {
+    pub fn remove(&mut self, i: usize) -> Result<()> {
         self.delegate.ivars().data.borrow_mut().remove(i);
-        self.table.reloadData();
+        catch(|| self.table.reloadData())
     }
 }
 

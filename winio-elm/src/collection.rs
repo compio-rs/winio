@@ -48,7 +48,7 @@ impl<T: Clone> ObservableVec<T> {
 
     /// Replaces the element at specified position, and return the old value.
     pub fn replace(&mut self, i: usize, v: T) -> T {
-        let element = self.vec.get_mut(i).unwrap();
+        let element = &mut self.vec[i];
         let old = std::mem::replace(element, v.clone());
         self.sender.output(ObservableVecEvent::Replace {
             at: i,
@@ -69,17 +69,31 @@ impl<T: Clone> ObservableVec<T> {
         self.vec.shrink_to_fit();
     }
 
+    /// Length of the vector.
+    pub fn len(&self) -> usize {
+        self.vec.len()
+    }
+
+    /// Checks if the vector is empty.
+    pub fn is_empty(&self) -> bool {
+        self.vec.is_empty()
+    }
+
     /// Gets the inner items.
     pub fn items(&self) -> &[T] {
         &self.vec
     }
 
     /// Clears the vector, and appends the items one by one.
-    pub fn set_items<U: Into<T>>(&mut self, items: impl IntoIterator<Item = U>) {
+    pub fn set_items<U: Into<T>>(
+        &mut self,
+        items: impl IntoIterator<Item = U>,
+    ) -> Result<(), std::convert::Infallible> {
         self.clear();
         for it in items {
             self.push(it.into());
         }
+        Ok(())
     }
 }
 
@@ -122,24 +136,17 @@ pub enum ObservableVecEvent<T> {
 }
 
 impl<T: Clone> Component for ObservableVec<T> {
+    type Error = std::convert::Infallible;
     type Event = ObservableVecEvent<T>;
-    type Init<'a> = ();
+    type Init<'a> = Vec<T>;
     type Message = ();
 
-    fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
-        Self {
+    fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self, Self::Error> {
+        let mut this = Self {
             vec: vec![],
             sender: sender.clone(),
-        }
+        };
+        this.set_items(init)?;
+        Ok(this)
     }
-
-    async fn start(&mut self, _sender: &ComponentSender<Self>) -> ! {
-        std::future::pending().await
-    }
-
-    async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
-        false
-    }
-
-    fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }

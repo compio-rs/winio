@@ -6,7 +6,7 @@ use winio_callback::Callback;
 use winio_handle::{AsContainer, AsRawContainer, RawContainer};
 use winio_primitive::{Point, Size};
 
-use crate::{GlobalRuntime, Widget};
+use crate::{GlobalRuntime, Result, Widget};
 
 #[derive(Debug)]
 pub struct TabView {
@@ -17,10 +17,10 @@ pub struct TabView {
 
 #[inherit_methods(from = "self.handle")]
 impl TabView {
-    pub fn new(parent: impl AsContainer) -> Self {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
         let view = gtk4::Notebook::new();
         view.set_scrollable(true);
-        let handle = Widget::new(parent, unsafe { view.clone().unsafe_cast() });
+        let handle = Widget::new(parent, unsafe { view.clone().unsafe_cast() })?;
         let on_select = Rc::new(Callback::new());
         view.connect_select_page({
             let on_select = on_select.clone();
@@ -29,62 +29,66 @@ impl TabView {
                 true
             }
         });
-        Self {
+        Ok(Self {
             on_select,
             view,
             handle,
-        }
+        })
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, s: Size);
+    pub fn set_size(&mut self, s: Size) -> Result<()>;
 
-    pub fn selection(&self) -> Option<usize> {
-        self.view.current_page().map(|i| i as usize)
+    pub fn selection(&self) -> Result<Option<usize>> {
+        Ok(self.view.current_page().map(|i| i as usize))
     }
 
-    pub fn set_selection(&mut self, i: usize) {
+    pub fn set_selection(&mut self, i: usize) -> Result<()> {
         self.view.set_current_page(Some(i as _));
+        Ok(())
     }
 
     pub async fn wait_select(&self) {
         self.on_select.wait().await
     }
 
-    pub fn insert(&mut self, i: usize, item: &TabViewItem) {
+    pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
         self.view
             .insert_page(&item.swindow, Some(&item.label), Some(i as _));
+        Ok(())
     }
 
-    pub fn remove(&mut self, i: usize) {
+    pub fn remove(&mut self, i: usize) -> Result<()> {
         self.view.remove_page(Some(i as _));
+        Ok(())
     }
 
-    pub fn len(&self) -> usize {
-        self.view.n_pages() as _
+    pub fn len(&self) -> Result<usize> {
+        Ok(self.view.n_pages() as _)
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
+    pub fn is_empty(&self) -> Result<bool> {
+        Ok(self.len()? == 0)
     }
 
-    pub fn clear(&mut self) {
-        while !self.is_empty() {
-            self.remove(0);
+    pub fn clear(&mut self) -> Result<()> {
+        while !self.is_empty()? {
+            self.remove(0)?;
         }
+        Ok(())
     }
 }
 
@@ -98,32 +102,33 @@ pub struct TabViewItem {
 }
 
 impl TabViewItem {
-    pub fn new(_parent: &TabView) -> Self {
+    pub fn new(_parent: &TabView) -> Result<Self> {
         let swindow = gtk4::ScrolledWindow::new();
         swindow.set_hscrollbar_policy(gtk4::PolicyType::External);
         swindow.set_vscrollbar_policy(gtk4::PolicyType::External);
         let fixed = gtk4::Fixed::new();
         swindow.set_child(Some(&fixed));
         let label = gtk4::Label::new(None);
-        Self {
+        Ok(Self {
             swindow,
             fixed,
             label,
-        }
+        })
     }
 
-    pub fn text(&self) -> String {
-        self.label.text().to_string()
+    pub fn text(&self) -> Result<String> {
+        Ok(self.label.text().to_string())
     }
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         self.label.set_text(s.as_ref());
+        Ok(())
     }
 
-    pub fn size(&self) -> Size {
+    pub fn size(&self) -> Result<Size> {
         let width = self.swindow.width();
         let height = self.swindow.height();
-        Size::new(width as _, height as _)
+        Ok(Size::new(width as _, height as _))
     }
 }
 

@@ -2,9 +2,9 @@ use taffy::{
     NodeId, Style, TaffyTree,
     prelude::{auto, length, percent},
 };
-use winio_primitive::{HAlign, Margin, Orient, Point, Rect, Size, VAlign};
+use winio_primitive::{Failable, HAlign, Orient, Point, Rect, Size, VAlign};
 
-use crate::{Layoutable, layout_child, rect_t2e, render};
+use crate::{LayoutChild, LayoutError, layout_child, rect_t2e, render};
 
 layout_child! {
     /// Builder of a child for [`StackPanel`].
@@ -15,14 +15,14 @@ layout_child! {
 }
 
 /// A stacked layout container.
-pub struct StackPanel<'a> {
-    children: Vec<StackPanelChild<'a>>,
+pub struct StackPanel<'a, E> {
+    children: Vec<StackPanelChild<'a, E>>,
     orient: Orient,
     loc: Point,
     size: Size,
 }
 
-impl<'a> StackPanel<'a> {
+impl<'a, E> StackPanel<'a, E> {
     /// Create [`StackPanel`] with orientation.
     pub fn new(orient: Orient) -> Self {
         Self {
@@ -36,21 +36,19 @@ impl<'a> StackPanel<'a> {
     /// Push a child into the panel.
     pub fn push<'b>(
         &'b mut self,
-        widget: &'a mut dyn Layoutable,
-    ) -> StackPanelChildBuilder<'a, 'b> {
+        widget: &'a mut dyn LayoutChild<Error = E>,
+    ) -> StackPanelChildBuilder<'a, 'b, E> {
         StackPanelChildBuilder {
             child: StackPanelChild::new(widget),
             children: &mut self.children,
         }
     }
 
-    fn tree(&self) -> (TaffyTree, NodeId, Vec<NodeId>) {
+    fn tree(&self) -> Result<(TaffyTree, NodeId, Vec<NodeId>), LayoutError<E>> {
         let mut tree: TaffyTree<()> = TaffyTree::new();
         let mut nodes = vec![];
         for child in &self.children {
-            let mut preferred_size = child.widget.preferred_size();
-            preferred_size.width += child.margin.horizontal();
-            preferred_size.height += child.margin.vertical();
+            let preferred_size = child.child_preferred_size()?;
             let mut style = Style::default();
             style.size.width = match child.width {
                 Some(w) => length(w as f32),
@@ -68,9 +66,7 @@ impl<'a> StackPanel<'a> {
                     _ => length(preferred_size.height as f32),
                 },
             };
-            let mut min_size = child.widget.min_size();
-            min_size.width += child.margin.horizontal();
-            min_size.height += child.margin.vertical();
+            let min_size = child.child_min_size()?;
             style.min_size = taffy::Size {
                 width: length(min_size.width as f32),
                 height: length(min_size.height as f32),
@@ -96,67 +92,74 @@ impl<'a> StackPanel<'a> {
             if child.grow {
                 style.flex_grow = 1.0
             }
-            let node = tree.new_leaf(style).unwrap();
+            let node = tree.new_leaf(style)?;
             nodes.push(node);
         }
-        let root = tree
-            .new_with_children(
-                Style {
-                    size: taffy::Size::from_percent(1.0, 1.0),
-                    flex_direction: match self.orient {
-                        Orient::Horizontal => taffy::FlexDirection::Row,
-                        Orient::Vertical => taffy::FlexDirection::Column,
-                    },
-                    ..Default::default()
+        let root = tree.new_with_children(
+            Style {
+                size: taffy::Size::from_percent(1.0, 1.0),
+                flex_direction: match self.orient {
+                    Orient::Horizontal => taffy::FlexDirection::Row,
+                    Orient::Vertical => taffy::FlexDirection::Column,
                 },
-                &nodes,
-            )
-            .unwrap();
-        (tree, root, nodes)
+                ..Default::default()
+            },
+            &nodes,
+        )?;
+        Ok((tree, root, nodes))
     }
 
-    fn render(&mut self) {
-        let (tree, root, nodes) = self.tree();
+    fn render(&mut self) -> Result<(), LayoutError<E>> {
+        let (tree, root, nodes) = self.tree()?;
         render(tree, root, nodes, self.loc, self.size, &mut self.children)
+    }
+
+    /// Move the location.
+    pub fn set_loc(&mut self, p: Point) -> Result<(), LayoutError<E>> {
+        LayoutChild::set_child_loc(self, p)
+    }
+
+    /// Resize.
+    pub fn set_size(&mut self, s: Size) -> Result<(), LayoutError<E>> {
+        LayoutChild::set_child_size(self, s)
+    }
+
+    /// Set the location and size.
+    pub fn set_rect(&mut self, r: Rect) -> Result<(), LayoutError<E>> {
+        LayoutChild::set_child_rect(self, r)
     }
 }
 
-impl Layoutable for StackPanel<'_> {
-    fn loc(&self) -> Point {
-        self.loc
-    }
+impl<E> Failable for StackPanel<'_, E> {
+    type Error = E;
+}
 
-    fn set_loc(&mut self, p: Point) {
+impl<E> LayoutChild for StackPanel<'_, E> {
+    fn set_child_loc(&mut self, p: Point) -> Result<(), LayoutError<Self::Error>> {
         self.loc = p;
-        self.render();
+        self.render()
     }
 
-    fn size(&self) -> Size {
-        self.size
-    }
-
-    fn set_size(&mut self, s: Size) {
+    fn set_child_size(&mut self, s: Size) -> Result<(), LayoutError<Self::Error>> {
         self.size = s;
-        self.render();
+        self.render()
     }
 
-    fn set_rect(&mut self, r: Rect) {
+    fn set_child_rect(&mut self, r: Rect) -> Result<(), LayoutError<Self::Error>> {
         self.loc = r.origin;
         self.size = r.size;
-        self.render();
+        self.render()
     }
 
-    fn preferred_size(&self) -> Size {
-        let (mut tree, root, _) = self.tree();
-        tree.compute_layout(root, taffy::Size::max_content())
-            .unwrap();
-        rect_t2e(tree.layout(root).unwrap(), Margin::zero()).size
+    fn child_preferred_size(&self) -> Result<Size, LayoutError<Self::Error>> {
+        let (mut tree, root, _) = self.tree()?;
+        tree.compute_layout(root, taffy::Size::max_content())?;
+        Ok(rect_t2e(tree.layout(root)?).size)
     }
 
-    fn min_size(&self) -> Size {
-        let (mut tree, root, _) = self.tree();
-        tree.compute_layout(root, taffy::Size::min_content())
-            .unwrap();
-        rect_t2e(tree.layout(root).unwrap(), Margin::zero()).size
+    fn child_min_size(&self) -> Result<Size, LayoutError<Self::Error>> {
+        let (mut tree, root, _) = self.tree()?;
+        tree.compute_layout(root, taffy::Size::min_content())?;
+        Ok(rect_t2e(tree.layout(root)?).size)
     }
 }

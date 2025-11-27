@@ -14,10 +14,12 @@ winio-handle = { workspace = true }
 winio-pollable = { workspace = true }
 
 compio = { workspace = true }
+compio-log = { workspace = true }
 
 cfg-if = { workspace = true }
 futures-util = { workspace = true, optional = true }
 image = { workspace = true, default-features = false }
+once_cell = { workspace = true }
 widestring = { workspace = true }
 
 windows = { workspace = true, features = [
@@ -63,3 +65,6 @@ win32 = ["winio-handle/win32"]
 winui = ["winio-handle/winui", "dep:winui3"]
 webview = ["dep:futures-util"]
 dark-mode = ["dep:slim-detours-sys", "dep:sync-unsafe-cell"]
+
+once_cell_try = ["compio/once_cell_try"]
+nightly = ["once_cell_try"]

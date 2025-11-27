@@ -21,7 +21,7 @@ use winio_handle::{AsContainer, AsRawContainer, AsRawWidget, RawContainer};
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::children_refresh_dark_mode;
 
-use crate::{View, Widget, WindowMessageNotify, ui::with_u16c};
+use crate::{Result, View, Widget, WindowMessageNotify, ui::with_u16c};
 
 #[derive(Debug)]
 pub struct TabView {
@@ -32,48 +32,47 @@ pub struct TabView {
 
 #[inherit_methods(from = "self.handle")]
 impl TabView {
-    pub fn new(parent: impl AsContainer) -> Self {
-        let mut handle = Widget::new(
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let handle = Widget::new(
             WC_TABCONTROLW,
             WS_TABSTOP | WS_CLIPCHILDREN | WS_VISIBLE | WS_CHILD | TCS_TABS,
             WS_EX_CONTROLPARENT,
             parent.as_container().as_win32(),
-        );
-        handle.set_size(handle.size_d2l((50, 14)));
-        Self {
+        )?;
+        Ok(Self {
             handle,
             current_view: Cell::new(None),
             views: vec![],
-        }
+        })
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) {
-        self.handle.set_size(v);
+    pub fn set_size(&mut self, v: Size) -> Result<()> {
+        self.handle.set_size(v)?;
         let mut rect = MaybeUninit::uninit();
         syscall!(
             BOOL,
             GetClientRect(self.handle.as_raw_widget().as_win32(), rect.as_mut_ptr())
-        )
-        .unwrap();
+        )?;
         self.handle
             .send_message(TCM_ADJUSTRECT, 0, rect.as_mut_ptr() as _);
         let rect = unsafe { rect.assume_init() };
         for item in self.views.iter() {
-            unsafe {
+            syscall!(
+                BOOL,
                 MoveWindow(
                     item.as_raw_container().as_win32(),
                     rect.left,
@@ -81,18 +80,24 @@ impl TabView {
                     rect.right - rect.left,
                     rect.bottom - rect.top,
                     1,
-                );
-            }
+                )
+            )?;
         }
+        Ok(())
     }
 
-    pub fn selection(&self) -> Option<usize> {
+    fn selection_impl(&self) -> Option<usize> {
         let i = self.handle.send_message(TCM_GETCURSEL, 0, 0);
         if i < 0 { None } else { Some(i as _) }
     }
 
-    pub fn set_selection(&mut self, i: usize) {
+    pub fn selection(&self) -> Result<Option<usize>> {
+        Ok(self.selection_impl())
+    }
+
+    pub fn set_selection(&mut self, i: usize) -> Result<()> {
         self.handle.send_message(TCM_SETCURSEL, i as _, 0);
+        Ok(())
     }
 
     pub async fn wait_select(&self) {
@@ -117,7 +122,7 @@ impl TabView {
                     ShowWindow(view.inner.borrow().view.as_raw_widget().as_win32(), SW_HIDE);
                 }
             }
-            let sel = self.selection();
+            let sel = self.selection_impl();
             self.current_view.set(sel);
             if let Some(sel) = sel {
                 if let Some(view) = self.views.get(sel) {
@@ -133,7 +138,7 @@ impl TabView {
         }
     }
 
-    pub fn insert(&mut self, i: usize, item: &TabViewItem) {
+    pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
         self.views.insert(i, item.clone());
         {
             let mut inner = item.inner.borrow_mut();
@@ -150,42 +155,46 @@ impl TabView {
                 };
                 self.handle
                     .send_message(TCM_INSERTITEMW, i, std::ptr::addr_of_mut!(item) as _);
-            });
+                Ok(())
+            })?;
             // The updown control is created lazily.
             unsafe {
                 children_refresh_dark_mode(self.handle.as_raw_widget().as_win32(), 0);
             }
         }
         self.reset_indices();
-        if self.len() == 1 {
+        if self.len()? == 1 {
             self.show_current_view();
         }
+        Ok(())
     }
 
-    pub fn remove(&mut self, i: usize) {
-        let cur = self.selection();
+    pub fn remove(&mut self, i: usize) -> Result<()> {
+        let cur = self.selection()?;
         let need_reselect = cur == Some(i);
         self.handle.send_message(TCM_DELETEITEM, i, 0);
         self.views.remove(i);
         self.reset_indices();
         if need_reselect {
-            self.set_selection(0);
+            self.set_selection(0)?;
         }
+        Ok(())
     }
 
-    pub fn len(&self) -> usize {
-        self.handle.send_message(TCM_GETITEMCOUNT, 0, 0) as _
+    pub fn len(&self) -> Result<usize> {
+        Ok(self.handle.send_message(TCM_GETITEMCOUNT, 0, 0) as _)
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
+    pub fn is_empty(&self) -> Result<bool> {
+        Ok(self.len()? == 0)
     }
 
-    pub fn clear(&mut self) {
+    pub fn clear(&mut self) -> Result<()> {
         self.handle.send_message(TCM_DELETEALLITEMS, 0, 0);
         for item in self.views.drain(..) {
             item.inner.borrow_mut().index = None;
         }
+        Ok(())
     }
 }
 
@@ -204,21 +213,21 @@ pub struct TabViewItem {
 }
 
 impl TabViewItem {
-    pub fn new(parent: &TabView) -> Self {
-        Self {
+    pub fn new(parent: &TabView) -> Result<Self> {
+        Ok(Self {
             inner: Rc::new(RefCell::new(TabViewItemInner {
-                view: View::new_hidden(parent.as_raw_widget().as_win32()),
+                view: View::new_hidden(parent.as_raw_widget().as_win32())?,
                 title: String::new(),
                 index: None,
             })),
-        }
+        })
     }
 
-    pub fn text(&self) -> String {
-        self.inner.borrow().title.clone()
+    pub fn text(&self) -> Result<String> {
+        Ok(self.inner.borrow().title.clone())
     }
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         let mut inner = self.inner.borrow_mut();
         inner.title = s.as_ref().to_string();
         unsafe {
@@ -240,14 +249,16 @@ impl TabViewItem {
                             TCM_SETITEMW,
                             index,
                             std::ptr::addr_of_mut!(item) as _,
-                        )
-                    });
+                        );
+                        Ok(())
+                    })?;
                 }
             }
         }
+        Ok(())
     }
 
-    pub fn size(&self) -> Size {
+    pub fn size(&self) -> Result<Size> {
         self.inner.borrow().view.size()
     }
 }

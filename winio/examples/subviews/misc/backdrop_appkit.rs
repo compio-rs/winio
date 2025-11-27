@@ -1,5 +1,7 @@
 use inherit_methods_macro::inherit_methods;
-use winio::prelude::*;
+use winio::prelude::{Error as SysError, Result as SysResult, *};
+
+use crate::{Error, Result};
 
 pub struct BackdropChooser {
     combo: Child<ComboBox>,
@@ -17,11 +19,12 @@ pub enum BackdropChooserMessage {
 }
 
 impl Component for BackdropChooser {
+    type Error = Error;
     type Event = BackdropChooserEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = BackdropChooserMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             combo: ComboBox = (&init) => {
                 items: [
@@ -48,7 +51,7 @@ impl Component for BackdropChooser {
                 ],
             }
         }
-        Self { combo }
+        Ok(Self { combo })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -61,11 +64,15 @@ impl Component for BackdropChooser {
     }
 
     #[allow(deprecated)]
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
         match message {
-            BackdropChooserMessage::Noop => false,
+            BackdropChooserMessage::Noop => Ok(false),
             BackdropChooserMessage::Select => {
-                let vibrancy = match self.combo.selection() {
+                let vibrancy = match self.combo.selection()? {
                     Some(0) => None,
                     Some(index) => Some(match index {
                         1 => Vibrancy::AppearanceBased,
@@ -92,25 +99,27 @@ impl Component for BackdropChooser {
                     _ => None,
                 };
                 sender.output(BackdropChooserEvent::ChooseVibrancy(vibrancy));
-                true
+                Ok(true)
             }
         }
     }
+}
 
-    fn render(&mut self, _sender: &ComponentSender<Self>) {}
+impl Failable for BackdropChooser {
+    type Error = SysError;
 }
 
 #[inherit_methods(from = "self.combo")]
 impl Layoutable for BackdropChooser {
-    fn loc(&self) -> Point;
+    fn loc(&self) -> SysResult<Point>;
 
-    fn set_loc(&mut self, _p: Point);
+    fn set_loc(&mut self, p: Point) -> SysResult<()>;
 
-    fn size(&self) -> Size;
+    fn size(&self) -> SysResult<Size>;
 
-    fn set_size(&mut self, _s: Size);
+    fn set_size(&mut self, s: Size) -> SysResult<()>;
 
-    fn preferred_size(&self) -> Size;
+    fn preferred_size(&self) -> SysResult<Size>;
 
-    fn min_size(&self) -> Size;
+    fn min_size(&self) -> SysResult<Size>;
 }

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, future::Future, rc::Rc};
+use std::{cell::RefCell, future::Future, io, rc::Rc};
 
 use inherit_methods_macro::inherit_methods;
 use webview2::{
@@ -13,7 +13,7 @@ use webview2::{
 };
 use windows::{
     Win32::Foundation::{E_FAIL, HWND, RECT},
-    core::{Error, HRESULT, PCWSTR, Ref, Result, implement},
+    core::{HRESULT, PCWSTR, Ref, implement},
 };
 use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
 use winio_callback::Callback;
@@ -21,7 +21,10 @@ use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Point, Rect, Size};
 use winio_ui_windows_common::{CoTaskMemPtr, WebViewErrLabelImpl, WebViewImpl, WebViewLazy};
 
-use crate::ui::{TextBox, fix_crlf, with_u16c};
+use crate::{
+    Result,
+    ui::{TextBox, fix_crlf, with_u16c},
+};
 
 #[derive(Debug)]
 pub struct WebViewInner {
@@ -32,34 +35,32 @@ pub struct WebViewInner {
 }
 
 impl WebViewInner {
-    fn dpi(&self) -> f64 {
+    fn dpi(&self) -> Result<f64> {
         unsafe {
-            let hwnd = self.host.ParentWindow().unwrap();
-            GetDpiForWindow(hwnd.0) as f64 / 96.0
+            let hwnd = self.host.ParentWindow()?;
+            Ok(GetDpiForWindow(hwnd.0) as f64 / 96.0)
         }
     }
 
-    fn rect(&self) -> Rect {
-        let rect = unsafe { self.host.Bounds() }.unwrap();
-        Rect::new(
+    fn rect(&self) -> Result<Rect> {
+        let rect = unsafe { self.host.Bounds() }?;
+        Ok(Rect::new(
             Point::new(rect.left as _, rect.top as _),
             Size::new((rect.right - rect.left) as _, (rect.bottom - rect.top) as _),
-        ) / self.dpi()
+        ) / self.dpi()?)
     }
 
-    #[allow(clippy::missing_transmute_annotations)]
-    fn set_rect(&mut self, r: Rect) {
-        let r = r * self.dpi();
+    fn set_rect(&mut self, r: Rect) -> Result<()> {
+        let r = r * self.dpi()?;
         unsafe {
-            self.host
-                .SetBounds(RECT {
-                    left: r.origin.x as _,
-                    top: r.origin.y as _,
-                    right: (r.origin.x + r.size.width) as _,
-                    bottom: (r.origin.y + r.size.height) as _,
-                })
-                .unwrap();
+            self.host.SetBounds(RECT {
+                left: r.origin.x as _,
+                top: r.origin.y as _,
+                right: (r.origin.x + r.size.width) as _,
+                bottom: (r.origin.y + r.size.height) as _,
+            })?;
         }
+        Ok(())
     }
 }
 
@@ -84,7 +85,9 @@ impl WebViewImpl for WebViewInner {
                 Ok(())
             }))?;
         }
-        let (host, view) = rx.await.map_err(|_| Error::from_hresult(E_FAIL))?;
+        let (host, view) = rx
+            .await
+            .map_err(|_| io::Error::from_raw_os_error(E_FAIL.0))?;
         let navigating = Rc::new(Callback::new());
         unsafe {
             let navigating = navigating.clone();
@@ -109,94 +112,105 @@ impl WebViewImpl for WebViewInner {
         })
     }
 
-    fn is_visible(&self) -> bool {
-        unsafe { self.host.IsVisible().unwrap().as_bool() }
+    fn is_visible(&self) -> Result<bool> {
+        unsafe { Ok(self.host.IsVisible()?.as_bool()) }
     }
 
-    fn set_visible(&mut self, v: bool) {
+    fn set_visible(&mut self, v: bool) -> Result<()> {
         unsafe {
-            self.host.SetIsVisible(v).unwrap();
+            self.host.SetIsVisible(v)?;
+            Ok(())
         }
     }
 
-    fn is_enabled(&self) -> bool {
-        true
+    fn is_enabled(&self) -> Result<bool> {
+        Ok(true)
     }
 
-    fn set_enabled(&mut self, _: bool) {}
-
-    fn loc(&self) -> Point {
-        self.rect().origin
+    fn set_enabled(&mut self, _: bool) -> Result<()> {
+        Ok(())
     }
 
-    fn set_loc(&mut self, p: Point) {
-        let mut rect = self.rect();
+    fn loc(&self) -> Result<Point> {
+        Ok(self.rect()?.origin)
+    }
+
+    fn set_loc(&mut self, p: Point) -> Result<()> {
+        let mut rect = self.rect()?;
         rect.origin = p;
-        self.set_rect(rect);
+        self.set_rect(rect)
     }
 
-    fn size(&self) -> Size {
-        self.rect().size
+    fn size(&self) -> Result<Size> {
+        Ok(self.rect()?.size)
     }
 
-    fn set_size(&mut self, v: Size) {
-        let mut rect = self.rect();
+    fn set_size(&mut self, v: Size) -> Result<()> {
+        let mut rect = self.rect()?;
         rect.size = v;
-        self.set_rect(rect);
+        self.set_rect(rect)
     }
 
-    fn source(&self) -> String {
+    fn source(&self) -> Result<String> {
         unsafe {
-            let source = CoTaskMemPtr::new(self.view.Source().unwrap().0);
-            PCWSTR(source.as_ptr()).to_string().unwrap()
+            let source = CoTaskMemPtr::new(self.view.Source()?.0);
+            Ok(PCWSTR(source.as_ptr())
+                .to_string()
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?)
         }
     }
 
-    fn set_source(&mut self, s: impl AsRef<str>) {
+    fn set_source(&mut self, s: impl AsRef<str>) -> Result<()> {
         let s = s.as_ref();
         if s.is_empty() {
             return self.set_html("");
         }
         with_u16c(s, |s| unsafe {
-            self.view.Navigate(PCWSTR(s.as_ptr())).unwrap();
+            self.view.Navigate(PCWSTR(s.as_ptr()))?;
+            Ok(())
         })
     }
 
-    fn set_html(&mut self, s: impl AsRef<str>) {
+    fn set_html(&mut self, s: impl AsRef<str>) -> Result<()> {
         with_u16c(s.as_ref(), |s| unsafe {
-            self.view.NavigateToString(PCWSTR(s.as_ptr())).unwrap();
+            self.view.NavigateToString(PCWSTR(s.as_ptr()))?;
+            Ok(())
         })
     }
 
-    fn can_go_forward(&self) -> bool {
-        unsafe { self.view.CanGoForward().unwrap().as_bool() }
+    fn can_go_forward(&self) -> Result<bool> {
+        unsafe { Ok(self.view.CanGoForward()?.as_bool()) }
     }
 
-    fn go_forward(&mut self) {
+    fn go_forward(&mut self) -> Result<()> {
         unsafe {
-            self.view.GoForward().unwrap();
+            self.view.GoForward()?;
+            Ok(())
         }
     }
 
-    fn can_go_back(&self) -> bool {
-        unsafe { self.view.CanGoBack().unwrap().as_bool() }
+    fn can_go_back(&self) -> Result<bool> {
+        unsafe { Ok(self.view.CanGoBack()?.as_bool()) }
     }
 
-    fn go_back(&mut self) {
+    fn go_back(&mut self) -> Result<()> {
         unsafe {
-            self.view.GoBack().unwrap();
+            self.view.GoBack()?;
+            Ok(())
         }
     }
 
-    fn reload(&mut self) {
+    fn reload(&mut self) -> Result<()> {
         unsafe {
-            self.view.Reload().unwrap();
+            self.view.Reload()?;
+            Ok(())
         }
     }
 
-    fn stop(&mut self) {
+    fn stop(&mut self) -> Result<()> {
         unsafe {
-            self.view.Stop().unwrap();
+            self.view.Stop()?;
+            Ok(())
         }
     }
 
@@ -228,33 +242,33 @@ pub struct WebViewErrLabelInner {
 
 #[inherit_methods(from = "self.handle")]
 impl WebViewErrLabelImpl for WebViewErrLabelInner {
-    fn new(parent: impl AsContainer) -> Self {
-        let mut handle = TextBox::new_raw(parent);
-        handle.set_readonly(true);
-        Self { handle }
+    fn new(parent: impl AsContainer) -> Result<Self> {
+        let mut handle = TextBox::new_raw(parent)?;
+        handle.set_readonly(true)?;
+        Ok(Self { handle })
     }
 
-    fn is_visible(&self) -> bool;
+    fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool);
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    fn is_enabled(&self) -> bool;
+    fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool);
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    fn loc(&self) -> Point;
+    fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, v: Point);
+    fn set_loc(&mut self, v: Point) -> Result<()>;
 
-    fn size(&self) -> Size;
+    fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size);
+    fn set_size(&mut self, v: Size) -> Result<()>;
 
-    fn text(&self) -> String {
-        self.handle.text().replace("\r\n", "\n")
+    fn text(&self) -> Result<String> {
+        Ok(self.handle.text()?.replace("\r\n", "\n"))
     }
 
-    fn set_text(&mut self, s: impl AsRef<str>) {
+    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         self.handle.set_text(fix_crlf(s.as_ref()))
     }
 }

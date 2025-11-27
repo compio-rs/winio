@@ -44,7 +44,7 @@ const fn color(dark: bool) -> Color {
 }
 
 fn update_color(controller: &DesktopAcrylicController) -> Result<()> {
-    let color = color(color_theme() == ColorTheme::Dark);
+    let color = color(color_theme()? == ColorTheme::Dark);
     controller.SetTintColor(color)?;
     controller.SetFallbackColor(color)?;
     Ok(())

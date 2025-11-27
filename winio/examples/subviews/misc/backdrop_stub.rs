@@ -1,4 +1,6 @@
-use winio::prelude::*;
+use winio::prelude::{Error as SysError, Result as SysResult, *};
+
+use crate::{Error, Result};
 
 pub struct BackdropChooser {}
 
@@ -9,35 +11,34 @@ pub enum BackdropChooserEvent {}
 pub enum BackdropChooserMessage {}
 
 impl Component for BackdropChooser {
+    type Error = Error;
     type Event = BackdropChooserEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = BackdropChooserMessage;
 
-    fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        Self {}
+    fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        Ok(Self {})
     }
+}
 
-    async fn start(&mut self, _sender: &ComponentSender<Self>) -> ! {
-        std::future::pending().await
-    }
-
-    async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
-        false
-    }
-
-    fn render(&mut self, _sender: &ComponentSender<Self>) {}
+impl Failable for BackdropChooser {
+    type Error = SysError;
 }
 
 impl Layoutable for BackdropChooser {
-    fn loc(&self) -> Point {
-        Point::zero()
+    fn loc(&self) -> SysResult<Point> {
+        Ok(Point::zero())
     }
 
-    fn set_loc(&mut self, _p: Point) {}
-
-    fn size(&self) -> Size {
-        Size::zero()
+    fn set_loc(&mut self, _p: Point) -> SysResult<()> {
+        Ok(())
     }
 
-    fn set_size(&mut self, _s: Size) {}
+    fn size(&self) -> SysResult<Size> {
+        Ok(Size::zero())
+    }
+
+    fn set_size(&mut self, _s: Size) -> SysResult<()> {
+        Ok(())
+    }
 }

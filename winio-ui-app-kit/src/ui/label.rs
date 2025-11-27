@@ -4,7 +4,7 @@ use objc2_app_kit::{NSTextAlignment, NSTextField};
 use winio_handle::AsContainer;
 use winio_primitive::{HAlign, Point, Size};
 
-use crate::ui::Widget;
+use crate::{Result, catch, ui::Widget};
 
 #[derive(Debug)]
 pub struct Label {
@@ -14,69 +14,71 @@ pub struct Label {
 
 #[inherit_methods(from = "self.handle")]
 impl Label {
-    pub fn new(parent: impl AsContainer) -> Self {
-        unsafe {
-            let parent = parent.as_container();
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let parent = parent.as_container();
 
+        catch(|| unsafe {
             let view = NSTextField::new(parent.mtm());
             view.setBezeled(false);
             view.setDrawsBackground(false);
             view.setEditable(false);
             view.setSelectable(false);
-            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
+            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()))?;
 
-            Self { handle, view }
-        }
+            Ok(Self { handle, view })
+        })
+        .flatten()
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Size {
-        let mut size = self.handle.preferred_size();
+    pub fn preferred_size(&self) -> Result<Size> {
+        let mut size = self.handle.preferred_size()?;
         size.width += 8.0;
-        size
+        Ok(size)
     }
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn text(&self) -> String;
+    pub fn text(&self) -> Result<String>;
 
-    pub fn set_text(&mut self, s: impl AsRef<str>);
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn halign(&self) -> HAlign {
-        let align = self.view.alignment();
-        match align {
+    pub fn halign(&self) -> Result<HAlign> {
+        let align = catch(|| self.view.alignment())?;
+        let align = match align {
             NSTextAlignment::Right => HAlign::Right,
             NSTextAlignment::Center => HAlign::Center,
             NSTextAlignment::Justified => HAlign::Stretch,
             _ => HAlign::Left,
-        }
+        };
+        Ok(align)
     }
 
-    pub fn set_halign(&mut self, align: HAlign) {
+    pub fn set_halign(&mut self, align: HAlign) -> Result<()> {
         let align = match align {
             HAlign::Left => NSTextAlignment::Left,
             HAlign::Center => NSTextAlignment::Center,
             HAlign::Right => NSTextAlignment::Right,
             HAlign::Stretch => NSTextAlignment::Justified,
         };
-        self.view.setAlignment(align);
+        catch(|| self.view.setAlignment(align))
     }
 }
 

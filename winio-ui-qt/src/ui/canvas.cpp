@@ -113,7 +113,7 @@ void painter_draw_text(QPainter &p, QRectF rect, rust::Str text) {
     p.drawText(rect, QString::fromUtf8(text.data(), text.size()), option);
 }
 
-void color_transparent(QColor &c) { new (&c) QColor{Qt::transparent}; }
+void color_transparent(QColor &c) noexcept { new (&c) QColor{Qt::transparent}; }
 
 bool color_accent(QColor &c) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)

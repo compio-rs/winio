@@ -9,7 +9,7 @@ use winio_callback::Callback;
 use winio_handle::{AsContainer, BorrowedContainer};
 use winio_primitive::{Orient, Point, Size};
 
-use crate::{GlobalRuntime, ui::Widget};
+use crate::{GlobalRuntime, Result, catch, ui::Widget};
 
 #[derive(Debug)]
 struct ScrollBarImpl {
@@ -21,11 +21,11 @@ struct ScrollBarImpl {
 
 #[inherit_methods(from = "self.handle")]
 impl ScrollBarImpl {
-    pub fn new(parent: impl AsContainer, vertical: bool) -> Self {
-        unsafe {
-            let parent = parent.as_container();
-            let mtm = parent.mtm();
+    pub fn new(parent: impl AsContainer, vertical: bool) -> Result<Self> {
+        let parent = parent.as_container();
+        let mtm = parent.mtm();
 
+        catch(|| unsafe {
             let view = CustomScroller::new(
                 mtm,
                 if vertical {
@@ -34,75 +34,82 @@ impl ScrollBarImpl {
                     NSRect::new(NSPoint::ZERO, NSSize::new(20.0, 10.0))
                 },
             );
-            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()));
+            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()))?;
 
             view.setEnabled(true);
 
-            Self {
+            Ok(Self {
                 handle,
                 view,
                 min: 0,
                 max: 0,
-            }
-        }
+            })
+        })
+        .flatten()
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn minimum(&self) -> usize {
-        self.min
+    pub fn minimum(&self) -> Result<usize> {
+        Ok(self.min)
     }
 
-    pub fn set_minimum(&mut self, v: usize) {
-        let pos = self.pos();
+    pub fn set_minimum(&mut self, v: usize) -> Result<()> {
+        let pos = self.pos()?;
         self.min = v;
-        self.set_pos(pos);
+        self.set_pos(pos)
     }
 
-    pub fn maximum(&self) -> usize {
-        self.max
+    pub fn maximum(&self) -> Result<usize> {
+        Ok(self.max)
     }
 
-    pub fn set_maximum(&mut self, v: usize) {
-        let pos = self.pos();
+    pub fn set_maximum(&mut self, v: usize) -> Result<()> {
+        let pos = self.pos()?;
         self.max = v;
-        self.set_pos(pos);
+        self.set_pos(pos)
     }
 
-    pub fn page(&self) -> usize {
-        (self.view.knobProportion() * (self.max - self.min) as f64) as usize
+    pub fn page(&self) -> Result<usize> {
+        catch(|| (self.view.knobProportion() * (self.max - self.min) as f64) as usize)
     }
 
-    pub fn set_page(&mut self, v: usize) {
-        self.view
-            .setKnobProportion(v as f64 / ((self.max - self.min) as f64));
+    pub fn set_page(&mut self, v: usize) -> Result<()> {
+        catch(|| {
+            self.view
+                .setKnobProportion(v as f64 / ((self.max - self.min) as f64))
+        })
     }
 
-    pub fn pos(&self) -> usize {
-        (self.view.doubleValue() * (self.max - self.page() - self.min) as f64) as usize
+    pub fn pos(&self) -> Result<usize> {
+        let page = self.page()?;
+        catch(|| (self.view.doubleValue() * (self.max - page - self.min) as f64) as usize)
     }
 
-    pub fn set_pos(&mut self, v: usize) {
-        self.view
-            .setDoubleValue(v as f64 / ((self.max - self.page() - self.min) as f64));
+    pub fn set_pos(&mut self, v: usize) -> Result<()> {
+        let page = self.page()?;
+        catch(|| {
+            self.view
+                .setDoubleValue(v as f64 / ((self.max - page - self.min) as f64))
+        })
     }
 
     pub async fn wait_change(&self) {
@@ -155,94 +162,98 @@ pub struct ScrollBar {
 
 #[inherit_methods(from = "self.handle")]
 impl ScrollBar {
-    pub fn new(parent: impl AsContainer) -> Self {
-        let handle = ScrollBarImpl::new(&parent, false);
-        Self {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let handle = ScrollBarImpl::new(&parent, false)?;
+        Ok(Self {
             handle,
             vertical: false,
-        }
+        })
     }
 
-    fn recreate(&mut self, vertical: bool) {
-        let parent = self.handle.handle.parent();
+    fn recreate(&mut self, vertical: bool) -> Result<()> {
+        let parent = self.handle.handle.parent()?;
         let mut new_handle =
-            ScrollBarImpl::new(unsafe { BorrowedContainer::borrow_raw(parent) }, vertical);
-        new_handle.set_visible(self.handle.is_visible());
-        new_handle.set_enabled(self.handle.is_enabled());
-        new_handle.set_loc(self.handle.loc());
-        new_handle.set_size(self.handle.size());
-        new_handle.set_tooltip(self.handle.tooltip());
-        new_handle.set_minimum(self.handle.minimum());
-        new_handle.set_maximum(self.handle.maximum());
-        new_handle.set_page(self.handle.page());
-        new_handle.set_pos(self.handle.pos());
+            ScrollBarImpl::new(unsafe { BorrowedContainer::borrow_raw(parent) }, vertical)?;
+        new_handle.set_visible(self.handle.is_visible()?)?;
+        new_handle.set_enabled(self.handle.is_enabled()?)?;
+        new_handle.set_loc(self.handle.loc()?)?;
+        new_handle.set_size(self.handle.size()?)?;
+        new_handle.set_tooltip(self.handle.tooltip()?)?;
+        new_handle.set_minimum(self.handle.minimum()?)?;
+        new_handle.set_maximum(self.handle.maximum()?)?;
+        new_handle.set_page(self.handle.page()?)?;
+        new_handle.set_pos(self.handle.pos()?)?;
         self.handle = new_handle;
+        Ok(())
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Size {
-        let width = NSScroller::scrollerWidthForControlSize_scrollerStyle(
-            NSControlSize::Regular,
-            NSScrollerStyle::Overlay,
-            self.handle.view.mtm(),
-        );
+    pub fn preferred_size(&self) -> Result<Size> {
+        catch(|| {
+            let width = NSScroller::scrollerWidthForControlSize_scrollerStyle(
+                NSControlSize::Regular,
+                NSScrollerStyle::Overlay,
+                self.handle.view.mtm(),
+            );
+            if self.vertical {
+                Size::new(width, 0.0)
+            } else {
+                Size::new(0.0, width)
+            }
+        })
+    }
+
+    pub fn loc(&self) -> Result<Point>;
+
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
+
+    pub fn size(&self) -> Result<Size>;
+
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
+
+    pub fn tooltip(&self) -> Result<String>;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn orient(&self) -> Result<Orient> {
         if self.vertical {
-            Size::new(width, 0.0)
+            Ok(Orient::Vertical)
         } else {
-            Size::new(0.0, width)
+            Ok(Orient::Horizontal)
         }
     }
 
-    pub fn loc(&self) -> Point;
-
-    pub fn set_loc(&mut self, p: Point);
-
-    pub fn size(&self) -> Size;
-
-    pub fn set_size(&mut self, v: Size);
-
-    pub fn tooltip(&self) -> String;
-
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
-
-    pub fn orient(&self) -> Orient {
-        if self.vertical {
-            Orient::Vertical
-        } else {
-            Orient::Horizontal
-        }
-    }
-
-    pub fn set_orient(&mut self, v: Orient) {
+    pub fn set_orient(&mut self, v: Orient) -> Result<()> {
         let v = matches!(v, Orient::Vertical);
         if self.vertical != v {
-            self.recreate(v);
+            self.recreate(v)?;
             self.vertical = v;
         }
+        Ok(())
     }
 
-    pub fn minimum(&self) -> usize;
+    pub fn minimum(&self) -> Result<usize>;
 
-    pub fn set_minimum(&mut self, v: usize);
+    pub fn set_minimum(&mut self, v: usize) -> Result<()>;
 
-    pub fn maximum(&self) -> usize;
+    pub fn maximum(&self) -> Result<usize>;
 
-    pub fn set_maximum(&mut self, v: usize);
+    pub fn set_maximum(&mut self, v: usize) -> Result<()>;
 
-    pub fn page(&self) -> usize;
+    pub fn page(&self) -> Result<usize>;
 
-    pub fn set_page(&mut self, v: usize);
+    pub fn set_page(&mut self, v: usize) -> Result<()>;
 
-    pub fn pos(&self) -> usize;
+    pub fn pos(&self) -> Result<usize>;
 
-    pub fn set_pos(&mut self, v: usize);
+    pub fn set_pos(&mut self, v: usize) -> Result<()>;
 
     pub async fn wait_change(&self) {
         self.handle.wait_change().await

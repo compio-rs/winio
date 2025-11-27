@@ -1,6 +1,7 @@
-use std::{mem::MaybeUninit, sync::Arc, time::Duration};
+use std::{io, mem::MaybeUninit, sync::Arc, time::Duration};
 
 use compio::driver::syscall;
+use compio_log::error;
 use inherit_methods_macro::inherit_methods;
 use windows::{
     Win32::{
@@ -16,8 +17,9 @@ use windows::{
             CoUninitialize,
         },
     },
-    core::{BSTR, Interface, Result, implement},
+    core::{BSTR, HRESULT, Interface, implement},
 };
+use windows_core::Error;
 use windows_sys::Win32::{
     System::SystemServices::SS_OWNERDRAW,
     UI::{
@@ -29,13 +31,13 @@ use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, AsRawWidget, AsRawWindow};
 use winio_primitive::{Point, Size};
 
-use crate::{Widget, ui::with_u16c};
+use crate::{Result, Widget, ui::with_u16c};
 
 #[derive(Debug)]
 pub struct Media {
     handle: Widget,
     engine: IMFMediaEngine,
-    notify: Arc<SyncCallback<bool>>,
+    notify: Arc<SyncCallback<Result<()>>>,
     #[allow(dead_code)]
     callback: IMFMediaEngineNotify,
     _guard: MFGuard,
@@ -43,138 +45,140 @@ pub struct Media {
 
 #[inherit_methods(from = "self.handle")]
 impl Media {
-    pub fn new(parent: impl AsContainer) -> Self {
-        let _guard = MFGuard::init();
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let _guard = MFGuard::init()?;
 
         let parent = parent.as_container().as_win32();
 
-        let mut handle = Widget::new(WC_STATICW, WS_VISIBLE | WS_CHILD | SS_OWNERDRAW, 0, parent);
-        handle.set_size(handle.size_d2l((50, 14)));
+        let handle = Widget::new(WC_STATICW, WS_VISIBLE | WS_CHILD | SS_OWNERDRAW, 0, parent)?;
 
         unsafe {
             let factory: IMFMediaEngineClassFactory =
-                CoCreateInstance(&CLSID_MFMediaEngineClassFactory, None, CLSCTX_INPROC_SERVER)
-                    .unwrap();
+                CoCreateInstance(&CLSID_MFMediaEngineClassFactory, None, CLSCTX_INPROC_SERVER)?;
 
             let notify = Arc::new(SyncCallback::new());
             let callback: IMFMediaEngineNotify = MediaNotify::new(notify.clone()).into();
 
             let mut attrs = None;
-            MFCreateAttributes(&mut attrs, 1).unwrap();
-            let attrs = attrs.unwrap();
-            attrs
-                .SetUnknown(&MF_MEDIA_ENGINE_CALLBACK, &callback)
-                .unwrap();
-            attrs
-                .SetUINT64(
-                    &MF_MEDIA_ENGINE_PLAYBACK_HWND,
-                    handle.as_raw_window().as_win32() as _,
-                )
-                .unwrap();
+            MFCreateAttributes(&mut attrs, 1)?;
+            let attrs = attrs.ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidData, "cannot create IMFAttributes")
+            })?;
+            attrs.SetUnknown(&MF_MEDIA_ENGINE_CALLBACK, &callback)?;
+            attrs.SetUINT64(
+                &MF_MEDIA_ENGINE_PLAYBACK_HWND,
+                handle.as_raw_window().as_win32() as _,
+            )?;
 
-            let engine = factory.CreateInstance(0, &attrs).unwrap();
+            let engine = factory.CreateInstance(0, &attrs)?;
 
-            Self {
+            Ok(Self {
                 handle,
                 callback,
                 notify,
                 engine,
                 _guard,
-            }
+            })
         }
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Size {
-        Size::zero()
+    pub fn preferred_size(&self) -> Result<Size> {
+        Ok(Size::zero())
     }
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) {
-        self.handle.set_size(v);
-        self.update_rect();
+    pub fn set_size(&mut self, v: Size) -> Result<()> {
+        self.handle.set_size(v)?;
+        self.update_rect()
     }
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    fn update_rect(&mut self) {
+    fn update_rect(&mut self) -> Result<()> {
         let handle = self.as_raw_widget().as_win32();
         let mut rect = MaybeUninit::uninit();
-        syscall!(BOOL, unsafe { GetClientRect(handle, rect.as_mut_ptr()) }).unwrap();
+        syscall!(BOOL, unsafe { GetClientRect(handle, rect.as_mut_ptr()) })?;
         let rect = unsafe { rect.assume_init() };
 
         unsafe {
-            self.engine
-                .cast::<IMFMediaEngineEx>()
-                .unwrap()
-                .UpdateVideoStream(None, Some(std::ptr::addr_of!(rect).cast()), None)
-                .unwrap();
+            self.engine.cast::<IMFMediaEngineEx>()?.UpdateVideoStream(
+                None,
+                Some(std::ptr::addr_of!(rect).cast()),
+                None,
+            )?;
         }
+        Ok(())
     }
 
-    pub fn url(&self) -> String {
-        unsafe { self.engine.GetCurrentSource().unwrap().to_string() }
+    pub fn url(&self) -> Result<String> {
+        unsafe { Ok(self.engine.GetCurrentSource()?.to_string()) }
     }
 
-    pub async fn load(&mut self, url: impl AsRef<str>) -> bool {
+    pub async fn load(&mut self, url: impl AsRef<str>) -> Result<()> {
+        let url = percent_encoding::percent_decode_str(url.as_ref()).decode_utf8_lossy();
         unsafe {
             with_u16c(url.as_ref(), |s| {
-                self.engine
-                    .SetSource(&BSTR::from_wide(s.as_slice()))
-                    .unwrap();
-            })
+                self.engine.SetSource(&BSTR::from_wide(s.as_slice()))?;
+                Ok(())
+            })?;
         }
         self.notify.wait().await
     }
 
-    pub fn play(&mut self) {
-        unsafe { self.engine.Play().unwrap() }
+    pub fn play(&mut self) -> Result<()> {
+        unsafe { self.engine.Play()? };
+        Ok(())
     }
 
-    pub fn pause(&mut self) {
-        unsafe { self.engine.Pause().unwrap() }
+    pub fn pause(&mut self) -> Result<()> {
+        unsafe { self.engine.Pause()? };
+        Ok(())
     }
 
-    pub fn full_time(&self) -> Option<Duration> {
-        unsafe { Duration::try_from_secs_f64(self.engine.GetDuration()).ok() }
+    pub fn full_time(&self) -> Result<Option<Duration>> {
+        unsafe { Ok(Duration::try_from_secs_f64(self.engine.GetDuration()).ok()) }
     }
 
-    pub fn current_time(&self) -> Duration {
-        unsafe { Duration::from_secs_f64(self.engine.GetCurrentTime()) }
+    pub fn current_time(&self) -> Result<Duration> {
+        unsafe { Ok(Duration::from_secs_f64(self.engine.GetCurrentTime())) }
     }
 
-    pub fn set_current_time(&mut self, t: Duration) {
-        unsafe { self.engine.SetCurrentTime(t.as_secs_f64()).unwrap() }
+    pub fn set_current_time(&mut self, t: Duration) -> Result<()> {
+        unsafe { self.engine.SetCurrentTime(t.as_secs_f64())? };
+        Ok(())
     }
 
-    pub fn volume(&self) -> f64 {
-        unsafe { self.engine.GetVolume() }
+    pub fn volume(&self) -> Result<f64> {
+        unsafe { Ok(self.engine.GetVolume()) }
     }
 
-    pub fn set_volume(&mut self, v: f64) {
-        unsafe { self.engine.SetVolume(v).unwrap() }
+    pub fn set_volume(&mut self, v: f64) -> Result<()> {
+        unsafe { self.engine.SetVolume(v)? };
+        Ok(())
     }
 
-    pub fn is_muted(&self) -> bool {
-        unsafe { self.engine.GetMuted().as_bool() }
+    pub fn is_muted(&self) -> Result<bool> {
+        unsafe { Ok(self.engine.GetMuted().as_bool()) }
     }
 
-    pub fn set_muted(&mut self, v: bool) {
-        unsafe { self.engine.SetMuted(v).unwrap() }
+    pub fn set_muted(&mut self, v: bool) -> Result<()> {
+        unsafe { self.engine.SetMuted(v)? };
+        Ok(())
     }
 }
 
@@ -184,19 +188,21 @@ winio_handle::impl_as_widget!(Media, handle);
 struct MFGuard;
 
 impl MFGuard {
-    pub fn init() -> Self {
+    pub fn init() -> Result<Self> {
         unsafe {
-            CoInitializeEx(None, COINIT_APARTMENTTHREADED).unwrap();
-            MFStartup(MF_VERSION, MFSTARTUP_FULL).unwrap();
+            CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok()?;
+            MFStartup(MF_VERSION, MFSTARTUP_FULL)?;
         }
-        Self
+        Ok(Self)
     }
 }
 
 impl Drop for MFGuard {
     fn drop(&mut self) {
         unsafe {
-            MFShutdown().unwrap();
+            if let Err(_e) = MFShutdown() {
+                error!("MFShutdown: {:?}", _e);
+            }
             CoUninitialize();
         }
     }
@@ -204,20 +210,20 @@ impl Drop for MFGuard {
 
 #[implement(IMFMediaEngineNotify)]
 struct MediaNotify {
-    notify: Arc<SyncCallback<bool>>,
+    notify: Arc<SyncCallback<Result<()>>>,
 }
 
 impl MediaNotify {
-    pub fn new(notify: Arc<SyncCallback<bool>>) -> Self {
+    pub fn new(notify: Arc<SyncCallback<Result<()>>>) -> Self {
         Self { notify }
     }
 }
 
 impl IMFMediaEngineNotify_Impl for MediaNotify_Impl {
-    fn EventNotify(&self, event: u32, _param1: usize, _param2: u32) -> Result<()> {
+    fn EventNotify(&self, event: u32, _param1: usize, param2: u32) -> Result<()> {
         let msg = match MF_MEDIA_ENGINE_EVENT(event as _) {
-            MF_MEDIA_ENGINE_EVENT_CANPLAY => Some(true),
-            MF_MEDIA_ENGINE_EVENT_ERROR => Some(false),
+            MF_MEDIA_ENGINE_EVENT_CANPLAY => Some(Ok(())),
+            MF_MEDIA_ENGINE_EVENT_ERROR => Some(Err(Error::from_hresult(HRESULT(param2 as _)))),
             _ => None,
         };
         if let Some(msg) = msg {

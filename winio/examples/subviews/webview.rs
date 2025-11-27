@@ -1,7 +1,8 @@
 use std::ops::Deref;
 
-use tuplex::IntoArray;
 use winio::prelude::*;
+
+use crate::{Error, Result};
 
 pub struct WebViewPage {
     window: Child<TabViewItem>,
@@ -15,17 +16,18 @@ pub struct WebViewPage {
 }
 
 impl WebViewPage {
-    fn set_reload_button(&mut self, enabled: bool) {
-        self.back_button.set_enabled(self.webview.can_go_back());
+    fn set_reload_button(&mut self, enabled: bool) -> Result<()> {
+        self.back_button.set_enabled(self.webview.can_go_back()?)?;
         self.forward_button
-            .set_enabled(self.webview.can_go_forward());
+            .set_enabled(self.webview.can_go_forward()?)?;
 
         self.can_reload = enabled;
         if enabled {
-            self.reload_button.set_text("🔄");
+            self.reload_button.set_text("🔄")?;
         } else {
-            self.reload_button.set_text("⏹️");
+            self.reload_button.set_text("⏹️")?;
         }
+        Ok(())
     }
 }
 
@@ -41,11 +43,12 @@ pub enum WebViewPageMessage {
 }
 
 impl Component for WebViewPage {
+    type Error = Error;
     type Event = ();
     type Init<'a> = &'a TabView;
     type Message = WebViewPageMessage;
 
-    fn init(webview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+    fn init(webview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let url = "https://www.example.com/";
         init! {
             window: TabViewItem = (webview) => {
@@ -75,7 +78,7 @@ impl Component for WebViewPage {
 
         sender.post(WebViewPageMessage::Go);
 
-        Self {
+        Ok(Self {
             window,
             go_button,
             back_button,
@@ -84,7 +87,7 @@ impl Component for WebViewPage {
             can_reload: true,
             entry,
             webview,
-        }
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -110,64 +113,65 @@ impl Component for WebViewPage {
         }
     }
 
-    async fn update_children(&mut self) -> bool {
-        futures_util::join!(
-            self.window.update(),
-            self.webview.update(),
-            self.go_button.update(),
-            self.back_button.update(),
-            self.forward_button.update(),
-            self.reload_button.update(),
-            self.entry.update(),
+    async fn update_children(&mut self) -> Result<bool> {
+        update_children!(
+            self.window,
+            self.webview,
+            self.go_button,
+            self.back_button,
+            self.forward_button,
+            self.reload_button,
+            self.entry
         )
-        .into_array()
-        .into_iter()
-        .any(|b| b)
     }
 
-    async fn update(&mut self, message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
         match message {
-            WebViewPageMessage::Noop => false,
+            WebViewPageMessage::Noop => Ok(false),
             WebViewPageMessage::Go => {
-                self.webview.navigate(self.entry.text());
-                self.set_reload_button(false);
-                false
+                self.webview.navigate(self.entry.text()?)?;
+                self.set_reload_button(false)?;
+                Ok(false)
             }
             WebViewPageMessage::Back => {
-                self.webview.go_back();
-                self.set_reload_button(false);
-                false
+                self.webview.go_back()?;
+                self.set_reload_button(false)?;
+                Ok(false)
             }
             WebViewPageMessage::Forward => {
-                self.webview.go_forward();
-                self.set_reload_button(false);
-                false
+                self.webview.go_forward()?;
+                self.set_reload_button(false)?;
+                Ok(false)
             }
             WebViewPageMessage::Reload => {
                 if self.can_reload {
-                    self.webview.reload();
-                    self.set_reload_button(false);
+                    self.webview.reload()?;
+                    self.set_reload_button(false)?;
                 } else {
-                    self.webview.stop();
-                    self.set_reload_button(true);
+                    self.webview.stop()?;
+                    self.set_reload_button(true)?;
                 }
-                false
+                Ok(false)
             }
             WebViewPageMessage::Navigating => {
-                self.entry.set_text(self.webview.source());
-                self.set_reload_button(false);
-                true
+                self.entry.set_text(self.webview.source()?)?;
+                self.set_reload_button(false)?;
+                Ok(false)
             }
             WebViewPageMessage::Navigated => {
-                self.entry.set_text(self.webview.source());
-                self.set_reload_button(true);
-                true
+                self.entry.set_text(self.webview.source()?)?;
+                self.set_reload_button(true)?;
+                Ok(true)
             }
         }
     }
 
-    fn render(&mut self, _sender: &ComponentSender<Self>) {
-        let csize = self.window.size();
+    fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
+        let csize = self.window.size()?;
 
         {
             let mut header_panel = layout! {
@@ -183,8 +187,9 @@ impl Component for WebViewPage {
                 header_panel,
                 self.webview => { grow: true },
             };
-            root_panel.set_size(csize);
+            root_panel.set_size(csize)?;
         }
+        Ok(())
     }
 }
 

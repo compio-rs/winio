@@ -4,9 +4,10 @@ use taffy::{
     GridTemplateComponent, NodeId, Style, TaffyTree, TrackSizingFunction,
     prelude::{auto, fr, length, line, span},
 };
+use winio_primitive::Failable;
 
 use super::{layout_child, rect_t2e, render};
-use crate::{HAlign, Layoutable, Margin, Point, Rect, Size, VAlign};
+use crate::{HAlign, LayoutChild, LayoutError, Point, Rect, Size, VAlign};
 
 /// Error can be returned when parsing [`GridLength`].
 #[derive(Debug)]
@@ -86,15 +87,15 @@ layout_child! {
 }
 
 /// A grid layout container.
-pub struct Grid<'a> {
-    children: Vec<GridChild<'a>>,
+pub struct Grid<'a, E> {
+    children: Vec<GridChild<'a, E>>,
     columns: Vec<GridLength>,
     rows: Vec<GridLength>,
     loc: Point,
     size: Size,
 }
 
-impl<'a> Grid<'a> {
+impl<'a, E> Grid<'a, E> {
     /// Create [`Grid`].
     pub fn new(columns: Vec<GridLength>, rows: Vec<GridLength>) -> Self {
         Self {
@@ -127,20 +128,21 @@ impl<'a> Grid<'a> {
     }
 
     /// Push a child into the panel.
-    pub fn push<'b>(&'b mut self, widget: &'a mut dyn Layoutable) -> GridChildBuilder<'a, 'b> {
+    pub fn push<'b>(
+        &'b mut self,
+        widget: &'a mut dyn LayoutChild<Error = E>,
+    ) -> GridChildBuilder<'a, 'b, E> {
         GridChildBuilder {
             child: GridChild::new(widget),
             children: &mut self.children,
         }
     }
 
-    fn tree(&self) -> (TaffyTree, NodeId, Vec<NodeId>) {
+    fn tree(&self) -> Result<(TaffyTree, NodeId, Vec<NodeId>), LayoutError<E>> {
         let mut tree: TaffyTree<()> = TaffyTree::new();
         let mut nodes = vec![];
         for child in &self.children {
-            let mut preferred_size = child.widget.preferred_size();
-            preferred_size.width += child.margin.horizontal();
-            preferred_size.height += child.margin.vertical();
+            let preferred_size = child.child_preferred_size()?;
             let mut style = Style::default();
             style.size.width = match child.width {
                 Some(w) => length(w as f32),
@@ -156,9 +158,7 @@ impl<'a> Grid<'a> {
                     _ => length(preferred_size.height as f32),
                 },
             };
-            let mut min_size = child.widget.min_size();
-            min_size.width += child.margin.horizontal();
-            min_size.height += child.margin.vertical();
+            let min_size = child.child_min_size()?;
             style.min_size = taffy::Size {
                 width: length(min_size.width as f32),
                 height: length(min_size.height as f32),
@@ -189,69 +189,83 @@ impl<'a> Grid<'a> {
                 style.grid_row.end = span(rspan as u16);
             }
 
-            let node = tree.new_leaf(style).unwrap();
+            let node = tree.new_leaf(style)?;
             nodes.push(node);
         }
-        let root = tree
-            .new_with_children(
-                Style {
-                    display: taffy::Display::Grid,
-                    size: taffy::Size::from_percent(1.0, 1.0),
-                    grid_template_columns: self
-                        .columns
-                        .iter()
-                        .map(TrackSizingFunction::from)
-                        .map(GridTemplateComponent::Single)
-                        .collect(),
-                    grid_template_rows: self
-                        .rows
-                        .iter()
-                        .map(TrackSizingFunction::from)
-                        .map(GridTemplateComponent::Single)
-                        .collect(),
-                    ..Default::default()
-                },
-                &nodes,
-            )
-            .unwrap();
-        (tree, root, nodes)
+        let root = tree.new_with_children(
+            Style {
+                display: taffy::Display::Grid,
+                size: taffy::Size::from_percent(1.0, 1.0),
+                grid_template_columns: self
+                    .columns
+                    .iter()
+                    .map(TrackSizingFunction::from)
+                    .map(GridTemplateComponent::Single)
+                    .collect(),
+                grid_template_rows: self
+                    .rows
+                    .iter()
+                    .map(TrackSizingFunction::from)
+                    .map(GridTemplateComponent::Single)
+                    .collect(),
+                ..Default::default()
+            },
+            &nodes,
+        )?;
+        Ok((tree, root, nodes))
     }
 
-    fn render(&mut self) {
-        let (tree, root, nodes) = self.tree();
+    fn render(&mut self) -> Result<(), LayoutError<E>> {
+        let (tree, root, nodes) = self.tree()?;
         render(tree, root, nodes, self.loc, self.size, &mut self.children)
+    }
+
+    /// Move the location.
+    pub fn set_loc(&mut self, p: Point) -> Result<(), LayoutError<E>> {
+        LayoutChild::set_child_loc(self, p)
+    }
+
+    /// Resize.
+    pub fn set_size(&mut self, s: Size) -> Result<(), LayoutError<E>> {
+        LayoutChild::set_child_size(self, s)
+    }
+
+    /// Set the location and size.
+    pub fn set_rect(&mut self, r: Rect) -> Result<(), LayoutError<E>> {
+        LayoutChild::set_child_rect(self, r)
     }
 }
 
-impl Layoutable for Grid<'_> {
-    fn loc(&self) -> Point {
-        self.loc
-    }
+impl<E> Failable for Grid<'_, E> {
+    type Error = E;
+}
 
-    fn set_loc(&mut self, p: Point) {
+impl<E> LayoutChild for Grid<'_, E> {
+    fn set_child_loc(&mut self, p: Point) -> Result<(), LayoutError<Self::Error>> {
         self.loc = p;
-        self.render();
+        self.render()
     }
 
-    fn size(&self) -> Size {
-        self.size
-    }
-
-    fn set_size(&mut self, s: Size) {
+    fn set_child_size(&mut self, s: Size) -> Result<(), LayoutError<Self::Error>> {
         self.size = s;
-        self.render();
+        self.render()
     }
 
-    fn set_rect(&mut self, r: Rect) {
+    fn set_child_rect(&mut self, r: Rect) -> Result<(), LayoutError<Self::Error>> {
         self.loc = r.origin;
         self.size = r.size;
-        self.render();
+        self.render()
     }
 
-    fn preferred_size(&self) -> Size {
-        let (mut tree, root, _) = self.tree();
-        tree.compute_layout(root, taffy::Size::max_content())
-            .unwrap();
-        rect_t2e(tree.layout(root).unwrap(), Margin::zero()).size
+    fn child_preferred_size(&self) -> Result<Size, LayoutError<Self::Error>> {
+        let (mut tree, root, _) = self.tree()?;
+        tree.compute_layout(root, taffy::Size::max_content())?;
+        Ok(rect_t2e(tree.layout(root)?).size)
+    }
+
+    fn child_min_size(&self) -> Result<Size, LayoutError<Self::Error>> {
+        let (mut tree, root, _) = self.tree()?;
+        tree.compute_layout(root, taffy::Size::min_content())?;
+        Ok(rect_t2e(tree.layout(root)?).size)
     }
 }

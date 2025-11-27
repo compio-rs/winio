@@ -1,10 +1,15 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_layout::{Enable, Layoutable, ToolTip, Visible};
-use winio_primitive::{MouseButton, Point, Size, Vector};
+use winio_primitive::{
+    Enable, Failable, Layoutable, MouseButton, Point, Size, ToolTip, Vector, Visible,
+};
 
-use crate::{sys, ui::DrawingContext};
+use crate::{
+    sys,
+    sys::{Error, Result},
+    ui::DrawingContext,
+};
 
 /// A simple drawing canvas.
 #[derive(Debug)]
@@ -14,41 +19,45 @@ pub struct Canvas {
 
 impl Canvas {
     /// Create the [`DrawingContext`] of the current canvas.
-    pub fn context(&mut self) -> DrawingContext<'_> {
-        DrawingContext::new(self.widget.context())
+    pub fn context(&mut self) -> Result<DrawingContext<'_>> {
+        Ok(DrawingContext::new(self.widget.context()?))
     }
+}
+
+impl Failable for Canvas {
+    type Error = Error;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl ToolTip for Canvas {
-    fn tooltip(&self) -> String;
+    fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>);
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Visible for Canvas {
-    fn is_visible(&self) -> bool;
+    fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool);
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for Canvas {
-    fn is_enabled(&self) -> bool;
+    fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool);
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for Canvas {
-    fn loc(&self) -> Point;
+    fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point);
+    fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    fn size(&self) -> Size;
+    fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size);
+    fn set_size(&mut self, v: Size) -> Result<()>;
 }
 
 /// Events of [`Canvas`].
@@ -67,13 +76,14 @@ pub enum CanvasEvent {
 }
 
 impl Component for Canvas {
+    type Error = Error;
     type Event = CanvasEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = sys::Canvas::new(init);
-        Self { widget }
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        let widget = sys::Canvas::new(init)?;
+        Ok(Self { widget })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -105,12 +115,6 @@ impl Component for Canvas {
             .await
             .0
     }
-
-    async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
-        false
-    }
-
-    fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
 
 winio_handle::impl_as_widget!(Canvas, widget);

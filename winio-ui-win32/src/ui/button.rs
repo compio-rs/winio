@@ -8,7 +8,7 @@ use windows_sys::Win32::UI::{
 use winio_handle::{AsContainer, AsRawWindow};
 use winio_primitive::{Point, Size};
 
-use crate::{runtime::WindowMessageCommand, ui::Widget};
+use crate::{Result, runtime::WindowMessageCommand, ui::Widget};
 
 #[derive(Debug)]
 pub struct Button {
@@ -17,45 +17,44 @@ pub struct Button {
 
 #[inherit_methods(from = "self.handle")]
 impl Button {
-    pub fn new(parent: impl AsContainer) -> Self {
-        let mut handle = Widget::new(
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let handle = Widget::new(
             WC_BUTTONW,
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON as u32,
             0,
             parent.as_container().as_win32(),
-        );
-        handle.set_size(handle.size_d2l((50, 14)));
-        Self { handle }
+        )?;
+        Ok(Self { handle })
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> bool;
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Size {
-        let s = self.handle.measure_text();
-        Size::new(s.width + 4.0, s.height + 4.0)
+    pub fn preferred_size(&self) -> Result<Size> {
+        let s = self.handle.measure_text()?;
+        Ok(Size::new(s.width + 4.0, s.height + 4.0))
     }
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size);
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> String;
+    pub fn tooltip(&self) -> Result<String>;
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>);
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn text(&self) -> String;
+    pub fn text(&self) -> Result<String>;
 
-    pub fn set_text(&mut self, s: impl AsRef<str>);
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub async fn wait_click(&self) {
         loop {

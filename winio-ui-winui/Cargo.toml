@@ -20,7 +20,9 @@ compio-log = { workspace = true }
 
 image = { workspace = true, default-features = false }
 inherit-methods-macro = { workspace = true }
+once_cell = { workspace = true }
 oneshot = { version = "0.1", default-features = false, features = ["std"] }
+percent-encoding = { workspace = true, optional = true }
 scoped-tls = { workspace = true }
 send_wrapper = { workspace = true }
 widestring = { workspace = true }
@@ -59,7 +61,7 @@ slim-detours-sys = { workspace = true }
 sync-unsafe-cell = { workspace = true }
 
 [features]
-media = ["windows/Media_Core"]
+media = ["windows/Media_Core", "dep:percent-encoding"]
 webview = ["winui3/Web_WebView2_Core", "winio-ui-windows-common/webview"]
 
 # Use CBS WinUI3 shipped with Windows
@@ -68,3 +70,6 @@ enable-cbs = []
 webview-system = []
 
 win32-dark-mode = ["winio-ui-windows-common/dark-mode"]
+
+once_cell_try = ["winio-ui-windows-common/once_cell_try"]
+nightly = ["once_cell_try"]

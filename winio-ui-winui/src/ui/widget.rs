@@ -1,9 +1,10 @@
+use compio_log::error;
 use windows::core::Interface;
 use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::Xaml::{self as MUX, Controls as MUXC};
 
-use crate::ui::Convertible;
+use crate::{Result, ui::Convertible};
 
 #[derive(Debug)]
 pub(crate) struct Widget {
@@ -12,116 +13,123 @@ pub(crate) struct Widget {
 }
 
 impl Widget {
-    pub fn new(parent: impl AsContainer, handle: MUX::FrameworkElement) -> Self {
-        handle
-            .SetHorizontalAlignment(MUX::HorizontalAlignment::Center)
-            .unwrap();
-        handle
-            .SetVerticalAlignment(MUX::VerticalAlignment::Center)
-            .unwrap();
+    pub fn new(parent: impl AsContainer, handle: MUX::FrameworkElement) -> Result<Self> {
+        handle.SetHorizontalAlignment(MUX::HorizontalAlignment::Center)?;
+        handle.SetVerticalAlignment(MUX::VerticalAlignment::Center)?;
         let parent = parent.as_container();
         let canvas = parent.as_winui();
-        canvas.Children().unwrap().Append(&handle).unwrap();
-        canvas
-            .Measure(Size::new(f64::INFINITY, f64::INFINITY).to_native())
-            .unwrap();
-        Self {
+        canvas.Children()?.Append(&handle)?;
+        canvas.Measure(Size::new(f64::INFINITY, f64::INFINITY).to_native())?;
+        Ok(Self {
             handle,
             parent: canvas.clone(),
-        }
+        })
     }
 
-    pub fn is_visible(&self) -> bool {
-        self.handle.Visibility().unwrap() == MUX::Visibility::Visible
+    pub fn is_visible(&self) -> Result<bool> {
+        Ok(self.handle.Visibility()? == MUX::Visibility::Visible)
     }
 
-    pub fn set_visible(&self, visible: bool) {
-        self.handle
-            .SetVisibility(if visible {
-                MUX::Visibility::Visible
-            } else {
-                MUX::Visibility::Collapsed
-            })
-            .unwrap();
-    }
-
-    pub fn is_enabled(&self) -> bool {
-        if let Ok(handle) = self.handle.cast::<MUXC::Control>() {
-            handle.IsEnabled().unwrap()
+    pub fn set_visible(&self, visible: bool) -> Result<()> {
+        self.handle.SetVisibility(if visible {
+            MUX::Visibility::Visible
         } else {
-            true
-        }
+            MUX::Visibility::Collapsed
+        })?;
+        Ok(())
     }
 
-    pub fn set_enabled(&self, enabled: bool) {
+    pub fn is_enabled(&self) -> Result<bool> {
         if let Ok(handle) = self.handle.cast::<MUXC::Control>() {
-            handle.SetIsEnabled(enabled).unwrap();
+            Ok(handle.IsEnabled()?)
+        } else {
+            Ok(true)
         }
     }
 
-    pub fn preferred_size(&self) -> Size {
-        Size::from_native(
-            self.handle
-                .MeasureOverride(Size::new(f64::INFINITY, f64::INFINITY).to_native())
-                .unwrap(),
-        )
+    pub fn set_enabled(&self, enabled: bool) -> Result<()> {
+        if let Ok(handle) = self.handle.cast::<MUXC::Control>() {
+            handle.SetIsEnabled(enabled)?;
+        }
+        Ok(())
     }
 
-    pub fn min_size(&self) -> Size {
-        let width = self.handle.MinWidth().unwrap();
-        let height = self.handle.MinHeight().unwrap();
-        Size::new(width, height)
+    pub fn preferred_size(&self) -> Result<Size> {
+        Ok(Size::from_native(self.handle.MeasureOverride(
+            Size::new(f64::INFINITY, f64::INFINITY).to_native(),
+        )?))
     }
 
-    pub fn loc(&self) -> Point {
-        let left = MUXC::Canvas::GetLeft(&self.handle).unwrap();
-        let top = MUXC::Canvas::GetTop(&self.handle).unwrap();
-        Point::new(left, top)
+    pub fn min_size(&self) -> Result<Size> {
+        let width = self.handle.MinWidth()?;
+        let height = self.handle.MinHeight()?;
+        Ok(Size::new(width, height))
     }
 
-    pub fn set_loc(&mut self, p: Point) {
-        MUXC::Canvas::SetLeft(&self.handle, p.x).unwrap();
-        MUXC::Canvas::SetTop(&self.handle, p.y).unwrap();
+    pub fn loc(&self) -> Result<Point> {
+        let left = MUXC::Canvas::GetLeft(&self.handle)?;
+        let top = MUXC::Canvas::GetTop(&self.handle)?;
+        Ok(Point::new(left, top))
     }
 
-    pub fn size(&self) -> Size {
-        let width = self.handle.Width().unwrap();
-        let height = self.handle.Height().unwrap();
-        Size::new(width, height)
+    pub fn set_loc(&mut self, p: Point) -> Result<()> {
+        MUXC::Canvas::SetLeft(&self.handle, p.x)?;
+        MUXC::Canvas::SetTop(&self.handle, p.y)?;
+        Ok(())
     }
 
-    pub fn set_size(&mut self, v: Size) {
-        self.handle.SetWidth(v.width).unwrap();
-        self.handle.SetHeight(v.height).unwrap();
+    pub fn size(&self) -> Result<Size> {
+        let width = self.handle.Width()?;
+        let height = self.handle.Height()?;
+        Ok(Size::new(width, height))
     }
 
-    pub fn tooltip(&self) -> String {
-        MUXC::ToolTipService::GetToolTip(&self.handle)
+    pub fn set_size(&mut self, v: Size) -> Result<()> {
+        self.handle.SetWidth(v.width)?;
+        self.handle.SetHeight(v.height)?;
+        Ok(())
+    }
+
+    pub fn tooltip(&self) -> Result<String> {
+        Ok(MUXC::ToolTipService::GetToolTip(&self.handle)
             .and_then(|w| w.cast::<MUXC::TextBlock>())
             .and_then(|w| w.Text())
             .map(|s| s.to_string_lossy())
-            .unwrap_or_default()
+            .unwrap_or_default())
     }
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>) {
-        let text = MUXC::ToolTipService::GetToolTip(&self.handle)
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
+        let text = match MUXC::ToolTipService::GetToolTip(&self.handle)
             .and_then(|w| w.cast::<MUXC::TextBlock>())
-            .unwrap_or_else(|_| {
-                let text = MUXC::TextBlock::new().unwrap();
-                MUXC::ToolTipService::SetToolTip(&self.handle, &text).unwrap();
+        {
+            Ok(text) => text,
+            Err(_) => {
+                let text = MUXC::TextBlock::new()?;
+                MUXC::ToolTipService::SetToolTip(&self.handle, &text)?;
                 text
-            });
-        text.SetText(&windows::core::HSTRING::from(s.as_ref()))
-            .unwrap();
+            }
+        };
+        text.SetText(&windows::core::HSTRING::from(s.as_ref()))?;
+        Ok(())
+    }
+
+    fn drop_impl(&mut self) -> Result<()> {
+        let children = self.parent.Children()?;
+        let mut index = 0;
+        if children.IndexOf(&self.handle, &mut index).is_ok() {
+            children.RemoveAt(index as _)?;
+        }
+        Ok(())
     }
 }
 
 impl Drop for Widget {
     fn drop(&mut self) {
-        let children = self.parent.Children().unwrap();
-        let mut index = 0;
-        if children.IndexOf(&self.handle, &mut index).is_ok() {
-            children.RemoveAt(index as _).unwrap();
+        match self.drop_impl() {
+            Ok(()) => {}
+            Err(_e) => {
+                error!("Widget drop: {_e:?}");
+            }
         }
     }
 }

@@ -62,11 +62,11 @@ pub use webview::*;
 mod tab_view;
 pub use tab_view::*;
 
-pub fn color_theme() -> ColorTheme {
+pub fn color_theme() -> crate::Result<ColorTheme> {
     if winio_ui_windows_common::is_dark_mode_allowed_for_app() {
-        ColorTheme::Dark
+        Ok(ColorTheme::Dark)
     } else {
-        ColorTheme::Light
+        Ok(ColorTheme::Light)
     }
 }
 
@@ -85,7 +85,7 @@ fn fix_crlf(s: &str) -> String {
 }
 
 #[inline]
-fn with_u16c<T>(s: &str, f: impl FnOnce(&U16CStr) -> T) -> T {
+fn with_u16c<T>(s: &str, f: impl FnOnce(&U16CStr) -> crate::Result<T>) -> crate::Result<T> {
     if s.len() < 32 {
         // A UTF-8 string with length < 32 is guaranteed to fit in a
         // `ArrayVec<u16, 32>`.
@@ -93,24 +93,27 @@ fn with_u16c<T>(s: &str, f: impl FnOnce(&U16CStr) -> T) -> T {
             .encode_utf16()
             .chain([0])
             .collect::<compio::arrayvec::ArrayVec<u16, 32>>();
-        f(U16CStr::from_slice_truncate(&buf).unwrap())
+        f(U16CStr::from_slice_truncate(&buf).expect("already null-terminated"))
     } else {
         let buf = s.encode_utf16().chain([0]).collect::<Vec<u16>>();
-        f(U16CStr::from_slice_truncate(&buf).unwrap())
+        f(U16CStr::from_slice_truncate(&buf).expect("already null-terminated"))
     }
 }
 
 // Safety: `f` must fill the buffer with null-terminated UTF-16 data.
 #[inline]
-unsafe fn get_u16c(len: usize, f: impl FnOnce(&mut [MaybeUninit<u16>]) -> usize) -> U16CString {
+unsafe fn get_u16c(
+    len: usize,
+    f: impl FnOnce(&mut [MaybeUninit<u16>]) -> crate::Result<usize>,
+) -> crate::Result<U16CString> {
     if len == 0 {
-        return U16CString::new();
+        return Ok(U16CString::new());
     }
     let mut buf = Vec::with_capacity(len + 1);
-    let len = f(buf.spare_capacity_mut());
+    let len = f(buf.spare_capacity_mut())?;
     debug_assert!(len < buf.capacity());
     unsafe {
         buf.set_len(len + 1);
-        U16CString::from_vec_unchecked(buf)
+        Ok(U16CString::from_vec_unchecked(buf))
     }
 }

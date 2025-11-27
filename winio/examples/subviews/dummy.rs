@@ -1,7 +1,8 @@
 use std::ops::Deref;
 
-use tuplex::IntoArray;
 use winio::prelude::*;
+
+use crate::{Error, Result};
 
 pub struct DummyPage {
     window: Child<TabViewItem>,
@@ -14,11 +15,15 @@ pub enum DummyPageMessage {
 }
 
 impl Component for DummyPage {
+    type Error = Error;
     type Event = ();
     type Init<'a> = (&'a TabView, &'static str, &'static str);
     type Message = DummyPageMessage;
 
-    fn init((tabview, name, feature): Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+    fn init(
+        (tabview, name, feature): Self::Init<'_>,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<Self> {
         init! {
             window: TabViewItem = (tabview) => {
                 text: name,
@@ -29,7 +34,7 @@ impl Component for DummyPage {
             },
         }
 
-        Self { window, label }
+        Ok(Self { window, label })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -38,29 +43,30 @@ impl Component for DummyPage {
         }
     }
 
-    async fn update_children(&mut self) -> bool {
-        futures_util::future::join(self.window.update(), self.label.update())
-            .await
-            .into_array()
-            .into_iter()
-            .any(|b| b)
+    async fn update_children(&mut self) -> Result<bool> {
+        update_children!(self.window, self.label)
     }
 
-    async fn update(&mut self, message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
         match message {
-            DummyPageMessage::Noop => false,
+            DummyPageMessage::Noop => Ok(false),
         }
     }
 
-    fn render(&mut self, _sender: &ComponentSender<Self>) {
-        let csize = self.window.size();
+    fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
+        let csize = self.window.size()?;
         {
             let mut grid = layout! {
                 Grid::from_str("1*,2*,1*", "1*,2*,1*").unwrap(),
                 self.label => { column: 1, row: 1 },
             };
-            grid.set_size(csize);
+            grid.set_size(csize)?;
         }
+        Ok(())
     }
 }
 

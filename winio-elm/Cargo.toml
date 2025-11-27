@@ -10,7 +10,6 @@ repository = { workspace = true }
 
 [dependencies]
 winio-primitive = { workspace = true, optional = true }
-winio-layout = { workspace = true, optional = true }
 winio-handle = { workspace = true, optional = true }
 
 async-stream = "0.3"
@@ -18,14 +17,11 @@ futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true, optional = true }
 paste = { workspace = true }
 smallvec = "1"
+tuplex = { workspace = true }
 
 [dev-dependencies]
 compio = { workspace = true, features = ["macros"] }
 
 [features]
 handle = ["dep:winio-handle"]
-layout = [
-    "dep:winio-layout",
-    "dep:winio-primitive",
-    "dep:inherit-methods-macro",
-]
+primitive = ["dep:winio-primitive", "dep:inherit-methods-macro"]

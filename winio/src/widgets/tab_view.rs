@@ -1,10 +1,12 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_layout::{Enable, Layoutable, TextWidget, Visible};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Enable, Failable, Layoutable, Point, Size, TextWidget, Visible};
 
-use crate::sys;
+use crate::{
+    sys,
+    sys::{Error, Result},
+};
 
 /// A tabbed view that contains many [`TabViewItem`]s.
 #[derive(Debug)]
@@ -12,66 +14,64 @@ pub struct TabView {
     widget: sys::TabView,
 }
 
+impl Failable for TabView {
+    type Error = Error;
+}
+
 #[inherit_methods(from = "self.widget")]
 impl TabView {
     /// The selection index.
-    pub fn selection(&self) -> Option<usize>;
+    pub fn selection(&self) -> Result<Option<usize>>;
 
     /// Set the selection.
-    pub fn set_selection(&mut self, i: usize);
+    pub fn set_selection(&mut self, i: usize) -> Result<()>;
 
     /// Insert a new tab item.
-    pub fn insert(&mut self, i: usize, item: &TabViewItem) {
+    pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
         self.widget.insert(i, &item.widget)
     }
 
-    /// Append a new tab item.
-    #[deprecated = "use `push` instead"]
-    pub fn append(&mut self, item: &TabViewItem) {
-        self.push(item);
-    }
-
     /// Push a new tab item to the end.
-    pub fn push(&mut self, item: &TabViewItem) {
-        self.insert(self.len(), item)
+    pub fn push(&mut self, item: &TabViewItem) -> Result<()> {
+        self.insert(self.len()?, item)
     }
 
     /// Remove a tab by index.
-    pub fn remove(&mut self, i: usize);
+    pub fn remove(&mut self, i: usize) -> Result<()>;
 
     /// The length of the tabs.
-    pub fn len(&self) -> usize;
+    pub fn len(&self) -> Result<usize>;
 
     /// If the tab collection is empty.
-    pub fn is_empty(&self) -> bool;
+    pub fn is_empty(&self) -> Result<bool>;
 
     /// Clear the tabs.
-    pub fn clear(&mut self);
+    pub fn clear(&mut self) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Visible for TabView {
-    fn is_visible(&self) -> bool;
+    fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool);
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for TabView {
-    fn is_enabled(&self) -> bool;
+    fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool);
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for TabView {
-    fn loc(&self) -> Point;
+    fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point);
+    fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    fn size(&self) -> Size;
+    fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size);
+    fn set_size(&mut self, v: Size) -> Result<()>;
 }
 
 /// Events of [`TabView`].
@@ -82,13 +82,14 @@ pub enum TabViewEvent {
 }
 
 impl Component for TabView {
+    type Error = Error;
     type Event = TabViewEvent;
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ();
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = sys::TabView::new(init);
-        Self { widget }
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        let widget = sys::TabView::new(init)?;
+        Ok(Self { widget })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -97,12 +98,6 @@ impl Component for TabView {
             sender.output(TabViewEvent::Select);
         }
     }
-
-    async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
-        false
-    }
-
-    fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
 
 winio_handle::impl_as_widget!(TabView, widget);
@@ -113,17 +108,21 @@ pub struct TabViewItem {
     widget: sys::TabViewItem,
 }
 
+impl Failable for TabViewItem {
+    type Error = Error;
+}
+
 #[inherit_methods(from = "self.widget")]
 impl TextWidget for TabViewItem {
-    fn text(&self) -> String;
+    fn text(&self) -> Result<String>;
 
-    fn set_text(&mut self, s: impl AsRef<str>);
+    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl TabViewItem {
     /// Get the available size of the tab.
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 }
 
 /// Events of [`TabViewItem`].
@@ -131,24 +130,15 @@ impl TabViewItem {
 pub enum TabViewItemEvent {}
 
 impl Component for TabViewItem {
+    type Error = Error;
     type Event = TabViewItemEvent;
     type Init<'a> = &'a TabView;
     type Message = ();
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
-        let widget = sys::TabViewItem::new(&init.widget);
-        Self { widget }
+    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        let widget = sys::TabViewItem::new(&init.widget)?;
+        Ok(Self { widget })
     }
-
-    async fn start(&mut self, _sender: &ComponentSender<Self>) -> ! {
-        std::future::pending().await
-    }
-
-    async fn update(&mut self, _message: Self::Message, _sender: &ComponentSender<Self>) -> bool {
-        false
-    }
-
-    fn render(&mut self, _sender: &ComponentSender<Self>) {}
 }
 
 winio_handle::impl_as_container!(TabViewItem, widget);

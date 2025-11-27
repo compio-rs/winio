@@ -6,6 +6,8 @@ use gtk4::{
 };
 use winio_handle::AsWindow;
 
+use crate::Result;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileFilter {
     name: String,
@@ -49,43 +51,40 @@ impl FileBox {
         self.filters.push(filter);
     }
 
-    pub async fn open(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
-        self.filebox()
+    pub async fn open(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
+        Ok(self
+            .filebox()
             .open_future(parent.map(|w| w.as_window().to_gtk()).as_ref())
-            .await
-            .ok()
-            .and_then(|f| f.path())
+            .await?
+            .path())
     }
 
-    pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Vec<PathBuf> {
-        self.filebox()
+    pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Result<Vec<PathBuf>> {
+        Ok(self
+            .filebox()
             .open_multiple_future(parent.map(|w| w.as_window().to_gtk()).as_ref())
-            .await
-            .ok()
-            .map(|list| {
-                list.into_iter()
-                    .filter_map(|f| f.ok())
-                    .filter_map(|f| f.dynamic_cast::<gtk4::gio::File>().ok())
-                    .filter_map(|f| f.path())
-                    .collect()
-            })
-            .unwrap_or_default()
+            .await?
+            .into_iter()
+            .filter_map(|f| f.ok())
+            .filter_map(|f| f.dynamic_cast::<gtk4::gio::File>().ok())
+            .filter_map(|f| f.path())
+            .collect())
     }
 
-    pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
-        self.filebox()
+    pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
+        Ok(self
+            .filebox()
             .select_folder_future(parent.map(|w| w.as_window().to_gtk()).as_ref())
-            .await
-            .ok()
-            .and_then(|f| f.path())
+            .await?
+            .path())
     }
 
-    pub async fn save(self, parent: Option<impl AsWindow>) -> Option<PathBuf> {
-        self.filebox()
+    pub async fn save(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
+        Ok(self
+            .filebox()
             .save_future(parent.map(|w| w.as_window().to_gtk()).as_ref())
-            .await
-            .ok()
-            .and_then(|f| f.path())
+            .await?
+            .path())
     }
 
     fn filebox(self) -> gtk4::FileDialog {

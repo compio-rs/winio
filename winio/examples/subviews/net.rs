@@ -2,8 +2,9 @@ use std::{ops::Deref, time::Duration};
 
 use compio::{runtime::spawn, time::timeout};
 use cyper::Client;
-use tuplex::IntoArray;
 use winio::prelude::*;
+
+use crate::{Error, Result};
 
 pub struct NetPage {
     window: Child<TabViewItem>,
@@ -30,11 +31,12 @@ pub enum NetPageMessage {
 }
 
 impl Component for NetPage {
+    type Error = Error;
     type Event = ();
     type Init<'a> = &'a TabView;
     type Message = NetPageMessage;
 
-    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Self {
+    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let url = "https://www.example.com/";
         init! {
             window: TabViewItem = (tabview) => {
@@ -54,14 +56,14 @@ impl Component for NetPage {
         let url = url.to_string();
         spawn(fetch(client.clone(), url, sender.clone())).detach();
 
-        Self {
+        Ok(Self {
             window,
             canvas,
             button,
             entry,
             text: NetFetchStatus::Loading,
             client,
-        }
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -74,40 +76,35 @@ impl Component for NetPage {
         }
     }
 
-    async fn update_children(&mut self) -> bool {
-        futures_util::future::join4(
-            self.window.update(),
-            self.canvas.update(),
-            self.entry.update(),
-            self.button.update(),
-        )
-        .await
-        .into_array()
-        .into_iter()
-        .any(|b| b)
+    async fn update_children(&mut self) -> Result<bool> {
+        update_children!(self.window, self.canvas, self.entry, self.button)
     }
 
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
         match message {
-            NetPageMessage::Noop => false,
+            NetPageMessage::Noop => Ok(false),
             NetPageMessage::Go => {
                 spawn(fetch(
                     self.client.clone(),
-                    self.entry.text(),
+                    self.entry.text()?,
                     sender.clone(),
                 ))
                 .detach();
-                false
+                Ok(false)
             }
             NetPageMessage::Fetch(status) => {
                 self.text = status;
-                true
+                Ok(true)
             }
         }
     }
 
-    fn render(&mut self, _sender: &ComponentSender<Self>) {
-        let csize = self.window.size();
+    fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
+        let csize = self.window.size()?;
 
         {
             let mut header_panel = layout! {
@@ -120,11 +117,11 @@ impl Component for NetPage {
                 header_panel,
                 self.canvas => { grow: true },
             };
-            root_panel.set_size(csize);
+            root_panel.set_size(csize)?;
         }
 
-        let mut ctx = self.canvas.context();
-        let is_dark = ColorTheme::current() == ColorTheme::Dark;
+        let mut ctx = self.canvas.context()?;
+        let is_dark = ColorTheme::current()? == ColorTheme::Dark;
         let brush = SolidColorBrush::new(if is_dark {
             Color::new(255, 255, 255, 255)
         } else {
@@ -145,7 +142,8 @@ impl Component for NetPage {
                 NetFetchStatus::Error(e) => e.as_str(),
                 NetFetchStatus::Timedout => "Timed out.",
             },
-        );
+        )?;
+        Ok(())
     }
 }
 
@@ -157,16 +155,26 @@ impl Deref for NetPage {
     }
 }
 
+async fn fetch_impl(client: Client, url: String) -> Result<NetFetchStatus, NetFetchStatus> {
+    let req = client
+        .get(url)
+        .map_err(|e| NetFetchStatus::Error(e.to_string()))?;
+    let res = timeout(Duration::from_secs(8), req.send())
+        .await
+        .map_err(|_| NetFetchStatus::Timedout)?
+        .map_err(|e| NetFetchStatus::Error(e.to_string()))?;
+    let s = res
+        .text()
+        .await
+        .map_err(|e| NetFetchStatus::Error(e.to_string()))?;
+    Ok(NetFetchStatus::Complete(s))
+}
+
 async fn fetch(client: Client, url: String, sender: ComponentSender<NetPage>) {
     sender.post(NetPageMessage::Fetch(NetFetchStatus::Loading));
-    let status =
-        if let Ok(res) = timeout(Duration::from_secs(8), client.get(url).unwrap().send()).await {
-            match res {
-                Ok(response) => NetFetchStatus::Complete(response.text().await.unwrap()),
-                Err(e) => NetFetchStatus::Error(format!("{e:?}")),
-            }
-        } else {
-            NetFetchStatus::Timedout
-        };
+    let status = match fetch_impl(client.clone(), url.clone()).await {
+        Ok(s) => s,
+        Err(e) => e,
+    };
     sender.post(NetPageMessage::Fetch(status));
 }

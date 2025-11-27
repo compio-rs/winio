@@ -1,8 +1,10 @@
 //! Windows common methods for winio.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(feature = "once_cell_try", feature(once_cell_try))]
 #![cfg(windows)]
 
+pub use windows::core::{Error, Result};
 use windows_sys::Win32::Foundation::HWND;
 use winio_handle::{AsRawWindow, AsWindow, RawWindow};
 
