@@ -452,7 +452,7 @@ impl DrawingPathBuilder {
             let startp =
                 center + Vector::new(radius.width * start.cos(), radius.height * start.sin());
             let endp = center + Vector::new(radius.width * end.cos(), radius.height * end.sin());
-            self.add_line(startp);
+            self.add_line(startp)?;
             self.sink.AddArc(&D2D1_ARC_SEGMENT {
                 point: point_2f(endp),
                 size: size_f(radius),
