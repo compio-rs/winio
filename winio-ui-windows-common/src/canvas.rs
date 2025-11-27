@@ -433,13 +433,21 @@ impl DrawingPathBuilder {
         }
     }
 
-    pub fn add_line(&mut self, p: Point) {
+    pub fn add_line(&mut self, p: Point) -> Result<()> {
         unsafe {
             self.sink.AddLine(point_2f(p));
         }
+        Ok(())
     }
 
-    pub fn add_arc(&mut self, center: Point, radius: Size, start: f64, end: f64, clockwise: bool) {
+    pub fn add_arc(
+        &mut self,
+        center: Point,
+        radius: Size,
+        start: f64,
+        end: f64,
+        clockwise: bool,
+    ) -> Result<()> {
         unsafe {
             let startp =
                 center + Vector::new(radius.width * start.cos(), radius.height * start.sin());
@@ -461,9 +469,10 @@ impl DrawingPathBuilder {
                 },
             });
         }
+        Ok(())
     }
 
-    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) {
+    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) -> Result<()> {
         unsafe {
             self.sink.AddBezier(&D2D1_BEZIER_SEGMENT {
                 point1: point_2f(p1),
@@ -471,6 +480,7 @@ impl DrawingPathBuilder {
                 point3: point_2f(p3),
             });
         }
+        Ok(())
     }
 
     pub fn build(self, close: bool) -> Result<DrawingPath> {

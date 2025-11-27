@@ -463,11 +463,19 @@ impl DrawingPathBuilder {
         Ok(Self { surface, ctx })
     }
 
-    pub fn add_line(&mut self, p: Point) {
+    pub fn add_line(&mut self, p: Point) -> Result<()> {
         self.ctx.line_to(p.x, p.y);
+        Ok(())
     }
 
-    pub fn add_arc(&mut self, center: Point, radius: Size, start: f64, end: f64, clockwise: bool) {
+    pub fn add_arc(
+        &mut self,
+        center: Point,
+        radius: Size,
+        start: f64,
+        end: f64,
+        clockwise: bool,
+    ) -> Result<()> {
         let save_matrix = self.ctx.matrix();
         let rate = radius.height / radius.width;
         self.ctx.scale(1.0, rate);
@@ -479,10 +487,12 @@ impl DrawingPathBuilder {
                 .arc_negative(center.x, center.y / rate, radius.width, start, end);
         }
         self.ctx.set_matrix(save_matrix);
+        Ok(())
     }
 
-    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) {
+    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) -> Result<()> {
         self.ctx.curve_to(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+        Ok(())
     }
 
     pub fn build(self, close: bool) -> Result<DrawingPath> {

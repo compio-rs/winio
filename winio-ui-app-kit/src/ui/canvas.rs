@@ -509,14 +509,22 @@ impl DrawingPathBuilder {
         }
     }
 
-    pub fn add_line(&mut self, p: Point) {
+    pub fn add_line(&mut self, p: Point) -> Result<()> {
         let p = transform_point(self.size, p);
         unsafe {
             CGMutablePath::add_line_to_point(Some(&self.path), null(), p.x, p.y);
         }
+        Ok(())
     }
 
-    pub fn add_arc(&mut self, center: Point, radius: Size, start: f64, end: f64, clockwise: bool) {
+    pub fn add_arc(
+        &mut self,
+        center: Point,
+        radius: Size,
+        start: f64,
+        end: f64,
+        clockwise: bool,
+    ) -> Result<()> {
         let startp = Point::new(
             center.x + radius.width * start.cos(),
             center.y + radius.height * start.sin(),
@@ -539,9 +547,10 @@ impl DrawingPathBuilder {
                 clockwise,
             );
         }
+        Ok(())
     }
 
-    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) {
+    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) -> Result<()> {
         let p1 = transform_point(self.size, p1);
         let p2 = transform_point(self.size, p2);
         let p3 = transform_point(self.size, p3);
@@ -557,6 +566,7 @@ impl DrawingPathBuilder {
                 p3.y,
             );
         }
+        Ok(())
     }
 
     pub fn build(self, close: bool) -> Result<DrawingPath> {
