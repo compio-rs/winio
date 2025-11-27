@@ -61,11 +61,18 @@ impl ScrollView {
                 .iter()
                 .map(|c| {
                     let mut frame = c.frame();
-                    if let Ok(c) = c.downcast::<NSControl>() {
-                        let size = c.sizeThatFits(NSSize::ZERO);
-                        frame.size.width = frame.size.width.max(size.width);
-                        frame.size.height = frame.size.height.max(size.height);
-                    }
+                    let size = {
+                        let size = c.fittingSize();
+                        if size != NSSize::ZERO {
+                            size
+                        } else if let Ok(c) = c.downcast::<NSControl>() {
+                            c.sizeThatFits(NSSize::ZERO)
+                        } else {
+                            NSSize::ZERO
+                        }
+                    };
+                    frame.size.width = frame.size.width.max(size.width);
+                    frame.size.height = frame.size.height.max(size.height);
                     transform_cgrect(inner_size, frame)
                 })
                 .collect::<Vec<_>>();
