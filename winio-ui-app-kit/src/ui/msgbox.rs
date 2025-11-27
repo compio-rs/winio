@@ -104,7 +104,7 @@ async fn msgbox_custom(
                 .ok();
         });
         catch(|| alert.beginSheetModalForWindow_completionHandler(parent, Some(&block)))?;
-        let res = rx.await.expect("NSAlert cancelled");
+        let res = rx.await?;
         catch(|| parent.makeKeyWindow())?;
         res
     } else {

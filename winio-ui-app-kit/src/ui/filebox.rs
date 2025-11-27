@@ -206,7 +206,7 @@ async unsafe fn filebox(
                 .ok();
         });
         catch(|| handle.beginSheetModalForWindow_completionHandler(parent, &block))?;
-        rx.await.expect("NSAlert cancelled")
+        rx.await?
     } else {
         catch(|| handle.runModal())?
     };

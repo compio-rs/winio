@@ -388,12 +388,12 @@ impl Drop for DrawingContext<'_> {
 
 impl DrawingContext<'_> {
     fn draw(&mut self, pen: impl Pen, path: CFRetained<CGPath>) -> Result<()> {
-        self.actions.push(pen.create_action(path));
+        self.actions.push(pen.create_action(path)?);
         Ok(())
     }
 
     fn fill(&mut self, brush: impl Brush, path: CFRetained<CGPath>) -> Result<()> {
-        self.actions.push(brush.create_action(path));
+        self.actions.push(brush.create_action(path)?);
         Ok(())
     }
 
@@ -463,10 +463,10 @@ impl DrawingContext<'_> {
         text: &str,
     ) -> Result<()> {
         let color = brush.text_color()?;
-        let (framesetter, rect) = measure_str(font, &color, pos, text, self.size);
+        let (framesetter, rect) = measure_str(font, &color, pos, text, self.size)?;
         let rect = transform_rect(self.size, rect);
         self.actions
-            .push(brush.create_text_action(framesetter, rect));
+            .push(brush.create_text_action(framesetter, rect)?);
         Ok(())
     }
 
@@ -649,8 +649,8 @@ fn measure_str(
     pos: Point,
     text: &str,
     bound: Size,
-) -> (CFRetained<CTFramesetter>, Rect) {
-    let astr = create_attr_str(&font, color, text);
+) -> Result<(CFRetained<CTFramesetter>, Rect)> {
+    let astr = create_attr_str(&font, color, text)?;
     let framesetter = unsafe { CTFramesetter::with_attributed_string(&astr) };
     let size = from_cgsize(unsafe {
         framesetter.suggest_frame_size_with_constraints(
@@ -672,14 +672,14 @@ fn measure_str(
         VAlign::Bottom => y -= size.height,
         _ => {}
     }
-    (framesetter, Rect::new(Point::new(x, y), size))
+    Ok((framesetter, Rect::new(Point::new(x, y), size)))
 }
 
 fn create_attr_str(
     font: &DrawingFont,
     color: &CGColor,
     text: &str,
-) -> CFRetained<CFMutableAttributedString> {
+) -> Result<CFRetained<CFMutableAttributedString>> {
     unsafe {
         let mut fontdes = CTFontDescriptor::with_name_and_size(
             NSString::from_str(&font.family).bridge(),
@@ -701,26 +701,27 @@ fn create_attr_str(
 
         let nfont = CTFont::with_font_descriptor(&fontdes, font.size, null());
 
-        let astr = CFMutableAttributedString::new(kCFAllocatorDefault, 0);
+        let astr =
+            CFMutableAttributedString::new(kCFAllocatorDefault, 0).ok_or(Error::NullPointer)?;
         let text = NSString::from_str(text);
         CFMutableAttributedString::replace_string(
-            astr.as_deref(),
+            Some(&astr),
             CFRange::new(0, 0),
             Some(text.bridge()),
         );
         CFMutableAttributedString::set_attribute(
-            astr.as_deref(),
+            Some(&astr),
             CFRange::new(0, text.length() as _),
             Some(kCTFontAttributeName),
             Some(&nfont),
         );
         CFMutableAttributedString::set_attribute(
-            astr.as_deref(),
+            Some(&astr),
             CFRange::new(0, text.length() as _),
             Some(kCTForegroundColorAttributeName),
             Some(color),
         );
-        astr.expect("cannot create CFMutableAttributedString")
+        Ok(astr)
     }
 }
 
@@ -744,7 +745,7 @@ fn real_point(p: RelativePoint, rect: NSRect) -> NSPoint {
 /// Drawing brush.
 pub trait Brush {
     #[doc(hidden)]
-    fn create_action(&self, path: CFRetained<CGPath>) -> DrawAction;
+    fn create_action(&self, path: CFRetained<CGPath>) -> Result<DrawAction>;
 
     #[doc(hidden)]
     fn text_color(&self) -> Result<CFRetained<CGColor>>;
@@ -754,11 +755,11 @@ pub trait Brush {
         &self,
         framesetter: CFRetained<CTFramesetter>,
         rect: NSRect,
-    ) -> DrawAction;
+    ) -> Result<DrawAction>;
 }
 
 impl<B: Brush> Brush for &'_ B {
-    fn create_action(&self, path: CFRetained<CGPath>) -> DrawAction {
+    fn create_action(&self, path: CFRetained<CGPath>) -> Result<DrawAction> {
         (**self).create_action(path)
     }
 
@@ -770,14 +771,14 @@ impl<B: Brush> Brush for &'_ B {
         &self,
         framesetter: CFRetained<CTFramesetter>,
         rect: NSRect,
-    ) -> DrawAction {
+    ) -> Result<DrawAction> {
         (**self).create_text_action(framesetter, rect)
     }
 }
 
 impl Brush for SolidColorBrush {
-    fn create_action(&self, path: CFRetained<CGPath>) -> DrawAction {
-        DrawAction::Path(path, to_cgcolor(self.color), None)
+    fn create_action(&self, path: CFRetained<CGPath>) -> Result<DrawAction> {
+        Ok(DrawAction::Path(path, to_cgcolor(self.color), None))
     }
 
     fn text_color(&self) -> Result<CFRetained<CGColor>> {
@@ -788,12 +789,12 @@ impl Brush for SolidColorBrush {
         &self,
         framesetter: CFRetained<CTFramesetter>,
         rect: NSRect,
-    ) -> DrawAction {
-        DrawAction::Text(framesetter, rect)
+    ) -> Result<DrawAction> {
+        Ok(DrawAction::Text(framesetter, rect))
     }
 }
 
-unsafe fn create_gradient(stops: &[GradientStop]) -> CFRetained<CGGradient> {
+unsafe fn create_gradient(stops: &[GradientStop]) -> Result<CFRetained<CGGradient>> {
     let colors = CFMutableArray::<CGColor>::with_capacity(stops.len());
     let mut locs = Vec::with_capacity(stops.len());
     for stop in stops {
@@ -801,23 +802,26 @@ unsafe fn create_gradient(stops: &[GradientStop]) -> CFRetained<CGGradient> {
         colors.append(cgcolor.as_ref());
         locs.push(stop.pos)
     }
-    CGGradient::with_colors(None, Some(colors.bridge()), locs.as_ptr())
-        .expect("cannot create CGGradient")
+    CGGradient::with_colors(None, Some(colors.bridge()), locs.as_ptr()).ok_or(Error::NullPointer)
 }
 
-fn linear_gradient(b: &LinearGradientBrush, rect: NSRect) -> DrawGradientAction {
-    let gradient = unsafe { create_gradient(&b.stops) };
-    DrawGradientAction::Linear {
+fn linear_gradient(b: &LinearGradientBrush, rect: NSRect) -> Result<DrawGradientAction> {
+    let gradient = unsafe { create_gradient(&b.stops) }?;
+    Ok(DrawGradientAction::Linear {
         gradient,
         start_point: real_point(b.start, rect),
         end_point: real_point(b.end, rect),
-    }
+    })
 }
 
 impl Brush for LinearGradientBrush {
-    fn create_action(&self, path: CFRetained<CGPath>) -> DrawAction {
+    fn create_action(&self, path: CFRetained<CGPath>) -> Result<DrawAction> {
         let rect = CGPath::bounding_box(Some(&path));
-        DrawAction::GradientPath(path, linear_gradient(self, rect), None)
+        Ok(DrawAction::GradientPath(
+            path,
+            linear_gradient(self, rect)?,
+            None,
+        ))
     }
 
     fn text_color(&self) -> Result<CFRetained<CGColor>> {
@@ -828,26 +832,34 @@ impl Brush for LinearGradientBrush {
         &self,
         framesetter: CFRetained<CTFramesetter>,
         rect: NSRect,
-    ) -> DrawAction {
-        DrawAction::GradientText(framesetter, linear_gradient(self, rect), rect)
+    ) -> Result<DrawAction> {
+        Ok(DrawAction::GradientText(
+            framesetter,
+            linear_gradient(self, rect)?,
+            rect,
+        ))
     }
 }
 
-fn radial_gradient(b: &RadialGradientBrush, rect: NSRect) -> DrawGradientAction {
-    let gradient = unsafe { create_gradient(&b.stops) };
-    DrawGradientAction::Radial {
+fn radial_gradient(b: &RadialGradientBrush, rect: NSRect) -> Result<DrawGradientAction> {
+    let gradient = unsafe { create_gradient(&b.stops) }?;
+    Ok(DrawGradientAction::Radial {
         gradient,
         start_center: real_point(b.origin, rect),
         start_radius: 0.0,
         end_center: real_point(b.center, rect),
         end_radius: (b.radius.width * rect.size.width).max(b.radius.height * rect.size.height),
-    }
+    })
 }
 
 impl Brush for RadialGradientBrush {
-    fn create_action(&self, path: CFRetained<CGPath>) -> DrawAction {
+    fn create_action(&self, path: CFRetained<CGPath>) -> Result<DrawAction> {
         let rect = CGPath::bounding_box(Some(&path));
-        DrawAction::GradientPath(path, radial_gradient(self, rect), None)
+        Ok(DrawAction::GradientPath(
+            path,
+            radial_gradient(self, rect)?,
+            None,
+        ))
     }
 
     fn text_color(&self) -> Result<CFRetained<CGColor>> {
@@ -858,8 +870,12 @@ impl Brush for RadialGradientBrush {
         &self,
         framesetter: CFRetained<CTFramesetter>,
         rect: NSRect,
-    ) -> DrawAction {
-        DrawAction::GradientText(framesetter, radial_gradient(self, rect), rect)
+    ) -> Result<DrawAction> {
+        Ok(DrawAction::GradientText(
+            framesetter,
+            radial_gradient(self, rect)?,
+            rect,
+        ))
     }
 }
 
@@ -871,8 +887,8 @@ pub trait Pen {
     fn width(&self) -> f64;
 
     #[doc(hidden)]
-    fn create_action(&self, path: CFRetained<CGPath>) -> DrawAction {
-        self.brush().create_action(path).with_width(self.width())
+    fn create_action(&self, path: CFRetained<CGPath>) -> Result<DrawAction> {
+        Ok(self.brush().create_action(path)?.with_width(self.width()))
     }
 }
 

@@ -39,6 +39,9 @@ pub enum Error {
     /// NSError.
     #[error("NSError: {0:?}")]
     NS(Option<Retained<NSError>>),
+    /// Channel recv error.
+    #[error("Channel recv error: {0}")]
+    ChannelRecv(#[from] local_sync::oneshot::error::RecvError),
     /// Null pointer returned.
     #[error("Null pointer returned")]
     NullPointer,
