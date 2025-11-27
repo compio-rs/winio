@@ -21,3 +21,16 @@ pub use runtime::*;
 
 mod ui;
 pub use ui::*;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    /// IO error.
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    /// C++ exception.
+    #[error("C++ exception: {0}")]
+    Cxx(#[from] cxx::Exception),
+}
+
+/// Result type for Qt.
+pub type Result<T, E = Error> = std::result::Result<T, E>;

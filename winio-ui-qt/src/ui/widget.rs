@@ -4,13 +4,14 @@ use std::{
     pin::Pin,
 };
 
+use compio_log::error;
 use cxx::{ExternType, UniquePtr, memory::UniquePtrTarget, type_id};
 pub use ffi::{QWidget, is_dark};
 use inherit_methods_macro::inherit_methods;
 use winio_handle::{AsContainer, AsRawContainer, AsRawWidget, RawContainer, RawWidget};
 use winio_primitive::{Point, Size};
 
-use crate::ui::StaticCastTo;
+use crate::{Result, ui::StaticCastTo};
 
 pub(crate) struct Widget<T: UniquePtrTarget + StaticCastTo<ffi::QWidget>> {
     widget: ManuallyDrop<UniquePtr<T>>,
@@ -21,13 +22,13 @@ impl<T> Widget<T>
 where
     T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
 {
-    pub fn new(mut widget: UniquePtr<T>) -> Self {
+    pub fn new(mut widget: UniquePtr<T>) -> Result<Self> {
         let weak_ref =
-            unsafe { ffi::widget_weak(widget.pin_mut().static_cast_mut().get_unchecked_mut()) };
-        Self {
+            unsafe { ffi::widget_weak(widget.pin_mut().static_cast_mut().get_unchecked_mut())? };
+        Ok(Self {
             widget: ManuallyDrop::new(widget),
             weak_ref,
-        }
+        })
     }
 
     #[inline]
@@ -59,60 +60,64 @@ where
         self.pin_mut().static_cast_mut()
     }
 
-    pub fn is_visible(&self) -> bool {
-        self.as_ref_qwidget().isVisible()
+    pub fn is_visible(&self) -> Result<bool> {
+        Ok(self.as_ref_qwidget().isVisible()?)
     }
 
-    pub fn set_visible(&mut self, v: bool) {
-        self.pin_mut_qwidget().setVisible(v);
+    pub fn set_visible(&mut self, v: bool) -> Result<()> {
+        self.pin_mut_qwidget().setVisible(v)?;
+        Ok(())
     }
 
-    pub fn is_enabled(&self) -> bool {
-        self.as_ref_qwidget().isEnabled()
+    pub fn is_enabled(&self) -> Result<bool> {
+        Ok(self.as_ref_qwidget().isEnabled()?)
     }
 
-    pub fn set_enabled(&mut self, v: bool) {
-        self.pin_mut_qwidget().setEnabled(v);
+    pub fn set_enabled(&mut self, v: bool) -> Result<()> {
+        self.pin_mut_qwidget().setEnabled(v)?;
+        Ok(())
     }
 
-    pub fn preferred_size(&self) -> Size {
-        let s = self.as_ref_qwidget().sizeHint();
-        Size::new(s.width as _, s.height as _)
+    pub fn preferred_size(&self) -> Result<Size> {
+        let s = self.as_ref_qwidget().sizeHint()?;
+        Ok(Size::new(s.width as _, s.height as _))
     }
 
-    pub fn min_size(&self) -> Size {
-        let s = self.as_ref_qwidget().minimumSize();
-        Size::new(s.width as _, s.height as _)
+    pub fn min_size(&self) -> Result<Size> {
+        let s = self.as_ref_qwidget().minimumSize()?;
+        Ok(Size::new(s.width as _, s.height as _))
     }
 
-    pub fn loc(&self) -> Point {
-        Point::new(
-            self.as_ref_qwidget().x() as _,
-            self.as_ref_qwidget().y() as _,
-        )
+    pub fn loc(&self) -> Result<Point> {
+        let rect = self.as_ref_qwidget().rect()?;
+        Ok(Point::new(rect.x1 as _, rect.y1 as _))
     }
 
-    pub fn set_loc(&mut self, p: Point) {
-        self.pin_mut_qwidget().move_(p.x as _, p.y as _);
+    pub fn set_loc(&mut self, p: Point) -> Result<()> {
+        self.pin_mut_qwidget().move_(p.x as _, p.y as _)?;
+        Ok(())
     }
 
-    pub fn size(&self) -> Size {
-        Size::new(
-            self.as_ref_qwidget().width() as _,
-            self.as_ref_qwidget().height() as _,
-        )
+    pub fn size(&self) -> Result<Size> {
+        let rect = self.as_ref_qwidget().rect()?;
+        Ok(Size::new(
+            (rect.x2 - rect.x1) as _,
+            (rect.y2 - rect.y1) as _,
+        ))
     }
 
-    pub fn set_size(&mut self, s: Size) {
-        self.pin_mut_qwidget().resize(s.width as _, s.height as _);
+    pub fn set_size(&mut self, s: Size) -> Result<()> {
+        self.pin_mut_qwidget().resize(s.width as _, s.height as _)?;
+        Ok(())
     }
 
-    pub fn tooltip(&self) -> String {
-        self.as_ref_qwidget().toolTip().into()
+    pub fn tooltip(&self) -> Result<String> {
+        Ok(self.as_ref_qwidget().toolTip()?.into())
     }
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>) {
-        self.pin_mut_qwidget().setToolTip(&s.as_ref().into());
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.pin_mut_qwidget().setToolTip(&s.as_ref().into())?;
+        Ok(())
     }
 }
 
@@ -122,7 +127,9 @@ where
 {
     fn drop(&mut self) {
         if !self.weak_ref.isNull() {
-            self.pin_mut_qwidget().deleteLater();
+            if let Err(_e) = self.pin_mut_qwidget().deleteLater() {
+                error!("failed to delete widget later: {_e:?}");
+            }
         }
     }
 }
@@ -169,32 +176,32 @@ pub struct View {
 
 #[inherit_methods(from = "self.widget")]
 impl View {
-    pub fn new(parent: impl AsContainer) -> Self {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
         Self::new_impl(parent.as_container().as_qt())
     }
 
-    pub(crate) fn new_standalone() -> Self {
+    pub(crate) fn new_standalone() -> Result<Self> {
         Self::new_impl(std::ptr::null_mut())
     }
 
-    fn new_impl(parent: *mut ffi::QWidget) -> Self {
-        let widget = unsafe { ffi::new_widget(parent) };
-        let mut widget = Widget::new(widget);
-        widget.set_visible(true);
-        Self { widget }
+    fn new_impl(parent: *mut ffi::QWidget) -> Result<Self> {
+        let widget = unsafe { ffi::new_widget(parent) }?;
+        let mut widget = Widget::new(widget)?;
+        widget.set_visible(true)?;
+        Ok(Self { widget })
     }
 
-    pub fn is_visible(&self) -> bool;
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool);
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn loc(&self) -> Point;
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point);
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Size;
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, s: Size);
+    pub fn set_size(&mut self, s: Size) -> Result<()>;
 }
 
 winio_handle::impl_as_widget!(View, widget);
@@ -247,33 +254,30 @@ mod ffi {
         type QString = crate::ui::QString;
         type QWidgetPointer = super::QWidgetPointer;
 
-        unsafe fn new_widget(parent: *mut QWidget) -> UniquePtr<QWidget>;
-        unsafe fn widget_weak(w: *mut QWidget) -> QWidgetPointer;
+        unsafe fn new_widget(parent: *mut QWidget) -> Result<UniquePtr<QWidget>>;
+        unsafe fn widget_weak(w: *mut QWidget) -> Result<QWidgetPointer>;
 
         fn isNull(self: &QWidgetPointer) -> bool;
 
-        fn parentWidget(self: &QWidget) -> *mut QWidget;
-        fn x(self: &QWidget) -> i32;
-        fn y(self: &QWidget) -> i32;
+        fn parentWidget(self: &QWidget) -> Result<*mut QWidget>;
+        fn rect(self: &QWidget) -> Result<QRect>;
         #[cxx_name = "move"]
-        fn move_(self: Pin<&mut QWidget>, x: i32, y: i32);
-        fn width(self: &QWidget) -> i32;
-        fn height(self: &QWidget) -> i32;
-        fn resize(self: Pin<&mut QWidget>, w: i32, h: i32);
-        fn geometry(self: &QWidget) -> &QRect;
-        fn sizeHint(self: &QWidget) -> QSize;
-        fn minimumSize(self: &QWidget) -> QSize;
-        fn update(self: Pin<&mut QWidget>);
-        fn isVisible(self: &QWidget) -> bool;
-        fn setVisible(self: Pin<&mut QWidget>, v: bool);
-        fn isEnabled(self: &QWidget) -> bool;
-        fn setEnabled(self: Pin<&mut QWidget>, v: bool);
-        fn windowTitle(self: &QWidget) -> QString;
-        fn setWindowTitle(self: Pin<&mut QWidget>, s: &QString);
-        fn toolTip(self: &QWidget) -> QString;
-        fn setToolTip(self: Pin<&mut QWidget>, s: &QString);
-        fn childrenRect(self: &QWidget) -> QRect;
-        fn deleteLater(self: Pin<&mut QWidget>);
-        unsafe fn setParent(self: Pin<&mut QWidget>, parent: *mut QWidget);
+        fn move_(self: Pin<&mut QWidget>, x: i32, y: i32) -> Result<()>;
+        fn resize(self: Pin<&mut QWidget>, w: i32, h: i32) -> Result<()>;
+        fn geometry(self: &QWidget) -> Result<&QRect>;
+        fn sizeHint(self: &QWidget) -> Result<QSize>;
+        fn minimumSize(self: &QWidget) -> Result<QSize>;
+        fn update(self: Pin<&mut QWidget>) -> Result<()>;
+        fn isVisible(self: &QWidget) -> Result<bool>;
+        fn setVisible(self: Pin<&mut QWidget>, v: bool) -> Result<()>;
+        fn isEnabled(self: &QWidget) -> Result<bool>;
+        fn setEnabled(self: Pin<&mut QWidget>, v: bool) -> Result<()>;
+        fn windowTitle(self: &QWidget) -> Result<QString>;
+        fn setWindowTitle(self: Pin<&mut QWidget>, s: &QString) -> Result<()>;
+        fn toolTip(self: &QWidget) -> Result<QString>;
+        fn setToolTip(self: Pin<&mut QWidget>, s: &QString) -> Result<()>;
+        fn childrenRect(self: &QWidget) -> Result<QRect>;
+        fn deleteLater(self: Pin<&mut QWidget>) -> Result<()>;
+        unsafe fn setParent(self: Pin<&mut QWidget>, parent: *mut QWidget) -> Result<()>;
     }
 }

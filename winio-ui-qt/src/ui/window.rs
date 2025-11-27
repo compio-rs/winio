@@ -5,7 +5,7 @@ use winio_callback::Callback;
 use winio_handle::{AsRawContainer, AsRawWindow, RawContainer, RawWindow};
 use winio_primitive::{Point, Size};
 
-use crate::{GlobalRuntime, StaticCastTo, ui::impl_static_cast};
+use crate::{GlobalRuntime, Result, StaticCastTo, ui::impl_static_cast};
 
 pub struct Window {
     on_resize: Box<Callback<Size>>,
@@ -16,9 +16,8 @@ pub struct Window {
 }
 
 impl Window {
-    #[allow(clippy::new_without_default)]
-    pub fn new() -> Self {
-        let mut widget = ffi::new_main_window();
+    pub fn new() -> Result<Self> {
+        let mut widget = ffi::new_main_window()?;
         let on_resize = Box::new(Callback::new());
         let on_move = Box::new(Callback::new());
         let on_close = Box::new(Callback::new());
@@ -28,30 +27,30 @@ impl Window {
                 widget.pin_mut(),
                 Self::on_resize,
                 on_resize.as_ref() as *const _ as _,
-            );
+            )?;
             ffi::main_window_register_move_event(
                 widget.pin_mut(),
                 Self::on_move,
                 on_move.as_ref() as *const _ as _,
-            );
+            )?;
             ffi::main_window_register_close_event(
                 widget.pin_mut(),
                 Self::on_close,
                 on_close.as_ref() as *const _ as _,
-            );
+            )?;
             ffi::main_window_register_theme_event(
                 widget.pin_mut(),
                 Self::on_theme,
                 on_theme.as_ref() as *const _ as _,
-            );
+            )?;
         }
-        Self {
+        Ok(Self {
             on_resize,
             on_move,
             on_close,
             on_theme,
             widget,
-        }
+        })
     }
 
     fn as_ref_qwidget(&self) -> &ffi::QWidget {
@@ -62,50 +61,53 @@ impl Window {
         self.widget.pin_mut().static_cast_mut()
     }
 
-    pub fn is_visible(&self) -> bool {
-        self.as_ref_qwidget().isVisible()
+    pub fn is_visible(&self) -> Result<bool> {
+        Ok(self.as_ref_qwidget().isVisible()?)
     }
 
-    pub fn set_visible(&mut self, v: bool) {
-        self.pin_mut_qwidget().setVisible(v);
+    pub fn set_visible(&mut self, v: bool) -> Result<()> {
+        self.pin_mut_qwidget().setVisible(v)?;
+        Ok(())
     }
 
-    pub fn loc(&self) -> Point {
-        Point::new(
-            self.as_ref_qwidget().x() as _,
-            self.as_ref_qwidget().y() as _,
-        )
+    pub fn loc(&self) -> Result<Point> {
+        let rect = self.as_ref_qwidget().rect()?;
+        Ok(Point::new(rect.x1 as _, rect.y1 as _))
     }
 
-    pub fn set_loc(&mut self, p: Point) {
-        self.pin_mut_qwidget().move_(p.x as _, p.y as _);
+    pub fn set_loc(&mut self, p: Point) -> Result<()> {
+        self.pin_mut_qwidget().move_(p.x as _, p.y as _)?;
+        Ok(())
     }
 
-    pub fn size(&self) -> Size {
-        Size::new(
-            self.as_ref_qwidget().width() as _,
-            self.as_ref_qwidget().height() as _,
-        )
+    pub fn size(&self) -> Result<Size> {
+        let rect = self.as_ref_qwidget().rect()?;
+        Ok(Size::new(
+            (rect.x2 - rect.x1) as _,
+            (rect.y2 - rect.y1) as _,
+        ))
     }
 
-    pub fn set_size(&mut self, s: Size) {
-        self.pin_mut_qwidget().resize(s.width as _, s.height as _);
+    pub fn set_size(&mut self, s: Size) -> Result<()> {
+        self.pin_mut_qwidget().resize(s.width as _, s.height as _)?;
+        Ok(())
     }
 
-    pub fn client_size(&self) -> Size {
-        let geometry = self.as_ref_qwidget().geometry();
-        Size::new(
+    pub fn client_size(&self) -> Result<Size> {
+        let geometry = self.as_ref_qwidget().geometry()?;
+        Ok(Size::new(
             (geometry.x2 - geometry.x1) as _,
             (geometry.y2 - geometry.y1) as _,
-        )
+        ))
     }
 
-    pub fn text(&self) -> String {
-        self.as_ref_qwidget().windowTitle().into()
+    pub fn text(&self) -> Result<String> {
+        Ok(self.as_ref_qwidget().windowTitle()?.into())
     }
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) {
-        self.pin_mut_qwidget().setWindowTitle(&s.as_ref().into());
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.pin_mut_qwidget().setWindowTitle(&s.as_ref().into())?;
+        Ok(())
     }
 
     fn on_resize(c: *const u8, width: i32, height: i32) {
@@ -196,27 +198,27 @@ mod ffi {
         type QWidget = crate::ui::QWidget;
         type QMainWindow;
 
-        fn new_main_window() -> UniquePtr<QMainWindow>;
+        fn new_main_window() -> Result<UniquePtr<QMainWindow>>;
 
         unsafe fn main_window_register_resize_event(
             w: Pin<&mut QMainWindow>,
             callback: unsafe fn(*const u8, i32, i32),
             data: *const u8,
-        );
+        ) -> Result<()>;
         unsafe fn main_window_register_move_event(
             w: Pin<&mut QMainWindow>,
             callback: unsafe fn(*const u8, i32, i32),
             data: *const u8,
-        );
+        ) -> Result<()>;
         unsafe fn main_window_register_close_event(
             w: Pin<&mut QMainWindow>,
             callback: unsafe fn(*const u8) -> bool,
             data: *const u8,
-        );
+        ) -> Result<()>;
         unsafe fn main_window_register_theme_event(
             w: Pin<&mut QMainWindow>,
             callback: unsafe fn(*const u8),
             data: *const u8,
-        );
+        ) -> Result<()>;
     }
 }
