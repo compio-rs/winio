@@ -533,7 +533,7 @@ impl DrawingPathBuilder {
         let rate = radius.height / radius.width;
         let transform = CGAffineTransformMake(1.0, 0.0, 0.0, rate, 0.0, 0.0);
 
-        self.add_line(startp);
+        self.add_line(startp)?;
         let center = transform_point(self.size, center);
         unsafe {
             CGMutablePath::add_arc(
