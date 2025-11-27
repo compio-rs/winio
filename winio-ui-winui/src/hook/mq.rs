@@ -1,6 +1,6 @@
 //! Hook GetMessage to wait for custom objects.
 
-use std::sync::Once;
+use std::sync::LazyLock;
 
 use slim_detours_sys::SlimDetoursInlineHook;
 use sync_unsafe_cell::SyncUnsafeCell;
@@ -29,10 +29,8 @@ fn detour_attach() -> Result<()> {
     windows::core::HRESULT(res).ok()
 }
 
-static DETOUR_GUARD: Once = Once::new();
+static DETOUR_GUARD: LazyLock<Result<()>> = LazyLock::new(detour_attach);
 
-pub fn init_hook() {
-    DETOUR_GUARD.call_once(|| {
-        detour_attach().ok();
-    });
+pub fn init_hook() -> bool {
+    DETOUR_GUARD.is_ok()
 }

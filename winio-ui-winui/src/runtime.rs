@@ -1,35 +1,56 @@
-use std::future::Future;
+use std::{
+    cell::RefCell,
+    future::Future,
+    os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle, RawHandle},
+    ptr::null,
+    sync::{
+        Arc,
+        atomic::{AtomicU8, Ordering},
+    },
+};
 
+use compio::driver::AsRawFd;
 use compio_log::*;
 use windows::{
     Foundation::Uri,
     Win32::Graphics::Direct2D::ID2D1Factory2,
     core::{Array, HSTRING, IInspectable_Vtbl, Interface, Ref, h, imp::WeakRefCount, implement},
 };
-use windows_sys::Win32::{Foundation::HWND, UI::WindowsAndMessaging::MSG};
+use windows_sys::Win32::{
+    Foundation::{HWND, WAIT_FAILED, WAIT_OBJECT_0},
+    System::Threading::{CreateEventW, INFINITE, SetEvent, WaitForMultipleObjects},
+    UI::WindowsAndMessaging::MSG,
+};
 use winio_ui_windows_common::{PreferredAppMode, init_dark, set_preferred_app_mode};
 use winui3::{
     ApartmentType, ChildClass, ChildClassImpl, Compose, CreateInstanceFn,
-    Microsoft::UI::Xaml::{
-        Application, ApplicationInitializationCallback, ApplicationInitializationCallbackParams,
-        Controls::XamlControlsResources,
-        IApplicationFactory, IApplicationFactory_Vtbl, IApplicationOverrides,
-        IApplicationOverrides_Impl, LaunchActivatedEventArgs,
-        Markup::{IXamlMetadataProvider, IXamlMetadataProvider_Impl, IXamlType, XmlnsDefinition},
-        ResourceDictionary, UnhandledExceptionEventHandler,
-        XamlTypeInfo::XamlControlsXamlMetaDataProvider,
+    Microsoft::UI::{
+        Dispatching::{DispatcherQueue, DispatcherQueueHandler},
+        Xaml::{
+            Application, ApplicationInitializationCallback,
+            ApplicationInitializationCallbackParams,
+            Controls::XamlControlsResources,
+            IApplicationFactory, IApplicationFactory_Vtbl, IApplicationOverrides,
+            IApplicationOverrides_Impl, LaunchActivatedEventArgs,
+            Markup::{
+                IXamlMetadataProvider, IXamlMetadataProvider_Impl, IXamlType, XmlnsDefinition,
+            },
+            ResourceDictionary, UnhandledExceptionEventHandler,
+            XamlTypeInfo::XamlControlsXamlMetaDataProvider,
+        },
     },
     Windows::UI::Xaml::Interop::TypeName,
     bootstrap::{PackageDependency, WindowsAppSDKVersion},
     init_apartment,
 };
 
-use crate::{RUNTIME, Result};
+use crate::{Error, RUNTIME, Result};
 
 pub struct Runtime {
     runtime: winio_ui_windows_common::Runtime,
     #[allow(dead_code)]
     winui_dependency: PackageDependency,
+    shutdown: Option<Arc<OwnedHandle>>,
 }
 
 fn init_appsdk_with(
@@ -74,13 +95,27 @@ impl Runtime {
         set_preferred_app_mode(PreferredAppMode::AllowDark);
 
         crate::hook::mrm::init_hook();
-        crate::hook::mq::init_hook();
+        let shutdown = if !crate::hook::mq::init_hook() {
+            warn!("Message queue hooking failed, fallback to dedicated thread");
+            Some(Arc::new(unsafe {
+                OwnedHandle::from_raw_handle({
+                    let handle = CreateEventW(null(), 0, 0, null());
+                    if handle.is_null() {
+                        return Err(Error::from_thread());
+                    }
+                    handle
+                })
+            }))
+        } else {
+            None
+        };
 
         let runtime = winio_ui_windows_common::Runtime::new()?;
 
         Ok(Self {
             runtime,
             winui_dependency,
+            shutdown,
         })
     }
 
@@ -113,6 +148,12 @@ impl Runtime {
             Application::Start(&ApplicationInitializationCallback::new(app_start))
                 .expect("Failed to start application");
 
+            if let Some(shutdown) = &self.shutdown {
+                unsafe {
+                    SetEvent(shutdown.as_raw_handle());
+                }
+            }
+
             result.expect("Application exits but no result")
         })
     }
@@ -139,6 +180,13 @@ fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> 
         },
     )))?;
 
+    RUNTIME.with(|runtime| {
+        if let Some(shutdown) = runtime.shutdown.clone() {
+            spawn_runtime_thread(runtime.runtime.as_raw_fd() as *const _ as usize, shutdown)?;
+        }
+        Result::Ok(())
+    })?;
+
     Ok(())
 }
 
@@ -149,6 +197,60 @@ pub(crate) unsafe fn run_runtime(msg: *mut MSG, hwnd: HWND, min: u32, max: u32) 
     } else {
         None
     }
+}
+
+static THREAD_COUNTER: AtomicU8 = AtomicU8::new(0);
+
+fn spawn_runtime_thread(runtime: usize, shutdown: Arc<OwnedHandle>) -> Result<()> {
+    if THREAD_COUNTER
+        .compare_exchange(0, 1, Ordering::AcqRel, Ordering::Acquire)
+        .is_ok()
+    {
+        let dispatcher = DispatcherQueue::GetForCurrentThread()?;
+        compio::runtime::spawn_blocking(move || {
+            loop {
+                let timeout = resume_foreground(&dispatcher, {
+                    move || RUNTIME.with(|runtime| runtime.runtime.poll_and_run())
+                });
+                let Some(timeout) = timeout else {
+                    break;
+                };
+                debug!("waiting in {timeout:?}");
+                let timeout = match timeout {
+                    Some(timeout) => timeout.as_millis() as u32,
+                    None => INFINITE,
+                };
+                let handles = [shutdown.as_raw_handle(), runtime as RawHandle];
+                let res = unsafe { WaitForMultipleObjects(2, handles.as_ptr(), 0, timeout) };
+                if res == WAIT_OBJECT_0 {
+                    break;
+                } else if res == WAIT_FAILED {
+                    error!("{:?}", Error::from_thread());
+                    break;
+                }
+            }
+            THREAD_COUNTER.store(0, Ordering::Release);
+        })
+        .detach();
+    }
+    Ok(())
+}
+
+fn resume_foreground<T: Send + 'static>(
+    dispatcher: &DispatcherQueue,
+    f: impl (Fn() -> T) + Send + 'static,
+) -> Option<T> {
+    let (tx, rx) = oneshot::channel();
+    let tx = RefCell::new(Some(tx));
+    let queued = dispatcher
+        .TryEnqueue(&DispatcherQueueHandler::new(move || {
+            if let Some(tx) = tx.borrow_mut().take() {
+                tx.send(f()).ok();
+            }
+            Ok(())
+        }))
+        .unwrap_or_default();
+    if queued { rx.recv().ok() } else { None }
 }
 
 #[implement(IApplicationOverrides, IXamlMetadataProvider)]
