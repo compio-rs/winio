@@ -55,7 +55,6 @@ pub struct Window {
 }
 
 impl Window {
-    #[allow(clippy::new_without_default)]
     pub fn new() -> Result<Self> {
         let handle = MUX::Window::new()?;
         ROOT_WINDOWS.with_borrow_mut(|map| map.push(handle.clone()));

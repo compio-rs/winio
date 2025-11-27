@@ -427,7 +427,6 @@ pub struct Window {
 
 #[inherit_methods(from = "self.handle")]
 impl Window {
-    #[allow(clippy::new_without_default)]
     pub fn new() -> Result<Self> {
         let handle = Widget::new(
             window_class_name(),

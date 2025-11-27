@@ -5,30 +5,26 @@ use gtk4::{
     glib::{ControlFlow, IOCondition, MainContext, timeout_add_local_once, unix_fd_add_local},
 };
 
+use crate::Result;
+
 pub struct Runtime {
     runtime: winio_pollable::Runtime,
     app: gio::Application,
     ctx: MainContext,
 }
 
-impl Default for Runtime {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Runtime {
-    pub fn new() -> Self {
-        let runtime = winio_pollable::Runtime::new().unwrap();
+    pub fn new() -> Result<Self> {
+        let runtime = winio_pollable::Runtime::new()?;
         let poll_fd = runtime.as_raw_fd();
         let ctx = MainContext::default();
-        gtk4::init().unwrap();
+        gtk4::init()?;
         let app = gio::Application::new(None, gio::ApplicationFlags::FLAGS_NONE);
         app.set_default();
 
         unix_fd_add_local(poll_fd, IOCondition::IN, |_fd, _cond| ControlFlow::Continue);
 
-        Self { runtime, app, ctx }
+        Ok(Self { runtime, app, ctx })
     }
 
     pub fn set_app_id(&mut self, name: &str) {

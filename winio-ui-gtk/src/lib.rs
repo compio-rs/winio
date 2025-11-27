@@ -36,12 +36,18 @@ pub enum Error {
     /// Cairo error.
     #[error("Cairo error: {0}")]
     Cairo(#[from] gtk4::cairo::Error),
+    /// Index error.
+    #[error("Index error: {0}")]
+    Index(usize),
     /// Null pointer returned.
     #[error("Null pointer returned")]
     NullPointer,
     /// Cast failed.
     #[error("Cast failed")]
     CastFailed,
+    /// Color theme is not available.
+    #[error("Color theme is not available")]
+    NoColorTheme,
 }
 
 /// Result type for GTK.

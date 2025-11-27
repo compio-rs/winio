@@ -35,7 +35,6 @@ pub struct Window {
 }
 
 impl Window {
-    #[allow(clippy::new_without_default)]
     pub fn new() -> Result<Self> {
         unsafe {
             let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
