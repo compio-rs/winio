@@ -6,19 +6,23 @@ use std::{
 
 use compio::driver::syscall;
 use inherit_methods_macro::inherit_methods;
-use windows_sys::Win32::UI::{
-    Controls::{
-        TCIF_TEXT, TCITEMW, TCM_ADJUSTRECT, TCM_DELETEALLITEMS, TCM_DELETEITEM, TCM_GETCURSEL,
-        TCM_GETITEMCOUNT, TCM_INSERTITEMW, TCM_SETCURSEL, TCM_SETITEMW, TCN_SELCHANGE, TCS_TABS,
-        WC_TABCONTROLW,
+use windows_sys::{
+    Win32::UI::{
+        Controls::{
+            TCIF_TEXT, TCITEMW, TCM_ADJUSTRECT, TCM_DELETEALLITEMS, TCM_DELETEITEM, TCM_GETCURSEL,
+            TCM_GETITEMCOUNT, TCM_INSERTITEMW, TCM_SETCURSEL, TCM_SETITEMW, TCN_SELCHANGE,
+            TCS_TABS, WC_TABCONTROLW,
+        },
+        WindowsAndMessaging::{
+            GetClientRect, GetParent, MoveWindow, SW_HIDE, SW_SHOW, SendMessageW, ShowWindow,
+            WM_NOTIFY, WS_CHILD, WS_CLIPCHILDREN, WS_EX_CONTROLPARENT, WS_TABSTOP, WS_VISIBLE,
+        },
     },
-    WindowsAndMessaging::{
-        GetClientRect, GetParent, MoveWindow, SW_HIDE, SW_SHOW, SendMessageW, ShowWindow,
-        WM_NOTIFY, WS_CHILD, WS_CLIPCHILDREN, WS_EX_CONTROLPARENT, WS_TABSTOP, WS_VISIBLE,
-    },
+    w,
 };
 use winio_handle::{AsContainer, AsRawContainer, AsRawWidget, RawContainer};
 use winio_primitive::{Point, Size};
+use winio_ui_windows_common::children_refresh_dark_mode;
 
 use crate::{Result, View, Widget, WindowMessageNotify, ui::with_u16c};
 
@@ -32,12 +36,34 @@ pub struct TabView {
 #[inherit_methods(from = "self.handle")]
 impl TabView {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
-        let handle = Widget::new(
+        let mut handle = Widget::new(
             WC_TABCONTROLW,
             WS_TABSTOP | WS_CLIPCHILDREN | WS_VISIBLE | WS_CHILD | TCS_TABS,
             WS_EX_CONTROLPARENT,
             parent.as_container().as_win32(),
         )?;
+
+        // The inner updown control is created when
+        // * the tab control is small enough
+        // * there are at least two tabs with long enough text
+        //
+        // So we create two dummy tabs with long enough text to trigger it.
+        handle.set_size(handle.size_d2l((1, 1)))?;
+        let text = w!("DummyTabLongEnoughToCreateUpdown");
+        let mut item = TCITEMW {
+            mask: TCIF_TEXT,
+            dwState: 0,
+            dwStateMask: 0,
+            pszText: text.cast_mut(),
+            cchTextMax: 0,
+            iImage: 0,
+            lParam: 0,
+        };
+        handle.send_message(TCM_INSERTITEMW, 0, std::ptr::addr_of_mut!(item) as _);
+        handle.send_message(TCM_INSERTITEMW, 1, std::ptr::addr_of_mut!(item) as _);
+        unsafe { children_refresh_dark_mode(handle.as_raw_widget().as_win32(), 0) };
+        handle.send_message(TCM_DELETEALLITEMS, 0, 0);
+
         Ok(Self {
             handle,
             current_view: Cell::new(None),
