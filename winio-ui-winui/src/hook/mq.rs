@@ -2,6 +2,7 @@
 
 use std::sync::LazyLock;
 
+use compio_log::error;
 use slim_detours_sys::SlimDetoursInlineHook;
 use sync_unsafe_cell::SyncUnsafeCell;
 use windows::{
@@ -42,7 +43,13 @@ static DETOUR_GUARD: LazyLock<Result<()>> = LazyLock::new(detour_attach);
 
 pub fn init_hook() -> bool {
     let desktop = is_desktop().unwrap_or_default();
-    desktop && DETOUR_GUARD.is_ok()
+    desktop && {
+        let res = &*DETOUR_GUARD;
+        if let Err(_e) = res {
+            error!("Failed to hook GetMessageW: {_e:?}");
+        }
+        res.is_ok()
+    }
 }
 
 fn is_desktop() -> Result<bool> {

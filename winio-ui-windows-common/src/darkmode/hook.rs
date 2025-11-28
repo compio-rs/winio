@@ -5,6 +5,7 @@ use std::{
     sync::{LazyLock, Mutex, Once},
 };
 
+use compio_log::error;
 use slim_detours_sys::{DETOUR_INLINE_HOOK, SlimDetoursInlineHooks};
 use sync_unsafe_cell::SyncUnsafeCell;
 use widestring::U16CStr;
@@ -108,6 +109,7 @@ pub fn is_dark_mode_allowed_for_app() -> bool {
             0,
         ) == 0
         {
+            error!("SystemParametersInfoW: {:?}", Error::from_thread());
             return false;
         }
         ((hc.dwFlags & HCF_HIGHCONTRASTON) == 0) && ShouldAppsUseDarkMode()
@@ -119,7 +121,7 @@ const DWMWA_USE_IMMERSIVE_DARK_MODE_V2: u32 = 0x14;
 
 /// # Safety
 /// `h_wnd` should be valid.
-pub unsafe fn window_use_dark_mode(h_wnd: HWND) -> HRESULT {
+pub unsafe fn window_use_dark_mode(h_wnd: HWND) -> Result<()> {
     let set_dark_mode = is_dark_mode_allowed_for_app();
     AllowDarkModeForWindow(h_wnd, set_dark_mode);
     let set_dark_mode = set_dark_mode as BOOL;
@@ -137,11 +139,11 @@ pub unsafe fn window_use_dark_mode(h_wnd: HWND) -> HRESULT {
             size_of::<BOOL>() as _,
         );
         if hr != 0 {
-            return hr;
+            return windows::core::HRESULT(hr).ok();
         }
     }
     FlushMenuThemes();
-    S_OK
+    Ok(())
 }
 
 type OpenThemeDataFn = unsafe extern "system" fn(hwnd: HWND, pszclasslist: PCWSTR) -> HTHEME;
@@ -264,17 +266,22 @@ unsafe fn detour_hooks() -> [DETOUR_INLINE_HOOK; 9] {
     ]
 }
 
-fn detour_attach() {
+fn detour_attach() -> Result<()> {
     unsafe {
         let mut hooks = detour_hooks();
-        SlimDetoursInlineHooks(1, hooks.len() as _, hooks.as_mut_ptr());
+        let res = SlimDetoursInlineHooks(1, hooks.len() as _, hooks.as_mut_ptr());
+        windows::core::HRESULT(res).ok()
     }
 }
 
 static DETOUR_GUARD: Once = Once::new();
 
 pub fn init_dark() {
-    DETOUR_GUARD.call_once(detour_attach);
+    DETOUR_GUARD.call_once(|| {
+        if let Err(_e) = detour_attach() {
+            error!("Failed to hook uxtheme.dll: {_e:?}");
+        }
+    });
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -529,18 +536,22 @@ unsafe extern "system" fn dark_draw_theme_parent_background(
 ) -> HRESULT {
     if is_dark_mode_allowed_for_app() {
         let mut class_name = [0u16; MAX_CLASS_NAME as usize];
-        GetClassNameW(hwnd, class_name.as_mut_ptr(), MAX_CLASS_NAME);
-        let class_name = U16CStr::from_ptr_str(class_name.as_ptr());
-        if u16_string_eq_ignore_case(class_name, WC_TABCONTROLW) {
-            let rect = if prect.is_null() {
-                let mut rect = MaybeUninit::uninit();
-                GetClientRect(hwnd, rect.as_mut_ptr());
-                rect.assume_init()
-            } else {
-                *prect
-            };
-            FillRect(hdc, &rect, DLG_GRAY_BACK.0);
-            return S_OK;
+        let res = GetClassNameW(hwnd, class_name.as_mut_ptr(), MAX_CLASS_NAME);
+        if res != 0 {
+            let class_name = U16CStr::from_ptr_str(class_name.as_ptr());
+            if u16_string_eq_ignore_case(class_name, WC_TABCONTROLW) {
+                let rect = if prect.is_null() {
+                    let mut rect = MaybeUninit::uninit();
+                    GetClientRect(hwnd, rect.as_mut_ptr());
+                    rect.assume_init()
+                } else {
+                    *prect
+                };
+                FillRect(hdc, &rect, DLG_GRAY_BACK.0);
+                return S_OK;
+            }
+        } else {
+            error!("GetClassNameW: {:?}", Error::from_thread());
         }
     }
     (*TRUE_DRAW_THEME_PARENT_BACKGROUND.get())(hwnd, hdc, prect)
@@ -600,38 +611,17 @@ fn increase(c: COLORREF, inc: u32) -> COLORREF {
     r + (g << 8) + (b << 16)
 }
 
-unsafe extern "system" fn task_dialog_callback(
-    hwnd: HWND,
-    msg: u32,
-    _wparam: WPARAM,
-    _lparam: LPARAM,
-    lprefdata: isize,
-) -> HRESULT {
-    let msg = msg as TASKDIALOG_NOTIFICATIONS;
-    match msg {
-        TDN_CREATED | TDN_DIALOG_CONSTRUCTED => {
-            window_use_dark_mode(hwnd);
-            children_refresh_dark_mode(hwnd, 0);
-        }
-        _ => {}
-    }
-    if msg == TDN_CREATED {
-        SetWindowSubclass(hwnd, Some(task_dialog_subclass), hwnd as _, lprefdata as _);
-    }
-    S_OK
-}
-
-pub(crate) const TASK_DIALOG_CALLBACK: PFTASKDIALOGCALLBACK = Some(task_dialog_callback);
-
 /// MISC: If in task dialog, set lparam to 1.
 /// # Safety
 /// `handle` should be valid.
 pub unsafe fn children_refresh_dark_mode(handle: HWND, lparam: LPARAM) {
     unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
         if control_use_dark_mode(hwnd, lparam != 0).is_err() {
+            error!("control_use_dark_mode: {:?}", Error::from_thread());
             return 0;
         }
         if InvalidateRect(hwnd, null(), 1) == 0 {
+            error!("InvalidateRect: {:?}", Error::from_thread());
             return 0;
         }
         EnumChildWindows(hwnd, Some(enum_callback), lparam);
@@ -676,6 +666,38 @@ pub unsafe fn control_use_dark_mode(hwnd: HWND, misc_task_dialog: bool) -> Resul
     windows::core::HRESULT(res).ok()
 }
 
+fn task_dialog_refresh(hwnd: HWND) -> Result<()> {
+    unsafe {
+        window_use_dark_mode(hwnd)?;
+        children_refresh_dark_mode(hwnd, 0);
+    }
+    Ok(())
+}
+
+pub(crate) const TASK_DIALOG_CALLBACK: PFTASKDIALOGCALLBACK = Some(task_dialog_callback);
+
+unsafe extern "system" fn task_dialog_callback(
+    hwnd: HWND,
+    msg: u32,
+    _wparam: WPARAM,
+    _lparam: LPARAM,
+    lprefdata: isize,
+) -> HRESULT {
+    let msg = msg as TASKDIALOG_NOTIFICATIONS;
+    match msg {
+        TDN_CREATED | TDN_DIALOG_CONSTRUCTED => {
+            if let Err(_e) = task_dialog_refresh(hwnd) {
+                error!("task_dialog_refresh: {_e:?}");
+            }
+        }
+        _ => {}
+    }
+    if msg == TDN_CREATED {
+        SetWindowSubclass(hwnd, Some(task_dialog_subclass), hwnd as _, lprefdata as _);
+    }
+    S_OK
+}
+
 unsafe extern "system" fn task_dialog_subclass(
     hwnd: HWND,
     umsg: u32,
@@ -686,8 +708,9 @@ unsafe extern "system" fn task_dialog_subclass(
 ) -> LRESULT {
     match umsg {
         WM_SETTINGCHANGE => {
-            window_use_dark_mode(hwnd);
-            children_refresh_dark_mode(hwnd, 1);
+            if let Err(_e) = task_dialog_refresh(hwnd) {
+                error!("task_dialog_refresh: {_e:?}");
+            }
         }
         WM_CTLCOLORDLG => {
             if is_dark_mode_allowed_for_app() {

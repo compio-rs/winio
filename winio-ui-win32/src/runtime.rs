@@ -12,6 +12,7 @@ use std::{
 use compio::driver::syscall;
 use compio_log::*;
 use slab::Slab;
+use widestring::U16CStr;
 use windows::Win32::Graphics::Direct2D::ID2D1Factory2;
 #[cfg(target_pointer_width = "64")]
 use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongPtrW;
@@ -24,12 +25,13 @@ use windows_sys::{
             Dwm::DwmExtendFrameIntoClientArea,
             Gdi::{BLACK_BRUSH, GetStockObject, HDC, InvalidateRect, WHITE_BRUSH},
         },
+        System::SystemServices::MAX_CLASS_NAME,
         UI::{
             Controls::{MARGINS, NMHDR},
             WindowsAndMessaging::{
                 DefWindowProcW, DispatchMessageW, EnumChildWindows, GA_ROOT, GCLP_HBRBACKGROUND,
-                GetAncestor, IsDialogMessageW, PostQuitMessage, SWP_NOACTIVATE, SWP_NOZORDER,
-                SendMessageW, SetWindowPos, TranslateMessage, WM_COMMAND, WM_CREATE,
+                GetAncestor, GetClassNameW, IsDialogMessageW, PostQuitMessage, SWP_NOACTIVATE,
+                SWP_NOZORDER, SendMessageW, SetWindowPos, TranslateMessage, WM_COMMAND, WM_CREATE,
                 WM_CTLCOLORBTN, WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC,
                 WM_DPICHANGED, WM_NOTIFY, WM_SETFONT, WM_SETTINGCHANGE,
             },
@@ -46,6 +48,7 @@ use super::RUNTIME;
 use crate::{
     Error, Result,
     ui::{dpi::get_dpi_for_window, font::default_font},
+    window_class_name,
 };
 
 #[derive(Clone, Copy)]
@@ -256,24 +259,52 @@ pub(crate) unsafe fn wait(handle: HWND, msg: u32) -> impl Future<Output = Window
     RUNTIME.with(|runtime| runtime.register_message(handle, msg))
 }
 
+fn window_create(handle: HWND) -> Result<()> {
+    unsafe {
+        let mut class_name = [0u16; MAX_CLASS_NAME as usize];
+        let res = GetClassNameW(handle, class_name.as_mut_ptr(), MAX_CLASS_NAME);
+        if res == 0 {
+            return Err(Error::from_thread());
+        }
+        if winio_ui_windows_common::u16_string_eq_ignore_case(
+            U16CStr::from_ptr_str(class_name.as_ptr()),
+            window_class_name(),
+        ) {
+            window_use_dark_mode(handle)?;
+            refresh_background(handle)?;
+        }
+        Ok(())
+    }
+}
+
+fn window_setting_change(handle: HWND) -> Result<()> {
+    unsafe {
+        window_use_dark_mode(handle)?;
+        children_refresh_dark_mode(handle, 0);
+        refresh_background(handle)?;
+        syscall!(BOOL, InvalidateRect(handle, null(), 1))?;
+    }
+    Ok(())
+}
+
 pub(crate) unsafe extern "system" fn window_proc(
     handle: HWND,
     msg: u32,
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
-    instrument!(Level::DEBUG, "window_proc", ?handle, msg, wparam, lparam);
+    debug!("Enter window_proc: handle: {handle:?}, msg: {msg}, wparam: {wparam}, lparam: {lparam}");
     // These messages need special handling.
     match msg {
         WM_CREATE => {
-            window_use_dark_mode(handle);
-            refresh_background(handle).ok();
+            if let Err(_e) = window_create(handle) {
+                warn!("window_create: handle: {handle:?}, error: {_e:?}");
+            }
         }
         WM_SETTINGCHANGE => {
-            window_use_dark_mode(handle);
-            children_refresh_dark_mode(handle, 0);
-            refresh_background(handle).ok();
-            InvalidateRect(handle, null(), 1);
+            if let Err(_e) = window_setting_change(handle) {
+                warn!("window_setting_change: handle: {handle:?}, error: {_e:?}");
+            }
         }
         WM_CTLCOLORSTATIC => {
             return control_color_static(lparam as HWND, wparam as HDC);
@@ -303,7 +334,9 @@ pub(crate) unsafe extern "system" fn window_proc(
                     );
                 }
             }
-            refresh_font(handle).ok();
+            if let Err(_e) = refresh_font(handle) {
+                warn!("refresh_font: handle: {handle:?}, error: {_e:?}");
+            }
         }
         _ => {}
     }

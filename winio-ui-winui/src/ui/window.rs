@@ -67,7 +67,7 @@ impl Window {
             Ok(()) => {}
             // Available since 1.7
             Err(e) if e.code() == E_NOINTERFACE => unsafe {
-                window_use_dark_mode(hwnd.0);
+                window_use_dark_mode(hwnd.0)?;
                 // Set to DWMSBT_AUTO.
                 set_backdrop(hwnd.0, Backdrop::None)?;
             },

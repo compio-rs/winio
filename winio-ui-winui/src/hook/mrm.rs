@@ -3,6 +3,7 @@
 
 use std::{env::current_exe, sync::Once};
 
+use compio_log::error;
 use slim_detours_sys::SlimDetoursInlineHook;
 use sync_unsafe_cell::SyncUnsafeCell;
 use windows::{
@@ -88,6 +89,8 @@ static DETOUR_GUARD: Once = Once::new();
 
 pub fn init_hook() {
     DETOUR_GUARD.call_once(|| {
-        detour_attach().ok();
+        if let Err(_e) = detour_attach() {
+            error!("Failed to hook MRM.dll: {_e:?}");
+        }
     });
 }
