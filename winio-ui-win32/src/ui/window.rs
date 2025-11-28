@@ -31,12 +31,13 @@ use winio_handle::{
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{
     Backdrop, PreferredAppMode, control_use_dark_mode, get_current_module_handle,
-    set_preferred_app_mode,
+    set_preferred_app_mode, window_use_dark_mode,
 };
 
 use crate::{
     Error, Result,
     font::measure_string,
+    refresh_background,
     runtime::{WindowMessage, get_backdrop, set_backdrop, wait, window_proc},
     tooltip::{get_tooltip, remove_tooltip, set_tooltip},
     ui::{
@@ -434,6 +435,10 @@ impl Window {
             WS_EX_CONTROLPARENT | WS_EX_TRANSPARENT,
             null_mut(),
         )?;
+        unsafe {
+            window_use_dark_mode(handle.as_raw_window().as_win32())?;
+            refresh_background(handle.as_raw_window().as_win32())?;
+        }
         Ok(Self { handle })
     }
 
