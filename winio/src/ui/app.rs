@@ -1,7 +1,5 @@
 use std::future::Future;
 
-use winio_elm::Component;
-
 use crate::{sys, sys::Runtime};
 
 /// Root application, manages the async runtime.
@@ -29,14 +27,5 @@ impl App {
     /// Block on the future till it completes.
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
         self.runtime.block_on(future)
-    }
-
-    /// Create and manage the component, till it posts an event. The application
-    /// returns the first event from the component.
-    pub fn run<'a, T: Component>(
-        &mut self,
-        init: impl Into<T::Init<'a>>,
-    ) -> Result<T::Event, T::Error> {
-        self.block_on(winio_elm::run::<T>(init))
     }
 }

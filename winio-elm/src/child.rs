@@ -3,7 +3,6 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use async_stream::try_stream;
 use futures_util::Stream;
 #[cfg(feature = "primitive")]
 use inherit_methods_macro::inherit_methods;
@@ -17,7 +16,7 @@ use winio_handle::{
 use winio_primitive::{Failable, Layoutable, Point, Rect, Size};
 
 use super::ComponentMessage;
-use crate::{Component, ComponentSender};
+use crate::{Component, ComponentSender, RunEvent};
 
 /// Helper to embed one component into another. It handles different types of
 /// messages and events.
@@ -137,15 +136,17 @@ impl<T: Component> Child<T> {
     }
 
     /// Run the child component, and yield its events.
-    pub fn run(&mut self) -> impl Stream<Item = Result<T::Event, T::Error>> + use<'_, T> {
-        try_stream! {
-            if self.update().await? {
-                self.render()?;
-            }
-            for await event in super::run_events_impl(&mut self.model, &self.sender) {
-                yield event?;
-            }
-        }
+    ///
+    /// This method is parallel to [`Child::start`], [`Child::update`], and
+    /// [`Child::render`]. The caller is responsible to call `update` and
+    /// `render` if `start` has been called before `run`:
+    /// ```ignore
+    /// if child.update().await? {
+    ///     child.render()?;
+    /// }
+    /// ```
+    pub fn run(&mut self) -> impl Stream<Item = RunEvent<T::Event, T::Error>> + use<'_, T> {
+        crate::run_events_impl(&mut self.model, &self.sender)
     }
 }
 
