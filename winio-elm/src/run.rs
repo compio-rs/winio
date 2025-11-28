@@ -3,7 +3,7 @@ use std::hint::unreachable_unchecked;
 use async_stream::stream;
 use futures_util::{FutureExt, Stream};
 
-use crate::{Component, ComponentMessage, ComponentSender};
+use crate::{Child, Component, ComponentMessage, ComponentSender};
 
 /// Events yielded by the [`run`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -11,10 +11,6 @@ use crate::{Component, ComponentMessage, ComponentSender};
 pub enum RunEvent<T, E> {
     /// An event emitted by the component.
     Event(T),
-    /// An error occurred during initialization.
-    ///
-    /// This error is not recoverable, and the component will exit.
-    InitErr(E),
     /// An error occurred during update.
     UpdateErr(E),
     /// An error occurred during rendering.
@@ -26,42 +22,66 @@ impl<T, E> RunEvent<T, E> {
     pub fn flatten(self) -> Result<T, E> {
         match self {
             RunEvent::Event(t) => Ok(t),
-            RunEvent::InitErr(e) | RunEvent::UpdateErr(e) | RunEvent::RenderErr(e) => Err(e),
+            RunEvent::UpdateErr(e) | RunEvent::RenderErr(e) => Err(e),
         }
     }
 }
 
-/// Initiates and runs a root component, and yields the events.
-pub fn run_events<'a, T: Component>(
-    init: impl Into<T::Init<'a>>,
-) -> impl Stream<Item = RunEvent<T::Event, T::Error>> {
-    stream! {
+/// Helper to run a root component.
+pub struct Root<T: Component> {
+    model: T,
+    sender: ComponentSender<T>,
+}
+
+impl<T: Component> Root<T> {
+    /// Create a new root component.
+    pub fn init<'a>(init: impl Into<T::Init<'a>>) -> Result<Self, T::Error> {
         let sender = ComponentSender::new();
-        let mut model = match T::init(init.into(), &sender) {
-            Ok(m) => m,
-            Err(e) => {
-                yield RunEvent::InitErr(e);
-                // Init error is not recoverable, exit.
-                return;
-            }
-        };
-        if let Err(e) = model.render(&sender) {
+        let model = T::init(init.into(), &sender)?;
+        Ok(Self { model, sender })
+    }
+
+    pub(crate) fn new(model: T, sender: ComponentSender<T>) -> Self {
+        Self { model, sender }
+    }
+
+    /// Post message to the component.
+    pub fn post(&mut self, message: T::Message) {
+        self.sender.post(message);
+    }
+
+    /// Emit message to the component.
+    pub async fn emit(&mut self, message: T::Message) -> Result<bool, T::Error> {
+        self.model.update(message, &self.sender).await
+    }
+
+    /// Get the sender of the component.
+    pub fn sender(&self) -> &ComponentSender<T> {
+        &self.sender
+    }
+
+    /// Convert the root component into a child component.
+    pub fn into_child(self) -> Child<T> {
+        Child::new(self.model, self.sender)
+    }
+
+    /// Run the component, and yield its events.
+    pub fn run(&mut self) -> impl Stream<Item = RunEvent<T::Event, T::Error>> + use<'_, T> {
+        run_events_impl(&mut self.model, &self.sender)
+    }
+}
+
+fn run_events_impl<'a, T: Component>(
+    model: &'a mut T,
+    sender: &'a ComponentSender<T>,
+) -> impl Stream<Item = RunEvent<T::Event, T::Error>> + 'a {
+    stream! {
+        if let Err(e) = model.render(sender) {
             yield RunEvent::RenderErr(e);
         }
         if let Err(e) = model.render_children() {
             yield RunEvent::RenderErr(e);
         }
-        for await event in run_events_impl(&mut model, &sender) {
-            yield event;
-        }
-    }
-}
-
-pub(crate) fn run_events_impl<'a, T: Component>(
-    model: &'a mut T,
-    sender: &'a ComponentSender<T>,
-) -> impl Stream<Item = RunEvent<T::Event, T::Error>> + 'a {
-    stream! {
         loop {
             let fut_start = model.start(sender);
             let fut_recv = sender.wait();
@@ -109,7 +129,8 @@ pub(crate) fn run_events_impl<'a, T: Component>(
 
 #[cfg(test)]
 mod test {
-    use futures_util::StreamExt;
+    use async_stream::stream;
+    use futures_util::{Stream, StreamExt};
 
     use crate::*;
 
@@ -139,10 +160,6 @@ mod test {
             Ok(Self)
         }
 
-        async fn start(&mut self, _sender: &ComponentSender<Self>) -> ! {
-            std::future::pending().await
-        }
-
         async fn update(
             &mut self,
             message: Self::Message,
@@ -159,9 +176,16 @@ mod test {
                 }
             }
         }
+    }
 
-        fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<(), ()> {
-            Ok(())
+    fn run_events<'a, T: Component>(
+        init: impl Into<T::Init<'a>>,
+    ) -> impl Stream<Item = RunEvent<T::Event, T::Error>> {
+        stream! {
+            let mut root = Root::<T>::init(init).expect("failed to init component");
+            for await event in root.run() {
+                yield event;
+            }
         }
     }
 

@@ -25,6 +25,9 @@ impl App {
     }
 
     /// Block on the future till it completes.
+    ///
+    /// The inner runtime might exits the inner application loop after the
+    /// execution of the future.
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
         self.runtime.block_on(future)
     }

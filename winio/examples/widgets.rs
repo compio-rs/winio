@@ -54,15 +54,12 @@ fn main() -> Result<()> {
     let app = App::new("rs.compio.winio.widgets")?;
 
     app.block_on(async {
-        let stream = run_events::<MainModel>(());
+        let mut model = Root::<MainModel>::init(())?;
+        let stream = model.run();
         let mut stream = std::pin::pin!(stream);
         while let Some(event) = stream.next().await {
             match event {
                 RunEvent::Event(()) => return Ok(()),
-                RunEvent::InitErr(e) => {
-                    error!("Init error: {e:?}");
-                    return Err(e);
-                }
                 RunEvent::UpdateErr(_e) => {
                     error!("Update error: {_e:?}");
                 }

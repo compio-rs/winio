@@ -3,7 +3,6 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use futures_util::Stream;
 #[cfg(feature = "primitive")]
 use inherit_methods_macro::inherit_methods;
 use smallvec::SmallVec;
@@ -16,7 +15,7 @@ use winio_handle::{
 use winio_primitive::{Failable, Layoutable, Point, Rect, Size};
 
 use super::ComponentMessage;
-use crate::{Component, ComponentSender, RunEvent};
+use crate::{Component, ComponentSender, Root};
 
 /// Helper to embed one component into another. It handles different types of
 /// messages and events.
@@ -31,11 +30,15 @@ impl<T: Component> Child<T> {
     pub fn init<'a>(init: impl Into<T::Init<'a>>) -> Result<Self, T::Error> {
         let sender = ComponentSender::new();
         let model = T::init(init.into(), &sender)?;
-        Ok(Self {
+        Ok(Self::new(model, sender))
+    }
+
+    pub(crate) fn new(model: T, sender: ComponentSender<T>) -> Self {
+        Self {
             model,
             sender,
             msg_cache: SmallVec::new(),
-        })
+        }
     }
 
     /// Start to receive and interp the events of the child component.
@@ -135,18 +138,15 @@ impl<T: Component> Child<T> {
         &self.sender
     }
 
-    /// Run the child component, and yield its events.
+    /// Try to convert the child component into a root component.
     ///
-    /// This method is parallel to [`Child::start`], [`Child::update`], and
-    /// [`Child::render`]. The caller is responsible to call `update` and
-    /// `render` if `start` has been called before `run`:
-    /// ```ignore
-    /// if child.update().await? {
-    ///     child.render()?;
-    /// }
-    /// ```
-    pub fn run(&mut self) -> impl Stream<Item = RunEvent<T::Event, T::Error>> + use<'_, T> {
-        crate::run_events_impl(&mut self.model, &self.sender)
+    /// It clears the inner message cache and updates the child component if
+    /// needed.
+    pub async fn try_into_root(mut self) -> Result<Root<T>, T::Error> {
+        if self.update().await? {
+            self.render()?;
+        }
+        Ok(Root::new(self.model, self.sender))
     }
 }
 
