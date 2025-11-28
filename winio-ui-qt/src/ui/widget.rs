@@ -128,7 +128,7 @@ where
     fn drop(&mut self) {
         if !self.weak_ref.isNull() {
             if let Err(_e) = self.pin_mut_qwidget().deleteLater() {
-                error!("failed to delete widget later: {_e:?}");
+                error!("Failed to delete widget later: {_e:?}");
             }
         }
     }

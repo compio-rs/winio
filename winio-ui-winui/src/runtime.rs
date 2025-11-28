@@ -215,7 +215,7 @@ fn spawn_runtime_thread(runtime: usize, shutdown: Arc<OwnedHandle>) -> Result<()
                 let Some(timeout) = timeout else {
                     break;
                 };
-                debug!("waiting in {timeout:?}");
+                debug!("Waiting in {timeout:?}");
                 let timeout = match timeout {
                     Some(timeout) => timeout.as_millis() as u32,
                     None => INFINITE,
@@ -225,7 +225,7 @@ fn spawn_runtime_thread(runtime: usize, shutdown: Arc<OwnedHandle>) -> Result<()
                 if res == WAIT_OBJECT_0 {
                     break;
                 } else if res == WAIT_FAILED {
-                    error!("{:?}", Error::from_thread());
+                    error!("WaitForMultipleObjects: {:?}", Error::from_thread());
                     break;
                 }
             }

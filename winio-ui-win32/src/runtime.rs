@@ -165,10 +165,10 @@ impl Runtime {
                         }
                     }
                 } else if res == 0 {
-                    debug!("received WM_QUIT");
+                    debug!("Received WM_QUIT");
                     break result.take().expect("received WM_QUIT but no result");
                 } else {
-                    panic!("{:?}", Error::from_thread());
+                    panic!("MsgWaitForMultipleObjectsEx: {:?}", Error::from_thread());
                 }
             }
         })
@@ -214,14 +214,13 @@ impl Runtime {
 
     // Safety: the caller should ensure the handle valid.
     unsafe fn register_message(&self, handle: HWND, msg: u32) -> MsgFuture {
-        instrument!(Level::DEBUG, "register_message", ?handle, ?msg);
         let id = self
             .registry
             .borrow_mut()
             .entry((handle, msg))
             .or_default()
             .insert(FutureState::Active(None));
-        debug!("register: {}", id);
+        debug!("Register: {}", id);
         MsgFuture { id, handle, msg }
     }
 
@@ -263,7 +262,7 @@ pub(crate) unsafe extern "system" fn window_proc(
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
-    trace!("window_proc: {:p}, {}, {}, {}", handle, msg, wparam, lparam);
+    instrument!(Level::DEBUG, "window_proc", ?handle, msg, wparam, lparam);
     // These messages need special handling.
     match msg {
         WM_CREATE => {
@@ -343,14 +342,11 @@ impl Future for MsgFuture {
     type Output = WindowMessage;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        instrument!(Level::DEBUG, "MsgFuture", ?self.id);
         if let Some(msg) = RUNTIME
             .with(|runtime| runtime.replace_waker(self.id, self.handle, self.msg, cx.waker()))
         {
-            debug!("ready!");
             Poll::Ready(msg)
         } else {
-            debug!("pending...");
             Poll::Pending
         }
     }

@@ -260,7 +260,7 @@ impl ScrollView {
             match res {
                 Ok(()) => {}
                 Err(_e) => {
-                    error!("scroll error: {_e:?}");
+                    error!("Scroll error: {_e:?}");
                 }
             }
         }
