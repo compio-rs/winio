@@ -127,10 +127,10 @@ impl Window {
 
     fn on_close(c: *const u8) -> bool {
         let c = c as *const Callback<()>;
-        if let Some(c) = unsafe { c.as_ref() } {
-            if !c.signal::<GlobalRuntime>(()) {
-                return true;
-            }
+        if let Some(c) = unsafe { c.as_ref() }
+            && !c.signal::<GlobalRuntime>(())
+        {
+            return true;
         }
         false
     }

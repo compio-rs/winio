@@ -599,7 +599,7 @@ pub struct DrawingImage(ImageSurface);
 impl DrawingImage {
     fn new(image: DynamicImage) -> Result<Self> {
         fn alpha_premultiply(mut image: Rgba32FImage) -> Rgba32FImage {
-            for Rgba(ref mut pixel) in image.pixels_mut() {
+            for Rgba(pixel) in image.pixels_mut() {
                 let a = pixel[3];
                 if a == 0.0 {
                     pixel[0] = 0.0;

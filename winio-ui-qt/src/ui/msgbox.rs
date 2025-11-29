@@ -8,10 +8,10 @@ use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 use crate::Result;
 
 fn msgbox_finished(data: *const u8, res: i32) {
-    if let Some(tx) = unsafe { (data.cast_mut() as *mut Option<oneshot::Sender<i32>>).as_mut() } {
-        if let Some(tx) = tx.take() {
-            tx.send(res).ok();
-        }
+    if let Some(tx) = unsafe { (data.cast_mut() as *mut Option<oneshot::Sender<i32>>).as_mut() }
+        && let Some(tx) = tx.take()
+    {
+        tx.send(res).ok();
     }
 }
 
