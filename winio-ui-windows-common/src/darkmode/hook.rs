@@ -53,12 +53,12 @@ use super::{PreferredAppMode, WHITE, WinBrush, u16_string_eq_ignore_case};
 use crate::{Error, Result, darkmode::u16_string_starts_with_ignore_case};
 
 #[link(name = "ntdll")]
-extern "system" {
+unsafe extern "system" {
     fn RtlGetNtVersionNumbers(major: *mut u32, minor: *mut u32, build: *mut u32);
 }
 
 #[link(name = "uxtheme", kind = "raw-dylib")]
-extern "system" {
+unsafe extern "system" {
     #[link_ordinal(132)]
     fn ShouldAppsUseDarkMode() -> bool;
     #[link_ordinal(133)]
