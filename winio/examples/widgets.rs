@@ -1,7 +1,5 @@
 use std::{convert::Infallible, future::Future, path::PathBuf, pin::Pin};
 
-use compio_log::error;
-use futures_util::StreamExt;
 use thiserror::Error;
 use winio::prelude::*;
 
@@ -51,28 +49,7 @@ fn main() -> Result<()> {
         .with_max_level(compio_log::Level::INFO)
         .init();
 
-    let app = App::new("rs.compio.winio.widgets")?;
-
-    app.block_on(async {
-        let mut model = Root::<MainModel>::init(())?;
-        let stream = model.run();
-        let mut stream = std::pin::pin!(stream);
-        while let Some(event) = stream.next().await {
-            match event {
-                RunEvent::Event(()) => return Ok(()),
-                RunEvent::UpdateErr(_e) => {
-                    error!("Update error: {_e:?}");
-                }
-                RunEvent::RenderErr(_e) => {
-                    error!("Render error: {_e:?}");
-                }
-                _ => {
-                    error!("Unexpected event: {event:?}");
-                }
-            }
-        }
-        unreachable!("Component ended unexpectedly");
-    })
+    App::new("rs.compio.winio.widgets")?.run_until_event::<MainModel>(())
 }
 
 mod subviews;
