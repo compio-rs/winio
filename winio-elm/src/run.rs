@@ -1,8 +1,11 @@
 use std::hint::unreachable_unchecked;
 
+#[cfg(not(feature = "gen_blocks"))]
 use async_stream::stream;
 use futures_util::{FutureExt, Stream};
 
+#[cfg(feature = "gen_blocks")]
+use crate::stream::stream;
 use crate::{Child, Component, ComponentMessage, ComponentSender};
 
 /// Events yielded by the [`run`].
