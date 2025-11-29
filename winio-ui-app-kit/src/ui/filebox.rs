@@ -57,71 +57,63 @@ impl FileBox {
     }
 
     pub async fn open(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
-        unsafe {
-            filebox(
-                parent,
-                self.title,
-                self.filename,
-                self.filters,
-                true,
-                false,
-                false,
-            )
-            .await?
-            .result()
-        }
+        filebox(
+            parent,
+            self.title,
+            self.filename,
+            self.filters,
+            true,
+            false,
+            false,
+        )
+        .await?
+        .result()
     }
 
     pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Result<Vec<PathBuf>> {
-        unsafe {
-            filebox(
-                parent,
-                self.title,
-                self.filename,
-                self.filters,
-                true,
-                true,
-                false,
-            )
-            .await?
-            .results()
-        }
+        filebox(
+            parent,
+            self.title,
+            self.filename,
+            self.filters,
+            true,
+            true,
+            false,
+        )
+        .await?
+        .results()
     }
 
     pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
-        unsafe {
-            filebox(
-                parent,
-                self.title,
-                self.filename,
-                self.filters,
-                true,
-                false,
-                true,
-            )
-            .await?
-            .result()
-        }
+        filebox(
+            parent,
+            self.title,
+            self.filename,
+            self.filters,
+            true,
+            false,
+            true,
+        )
+        .await?
+        .result()
     }
 
     pub async fn save(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
-        unsafe {
-            filebox(
-                parent,
-                self.title,
-                self.filename,
-                self.filters,
-                false,
-                false,
-                false,
-            )
-            .await?
-            .result()
-        }
+        filebox(
+            parent,
+            self.title,
+            self.filename,
+            self.filters,
+            false,
+            false,
+            false,
+        )
+        .await?
+        .result()
     }
 }
 
-async unsafe fn filebox(
+async fn filebox(
     parent: Option<impl AsWindow>,
     title: Retained<NSString>,
     filename: Retained<NSString>,
@@ -158,7 +150,7 @@ async unsafe fn filebox(
         handle.setTreatsFilePackagesAsDirectories(true);
 
         if let Some(parent) = &parent {
-            handle.setParentWindow(Some(parent));
+            unsafe { handle.setParentWindow(Some(parent)) };
         }
 
         if !title.is_empty() {
@@ -221,7 +213,7 @@ async unsafe fn filebox(
 struct FileBoxInner(Option<Retained<NSSavePanel>>);
 
 impl FileBoxInner {
-    pub unsafe fn result(self) -> Result<Option<PathBuf>> {
+    pub fn result(self) -> Result<Option<PathBuf>> {
         if let Some(dialog) = self.0 {
             catch(|| {
                 dialog
@@ -234,9 +226,9 @@ impl FileBoxInner {
         }
     }
 
-    pub unsafe fn results(self) -> Result<Vec<PathBuf>> {
+    pub fn results(self) -> Result<Vec<PathBuf>> {
         if let Some(dialog) = self.0 {
-            let dialog: Retained<NSOpenPanel> = Retained::cast_unchecked(dialog);
+            let dialog: Retained<NSOpenPanel> = unsafe { Retained::cast_unchecked(dialog) };
             catch(|| {
                 dialog
                     .URLs()

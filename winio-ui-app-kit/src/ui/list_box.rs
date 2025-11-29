@@ -227,7 +227,7 @@ define_class! {
             _table_column: Option<&NSTableColumn>,
             row: NSInteger,
         ) -> Option<Retained<AnyObject>> {
-            self.ivars().data.borrow().get(row as usize).map(|s| Retained::cast_unchecked(NSString::from_str(s)))
+            self.ivars().data.borrow().get(row as usize).map(|s| unsafe { Retained::cast_unchecked(NSString::from_str(s)) })
         }
     }
 }
