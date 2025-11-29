@@ -3,30 +3,32 @@ use std::{
     future::Future,
     pin::Pin,
     sync::{Arc, Mutex},
-    task::{Context, Poll},
+    task::{Context, Poll, Waker},
 };
 
-use futures_util::task::AtomicWaker;
 use smallvec::SmallVec;
 
 struct ChannelInner<T> {
-    data: Mutex<SmallVec<[T; 1]>>,
-    waker: AtomicWaker,
+    data: SmallVec<[T; 1]>,
+    waker: Option<Waker>,
 }
 
-pub struct Channel<T>(Arc<ChannelInner<T>>);
+pub struct Channel<T>(Arc<Mutex<ChannelInner<T>>>);
 
 impl<T> Channel<T> {
     pub fn new() -> Self {
-        Self(Arc::new(ChannelInner {
-            data: Mutex::default(),
-            waker: AtomicWaker::new(),
-        }))
+        Self(Arc::new(Mutex::new(ChannelInner {
+            data: SmallVec::new(),
+            waker: None,
+        })))
     }
 
     pub fn send(&self, data: T) {
-        self.0.data.lock().unwrap().push(data);
-        self.0.waker.wake();
+        let mut inner = self.0.lock().unwrap();
+        inner.data.push(data);
+        if let Some(waker) = inner.waker.take() {
+            waker.wake();
+        }
     }
 
     pub fn wait(&self) -> impl Future<Output = ()> + '_ {
@@ -34,7 +36,8 @@ impl<T> Channel<T> {
     }
 
     pub fn fetch_all(&self) -> SmallVec<[T; 1]> {
-        std::mem::take(&mut *self.0.data.lock().unwrap())
+        let mut inner = self.0.lock().unwrap();
+        std::mem::take(&mut inner.data)
     }
 }
 
@@ -50,14 +53,15 @@ impl<T> Clone for Channel<T> {
     }
 }
 
-struct RecvFut<'a, T>(&'a ChannelInner<T>);
+struct RecvFut<'a, T>(&'a Mutex<ChannelInner<T>>);
 
 impl<T> Future for RecvFut<'_, T> {
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        if self.0.data.lock().unwrap().is_empty() {
-            self.0.waker.register(cx.waker());
+        let mut inner = self.0.lock().unwrap();
+        if inner.data.is_empty() {
+            inner.waker = Some(cx.waker().clone());
             Poll::Pending
         } else {
             Poll::Ready(())
