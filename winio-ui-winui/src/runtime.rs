@@ -5,7 +5,7 @@ use std::{
     ptr::null,
     sync::{
         Arc,
-        atomic::{AtomicU8, Ordering},
+        atomic::{AtomicBool, Ordering},
     },
 };
 
@@ -200,15 +200,35 @@ pub(crate) unsafe fn run_runtime(msg: *mut MSG, hwnd: HWND, min: u32, max: u32) 
     }
 }
 
-static THREAD_COUNTER: AtomicU8 = AtomicU8::new(0);
+static THREAD_COUNTER: AtomicBool = AtomicBool::new(false);
+
+struct ThreadGuard;
+
+impl ThreadGuard {
+    fn new() -> Option<Self> {
+        if THREAD_COUNTER
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok()
+        {
+            Some(Self)
+        } else {
+            None
+        }
+    }
+}
+
+impl Drop for ThreadGuard {
+    fn drop(&mut self) {
+        THREAD_COUNTER.store(false, Ordering::Release);
+        info!("Runtime thread exited");
+    }
+}
 
 fn spawn_runtime_thread(runtime: usize, shutdown: Arc<OwnedHandle>) -> Result<()> {
-    if THREAD_COUNTER
-        .compare_exchange(0, 1, Ordering::AcqRel, Ordering::Acquire)
-        .is_ok()
-    {
+    if let Some(guard) = ThreadGuard::new() {
         let dispatcher = DispatcherQueue::GetForCurrentThread()?;
         compio::runtime::spawn_blocking(move || {
+            let _guard = guard;
             loop {
                 let timeout = resume_foreground(&dispatcher, {
                     move || RUNTIME.with(|runtime| runtime.runtime.poll_and_run())
@@ -230,8 +250,6 @@ fn spawn_runtime_thread(runtime: usize, shutdown: Arc<OwnedHandle>) -> Result<()
                     break;
                 }
             }
-            THREAD_COUNTER.store(0, Ordering::Release);
-            info!("Runtime thread exited");
         })
         .detach();
     }
