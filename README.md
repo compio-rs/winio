@@ -24,8 +24,8 @@ The application starts with a root `Component`:
 ```rust
 use winio::prelude::*;
 
-fn main() {
-    App::new("rs.compio.winio.example").run::<MainModel>(());
+fn main() -> Result<()> {
+    App::new("rs.compio.winio.example")?.run::<MainModel>(())
 }
 
 struct MainModel {
@@ -38,11 +38,12 @@ enum MainMessage {
 }
 
 impl Component for MainModel {
+    type Error = Error;
     type Event = ();
     type Init<'a> = ();
     type Message = MainMessage;
 
-    fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+    fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         // create & initialize the window
         init! {
             window: Window = (()) => {
@@ -50,8 +51,8 @@ impl Component for MainModel {
                 size: Size::new(800.0, 600.0),
             }
         }
-        window.show();
-        Self { window }
+        window.show()?;
+        Ok(Self { window })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -64,31 +65,32 @@ impl Component for MainModel {
         }
     }
 
-    async fn update_children(&mut self) -> bool {
+    async fn update_children(&mut self) -> Result<bool> {
         // update the window
-        self.window.update().await
+        update_children!(self.window)
     }
 
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
+    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> Result<bool> {
         // deal with custom messages
         match message {
-            MainMessage::Noop => false,
+            MainMessage::Noop => Ok(false),
             MainMessage::Close => {
                 // the root component output stops the application
                 sender.output(());
                 // need not to call `render`
-                false
+                Ok(false)
             }
         }
     }
 
-    fn render(&mut self, _sender: &ComponentSender<Self>) {
-        let csize = self.window.client_size();
+    fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
+        let csize = self.window.client_size()?;
         // adjust layout and draw widgets here
+        Ok(())
     }
 
-    fn render_children(&mut self) {
-        self.window.render();
+    fn render_children(&mut self) -> Result<()> {
+        self.window.render()
     }
 }
 ```
