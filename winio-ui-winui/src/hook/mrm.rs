@@ -54,14 +54,15 @@ unsafe extern "system" fn mrm_get_file_path_from_name(
     filename: PCWSTR,
     filepath: *mut PWSTR,
 ) -> HRESULT {
-    match *TRUE_MRM_GET_FILE_PATH_FROM_NAME.get() {
+    match unsafe { *TRUE_MRM_GET_FILE_PATH_FROM_NAME.get() } {
         Some(f) => {
-            let mut res = f(filename, filepath);
-            if res == hresult_from_win32(ERROR_FILE_NOT_FOUND as _) {
-                if let Some(ptr) = get_resource_filename() {
-                    *filepath = ptr;
-                    res = S_OK;
-                }
+            let mut res = unsafe { f(filename, filepath) };
+            if res == hresult_from_win32(ERROR_FILE_NOT_FOUND as _)
+                && let Some(ptr) = get_resource_filename()
+                && let Some(filepath) = unsafe { filepath.as_mut() }
+            {
+                *filepath = ptr;
+                res = S_OK;
             }
             res
         }

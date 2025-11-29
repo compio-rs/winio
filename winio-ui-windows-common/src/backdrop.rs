@@ -1,7 +1,6 @@
 #![warn(missing_docs)]
 
-use std::io;
-
+use windows::core::{Error, HRESULT};
 use windows_sys::Win32::{
     Foundation::HWND,
     Graphics::Dwm::{
@@ -40,7 +39,7 @@ pub unsafe fn get_backdrop(handle: HWND) -> Result<Backdrop> {
         )
     };
     if res < 0 {
-        return Err(io::Error::from_raw_os_error(res).into());
+        return Err(Error::from_hresult(HRESULT(res)));
     }
     let style = match style {
         DWMSBT_TRANSIENTWINDOW => Backdrop::Acrylic,
@@ -61,15 +60,17 @@ pub unsafe fn set_backdrop(handle: HWND, backdrop: Backdrop) -> Result<bool> {
         Backdrop::MicaAlt => DWMSBT_TABBEDWINDOW,
         _ => DWMSBT_AUTO,
     };
-    let res = DwmSetWindowAttribute(
-        handle,
-        DWMWA_SYSTEMBACKDROP_TYPE as _,
-        &style as *const _ as _,
-        4,
-    );
+    let res = unsafe {
+        DwmSetWindowAttribute(
+            handle,
+            DWMWA_SYSTEMBACKDROP_TYPE as _,
+            &style as *const _ as _,
+            4,
+        )
+    };
     if res >= 0 {
         Ok(style > 0)
     } else {
-        Err(io::Error::from_raw_os_error(res).into())
+        Err(Error::from_hresult(HRESULT(res)))
     }
 }

@@ -58,14 +58,16 @@ pub enum PreferredAppMode {
 /// `s2` should be a valid null-terminated UTF-16 string.
 #[inline]
 unsafe fn u16_string_eq_ignore_case(s1: &U16CStr, s2: *const u16) -> bool {
-    CompareStringW(
-        LOCALE_ALL,
-        NORM_IGNORECASE,
-        s1.as_ptr(),
-        s1.len() as _,
-        s2,
-        -1,
-    ) == CSTR_EQUAL
+    unsafe {
+        CompareStringW(
+            LOCALE_ALL,
+            NORM_IGNORECASE,
+            s1.as_ptr(),
+            s1.len() as _,
+            s2,
+            -1,
+        ) == CSTR_EQUAL
+    }
 }
 
 /// # Safety
@@ -73,7 +75,7 @@ unsafe fn u16_string_eq_ignore_case(s1: &U16CStr, s2: *const u16) -> bool {
 /// `s2` should be a valid null-terminated UTF-16 string.
 #[inline]
 unsafe fn u16_string_starts_with_ignore_case(s1: &U16CStr, s2: *const u16) -> bool {
-    FindStringOrdinal(FIND_STARTSWITH, s1.as_ptr(), s1.len() as _, s2, -1, 1) >= 0
+    unsafe { FindStringOrdinal(FIND_STARTSWITH, s1.as_ptr(), s1.len() as _, s2, -1, 1) >= 0 }
 }
 
 const WHITE: COLORREF = 0x00FFFFFF;
@@ -86,57 +88,61 @@ static EDIT_NORMAL_BACK: LazyLock<WinBrush> =
 /// It should only be called inside an wndproc, and `hwnd` & `hdc` should be
 /// valid.
 pub unsafe fn control_color_static(hwnd: HWND, hdc: HDC) -> LRESULT {
-    let dark = is_dark_mode_allowed_for_app();
+    unsafe {
+        let dark = is_dark_mode_allowed_for_app();
 
-    let mut class = [0u16; MAX_CLASS_NAME as usize];
-    GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
-    let class = U16CStr::from_ptr_str(class.as_ptr());
-    let is_static = u16_string_eq_ignore_case(class, WC_STATICW)
-        && ((GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32 & WS_EX_TRANSPARENT) != 0);
+        let mut class = [0u16; MAX_CLASS_NAME as usize];
+        GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
+        let class = U16CStr::from_ptr_str(class.as_ptr());
+        let is_static = u16_string_eq_ignore_case(class, WC_STATICW)
+            && ((GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32 & WS_EX_TRANSPARENT) != 0);
 
-    SetBkMode(hdc, TRANSPARENT as _);
-    if dark {
-        SetTextColor(hdc, WHITE);
-        if !is_static {
-            SetBkColor(hdc, BLACK);
+        SetBkMode(hdc, TRANSPARENT as _);
+        if dark {
+            SetTextColor(hdc, WHITE);
+            if !is_static {
+                SetBkColor(hdc, BLACK);
+            }
         }
+        let res = if is_static {
+            GetStockObject(NULL_BRUSH)
+        } else if dark {
+            GetStockObject(BLACK_BRUSH)
+        } else {
+            GetStockObject(WHITE_BRUSH)
+        };
+        res as _
     }
-    let res = if is_static {
-        GetStockObject(NULL_BRUSH)
-    } else if dark {
-        GetStockObject(BLACK_BRUSH)
-    } else {
-        GetStockObject(WHITE_BRUSH)
-    };
-    res as _
 }
 
 /// # Safety
 /// It should only be called inside an wndproc, and `hparent` & `hwnd` & `hdc`
 /// should be valid.
 pub unsafe fn control_color_edit(hparent: HWND, hwnd: HWND, hdc: HDC) -> Option<LRESULT> {
-    if is_dark_mode_allowed_for_app() {
-        let mut class = [0u16; MAX_CLASS_NAME as usize];
-        GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
-        let class = U16CStr::from_ptr_str(class.as_ptr());
+    unsafe {
+        if is_dark_mode_allowed_for_app() {
+            let mut class = [0u16; MAX_CLASS_NAME as usize];
+            GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
+            let class = U16CStr::from_ptr_str(class.as_ptr());
 
-        SetTextColor(hdc, WHITE);
-        SetBkColor(hdc, BLACK);
-        let is_hover = if u16_string_eq_ignore_case(class, WC_EDITW) {
-            let mut p = MaybeUninit::uninit();
-            GetCursorPos(p.as_mut_ptr());
-            let mut p = p.assume_init();
-            ScreenToClient(hwnd, &mut p);
-            std::ptr::eq(hwnd, ChildWindowFromPoint(hparent, p))
+            SetTextColor(hdc, WHITE);
+            SetBkColor(hdc, BLACK);
+            let is_hover = if u16_string_eq_ignore_case(class, WC_EDITW) {
+                let mut p = MaybeUninit::uninit();
+                GetCursorPos(p.as_mut_ptr());
+                let mut p = p.assume_init();
+                ScreenToClient(hwnd, &mut p);
+                std::ptr::eq(hwnd, ChildWindowFromPoint(hparent, p))
+            } else {
+                false
+            };
+            Some(if is_hover {
+                GetStockObject(BLACK_BRUSH)
+            } else {
+                EDIT_NORMAL_BACK.0
+            } as _)
         } else {
-            false
-        };
-        Some(if is_hover {
-            GetStockObject(BLACK_BRUSH)
-        } else {
-            EDIT_NORMAL_BACK.0
-        } as _)
-    } else {
-        None
+            None
+        }
     }
 }

@@ -74,9 +74,9 @@ unsafe extern "system" {
 }
 
 #[inline]
-unsafe fn get_nt_build() -> u32 {
+fn get_nt_build() -> u32 {
     let mut build = 0;
-    RtlGetNtVersionNumbers(null_mut(), null_mut(), &mut build);
+    unsafe { RtlGetNtVersionNumbers(null_mut(), null_mut(), &mut build) };
     build &= !0xF0000000;
     build
 }
@@ -122,28 +122,30 @@ const DWMWA_USE_IMMERSIVE_DARK_MODE_V2: u32 = 0x14;
 /// # Safety
 /// `h_wnd` should be valid.
 pub unsafe fn window_use_dark_mode(h_wnd: HWND) -> Result<()> {
-    let set_dark_mode = is_dark_mode_allowed_for_app();
-    AllowDarkModeForWindow(h_wnd, set_dark_mode);
-    let set_dark_mode = set_dark_mode as BOOL;
-    let hr = DwmSetWindowAttribute(
-        h_wnd,
-        DWMWA_USE_IMMERSIVE_DARK_MODE_V2,
-        std::ptr::addr_of!(set_dark_mode).cast(),
-        size_of::<BOOL>() as _,
-    );
-    if hr != 0 {
+    unsafe {
+        let set_dark_mode = is_dark_mode_allowed_for_app();
+        AllowDarkModeForWindow(h_wnd, set_dark_mode);
+        let set_dark_mode = set_dark_mode as BOOL;
         let hr = DwmSetWindowAttribute(
             h_wnd,
-            DWMWA_USE_IMMERSIVE_DARK_MODE,
+            DWMWA_USE_IMMERSIVE_DARK_MODE_V2,
             std::ptr::addr_of!(set_dark_mode).cast(),
             size_of::<BOOL>() as _,
         );
         if hr != 0 {
-            return windows::core::HRESULT(hr).ok();
+            let hr = DwmSetWindowAttribute(
+                h_wnd,
+                DWMWA_USE_IMMERSIVE_DARK_MODE,
+                std::ptr::addr_of!(set_dark_mode).cast(),
+                size_of::<BOOL>() as _,
+            );
+            if hr != 0 {
+                return windows::core::HRESULT(hr).ok();
+            }
         }
+        FlushMenuThemes();
+        Ok(())
     }
-    FlushMenuThemes();
-    Ok(())
 }
 
 type OpenThemeDataFn = unsafe extern "system" fn(hwnd: HWND, pszclasslist: PCWSTR) -> HTHEME;
@@ -295,37 +297,41 @@ enum ThemeType {
 static HTHEME_MAP: Mutex<BTreeMap<HTHEME, (usize, ThemeType)>> = Mutex::new(BTreeMap::new());
 
 unsafe fn on_theme_open(pszclasslist: PCWSTR, htheme: HTHEME) {
-    let class_list = U16CStr::from_ptr_str(pszclasslist);
-    let ty = if u16_string_starts_with_ignore_case(class_list, w!("Button")) {
-        Some(ThemeType::Button)
-    } else if u16_string_starts_with_ignore_case(class_list, w!("TaskDialog")) {
-        Some(ThemeType::TaskDialog)
-    } else if u16_string_eq_ignore_case(class_list, w!("Tab")) {
-        Some(ThemeType::Tab)
-    } else if u16_string_eq_ignore_case(class_list, w!("Progress"))
-        || u16_string_eq_ignore_case(class_list, w!("Indeterminate::Progress"))
-    {
-        Some(ThemeType::Progress)
-    } else {
-        None
-    };
-    if let Some(ty) = ty {
-        HTHEME_MAP
-            .lock()
-            .unwrap()
-            .entry(htheme)
-            .and_modify(|e| e.0 += 1)
-            .or_insert((1, ty));
+    unsafe {
+        let class_list = U16CStr::from_ptr_str(pszclasslist);
+        let ty = if u16_string_starts_with_ignore_case(class_list, w!("Button")) {
+            Some(ThemeType::Button)
+        } else if u16_string_starts_with_ignore_case(class_list, w!("TaskDialog")) {
+            Some(ThemeType::TaskDialog)
+        } else if u16_string_eq_ignore_case(class_list, w!("Tab")) {
+            Some(ThemeType::Tab)
+        } else if u16_string_eq_ignore_case(class_list, w!("Progress"))
+            || u16_string_eq_ignore_case(class_list, w!("Indeterminate::Progress"))
+        {
+            Some(ThemeType::Progress)
+        } else {
+            None
+        };
+        if let Some(ty) = ty {
+            HTHEME_MAP
+                .lock()
+                .unwrap()
+                .entry(htheme)
+                .and_modify(|e| e.0 += 1)
+                .or_insert((1, ty));
+        }
     }
 }
 
 unsafe extern "system" fn dark_open_theme_data(hwnd: HWND, pszclasslist: PCWSTR) -> HTHEME {
-    let htheme = (*TRUE_OPEN_THEME_DATA.get())(hwnd, pszclasslist);
-    if htheme == 0 {
-        return htheme;
+    unsafe {
+        let htheme = (*TRUE_OPEN_THEME_DATA.get())(hwnd, pszclasslist);
+        if htheme == 0 {
+            return htheme;
+        }
+        on_theme_open(pszclasslist, htheme);
+        htheme
     }
-    on_theme_open(pszclasslist, htheme);
-    htheme
 }
 
 unsafe extern "system" fn dark_open_theme_data_ex(
@@ -333,12 +339,14 @@ unsafe extern "system" fn dark_open_theme_data_ex(
     pszclasslist: PCWSTR,
     dwflags: OPEN_THEME_DATA_FLAGS,
 ) -> HTHEME {
-    let htheme = (*TRUE_OPEN_THEME_DATA_EX.get())(hwnd, pszclasslist, dwflags);
-    if htheme == 0 {
-        return htheme;
+    unsafe {
+        let htheme = (*TRUE_OPEN_THEME_DATA_EX.get())(hwnd, pszclasslist, dwflags);
+        if htheme == 0 {
+            return htheme;
+        }
+        on_theme_open(pszclasslist, htheme);
+        htheme
     }
-    on_theme_open(pszclasslist, htheme);
-    htheme
 }
 
 unsafe extern "system" fn dark_open_theme_data_for_dpi(
@@ -346,12 +354,14 @@ unsafe extern "system" fn dark_open_theme_data_for_dpi(
     pszclasslist: PCWSTR,
     dpi: u32,
 ) -> HTHEME {
-    let htheme = (*TRUE_OPEN_THEME_DATA_FOR_DPI.get())(hwnd, pszclasslist, dpi);
-    if htheme == 0 {
-        return htheme;
+    unsafe {
+        let htheme = (*TRUE_OPEN_THEME_DATA_FOR_DPI.get())(hwnd, pszclasslist, dpi);
+        if htheme == 0 {
+            return htheme;
+        }
+        on_theme_open(pszclasslist, htheme);
+        htheme
     }
-    on_theme_open(pszclasslist, htheme);
-    htheme
 }
 
 unsafe extern "system" fn dark_close_theme_data(htheme: HTHEME) -> HRESULT {
@@ -362,7 +372,7 @@ unsafe extern "system" fn dark_close_theme_data(htheme: HTHEME) -> HRESULT {
             map.remove(&htheme);
         }
     }
-    (*TRUE_CLOSE_THEME_DATA.get())(htheme)
+    unsafe { (*TRUE_CLOSE_THEME_DATA.get())(htheme) }
 }
 
 unsafe extern "system" fn dark_get_theme_color(
@@ -372,17 +382,17 @@ unsafe extern "system" fn dark_get_theme_color(
     ipropid: i32,
     pcolor: *mut COLORREF,
 ) -> HRESULT {
-    let res = (*TRUE_GET_THEME_COLOR.get())(htheme, ipartid, istateid, ipropid, pcolor);
+    let res = unsafe { (*TRUE_GET_THEME_COLOR.get())(htheme, ipartid, istateid, ipropid, pcolor) };
 
-    if is_dark_mode_allowed_for_app() {
-        if let Some((_, ThemeType::TaskDialog)) = HTHEME_MAP.lock().unwrap().get(&htheme) {
-            if ipropid == TMT_TEXTCOLOR as _ {
-                if ipartid == TDLG_MAININSTRUCTIONPANE {
-                    *pcolor = increase(*pcolor, 150);
-                } else {
-                    *pcolor = WHITE;
-                }
-            }
+    if is_dark_mode_allowed_for_app()
+        && let Some((_, ThemeType::TaskDialog)) = HTHEME_MAP.lock().unwrap().get(&htheme)
+        && ipropid == TMT_TEXTCOLOR as _
+        && let Some(pcolor) = unsafe { pcolor.as_mut() }
+    {
+        if ipartid == TDLG_MAININSTRUCTIONPANE {
+            *pcolor = increase(*pcolor, 150);
+        } else {
+            *pcolor = WHITE;
         }
     }
 
@@ -400,42 +410,43 @@ unsafe extern "system" fn dark_draw_theme_text(
     dwtextflags2: u32,
     prect: *const RECT,
 ) -> HRESULT {
-    if is_dark_mode_allowed_for_app() {
-        if let Some((_, ty)) = HTHEME_MAP.lock().unwrap().get(&htheme) {
-            if (ty == &ThemeType::Button
-                && ((ipartid == BP_CHECKBOX || ipartid == BP_RADIOBUTTON)
-                    && istateid != PBS_DISABLED))
-                || (ty == &ThemeType::Tab)
-            {
-                let mut options: DTTOPTS = std::mem::zeroed();
-                options.dwSize = std::mem::size_of::<DTTOPTS>() as _;
-                options.dwFlags = DTT_TEXTCOLOR;
-                options.crText = WHITE;
-                return DrawThemeTextEx(
-                    htheme,
-                    hdc,
-                    ipartid,
-                    istateid,
-                    psztext,
-                    cchtext,
-                    dwtextflags,
-                    prect.cast_mut(),
-                    &options,
-                );
-            }
-        }
+    if is_dark_mode_allowed_for_app()
+        && let Some((_, ty)) = HTHEME_MAP.lock().unwrap().get(&htheme)
+        && ((ty == &ThemeType::Button
+            && ((ipartid == BP_CHECKBOX || ipartid == BP_RADIOBUTTON) && istateid != PBS_DISABLED))
+            || (ty == &ThemeType::Tab))
+    {
+        let mut options: DTTOPTS = unsafe { std::mem::zeroed() };
+        options.dwSize = std::mem::size_of::<DTTOPTS>() as _;
+        options.dwFlags = DTT_TEXTCOLOR;
+        options.crText = WHITE;
+        return unsafe {
+            DrawThemeTextEx(
+                htheme,
+                hdc,
+                ipartid,
+                istateid,
+                psztext,
+                cchtext,
+                dwtextflags,
+                prect.cast_mut(),
+                &options,
+            )
+        };
     }
-    (*TRUE_DRAW_THEME_TEXT.get())(
-        htheme,
-        hdc,
-        ipartid,
-        istateid,
-        psztext,
-        cchtext,
-        dwtextflags,
-        dwtextflags2,
-        prect,
-    )
+    unsafe {
+        (*TRUE_DRAW_THEME_TEXT.get())(
+            htheme,
+            hdc,
+            ipartid,
+            istateid,
+            psztext,
+            cchtext,
+            dwtextflags,
+            dwtextflags2,
+            prect,
+        )
+    }
 }
 
 unsafe extern "system" fn dark_draw_theme_background(
@@ -453,13 +464,9 @@ unsafe extern "system" fn dark_draw_theme_background(
         } else {
             DTBG_CLIPRECT
         },
-        rcClip: if pcliprect.is_null() {
-            RECT::default()
-        } else {
-            *pcliprect
-        },
+        rcClip: unsafe { pcliprect.as_ref() }.cloned().unwrap_or_default(),
     };
-    dark_draw_theme_background_ex(htheme, hdc, ipartid, istateid, prect, &options)
+    unsafe { dark_draw_theme_background_ex(htheme, hdc, ipartid, istateid, prect, &options) }
 }
 
 unsafe extern "system" fn dark_draw_theme_background_ex(
@@ -470,63 +477,65 @@ unsafe extern "system" fn dark_draw_theme_background_ex(
     prect: *const RECT,
     poptions: *const DTBGOPTS,
 ) -> HRESULT {
-    if is_dark_mode_allowed_for_app() {
-        if let Some((_, ty)) = HTHEME_MAP.lock().unwrap().get(&htheme) {
-            match ty {
-                ThemeType::Progress => {
-                    if ipartid == PP_TRANSPARENTBAR {
-                        FillRect(hdc, prect, DLG_GRAY_BACK.0);
-                        return S_OK;
+    if is_dark_mode_allowed_for_app()
+        && let Some((_, ty)) = HTHEME_MAP.lock().unwrap().get(&htheme)
+    {
+        match ty {
+            ThemeType::Progress => {
+                if ipartid == PP_TRANSPARENTBAR {
+                    unsafe { FillRect(hdc, prect, DLG_GRAY_BACK.0) };
+                    return S_OK;
+                }
+            }
+            ThemeType::Tab => match ipartid {
+                TABP_TABITEM
+                | TABP_TABITEMLEFTEDGE
+                | TABP_TABITEMRIGHTEDGE
+                | TABP_TABITEMBOTHEDGE
+                | TABP_TOPTABITEM
+                | TABP_TOPTABITEMLEFTEDGE
+                | TABP_TOPTABITEMRIGHTEDGE
+                | TABP_TOPTABITEMBOTHEDGE => {
+                    let f = match istateid {
+                        TIS_NORMAL => -0.75,
+                        TIS_HOT => -0.8,
+                        TIS_FOCUSED | TIS_SELECTED => -0.86,
+                        TIS_DISABLED => -0.6,
+                        _ => return E_INVALIDARG,
+                    };
+                    let res = adjust_luma(hdc, WHITE, prect, poptions, f);
+                    if res >= 0 {
+                        return res;
                     }
                 }
-                ThemeType::Tab => match ipartid {
-                    TABP_TABITEM
-                    | TABP_TABITEMLEFTEDGE
-                    | TABP_TABITEMRIGHTEDGE
-                    | TABP_TABITEMBOTHEDGE
-                    | TABP_TOPTABITEM
-                    | TABP_TOPTABITEMLEFTEDGE
-                    | TABP_TOPTABITEMRIGHTEDGE
-                    | TABP_TOPTABITEMBOTHEDGE => {
-                        let f = match istateid {
-                            TIS_NORMAL => -0.75,
-                            TIS_HOT => -0.8,
-                            TIS_FOCUSED | TIS_SELECTED => -0.86,
-                            TIS_DISABLED => -0.6,
-                            _ => return E_INVALIDARG,
-                        };
-                        let res = adjust_luma(hdc, WHITE, prect, poptions, f);
-                        if res >= 0 {
-                            return res;
-                        }
+                TABP_PANE | TABP_BODY | TABP_AEROWIZARDBODY => {
+                    let res = adjust_luma(hdc, WHITE, prect, poptions, -0.86);
+                    if res >= 0 {
+                        unsafe { FrameRect(hdc, prect, DLG_GRAY_BACK.0) };
+                        return res;
                     }
-                    TABP_PANE | TABP_BODY | TABP_AEROWIZARDBODY => {
-                        let res = adjust_luma(hdc, WHITE, prect, poptions, -0.86);
-                        if res >= 0 {
-                            FrameRect(hdc, prect, DLG_GRAY_BACK.0);
-                            return res;
-                        }
-                    }
-                    _ => {}
-                },
-                ThemeType::TaskDialog => {
-                    match ipartid {
-                        TDLG_PRIMARYPANEL => {
-                            FillRect(hdc, prect, DLG_GRAY_BACK.0);
-                            return S_OK;
-                        }
-                        TDLG_SECONDARYPANEL => {
-                            FillRect(hdc, prect, DLG_DARK_BACK.0);
-                            return S_OK;
-                        }
-                        _ => {}
-                    };
                 }
                 _ => {}
+            },
+            ThemeType::TaskDialog => {
+                match ipartid {
+                    TDLG_PRIMARYPANEL => {
+                        unsafe { FillRect(hdc, prect, DLG_GRAY_BACK.0) };
+                        return S_OK;
+                    }
+                    TDLG_SECONDARYPANEL => {
+                        unsafe { FillRect(hdc, prect, DLG_DARK_BACK.0) };
+                        return S_OK;
+                    }
+                    _ => {}
+                };
             }
+            _ => {}
         }
     }
-    (*TRUE_DRAW_THEME_BACKGROUND_EX.get())(htheme, hdc, ipartid, istateid, prect, poptions)
+    unsafe {
+        (*TRUE_DRAW_THEME_BACKGROUND_EX.get())(htheme, hdc, ipartid, istateid, prect, poptions)
+    }
 }
 
 unsafe extern "system" fn dark_draw_theme_parent_background(
@@ -534,27 +543,29 @@ unsafe extern "system" fn dark_draw_theme_parent_background(
     hdc: HDC,
     prect: *const RECT,
 ) -> HRESULT {
-    if is_dark_mode_allowed_for_app() {
-        let mut class_name = [0u16; MAX_CLASS_NAME as usize];
-        let res = GetClassNameW(hwnd, class_name.as_mut_ptr(), MAX_CLASS_NAME);
-        if res != 0 {
-            let class_name = U16CStr::from_ptr_str(class_name.as_ptr());
-            if u16_string_eq_ignore_case(class_name, WC_TABCONTROLW) {
-                let rect = if prect.is_null() {
-                    let mut rect = MaybeUninit::uninit();
-                    GetClientRect(hwnd, rect.as_mut_ptr());
-                    rect.assume_init()
-                } else {
-                    *prect
-                };
-                FillRect(hdc, &rect, DLG_GRAY_BACK.0);
-                return S_OK;
+    unsafe {
+        if is_dark_mode_allowed_for_app() {
+            let mut class_name = [0u16; MAX_CLASS_NAME as usize];
+            let res = GetClassNameW(hwnd, class_name.as_mut_ptr(), MAX_CLASS_NAME);
+            if res != 0 {
+                let class_name = U16CStr::from_ptr_str(class_name.as_ptr());
+                if u16_string_eq_ignore_case(class_name, WC_TABCONTROLW) {
+                    let rect = if prect.is_null() {
+                        let mut rect = MaybeUninit::uninit();
+                        GetClientRect(hwnd, rect.as_mut_ptr());
+                        rect.assume_init()
+                    } else {
+                        *prect
+                    };
+                    FillRect(hdc, &rect, DLG_GRAY_BACK.0);
+                    return S_OK;
+                }
+            } else {
+                error!("GetClassNameW: {:?}", Error::from_thread());
             }
-        } else {
-            error!("GetClassNameW: {:?}", Error::from_thread());
         }
+        (*TRUE_DRAW_THEME_PARENT_BACKGROUND.get())(hwnd, hdc, prect)
     }
-    (*TRUE_DRAW_THEME_PARENT_BACKGROUND.get())(hwnd, hdc, prect)
 }
 
 fn delta_colorref_luma(cr: u32, d: i32) -> u32 {
@@ -616,54 +627,60 @@ fn increase(c: COLORREF, inc: u32) -> COLORREF {
 /// `handle` should be valid.
 pub unsafe fn children_refresh_dark_mode(handle: HWND, lparam: LPARAM) {
     unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
-        if control_use_dark_mode(hwnd, lparam != 0).is_err() {
-            error!("control_use_dark_mode: {:?}", Error::from_thread());
-            return 0;
+        unsafe {
+            if control_use_dark_mode(hwnd, lparam != 0).is_err() {
+                error!("control_use_dark_mode: {:?}", Error::from_thread());
+                return 0;
+            }
+            if InvalidateRect(hwnd, null(), 1) == 0 {
+                error!("InvalidateRect: {:?}", Error::from_thread());
+                return 0;
+            }
+            EnumChildWindows(hwnd, Some(enum_callback), lparam);
+            1
         }
-        if InvalidateRect(hwnd, null(), 1) == 0 {
-            error!("InvalidateRect: {:?}", Error::from_thread());
-            return 0;
-        }
-        EnumChildWindows(hwnd, Some(enum_callback), lparam);
-        1
     }
 
-    EnumChildWindows(handle, Some(enum_callback), lparam);
+    unsafe {
+        EnumChildWindows(handle, Some(enum_callback), lparam);
+    }
 }
 
 /// # Safety
 /// `hwnd` should be valid.
 pub unsafe fn control_use_dark_mode(hwnd: HWND, misc_task_dialog: bool) -> Result<()> {
-    let mut class = [0u16; MAX_CLASS_NAME as usize];
-    let res = GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
-    if res == 0 {
-        return Err(Error::from_thread());
-    }
-    let class = U16CStr::from_ptr_str(class.as_ptr());
-    let subappname = if is_dark_mode_allowed_for_app() {
-        if u16_string_eq_ignore_case(class, WC_COMBOBOXW) {
-            w!("DarkMode_CFD")
-        } else if u16_string_eq_ignore_case(class, WC_EDITW) {
-            let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
-            if style as i32 & ES_MULTILINE != 0 {
-                w!("DarkMode_Explorer")
-            } else {
-                w!("DarkMode_CFD")
-            }
-        } else if u16_string_eq_ignore_case(class, PROGRESS_CLASSW)
-            || (u16_string_eq_ignore_case(class, WC_BUTTONW) && misc_task_dialog)
-        {
-            null()
-        } else {
-            w!("DarkMode_Explorer")
+    unsafe {
+        let mut class = [0u16; MAX_CLASS_NAME as usize];
+        let res = GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
+        if res == 0 {
+            return Err(Error::from_thread());
         }
-    } else if u16_string_eq_ignore_case(class, WC_BUTTONW) && misc_task_dialog {
-        w!("DarkMode_Explorer")
-    } else {
-        null()
-    };
-    let res = SetWindowTheme(hwnd, subappname, null());
-    windows::core::HRESULT(res).ok()
+        let class = U16CStr::from_ptr_str(class.as_ptr());
+        let subappname = if is_dark_mode_allowed_for_app() {
+            if u16_string_eq_ignore_case(class, WC_COMBOBOXW) {
+                w!("DarkMode_CFD")
+            } else if u16_string_eq_ignore_case(class, WC_EDITW) {
+                let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
+                if style as i32 & ES_MULTILINE != 0 {
+                    w!("DarkMode_Explorer")
+                } else {
+                    w!("DarkMode_CFD")
+                }
+            } else if u16_string_eq_ignore_case(class, PROGRESS_CLASSW)
+                || (u16_string_eq_ignore_case(class, WC_BUTTONW) && misc_task_dialog)
+            {
+                null()
+            } else {
+                w!("DarkMode_Explorer")
+            }
+        } else if u16_string_eq_ignore_case(class, WC_BUTTONW) && misc_task_dialog {
+            w!("DarkMode_Explorer")
+        } else {
+            null()
+        };
+        let res = SetWindowTheme(hwnd, subappname, null());
+        windows::core::HRESULT(res).ok()
+    }
 }
 
 fn task_dialog_refresh(hwnd: HWND) -> Result<()> {
@@ -693,7 +710,7 @@ unsafe extern "system" fn task_dialog_callback(
         _ => {}
     }
     if msg == TDN_CREATED {
-        SetWindowSubclass(hwnd, Some(task_dialog_subclass), hwnd as _, lprefdata as _);
+        unsafe { SetWindowSubclass(hwnd, Some(task_dialog_subclass), hwnd as _, lprefdata as _) };
     }
     S_OK
 }
@@ -719,5 +736,5 @@ unsafe extern "system" fn task_dialog_subclass(
         }
         _ => {}
     }
-    DefSubclassProc(hwnd, umsg, wparam, lparam)
+    unsafe { DefSubclassProc(hwnd, umsg, wparam, lparam) }
 }

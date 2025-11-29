@@ -51,19 +51,21 @@ impl Runtime {
                 None => INFINITE,
             };
             let handle = self.runtime.as_raw_fd();
-            let res = MsgWaitForMultipleObjectsEx(
-                1,
-                &handle,
-                timeout,
-                QS_ALLINPUT,
-                MWMO_ALERTABLE | MWMO_INPUTAVAILABLE,
-            );
+            let res = unsafe {
+                MsgWaitForMultipleObjectsEx(
+                    1,
+                    &handle,
+                    timeout,
+                    QS_ALLINPUT,
+                    MWMO_ALERTABLE | MWMO_INPUTAVAILABLE,
+                )
+            };
             const WAIT_OBJECT_1: u32 = WAIT_OBJECT_0 + 1;
             match res {
                 WAIT_OBJECT_1 => {
-                    let res = PeekMessageW(msg, hwnd, min, max, PM_REMOVE);
+                    let res = unsafe { PeekMessageW(msg, hwnd, min, max, PM_REMOVE) };
                     if res != 0 {
-                        if (*msg).message == WM_QUIT {
+                        if unsafe { (*msg).message } == WM_QUIT {
                             return 0;
                         } else {
                             return 1;

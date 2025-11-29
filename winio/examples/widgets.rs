@@ -243,7 +243,8 @@ impl Component for MainModel {
             Box::pin(self.webview.update()),
             Box::pin(self.markdown.update()),
         ];
-        let res = if let Some(index) = self.tabview.selection()? {
+
+        if let Some(index) = self.tabview.selection()? {
             let visible_subview = subviews.remove(index);
             try_join_update!(
                 self.window.update(),
@@ -259,8 +260,7 @@ impl Component for MainModel {
                 futures_util::future::try_join_all(subviews.into_iter()).await?;
                 Ok::<_, Error>(false)
             })
-        };
-        res
+        }
     }
 
     async fn update(

@@ -1,9 +1,10 @@
 use std::ptr::{addr_of_mut, null_mut};
 
 use compio::driver::syscall;
+use compio_log::error;
 use windows_sys::{
     Win32::{
-        Foundation::{LPARAM, RECT, S_OK},
+        Foundation::{LPARAM, RECT},
         Graphics::Gdi::{EnumDisplayMonitors, GetMonitorInfoW, HDC, HMONITOR, MONITORINFO},
         UI::{
             HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI},
@@ -29,15 +30,21 @@ pub fn monitor_get_all() -> crate::Result<Vec<Monitor>> {
 }
 
 unsafe extern "system" fn enum_monitor(m: HMONITOR, _: HDC, _: *mut RECT, res: LPARAM) -> BOOL {
-    let res = &mut *(res as *mut Vec<Monitor>);
+    let res = unsafe { &mut *(res as *mut Vec<Monitor>) };
     let mut info: MONITORINFO = unsafe { std::mem::zeroed() };
     info.cbSize = size_of::<MONITORINFO>() as _;
-    if GetMonitorInfoW(m, &mut info) == 0 {
+    if unsafe { GetMonitorInfoW(m, &mut info) } == 0 {
+        error!("GetMonitorInfoW: {:?}", crate::Error::from_thread());
         return 0;
     }
     let mut dpix = 0;
     let mut dpiy = 0;
-    if GetDpiForMonitor(m, MDT_EFFECTIVE_DPI, &mut dpix, &mut dpiy) != S_OK {
+    let r = unsafe { GetDpiForMonitor(m, MDT_EFFECTIVE_DPI, &mut dpix, &mut dpiy) };
+    if r < 0 {
+        error!(
+            "GetDpiForMonitor: {:?}",
+            crate::Error::from_hresult(windows::core::HRESULT(r))
+        );
         return 0;
     }
     res.push(Monitor::new(

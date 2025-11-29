@@ -116,15 +116,11 @@ fn run_events_impl<'a, T: Component>(
                 };
             }
             children_need_render |= need_render;
-            if need_render {
-                if let Err(e) = model.render(sender) {
-                    yield RunEvent::RenderErr(e);
-                }
+            if need_render && let Err(e) = model.render(sender) {
+                yield RunEvent::RenderErr(e);
             }
-            if children_need_render {
-                if let Err(e) = model.render_children() {
-                    yield RunEvent::RenderErr(e);
-                }
+            if children_need_render && let Err(e) = model.render_children() {
+                yield RunEvent::RenderErr(e);
             }
         }
     }

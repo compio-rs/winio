@@ -26,10 +26,10 @@ type GetMessageWFn =
 static TRUE_GET_MESSAGE_W: SyncUnsafeCell<GetMessageWFn> = SyncUnsafeCell::new(GetMessageW);
 
 unsafe extern "system" fn get_message(msg: *mut MSG, hwnd: HWND, min: u32, max: u32) -> i32 {
-    if let Some(res) = crate::runtime::run_runtime(msg, hwnd, min, max) {
+    if let Some(res) = unsafe { crate::runtime::run_runtime(msg, hwnd, min, max) } {
         res
     } else {
-        (*TRUE_GET_MESSAGE_W.get())(msg, hwnd, min, max)
+        unsafe { (*TRUE_GET_MESSAGE_W.get())(msg, hwnd, min, max) }
     }
 }
 

@@ -2,7 +2,6 @@ use std::{
     cell::RefCell,
     collections::HashMap,
     future::Future,
-    io,
     mem::MaybeUninit,
     pin::Pin,
     ptr::{null, null_mut},
@@ -12,7 +11,7 @@ use std::{
 use compio::driver::syscall;
 use compio_log::*;
 use slab::Slab;
-use windows::Win32::Graphics::Direct2D::ID2D1Factory2;
+use windows::{Win32::Graphics::Direct2D::ID2D1Factory2, core::HRESULT};
 #[cfg(target_pointer_width = "64")]
 use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongPtrW;
 #[cfg(not(target_pointer_width = "64"))]
@@ -231,13 +230,13 @@ impl Runtime {
         msg: u32,
         waker: &Waker,
     ) -> Option<WindowMessage> {
-        if let Some(futures) = self.registry.borrow_mut().get_mut(&(handle, msg)) {
-            if let Some(state) = futures.get_mut(id) {
-                if let FutureState::Completed(msg) = *state {
-                    return Some(msg);
-                } else {
-                    *state = FutureState::Active(Some(waker.clone()));
-                }
+        if let Some(futures) = self.registry.borrow_mut().get_mut(&(handle, msg))
+            && let Some(state) = futures.get_mut(id)
+        {
+            if let FutureState::Completed(msg) = *state {
+                return Some(msg);
+            } else {
+                *state = FutureState::Active(Some(waker.clone()));
             }
         }
         None
@@ -253,7 +252,7 @@ impl Runtime {
 /// # Safety
 /// The caller should ensure the handle valid.
 pub(crate) unsafe fn wait(handle: HWND, msg: u32) -> impl Future<Output = WindowMessage> {
-    RUNTIME.with(|runtime| runtime.register_message(handle, msg))
+    RUNTIME.with(|runtime| unsafe { runtime.register_message(handle, msg) })
 }
 
 fn window_setting_change(handle: HWND) -> Result<()> {
@@ -281,15 +280,16 @@ pub(crate) unsafe extern "system" fn window_proc(
             }
         }
         WM_CTLCOLORSTATIC => {
-            return control_color_static(lparam as HWND, wparam as HDC);
+            return unsafe { control_color_static(lparam as HWND, wparam as HDC) };
         }
         WM_CTLCOLORBTN => {
             if is_dark_mode_allowed_for_app() {
-                return GetStockObject(BLACK_BRUSH) as _;
+                return unsafe { GetStockObject(BLACK_BRUSH) as _ };
             }
         }
         WM_CTLCOLOREDIT | WM_CTLCOLORLISTBOX => {
-            if let Some(res) = control_color_edit(handle, lparam as HWND, wparam as HDC) {
+            if let Some(res) = unsafe { control_color_edit(handle, lparam as HWND, wparam as HDC) }
+            {
                 return res;
             }
         }
@@ -308,7 +308,7 @@ pub(crate) unsafe extern "system" fn window_proc(
                     );
                 }
             }
-            if let Err(_e) = refresh_font(handle) {
+            if let Err(_e) = unsafe { refresh_font(handle) } {
                 warn!("refresh_font: handle: {handle:?}, error: {_e:?}");
             }
         }
@@ -322,7 +322,7 @@ pub(crate) unsafe extern "system" fn window_proc(
     if res {
         0
     } else {
-        DefWindowProcW(handle, msg, wparam, lparam)
+        unsafe { DefWindowProcW(handle, msg, wparam, lparam) }
     }
 }
 
@@ -330,12 +330,14 @@ pub(crate) unsafe fn refresh_font(handle: HWND) -> Result<()> {
     let font = default_font(get_dpi_for_window(handle))?;
 
     unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
-        SendMessageW(hwnd, WM_SETFONT, lparam as _, 1);
-        EnumChildWindows(hwnd, Some(enum_callback), lparam);
-        1
+        unsafe {
+            SendMessageW(hwnd, WM_SETFONT, lparam as _, 1);
+            EnumChildWindows(hwnd, Some(enum_callback), lparam);
+            1
+        }
     }
 
-    enum_callback(handle, font as _);
+    unsafe { enum_callback(handle, font as _) };
     Ok(())
 }
 
@@ -368,8 +370,10 @@ impl Drop for MsgFuture {
 pub(crate) unsafe fn set_backdrop(handle: HWND, backdrop: Backdrop) -> Result<()> {
     let old_backdrop = unsafe { get_backdrop(handle)? };
     if old_backdrop != backdrop {
-        set_backdrop_impl(handle, backdrop)?;
-        refresh_background(handle)?;
+        unsafe {
+            set_backdrop_impl(handle, backdrop)?;
+            refresh_background(handle)?;
+        }
     }
     Ok(())
 }
@@ -377,7 +381,7 @@ pub(crate) unsafe fn set_backdrop(handle: HWND, backdrop: Backdrop) -> Result<()
 pub(crate) use winio_ui_windows_common::get_backdrop;
 
 unsafe fn set_backdrop_impl(handle: HWND, backdrop: Backdrop) -> Result<()> {
-    let res = winio_ui_windows_common::set_backdrop(handle, backdrop)?;
+    let res = unsafe { winio_ui_windows_common::set_backdrop(handle, backdrop) }?;
     let res = if res {
         let margins = MARGINS {
             cxLeftWidth: -1,
@@ -385,7 +389,7 @@ unsafe fn set_backdrop_impl(handle: HWND, backdrop: Backdrop) -> Result<()> {
             cyTopHeight: -1,
             cyBottomHeight: -1,
         };
-        DwmExtendFrameIntoClientArea(handle, &margins)
+        unsafe { DwmExtendFrameIntoClientArea(handle, &margins) }
     } else {
         let margins = MARGINS {
             cxLeftWidth: 0,
@@ -393,31 +397,33 @@ unsafe fn set_backdrop_impl(handle: HWND, backdrop: Backdrop) -> Result<()> {
             cyTopHeight: 0,
             cyBottomHeight: 0,
         };
-        DwmExtendFrameIntoClientArea(handle, &margins)
+        unsafe { DwmExtendFrameIntoClientArea(handle, &margins) }
     };
     if res >= 0 {
         Ok(())
     } else {
-        Err(io::Error::from_raw_os_error(res).into())
+        Err(Error::from_hresult(HRESULT(res)))
     }
 }
 
 pub(crate) unsafe fn refresh_background(handle: HWND) -> Result<()> {
-    let backdrop = get_backdrop(GetAncestor(handle, GA_ROOT))?;
-    let black = !matches!(backdrop, Backdrop::None) || is_dark_mode_allowed_for_app();
-    let brush = if black {
-        GetStockObject(BLACK_BRUSH)
-    } else {
-        GetStockObject(WHITE_BRUSH)
-    };
-    SetLastError(0);
-    let res = syscall!(
-        BOOL,
-        SetClassLongPtrW(handle, GCLP_HBRBACKGROUND, brush as _)
-    );
-    match res {
-        Ok(_) => Ok(()),
-        Err(e) if e.raw_os_error() == Some(0) => Ok(()),
-        Err(e) => Err(e.into()),
+    unsafe {
+        let backdrop = get_backdrop(GetAncestor(handle, GA_ROOT))?;
+        let black = !matches!(backdrop, Backdrop::None) || is_dark_mode_allowed_for_app();
+        let brush = if black {
+            GetStockObject(BLACK_BRUSH)
+        } else {
+            GetStockObject(WHITE_BRUSH)
+        };
+        SetLastError(0);
+        let res = syscall!(
+            BOOL,
+            SetClassLongPtrW(handle, GCLP_HBRBACKGROUND, brush as _)
+        );
+        match res {
+            Ok(_) => Ok(()),
+            Err(e) if e.raw_os_error() == Some(0) => Ok(()),
+            Err(e) => Err(e.into()),
+        }
     }
 }

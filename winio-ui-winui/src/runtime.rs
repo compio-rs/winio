@@ -192,7 +192,8 @@ fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> 
 
 pub(crate) unsafe fn run_runtime(msg: *mut MSG, hwnd: HWND, min: u32, max: u32) -> Option<i32> {
     if RUNTIME.is_set() {
-        let res = RUNTIME.with(|runtime| runtime.runtime.get_message(msg, hwnd, min, max));
+        let res =
+            RUNTIME.with(|runtime| unsafe { runtime.runtime.get_message(msg, hwnd, min, max) });
         Some(res)
     } else {
         None
