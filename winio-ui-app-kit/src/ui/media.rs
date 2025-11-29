@@ -227,10 +227,8 @@ define_class! {
             _change: Option<&NSDictionary<NSKeyValueChangeKey, AnyObject>>,
             _context: *mut c_void,
         ) {
-            if let Some(path) = key_path{
-                if path.isEqualToString(ns_string!("status")) {
-                    self.ivars().notify.signal::<GlobalRuntime>(());
-                }
+            if let Some(path) = key_path && path.isEqualToString(ns_string!("status")) {
+                self.ivars().notify.signal::<GlobalRuntime>(());
             }
         }
     }

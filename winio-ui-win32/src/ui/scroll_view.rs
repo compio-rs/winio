@@ -82,31 +82,33 @@ impl ScrollView {
             bottom: 0,
         };
         unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
-            let mut rect = MaybeUninit::uninit();
-            if GetWindowRect(hwnd, rect.as_mut_ptr()) == 0 {
-                return 0;
+            unsafe {
+                let mut rect = MaybeUninit::uninit();
+                if GetWindowRect(hwnd, rect.as_mut_ptr()) == 0 {
+                    return 0;
+                }
+                SetLastError(0);
+                if MapWindowPoints(HWND_DESKTOP, GetParent(hwnd), &mut rect as *mut _ as _, 2) == 0
+                    && GetLastError() != 0
+                {
+                    return 0;
+                }
+                let rect = rect.assume_init();
+                let old_rect = &mut *(lparam as *mut RECT);
+                if rect.left < old_rect.left {
+                    old_rect.left = rect.left;
+                }
+                if rect.top < old_rect.top {
+                    old_rect.top = rect.top;
+                }
+                if rect.right > old_rect.right {
+                    old_rect.right = rect.right;
+                }
+                if rect.bottom > old_rect.bottom {
+                    old_rect.bottom = rect.bottom;
+                }
+                1
             }
-            SetLastError(0);
-            if MapWindowPoints(HWND_DESKTOP, GetParent(hwnd), &mut rect as *mut _ as _, 2) == 0
-                && GetLastError() != 0
-            {
-                return 0;
-            }
-            let rect = rect.assume_init();
-            let old_rect = unsafe { &mut *(lparam as *mut RECT) };
-            if rect.left < old_rect.left {
-                old_rect.left = rect.left;
-            }
-            if rect.top < old_rect.top {
-                old_rect.top = rect.top;
-            }
-            if rect.right > old_rect.right {
-                old_rect.right = rect.right;
-            }
-            if rect.bottom > old_rect.bottom {
-                old_rect.bottom = rect.bottom;
-            }
-            1
         }
         unsafe {
             EnumChildWindows(view, Some(enum_callback), &mut rect as *mut _ as LPARAM);

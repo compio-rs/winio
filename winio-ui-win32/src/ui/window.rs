@@ -127,7 +127,7 @@ impl Widget {
     }
 
     pub fn dpi(&self) -> u32 {
-        unsafe { get_dpi_for_window(self.as_raw_window().as_win32()) }
+        get_dpi_for_window(self.as_raw_window().as_win32())
     }
 
     pub fn size_d2l(&self, s: (i32, i32)) -> Size {

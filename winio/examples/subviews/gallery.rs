@@ -343,10 +343,10 @@ fn fetch(path: impl AsRef<Path>, sender: ComponentSender<GalleryPage>) {
                 continue;
             }
         };
-        if let Ok(reader) = ImageReader::open(&p) {
-            if let Ok(image) = reader.decode() {
-                sender.post(GalleryPageMessage::Append(p, image));
-            }
+        if let Ok(reader) = ImageReader::open(&p)
+            && let Ok(image) = reader.decode()
+        {
+            sender.post(GalleryPageMessage::Append(p, image));
         }
     }
 }

@@ -644,7 +644,7 @@ impl DrawingImage {
         };
         // alpha premultiplication
         if has_alpha {
-            for Rgba(ref mut pixel) in image.pixels_mut() {
+            for Rgba(pixel) in image.pixels_mut() {
                 if pixel[3] == 0 {
                     pixel[0] = 0;
                     pixel[1] = 0;

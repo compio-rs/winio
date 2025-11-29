@@ -313,12 +313,11 @@ pub(crate) fn get_root_window(e: &MUX::FrameworkElement) -> Option<MUX::Window> 
     let e_root = e.XamlRoot().ok()?;
     ROOT_WINDOWS.with_borrow(|windows| {
         for w in windows {
-            if let Ok(c) = w.Content() {
-                if let Ok(r) = c.XamlRoot() {
-                    if r == e_root {
-                        return Some(w.clone());
-                    }
-                }
+            if let Ok(c) = w.Content()
+                && let Ok(r) = c.XamlRoot()
+                && r == e_root
+            {
+                return Some(w.clone());
             }
         }
         None

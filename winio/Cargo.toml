@@ -83,7 +83,9 @@ webview = [
 all = ["media", "webview"]
 
 nightly = [
+    "winio-elm/nightly",
     "winio-ui-win32?/nightly",
+    "winio-ui-winui?/nightly",
     "compio/nightly",
     "cyper/nightly",
     "cyper-axum/nightly",

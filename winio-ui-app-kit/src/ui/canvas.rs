@@ -127,7 +127,7 @@ pub enum DrawGradientAction {
 }
 
 impl DrawGradientAction {
-    unsafe fn draw(&self, context: &CGContext) {
+    fn draw(&self, context: &CGContext) {
         match self {
             Self::Linear {
                 gradient,
@@ -184,7 +184,7 @@ impl DrawAction {
         }
     }
 
-    unsafe fn draw_rect(actions: &[Self], _rect: NSRect, factor: f64) {
+    fn draw_rect(actions: &[Self], _rect: NSRect, factor: f64) {
         let Some(ns_context) = NSGraphicsContext::currentContext() else {
             error!("Cannot get current NSGraphicsContext");
             return;
@@ -216,14 +216,14 @@ impl DrawAction {
                         gradient.draw(&context);
                     }
                 }
-                Self::Text(framesetter, rect) => {
+                Self::Text(framesetter, rect) => unsafe {
                     let text_path = CGPath::with_rect(*rect, null());
 
                     let frame = framesetter.frame(CFRange::new(0, 0), &text_path, None);
 
                     frame.draw(&context);
-                }
-                Self::GradientText(framesetter, gradient, rect) => {
+                },
+                Self::GradientText(framesetter, gradient, rect) => unsafe {
                     let colorspace = CGColorSpace::new_device_gray();
                     let Some(mask) = CGBitmapContextCreate(
                         null_mut(),
@@ -249,7 +249,7 @@ impl DrawAction {
                     let mask_image = CGBitmapContextCreateImage(Some(&mask));
                     CGContext::clip_to_mask(Some(&context), *rect, mask_image.as_deref());
                     gradient.draw(&context);
-                }
+                },
                 Self::Image(image, rect, clip) => {
                     let cg_image = image.rep.CGImage();
                     if let Some(clip) = clip {
@@ -357,7 +357,7 @@ impl CanvasView {
     }
 }
 
-unsafe fn mouse_button(event: &NSEvent) -> MouseButton {
+fn mouse_button(event: &NSEvent) -> MouseButton {
     match event.r#type() {
         NSEventType::LeftMouseDown | NSEventType::LeftMouseUp => MouseButton::Left,
         NSEventType::RightMouseDown | NSEventType::RightMouseUp => MouseButton::Right,
@@ -794,7 +794,7 @@ impl Brush for SolidColorBrush {
     }
 }
 
-unsafe fn create_gradient(stops: &[GradientStop]) -> Result<CFRetained<CGGradient>> {
+fn create_gradient(stops: &[GradientStop]) -> Result<CFRetained<CGGradient>> {
     let colors = CFMutableArray::<CGColor>::with_capacity(stops.len());
     let mut locs = Vec::with_capacity(stops.len());
     for stop in stops {
@@ -802,11 +802,14 @@ unsafe fn create_gradient(stops: &[GradientStop]) -> Result<CFRetained<CGGradien
         colors.append(cgcolor.as_ref());
         locs.push(stop.pos)
     }
-    CGGradient::with_colors(None, Some(colors.bridge()), locs.as_ptr()).ok_or(Error::NullPointer)
+    unsafe {
+        CGGradient::with_colors(None, Some(colors.bridge()), locs.as_ptr())
+            .ok_or(Error::NullPointer)
+    }
 }
 
 fn linear_gradient(b: &LinearGradientBrush, rect: NSRect) -> Result<DrawGradientAction> {
-    let gradient = unsafe { create_gradient(&b.stops) }?;
+    let gradient = create_gradient(&b.stops)?;
     Ok(DrawGradientAction::Linear {
         gradient,
         start_point: real_point(b.start, rect),
@@ -842,7 +845,7 @@ impl Brush for LinearGradientBrush {
 }
 
 fn radial_gradient(b: &RadialGradientBrush, rect: NSRect) -> Result<DrawGradientAction> {
-    let gradient = unsafe { create_gradient(&b.stops) }?;
+    let gradient = create_gradient(&b.stops)?;
     Ok(DrawGradientAction::Radial {
         gradient,
         start_center: real_point(b.origin, rect),

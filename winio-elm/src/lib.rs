@@ -1,6 +1,7 @@
 //! ELM primitives for winio.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(feature = "gen_blocks", feature(async_iterator, gen_blocks))]
 #![warn(missing_docs)]
 
 use smallvec::SmallVec;
@@ -123,3 +124,6 @@ pub use macros::*;
 
 mod run;
 pub use run::*;
+
+#[cfg(feature = "gen_blocks")]
+mod stream;

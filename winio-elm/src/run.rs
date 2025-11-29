@@ -1,8 +1,11 @@
 use std::hint::unreachable_unchecked;
 
+#[cfg(not(feature = "gen_blocks"))]
 use async_stream::stream;
 use futures_util::{FutureExt, Stream};
 
+#[cfg(feature = "gen_blocks")]
+use crate::stream::stream;
 use crate::{Child, Component, ComponentMessage, ComponentSender};
 
 /// Events yielded by the [`run`].
@@ -113,15 +116,11 @@ fn run_events_impl<'a, T: Component>(
                 };
             }
             children_need_render |= need_render;
-            if need_render {
-                if let Err(e) = model.render(sender) {
-                    yield RunEvent::RenderErr(e);
-                }
+            if need_render && let Err(e) = model.render(sender) {
+                yield RunEvent::RenderErr(e);
             }
-            if children_need_render {
-                if let Err(e) = model.render_children() {
-                    yield RunEvent::RenderErr(e);
-                }
+            if children_need_render && let Err(e) = model.render_children() {
+                yield RunEvent::RenderErr(e);
             }
         }
     }

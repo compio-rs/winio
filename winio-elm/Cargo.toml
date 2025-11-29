@@ -25,3 +25,6 @@ compio = { workspace = true, features = ["macros"] }
 [features]
 handle = ["dep:winio-handle"]
 primitive = ["dep:winio-primitive", "dep:inherit-methods-macro"]
+
+gen_blocks = []
+nightly = ["gen_blocks"]

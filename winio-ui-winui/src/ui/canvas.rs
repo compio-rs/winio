@@ -255,15 +255,14 @@ impl Canvas {
             let on_press = on_press.clone();
             let mouse_button_cache = mouse_button_cache.clone();
             panel.PointerPressed(&PointerEventHandler::new(move |sender, args| {
-                if let Some(args) = args.as_ref() {
-                    if let Some(panel) = sender
+                if let Some(args) = args.as_ref()
+                    && let Some(panel) = sender
                         .as_ref()
                         .and_then(|sender| sender.cast::<SwapChainPanel>().ok())
-                    {
-                        let mouse = mouse_button(&panel, args)?;
-                        mouse_button_cache.set(mouse);
-                        on_press.signal::<GlobalRuntime>(mouse);
-                    }
+                {
+                    let mouse = mouse_button(&panel, args)?;
+                    mouse_button_cache.set(mouse);
+                    on_press.signal::<GlobalRuntime>(mouse);
                 }
                 Ok(())
             }))?;
@@ -283,14 +282,13 @@ impl Canvas {
         {
             let on_move = on_move.clone();
             panel.PointerMoved(&PointerEventHandler::new(move |sender, args| {
-                if let Some(args) = args.as_ref() {
-                    if let Some(panel) = sender
+                if let Some(args) = args.as_ref()
+                    && let Some(panel) = sender
                         .as_ref()
                         .and_then(|sender| sender.cast::<SwapChainPanel>().ok())
-                    {
-                        let point = args.GetCurrentPoint(&panel)?;
-                        on_move.signal::<GlobalRuntime>(Point::from_native(point.Position()?));
-                    }
+                {
+                    let point = args.GetCurrentPoint(&panel)?;
+                    on_move.signal::<GlobalRuntime>(Point::from_native(point.Position()?));
                 }
                 Ok(())
             }))?;
@@ -299,19 +297,18 @@ impl Canvas {
         {
             let on_wheel = on_wheel.clone();
             panel.PointerWheelChanged(&PointerEventHandler::new(move |sender, args| {
-                if let Some(args) = args.as_ref() {
-                    if let Some(panel) = sender
+                if let Some(args) = args.as_ref()
+                    && let Some(panel) = sender
                         .as_ref()
                         .and_then(|sender| sender.cast::<SwapChainPanel>().ok())
-                    {
-                        let point = args.GetCurrentPoint(&panel)?;
-                        let props = point.Properties()?;
-                        let delta = props.MouseWheelDelta()?;
-                        let orient = props.Orientation()? / 180.0 * std::f32::consts::PI;
-                        let deltay = orient.cos() as f64 * delta as f64;
-                        let deltax = -orient.sin() as f64 * delta as f64;
-                        on_wheel.signal::<GlobalRuntime>(Vector::new(deltax, deltay));
-                    }
+                {
+                    let point = args.GetCurrentPoint(&panel)?;
+                    let props = point.Properties()?;
+                    let delta = props.MouseWheelDelta()?;
+                    let orient = props.Orientation()? / 180.0 * std::f32::consts::PI;
+                    let deltay = orient.cos() as f64 * delta as f64;
+                    let deltax = -orient.sin() as f64 * delta as f64;
+                    on_wheel.signal::<GlobalRuntime>(Vector::new(deltax, deltay));
                 }
                 Ok(())
             }))?;

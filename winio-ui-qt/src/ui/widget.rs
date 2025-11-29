@@ -126,10 +126,10 @@ where
     T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
 {
     fn drop(&mut self) {
-        if !self.weak_ref.isNull() {
-            if let Err(_e) = self.pin_mut_qwidget().deleteLater() {
-                error!("Failed to delete widget later: {_e:?}");
-            }
+        if !self.weak_ref.isNull()
+            && let Err(_e) = self.pin_mut_qwidget().deleteLater()
+        {
+            error!("Failed to delete widget later: {_e:?}");
         }
     }
 }

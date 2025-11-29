@@ -9,11 +9,11 @@ use windows_sys::Win32::{
 use winio_primitive::{Point, Rect, Size};
 
 #[inline]
-pub unsafe fn get_dpi_for_window(h_wnd: HWND) -> u32 {
+pub fn get_dpi_for_window(h_wnd: HWND) -> u32 {
     if !h_wnd.is_null() {
-        GetDpiForWindow(h_wnd)
+        unsafe { GetDpiForWindow(h_wnd) }
     } else {
-        GetDpiForSystem()
+        unsafe { GetDpiForSystem() }
     }
 }
 

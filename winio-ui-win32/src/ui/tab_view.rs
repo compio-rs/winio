@@ -142,17 +142,17 @@ impl TabView {
     fn show_current_view(&self) {
         unsafe {
             let current_view = self.current_view.get();
-            if let Some(index) = current_view {
-                if let Some(view) = self.views.get(index) {
-                    ShowWindow(view.inner.borrow().view.as_raw_widget().as_win32(), SW_HIDE);
-                }
+            if let Some(index) = current_view
+                && let Some(view) = self.views.get(index)
+            {
+                ShowWindow(view.inner.borrow().view.as_raw_widget().as_win32(), SW_HIDE);
             }
             let sel = self.selection_impl();
             self.current_view.set(sel);
-            if let Some(sel) = sel {
-                if let Some(view) = self.views.get(sel) {
-                    ShowWindow(view.inner.borrow().view.as_raw_widget().as_win32(), SW_SHOW);
-                }
+            if let Some(sel) = sel
+                && let Some(view) = self.views.get(sel)
+            {
+                ShowWindow(view.inner.borrow().view.as_raw_widget().as_win32(), SW_SHOW);
             }
         }
     }
@@ -253,27 +253,27 @@ impl TabViewItem {
         inner.title = s.as_ref().to_string();
         unsafe {
             let parent = GetParent(inner.view.as_raw_widget().as_win32());
-            if let Some(index) = inner.index {
-                if !parent.is_null() {
-                    with_u16c(&inner.title, |s| {
-                        let mut item = TCITEMW {
-                            mask: TCIF_TEXT,
-                            dwState: 0,
-                            dwStateMask: 0,
-                            pszText: s.as_ptr().cast_mut(),
-                            cchTextMax: 0,
-                            iImage: 0,
-                            lParam: 0,
-                        };
-                        SendMessageW(
-                            parent,
-                            TCM_SETITEMW,
-                            index,
-                            std::ptr::addr_of_mut!(item) as _,
-                        );
-                        Ok(())
-                    })?;
-                }
+            if let Some(index) = inner.index
+                && !parent.is_null()
+            {
+                with_u16c(&inner.title, |s| {
+                    let mut item = TCITEMW {
+                        mask: TCIF_TEXT,
+                        dwState: 0,
+                        dwStateMask: 0,
+                        pszText: s.as_ptr().cast_mut(),
+                        cchTextMax: 0,
+                        iImage: 0,
+                        lParam: 0,
+                    };
+                    SendMessageW(
+                        parent,
+                        TCM_SETITEMW,
+                        index,
+                        std::ptr::addr_of_mut!(item) as _,
+                    );
+                    Ok(())
+                })?;
             }
         }
         Ok(())

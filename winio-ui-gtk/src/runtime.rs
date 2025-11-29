@@ -47,10 +47,10 @@ impl Runtime {
 
                 self.ctx.iteration(true);
 
-                if let Some(source_id) = source_id {
-                    if self.ctx.find_source_by_id(&source_id).is_some() {
-                        source_id.remove();
-                    }
+                if let Some(source_id) = source_id
+                    && self.ctx.find_source_by_id(&source_id).is_some()
+                {
+                    source_id.remove();
                 }
             })
         })
