@@ -1,4 +1,4 @@
-use std::{future::Future, rc::Rc};
+use std::rc::Rc;
 
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
@@ -7,23 +7,23 @@ use windows::{
     core::{HSTRING, Interface},
 };
 use winio_callback::Callback;
-use winio_handle::{AsContainer, AsRawWidget, RawWidget};
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
-use winio_ui_windows_common::{WebViewErrLabelImpl, WebViewImpl, WebViewLazy};
 use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
-use crate::{GlobalRuntime, Result, TextBox, Widget};
+use crate::{GlobalRuntime, Result, Widget};
 
 #[derive(Debug)]
-pub struct WebViewInner {
+pub struct WebView {
     on_navigating: SendWrapper<Rc<Callback>>,
     on_navigated: SendWrapper<Rc<Callback>>,
     handle: Widget,
     view: MUXC::WebView2,
 }
 
-impl WebViewImpl for WebViewInner {
-    async fn new(parent: impl AsContainer) -> Result<Self> {
+#[inherit_methods(from = "self.handle")]
+impl WebView {
+    pub async fn new(parent: impl AsContainer) -> Result<Self> {
         #[cfg(feature = "webview-system")]
         {
             fn add_webview2sdk_path() {
@@ -94,43 +94,27 @@ impl WebViewImpl for WebViewInner {
         })
     }
 
-    fn is_visible(&self) -> Result<bool> {
-        self.handle.is_visible()
-    }
+    pub fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()> {
-        self.handle.set_visible(v)
-    }
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    fn is_enabled(&self) -> Result<bool> {
-        self.handle.is_enabled()
-    }
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()> {
-        self.handle.set_enabled(v)
-    }
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    fn loc(&self) -> Result<Point> {
-        self.handle.loc()
-    }
+    pub fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, v: Point) -> Result<()> {
-        self.handle.set_loc(v)
-    }
+    pub fn set_loc(&mut self, v: Point) -> Result<()>;
 
-    fn size(&self) -> Result<Size> {
-        self.handle.size()
-    }
+    pub fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()> {
-        self.handle.set_size(v)
-    }
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    fn source(&self) -> Result<String> {
+    pub fn source(&self) -> Result<String> {
         Ok(self.view.Source()?.ToString()?.to_string_lossy())
     }
 
-    fn set_source(&mut self, s: impl AsRef<str>) -> Result<()> {
+    pub fn set_source(&mut self, s: impl AsRef<str>) -> Result<()> {
         let s = s.as_ref();
         if s.is_empty() {
             return self.set_html("");
@@ -139,97 +123,46 @@ impl WebViewImpl for WebViewInner {
         Ok(())
     }
 
-    fn set_html(&mut self, s: impl AsRef<str>) -> Result<()> {
+    pub fn set_html(&mut self, s: impl AsRef<str>) -> Result<()> {
         self.view.NavigateToString(&HSTRING::from(s.as_ref()))?;
         Ok(())
     }
 
-    fn can_go_forward(&self) -> Result<bool> {
+    pub fn can_go_forward(&self) -> Result<bool> {
         self.view.CanGoForward()
     }
 
-    fn go_forward(&mut self) -> Result<()> {
+    pub fn go_forward(&mut self) -> Result<()> {
         self.view.GoForward()?;
         Ok(())
     }
 
-    fn can_go_back(&self) -> Result<bool> {
+    pub fn can_go_back(&self) -> Result<bool> {
         self.view.CanGoBack()
     }
 
-    fn go_back(&mut self) -> Result<()> {
+    pub fn go_back(&mut self) -> Result<()> {
         self.view.GoBack()?;
         Ok(())
     }
 
-    fn reload(&mut self) -> Result<()> {
+    pub fn reload(&mut self) -> Result<()> {
         self.view.Reload()?;
         Ok(())
     }
 
-    fn stop(&mut self) -> Result<()> {
+    pub fn stop(&mut self) -> Result<()> {
         self.view.CoreWebView2()?.Stop()?;
         Ok(())
     }
 
-    fn wait_navigating(&self) -> impl Future<Output = ()> + 'static + use<> {
-        let on_navigating = self.on_navigating.clone();
-        async move {
-            on_navigating.wait().await;
-        }
+    pub async fn wait_navigating(&self) {
+        self.on_navigating.wait().await;
     }
 
-    fn wait_navigated(&self) -> impl Future<Output = ()> + 'static + use<> {
-        let on_navigated = self.on_navigated.clone();
-        async move {
-            on_navigated.wait().await;
-        }
+    pub async fn wait_navigated(&self) {
+        self.on_navigated.wait().await;
     }
 }
 
-impl AsRawWidget for WebViewInner {
-    fn as_raw_widget(&self) -> RawWidget {
-        self.handle.as_raw_widget()
-    }
-}
-
-#[derive(Debug)]
-pub struct WebViewErrLabelInner {
-    handle: TextBox,
-}
-
-#[inherit_methods(from = "self.handle")]
-impl WebViewErrLabelImpl for WebViewErrLabelInner {
-    fn new(parent: impl AsContainer) -> Result<Self> {
-        let mut handle = TextBox::new(parent)?;
-        handle.set_readonly(true)?;
-        Ok(Self { handle })
-    }
-
-    fn is_visible(&self) -> Result<bool>;
-
-    fn set_visible(&mut self, v: bool) -> Result<()>;
-
-    fn is_enabled(&self) -> Result<bool>;
-
-    fn set_enabled(&mut self, v: bool) -> Result<()>;
-
-    fn loc(&self) -> Result<Point>;
-
-    fn set_loc(&mut self, v: Point) -> Result<()>;
-
-    fn size(&self) -> Result<Size>;
-
-    fn set_size(&mut self, v: Size) -> Result<()>;
-
-    fn text(&self) -> Result<String>;
-
-    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
-}
-
-#[inherit_methods(from = "self.handle")]
-impl AsRawWidget for WebViewErrLabelInner {
-    fn as_raw_widget(&self) -> RawWidget;
-}
-
-pub type WebView = WebViewLazy<WebViewInner, WebViewErrLabelInner>;
+winio_handle::impl_as_widget!(WebView, handle);

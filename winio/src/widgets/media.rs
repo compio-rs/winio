@@ -95,8 +95,6 @@ impl Layoutable for Media {
     fn size(&self) -> Result<Size>;
 
     fn set_size(&mut self, v: Size) -> Result<()>;
-
-    fn preferred_size(&self) -> Result<Size>;
 }
 
 /// Events of [`Media`].

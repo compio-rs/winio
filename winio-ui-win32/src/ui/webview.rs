@@ -1,6 +1,5 @@
 use std::{cell::RefCell, future::Future, io, rc::Rc};
 
-use inherit_methods_macro::inherit_methods;
 use webview2::{
     CreateCoreWebView2Environment, ICoreWebView2, ICoreWebView2Controller,
     ICoreWebView2CreateCoreWebView2ControllerCompletedHandler,
@@ -19,22 +18,67 @@ use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
 use winio_callback::Callback;
 use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Point, Rect, Size};
-use winio_ui_windows_common::{CoTaskMemPtr, WebViewErrLabelImpl, WebViewImpl, WebViewLazy};
+use winio_ui_windows_common::CoTaskMemPtr;
 
-use crate::{
-    Result,
-    ui::{TextBox, fix_crlf, with_u16c},
-};
+use crate::{Error, Result, ui::with_u16c};
 
 #[derive(Debug)]
-pub struct WebViewInner {
+pub struct WebView {
     host: ICoreWebView2Controller,
     view: ICoreWebView2,
     navigating: Rc<Callback>,
     navigated: Rc<Callback>,
 }
 
-impl WebViewInner {
+impl WebView {
+    pub async fn new(parent: impl AsContainer) -> Result<Self> {
+        let (tx, rx) = local_sync::oneshot::channel();
+        let hwnd = parent.as_container().as_win32();
+        unsafe {
+            CreateCoreWebView2Environment(&CreateEnvHandler::create(move |env| {
+                let env = env?;
+                let env = env.ok()?;
+                env.CreateCoreWebView2Controller(
+                    HWND(hwnd),
+                    &CreateControllerHandler::create(move |host| {
+                        let host = host?;
+                        let host = host.ok()?;
+                        let view = host.CoreWebView2()?;
+                        tx.send((host.clone(), view)).ok();
+                        Ok(())
+                    }),
+                )?;
+                Ok(())
+            }))?;
+        }
+        let (host, view) = rx.await.map_err(|_| Error::from_hresult(E_FAIL))?;
+        let navigating = Rc::new(Callback::new());
+        unsafe {
+            let navigating = navigating.clone();
+            view.NavigationStarting(&NavStartingHandler::create(move |_, _| {
+                navigating.signal::<()>(());
+                Ok(())
+            }))?;
+        }
+        let navigated = Rc::new(Callback::new());
+        unsafe {
+            let navigated = navigated.clone();
+            view.NavigationCompleted(&NavCompletedHandler::create(move |_, _| {
+                navigated.signal::<()>(());
+                Ok(())
+            }))?;
+        }
+        unsafe {
+            host.SetIsVisible(true)?;
+        }
+        Ok(Self {
+            host,
+            view,
+            navigating,
+            navigated,
+        })
+    }
+
     fn dpi(&self) -> Result<f64> {
         unsafe {
             let hwnd = self.host.ParentWindow()?;
@@ -62,96 +106,47 @@ impl WebViewInner {
         }
         Ok(())
     }
-}
 
-impl WebViewImpl for WebViewInner {
-    async fn new(parent: impl AsContainer) -> Result<Self> {
-        let (tx, rx) = local_sync::oneshot::channel();
-        let hwnd = parent.as_container().as_win32();
-        unsafe {
-            CreateCoreWebView2Environment(&CreateEnvHandler::create(move |env| {
-                let env = env?;
-                let env = env.ok()?;
-                env.CreateCoreWebView2Controller(
-                    HWND(hwnd),
-                    &CreateControllerHandler::create(move |host| {
-                        let host = host?;
-                        let host = host.ok()?;
-                        let view = host.CoreWebView2()?;
-                        tx.send((host.clone(), view)).ok();
-                        Ok(())
-                    }),
-                )?;
-                Ok(())
-            }))?;
-        }
-        let (host, view) = rx
-            .await
-            .map_err(|_| io::Error::from_raw_os_error(E_FAIL.0))?;
-        let navigating = Rc::new(Callback::new());
-        unsafe {
-            let navigating = navigating.clone();
-            view.NavigationStarting(&NavStartingHandler::create(move |_, _| {
-                navigating.signal::<()>(());
-                Ok(())
-            }))?;
-        }
-        let navigated = Rc::new(Callback::new());
-        unsafe {
-            let navigated = navigated.clone();
-            view.NavigationCompleted(&NavCompletedHandler::create(move |_, _| {
-                navigated.signal::<()>(());
-                Ok(())
-            }))?;
-        }
-        Ok(Self {
-            host,
-            view,
-            navigating,
-            navigated,
-        })
-    }
-
-    fn is_visible(&self) -> Result<bool> {
+    pub fn is_visible(&self) -> Result<bool> {
         unsafe { Ok(self.host.IsVisible()?.as_bool()) }
     }
 
-    fn set_visible(&mut self, v: bool) -> Result<()> {
+    pub fn set_visible(&mut self, v: bool) -> Result<()> {
         unsafe {
             self.host.SetIsVisible(v)?;
             Ok(())
         }
     }
 
-    fn is_enabled(&self) -> Result<bool> {
+    pub fn is_enabled(&self) -> Result<bool> {
         Ok(true)
     }
 
-    fn set_enabled(&mut self, _: bool) -> Result<()> {
+    pub fn set_enabled(&mut self, _: bool) -> Result<()> {
         Ok(())
     }
 
-    fn loc(&self) -> Result<Point> {
+    pub fn loc(&self) -> Result<Point> {
         Ok(self.rect()?.origin)
     }
 
-    fn set_loc(&mut self, p: Point) -> Result<()> {
+    pub fn set_loc(&mut self, p: Point) -> Result<()> {
         let mut rect = self.rect()?;
         rect.origin = p;
         self.set_rect(rect)
     }
 
-    fn size(&self) -> Result<Size> {
+    pub fn size(&self) -> Result<Size> {
         Ok(self.rect()?.size)
     }
 
-    fn set_size(&mut self, v: Size) -> Result<()> {
+    pub fn set_size(&mut self, v: Size) -> Result<()> {
         let mut rect = self.rect()?;
         rect.size = v;
         self.set_rect(rect)
     }
 
-    fn source(&self) -> Result<String> {
+    pub fn source(&self) -> Result<String> {
         unsafe {
             let source = CoTaskMemPtr::new(self.view.Source()?.0);
             Ok(PCWSTR(source.as_ptr())
@@ -160,7 +155,7 @@ impl WebViewImpl for WebViewInner {
         }
     }
 
-    fn set_source(&mut self, s: impl AsRef<str>) -> Result<()> {
+    pub fn set_source(&mut self, s: impl AsRef<str>) -> Result<()> {
         let s = s.as_ref();
         if s.is_empty() {
             return self.set_html("");
@@ -171,57 +166,57 @@ impl WebViewImpl for WebViewInner {
         })
     }
 
-    fn set_html(&mut self, s: impl AsRef<str>) -> Result<()> {
+    pub fn set_html(&mut self, s: impl AsRef<str>) -> Result<()> {
         with_u16c(s.as_ref(), |s| unsafe {
             self.view.NavigateToString(PCWSTR(s.as_ptr()))?;
             Ok(())
         })
     }
 
-    fn can_go_forward(&self) -> Result<bool> {
+    pub fn can_go_forward(&self) -> Result<bool> {
         unsafe { Ok(self.view.CanGoForward()?.as_bool()) }
     }
 
-    fn go_forward(&mut self) -> Result<()> {
+    pub fn go_forward(&mut self) -> Result<()> {
         unsafe {
             self.view.GoForward()?;
             Ok(())
         }
     }
 
-    fn can_go_back(&self) -> Result<bool> {
+    pub fn can_go_back(&self) -> Result<bool> {
         unsafe { Ok(self.view.CanGoBack()?.as_bool()) }
     }
 
-    fn go_back(&mut self) -> Result<()> {
+    pub fn go_back(&mut self) -> Result<()> {
         unsafe {
             self.view.GoBack()?;
             Ok(())
         }
     }
 
-    fn reload(&mut self) -> Result<()> {
+    pub fn reload(&mut self) -> Result<()> {
         unsafe {
             self.view.Reload()?;
             Ok(())
         }
     }
 
-    fn stop(&mut self) -> Result<()> {
+    pub fn stop(&mut self) -> Result<()> {
         unsafe {
             self.view.Stop()?;
             Ok(())
         }
     }
 
-    fn wait_navigating(&self) -> impl Future<Output = ()> + 'static + use<> {
+    pub fn wait_navigating(&self) -> impl Future<Output = ()> + 'static + use<> {
         let navigating = self.navigating.clone();
         async move {
             navigating.wait().await;
         }
     }
 
-    fn wait_navigated(&self) -> impl Future<Output = ()> + 'static + use<> {
+    pub fn wait_navigated(&self) -> impl Future<Output = ()> + 'static + use<> {
         let navigated = self.navigated.clone();
         async move {
             navigated.wait().await;
@@ -229,56 +224,13 @@ impl WebViewImpl for WebViewInner {
     }
 }
 
-impl AsRawWidget for WebViewInner {
+impl AsRawWidget for WebView {
     fn as_raw_widget(&self) -> RawWidget {
         unimplemented!("cannot get HWND from WebView2")
     }
 }
 
-#[derive(Debug)]
-pub struct WebViewErrLabelInner {
-    handle: TextBox,
-}
-
-#[inherit_methods(from = "self.handle")]
-impl WebViewErrLabelImpl for WebViewErrLabelInner {
-    fn new(parent: impl AsContainer) -> Result<Self> {
-        let mut handle = TextBox::new_raw(parent)?;
-        handle.set_readonly(true)?;
-        Ok(Self { handle })
-    }
-
-    fn is_visible(&self) -> Result<bool>;
-
-    fn set_visible(&mut self, v: bool) -> Result<()>;
-
-    fn is_enabled(&self) -> Result<bool>;
-
-    fn set_enabled(&mut self, v: bool) -> Result<()>;
-
-    fn loc(&self) -> Result<Point>;
-
-    fn set_loc(&mut self, v: Point) -> Result<()>;
-
-    fn size(&self) -> Result<Size>;
-
-    fn set_size(&mut self, v: Size) -> Result<()>;
-
-    fn text(&self) -> Result<String> {
-        Ok(self.handle.text()?.replace("\r\n", "\n"))
-    }
-
-    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.handle.set_text(fix_crlf(s.as_ref()))
-    }
-}
-
-#[inherit_methods(from = "self.handle")]
-impl AsRawWidget for WebViewErrLabelInner {
-    fn as_raw_widget(&self) -> RawWidget;
-}
-
-pub type WebView = WebViewLazy<WebViewInner, WebViewErrLabelInner>;
+winio_handle::impl_as_widget!(WebView);
 
 #[implement(
     ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,

@@ -60,7 +60,6 @@ webview = [
     "dep:webview2",
     "dep:windows-core",
     "dep:local-sync",
-    "winio-ui-windows-common/webview",
 ]
 
 dark-mode = ["winio-ui-windows-common/dark-mode"]
