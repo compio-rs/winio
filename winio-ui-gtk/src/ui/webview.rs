@@ -19,7 +19,7 @@ pub struct WebView {
 
 #[inherit_methods(from = "self.handle")]
 impl WebView {
-    pub fn new(parent: impl AsContainer) -> Result<Self> {
+    pub async fn new(parent: impl AsContainer) -> Result<Self> {
         let widget = webkit6::WebView::new();
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() })?;
         let on_loading = Rc::new(Callback::new());
