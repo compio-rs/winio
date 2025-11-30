@@ -79,14 +79,20 @@ impl Layoutable for Label {
 }
 
 /// Events of [`Label`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum LabelEvent {}
+
+/// Messages of [`Label`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum LabelMessage {}
 
 impl Component for Label {
     type Error = Error;
     type Event = LabelEvent;
     type Init<'a> = BorrowedContainer<'a>;
-    type Message = ();
+    type Message = LabelMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Label::new(init)?;

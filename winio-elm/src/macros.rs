@@ -16,7 +16,7 @@ pub use tuplex::IntoArray as __IntoArray;
 ///     },
 ///     canvas: Canvas = (&window),
 /// }
-/// window.show();
+/// window.show()?;
 /// ```
 #[macro_export]
 macro_rules! init {
@@ -64,10 +64,10 @@ macro_rules! __init_assign {
 ///     Close,
 /// }
 /// # impl Component for MainModel {
-/// # type Init<'a> = (); type Message = MainMessage; type Event = ();
-/// # fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self { todo!() }
-/// # async fn update(&mut self, _msg: Self::Message, _sender: &ComponentSender<Self>) -> bool { false }
-/// # fn render(&mut self, _sender: &ComponentSender<Self>) {}
+/// # type Init<'a> = (); type Message = MainMessage; type Event = (); type Error = Error;
+/// # fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> { todo!() }
+/// # async fn update(&mut self, _msg: Self::Message, _sender: &ComponentSender<Self>) -> Result<bool> { Ok(false) }
+/// # fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> { Ok(()) }
 /// async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
 ///     start! {
 ///         sender,
@@ -79,7 +79,7 @@ macro_rules! __init_assign {
 ///         self.canvas => {
 ///             CanvasEvent::MouseMove(_) => MainMessage::Redraw,
 ///         },
-///     };
+///     }
 /// }
 /// # }
 /// ```

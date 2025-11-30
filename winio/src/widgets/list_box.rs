@@ -100,6 +100,7 @@ impl Layoutable for ListBox {
 }
 
 /// Events of [`ListBox`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum ListBoxEvent {
     /// The selection has changed.
@@ -107,6 +108,7 @@ pub enum ListBoxEvent {
 }
 
 /// Messages of [`ListBox`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum ListBoxMessage {
     /// An element inserted.

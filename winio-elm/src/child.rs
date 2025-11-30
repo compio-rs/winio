@@ -53,7 +53,7 @@ impl<T: Component> Child<T> {
     /// ```
     /// In the `MainModel::start`, you should write
     /// ```ignore
-    /// async fn start(&mut self, sender: &ComponentSender<Self>) {
+    /// async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
     ///     start! {
     ///         sender, default: MainMessage::Noop,
     ///         self.window => {
@@ -65,7 +65,7 @@ impl<T: Component> Child<T> {
     /// ```
     /// It is equivalent to
     /// ```ignore
-    /// async fn start(&mut self, sender: &ComponentSender<Self>) {
+    /// async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
     ///     let fut_window = self.window.start(
     ///         sender,
     ///         |e| match e {

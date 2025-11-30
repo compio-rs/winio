@@ -69,17 +69,23 @@ impl Layoutable for CheckBox {
 }
 
 /// Events of [`CheckBox`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum CheckBoxEvent {
     /// The check box has been clicked.
     Click,
 }
 
+/// Messages of [`CheckBox`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum CheckBoxMessage {}
+
 impl Component for CheckBox {
     type Error = Error;
     type Event = CheckBoxEvent;
     type Init<'a> = BorrowedContainer<'a>;
-    type Message = ();
+    type Message = CheckBoxMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::CheckBox::new(init)?;

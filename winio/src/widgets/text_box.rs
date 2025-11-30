@@ -79,17 +79,23 @@ impl Layoutable for TextBox {
 }
 
 /// Events of [`TextBox`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum TextBoxEvent {
     /// The text has been changed.
     Change,
 }
 
+/// Messages of [`TextBox`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum TextBoxMessage {}
+
 impl Component for TextBox {
     type Error = Error;
     type Event = TextBoxEvent;
     type Init<'a> = BorrowedContainer<'a>;
-    type Message = ();
+    type Message = TextBoxMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::TextBox::new(init)?;

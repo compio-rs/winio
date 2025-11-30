@@ -75,17 +75,23 @@ impl Layoutable for TabView {
 }
 
 /// Events of [`TabView`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum TabViewEvent {
     /// The selection changed.
     Select,
 }
 
+/// Messages of [`TabView`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum TabViewMessage {}
+
 impl Component for TabView {
     type Error = Error;
     type Event = TabViewEvent;
     type Init<'a> = BorrowedContainer<'a>;
-    type Message = ();
+    type Message = TabViewMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::TabView::new(init)?;
@@ -126,14 +132,20 @@ impl TabViewItem {
 }
 
 /// Events of [`TabViewItem`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum TabViewItemEvent {}
+
+/// Messages of [`TabViewItem`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum TabViewItemMessage {}
 
 impl Component for TabViewItem {
     type Error = Error;
     type Event = TabViewItemEvent;
     type Init<'a> = &'a TabView;
-    type Message = ();
+    type Message = TabViewItemMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::TabViewItem::new(&init.widget)?;

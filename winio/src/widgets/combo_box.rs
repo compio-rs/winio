@@ -121,6 +121,7 @@ impl Layoutable for ComboBox {
 }
 
 /// Events of [`ComboBox`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum ComboBoxEvent {
     /// The selection has changed.
@@ -130,6 +131,7 @@ pub enum ComboBoxEvent {
 }
 
 /// Messages of [`ComboBox`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum ComboBoxMessage {
     /// An element inserted.

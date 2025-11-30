@@ -88,6 +88,7 @@ impl Layoutable for WebView {
 }
 
 /// Events of [`WebView`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum WebViewEvent {
     /// The webview is currently navigating to a new source.
@@ -96,11 +97,16 @@ pub enum WebViewEvent {
     Navigated,
 }
 
+/// Messages of [`WebView`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum WebViewMessage {}
+
 impl Component for WebView {
     type Error = Error;
     type Event = WebViewEvent;
     type Init<'a> = BorrowedContainer<'a>;
-    type Message = ();
+    type Message = WebViewMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::WebView::new(init)?;

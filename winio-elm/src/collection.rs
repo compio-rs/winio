@@ -135,11 +135,16 @@ pub enum ObservableVecEvent<T> {
     Clear,
 }
 
+/// The messages of [`ObservableVec`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum ObservableVecMessage {}
+
 impl<T: Clone> Component for ObservableVec<T> {
     type Error = std::convert::Infallible;
     type Event = ObservableVecEvent<T>;
     type Init<'a> = Vec<T>;
-    type Message = ();
+    type Message = ObservableVecMessage;
 
     fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self, Self::Error> {
         let mut this = Self {

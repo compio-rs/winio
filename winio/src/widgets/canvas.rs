@@ -61,6 +61,7 @@ impl Layoutable for Canvas {
 }
 
 /// Events of [`Canvas`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum CanvasEvent {
     /// The mouse moves.
@@ -75,11 +76,16 @@ pub enum CanvasEvent {
     MouseWheel(Vector),
 }
 
+/// Messages of [`Canvas`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum CanvasMessage {}
+
 impl Component for Canvas {
     type Error = Error;
     type Event = CanvasEvent;
     type Init<'a> = BorrowedContainer<'a>;
-    type Message = ();
+    type Message = CanvasMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Canvas::new(init)?;

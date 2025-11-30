@@ -37,14 +37,20 @@ impl Layoutable for View {
 }
 
 /// Events of [`View`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum ViewEvent {}
+
+/// Messages of [`View`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum ViewMessage {}
 
 impl Component for View {
     type Error = Error;
     type Event = ViewEvent;
     type Init<'a> = BorrowedContainer<'a>;
-    type Message = ();
+    type Message = ViewMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::View::new(init)?;

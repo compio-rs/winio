@@ -60,14 +60,20 @@ impl Layoutable for ScrollView {
 }
 
 /// Events of [`ScrollView`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum ScrollViewEvent {}
+
+/// Messages of [`ScrollView`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum ScrollViewMessage {}
 
 impl Component for ScrollView {
     type Error = Error;
     type Event = ScrollViewEvent;
     type Init<'a> = BorrowedContainer<'a>;
-    type Message = ();
+    type Message = ScrollViewMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::ScrollView::new(init)?;

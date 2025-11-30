@@ -100,14 +100,20 @@ impl Layoutable for Media {
 }
 
 /// Events of [`Media`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum MediaEvent {}
+
+/// Messages of [`Media`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum MediaMessage {}
 
 impl Component for Media {
     type Error = Error;
     type Event = MediaEvent;
     type Init<'a> = BorrowedContainer<'a>;
-    type Message = ();
+    type Message = MediaMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Media::new(init)?;

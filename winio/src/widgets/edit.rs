@@ -85,17 +85,23 @@ impl Layoutable for Edit {
 }
 
 /// Events of [`Edit`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum EditEvent {
     /// The text has been changed.
     Change,
 }
 
+/// Messages of [`Edit`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum EditMessage {}
+
 impl Component for Edit {
     type Error = Error;
     type Event = EditEvent;
     type Init<'a> = BorrowedContainer<'a>;
-    type Message = ();
+    type Message = EditMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Edit::new(init)?;

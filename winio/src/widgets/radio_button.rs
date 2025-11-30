@@ -1,4 +1,7 @@
-use std::ops::{Deref, DerefMut};
+use std::{
+    hint::unreachable_unchecked,
+    ops::{Deref, DerefMut},
+};
 
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Child, Component, ComponentSender};
@@ -71,17 +74,23 @@ impl Layoutable for RadioButton {
 }
 
 /// Events of [`RadioButton`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum RadioButtonEvent {
     /// The check box has been clicked.
     Click,
 }
 
+/// Messages of [`RadioButton`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum RadioButtonMessage {}
+
 impl Component for RadioButton {
     type Error = Error;
     type Event = RadioButtonEvent;
     type Init<'a> = BorrowedContainer<'a>;
-    type Message = ();
+    type Message = RadioButtonMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::RadioButton::new(init)?;
@@ -104,6 +113,7 @@ pub struct RadioButtonGroup {
 }
 
 /// Events of [`RadioButtonGroup`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum RadioButtonGroupEvent {
     /// A radio button has been selected, with its index.
@@ -111,10 +121,9 @@ pub enum RadioButtonGroupEvent {
 }
 
 /// Messages of [`RadioButtonGroup`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum RadioButtonGroupMessage {
-    /// No operation.
-    Noop,
     /// A radio button has been selected, with its index.
     Click(usize),
 }
@@ -140,7 +149,8 @@ impl Component for RadioButtonGroup {
                     move |e| match e {
                         RadioButtonEvent::Click => Some(RadioButtonGroupMessage::Click(i)),
                     },
-                    || RadioButtonGroupMessage::Noop,
+                    // `RadioButton` never passes messages.
+                    || unsafe { unreachable_unchecked() },
                 )
             })
             .collect::<Vec<_>>();
@@ -154,7 +164,6 @@ impl Component for RadioButtonGroup {
         sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            RadioButtonGroupMessage::Noop => Ok(false),
             RadioButtonGroupMessage::Click(i) => {
                 for (idx, r) in self.radios.iter_mut().enumerate() {
                     r.set_checked(idx == i)?;

@@ -102,6 +102,7 @@ impl Layoutable for Window {
 }
 
 /// Events of [`Window`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum WindowEvent {
     /// The window is about to close. If it is ignored, the window WILL NOT
@@ -115,11 +116,16 @@ pub enum WindowEvent {
     ThemeChanged,
 }
 
+/// Messages of [`Window`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum WindowMessage {}
+
 impl Component for Window {
     type Error = Error;
     type Event = WindowEvent;
     type Init<'a> = ();
-    type Message = ();
+    type Message = WindowMessage;
 
     fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Window::new()?;

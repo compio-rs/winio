@@ -94,17 +94,23 @@ impl Layoutable for Slider {
 }
 
 /// Events of [`Slider`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum SliderEvent {
     /// The position of slider has changed.
     Change,
 }
 
+/// Messages of [`Slider`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum SliderMessage {}
+
 impl Component for Slider {
     type Error = Error;
     type Event = SliderEvent;
     type Init<'a> = BorrowedContainer<'a>;
-    type Message = ();
+    type Message = SliderMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Slider::new(init)?;

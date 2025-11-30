@@ -86,17 +86,23 @@ impl Layoutable for ScrollBar {
 }
 
 /// Events of [`ScrollBar`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum ScrollBarEvent {
     /// The position of scroll bar has changed.
     Change,
 }
 
+/// Messages of [`ScrollBar`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum ScrollBarMessage {}
+
 impl Component for ScrollBar {
     type Error = Error;
     type Event = ScrollBarEvent;
     type Init<'a> = BorrowedContainer<'a>;
-    type Message = ();
+    type Message = ScrollBarMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::ScrollBar::new(init)?;

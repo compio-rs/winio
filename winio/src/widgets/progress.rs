@@ -80,14 +80,20 @@ impl Layoutable for Progress {
 }
 
 /// Events of [`Progress`].
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum ProgressEvent {}
+
+/// Messages of [`Progress`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum ProgressMessage {}
 
 impl Component for Progress {
     type Error = Error;
     type Event = ProgressEvent;
     type Init<'a> = BorrowedContainer<'a>;
-    type Message = ();
+    type Message = ProgressMessage;
 
     fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Progress::new(init)?;
