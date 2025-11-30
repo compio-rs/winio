@@ -22,6 +22,9 @@ cfg_if::cfg_if! {
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "webview")] {
+        mod failable_webview;
+        pub use failable_webview::*;
+
         mod webview;
         pub use webview::*;
 
