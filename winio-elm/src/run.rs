@@ -180,6 +180,7 @@ mod test {
     async fn run_events<'a, T: Component>(
         init: impl Into<T::Init<'a>>,
     ) -> impl Stream<Item = RunEvent<T::Event, T::Error>> {
+        // Needs `-Zhigher-ranked-assumptions` to avoid extra awaits.
         let mut root = Root::<T>::init(init)
             .await
             .expect("failed to init component");
