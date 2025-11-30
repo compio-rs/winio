@@ -86,7 +86,7 @@ impl Component for GalleryPage {
     type Init<'a> = &'a TabView;
     type Message = GalleryPageMessage;
 
-    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let path = dirs::picture_dir();
         init! {
             window: TabViewItem = (tabview) => {

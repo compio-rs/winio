@@ -19,7 +19,7 @@ pub struct WebView {
 
 #[inherit_methods(from = "self.handle")]
 impl WebView {
-    pub fn new(parent: impl AsContainer) -> Result<Self> {
+    pub async fn new(parent: impl AsContainer) -> Result<Self> {
         let widget = webkit6::WebView::new();
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() })?;
         let on_loading = Rc::new(Callback::new());
@@ -51,10 +51,6 @@ impl WebView {
     pub fn is_enabled(&self) -> Result<bool>;
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
-
-    pub fn preferred_size(&self) -> Result<Size> {
-        Ok(Size::zero())
-    }
 
     pub fn loc(&self) -> Result<Point>;
 

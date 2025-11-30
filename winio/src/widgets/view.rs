@@ -52,7 +52,7 @@ impl Component for View {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ViewMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::View::new(init)?;
         Ok(Self { widget })
     }

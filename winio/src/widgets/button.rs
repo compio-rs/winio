@@ -78,7 +78,7 @@ impl Component for Button {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ButtonMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Button::new(init)?;
         Ok(Self { widget })
     }

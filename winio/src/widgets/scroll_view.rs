@@ -75,7 +75,7 @@ impl Component for ScrollView {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ScrollViewMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::ScrollView::new(init)?;
         Ok(Self { widget })
     }

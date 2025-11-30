@@ -19,7 +19,10 @@ pub trait Component: Sized {
     type Error: std::fmt::Debug;
 
     /// Create the initial component.
-    fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self, Self::Error>;
+    async fn init(
+        init: Self::Init<'_>,
+        sender: &ComponentSender<Self>,
+    ) -> Result<Self, Self::Error>;
 
     /// Start the event listening.
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {

@@ -146,7 +146,10 @@ impl<T: Clone> Component for ObservableVec<T> {
     type Init<'a> = Vec<T>;
     type Message = ObservableVecMessage;
 
-    fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self, Self::Error> {
+    async fn init(
+        init: Self::Init<'_>,
+        sender: &ComponentSender<Self>,
+    ) -> Result<Self, Self::Error> {
         let mut this = Self {
             vec: vec![],
             sender: sender.clone(),

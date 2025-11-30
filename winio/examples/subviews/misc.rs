@@ -70,7 +70,7 @@ impl Component for MiscPage {
     type Init<'a> = &'a TabView;
     type Message = MiscPageMessage;
 
-    fn init(webview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(webview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             window: TabViewItem = (webview) => {
                 text: "Widgets",

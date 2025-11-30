@@ -27,9 +27,9 @@ pub struct Child<T: Component> {
 
 impl<T: Component> Child<T> {
     /// Create and initialize the child component.
-    pub fn init<'a>(init: impl Into<T::Init<'a>>) -> Result<Self, T::Error> {
+    pub async fn init<'a>(init: impl Into<T::Init<'a>>) -> Result<Self, T::Error> {
         let sender = ComponentSender::new();
-        let model = T::init(init.into(), &sender)?;
+        let model = T::init(init.into(), &sender).await?;
         Ok(Self::new(model, sender))
     }
 

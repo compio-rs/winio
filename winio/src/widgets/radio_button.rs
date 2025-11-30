@@ -92,7 +92,7 @@ impl Component for RadioButton {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = RadioButtonMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::RadioButton::new(init)?;
         Ok(Self { widget })
     }
@@ -134,7 +134,7 @@ impl Component for RadioButtonGroup {
     type Init<'a> = Vec<Child<RadioButton>>;
     type Message = RadioButtonGroupMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         Ok(Self { radios: init })
     }
 

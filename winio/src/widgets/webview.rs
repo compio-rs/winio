@@ -83,8 +83,6 @@ impl Layoutable for WebView {
     fn size(&self) -> Result<Size>;
 
     fn set_size(&mut self, v: Size) -> Result<()>;
-
-    fn preferred_size(&self) -> Result<Size>;
 }
 
 /// Events of [`WebView`].
@@ -108,8 +106,8 @@ impl Component for WebView {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = WebViewMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
-        let widget = sys::WebView::new(init)?;
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        let widget = sys::WebView::new(init).await?;
         Ok(Self { widget })
     }
 

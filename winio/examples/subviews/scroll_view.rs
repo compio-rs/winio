@@ -34,7 +34,7 @@ impl Component for ScrollViewPage {
     type Init<'a> = &'a TabView;
     type Message = ScrollViewPageMessage;
 
-    fn init(tabview: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(tabview: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             window: TabViewItem = (tabview) => {
                 text: "ScrollView",

@@ -127,7 +127,7 @@ impl Component for Window {
     type Init<'a> = ();
     type Message = WindowMessage;
 
-    fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Window::new()?;
         Ok(Self { widget })
     }

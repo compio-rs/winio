@@ -50,7 +50,7 @@ impl Component for MediaPage {
     type Init<'a> = &'a TabView;
     type Message = MediaPageMessage;
 
-    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             window: TabViewItem = (tabview) => {
                 text: "Media",

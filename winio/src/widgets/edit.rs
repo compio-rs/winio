@@ -103,7 +103,7 @@ impl Component for Edit {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = EditMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Edit::new(init)?;
         Ok(Self { widget })
     }

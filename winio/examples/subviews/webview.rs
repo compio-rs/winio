@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use winio::prelude::*;
 
-use crate::{Error, Result};
+use crate::{Error, FailableWebView, Result};
 
 pub struct WebViewPage {
     window: Child<TabViewItem>,
@@ -12,7 +12,7 @@ pub struct WebViewPage {
     reload_button: Child<Button>,
     can_reload: bool,
     entry: Child<Edit>,
-    webview: Child<WebView>,
+    webview: Child<FailableWebView>,
 }
 
 impl WebViewPage {
@@ -51,13 +51,13 @@ impl Component for WebViewPage {
     type Init<'a> = &'a TabView;
     type Message = WebViewPageMessage;
 
-    fn init(webview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(webview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let url = "https://www.example.com/";
         init! {
             window: TabViewItem = (webview) => {
                 text: "WebView",
             },
-            webview: WebView = (&window) => {
+            webview: FailableWebView = (&window) => {
                 source: url
             },
             go_button: Button = (&window) => {

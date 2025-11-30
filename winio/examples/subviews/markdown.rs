@@ -13,11 +13,11 @@ use local_sync::oneshot;
 use send_wrapper::SendWrapper;
 use winio::prelude::*;
 
-use crate::{Error, Result};
+use crate::{Error, FailableWebView, Result};
 
 pub struct MarkdownPage {
     window: Child<TabViewItem>,
-    webview: Child<WebView>,
+    webview: Child<FailableWebView>,
     button: Child<Button>,
     label: Child<Label>,
     markdown_path: Rc<RefCell<PathBuf>>,
@@ -52,13 +52,13 @@ impl Component for MarkdownPage {
     type Init<'a> = &'a TabView;
     type Message = MarkdownPageMessage;
 
-    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let path = "README.md";
         init! {
             window: TabViewItem = (tabview) => {
                 text: "Markdown",
             },
-            webview: WebView = (&window),
+            webview: FailableWebView = (&window),
             button: Button = (&window) => {
                 text: "Choose file...",
             },
@@ -203,7 +203,7 @@ impl Component for MarkdownPage {
 </html>
 "#
                         );
-                        self.webview.set_html(html)?;
+                        self.webview.navigate_to_string(html)?;
                     }
                     MarkdownFetchStatus::Error(err) => {
                         sender.output(MarkdownPageEvent::MessageBox(

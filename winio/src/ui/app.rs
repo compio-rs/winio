@@ -43,7 +43,7 @@ impl App {
         init: impl Into<T::Init<'a>>,
     ) -> Result<T::Event, T::Error> {
         self.block_on(async move {
-            let mut component = Root::<T>::init(init)?;
+            let mut component = Root::<T>::init(init).await?;
             let stream = component.run();
             let mut stream = std::pin::pin!(stream);
             stream
@@ -61,7 +61,7 @@ impl App {
         init: impl Into<T::Init<'a>>,
     ) -> Result<T::Event, T::Error> {
         self.block_on(async move {
-            let mut component = Root::<T>::init(init)?;
+            let mut component = Root::<T>::init(init).await?;
             let stream = component.run();
             let mut stream = std::pin::pin!(stream);
             while let Some(event) = stream.next().await {

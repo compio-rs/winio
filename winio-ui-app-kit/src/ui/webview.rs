@@ -26,7 +26,7 @@ pub struct WebView {
 
 #[inherit_methods(from = "self.handle")]
 impl WebView {
-    pub fn new(parent: impl AsContainer) -> Result<Self> {
+    pub async fn new(parent: impl AsContainer) -> Result<Self> {
         let parent = parent.as_container();
         let mtm = parent.mtm();
 
@@ -60,10 +60,6 @@ impl WebView {
 
     pub fn set_enabled(&mut self, _: bool) -> Result<()> {
         Ok(())
-    }
-
-    pub fn preferred_size(&self) -> Result<Size> {
-        Ok(Size::zero())
     }
 
     pub fn loc(&self) -> Result<Point>;

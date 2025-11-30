@@ -39,7 +39,7 @@ impl Component for NetPage {
     type Init<'a> = &'a TabView;
     type Message = NetPageMessage;
 
-    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let url = "https://www.example.com/";
         init! {
             window: TabViewItem = (tabview) => {
