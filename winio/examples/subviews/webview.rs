@@ -32,6 +32,9 @@ impl WebViewPage {
 }
 
 #[derive(Debug)]
+pub enum WebViewPageEvent {}
+
+#[derive(Debug)]
 pub enum WebViewPageMessage {
     Noop,
     Go,
@@ -44,7 +47,7 @@ pub enum WebViewPageMessage {
 
 impl Component for WebViewPage {
     type Error = Error;
-    type Event = ();
+    type Event = WebViewPageEvent;
     type Init<'a> = &'a TabView;
     type Message = WebViewPageMessage;
 

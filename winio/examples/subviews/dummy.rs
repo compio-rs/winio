@@ -10,13 +10,16 @@ pub struct DummyPage {
 }
 
 #[derive(Debug)]
+pub enum DummyPageEvent {}
+
+#[derive(Debug)]
 pub enum DummyPageMessage {
     Noop,
 }
 
 impl Component for DummyPage {
     type Error = Error;
-    type Event = ();
+    type Event = DummyPageEvent;
     type Init<'a> = (&'a TabView, &'static str, &'static str);
     type Message = DummyPageMessage;
 

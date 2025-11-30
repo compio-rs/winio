@@ -24,6 +24,9 @@ pub enum NetFetchStatus {
 }
 
 #[derive(Debug)]
+pub enum NetPageEvent {}
+
+#[derive(Debug)]
 pub enum NetPageMessage {
     Noop,
     Go,
@@ -32,7 +35,7 @@ pub enum NetPageMessage {
 
 impl Component for NetPage {
     type Error = Error;
-    type Event = ();
+    type Event = NetPageEvent;
     type Init<'a> = &'a TabView;
     type Message = NetPageMessage;
 
