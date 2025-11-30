@@ -87,7 +87,7 @@ impl Component for Canvas {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = CanvasMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Canvas::new(init)?;
         Ok(Self { widget })
     }

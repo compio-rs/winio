@@ -43,7 +43,7 @@ impl Component for MainModel {
     type Init<'a> = ();
     type Message = MainMessage;
 
-    fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         // create & initialize the window
         init! {
             window: Window = (()) => {

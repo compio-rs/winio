@@ -93,7 +93,7 @@ impl Component for TabView {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = TabViewMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::TabView::new(init)?;
         Ok(Self { widget })
     }
@@ -147,7 +147,7 @@ impl Component for TabViewItem {
     type Init<'a> = &'a TabView;
     type Message = TabViewItemMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::TabViewItem::new(&init.widget)?;
         Ok(Self { widget })
     }

@@ -25,7 +25,7 @@ impl Component for BackdropChooser {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = BackdropChooserMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             view: View = (&init),
             r_none: RadioButton = (&view) => {

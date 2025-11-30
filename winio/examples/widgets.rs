@@ -107,7 +107,7 @@ impl Component for MainModel {
     type Init<'a> = ();
     type Message = MainMessage;
 
-    fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             window: Window = (()) => {
                 text: "Widgets example",

@@ -23,7 +23,7 @@ impl Component for DummyPage {
     type Init<'a> = (&'a TabView, &'static str, &'static str);
     type Message = DummyPageMessage;
 
-    fn init(
+    async fn init(
         (tabview, name, feature): Self::Init<'_>,
         _sender: &ComponentSender<Self>,
     ) -> Result<Self> {

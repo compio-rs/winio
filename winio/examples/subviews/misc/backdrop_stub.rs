@@ -16,7 +16,7 @@ impl Component for BackdropChooser {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = BackdropChooserMessage;
 
-    fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         Ok(Self {})
     }
 }

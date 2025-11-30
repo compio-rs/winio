@@ -108,7 +108,7 @@ impl Component for WebView {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = WebViewMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::WebView::new(init)?;
         Ok(Self { widget })
     }

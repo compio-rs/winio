@@ -25,7 +25,7 @@ macro_rules! init {
         $(
             #[allow(unused_mut)]
             $(#[$m])*
-            let mut $name = $crate::Child::<$t>::init($init)?;
+            let mut $name = $crate::Child::<$t>::init($init).await?;
             $(#[$m])*
             {
                 $(
@@ -65,7 +65,7 @@ macro_rules! __init_assign {
 /// }
 /// # impl Component for MainModel {
 /// # type Init<'a> = (); type Message = MainMessage; type Event = (); type Error = Error;
-/// # fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> { todo!() }
+/// # async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> { todo!() }
 /// # async fn update(&mut self, _msg: Self::Message, _sender: &ComponentSender<Self>) -> Result<bool> { Ok(false) }
 /// # fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> { Ok(()) }
 /// async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {

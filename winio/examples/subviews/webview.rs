@@ -51,7 +51,7 @@ impl Component for WebViewPage {
     type Init<'a> = &'a TabView;
     type Message = WebViewPageMessage;
 
-    fn init(webview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(webview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let url = "https://www.example.com/";
         init! {
             window: TabViewItem = (webview) => {

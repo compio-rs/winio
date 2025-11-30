@@ -187,7 +187,7 @@ impl Component for ComboBox {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ComboBoxMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::ComboBox::new(init)?;
         Ok(Self { widget })
     }

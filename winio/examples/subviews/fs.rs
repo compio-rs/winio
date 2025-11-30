@@ -43,7 +43,7 @@ impl Component for FsPage {
     type Init<'a> = &'a TabView;
     type Message = FsPageMessage;
 
-    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let path = "Cargo.toml";
         init! {
             window: TabViewItem = (tabview) => {

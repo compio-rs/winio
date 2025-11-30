@@ -164,7 +164,7 @@ impl Component for ListBox {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ListBoxMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::ListBox::new(init)?;
         Ok(Self { widget })
     }

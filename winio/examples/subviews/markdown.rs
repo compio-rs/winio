@@ -52,7 +52,7 @@ impl Component for MarkdownPage {
     type Init<'a> = &'a TabView;
     type Message = MarkdownPageMessage;
 
-    fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let path = "README.md";
         init! {
             window: TabViewItem = (tabview) => {

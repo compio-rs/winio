@@ -97,7 +97,7 @@ impl Component for TextBox {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = TextBoxMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::TextBox::new(init)?;
         Ok(Self { widget })
     }

@@ -115,7 +115,7 @@ impl Component for Media {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = MediaMessage;
 
-    fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Media::new(init)?;
         Ok(Self { widget })
     }

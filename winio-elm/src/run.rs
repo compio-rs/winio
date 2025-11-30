@@ -38,9 +38,9 @@ pub struct Root<T: Component> {
 
 impl<T: Component> Root<T> {
     /// Create a new root component.
-    pub fn init<'a>(init: impl Into<T::Init<'a>>) -> Result<Self, T::Error> {
+    pub async fn init<'a>(init: impl Into<T::Init<'a>>) -> Result<Self, T::Error> {
         let sender = ComponentSender::new();
-        let model = T::init(init.into(), &sender)?;
+        let model = T::init(init.into(), &sender).await?;
         Ok(Self { model, sender })
     }
 
@@ -152,7 +152,7 @@ mod test {
         type Init<'a> = Vec<TestMessage>;
         type Message = TestMessage;
 
-        fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self, ()> {
+        async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self, ()> {
             for m in init {
                 sender.post(m);
             }
@@ -177,11 +177,13 @@ mod test {
         }
     }
 
-    fn run_events<'a, T: Component>(
+    async fn run_events<'a, T: Component>(
         init: impl Into<T::Init<'a>>,
     ) -> impl Stream<Item = RunEvent<T::Event, T::Error>> {
+        let mut root = Root::<T>::init(init)
+            .await
+            .expect("failed to init component");
         stream! {
-            let mut root = Root::<T>::init(init).expect("failed to init component");
             for await event in root.run() {
                 yield event;
             }
@@ -191,7 +193,7 @@ mod test {
     async fn run_once<'a, T: Component>(
         init: impl Into<T::Init<'a>>,
     ) -> RunEvent<T::Event, T::Error> {
-        let stream = run_events::<T>(init);
+        let stream = run_events::<T>(init).await;
         let mut stream = std::pin::pin!(stream);
         stream.next().await.expect("component exits without event")
     }
@@ -211,7 +213,8 @@ mod test {
             TestMessage::Msg1,
             TestMessage::Msg2,
             TestMessage::Msg1,
-        ]);
+        ])
+        .await;
         assert_send_sync(&events);
         let expects = [TestEvent::Event1, TestEvent::Event2, TestEvent::Event1];
         let zip = events.zip(futures_util::stream::iter(expects.into_iter()));
