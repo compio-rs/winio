@@ -82,6 +82,9 @@ impl TabView {
         self.view.TabItems()?.InsertAt(i as _, &item.item)?;
         self.view
             .Measure(Size::new(f64::INFINITY, f64::INFINITY).to_native())?;
+        if self.len()? == 1 {
+            self.set_selection(0)?;
+        }
         Ok(())
     }
 
