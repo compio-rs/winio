@@ -32,7 +32,7 @@ use windows_sys::Win32::{
     },
 };
 use winio_handle::{AsContainer, AsRawWidget, AsRawWindow};
-use winio_primitive::{DrawingFont, MouseButton, Orient, Point, Rect, Size, Vector};
+use winio_primitive::{DrawingFont, MouseButton, Orient, Point, Rect, Size, Transform, Vector};
 use winio_ui_windows_common::{Backdrop, is_dark_mode_allowed_for_app};
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 
@@ -280,6 +280,10 @@ impl<'a> DrawingContext<'a> {
         std::mem::forget(self);
         Ok(())
     }
+
+    pub fn set_transform(&mut self, transform: Transform) -> Result<()>;
+
+    pub fn transform(&self) -> Result<Transform>;
 
     pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) -> Result<()>;
 

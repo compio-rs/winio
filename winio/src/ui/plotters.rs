@@ -1,11 +1,11 @@
 use plotters_backend::{
     BackendColor, BackendCoord, BackendStyle, BackendTextStyle, DrawingBackend, DrawingErrorKind,
-    FontStyle,
+    FontStyle, FontTransform,
     text_anchor::{HPos, VPos},
 };
 use winio_primitive::{
-    BrushPen, Color, DrawingFont, DrawingFontBuilder, HAlign, Layoutable, Point, Rect, RectBox,
-    Size, SolidColorBrush, VAlign,
+    Angle, BrushPen, Color, DrawingFont, DrawingFontBuilder, HAlign, Layoutable, Point, Rect,
+    RectBox, Rotation, Size, SolidColorBrush, Transform, VAlign,
 };
 
 use crate::{Error, ui::DrawingContext, widgets::Canvas};
@@ -237,10 +237,33 @@ impl<'a> DrawingBackend for WinioCanvasBackend<'a> {
         style: &TStyle,
         pos: BackendCoord,
     ) -> Result<(), DrawingErrorKind<Self::ErrorType>> {
+        let context = self.context_mut();
         let font = bfont(style);
-        self.context_mut()
-            .draw_str(bbrush(style.color()), font, bpoint(pos), text)
-            .map_err(DrawingErrorKind::DrawingError)
+        let pos = bpoint(pos);
+        let transform = style.transform();
+        let rotate = match transform {
+            FontTransform::None => Rotation::identity(),
+            FontTransform::Rotate90 => Rotation::new(Angle::degrees(90.0)),
+            FontTransform::Rotate180 => Rotation::new(Angle::degrees(180.0)),
+            FontTransform::Rotate270 => Rotation::new(Angle::degrees(270.0)),
+        };
+        let need_transform = rotate != Rotation::identity();
+        (|| {
+            if need_transform {
+                context.set_transform(
+                    rotate
+                        .to_transform()
+                        .pre_translate(-pos.to_vector())
+                        .then_translate(pos.to_vector()),
+                )?;
+            }
+            context.draw_str(bbrush(style.color()), font, pos, text)?;
+            if need_transform {
+                context.set_transform(Transform::identity())?;
+            }
+            Ok(())
+        })()
+        .map_err(DrawingErrorKind::DrawingError)
     }
 
     fn estimate_text_size<TStyle: BackendTextStyle>(
@@ -253,7 +276,10 @@ impl<'a> DrawingBackend for WinioCanvasBackend<'a> {
             .context()
             .measure_str(font, text)
             .map_err(DrawingErrorKind::DrawingError)?;
-        Ok((size.width as u32, size.height as u32))
+        let (width, height) = style
+            .transform()
+            .transform(size.width as _, size.height as _);
+        Ok((width as u32, height as u32))
     }
 
     fn blit_bitmap(

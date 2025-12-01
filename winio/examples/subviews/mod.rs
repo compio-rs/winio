@@ -41,7 +41,7 @@ cfg_if::cfg_if! {
 }
 
 cfg_if::cfg_if! {
-    if #[cfg(any(not(feature = "media"), not(feature = "webview")))] {
+    if #[cfg(any(not(feature = "media"), not(feature = "webview"), not(feature = "plotters")))] {
         mod dummy;
         pub use dummy::*;
     }

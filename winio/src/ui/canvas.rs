@@ -1,5 +1,5 @@
 use image::DynamicImage;
-use winio_primitive::{DrawingFont, Point, Rect, Size};
+use winio_primitive::{DrawingFont, Point, Rect, Size, Transform};
 
 use crate::{sys, sys::Result};
 
@@ -53,6 +53,16 @@ impl<'a> DrawingContext<'a> {
     /// Close the context manually.
     pub fn close(self) -> Result<()> {
         self.0.close()
+    }
+
+    /// Set the transform matrix.
+    pub fn set_transform(&mut self, transform: Transform) -> Result<()> {
+        self.0.set_transform(transform)
+    }
+
+    /// Get the transform matrix.
+    pub fn transform(&self) -> Result<Transform> {
+        self.0.transform()
     }
 
     /// Draw a path.
