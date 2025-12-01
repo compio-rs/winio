@@ -23,6 +23,7 @@ cfg-if = { workspace = true }
 futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true, default-features = false }
+plotters-backend = { version = "0.3", optional = true }
 thiserror = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
@@ -53,6 +54,9 @@ image = { workspace = true, default-features = false, features = [
 ] }
 itertools = "0.14"
 local-sync = { workspace = true }
+plotters = { version = "0.3", default-features = false, features = [
+    "line_series",
+] }
 pulldown-cmark = "0.13"
 send_wrapper = { workspace = true, features = ["futures"] }
 tracing-subscriber = "0.3"
@@ -80,7 +84,8 @@ webview = [
     "winio-ui-gtk?/webview",
     "winio-ui-qt?/webview",
 ]
-all = ["media", "webview"]
+plotters = ["dep:plotters-backend"]
+all = ["media", "webview", "plotters"]
 
 nightly = [
     "winio-elm/nightly",

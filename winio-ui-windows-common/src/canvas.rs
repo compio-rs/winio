@@ -380,6 +380,11 @@ impl DrawingContext {
         Ok(())
     }
 
+    pub fn measure_str(&self, font: DrawingFont, text: &str) -> Result<Size> {
+        let (rect, _) = self.get_str_layout(font, Point::zero(), text.as_ref())?;
+        Ok(rect.size)
+    }
+
     pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage> {
         DrawingImage::new(&self.target, image)
     }

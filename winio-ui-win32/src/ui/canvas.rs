@@ -241,18 +241,6 @@ pub struct DrawingContext<'a> {
     canvas: &'a mut Canvas,
 }
 
-impl DrawingContext<'_> {
-    fn end_draw(&mut self) -> Result<()> {
-        unsafe {
-            match self.ctx.render_target().EndDraw(None, None) {
-                Ok(()) => Ok(()),
-                Err(e) if e.code() == D2DERR_RECREATE_TARGET => self.canvas.handle_lost(),
-                Err(e) => Err(e),
-            }
-        }
-    }
-}
-
 impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
         match self.end_draw() {
@@ -264,6 +252,7 @@ impl Drop for DrawingContext<'_> {
     }
 }
 
+#[inherit_methods(from = "self.ctx")]
 impl<'a> DrawingContext<'a> {
     fn new(canvas: &'a mut Canvas) -> Result<Self> {
         Ok(Self {
@@ -275,10 +264,23 @@ impl<'a> DrawingContext<'a> {
             canvas,
         })
     }
-}
 
-#[inherit_methods(from = "self.ctx")]
-impl DrawingContext<'_> {
+    fn end_draw(&mut self) -> Result<()> {
+        unsafe {
+            match self.ctx.render_target().EndDraw(None, None) {
+                Ok(()) => Ok(()),
+                Err(e) if e.code() == D2DERR_RECREATE_TARGET => self.canvas.handle_lost(),
+                Err(e) => Err(e),
+            }
+        }
+    }
+
+    pub fn close(mut self) -> Result<()> {
+        self.end_draw()?;
+        std::mem::forget(self);
+        Ok(())
+    }
+
     pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) -> Result<()>;
 
     pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) -> Result<()>;
@@ -310,6 +312,8 @@ impl DrawingContext<'_> {
         pos: Point,
         text: &str,
     ) -> Result<()>;
+
+    pub fn measure_str(&self, font: DrawingFont, text: &str) -> Result<Size>;
 
     pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage>;
 

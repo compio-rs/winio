@@ -50,6 +50,11 @@ impl<'a> DrawingContext<'a> {
         Self(ctx)
     }
 
+    /// Close the context manually.
+    pub fn close(self) -> Result<()> {
+        self.0.close()
+    }
+
     /// Draw a path.
     pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) -> Result<()> {
         self.0.draw_path(pen, &path.0)
@@ -119,6 +124,11 @@ impl<'a> DrawingContext<'a> {
         text: impl AsRef<str>,
     ) -> Result<()> {
         self.0.draw_str(brush, fix_font(font), pos, text.as_ref())
+    }
+
+    /// Measure string size.
+    pub fn measure_str(&self, font: DrawingFont, text: &str) -> Result<Size> {
+        self.0.measure_str(fix_font(font), text)
     }
 
     /// Create a [`DrawingContext`]-compatible image from [`DynamicImage`].

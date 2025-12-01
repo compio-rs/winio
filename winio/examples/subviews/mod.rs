@@ -14,6 +14,13 @@ mod misc;
 pub use misc::*;
 
 cfg_if::cfg_if! {
+    if #[cfg(feature = "plotters")] {
+        mod plotters;
+        pub use plotters::*;
+    }
+}
+
+cfg_if::cfg_if! {
     if #[cfg(feature = "media")] {
         mod media;
         pub use media::*;

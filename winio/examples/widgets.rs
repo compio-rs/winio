@@ -63,6 +63,10 @@ struct MainModel {
     net: Child<NetPage>,
     gallery: Child<GalleryPage>,
     scroll: Child<ScrollViewPage>,
+    #[cfg(feature = "plotters")]
+    plotters: Child<PlottersPage>,
+    #[cfg(not(feature = "plotters"))]
+    plotters: Child<DummyPage>,
     #[cfg(feature = "media")]
     media: Child<MediaPage>,
     #[cfg(not(feature = "media"))]
@@ -124,6 +128,10 @@ impl Component for MainModel {
             net: NetPage = (&*tabview),
             gallery: GalleryPage = (&*tabview),
             scroll: ScrollViewPage = (&*tabview),
+            #[cfg(feature = "plotters")]
+            plotters: PlottersPage = (&*tabview),
+            #[cfg(not(feature = "plotters"))]
+            plotters: DummyPage = ((&*tabview, "Plotters", "plotters")),
             #[cfg(feature = "media")]
             media: MediaPage = (&*tabview),
             #[cfg(not(feature = "media"))]
@@ -143,6 +151,7 @@ impl Component for MainModel {
         tabview.push(&net)?;
         tabview.push(&gallery)?;
         tabview.push(&scroll)?;
+        tabview.push(&plotters)?;
         tabview.push(&media)?;
         tabview.push(&webview)?;
         tabview.push(&markdown)?;
@@ -159,6 +168,7 @@ impl Component for MainModel {
             net,
             gallery,
             scroll,
+            plotters,
             media,
             webview,
             markdown,
@@ -216,6 +226,7 @@ impl Component for MainModel {
             Box::pin(self.net.update()),
             Box::pin(self.gallery.update()),
             Box::pin(self.scroll.update()),
+            Box::pin(self.plotters.update()),
             Box::pin(self.media.update()),
             Box::pin(self.webview.update()),
             Box::pin(self.markdown.update()),
@@ -364,9 +375,10 @@ impl Component for MainModel {
                 2 => self.net.render()?,
                 3 => self.gallery.render()?,
                 4 => self.scroll.render()?,
-                5 => self.media.render()?,
-                6 => self.webview.render()?,
-                7 => self.markdown.render()?,
+                5 => self.plotters.render()?,
+                6 => self.media.render()?,
+                7 => self.webview.render()?,
+                8 => self.markdown.render()?,
                 _ => {}
             }
         }
