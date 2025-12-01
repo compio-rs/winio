@@ -39,7 +39,7 @@ use windows::{
 };
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{ColorTheme, DrawingFont, MouseButton, Point, Rect, Size, Vector};
+use winio_primitive::{ColorTheme, DrawingFont, MouseButton, Point, Rect, Size, Transform, Vector};
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 use winui3::{
     ISwapChainPanelNative,
@@ -428,6 +428,7 @@ impl Drop for DrawingContext<'_> {
     }
 }
 
+#[inherit_methods(from = "self.ctx")]
 impl<'a> DrawingContext<'a> {
     fn new(canvas: &'a mut Canvas) -> Result<Self> {
         Ok(Self {
@@ -448,10 +449,17 @@ impl<'a> DrawingContext<'a> {
         }
         Ok(())
     }
-}
 
-#[inherit_methods(from = "self.ctx")]
-impl DrawingContext<'_> {
+    pub fn close(mut self) -> Result<()> {
+        self.end_draw()?;
+        std::mem::forget(self);
+        Ok(())
+    }
+
+    pub fn set_transform(&mut self, transform: Transform) -> Result<()>;
+
+    pub fn transform(&self) -> Result<Transform>;
+
     pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) -> Result<()>;
 
     pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) -> Result<()>;
@@ -483,6 +491,8 @@ impl DrawingContext<'_> {
         pos: Point,
         text: &str,
     ) -> Result<()>;
+
+    pub fn measure_str(&self, font: DrawingFont, text: &str) -> Result<Size>;
 
     pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage>;
 
