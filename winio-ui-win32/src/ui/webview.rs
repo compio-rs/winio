@@ -1,4 +1,4 @@
-use std::{cell::RefCell, future::Future, io, rc::Rc};
+use std::{cell::RefCell, future::Future, rc::Rc};
 
 use webview2::{
     CreateCoreWebView2Environment, ICoreWebView2, ICoreWebView2Controller,
@@ -149,9 +149,7 @@ impl WebView {
     pub fn source(&self) -> Result<String> {
         unsafe {
             let source = CoTaskMemPtr::new(self.view.Source()?.0);
-            Ok(PCWSTR(source.as_ptr())
-                .to_string()
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?)
+            Ok(PCWSTR(source.as_ptr()).to_string()?)
         }
     }
 

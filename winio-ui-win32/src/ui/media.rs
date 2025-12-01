@@ -1,10 +1,11 @@
-use std::{io, mem::MaybeUninit, sync::Arc, time::Duration};
+use std::{mem::MaybeUninit, sync::Arc, time::Duration};
 
 use compio::driver::syscall;
 use compio_log::error;
 use inherit_methods_macro::inherit_methods;
 use windows::{
     Win32::{
+        Foundation::E_POINTER,
         Media::MediaFoundation::{
             CLSID_MFMediaEngineClassFactory, IMFMediaEngine, IMFMediaEngineClassFactory,
             IMFMediaEngineEx, IMFMediaEngineNotify, IMFMediaEngineNotify_Impl,
@@ -61,9 +62,7 @@ impl Media {
 
             let mut attrs = None;
             MFCreateAttributes(&mut attrs, 1)?;
-            let attrs = attrs.ok_or_else(|| {
-                io::Error::new(io::ErrorKind::InvalidData, "cannot create IMFAttributes")
-            })?;
+            let attrs = attrs.ok_or_else(|| Error::from_hresult(E_POINTER))?;
             attrs.SetUnknown(&MF_MEDIA_ENGINE_CALLBACK, &callback)?;
             attrs.SetUINT64(
                 &MF_MEDIA_ENGINE_PLAYBACK_HWND,
