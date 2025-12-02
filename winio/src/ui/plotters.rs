@@ -60,7 +60,7 @@ fn bpen(style: &impl BackendStyle) -> BrushPen<SolidColorBrush> {
 
 fn bfont(style: &impl BackendTextStyle) -> DrawingFont {
     let mut builder = DrawingFontBuilder::new();
-    builder.size(style.size());
+    builder.size(style.size()).family(style.family().as_str());
     match style.style() {
         FontStyle::Normal => &mut builder,
         FontStyle::Bold => builder.bold(true),

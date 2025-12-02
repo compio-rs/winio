@@ -113,6 +113,15 @@ void painter_draw_text(QPainter &p, QRectF rect, rust::Str text) {
     p.drawText(rect, QString::fromUtf8(text.data(), text.size()), option);
 }
 
+void painter_set_transform(QPainter &p, WTransform const &t) {
+    p.setTransform(QTransform{t.m11, t.m12, t.m21, t.m22, t.m31, t.m32});
+}
+
+WTransform painter_get_transform(QPainter const &p) {
+    auto t = p.transform();
+    return WTransform{t.m11(), t.m12(), t.m21(), t.m22(), t.m31(), t.m32()};
+}
+
 void color_transparent(QColor &c) noexcept { new (&c) QColor{Qt::transparent}; }
 
 bool color_accent(QColor &c) {
