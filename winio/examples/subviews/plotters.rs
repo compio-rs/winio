@@ -36,6 +36,7 @@ impl Component for PlottersPage {
 
     fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
         let size = self.window.size()?;
+        self.canvas.set_loc(Point::zero())?;
         self.canvas.set_size(size)?;
 
         let root = WinioCanvasBackend::new(&mut self.canvas)?.into_drawing_area();

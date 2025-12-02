@@ -53,6 +53,10 @@ pub enum Error {
     NotSupported,
 }
 
+// SAFETY: NSException & NSError are thread-safe.
+unsafe impl Send for Error {}
+unsafe impl Sync for Error {}
+
 impl From<Retained<Exception>> for Error {
     fn from(exc: Retained<Exception>) -> Self {
         Error::ObjC(Some(exc))
