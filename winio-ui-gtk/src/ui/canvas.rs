@@ -13,7 +13,7 @@ use gtk4::{
     },
     gdk::ScrollUnit,
     glib::{Propagation, object::Cast},
-    pango::{FontDescription, SCALE as PANGO_SCALE, Style, Weight},
+    pango::{FontDescription, Layout, SCALE as PANGO_SCALE, Style, Weight},
     prelude::{DrawingAreaExtManual, GestureSingleExt, WidgetExt},
 };
 use image::{DynamicImage, Rgba, Rgba32FImage};
@@ -23,7 +23,7 @@ use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{
     BrushPen, DrawingFont, HAlign, LinearGradientBrush, MouseButton, Point, RadialGradientBrush,
-    Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, VAlign, Vector,
+    Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, Transform, VAlign, Vector,
 };
 
 use crate::{GlobalRuntime, Result, ui::Widget};
@@ -194,6 +194,30 @@ fn to_trans(mut rect: Rect) -> RelativeToLogical {
 }
 
 impl DrawingContext<'_> {
+    pub fn set_transform(&mut self, transform: Transform) -> Result<()> {
+        self.ctx.set_matrix(Matrix::new(
+            transform.m11,
+            transform.m12,
+            transform.m21,
+            transform.m22,
+            transform.m31,
+            transform.m32,
+        ));
+        Ok(())
+    }
+
+    pub fn transform(&self) -> Result<Transform> {
+        let m = self.ctx.matrix();
+        Ok(Transform::new(
+            m.xx(),
+            m.yx(),
+            m.xy(),
+            m.yy(),
+            m.x0(),
+            m.y0(),
+        ))
+    }
+
     #[inline]
     fn set_brush(&self, brush: impl Brush, rect: Rect) -> Result<()> {
         brush.set(&self.ctx, to_trans(rect))
@@ -358,13 +382,7 @@ impl DrawingContext<'_> {
         Ok(())
     }
 
-    pub fn draw_str(
-        &mut self,
-        brush: impl Brush,
-        font: DrawingFont,
-        pos: Point,
-        text: &str,
-    ) -> Result<()> {
+    fn measure_str_impl(&self, font: &DrawingFont, text: &str) -> (Size, Layout) {
         let layout = self.canvas.widget.create_pango_layout(Some(text));
         let mut desp = FontDescription::from_string(&font.family);
         desp.set_size((font.size / 1.33) as i32 * PANGO_SCALE);
@@ -378,7 +396,18 @@ impl DrawingContext<'_> {
         layout.set_width(self.canvas.widget.width() * PANGO_SCALE);
 
         let (width, height) = layout.pixel_size();
-        let (width, height) = (width as f64, height as f64);
+        (Size::new(width as f64, height as f64), layout)
+    }
+
+    pub fn draw_str(
+        &mut self,
+        brush: impl Brush,
+        font: DrawingFont,
+        pos: Point,
+        text: &str,
+    ) -> Result<()> {
+        let (size, layout) = self.measure_str_impl(&font, text);
+        let (width, height) = (size.width, size.height);
 
         let mut x = pos.x;
         let mut y = pos.y;
@@ -398,6 +427,10 @@ impl DrawingContext<'_> {
         self.set_brush(brush, rect)?;
         show_layout(&self.ctx, &layout);
         Ok(())
+    }
+
+    pub fn measure_str(&self, font: DrawingFont, text: &str) -> Result<Size> {
+        Ok(self.measure_str_impl(&font, text).0)
     }
 
     pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage> {
@@ -436,6 +469,10 @@ impl DrawingContext<'_> {
 
     pub fn create_path_builder(&self, start: Point) -> Result<DrawingPathBuilder> {
         DrawingPathBuilder::new(start)
+    }
+
+    pub fn close(self) -> Result<()> {
+        Ok(())
     }
 }
 
