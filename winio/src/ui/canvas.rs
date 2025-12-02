@@ -1,5 +1,5 @@
 use image::DynamicImage;
-use winio_primitive::{DrawingFont, Point, Rect, Size};
+use winio_primitive::{DrawingFont, Point, Rect, Size, Transform};
 
 use crate::{sys, sys::Result};
 
@@ -48,6 +48,21 @@ fn fix_font(mut font: DrawingFont) -> DrawingFont {
 impl<'a> DrawingContext<'a> {
     pub(crate) fn new(ctx: sys::DrawingContext<'a>) -> Self {
         Self(ctx)
+    }
+
+    /// Close the context manually.
+    pub fn close(self) -> Result<()> {
+        self.0.close()
+    }
+
+    /// Set the transform matrix.
+    pub fn set_transform(&mut self, transform: Transform) -> Result<()> {
+        self.0.set_transform(transform)
+    }
+
+    /// Get the transform matrix.
+    pub fn transform(&self) -> Result<Transform> {
+        self.0.transform()
     }
 
     /// Draw a path.
@@ -119,6 +134,11 @@ impl<'a> DrawingContext<'a> {
         text: impl AsRef<str>,
     ) -> Result<()> {
         self.0.draw_str(brush, fix_font(font), pos, text.as_ref())
+    }
+
+    /// Measure string size.
+    pub fn measure_str(&self, font: DrawingFont, text: &str) -> Result<Size> {
+        self.0.measure_str(fix_font(font), text)
     }
 
     /// Create a [`DrawingContext`]-compatible image from [`DynamicImage`].

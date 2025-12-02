@@ -35,7 +35,8 @@ use windows::{
 use windows_numerics::{Matrix3x2, Vector2};
 use winio_primitive::{
     BrushPen, Color, DrawingFont, GradientStop, HAlign, LinearGradientBrush, Point,
-    RadialGradientBrush, Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, VAlign, Vector,
+    RadialGradientBrush, Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, Transform,
+    VAlign, Vector,
 };
 
 use crate::Result;
@@ -69,6 +70,17 @@ fn rect_f(r: Rect) -> D2D_RECT_F {
         top: r.origin.y as f32,
         right: (r.origin.x + r.size.width) as f32,
         bottom: (r.origin.y + r.size.height) as f32,
+    }
+}
+
+fn matrix_f(m: Transform) -> Matrix3x2 {
+    Matrix3x2 {
+        M11: m.m11 as _,
+        M12: m.m12 as _,
+        M21: m.m21 as _,
+        M22: m.m22 as _,
+        M31: m.m31 as _,
+        M32: m.m32 as _,
     }
 }
 
@@ -163,7 +175,7 @@ impl DrawingContext {
     fn get_str_layout(
         &self,
         font: DrawingFont,
-        pos: Point,
+        mut pos: Point,
         s: &str,
     ) -> Result<(Rect, IDWriteTextLayout)> {
         unsafe {
@@ -186,7 +198,6 @@ impl DrawingContext {
                 windows::core::w!(""),
             )?;
             let size = self.target.GetSize();
-            let mut rect = Rect::new(pos, pos.to_vector().to_size());
             let s = U16CString::from_str_truncate(s);
             let layout =
                 self.dwrite
@@ -196,25 +207,50 @@ impl DrawingContext {
             let metrics = metrics.assume_init();
             match font.halign {
                 HAlign::Center => {
-                    rect.origin.x -= metrics.width as f64 / 2.0;
+                    pos.x -= metrics.width as f64 / 2.0;
                 }
                 HAlign::Right => {
-                    rect.origin.x -= metrics.width as f64;
+                    pos.x -= metrics.width as f64;
                 }
                 _ => {}
             }
             match font.valign {
                 VAlign::Center => {
-                    rect.origin.y -= metrics.height as f64 / 2.0;
+                    pos.y -= metrics.height as f64 / 2.0;
                 }
                 VAlign::Bottom => {
-                    rect.origin.y -= metrics.height as f64;
+                    pos.y -= metrics.height as f64;
                 }
                 _ => {}
             }
-            rect.size = Size::new(metrics.width as f64, metrics.height as f64);
+            let size = Size::new(metrics.width as f64, metrics.height as f64);
+            let rect = Rect::new(pos, size);
             Ok((rect, layout))
         }
+    }
+
+    pub fn set_transform(&mut self, transform: Transform) -> Result<()> {
+        unsafe {
+            let matrix = matrix_f(transform);
+            self.target.SetTransform(&matrix);
+        }
+        Ok(())
+    }
+
+    pub fn transform(&self) -> Result<Transform> {
+        let mut matrix = MaybeUninit::uninit();
+        let matrix = unsafe {
+            self.target.GetTransform(matrix.as_mut_ptr());
+            matrix.assume_init()
+        };
+        Ok(Transform::new(
+            matrix.M11 as f64,
+            matrix.M12 as f64,
+            matrix.M21 as f64,
+            matrix.M22 as f64,
+            matrix.M31 as f64,
+            matrix.M32 as f64,
+        ))
     }
 
     pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) -> Result<()> {
@@ -378,6 +414,11 @@ impl DrawingContext {
             );
         }
         Ok(())
+    }
+
+    pub fn measure_str(&self, font: DrawingFont, text: &str) -> Result<Size> {
+        let (rect, _) = self.get_str_layout(font, Point::zero(), text.as_ref())?;
+        Ok(rect.size)
     }
 
     pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage> {

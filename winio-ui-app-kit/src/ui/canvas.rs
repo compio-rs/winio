@@ -16,12 +16,13 @@ use objc2_app_kit::{
     NSGraphicsContext, NSView,
 };
 use objc2_core_foundation::{
-    CFMutableArray, CFMutableAttributedString, CFRange, CFRetained, kCFAllocatorDefault,
+    CFMutableArray, CFMutableAttributedString, CFRange, CFRetained, CGAffineTransform,
+    kCFAllocatorDefault,
 };
 use objc2_core_graphics::{
-    CGAffineTransformMake, CGBitmapContextCreate, CGBitmapContextCreateImage, CGColor,
-    CGColorSpace, CGContext, CGGradient, CGGradientDrawingOptions, CGMutablePath, CGPath,
-    kCGColorWhite,
+    CGAffineTransformIsIdentity, CGAffineTransformMake, CGBitmapContextCreate,
+    CGBitmapContextCreateImage, CGColor, CGColorSpace, CGContext, CGGradient,
+    CGGradientDrawingOptions, CGMutablePath, CGPath, kCGColorWhite,
 };
 use objc2_core_text::{
     CTFont, CTFontDescriptor, CTFontSymbolicTraits, CTFramesetter, kCTFontAttributeName,
@@ -32,7 +33,7 @@ use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{
     BrushPen, Color, DrawingFont, GradientStop, HAlign, LinearGradientBrush, MouseButton, Point,
-    RadialGradientBrush, Rect, RelativePoint, Size, SolidColorBrush, VAlign, Vector,
+    RadialGradientBrush, Rect, RelativePoint, Size, SolidColorBrush, Transform, VAlign, Vector,
 };
 
 use crate::{
@@ -80,6 +81,8 @@ impl Canvas {
             size: self.size()?,
             actions: self.view.ivars().take_buffer(),
             canvas: self,
+            transform: Transform::identity(),
+            ended: false,
         })
     }
 
@@ -171,6 +174,7 @@ pub enum DrawAction {
     Text(CFRetained<CTFramesetter>, NSRect),
     GradientText(CFRetained<CTFramesetter>, DrawGradientAction, NSRect),
     Image(DrawingImage, NSRect, Option<NSRect>),
+    Transform(CGAffineTransform),
 }
 
 impl DrawAction {
@@ -190,8 +194,12 @@ impl DrawAction {
             return;
         };
         let context = ns_context.CGContext();
+        let mut current_transform = None;
         for action in actions {
             CGContext::save_g_state(Some(&context));
+            if let Some(transform) = &current_transform {
+                CGContext::concat_ctm(Some(&context), *transform);
+            }
             match action {
                 Self::Path(path, color, width) => {
                     CGContext::add_path(Some(&context), Some(path));
@@ -256,6 +264,13 @@ impl DrawAction {
                         CGContext::clip_to_rect(Some(&context), *clip);
                     }
                     CGContext::draw_image(Some(&context), *rect, cg_image.as_deref());
+                }
+                Self::Transform(transform) => {
+                    if CGAffineTransformIsIdentity(*transform) {
+                        current_transform = None;
+                    } else {
+                        current_transform = Some(*transform);
+                    }
                 }
             }
             CGContext::restore_g_state(Some(&context));
@@ -369,24 +384,57 @@ pub struct DrawingContext<'a> {
     size: Size,
     actions: Vec<DrawAction>,
     canvas: &'a mut Canvas,
+    transform: Transform,
+    ended: bool,
 }
 
 impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
-        let ivars = self.canvas.view.ivars();
-        ivars.swap_buffer(&mut self.actions);
-        ivars.factor.set(
-            self.canvas
-                .view
-                .window()
-                .map(|w| w.backingScaleFactor())
-                .unwrap_or(1.0),
-        );
-        self.canvas.view.setNeedsDisplay(true);
+        if let Err(_e) = self.end() {
+            error!("Error dropping DrawingContext: {_e:?}");
+        }
     }
 }
 
 impl DrawingContext<'_> {
+    fn end(&mut self) -> Result<()> {
+        if !self.ended {
+            let ivars = self.canvas.view.ivars();
+            ivars.swap_buffer(&mut self.actions);
+            ivars.factor.set(
+                self.canvas
+                    .view
+                    .window()
+                    .map(|w| w.backingScaleFactor())
+                    .unwrap_or(1.0),
+            );
+            catch(|| self.canvas.view.setNeedsDisplay(true))?;
+            self.ended = true;
+        }
+        Ok(())
+    }
+
+    pub fn close(mut self) -> Result<()> {
+        self.end()
+    }
+
+    pub fn set_transform(&mut self, transform: Transform) -> Result<()> {
+        self.transform = transform;
+        self.actions.push(DrawAction::Transform(CGAffineTransform {
+            a: transform.m11,
+            b: transform.m12,
+            c: transform.m21,
+            d: transform.m22,
+            tx: transform.m31,
+            ty: transform.m32,
+        }));
+        Ok(())
+    }
+
+    pub fn transform(&self) -> Result<Transform> {
+        Ok(self.transform)
+    }
+
     fn draw(&mut self, pen: impl Pen, path: CFRetained<CGPath>) -> Result<()> {
         self.actions.push(pen.create_action(path)?);
         Ok(())
@@ -468,6 +516,14 @@ impl DrawingContext<'_> {
         self.actions
             .push(brush.create_text_action(framesetter, rect)?);
         Ok(())
+    }
+
+    pub fn measure_str(&self, font: DrawingFont, text: &str) -> Result<Size> {
+        let color =
+            unsafe { CGColor::constant_color(Some(kCGColorWhite)).ok_or(Error::NullPointer) }?;
+        Ok(measure_str(font, &color, Point::zero(), text, self.size)?
+            .1
+            .size)
     }
 
     pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage> {

@@ -16,6 +16,8 @@
 #include <QOpenGLWidget>
 #endif
 
+#include <winio-ui-qt/src/ui/canvas.rs.h>
+
 using QtMouseButton = Qt::MouseButton;
 using QtSizeMode = Qt::SizeMode;
 using QImageFormat = QImage::Format;
@@ -65,6 +67,9 @@ void painter_set_font(QPainter &p, rust::Str family, double size, bool italic,
                       bool bold);
 QSizeF painter_measure_text(QPainter &p, QRectF rect, rust::Str text);
 void painter_draw_text(QPainter &p, QRectF rect, rust::Str text);
+
+void painter_set_transform(QPainter &p, WTransform const &t);
+WTransform painter_get_transform(QPainter const &p);
 
 void color_transparent(QColor &c) noexcept;
 bool color_accent(QColor &c);

@@ -39,7 +39,7 @@ use windows::{
 };
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{ColorTheme, DrawingFont, MouseButton, Point, Rect, Size, Vector};
+use winio_primitive::{ColorTheme, DrawingFont, MouseButton, Point, Rect, Size, Transform, Vector};
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 use winui3::{
     ISwapChainPanelNative,
@@ -415,19 +415,18 @@ fn mouse_button_from_point(props: &PointerPointProperties) -> Result<MouseButton
 pub struct DrawingContext<'a> {
     ctx: winio_ui_windows_common::DrawingContext,
     canvas: &'a mut Canvas,
+    ended: bool,
 }
 
 impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
-        match self.end_draw() {
-            Ok(()) => {}
-            Err(_e) => {
-                error!("EndDraw: {_e:?}");
-            }
+        if let Err(_e) = self.end_draw() {
+            error!("EndDraw: {_e:?}");
         }
     }
 }
 
+#[inherit_methods(from = "self.ctx")]
 impl<'a> DrawingContext<'a> {
     fn new(canvas: &'a mut Canvas) -> Result<Self> {
         Ok(Self {
@@ -437,21 +436,30 @@ impl<'a> DrawingContext<'a> {
                 canvas.swap_chain.d2d1_context.clone().into(),
             ),
             canvas,
+            ended: false,
         })
     }
 
     fn end_draw(&mut self) -> Result<()> {
-        match self.canvas.swap_chain.end_draw() {
-            Ok(()) => {}
-            Err(e) if is_lost(&e) => self.canvas.handle_lost()?,
-            Err(e) => return Err(e),
+        if !self.ended {
+            match self.canvas.swap_chain.end_draw() {
+                Ok(()) => {}
+                Err(e) if is_lost(&e) => self.canvas.handle_lost()?,
+                Err(e) => return Err(e),
+            }
+            self.ended = true;
         }
         Ok(())
     }
-}
 
-#[inherit_methods(from = "self.ctx")]
-impl DrawingContext<'_> {
+    pub fn close(mut self) -> Result<()> {
+        self.end_draw()
+    }
+
+    pub fn set_transform(&mut self, transform: Transform) -> Result<()>;
+
+    pub fn transform(&self) -> Result<Transform>;
+
     pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) -> Result<()>;
 
     pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) -> Result<()>;
@@ -483,6 +491,8 @@ impl DrawingContext<'_> {
         pos: Point,
         text: &str,
     ) -> Result<()>;
+
+    pub fn measure_str(&self, font: DrawingFont, text: &str) -> Result<Size>;
 
     pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage>;
 
