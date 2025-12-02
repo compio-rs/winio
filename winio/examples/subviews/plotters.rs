@@ -36,8 +36,7 @@ impl Component for PlottersPage {
 
     fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
         let size = self.window.size()?;
-        self.canvas.set_loc(Point::zero())?;
-        self.canvas.set_size(size)?;
+        self.canvas.set_rect(size.into())?;
 
         let root = WinioCanvasBackend::new(&mut self.canvas)?.into_drawing_area();
 
@@ -50,7 +49,7 @@ impl Component for PlottersPage {
 
         let mut chart = ChartBuilder::on(&root)
             .caption("y=x^2", (FONT, 50).into_font().color(&fore))
-            .margin(5)
+            .margin(10)
             .x_label_area_size(30)
             .y_label_area_size(30)
             .build_cartesian_2d(-1f32..1f32, -0.1f32..1f32)?;
