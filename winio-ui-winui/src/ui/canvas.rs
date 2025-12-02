@@ -415,15 +415,13 @@ fn mouse_button_from_point(props: &PointerPointProperties) -> Result<MouseButton
 pub struct DrawingContext<'a> {
     ctx: winio_ui_windows_common::DrawingContext,
     canvas: &'a mut Canvas,
+    ended: bool,
 }
 
 impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
-        match self.end_draw() {
-            Ok(()) => {}
-            Err(_e) => {
-                error!("EndDraw: {_e:?}");
-            }
+        if let Err(_e) = self.end_draw() {
+            error!("EndDraw: {_e:?}");
         }
     }
 }
@@ -438,22 +436,24 @@ impl<'a> DrawingContext<'a> {
                 canvas.swap_chain.d2d1_context.clone().into(),
             ),
             canvas,
+            ended: false,
         })
     }
 
     fn end_draw(&mut self) -> Result<()> {
-        match self.canvas.swap_chain.end_draw() {
-            Ok(()) => {}
-            Err(e) if is_lost(&e) => self.canvas.handle_lost()?,
-            Err(e) => return Err(e),
+        if !self.ended {
+            match self.canvas.swap_chain.end_draw() {
+                Ok(()) => {}
+                Err(e) if is_lost(&e) => self.canvas.handle_lost()?,
+                Err(e) => return Err(e),
+            }
+            self.ended = true;
         }
         Ok(())
     }
 
     pub fn close(mut self) -> Result<()> {
-        self.end_draw()?;
-        std::mem::forget(self);
-        Ok(())
+        self.end_draw()
     }
 
     pub fn set_transform(&mut self, transform: Transform) -> Result<()>;

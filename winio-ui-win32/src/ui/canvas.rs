@@ -239,15 +239,13 @@ winio_handle::impl_as_widget!(Canvas, handle);
 pub struct DrawingContext<'a> {
     ctx: winio_ui_windows_common::DrawingContext,
     canvas: &'a mut Canvas,
+    ended: bool,
 }
 
 impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
-        match self.end_draw() {
-            Ok(()) => {}
-            Err(_e) => {
-                error!("EndDraw: {_e:?}");
-            }
+        if let Err(_e) = self.end_draw() {
+            error!("EndDraw: {_e:?}");
         }
     }
 }
@@ -262,23 +260,26 @@ impl<'a> DrawingContext<'a> {
                 canvas.target.clone().into(),
             ),
             canvas,
+            ended: false,
         })
     }
 
     fn end_draw(&mut self) -> Result<()> {
-        unsafe {
-            match self.ctx.render_target().EndDraw(None, None) {
-                Ok(()) => Ok(()),
-                Err(e) if e.code() == D2DERR_RECREATE_TARGET => self.canvas.handle_lost(),
-                Err(e) => Err(e),
+        if !self.ended {
+            unsafe {
+                match self.ctx.render_target().EndDraw(None, None) {
+                    Ok(()) => {}
+                    Err(e) if e.code() == D2DERR_RECREATE_TARGET => self.canvas.handle_lost()?,
+                    Err(e) => return Err(e),
+                }
             }
+            self.ended = true;
         }
+        Ok(())
     }
 
     pub fn close(mut self) -> Result<()> {
-        self.end_draw()?;
-        std::mem::forget(self);
-        Ok(())
+        self.end_draw()
     }
 
     pub fn set_transform(&mut self, transform: Transform) -> Result<()>;
