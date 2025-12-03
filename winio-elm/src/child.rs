@@ -15,7 +15,7 @@ use winio_handle::{
 use winio_primitive::{Failable, Layoutable, Point, Rect, Size};
 
 use super::ComponentMessage;
-use crate::{Component, ComponentSender, Root};
+use crate::{BoxComponent, Component, ComponentSender, Root};
 
 /// Helper to embed one component into another. It handles different types of
 /// messages and events.
@@ -147,6 +147,18 @@ impl<T: Component> Child<T> {
             self.render()?;
         }
         Ok(Root::new(self.model, self.sender))
+    }
+}
+
+impl<T: Component + 'static> Child<T> {
+    /// Box the component.
+    pub fn into_boxed(self) -> Child<BoxComponent<T::Message, T::Event, T::Error>> {
+        let sender = ComponentSender(self.sender.0);
+        Child {
+            model: BoxComponent::new(self.model),
+            sender,
+            msg_cache: self.msg_cache,
+        }
     }
 }
 

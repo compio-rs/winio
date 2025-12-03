@@ -6,7 +6,7 @@ use futures_util::{FutureExt, Stream};
 
 #[cfg(feature = "gen_blocks")]
 use crate::stream::stream;
-use crate::{Child, Component, ComponentMessage, ComponentSender};
+use crate::{BoxComponent, Child, Component, ComponentMessage, ComponentSender};
 
 /// Events yielded by the [`run`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -126,6 +126,14 @@ fn run_events_impl<'a, T: Component>(
     }
 }
 
+impl<T: Component + 'static> Root<T> {
+    /// Box the component.
+    pub fn into_boxed(self) -> Root<BoxComponent<T::Message, T::Event, T::Error>> {
+        let sender = ComponentSender(self.sender.0);
+        Root::new(BoxComponent::new(self.model), sender)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use async_stream::stream;
@@ -226,4 +234,23 @@ mod test {
     }
 
     fn assert_send_sync<T: Send + Sync>(_: &T) {}
+
+    #[compio::test]
+    async fn test_boxed_run() {
+        let mut boxed_child = Root::<TestComponent>::init(vec![
+            TestMessage::Msg1,
+            TestMessage::Msg2,
+            TestMessage::Msg1,
+        ])
+        .await
+        .expect("failed to init component")
+        .into_boxed();
+        let events = boxed_child.run();
+        let expects = [TestEvent::Event1, TestEvent::Event2, TestEvent::Event1];
+        let zip = events.zip(futures_util::stream::iter(expects.into_iter()));
+        let mut zip = std::pin::pin!(zip);
+        while let Some((e, ex)) = zip.next().await {
+            assert_eq!(e, RunEvent::Event(ex));
+        }
+    }
 }
