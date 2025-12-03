@@ -154,7 +154,11 @@ impl<T: Component + 'static> Child<T> {
     /// Box the component.
     pub fn into_boxed(self) -> Child<BoxComponent<T::Message, T::Event, T::Error>> {
         let sender = ComponentSender(self.sender.0);
-        Child::new(BoxComponent::new(self.model), sender)
+        Child {
+            model: BoxComponent::new(self.model),
+            sender,
+            msg_cache: self.msg_cache,
+        }
     }
 }
 
