@@ -1,15 +1,19 @@
+use std::fmt::Debug;
+
 use compio_log::error;
-use windows::core::Interface;
+use windows::{
+    Win32::Foundation::E_POINTER,
+    core::{Interface, Weak},
+};
 use winio_handle::{AsContainer, AsRawWidget, RawWidget};
 use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::Xaml::{self as MUX, Controls as MUXC};
 
-use crate::{Result, ui::Convertible};
+use crate::{Error, Result, ui::Convertible};
 
-#[derive(Debug)]
 pub(crate) struct Widget {
     handle: MUX::FrameworkElement,
-    pub(crate) parent: MUXC::Canvas,
+    pub(crate) parent: Weak<MUXC::Canvas>,
 }
 
 impl Widget {
@@ -22,8 +26,14 @@ impl Widget {
         canvas.Measure(Size::new(f64::INFINITY, f64::INFINITY).to_native())?;
         Ok(Self {
             handle,
-            parent: canvas.clone(),
+            parent: canvas.downgrade()?,
         })
+    }
+
+    pub fn parent(&self) -> Result<MUXC::Canvas> {
+        self.parent
+            .upgrade()
+            .ok_or_else(|| Error::from_hresult(E_POINTER))
     }
 
     pub fn is_visible(&self) -> Result<bool> {
@@ -114,7 +124,7 @@ impl Widget {
     }
 
     fn drop_impl(&mut self) -> Result<()> {
-        let children = self.parent.Children()?;
+        let children = self.parent()?.Children()?;
         let mut index = 0;
         if children.IndexOf(&self.handle, &mut index).is_ok() {
             children.RemoveAt(index as _)?;
@@ -131,6 +141,14 @@ impl Drop for Widget {
                 error!("Widget drop: {_e:?}");
             }
         }
+    }
+}
+
+impl Debug for Widget {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Widget")
+            .field("handle", &self.handle)
+            .finish()
     }
 }
 

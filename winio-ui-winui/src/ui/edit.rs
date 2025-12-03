@@ -52,9 +52,9 @@ impl Edit {
         })
     }
 
-    fn parent(&self) -> BorrowedContainer<'_> {
-        let parent = self.handle.parent.clone();
-        unsafe { BorrowedContainer::borrow_raw(RawContainer::WinUI(parent)) }
+    fn parent(&self) -> Result<BorrowedContainer<'_>> {
+        let parent = self.handle.parent()?;
+        Ok(unsafe { BorrowedContainer::borrow_raw(RawContainer::WinUI(parent)) })
     }
 
     fn recreate(&mut self, password: bool) -> Result<()> {
@@ -66,7 +66,7 @@ impl Edit {
                 .as_winui()
                 .cast::<MUXC::TextBox>()?;
             password_box.SetPassword(&text_box.Text()?)?;
-            Widget::new(self.parent(), password_box.cast()?)?
+            Widget::new(self.parent()?, password_box.cast()?)?
         } else {
             let text_box = MUXC::TextBox::new()?;
             let password_box = self
@@ -76,7 +76,7 @@ impl Edit {
                 .cast::<MUXC::PasswordBox>()?;
             text_box.SetText(&password_box.Password()?)?;
             text_box.SetTextAlignment(self.halign.to_native())?;
-            Widget::new(self.parent(), text_box.cast()?)?
+            Widget::new(self.parent()?, text_box.cast()?)?
         };
         widget.set_visible(self.handle.is_visible()?)?;
         widget.set_enabled(self.handle.is_enabled()?)?;
