@@ -128,5 +128,8 @@ pub use macros::*;
 mod run;
 pub use run::*;
 
+mod boxed;
+pub use boxed::*;
+
 #[cfg(feature = "gen_blocks")]
 mod stream;
