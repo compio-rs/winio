@@ -1,7 +1,7 @@
-use std::marker::PhantomData;
-
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
+        use std::marker::PhantomData;
+
         #[derive(Clone, Copy)]
         enum BorrowedWidgetInner<'a> {
             #[cfg(feature = "win32")]
@@ -11,31 +11,29 @@ cfg_if::cfg_if! {
             #[cfg(not(any(feature = "win32", feature = "winui")))]
             Dummy(std::convert::Infallible, PhantomData<&'a ()>),
         }
-
-        /// Raw widget handle.
-        #[derive(Clone, Copy)]
-        pub struct BorrowedWidget<'a>(BorrowedWidgetInner<'a>);
     } else if #[cfg(target_os = "macos")] {
         /// [`NSView`].
         ///
         /// [`NSView`]: objc2_app_kit::NSView
         pub type RawWidget = objc2::rc::Retained<objc2_app_kit::NSView>;
     } else {
-        /// Raw widget handle.
-        #[derive(Clone)]
-        #[non_exhaustive]
-        pub enum RawWidget {
-            /// Pointer to `QWidget`.
+        use std::marker::PhantomData;
+
+        #[derive(Clone, Copy)]
+        enum BorrowedWidgetInner<'a> {
             #[cfg(feature = "qt")]
-            Qt(*mut core::ffi::c_void),
-            /// GTK [`Widget`].
-            ///
-            /// [`Widget`]: gtk4::Widget
+            Qt(*mut core::ffi::c_void, PhantomData<&'a ()>),
             #[cfg(feature = "gtk")]
-            Gtk(gtk4::Widget),
+            Gtk(&'a gtk4::Widget),
+            #[cfg(not(any(feature = "qt", feature = "gtk")))]
+            Dummy(std::convert::Infallible, PhantomData<&'a ()>),
         }
     }
 }
+
+/// Raw widget handle.
+#[derive(Clone, Copy)]
+pub struct BorrowedWidget<'a>(BorrowedWidgetInner<'a>);
 
 #[allow(unreachable_patterns)]
 #[cfg(windows)]
@@ -78,21 +76,37 @@ impl<'a> BorrowedWidget<'a> {
 
 #[allow(unreachable_patterns)]
 #[cfg(not(any(windows, target_os = "macos")))]
-impl RawWidget {
+impl<'a> BorrowedWidget<'a> {
+    /// Create from Qt `QWidget`.
+    ///
+    /// # Safety
+    /// The caller must ensure that `widget` is a valid pointer for the lifetime
+    /// `'a`.
+    #[cfg(feature = "qt")]
+    pub unsafe fn qt<T>(widget: *mut T) -> Self {
+        Self(BorrowedWidgetInner::Qt(widget.cast(), PhantomData))
+    }
+
+    /// Create from Gtk `Widget`.
+    #[cfg(feature = "gtk")]
+    pub fn gtk(widget: &'a gtk4::Widget) -> Self {
+        Self(BorrowedWidgetInner::Gtk(widget))
+    }
+
     /// Get Qt `QWidget`.
     #[cfg(feature = "qt")]
     pub fn as_qt<T>(&self) -> *mut T {
-        match self {
-            Self::Qt(w) => (*w).cast(),
+        match &self.0 {
+            BorrowedWidgetInner::Qt(w, ..) => (*w).cast(),
             _ => panic!("unsupported handle type"),
         }
     }
 
     /// Get Gtk `Widget`.
     #[cfg(feature = "gtk")]
-    pub fn to_gtk(&self) -> gtk4::Widget {
-        match self {
-            Self::Gtk(w) => w.clone(),
+    pub fn to_gtk(&self) -> &'a gtk4::Widget {
+        match &self.0 {
+            BorrowedWidgetInner::Gtk(w) => w,
             _ => panic!("unsupported handle type"),
         }
     }

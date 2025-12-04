@@ -1,10 +1,10 @@
-use std::marker::PhantomData;
-
 #[cfg(feature = "raw-window-handle")]
 use raw_window_handle::{HandleError, HasWindowHandle, WindowHandle};
 
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
+        use std::marker::PhantomData;
+
         #[derive(Clone, Copy)]
         enum BorrowedWindowInner<'a> {
             #[cfg(feature = "win32")]
@@ -14,31 +14,29 @@ cfg_if::cfg_if! {
             #[cfg(not(any(feature = "win32", feature = "winui")))]
             Dummy(std::convert::Infallible, PhantomData<&'a ()>),
         }
-
-        /// Raw window handle.
-        #[derive(Clone, Copy)]
-        pub struct BorrowedWindow<'a>(BorrowedWindowInner<'a>);
     } else if #[cfg(target_os = "macos")] {
         /// [`NSWindow`].
         ///
         /// [`NSWindow`]: objc2_app_kit::NSWindow
         pub type RawWindow = objc2::rc::Retained<objc2_app_kit::NSWindow>;
     } else {
-        /// Raw window handle.
-        #[derive(Clone)]
-        #[non_exhaustive]
-        pub enum RawWindow {
-            /// Pointer to `QWidget`.
+        use std::marker::PhantomData;
+
+        #[derive(Clone, Copy)]
+        enum BorrowedWindowInner<'a> {
             #[cfg(feature = "qt")]
-            Qt(*mut core::ffi::c_void),
-            /// GTK [`Window`].
-            ///
-            /// [`Window`]: gtk4::Window
+            Qt(*mut core::ffi::c_void, PhantomData<&'a ()>),
             #[cfg(feature = "gtk")]
-            Gtk(gtk4::Window),
+            Gtk(&'a gtk4::Window),
+            #[cfg(not(any(feature = "qt", feature = "gtk")))]
+            Dummy(std::convert::Infallible, PhantomData<&'a ()>),
         }
     }
 }
+
+/// Raw window handle.
+#[derive(Clone, Copy)]
+pub struct BorrowedWindow<'a>(BorrowedWindowInner<'a>);
 
 #[allow(unreachable_patterns)]
 #[cfg(windows)]
@@ -95,9 +93,47 @@ impl<'a> BorrowedWindow<'a> {
     }
 }
 
+#[allow(unreachable_patterns)]
+#[cfg(not(any(windows, target_os = "macos")))]
+impl<'a> BorrowedWindow<'a> {
+    /// Create from Qt `QWidget`.
+    ///
+    /// # Safety
+    /// The caller must ensure that `widget` is a valid pointer for the lifetime
+    /// `'a`.
+    #[cfg(feature = "qt")]
+    pub unsafe fn qt<T>(widget: *mut T) -> Self {
+        Self(BorrowedWindowInner::Qt(widget.cast(), PhantomData))
+    }
+
+    /// Create from Gtk `Window`.
+    #[cfg(feature = "gtk")]
+    pub fn gtk(window: &'a gtk4::Window) -> Self {
+        Self(BorrowedWindowInner::Gtk(window))
+    }
+
+    /// Get Qt `QWidget`.
+    #[cfg(feature = "qt")]
+    pub fn as_qt<T>(&self) -> *mut T {
+        match &self.0 {
+            BorrowedWindowInner::Qt(w, ..) => (*w).cast(),
+            _ => panic!("unsupported handle type"),
+        }
+    }
+
+    /// Get Gtk `Window`.
+    #[cfg(feature = "gtk")]
+    pub fn to_gtk(&self) -> &'a gtk4::Window {
+        match &self.0 {
+            BorrowedWindowInner::Gtk(w) => w,
+            _ => panic!("unsupported handle type"),
+        }
+    }
+}
+
 #[cfg(feature = "raw-window-handle")]
-#[cfg(windows)]
 impl<'a> HasWindowHandle for BorrowedWindow<'a> {
+    #[cfg(windows)]
     fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
         self.handle()
             .map(|hwnd| {
@@ -110,27 +146,10 @@ impl<'a> HasWindowHandle for BorrowedWindow<'a> {
             })
             .map_err(|_| HandleError::NotSupported)
     }
-}
 
-#[allow(unreachable_patterns)]
-#[cfg(not(any(windows, target_os = "macos")))]
-impl RawWindow {
-    /// Get Qt `QWidget`.
-    #[cfg(feature = "qt")]
-    pub fn as_qt<T>(&self) -> *mut T {
-        match self {
-            Self::Qt(w) => (*w).cast(),
-            _ => panic!("unsupported handle type"),
-        }
-    }
-
-    /// Get Gtk `Window`.
-    #[cfg(feature = "gtk")]
-    pub fn to_gtk(&self) -> gtk4::Window {
-        match self {
-            Self::Gtk(w) => w.clone(),
-            _ => panic!("unsupported handle type"),
-        }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        Err(HandleError::NotSupported)
     }
 }
 

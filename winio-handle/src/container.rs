@@ -1,7 +1,7 @@
-use std::marker::PhantomData;
-
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
+        use std::marker::PhantomData;
+
         #[derive(Clone, Copy)]
         enum BorrowedContainerInner<'a> {
             #[cfg(feature = "win32")]
@@ -11,31 +11,29 @@ cfg_if::cfg_if! {
             #[cfg(not(any(feature = "win32", feature = "winui")))]
             Dummy(std::convert::Infallible, PhantomData<&'a ()>),
         }
-        /// Raw container handle.
-        #[derive(Clone, Copy)]
-        #[non_exhaustive]
-        pub struct BorrowedContainer<'a>(BorrowedContainerInner<'a>);
     } else if #[cfg(target_os = "macos")] {
         /// [`NSView`].
         ///
         /// [`NSView`]: objc2_app_kit::NSView
         pub type RawContainer = objc2::rc::Retained<objc2_app_kit::NSView>;
     } else {
-        /// Raw container handle.
-        #[derive(Clone)]
-        #[non_exhaustive]
-        pub enum RawContainer {
-            /// Pointer to `QWidget`.
+        use std::marker::PhantomData;
+
+        #[derive(Clone, Copy)]
+        enum BorrowedContainerInner<'a> {
             #[cfg(feature = "qt")]
-            Qt(*mut core::ffi::c_void),
-            /// GTK [`Fixed`].
-            ///
-            /// [`Fixed`]: gtk4::Fixed
+            Qt(*mut core::ffi::c_void, PhantomData<&'a ()>),
             #[cfg(feature = "gtk")]
-            Gtk(gtk4::Fixed),
+            Gtk(&'a gtk4::Fixed),
+            #[cfg(not(any(feature = "qt", feature = "gtk")))]
+            Dummy(std::convert::Infallible, PhantomData<&'a ()>),
         }
     }
 }
+
+/// Raw container handle.
+#[derive(Clone, Copy)]
+pub struct BorrowedContainer<'a>(BorrowedContainerInner<'a>);
 
 #[allow(unreachable_patterns)]
 #[cfg(windows)]
@@ -78,21 +76,37 @@ impl<'a> BorrowedContainer<'a> {
 
 #[allow(unreachable_patterns)]
 #[cfg(not(any(windows, target_os = "macos")))]
-impl RawContainer {
+impl<'a> BorrowedContainer<'a> {
+    /// Create from Qt `QWidget`.
+    ///
+    /// # Safety
+    /// The caller must ensure that `widget` is a valid pointer for the lifetime
+    /// `'a`.
+    #[cfg(feature = "qt")]
+    pub unsafe fn qt<T>(widget: *mut T) -> Self {
+        Self(BorrowedContainerInner::Qt(widget.cast(), PhantomData))
+    }
+
+    /// Create from Gtk `Fixed`.
+    #[cfg(feature = "gtk")]
+    pub fn gtk(fixed: &'a gtk4::Fixed) -> Self {
+        Self(BorrowedContainerInner::Gtk(fixed))
+    }
+
     /// Get Qt `QWidget`.
     #[cfg(feature = "qt")]
     pub fn as_qt<T>(&self) -> *mut T {
-        match self {
-            Self::Qt(w) => (*w).cast(),
+        match &self.0 {
+            BorrowedContainerInner::Qt(w, ..) => (*w).cast(),
             _ => panic!("unsupported handle type"),
         }
     }
 
     /// Get Gtk `Fixed`.
     #[cfg(feature = "gtk")]
-    pub fn to_gtk(&self) -> gtk4::Fixed {
-        match self {
-            Self::Gtk(w) => w.clone(),
+    pub fn to_gtk(&self) -> &'a gtk4::Fixed {
+        match &self.0 {
+            BorrowedContainerInner::Gtk(w) => w,
             _ => panic!("unsupported handle type"),
         }
     }
