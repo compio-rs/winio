@@ -4,7 +4,7 @@ use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows::core::{HSTRING, Interface};
 use winio_callback::Callback;
-use winio_handle::{AsContainer, AsRawWidget, BorrowedContainer, RawContainer};
+use winio_handle::{AsContainer, AsWidget, BorrowedContainer};
 use winio_primitive::{HAlign, Point, Size};
 use winui3::Microsoft::UI::Xaml::{
     Controls::{self as MUXC, ScrollBarVisibility, ScrollViewer, TextChangedEventHandler},
@@ -52,31 +52,23 @@ impl Edit {
         })
     }
 
-    fn parent(&self) -> Result<BorrowedContainer<'_>> {
-        let parent = self.handle.parent()?;
-        Ok(unsafe { BorrowedContainer::borrow_raw(RawContainer::WinUI(parent)) })
-    }
-
     fn recreate(&mut self, password: bool) -> Result<()> {
+        let parent = self.handle.parent()?;
         let mut widget = if password {
             let password_box = MUXC::PasswordBox::new()?;
-            let text_box = self
-                .handle
-                .as_raw_widget()
-                .as_winui()
-                .cast::<MUXC::TextBox>()?;
+            let text_box = self.handle.as_widget().as_winui().cast::<MUXC::TextBox>()?;
             password_box.SetPassword(&text_box.Text()?)?;
-            Widget::new(self.parent()?, password_box.cast()?)?
+            Widget::new(BorrowedContainer::winui(&parent), password_box.cast()?)?
         } else {
             let text_box = MUXC::TextBox::new()?;
             let password_box = self
                 .handle
-                .as_raw_widget()
+                .as_widget()
                 .as_winui()
                 .cast::<MUXC::PasswordBox>()?;
             text_box.SetText(&password_box.Password()?)?;
             text_box.SetTextAlignment(self.halign.to_native())?;
-            Widget::new(self.parent()?, text_box.cast()?)?
+            Widget::new(BorrowedContainer::winui(&parent), text_box.cast()?)?
         };
         widget.set_visible(self.handle.is_visible()?)?;
         widget.set_enabled(self.handle.is_enabled()?)?;
@@ -112,14 +104,14 @@ impl Edit {
     pub fn text(&self) -> Result<String> {
         let text = if self.password {
             self.handle
-                .as_raw_widget()
+                .as_widget()
                 .as_winui()
                 .cast::<MUXC::PasswordBox>()?
                 .Password()?
                 .to_string_lossy()
         } else {
             self.handle
-                .as_raw_widget()
+                .as_widget()
                 .as_winui()
                 .cast::<MUXC::TextBox>()?
                 .Text()?
@@ -133,16 +125,12 @@ impl Edit {
         if self.password {
             let password_box = self
                 .handle
-                .as_raw_widget()
+                .as_widget()
                 .as_winui()
                 .cast::<MUXC::PasswordBox>()?;
             password_box.SetPassword(&s)?;
         } else {
-            let text_box = self
-                .handle
-                .as_raw_widget()
-                .as_winui()
-                .cast::<MUXC::TextBox>()?;
+            let text_box = self.handle.as_widget().as_winui().cast::<MUXC::TextBox>()?;
             text_box.SetText(&s)?;
         }
         Ok(())
@@ -166,12 +154,7 @@ impl Edit {
 
     pub fn set_halign(&mut self, align: HAlign) -> Result<()> {
         self.halign = align;
-        if let Ok(text_box) = self
-            .handle
-            .as_raw_widget()
-            .as_winui()
-            .cast::<MUXC::TextBox>()
-        {
+        if let Ok(text_box) = self.handle.as_widget().as_winui().cast::<MUXC::TextBox>() {
             text_box.SetTextAlignment(align.to_native())?;
         }
         Ok(())
@@ -183,7 +166,7 @@ impl Edit {
         } else {
             Ok(self
                 .handle
-                .as_raw_widget()
+                .as_widget()
                 .as_winui()
                 .cast::<MUXC::TextBox>()?
                 .IsReadOnly()?)
@@ -192,11 +175,7 @@ impl Edit {
 
     pub fn set_readonly(&mut self, v: bool) -> Result<()> {
         if !self.password {
-            let text_box = self
-                .handle
-                .as_raw_widget()
-                .as_winui()
-                .cast::<MUXC::TextBox>()?;
+            let text_box = self.handle.as_widget().as_winui().cast::<MUXC::TextBox>()?;
             text_box.SetIsReadOnly(v)?;
         }
         Ok(())

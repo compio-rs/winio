@@ -5,7 +5,7 @@ use windows::{
     Win32::Foundation::E_POINTER,
     core::{Interface, Weak},
 };
-use winio_handle::{AsContainer, AsRawWidget, RawWidget};
+use winio_handle::{AsContainer, AsWidget, BorrowedWidget};
 use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::Xaml::{self as MUX, Controls as MUXC};
 
@@ -152,8 +152,8 @@ impl Debug for Widget {
     }
 }
 
-impl AsRawWidget for Widget {
-    fn as_raw_widget(&self) -> RawWidget {
-        RawWidget::WinUI(self.handle.clone())
+impl AsWidget for Widget {
+    fn as_widget(&self) -> BorrowedWidget<'_> {
+        BorrowedWidget::winui(&self.handle)
     }
 }
