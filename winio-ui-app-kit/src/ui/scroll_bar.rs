@@ -23,7 +23,7 @@ struct ScrollBarImpl {
 impl ScrollBarImpl {
     pub fn new(parent: impl AsContainer, vertical: bool) -> Result<Self> {
         let parent = parent.as_container();
-        let mtm = parent.mtm();
+        let mtm = parent.as_app_kit().mtm();
 
         catch(|| unsafe {
             let view = CustomScroller::new(
@@ -172,8 +172,7 @@ impl ScrollBar {
 
     fn recreate(&mut self, vertical: bool) -> Result<()> {
         let parent = self.handle.handle.parent()?;
-        let mut new_handle =
-            ScrollBarImpl::new(unsafe { BorrowedContainer::borrow_raw(parent) }, vertical)?;
+        let mut new_handle = ScrollBarImpl::new(BorrowedContainer::app_kit(&parent), vertical)?;
         new_handle.set_visible(self.handle.is_visible()?)?;
         new_handle.set_enabled(self.handle.is_enabled()?)?;
         new_handle.set_loc(self.handle.loc()?)?;

@@ -16,7 +16,7 @@ use windows::{
 };
 use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
 use winio_callback::Callback;
-use winio_handle::{AsContainer, AsRawWidget, RawWidget};
+use winio_handle::{AsContainer, AsWidget, BorrowedWidget};
 use winio_primitive::{Point, Rect, Size};
 use winio_ui_windows_common::CoTaskMemPtr;
 
@@ -222,13 +222,11 @@ impl WebView {
     }
 }
 
-impl AsRawWidget for WebView {
-    fn as_raw_widget(&self) -> RawWidget {
+impl AsWidget for WebView {
+    fn as_widget(&self) -> BorrowedWidget<'_> {
         unimplemented!("cannot get HWND from WebView2")
     }
 }
-
-winio_handle::impl_as_widget!(WebView);
 
 #[implement(
     ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,

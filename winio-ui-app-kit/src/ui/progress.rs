@@ -16,7 +16,7 @@ pub struct Progress {
 impl Progress {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let parent = parent.as_container();
-        let mtm = parent.mtm();
+        let mtm = parent.as_app_kit().mtm();
 
         catch(|| unsafe {
             let view = NSProgressIndicator::new(mtm);

@@ -5,7 +5,7 @@ use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows::core::{HSTRING, Interface};
 use winio_callback::Callback;
-use winio_handle::{AsContainer, AsRawContainer, RawContainer};
+use winio_handle::{AsContainer, BorrowedContainer};
 use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::Xaml::{Controls as MUXC, HorizontalAlignment, VerticalAlignment};
 
@@ -154,10 +154,8 @@ impl TabViewItem {
     }
 }
 
-impl AsRawContainer for TabViewItem {
-    fn as_raw_container(&self) -> RawContainer {
-        RawContainer::WinUI(self.canvas.clone())
+impl AsContainer for TabViewItem {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        BorrowedContainer::winui(&self.canvas)
     }
 }
-
-winio_handle::impl_as_container!(TabViewItem);

@@ -31,7 +31,7 @@ use windows_sys::Win32::{
         },
     },
 };
-use winio_handle::{AsContainer, AsRawWidget, AsRawWindow};
+use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{DrawingFont, MouseButton, Orient, Point, Rect, Size, Transform, Vector};
 use winio_ui_windows_common::{Backdrop, is_dark_mode_allowed_for_app};
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
@@ -86,7 +86,7 @@ impl Canvas {
             0,
             parent.as_container().as_win32(),
         )?;
-        let target = create_target(handle.as_raw_window().as_win32())?;
+        let target = create_target(handle.as_widget().as_win32())?;
         Ok(Self { handle, target })
     }
 
@@ -125,7 +125,7 @@ impl Canvas {
             }
             self.target.BeginDraw();
             let parent_backdrop =
-                get_backdrop(GetAncestor(self.handle.as_raw_widget().as_win32(), GA_ROOT))?;
+                get_backdrop(GetAncestor(self.handle.as_widget().as_win32(), GA_ROOT))?;
             let clear_color = if !matches!(parent_backdrop, Backdrop::None) {
                 None
             } else if is_dark_mode_allowed_for_app() {
@@ -150,7 +150,7 @@ impl Canvas {
     }
 
     fn handle_lost(&mut self) -> Result<()> {
-        self.target = create_target(self.handle.as_raw_window().as_win32())?;
+        self.target = create_target(self.handle.as_widget().as_win32())?;
         Ok(())
     }
 
@@ -209,7 +209,7 @@ impl Canvas {
     fn is_in(&self, lparam: LPARAM, screen: bool) -> Option<Point> {
         let (x, y) = ((lparam & 0xFFFF) as i32, ((lparam >> 16) & 0xFFFF) as i32);
         let mut p = POINT { x, y };
-        let handle = self.handle.as_raw_window().as_win32();
+        let handle = self.handle.as_widget().as_win32();
         let parent = if screen {
             null_mut()
         } else {

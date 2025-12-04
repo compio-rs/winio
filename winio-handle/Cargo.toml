@@ -10,12 +10,16 @@ repository = { workspace = true }
 
 [dependencies]
 cfg-if = { workspace = true }
+raw-window-handle = { version = "0.6", optional = true }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { workspace = true, optional = true, features = [
-    "Win32_Foundation",
+windows-sys = { workspace = true, features = ["Win32_Foundation"] }
+winui3 = { workspace = true, optional = true, features = [
+    "native",
+    "UI_Composition",
+    "UI_Xaml_Controls",
 ] }
-winui3 = { workspace = true, optional = true, features = ["UI_Xaml_Controls"] }
+windows-core = { workspace = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = { workspace = true }
@@ -25,7 +29,9 @@ objc2-app-kit = { workspace = true, features = ["NSWindow"] }
 gtk4 = { workspace = true, optional = true }
 
 [features]
-win32 = ["dep:windows-sys"]
+win32 = []
 winui = ["dep:winui3"]
 qt = []
 gtk = ["dep:gtk4"]
+
+raw-window-handle = ["dep:raw-window-handle"]

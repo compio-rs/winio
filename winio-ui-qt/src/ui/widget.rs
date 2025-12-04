@@ -8,7 +8,7 @@ use compio_log::error;
 use cxx::{ExternType, UniquePtr, memory::UniquePtrTarget, type_id};
 pub use ffi::{QWidget, is_dark};
 use inherit_methods_macro::inherit_methods;
-use winio_handle::{AsContainer, AsRawContainer, AsRawWidget, RawContainer, RawWidget};
+use winio_handle::{AsContainer, AsWidget, BorrowedContainer, BorrowedWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{Result, ui::StaticCastTo};
@@ -134,29 +134,21 @@ where
     }
 }
 
-impl<T> AsRawWidget for Widget<T>
+impl<T> AsWidget for Widget<T>
 where
     T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
 {
-    fn as_raw_widget(&self) -> RawWidget {
-        RawWidget::Qt(
-            (self.as_ref_qwidget() as *const ffi::QWidget)
-                .cast_mut()
-                .cast(),
-        )
+    fn as_widget(&self) -> BorrowedWidget<'_> {
+        unsafe { BorrowedWidget::qt((self.as_ref_qwidget() as *const ffi::QWidget).cast_mut()) }
     }
 }
 
-impl<T> AsRawContainer for Widget<T>
+impl<T> AsContainer for Widget<T>
 where
     T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
 {
-    fn as_raw_container(&self) -> RawContainer {
-        RawContainer::Qt(
-            (self.as_ref_qwidget() as *const ffi::QWidget)
-                .cast_mut()
-                .cast(),
-        )
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        unsafe { BorrowedContainer::qt((self.as_ref_qwidget() as *const ffi::QWidget).cast_mut()) }
     }
 }
 

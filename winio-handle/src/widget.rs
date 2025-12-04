@@ -1,48 +1,65 @@
-use std::{marker::PhantomData, ops::Deref};
-
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
-        /// Raw widget handle.
-        #[derive(Clone)]
-        #[non_exhaustive]
-        pub enum RawWidget {
-            /// Win32 `HWND`.
+        use std::marker::PhantomData;
+
+        #[derive(Clone, Copy)]
+        enum BorrowedWidgetInner<'a> {
             #[cfg(feature = "win32")]
-            Win32(windows_sys::Win32::Foundation::HWND),
-            /// WinUI `FrameworkElement`.
+            Win32(windows_sys::Win32::Foundation::HWND, PhantomData<&'a ()>),
             #[cfg(feature = "winui")]
-            WinUI(winui3::Microsoft::UI::Xaml::FrameworkElement),
+            WinUI(&'a winui3::Microsoft::UI::Xaml::FrameworkElement),
+            #[cfg(not(any(feature = "win32", feature = "winui")))]
+            Dummy(std::convert::Infallible, PhantomData<&'a ()>),
         }
     } else if #[cfg(target_os = "macos")] {
-        /// [`NSView`].
-        ///
-        /// [`NSView`]: objc2_app_kit::NSView
-        pub type RawWidget = objc2::rc::Retained<objc2_app_kit::NSView>;
+        use objc2::rc::Retained;
+
+        type BorrowedWidgetInner<'a> = &'a Retained<objc2_app_kit::NSView>;
     } else {
-        /// Raw widget handle.
-        #[derive(Clone)]
-        #[non_exhaustive]
-        pub enum RawWidget {
-            /// Pointer to `QWidget`.
-            #[cfg(all(not(any(windows, target_os = "macos")), feature = "qt"))]
-            Qt(*mut core::ffi::c_void),
-            /// GTK [`Widget`].
-            ///
-            /// [`Widget`]: gtk4::Widget
-            #[cfg(all(not(any(windows, target_os = "macos")), feature = "gtk"))]
-            Gtk(gtk4::Widget),
+        use std::marker::PhantomData;
+
+        #[derive(Clone, Copy)]
+        enum BorrowedWidgetInner<'a> {
+            #[cfg(feature = "qt")]
+            Qt(*mut core::ffi::c_void, PhantomData<&'a ()>),
+            #[cfg(feature = "gtk")]
+            Gtk(&'a gtk4::Widget),
+            #[cfg(not(any(feature = "qt", feature = "gtk")))]
+            Dummy(std::convert::Infallible, PhantomData<&'a ()>),
         }
     }
 }
 
+/// Raw widget handle.
+#[derive(Clone, Copy)]
+pub struct BorrowedWidget<'a>(BorrowedWidgetInner<'a>);
+
 #[allow(unreachable_patterns)]
 #[cfg(windows)]
-impl RawWidget {
+impl<'a> BorrowedWidget<'a> {
+    /// Create from Win32 `HWND`.
+    ///
+    /// # Safety
+    ///
+    /// * The caller must ensure that `hwnd` is a valid handle for the lifetime
+    ///   `'a`.
+    /// * `hwnd` must not be null.
+    #[cfg(feature = "win32")]
+    pub unsafe fn win32(hwnd: windows_sys::Win32::Foundation::HWND) -> Self {
+        Self(BorrowedWidgetInner::Win32(hwnd, PhantomData))
+    }
+
+    /// Create from WinUI `FrameworkElement`.
+    #[cfg(feature = "winui")]
+    pub fn winui(element: &'a winui3::Microsoft::UI::Xaml::FrameworkElement) -> Self {
+        Self(BorrowedWidgetInner::WinUI(element))
+    }
+
     /// Get Win32 `HWND`.
     #[cfg(feature = "win32")]
     pub fn as_win32(&self) -> windows_sys::Win32::Foundation::HWND {
-        match self {
-            Self::Win32(hwnd) => *hwnd,
+        match &self.0 {
+            BorrowedWidgetInner::Win32(hwnd, ..) => *hwnd,
             _ => panic!("unsupported handle type"),
         }
     }
@@ -50,86 +67,61 @@ impl RawWidget {
     /// Get WinUI `FrameworkElement`.
     #[cfg(feature = "winui")]
     pub fn as_winui(&self) -> &winui3::Microsoft::UI::Xaml::FrameworkElement {
-        match self {
-            Self::WinUI(e) => e,
+        match &self.0 {
+            BorrowedWidgetInner::WinUI(e) => e,
             _ => panic!("unsupported handle type"),
         }
     }
 }
 
+#[cfg(target_os = "macos")]
+impl<'a> BorrowedWidget<'a> {
+    /// Create from `NSView`.
+    pub fn app_kit(view: &'a Retained<objc2_app_kit::NSView>) -> Self {
+        Self(view)
+    }
+
+    /// Get `NSView`.
+    pub fn as_app_kit(&self) -> &'a Retained<objc2_app_kit::NSView> {
+        self.0
+    }
+}
+
 #[allow(unreachable_patterns)]
 #[cfg(not(any(windows, target_os = "macos")))]
-impl RawWidget {
+impl<'a> BorrowedWidget<'a> {
+    /// Create from Qt `QWidget`.
+    ///
+    /// # Safety
+    /// The caller must ensure that `widget` is a valid pointer for the lifetime
+    /// `'a`.
+    #[cfg(feature = "qt")]
+    pub unsafe fn qt<T>(widget: *mut T) -> Self {
+        Self(BorrowedWidgetInner::Qt(widget.cast(), PhantomData))
+    }
+
+    /// Create from Gtk `Widget`.
+    #[cfg(feature = "gtk")]
+    pub fn gtk(widget: &'a gtk4::Widget) -> Self {
+        Self(BorrowedWidgetInner::Gtk(widget))
+    }
+
     /// Get Qt `QWidget`.
     #[cfg(feature = "qt")]
     pub fn as_qt<T>(&self) -> *mut T {
-        match self {
-            Self::Qt(w) => (*w).cast(),
+        match &self.0 {
+            BorrowedWidgetInner::Qt(w, ..) => (*w).cast(),
             _ => panic!("unsupported handle type"),
         }
     }
 
     /// Get Gtk `Widget`.
     #[cfg(feature = "gtk")]
-    pub fn to_gtk(&self) -> gtk4::Widget {
-        match self {
-            Self::Gtk(w) => w.clone(),
+    pub fn to_gtk(&self) -> &'a gtk4::Widget {
+        match &self.0 {
+            BorrowedWidgetInner::Gtk(w) => w,
             _ => panic!("unsupported handle type"),
         }
-    }
-}
-
-/// A borrowed widget handle.
-#[derive(Clone)]
-pub struct BorrowedWidget<'a> {
-    handle: RawWidget,
-    _p: PhantomData<&'a ()>,
-}
-
-impl BorrowedWidget<'_> {
-    /// # Safety
-    ///
-    /// The widget must remain valid for the duration of the returned
-    /// [`BorrowedWidget`].
-    pub unsafe fn borrow_raw(handle: RawWidget) -> Self {
-        Self {
-            handle,
-            _p: PhantomData,
-        }
-    }
-}
-
-impl Deref for BorrowedWidget<'_> {
-    type Target = RawWidget;
-
-    fn deref(&self) -> &Self::Target {
-        &self.handle
-    }
-}
-
-/// Trait to exact the raw widget handle.
-pub trait AsRawWidget {
-    /// Get the raw widget handle.
-    fn as_raw_widget(&self) -> RawWidget;
-}
-
-impl AsRawWidget for RawWidget {
-    #[allow(clippy::clone_on_copy)]
-    fn as_raw_widget(&self) -> RawWidget {
-        self.clone()
-    }
-}
-
-impl AsRawWidget for BorrowedWidget<'_> {
-    #[allow(clippy::clone_on_copy)]
-    fn as_raw_widget(&self) -> RawWidget {
-        self.handle.clone()
-    }
-}
-
-impl<T: AsRawWidget> AsRawWidget for &'_ T {
-    fn as_raw_widget(&self) -> RawWidget {
-        (**self).as_raw_widget()
     }
 }
 
@@ -141,7 +133,7 @@ pub trait AsWidget {
 
 impl AsWidget for BorrowedWidget<'_> {
     fn as_widget(&self) -> BorrowedWidget<'_> {
-        self.clone()
+        *self
     }
 }
 
@@ -162,19 +154,9 @@ impl<'a, T: AsWidget + ?Sized> From<&'a T> for BorrowedWidget<'a> {
 #[macro_export]
 macro_rules! impl_as_widget {
     ($t:ty, $inner:ident) => {
-        impl $crate::AsRawWidget for $t {
-            fn as_raw_widget(&self) -> $crate::RawWidget {
-                self.$inner.as_raw_widget()
-            }
-        }
-        $crate::impl_as_widget!($t);
-    };
-    ($t:ty) => {
         impl $crate::AsWidget for $t {
             fn as_widget(&self) -> $crate::BorrowedWidget<'_> {
-                unsafe {
-                    $crate::BorrowedWidget::borrow_raw($crate::AsRawWidget::as_raw_widget(self))
-                }
+                self.$inner.as_widget()
             }
         }
     };

@@ -7,7 +7,7 @@ use windows_sys::Win32::UI::{
         SIF_RANGE, SIF_TRACKPOS, WM_HSCROLL, WM_VSCROLL, WS_CHILD, WS_VISIBLE,
     },
 };
-use winio_handle::{AsContainer, AsRawWidget, BorrowedContainer, RawContainer, RawWidget};
+use winio_handle::{AsContainer, AsWidget, BorrowedContainer};
 use winio_primitive::{Orient, Point, Size};
 
 use crate::{Result, Widget};
@@ -55,7 +55,7 @@ impl ScrollBarImpl {
         info.fMask = mask;
         syscall!(
             BOOL,
-            GetScrollInfo(self.handle.as_raw_widget().as_win32(), SB_CTL, &mut info)
+            GetScrollInfo(self.handle.as_widget().as_win32(), SB_CTL, &mut info)
         )?;
         Ok(info)
     }
@@ -66,7 +66,7 @@ impl ScrollBarImpl {
         info.fMask = mask;
         f(&mut info);
         unsafe {
-            SetScrollInfo(self.handle.as_raw_widget().as_win32(), SB_CTL, &info, 1);
+            SetScrollInfo(self.handle.as_widget().as_win32(), SB_CTL, &info, 1);
         }
     }
 
@@ -123,11 +123,7 @@ impl ScrollBarImpl {
     }
 }
 
-impl AsRawWidget for ScrollBarImpl {
-    fn as_raw_widget(&self) -> RawWidget {
-        self.handle.as_raw_widget()
-    }
-}
+winio_handle::impl_as_widget!(ScrollBarImpl, handle);
 
 #[derive(Debug)]
 pub struct ScrollBar {
@@ -146,9 +142,9 @@ impl ScrollBar {
     }
 
     fn recreate(&mut self, vertical: bool) -> Result<()> {
-        let parent = unsafe { GetParent(self.handle.as_raw_widget().as_win32()) };
+        let parent = unsafe { GetParent(self.handle.as_widget().as_win32()) };
         let mut new_handle = ScrollBarImpl::new(
-            unsafe { BorrowedContainer::borrow_raw(RawContainer::Win32(parent)) },
+            unsafe { BorrowedContainer::win32(parent) },
             if vertical {
                 SBS_VERT as u32
             } else {

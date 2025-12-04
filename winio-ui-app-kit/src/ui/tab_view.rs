@@ -7,10 +7,10 @@ use objc2::{
 use objc2_app_kit::{NSTabView, NSTabViewDelegate, NSTabViewItem, NSView};
 use objc2_foundation::{MainThreadMarker, NSObject, NSObjectProtocol, NSString};
 use winio_callback::Callback;
-use winio_handle::{AsContainer, AsRawContainer, RawContainer};
+use winio_handle::{AsContainer, BorrowedContainer};
 use winio_primitive::{Point, Size};
 
-use crate::{Error, GlobalRuntime, Result, catch, from_cgsize, from_nsstring, ui::Widget};
+use crate::{GlobalRuntime, Result, catch, from_cgsize, from_nsstring, ui::Widget};
 
 #[derive(Debug)]
 pub struct TabView {
@@ -23,7 +23,7 @@ pub struct TabView {
 impl TabView {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let parent = parent.as_container();
-        let mtm = parent.mtm();
+        let mtm = parent.as_app_kit().mtm();
 
         catch(|| unsafe {
             let view = NSTabView::new(mtm);
@@ -150,7 +150,7 @@ impl TabViewDelegate {
 #[derive(Debug)]
 pub struct TabViewItem {
     item: Retained<NSTabViewItem>,
-    mtm: MainThreadMarker,
+    view: Retained<NSView>,
 }
 
 impl TabViewItem {
@@ -158,8 +158,9 @@ impl TabViewItem {
         catch(|| {
             let item = NSTabViewItem::new();
             let mtm = parent.view.mtm();
-            item.setView(Some(&NSView::new(mtm)));
-            Self { item, mtm }
+            let view = NSView::new(mtm);
+            item.setView(Some(&view));
+            Self { item, view }
         })
     }
 
@@ -173,25 +174,15 @@ impl TabViewItem {
 
     pub fn size(&self) -> Result<Size> {
         catch(|| {
-            let frame = self
-                .item
-                .view(self.mtm)
-                .ok_or(Error::NullPointer)?
-                .frame()
-                .size;
+            let frame = self.view.frame().size;
             Ok(from_cgsize(frame))
         })
         .flatten()
     }
 }
 
-impl AsRawContainer for TabViewItem {
-    fn as_raw_container(&self) -> RawContainer {
-        self.item
-            .view(self.mtm)
-            .expect("tab view item has no view")
-            .clone()
+impl AsContainer for TabViewItem {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        BorrowedContainer::app_kit(&self.view)
     }
 }
-
-winio_handle::impl_as_container!(TabViewItem);

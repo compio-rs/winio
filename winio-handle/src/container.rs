@@ -1,48 +1,65 @@
-use std::{marker::PhantomData, ops::Deref};
-
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
-        /// Raw container handle.
-        #[derive(Clone)]
-        #[non_exhaustive]
-        pub enum RawContainer {
-            /// Win32 `HWND`.
+        use std::marker::PhantomData;
+
+        #[derive(Clone, Copy)]
+        enum BorrowedContainerInner<'a> {
             #[cfg(feature = "win32")]
-            Win32(windows_sys::Win32::Foundation::HWND),
-            /// WinUI `Canvas`.
+            Win32(windows_sys::Win32::Foundation::HWND, PhantomData<&'a ()>),
             #[cfg(feature = "winui")]
-            WinUI(winui3::Microsoft::UI::Xaml::Controls::Canvas),
+            WinUI(&'a winui3::Microsoft::UI::Xaml::Controls::Canvas),
+            #[cfg(not(any(feature = "win32", feature = "winui")))]
+            Dummy(std::convert::Infallible, PhantomData<&'a ()>),
         }
     } else if #[cfg(target_os = "macos")] {
-        /// [`NSView`].
-        ///
-        /// [`NSView`]: objc2_app_kit::NSView
-        pub type RawContainer = objc2::rc::Retained<objc2_app_kit::NSView>;
+        use objc2::rc::Retained;
+
+        type BorrowedContainerInner<'a> = &'a Retained<objc2_app_kit::NSView>;
     } else {
-        /// Raw container handle.
-        #[derive(Clone)]
-        #[non_exhaustive]
-        pub enum RawContainer {
-            /// Pointer to `QWidget`.
-            #[cfg(all(not(any(windows, target_os = "macos")), feature = "qt"))]
-            Qt(*mut core::ffi::c_void),
-            /// GTK [`Fixed`].
-            ///
-            /// [`Fixed`]: gtk4::Fixed
-            #[cfg(all(not(any(windows, target_os = "macos")), feature = "gtk"))]
-            Gtk(gtk4::Fixed),
+        use std::marker::PhantomData;
+
+        #[derive(Clone, Copy)]
+        enum BorrowedContainerInner<'a> {
+            #[cfg(feature = "qt")]
+            Qt(*mut core::ffi::c_void, PhantomData<&'a ()>),
+            #[cfg(feature = "gtk")]
+            Gtk(&'a gtk4::Fixed),
+            #[cfg(not(any(feature = "qt", feature = "gtk")))]
+            Dummy(std::convert::Infallible, PhantomData<&'a ()>),
         }
     }
 }
 
+/// Raw container handle.
+#[derive(Clone, Copy)]
+pub struct BorrowedContainer<'a>(BorrowedContainerInner<'a>);
+
 #[allow(unreachable_patterns)]
 #[cfg(windows)]
-impl RawContainer {
+impl<'a> BorrowedContainer<'a> {
+    /// Create from Win32 `HWND`.
+    ///
+    /// # Safety
+    ///
+    /// * The caller must ensure that `hwnd` is a valid handle for the lifetime
+    ///   `'a`.
+    /// * `hwnd` must not be null.
+    #[cfg(feature = "win32")]
+    pub unsafe fn win32(hwnd: windows_sys::Win32::Foundation::HWND) -> Self {
+        Self(BorrowedContainerInner::Win32(hwnd, PhantomData))
+    }
+
+    /// Create from WinUI `Canvas`.
+    #[cfg(feature = "winui")]
+    pub fn winui(container: &'a winui3::Microsoft::UI::Xaml::Controls::Canvas) -> Self {
+        Self(BorrowedContainerInner::WinUI(container))
+    }
+
     /// Get Win32 `HWND`.
     #[cfg(feature = "win32")]
     pub fn as_win32(&self) -> windows_sys::Win32::Foundation::HWND {
-        match self {
-            Self::Win32(hwnd) => *hwnd,
+        match &self.0 {
+            BorrowedContainerInner::Win32(hwnd, ..) => *hwnd,
             _ => panic!("unsupported handle type"),
         }
     }
@@ -50,86 +67,61 @@ impl RawContainer {
     /// Get WinUI `Canvas`.
     #[cfg(feature = "winui")]
     pub fn as_winui(&self) -> &winui3::Microsoft::UI::Xaml::Controls::Canvas {
-        match self {
-            Self::WinUI(container) => container,
+        match &self.0 {
+            BorrowedContainerInner::WinUI(container) => container,
             _ => panic!("unsupported handle type"),
         }
     }
 }
 
+#[cfg(target_os = "macos")]
+impl<'a> BorrowedContainer<'a> {
+    /// Create from `NSView`.
+    pub fn app_kit(view: &'a Retained<objc2_app_kit::NSView>) -> Self {
+        Self(view)
+    }
+
+    /// Get `NSView`.
+    pub fn as_app_kit(&self) -> &'a Retained<objc2_app_kit::NSView> {
+        self.0
+    }
+}
+
 #[allow(unreachable_patterns)]
 #[cfg(not(any(windows, target_os = "macos")))]
-impl RawContainer {
+impl<'a> BorrowedContainer<'a> {
+    /// Create from Qt `QWidget`.
+    ///
+    /// # Safety
+    /// The caller must ensure that `widget` is a valid pointer for the lifetime
+    /// `'a`.
+    #[cfg(feature = "qt")]
+    pub unsafe fn qt<T>(widget: *mut T) -> Self {
+        Self(BorrowedContainerInner::Qt(widget.cast(), PhantomData))
+    }
+
+    /// Create from Gtk `Fixed`.
+    #[cfg(feature = "gtk")]
+    pub fn gtk(fixed: &'a gtk4::Fixed) -> Self {
+        Self(BorrowedContainerInner::Gtk(fixed))
+    }
+
     /// Get Qt `QWidget`.
     #[cfg(feature = "qt")]
     pub fn as_qt<T>(&self) -> *mut T {
-        match self {
-            Self::Qt(w) => (*w).cast(),
+        match &self.0 {
+            BorrowedContainerInner::Qt(w, ..) => (*w).cast(),
             _ => panic!("unsupported handle type"),
         }
     }
 
     /// Get Gtk `Fixed`.
     #[cfg(feature = "gtk")]
-    pub fn to_gtk(&self) -> gtk4::Fixed {
-        match self {
-            Self::Gtk(w) => w.clone(),
+    pub fn to_gtk(&self) -> &'a gtk4::Fixed {
+        match &self.0 {
+            BorrowedContainerInner::Gtk(w) => w,
             _ => panic!("unsupported handle type"),
         }
-    }
-}
-
-/// A borrowed container handle.
-#[derive(Clone)]
-pub struct BorrowedContainer<'a> {
-    handle: RawContainer,
-    _p: PhantomData<&'a ()>,
-}
-
-impl BorrowedContainer<'_> {
-    /// # Safety
-    ///
-    /// The container must remain valid for the duration of the returned
-    /// [`BorrowedContainer`].
-    pub unsafe fn borrow_raw(handle: RawContainer) -> Self {
-        Self {
-            handle,
-            _p: PhantomData,
-        }
-    }
-}
-
-impl Deref for BorrowedContainer<'_> {
-    type Target = RawContainer;
-
-    fn deref(&self) -> &Self::Target {
-        &self.handle
-    }
-}
-
-/// Trait to exact the raw container handle.
-pub trait AsRawContainer {
-    /// Get the raw container handle.
-    fn as_raw_container(&self) -> RawContainer;
-}
-
-impl AsRawContainer for RawContainer {
-    #[allow(clippy::clone_on_copy)]
-    fn as_raw_container(&self) -> RawContainer {
-        self.clone()
-    }
-}
-
-impl AsRawContainer for BorrowedContainer<'_> {
-    #[allow(clippy::clone_on_copy)]
-    fn as_raw_container(&self) -> RawContainer {
-        self.handle.clone()
-    }
-}
-
-impl<T: AsRawContainer> AsRawContainer for &'_ T {
-    fn as_raw_container(&self) -> RawContainer {
-        (**self).as_raw_container()
     }
 }
 
@@ -141,7 +133,7 @@ pub trait AsContainer {
 
 impl AsContainer for BorrowedContainer<'_> {
     fn as_container(&self) -> BorrowedContainer<'_> {
-        self.clone()
+        *self
     }
 }
 
@@ -183,21 +175,9 @@ impl From<()> for MaybeBorrowedContainer<'_> {
 #[macro_export]
 macro_rules! impl_as_container {
     ($t:ty, $inner:ident) => {
-        impl $crate::AsRawContainer for $t {
-            fn as_raw_container(&self) -> $crate::RawContainer {
-                self.$inner.as_raw_container()
-            }
-        }
-        $crate::impl_as_container!($t);
-    };
-    ($t:ty) => {
         impl $crate::AsContainer for $t {
             fn as_container(&self) -> $crate::BorrowedContainer<'_> {
-                unsafe {
-                    $crate::BorrowedContainer::borrow_raw($crate::AsRawContainer::as_raw_container(
-                        self,
-                    ))
-                }
+                self.$inner.as_container()
             }
         }
     };

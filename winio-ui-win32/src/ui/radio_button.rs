@@ -6,7 +6,7 @@ use windows_sys::Win32::UI::{
         WS_VISIBLE,
     },
 };
-use winio_handle::{AsContainer, AsRawWindow};
+use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{Result, runtime::WindowMessageCommand, ui::Widget};
@@ -79,9 +79,7 @@ impl RadioButton {
             let WindowMessageCommand {
                 message, handle, ..
             } = self.handle.wait_parent(WM_COMMAND).await.command();
-            if std::ptr::eq(handle, self.handle.as_raw_window().as_win32())
-                && (message == BN_CLICKED)
-            {
+            if std::ptr::eq(handle, self.handle.as_widget().as_win32()) && (message == BN_CLICKED) {
                 self.set_checked_impl(true);
                 break;
             }

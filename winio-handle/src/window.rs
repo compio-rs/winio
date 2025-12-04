@@ -1,135 +1,180 @@
-use std::{marker::PhantomData, ops::Deref};
+#[cfg(feature = "raw-window-handle")]
+use raw_window_handle::{HandleError, HasWindowHandle, WindowHandle};
 
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
-        /// Raw window handle.
-        #[derive(Clone)]
-        #[non_exhaustive]
-        pub enum RawWindow {
-            /// Win32 `HWND`.
+        use std::marker::PhantomData;
+
+        #[derive(Clone, Copy)]
+        enum BorrowedWindowInner<'a> {
             #[cfg(feature = "win32")]
-            Win32(windows_sys::Win32::Foundation::HWND),
-            /// WinUI `Window`.
+            Win32(windows_sys::Win32::Foundation::HWND, PhantomData<&'a ()>),
             #[cfg(feature = "winui")]
-            WinUI(winui3::Microsoft::UI::Xaml::Window),
+            WinUI(&'a winui3::Microsoft::UI::Xaml::Window),
+            #[cfg(not(any(feature = "win32", feature = "winui")))]
+            Dummy(std::convert::Infallible, PhantomData<&'a ()>),
         }
     } else if #[cfg(target_os = "macos")] {
-        /// [`NSWindow`].
-        ///
-        /// [`NSWindow`]: objc2_app_kit::NSWindow
-        pub type RawWindow = objc2::rc::Retained<objc2_app_kit::NSWindow>;
+        use objc2::rc::Retained;
+
+        type BorrowedWindowInner<'a> = &'a Retained<objc2_app_kit::NSWindow>;
     } else {
-        /// Raw window handle.
-        #[derive(Clone)]
-        #[non_exhaustive]
-        pub enum RawWindow {
-            /// Pointer to `QWidget`.
-            #[cfg(all(not(any(windows, target_os = "macos")), feature = "qt"))]
-            Qt(*mut core::ffi::c_void),
-            /// GTK [`Window`].
-            ///
-            /// [`Window`]: gtk4::Window
-            #[cfg(all(not(any(windows, target_os = "macos")), feature = "gtk"))]
-            Gtk(gtk4::Window),
+        use std::marker::PhantomData;
+
+        #[derive(Clone, Copy)]
+        enum BorrowedWindowInner<'a> {
+            #[cfg(feature = "qt")]
+            Qt(*mut core::ffi::c_void, PhantomData<&'a ()>),
+            #[cfg(feature = "gtk")]
+            Gtk(&'a gtk4::Window),
+            #[cfg(not(any(feature = "qt", feature = "gtk")))]
+            Dummy(std::convert::Infallible, PhantomData<&'a ()>),
         }
     }
 }
 
+/// Raw window handle.
+#[derive(Clone, Copy)]
+pub struct BorrowedWindow<'a>(BorrowedWindowInner<'a>);
+
 #[allow(unreachable_patterns)]
 #[cfg(windows)]
-impl RawWindow {
-    /// Get Win32 `HWND`.
+impl<'a> BorrowedWindow<'a> {
+    /// Create from Win32 `HWND`.
+    ///
+    /// # Safety
+    ///
+    /// * The caller must ensure that `hwnd` is a valid handle for the lifetime
+    ///   `'a`.
+    /// * `hwnd` must not be null.
+    #[cfg(feature = "win32")]
+    pub unsafe fn win32(hwnd: windows_sys::Win32::Foundation::HWND) -> Self {
+        Self(BorrowedWindowInner::Win32(hwnd, PhantomData))
+    }
+
+    /// Create from WinUI `Window`.
+    #[cfg(feature = "winui")]
+    pub fn winui(window: &'a winui3::Microsoft::UI::Xaml::Window) -> Self {
+        Self(BorrowedWindowInner::WinUI(window))
+    }
+
+    /// Get Win32 `HWND`. Panic if the handle is not Win32.
     #[cfg(feature = "win32")]
     pub fn as_win32(&self) -> windows_sys::Win32::Foundation::HWND {
-        match self {
-            Self::Win32(hwnd) => *hwnd,
+        match &self.0 {
+            BorrowedWindowInner::Win32(hwnd, ..) => *hwnd,
             _ => panic!("unsupported handle type"),
         }
     }
 
-    /// Get WinUI `Window`.
+    /// Get WinUI `Window`. Panic if the handle is not WinUI.
     #[cfg(feature = "winui")]
-    pub fn as_winui(&self) -> &winui3::Microsoft::UI::Xaml::Window {
-        match self {
-            Self::WinUI(window) => window,
+    pub fn as_winui(&self) -> &'a winui3::Microsoft::UI::Xaml::Window {
+        match &self.0 {
+            BorrowedWindowInner::WinUI(window) => window,
             _ => panic!("unsupported handle type"),
         }
+    }
+
+    /// Get the raw window handle.
+    pub fn handle(&self) -> windows_core::Result<windows_sys::Win32::Foundation::HWND> {
+        match &self.0 {
+            #[cfg(feature = "win32")]
+            BorrowedWindowInner::Win32(hwnd, ..) => Ok(*hwnd),
+            #[cfg(feature = "winui")]
+            BorrowedWindowInner::WinUI(window) => unsafe {
+                use windows_core::Interface;
+                use winui3::IWindowNative;
+                Ok(window.cast::<IWindowNative>()?.WindowHandle()?.0)
+            },
+            #[cfg(not(any(feature = "win32", feature = "winui")))]
+            BorrowedWindowInner::Dummy(a, ..) => match *a {},
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl<'a> BorrowedWindow<'a> {
+    /// Create from `NSWindow`.
+    pub fn app_kit(window: &'a Retained<objc2_app_kit::NSWindow>) -> Self {
+        Self(window)
+    }
+
+    /// Get `NSWindow`.
+    pub fn as_app_kit(&self) -> &'a Retained<objc2_app_kit::NSWindow> {
+        self.0
     }
 }
 
 #[allow(unreachable_patterns)]
 #[cfg(not(any(windows, target_os = "macos")))]
-impl RawWindow {
+impl<'a> BorrowedWindow<'a> {
+    /// Create from Qt `QWidget`.
+    ///
+    /// # Safety
+    /// The caller must ensure that `widget` is a valid pointer for the lifetime
+    /// `'a`.
+    #[cfg(feature = "qt")]
+    pub unsafe fn qt<T>(widget: *mut T) -> Self {
+        Self(BorrowedWindowInner::Qt(widget.cast(), PhantomData))
+    }
+
+    /// Create from Gtk `Window`.
+    #[cfg(feature = "gtk")]
+    pub fn gtk(window: &'a gtk4::Window) -> Self {
+        Self(BorrowedWindowInner::Gtk(window))
+    }
+
     /// Get Qt `QWidget`.
     #[cfg(feature = "qt")]
     pub fn as_qt<T>(&self) -> *mut T {
-        match self {
-            Self::Qt(w) => (*w).cast(),
+        match &self.0 {
+            BorrowedWindowInner::Qt(w, ..) => (*w).cast(),
             _ => panic!("unsupported handle type"),
         }
     }
 
     /// Get Gtk `Window`.
     #[cfg(feature = "gtk")]
-    pub fn to_gtk(&self) -> gtk4::Window {
-        match self {
-            Self::Gtk(w) => w.clone(),
+    pub fn to_gtk(&self) -> &'a gtk4::Window {
+        match &self.0 {
+            BorrowedWindowInner::Gtk(w) => w,
             _ => panic!("unsupported handle type"),
         }
     }
 }
 
-/// A borrowed window handle.
-#[derive(Clone)]
-pub struct BorrowedWindow<'a> {
-    handle: RawWindow,
-    _p: PhantomData<&'a ()>,
-}
-
-impl BorrowedWindow<'_> {
-    /// # Safety
-    ///
-    /// The window must remain valid for the duration of the returned
-    /// [`BorrowedWindow`].
-    pub unsafe fn borrow_raw(handle: RawWindow) -> Self {
-        Self {
-            handle,
-            _p: PhantomData,
-        }
+#[cfg(feature = "raw-window-handle")]
+impl<'a> HasWindowHandle for BorrowedWindow<'a> {
+    #[cfg(windows)]
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        self.handle()
+            .map(|hwnd| {
+                use raw_window_handle::{RawWindowHandle, Win32WindowHandle};
+                unsafe {
+                    WindowHandle::borrow_raw(RawWindowHandle::Win32(Win32WindowHandle::new(
+                        std::num::NonZeroIsize::new(hwnd as _).expect("HWND is null"),
+                    )))
+                }
+            })
+            .map_err(|_| HandleError::NotSupported)
     }
-}
 
-impl Deref for BorrowedWindow<'_> {
-    type Target = RawWindow;
-
-    fn deref(&self) -> &Self::Target {
-        &self.handle
+    #[cfg(target_os = "macos")]
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        use raw_window_handle::{AppKitWindowHandle, RawWindowHandle};
+        Ok(unsafe {
+            WindowHandle::borrow_raw(RawWindowHandle::AppKit(AppKitWindowHandle::new(
+                std::ptr::NonNull::new(Retained::as_ptr(self.0).cast_mut())
+                    .expect("NSWindow is null")
+                    .cast(),
+            )))
+        })
     }
-}
 
-/// Trait to exact the raw window handle.
-pub trait AsRawWindow {
-    /// Get the raw window handle.
-    fn as_raw_window(&self) -> RawWindow;
-}
-
-impl AsRawWindow for RawWindow {
-    #[allow(clippy::clone_on_copy)]
-    fn as_raw_window(&self) -> RawWindow {
-        self.clone()
-    }
-}
-
-impl AsRawWindow for BorrowedWindow<'_> {
-    #[allow(clippy::clone_on_copy)]
-    fn as_raw_window(&self) -> RawWindow {
-        self.handle.clone()
-    }
-}
-
-impl<T: AsRawWindow> AsRawWindow for &'_ T {
-    fn as_raw_window(&self) -> RawWindow {
-        (**self).as_raw_window()
+    #[cfg(not(any(windows, target_os = "macos")))]
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        Err(HandleError::NotSupported)
     }
 }
 
@@ -141,7 +186,7 @@ pub trait AsWindow {
 
 impl AsWindow for BorrowedWindow<'_> {
     fn as_window(&self) -> BorrowedWindow<'_> {
-        self.clone()
+        *self
     }
 }
 
@@ -183,19 +228,9 @@ impl From<()> for MaybeBorrowedWindow<'_> {
 #[macro_export]
 macro_rules! impl_as_window {
     ($t:ty, $inner:ident) => {
-        impl $crate::AsRawWindow for $t {
-            fn as_raw_window(&self) -> $crate::RawWindow {
-                self.$inner.as_raw_window()
-            }
-        }
-        $crate::impl_as_window!($t);
-    };
-    ($t:ty) => {
         impl $crate::AsWindow for $t {
             fn as_window(&self) -> $crate::BorrowedWindow<'_> {
-                unsafe {
-                    $crate::BorrowedWindow::borrow_raw($crate::AsRawWindow::as_raw_window(self))
-                }
+                self.$inner.as_window()
             }
         }
     };

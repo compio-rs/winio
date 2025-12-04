@@ -7,7 +7,7 @@ use objc2_app_kit::{
     NSAlert, NSAlertFirstButtonReturn, NSAlertStyle, NSImage, NSImageNameCaution, NSImageNameInfo,
 };
 use objc2_foundation::{MainThreadMarker, NSString, ns_string};
-use winio_handle::{AsRawWindow, AsWindow};
+use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
 use crate::{Error, Result, catch};
@@ -21,7 +21,7 @@ async fn msgbox_custom(
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
 ) -> Result<MessageBoxResponse> {
-    let parent = parent.map(|p| p.as_window().as_raw_window());
+    let parent = parent.as_ref().map(|p| p.as_window().as_app_kit());
     let mtm = parent
         .as_ref()
         .map(|w| w.mtm())

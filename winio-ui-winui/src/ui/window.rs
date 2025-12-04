@@ -21,7 +21,7 @@ use windows_sys::Win32::UI::{
     },
 };
 use winio_callback::{Callback, SyncCallback};
-use winio_handle::{AsContainer, AsRawContainer, AsRawWindow, RawContainer, RawWindow};
+use winio_handle::{AsContainer, AsWindow, BorrowedContainer, BorrowedWindow};
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{
     Backdrop, get_current_module_handle, set_backdrop, window_use_dark_mode,
@@ -281,21 +281,17 @@ impl Window {
     }
 }
 
-impl AsRawWindow for Window {
-    fn as_raw_window(&self) -> RawWindow {
-        RawWindow::WinUI(self.handle.clone())
+impl AsWindow for Window {
+    fn as_window(&self) -> BorrowedWindow<'_> {
+        BorrowedWindow::winui(&self.handle)
     }
 }
 
-winio_handle::impl_as_window!(Window);
-
-impl AsRawContainer for Window {
-    fn as_raw_container(&self) -> RawContainer {
-        RawContainer::WinUI(self.canvas.clone())
+impl AsContainer for Window {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        BorrowedContainer::winui(&self.canvas)
     }
 }
-
-winio_handle::impl_as_container!(Window);
 
 impl Drop for Window {
     fn drop(&mut self) {
@@ -441,10 +437,8 @@ impl View {
 
 winio_handle::impl_as_widget!(View, handle);
 
-impl AsRawContainer for View {
-    fn as_raw_container(&self) -> RawContainer {
-        RawContainer::WinUI(self.canvas.clone())
+impl AsContainer for View {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        BorrowedContainer::winui(&self.canvas)
     }
 }
-
-winio_handle::impl_as_container!(View);

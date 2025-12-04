@@ -19,7 +19,7 @@ use windows_sys::Win32::{
 use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
-use crate::{Error, Result, darkmode::TASK_DIALOG_CALLBACK, parent_handle};
+use crate::{Error, Result, darkmode::TASK_DIALOG_CALLBACK};
 
 async fn msgbox(
     parent: Option<HWND>,
@@ -131,7 +131,7 @@ impl MessageBox {
     }
 
     pub async fn show(self, parent: Option<impl AsWindow>) -> Result<MessageBoxResponse> {
-        let parent = parent_handle(parent);
+        let parent = parent.and_then(|p| p.as_window().handle().ok());
         msgbox(
             parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )

@@ -152,7 +152,7 @@ impl Component for FailableWebView {
     type Message = WebViewMessage;
 
     async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
-        match WebView::init(init.clone(), sender.cast()).await {
+        match WebView::init(init, sender.cast()).await {
             Ok(wv) => Ok(FailableWebView::Widget(wv)),
             Err(e) => {
                 let text = if cfg!(windows) {

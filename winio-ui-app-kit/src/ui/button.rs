@@ -28,11 +28,11 @@ pub struct Button {
 impl Button {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let parent = parent.as_container();
-        let mtm = parent.mtm();
+        let mtm = parent.as_app_kit().mtm();
 
         catch(|| unsafe {
             let view = NSButton::new(mtm);
-            let handle = Widget::from_nsview(&parent, Retained::cast_unchecked(view.clone()))?;
+            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()))?;
 
             let delegate = ButtonDelegate::new(mtm);
             view.setTarget(Some(&delegate));

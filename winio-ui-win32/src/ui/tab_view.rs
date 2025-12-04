@@ -20,7 +20,7 @@ use windows_sys::{
     },
     w,
 };
-use winio_handle::{AsContainer, AsRawContainer, AsRawWidget, RawContainer};
+use winio_handle::{AsContainer, AsWidget, BorrowedContainer};
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::children_refresh_dark_mode;
 
@@ -61,7 +61,7 @@ impl TabView {
         };
         handle.send_message(TCM_INSERTITEMW, 0, std::ptr::addr_of_mut!(item) as _);
         handle.send_message(TCM_INSERTITEMW, 1, std::ptr::addr_of_mut!(item) as _);
-        unsafe { children_refresh_dark_mode(handle.as_raw_widget().as_win32(), 0) };
+        unsafe { children_refresh_dark_mode(handle.as_widget().as_win32(), 0) };
         handle.send_message(TCM_DELETEALLITEMS, 0, 0);
 
         Ok(Self {
@@ -90,7 +90,7 @@ impl TabView {
         let mut rect = MaybeUninit::uninit();
         syscall!(
             BOOL,
-            GetClientRect(self.handle.as_raw_widget().as_win32(), rect.as_mut_ptr())
+            GetClientRect(self.handle.as_widget().as_win32(), rect.as_mut_ptr())
         )?;
         self.handle
             .send_message(TCM_ADJUSTRECT, 0, rect.as_mut_ptr() as _);
@@ -99,7 +99,7 @@ impl TabView {
             syscall!(
                 BOOL,
                 MoveWindow(
-                    item.as_raw_container().as_win32(),
+                    item.as_container().as_win32(),
                     rect.left,
                     rect.top,
                     rect.right - rect.left,
@@ -130,7 +130,7 @@ impl TabView {
             let WindowMessageNotify {
                 hwnd_from, code, ..
             } = self.handle.wait_parent(WM_NOTIFY).await.notify();
-            if std::ptr::eq(hwnd_from, self.handle.as_raw_widget().as_win32())
+            if std::ptr::eq(hwnd_from, self.handle.as_widget().as_win32())
                 && (code == TCN_SELCHANGE)
             {
                 self.show_current_view();
@@ -145,14 +145,14 @@ impl TabView {
             if let Some(index) = current_view
                 && let Some(view) = self.views.get(index)
             {
-                ShowWindow(view.inner.borrow().view.as_raw_widget().as_win32(), SW_HIDE);
+                ShowWindow(view.inner.borrow().view.as_widget().as_win32(), SW_HIDE);
             }
             let sel = self.selection_impl();
             self.current_view.set(sel);
             if let Some(sel) = sel
                 && let Some(view) = self.views.get(sel)
             {
-                ShowWindow(view.inner.borrow().view.as_raw_widget().as_win32(), SW_SHOW);
+                ShowWindow(view.inner.borrow().view.as_widget().as_win32(), SW_SHOW);
             }
         }
     }
@@ -237,7 +237,7 @@ impl TabViewItem {
     pub fn new(parent: &TabView) -> Result<Self> {
         Ok(Self {
             inner: Rc::new(RefCell::new(TabViewItemInner {
-                view: View::new_hidden(parent.as_raw_widget().as_win32())?,
+                view: View::new_hidden(parent.as_widget().as_win32())?,
                 title: String::new(),
                 index: None,
             })),
@@ -252,7 +252,7 @@ impl TabViewItem {
         let mut inner = self.inner.borrow_mut();
         inner.title = s.as_ref().to_string();
         unsafe {
-            let parent = GetParent(inner.view.as_raw_widget().as_win32());
+            let parent = GetParent(inner.view.as_widget().as_win32());
             if let Some(index) = inner.index
                 && !parent.is_null()
             {
@@ -284,10 +284,9 @@ impl TabViewItem {
     }
 }
 
-impl AsRawContainer for TabViewItem {
-    fn as_raw_container(&self) -> RawContainer {
-        self.inner.borrow().view.as_raw_container()
+impl AsContainer for TabViewItem {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        // SAFETY: view is not replaced after creation
+        unsafe { BorrowedContainer::win32(self.inner.borrow().view.as_container().as_win32()) }
     }
 }
-
-winio_handle::impl_as_container!(TabViewItem);

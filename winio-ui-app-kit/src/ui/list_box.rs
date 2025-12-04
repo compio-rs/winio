@@ -39,7 +39,7 @@ pub struct ListBox {
 impl ListBox {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let parent = parent.as_container();
-        let mtm = parent.mtm();
+        let mtm = parent.as_app_kit().mtm();
 
         catch(|| unsafe {
             let table = NSTableView::new(mtm);

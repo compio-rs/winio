@@ -17,7 +17,7 @@ use objc2_foundation::{
 };
 use winio_callback::Callback;
 use winio_handle::{
-    AsContainer, AsRawContainer, AsRawWidget, AsRawWindow, RawContainer, RawWidget, RawWindow,
+    AsContainer, AsWidget, AsWindow, BorrowedContainer, BorrowedWidget, BorrowedWindow,
 };
 use winio_primitive::{Point, Rect, Size};
 
@@ -29,6 +29,7 @@ use crate::{
 #[derive(Debug)]
 pub struct Window {
     wnd: Retained<NSWindow>,
+    content_view: Retained<NSView>,
     delegate: Retained<WindowDelegate>,
     vibrancy: Option<Vibrancy>,
     vibrancy_view: Option<Retained<NSVisualEffectView>>,
@@ -68,13 +69,17 @@ impl Window {
                     None,
                 );
 
-                Self {
+                let content_view = wnd.contentView().ok_or(Error::NullPointer)?.clone();
+
+                Ok(Self {
                     wnd,
+                    content_view,
                     delegate,
                     vibrancy: None,
                     vibrancy_view: None,
-                }
-            })?;
+                })
+            })
+            .flatten()?;
             this.set_loc(Point::zero())?;
             Ok(this)
         }
@@ -130,16 +135,7 @@ impl Window {
     }
 
     pub fn client_size(&self) -> Result<Size> {
-        catch(|| {
-            Ok(from_cgsize(
-                self.wnd
-                    .contentView()
-                    .ok_or(Error::NullPointer)?
-                    .frame()
-                    .size,
-            ))
-        })
-        .flatten()
+        catch(|| from_cgsize(self.content_view.frame().size))
     }
 
     pub fn text(&self) -> Result<String> {
@@ -166,7 +162,7 @@ impl Window {
 
             catch(|| {
                 if let Some(v) = v {
-                    let view = self.wnd.contentView().ok_or(Error::NullPointer)?;
+                    let view = &self.content_view;
                     let bounds = view.bounds();
                     let vev: Retained<NSVisualEffectView> = NSVisualEffectView::initWithFrame(
                         self.wnd.mtm().alloc::<NSVisualEffectView>(),
@@ -217,21 +213,17 @@ impl Window {
     }
 }
 
-impl AsRawWindow for Window {
-    fn as_raw_window(&self) -> RawWindow {
-        self.wnd.clone()
+impl AsWindow for Window {
+    fn as_window(&self) -> BorrowedWindow<'_> {
+        BorrowedWindow::app_kit(&self.wnd)
     }
 }
 
-winio_handle::impl_as_window!(Window);
-
-impl AsRawContainer for Window {
-    fn as_raw_container(&self) -> RawContainer {
-        self.wnd.contentView().expect("window has no content view")
+impl AsContainer for Window {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        BorrowedContainer::app_kit(&self.content_view)
     }
 }
-
-winio_handle::impl_as_container!(Window);
 
 impl Drop for Window {
     fn drop(&mut self) {
@@ -357,10 +349,10 @@ pub(crate) struct Widget {
 impl Widget {
     pub fn from_nsview(parent: impl AsContainer, view: Retained<NSView>) -> Result<Self> {
         let mut this = catch(|| {
-            let parent = parent.as_container().as_raw_container();
+            let parent = parent.as_container().as_app_kit();
             parent.addSubview(&view);
             Self {
-                parent: Weak::from_retained(&parent),
+                parent: Weak::from_retained(parent),
                 view,
             }
         })?;
@@ -492,15 +484,15 @@ impl Drop for Widget {
     }
 }
 
-impl AsRawWidget for Widget {
-    fn as_raw_widget(&self) -> RawWidget {
-        self.view.clone()
+impl AsWidget for Widget {
+    fn as_widget(&self) -> BorrowedWidget<'_> {
+        BorrowedWidget::app_kit(&self.view)
     }
 }
 
-impl AsRawContainer for Widget {
-    fn as_raw_container(&self) -> RawContainer {
-        self.view.clone()
+impl AsContainer for Widget {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        BorrowedContainer::app_kit(&self.view)
     }
 }
 
@@ -515,7 +507,7 @@ impl View {
         unsafe {
             catch(|| {
                 let parent = parent.as_container();
-                let mtm = parent.mtm();
+                let mtm = parent.as_app_kit().mtm();
 
                 let view = NSView::new(mtm);
                 let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()))?;

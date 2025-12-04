@@ -42,6 +42,9 @@ fn fix_size(mut size: Size) -> Size {
 #[inline]
 fn fix_font(mut font: DrawingFont) -> DrawingFont {
     font.size = font.size.max(0.1);
+    if font.family.is_empty() {
+        font.family = "Arial".to_string();
+    }
     font
 }
 

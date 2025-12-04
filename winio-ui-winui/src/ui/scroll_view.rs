@@ -1,6 +1,6 @@
 use inherit_methods_macro::inherit_methods;
 use windows::core::Interface;
-use winio_handle::{AsContainer, AsRawContainer, RawContainer};
+use winio_handle::{AsContainer, BorrowedContainer};
 use winio_primitive::{Point, Rect, Size};
 use winui3::Microsoft::UI::Xaml::{
     Controls as MUXC, FrameworkElement, HorizontalAlignment, VerticalAlignment,
@@ -99,10 +99,8 @@ impl ScrollView {
 
 winio_handle::impl_as_widget!(ScrollView, handle);
 
-impl AsRawContainer for ScrollView {
-    fn as_raw_container(&self) -> RawContainer {
-        RawContainer::WinUI(self.canvas.clone())
+impl AsContainer for ScrollView {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        BorrowedContainer::winui(&self.canvas)
     }
 }
-
-winio_handle::impl_as_container!(ScrollView);
