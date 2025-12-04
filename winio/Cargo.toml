@@ -89,7 +89,14 @@ all = ["media", "webview", "plotters"]
 
 raw-window-handle = ["winio-handle/raw-window-handle"]
 
+gen_blocks = ["winio-elm/gen_blocks"]
+once_cell_try = [
+    "winio-ui-win32?/once_cell_try",
+    "winio-ui-winui?/once_cell_try",
+]
 nightly = [
+    "gen_blocks",
+    "once_cell_try",
     "winio-elm/nightly",
     "winio-ui-win32?/nightly",
     "winio-ui-winui?/nightly",
@@ -97,6 +104,7 @@ nightly = [
     "cyper/nightly",
     "cyper-axum/nightly",
 ]
+
 win32-dark-mode = [
     "winio-ui-win32?/dark-mode",
     "winio-ui-winui?/win32-dark-mode",
