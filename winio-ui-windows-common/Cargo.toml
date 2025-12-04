@@ -13,7 +13,7 @@ winio-primitive = { workspace = true }
 winio-handle = { workspace = true }
 winio-pollable = { workspace = true }
 
-compio = { workspace = true }
+compio = { workspace = true, default-features = false }
 compio-log = { workspace = true }
 
 cfg-if = { workspace = true }

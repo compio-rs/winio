@@ -14,7 +14,7 @@ winio-handle = { workspace = true, features = ["win32"] }
 winio-callback = { workspace = true, optional = true }
 winio-ui-windows-common = { workspace = true, features = ["win32"] }
 
-compio = { workspace = true, features = ["arrayvec"] }
+compio = { workspace = true, default-features = false, features = ["arrayvec"] }
 compio-log = { workspace = true }
 
 futures-util = { workspace = true }

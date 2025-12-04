@@ -14,7 +14,7 @@ winio-handle = { workspace = true, features = ["winui"] }
 winio-callback = { workspace = true }
 winio-ui-windows-common = { workspace = true, features = ["winui"] }
 
-compio = { workspace = true }
+compio = { workspace = true, default-features = false }
 compio-runtime = { workspace = true, features = ["notify-always"] }
 compio-log = { workspace = true }
 

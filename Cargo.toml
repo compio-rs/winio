@@ -38,7 +38,7 @@ winio-ui-gtk = { path = "winio-ui-gtk", version = "0.3.2" }
 winio-ui-qt = { path = "winio-ui-qt", version = "0.3.2" }
 winio-ui-app-kit = { path = "winio-ui-app-kit", version = "0.3.4" }
 
-compio = "0.17.0"
+compio = { version = "0.17.0", default-features = false }
 compio-runtime = "0.10.1"
 compio-log = "0.1.0"
 
