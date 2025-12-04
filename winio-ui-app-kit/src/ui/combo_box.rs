@@ -30,7 +30,7 @@ pub struct ComboBox {
 impl ComboBox {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let parent = parent.as_container();
-        let mtm = parent.mtm();
+        let mtm = parent.as_app_kit().mtm();
 
         catch(|| unsafe {
             let view = NSComboBox::new(mtm);
@@ -38,7 +38,7 @@ impl ComboBox {
             view.setDrawsBackground(false);
             view.setEditable(false);
             view.setSelectable(false);
-            let handle = Widget::from_nsview(&parent, Retained::cast_unchecked(view.clone()))?;
+            let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()))?;
 
             let delegate = ComboBoxDelegate::new(mtm);
             let del_obj = ProtocolObject::from_ref(&*delegate);

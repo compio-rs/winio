@@ -120,12 +120,12 @@ pub struct Edit {
 impl Edit {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let parent = parent.as_container();
-        let mtm = parent.mtm();
+        let mtm = parent.as_app_kit().mtm();
 
         catch(|| {
             let view = NSTextField::new(mtm);
             let delegate = EditDelegate::new(mtm);
-            let handle = EditImpl::new(&parent, view, delegate)?;
+            let handle = EditImpl::new(parent, view, delegate)?;
             Ok(Self {
                 handle,
                 password: false,
@@ -142,8 +142,9 @@ impl Edit {
                 NSTextField::new(mtm)
             }
         })?;
+        let parent = self.handle.handle.parent()?;
         let mut new_handle = EditImpl::new(
-            unsafe { BorrowedContainer::borrow_raw(self.handle.handle.parent()?) },
+            BorrowedContainer::app_kit(&parent),
             view,
             self.handle.delegate.clone(),
         )?;

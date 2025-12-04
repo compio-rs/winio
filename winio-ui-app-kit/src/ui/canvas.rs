@@ -51,7 +51,7 @@ pub struct Canvas {
 impl Canvas {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let parent = parent.as_container();
-        let view = catch(|| CanvasView::new(parent.mtm()))?;
+        let view = catch(|| CanvasView::new(parent.as_app_kit().mtm()))?;
         let handle = Widget::from_nsview(parent, view.clone().into_super())?;
         Ok(Self { view, handle })
     }

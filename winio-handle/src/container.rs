@@ -12,10 +12,9 @@ cfg_if::cfg_if! {
             Dummy(std::convert::Infallible, PhantomData<&'a ()>),
         }
     } else if #[cfg(target_os = "macos")] {
-        /// [`NSView`].
-        ///
-        /// [`NSView`]: objc2_app_kit::NSView
-        pub type RawContainer = objc2::rc::Retained<objc2_app_kit::NSView>;
+        use objc2::rc::Retained;
+
+        type BorrowedContainerInner<'a> = &'a Retained<objc2_app_kit::NSView>;
     } else {
         use std::marker::PhantomData;
 
@@ -71,6 +70,19 @@ impl<'a> BorrowedContainer<'a> {
             BorrowedContainerInner::WinUI(container) => container,
             _ => panic!("unsupported handle type"),
         }
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl<'a> BorrowedContainer<'a> {
+    /// Create from `NSView`.
+    pub fn app_kit(view: &'a Retained<objc2_app_kit::NSView>) -> Self {
+        Self(view)
+    }
+
+    /// Get `NSView`.
+    pub fn as_app_kit(&self) -> &'a Retained<objc2_app_kit::NSView> {
+        self.0
     }
 }
 

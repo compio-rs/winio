@@ -15,10 +15,9 @@ cfg_if::cfg_if! {
             Dummy(std::convert::Infallible, PhantomData<&'a ()>),
         }
     } else if #[cfg(target_os = "macos")] {
-        /// [`NSWindow`].
-        ///
-        /// [`NSWindow`]: objc2_app_kit::NSWindow
-        pub type RawWindow = objc2::rc::Retained<objc2_app_kit::NSWindow>;
+        use objc2::rc::Retained;
+
+        type BorrowedWindowInner<'a> = &'a Retained<objc2_app_kit::NSWindow>;
     } else {
         use std::marker::PhantomData;
 
@@ -93,6 +92,19 @@ impl<'a> BorrowedWindow<'a> {
     }
 }
 
+#[cfg(target_os = "macos")]
+impl<'a> BorrowedWindow<'a> {
+    /// Create from `NSWindow`.
+    pub fn app_kit(window: &'a Retained<objc2_app_kit::NSWindow>) -> Self {
+        Self(window)
+    }
+
+    /// Get `NSWindow`.
+    pub fn as_app_kit(&self) -> &'a Retained<objc2_app_kit::NSWindow> {
+        self.0
+    }
+}
+
 #[allow(unreachable_patterns)]
 #[cfg(not(any(windows, target_os = "macos")))]
 impl<'a> BorrowedWindow<'a> {
@@ -145,6 +157,18 @@ impl<'a> HasWindowHandle for BorrowedWindow<'a> {
                 }
             })
             .map_err(|_| HandleError::NotSupported)
+    }
+
+    #[cfg(target_os = "macos")]
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        use raw_window_handle::{AppKitWindowHandle, RawWindowHandle};
+        Ok(unsafe {
+            WindowHandle::borrow_raw(RawWindowHandle::AppKit(AppKitWindowHandle::new(
+                std::ptr::NonNull::new(Retained::as_ptr(self.0).cast_mut())
+                    .expect("NSWindow is null")
+                    .cast(),
+            )))
+        })
     }
 
     #[cfg(not(any(windows, target_os = "macos")))]

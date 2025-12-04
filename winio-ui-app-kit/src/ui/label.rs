@@ -18,7 +18,7 @@ impl Label {
         let parent = parent.as_container();
 
         catch(|| unsafe {
-            let view = NSTextField::new(parent.mtm());
+            let view = NSTextField::new(parent.as_app_kit().mtm());
             view.setBezeled(false);
             view.setDrawsBackground(false);
             view.setEditable(false);

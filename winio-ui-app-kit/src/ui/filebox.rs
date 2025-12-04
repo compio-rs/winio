@@ -5,7 +5,7 @@ use objc2::{MainThreadOnly, rc::Retained};
 use objc2_app_kit::{NSModalResponseOK, NSOpenPanel, NSSavePanel};
 use objc2_foundation::{MainThreadMarker, NSArray, NSString};
 use objc2_uniform_type_identifiers::UTType;
-use winio_handle::{AsRawWindow, AsWindow};
+use winio_handle::AsWindow;
 
 use crate::{Error, Result, catch, ui::from_nsstring};
 
@@ -122,7 +122,7 @@ async fn filebox(
     multiple: bool,
     folder: bool,
 ) -> Result<FileBoxInner> {
-    let parent = parent.map(|p| p.as_window().as_raw_window());
+    let parent = parent.as_ref().map(|p| p.as_window().as_app_kit());
     let mtm = parent
         .as_ref()
         .map(|w| w.mtm())
