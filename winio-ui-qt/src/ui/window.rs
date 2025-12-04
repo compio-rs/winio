@@ -2,7 +2,7 @@ use std::{fmt::Debug, pin::Pin};
 
 use cxx::UniquePtr;
 use winio_callback::Callback;
-use winio_handle::{AsRawContainer, AsRawWindow, RawContainer, RawWindow};
+use winio_handle::{AsContainer, AsWindow, BorrowedContainer, BorrowedWindow};
 use winio_primitive::{Point, Size};
 
 use crate::{GlobalRuntime, Result, StaticCastTo, ui::impl_static_cast};
@@ -159,29 +159,17 @@ impl Window {
     }
 }
 
-impl AsRawWindow for Window {
-    fn as_raw_window(&self) -> RawWindow {
-        RawWindow::Qt(
-            (self.as_ref_qwidget() as *const ffi::QWidget)
-                .cast_mut()
-                .cast(),
-        )
+impl AsWindow for Window {
+    fn as_window(&self) -> BorrowedWindow<'_> {
+        unsafe { BorrowedWindow::qt((self.as_ref_qwidget() as *const ffi::QWidget).cast_mut()) }
     }
 }
 
-winio_handle::impl_as_window!(Window);
-
-impl AsRawContainer for Window {
-    fn as_raw_container(&self) -> RawContainer {
-        RawContainer::Qt(
-            (self.as_ref_qwidget() as *const ffi::QWidget)
-                .cast_mut()
-                .cast(),
-        )
+impl AsContainer for Window {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        unsafe { BorrowedContainer::qt((self.as_ref_qwidget() as *const ffi::QWidget).cast_mut()) }
     }
 }
-
-winio_handle::impl_as_container!(Window);
 
 impl_static_cast!(ffi::QMainWindow, ffi::QWidget);
 

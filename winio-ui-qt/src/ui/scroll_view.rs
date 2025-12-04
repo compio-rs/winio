@@ -1,6 +1,6 @@
 use cxx::{ExternType, type_id};
 use inherit_methods_macro::inherit_methods;
-use winio_handle::{AsContainer, AsRawContainer, BorrowedContainer};
+use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{
@@ -21,7 +21,7 @@ impl ScrollView {
         let mut widget = Widget::new(widget)?;
         widget.set_visible(true)?;
         unsafe {
-            let mut view = View::new(BorrowedContainer::borrow_raw(widget.as_raw_container()))?;
+            let mut view = View::new(&widget)?;
             widget
                 .pin_mut()
                 .setWidget(view.widget.pin_mut().get_unchecked_mut())?;

@@ -2,7 +2,7 @@ use std::pin::Pin;
 
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::{AsContainer, AsRawWidget};
+use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{
@@ -74,7 +74,7 @@ impl TabView {
         unsafe {
             self.widget.pin_mut().insertTab(
                 i as _,
-                item.view.as_raw_widget().as_qt(),
+                item.view.as_widget().as_qt(),
                 &item.text.as_str().try_into()?,
             )?;
         }
@@ -132,7 +132,7 @@ impl TabViewItem {
                 Ok(parent
                     .tabText(ffi::tab_widget_index_of(
                         &parent,
-                        self.view.as_raw_widget().as_qt(),
+                        self.view.as_widget().as_qt(),
                     )?)?
                     .try_into()?)
             } else {
@@ -147,7 +147,7 @@ impl TabViewItem {
             let parent = self.parent()?;
             if !parent.is_null() {
                 let parent = Pin::new_unchecked(&mut *(parent.cast::<ffi::QTabWidget>()));
-                let index = ffi::tab_widget_index_of(&parent, self.view.as_raw_widget().as_qt())?;
+                let index = ffi::tab_widget_index_of(&parent, self.view.as_widget().as_qt())?;
                 parent.setTabText(index, &text.try_into()?)?;
             } else {
                 self.text = text.into();
