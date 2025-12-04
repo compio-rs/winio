@@ -13,11 +13,11 @@ winio-primitive = { workspace = true }
 winio-handle = { workspace = true }
 winio-pollable = { workspace = true }
 
-compio = { workspace = true, default-features = false }
+compio = { workspace = true }
 compio-log = { workspace = true }
 
 cfg-if = { workspace = true }
-image = { workspace = true, default-features = false }
+image = { workspace = true }
 once_cell = { workspace = true }
 widestring = { workspace = true }
 

@@ -14,11 +14,11 @@ winio-handle = { workspace = true }
 winio-callback = { workspace = true }
 winio-pollable = { workspace = true }
 
-compio = { workspace = true, default-features = false, features = ["arrayvec"] }
+compio = { workspace = true, features = ["arrayvec"] }
 compio-log = { workspace = true }
 
 inherit-methods-macro = { workspace = true }
-image = { workspace = true, default-features = false }
+image = { workspace = true }
 local-sync = { workspace = true }
 scoped-tls = { workspace = true }
 thiserror = { workspace = true }

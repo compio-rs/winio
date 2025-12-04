@@ -9,7 +9,7 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-compio = { workspace = true, default-features = false, features = ["runtime"] }
+compio = { workspace = true, features = ["runtime"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 rustix = { version = "1", features = ["event"] }

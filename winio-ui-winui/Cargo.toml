@@ -14,11 +14,11 @@ winio-handle = { workspace = true, features = ["winui"] }
 winio-callback = { workspace = true }
 winio-ui-windows-common = { workspace = true, features = ["winui"] }
 
-compio = { workspace = true, default-features = false }
+compio = { workspace = true }
 compio-runtime = { workspace = true, features = ["notify-always"] }
 compio-log = { workspace = true }
 
-image = { workspace = true, default-features = false }
+image = { workspace = true }
 inherit-methods-macro = { workspace = true }
 once_cell = { workspace = true }
 oneshot = { version = "0.1", default-features = false, features = ["std"] }

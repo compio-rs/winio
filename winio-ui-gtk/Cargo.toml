@@ -17,7 +17,7 @@ winio-pollable = { workspace = true }
 compio-log = { workspace = true }
 
 inherit-methods-macro = { workspace = true }
-image = { workspace = true, default-features = false }
+image = { workspace = true }
 scoped-tls = { workspace = true }
 thiserror = { workspace = true }
 

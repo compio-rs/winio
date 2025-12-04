@@ -14,13 +14,13 @@ winio-handle = { workspace = true, features = ["win32"] }
 winio-callback = { workspace = true, optional = true }
 winio-ui-windows-common = { workspace = true, features = ["win32"] }
 
-compio = { workspace = true, default-features = false, features = ["arrayvec"] }
+compio = { workspace = true, features = ["arrayvec"] }
 compio-log = { workspace = true }
 
 futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
 local-sync = { workspace = true, optional = true }
-image = { workspace = true, default-features = false }
+image = { workspace = true }
 once_cell = { workspace = true }
 percent-encoding = { workspace = true, optional = true }
 scoped-tls = { workspace = true }
