@@ -25,7 +25,7 @@ use windows_sys::{
     },
     core::BOOL,
 };
-use winio_handle::{AsContainer, AsRawWidget};
+use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{Result, View, ui::Widget, window_class_name};
@@ -72,8 +72,8 @@ impl ScrollView {
 
     pub fn set_size(&mut self, v: Size) -> Result<()> {
         self.handle.set_size(v)?;
-        let handle = self.handle.as_raw_widget().as_win32();
-        let view = self.view.as_raw_widget().as_win32();
+        let handle = self.handle.as_widget().as_win32();
+        let view = self.view.as_widget().as_win32();
 
         let mut rect = RECT {
             left: 0,
@@ -160,7 +160,7 @@ impl ScrollView {
         syscall!(
             BOOL,
             ShowScrollBar(
-                self.handle.as_raw_widget().as_win32(),
+                self.handle.as_widget().as_win32(),
                 SB_HORZ,
                 if v { 1 } else { 0 }
             )
@@ -177,7 +177,7 @@ impl ScrollView {
         syscall!(
             BOOL,
             ShowScrollBar(
-                self.handle.as_raw_widget().as_win32(),
+                self.handle.as_widget().as_win32(),
                 SB_VERT,
                 if v { 1 } else { 0 }
             )
@@ -189,7 +189,7 @@ impl ScrollView {
         syscall!(
             BOOL,
             SetWindowPos(
-                self.view.as_raw_widget().as_win32(),
+                self.view.as_widget().as_win32(),
                 null_mut(),
                 x,
                 y,
@@ -202,7 +202,7 @@ impl ScrollView {
     }
 
     fn scroll(&self, dir: i32, wparam: WPARAM, wheel: bool) -> Result<()> {
-        let parent = self.handle.as_raw_widget().as_win32();
+        let parent = self.handle.as_widget().as_win32();
         unsafe {
             let mut si = SCROLLINFO {
                 cbSize: size_of::<SCROLLINFO>() as u32,

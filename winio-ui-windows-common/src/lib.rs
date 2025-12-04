@@ -5,22 +5,6 @@
 #![cfg(windows)]
 
 pub use windows::core::{Error, Result};
-use windows_sys::Win32::Foundation::HWND;
-use winio_handle::{AsRawWindow, AsWindow, RawWindow};
-
-pub(crate) fn parent_handle(parent: Option<impl AsWindow>) -> Option<HWND> {
-    parent.and_then(|parent| match parent.as_window().as_raw_window() {
-        #[cfg(feature = "win32")]
-        RawWindow::Win32(h) => Some(h),
-        #[cfg(feature = "winui")]
-        RawWindow::WinUI(window) => unsafe {
-            use windows::core::Interface;
-            use winui3::IWindowNative;
-            Some(window.cast::<IWindowNative>().ok()?.WindowHandle().ok()?.0)
-        },
-        _ => unimplemented!(),
-    })
-}
 
 mod accent;
 pub use accent::*;

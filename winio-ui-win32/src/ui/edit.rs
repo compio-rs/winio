@@ -19,7 +19,7 @@ use windows_sys::{
     },
     w,
 };
-use winio_handle::{AsContainer, AsRawWidget, AsRawWindow};
+use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
@@ -113,9 +113,7 @@ impl EditImpl {
             let WindowMessageCommand {
                 message, handle, ..
             } = self.handle.wait_parent(WM_COMMAND).await.command();
-            if std::ptr::eq(handle, self.handle.as_raw_window().as_win32())
-                && (message == EN_UPDATE)
-            {
+            if std::ptr::eq(handle, self.handle.as_widget().as_win32()) && (message == EN_UPDATE) {
                 break;
             }
         }
@@ -229,12 +227,12 @@ impl TextBox {
         let this = Self::new_raw(parent)?;
         syscall!(
             BOOL,
-            ShowScrollBar(this.handle.as_raw_widget().as_win32(), SB_VERT, 1)
+            ShowScrollBar(this.handle.as_widget().as_win32(), SB_VERT, 1)
         )?;
         syscall!(
             BOOL,
             SetWindowSubclass(
-                this.handle.as_raw_widget().as_win32(),
+                this.handle.as_widget().as_win32(),
                 Some(multiline_edit_wnd_proc),
                 0,
                 0,

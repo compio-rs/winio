@@ -5,7 +5,7 @@ use windows_sys::Win32::UI::{
         BN_CLICKED, BS_PUSHBUTTON, WM_COMMAND, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
     },
 };
-use winio_handle::{AsContainer, AsRawWindow};
+use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{Result, runtime::WindowMessageCommand, ui::Widget};
@@ -61,9 +61,7 @@ impl Button {
             let WindowMessageCommand {
                 message, handle, ..
             } = self.handle.wait_parent(WM_COMMAND).await.command();
-            if std::ptr::eq(handle, self.handle.as_raw_window().as_win32())
-                && (message == BN_CLICKED)
-            {
+            if std::ptr::eq(handle, self.handle.as_widget().as_win32()) && (message == BN_CLICKED) {
                 break;
             }
         }

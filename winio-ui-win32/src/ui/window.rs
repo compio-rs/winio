@@ -26,7 +26,7 @@ use windows_sys::Win32::{
     },
 };
 use winio_handle::{
-    AsContainer, AsRawContainer, AsRawWidget, AsRawWindow, RawContainer, RawWidget, RawWindow,
+    AsContainer, AsWidget, AsWindow, BorrowedContainer, BorrowedWidget, BorrowedWindow,
 };
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{
@@ -61,21 +61,21 @@ impl Drop for OwnedWindow {
     }
 }
 
-impl AsRawWindow for OwnedWindow {
-    fn as_raw_window(&self) -> RawWindow {
-        RawWindow::Win32(self.0)
+impl AsWindow for OwnedWindow {
+    fn as_window(&self) -> BorrowedWindow<'_> {
+        unsafe { BorrowedWindow::win32(self.0) }
     }
 }
 
-impl AsRawWidget for OwnedWindow {
-    fn as_raw_widget(&self) -> RawWidget {
-        RawWidget::Win32(self.0)
+impl AsWidget for OwnedWindow {
+    fn as_widget(&self) -> BorrowedWidget<'_> {
+        unsafe { BorrowedWidget::win32(self.0) }
     }
 }
 
-impl AsRawContainer for OwnedWindow {
-    fn as_raw_container(&self) -> RawContainer {
-        RawContainer::Win32(self.0)
+impl AsContainer for OwnedWindow {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        unsafe { BorrowedContainer::win32(self.0) }
     }
 }
 
@@ -111,15 +111,15 @@ impl Widget {
     }
 
     pub async fn wait(&self, msg: u32) -> WindowMessage {
-        unsafe { wait(self.as_raw_window().as_win32(), msg) }.await
+        unsafe { wait(self.as_window().as_win32(), msg) }.await
     }
 
     pub async fn wait_parent(&self, msg: u32) -> WindowMessage {
-        unsafe { wait(GetParent(self.as_raw_window().as_win32()), msg) }.await
+        unsafe { wait(GetParent(self.as_window().as_win32()), msg) }.await
     }
 
     pub fn measure(&self, s: &U16Str) -> Result<Size> {
-        measure_string(self.as_raw_window().as_win32(), s)
+        measure_string(self.as_window().as_win32(), s)
     }
 
     pub fn measure_text(&self) -> Result<Size> {
@@ -127,7 +127,7 @@ impl Widget {
     }
 
     pub fn dpi(&self) -> u32 {
-        get_dpi_for_window(self.as_raw_window().as_win32())
+        get_dpi_for_window(self.as_window().as_win32())
     }
 
     pub fn size_d2l(&self, s: (i32, i32)) -> Size {
@@ -153,7 +153,7 @@ impl Widget {
     }
 
     fn sized(&self) -> Result<(i32, i32)> {
-        let handle = self.as_raw_window().as_win32();
+        let handle = self.as_window().as_win32();
         let mut rect = MaybeUninit::uninit();
         syscall!(BOOL, unsafe { GetWindowRect(handle, rect.as_mut_ptr()) })?;
         let rect = unsafe { rect.assume_init() };
@@ -161,7 +161,7 @@ impl Widget {
     }
 
     fn set_sized(&mut self, v: (i32, i32)) -> Result<()> {
-        let handle = self.as_raw_window().as_win32();
+        let handle = self.as_window().as_win32();
         if v != self.sized()? {
             syscall!(
                 BOOL,
@@ -188,7 +188,7 @@ impl Widget {
     }
 
     fn locd(&self) -> Result<(i32, i32)> {
-        let handle = self.as_raw_window().as_win32();
+        let handle = self.as_window().as_win32();
         unsafe {
             let mut rect = MaybeUninit::uninit();
             syscall!(BOOL, GetWindowRect(handle, rect.as_mut_ptr()))?;
@@ -207,7 +207,7 @@ impl Widget {
     }
 
     fn set_locd(&mut self, p: (i32, i32)) -> Result<()> {
-        let handle = self.as_raw_window().as_win32();
+        let handle = self.as_window().as_win32();
         if p != self.locd()? {
             syscall!(
                 BOOL,
@@ -240,7 +240,7 @@ impl Widget {
     pub fn set_visible(&mut self, v: bool) -> Result<()> {
         unsafe {
             ShowWindow(
-                self.as_raw_window().as_win32(),
+                self.as_window().as_win32(),
                 if v { SW_SHOW } else { SW_HIDE },
             );
         }
@@ -248,22 +248,22 @@ impl Widget {
     }
 
     pub fn is_enabled(&self) -> Result<bool> {
-        Ok(unsafe { IsWindowEnabled(self.as_raw_window().as_win32()) != 0 })
+        Ok(unsafe { IsWindowEnabled(self.as_window().as_win32()) != 0 })
     }
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()> {
         unsafe {
-            EnableWindow(self.as_raw_window().as_win32(), if v { 1 } else { 0 });
+            EnableWindow(self.as_window().as_win32(), if v { 1 } else { 0 });
         }
         Ok(())
     }
 
     pub fn tooltip(&self) -> Result<String> {
-        Ok(get_tooltip(self.as_raw_window().as_win32()).unwrap_or_default())
+        Ok(get_tooltip(self.as_window().as_win32()).unwrap_or_default())
     }
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
-        set_tooltip(self.as_raw_window().as_win32(), s)
+        set_tooltip(self.as_window().as_win32(), s)
     }
 
     pub fn text(&self) -> Result<String> {
@@ -271,7 +271,7 @@ impl Widget {
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
-        let handle = self.as_raw_window().as_win32();
+        let handle = self.as_window().as_win32();
         with_u16c(s.as_ref(), |s| {
             syscall!(BOOL, unsafe { SetWindowTextW(handle, s.as_ptr()) })?;
             Ok(())
@@ -279,7 +279,7 @@ impl Widget {
     }
 
     pub fn text_u16(&self) -> Result<U16CString> {
-        let handle = self.as_raw_window().as_win32();
+        let handle = self.as_window().as_win32();
         let len = unsafe { GetWindowTextLengthW(handle) };
         unsafe {
             get_u16c(len as usize, |buf| {
@@ -296,7 +296,7 @@ impl Widget {
         syscall!(
             BOOL,
             InvalidateRect(
-                self.as_raw_window().as_win32(),
+                self.as_window().as_win32(),
                 null(),
                 if erase { 1 } else { 0 }
             )
@@ -307,7 +307,7 @@ impl Widget {
     pub fn style(&self) -> Result<u32> {
         Ok(syscall!(
             BOOL,
-            GetWindowLongPtrW(self.as_raw_window().as_win32(), GWL_STYLE) as u32
+            GetWindowLongPtrW(self.as_window().as_win32(), GWL_STYLE) as u32
         )?)
     }
 
@@ -315,7 +315,7 @@ impl Widget {
         unsafe { SetLastError(0) };
         let res = syscall!(
             BOOL,
-            SetWindowLongPtrW(self.as_raw_window().as_win32(), GWL_STYLE, style as _) as i32
+            SetWindowLongPtrW(self.as_window().as_win32(), GWL_STYLE, style as _) as i32
         );
         match res {
             Ok(_) => Ok(()),
@@ -327,7 +327,7 @@ impl Widget {
     pub fn ex_style(&self) -> Result<u32> {
         Ok(syscall!(
             BOOL,
-            GetWindowLongPtrW(self.as_raw_window().as_win32(), GWL_EXSTYLE) as u32
+            GetWindowLongPtrW(self.as_window().as_win32(), GWL_EXSTYLE) as u32
         )?)
     }
 
@@ -335,7 +335,7 @@ impl Widget {
         unsafe { SetLastError(0) };
         let res = syscall!(
             BOOL,
-            SetWindowLongPtrW(self.as_raw_window().as_win32(), GWL_EXSTYLE, style as _) as i32
+            SetWindowLongPtrW(self.as_window().as_win32(), GWL_EXSTYLE, style as _) as i32
         );
         match res {
             Ok(_) => Ok(()),
@@ -350,7 +350,7 @@ impl Widget {
     }
 
     pub fn send_message(&self, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-        unsafe { SendMessageW(self.as_raw_window().as_win32(), msg, wparam as _, lparam) }
+        unsafe { SendMessageW(self.as_window().as_win32(), msg, wparam as _, lparam) }
     }
 
     pub fn set_icon(&mut self, icon: HICON) {
@@ -360,33 +360,27 @@ impl Widget {
 
 impl Drop for Widget {
     fn drop(&mut self) {
-        remove_tooltip(self.as_raw_window().as_win32());
+        remove_tooltip(self.as_window().as_win32());
     }
 }
 
-impl AsRawWindow for Widget {
-    fn as_raw_window(&self) -> RawWindow {
-        self.0.as_raw_window()
+impl AsWindow for Widget {
+    fn as_window(&self) -> BorrowedWindow<'_> {
+        self.0.as_window()
     }
 }
 
-winio_handle::impl_as_window!(Widget);
-
-impl AsRawWidget for Widget {
-    fn as_raw_widget(&self) -> RawWidget {
-        self.0.as_raw_widget()
+impl AsWidget for Widget {
+    fn as_widget(&self) -> BorrowedWidget<'_> {
+        self.0.as_widget()
     }
 }
 
-winio_handle::impl_as_widget!(Widget);
-
-impl AsRawContainer for Widget {
-    fn as_raw_container(&self) -> RawContainer {
-        self.0.as_raw_container()
+impl AsContainer for Widget {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        self.0.as_container()
     }
 }
-
-winio_handle::impl_as_container!(Widget);
 
 const WINDOW_CLASS_NAME: &U16CStr =
     u16cstr!(concat!("WinioWindowVersion", env!("CARGO_PKG_VERSION")));
@@ -436,8 +430,8 @@ impl Window {
             null_mut(),
         )?;
         unsafe {
-            window_use_dark_mode(handle.as_raw_window().as_win32())?;
-            refresh_background(handle.as_raw_window().as_win32())?;
+            window_use_dark_mode(handle.as_window().as_win32())?;
+            refresh_background(handle.as_window().as_win32())?;
         }
         Ok(Self { handle })
     }
@@ -455,7 +449,7 @@ impl Window {
     pub fn set_size(&mut self, v: Size) -> Result<()>;
 
     pub fn client_size(&self) -> Result<Size> {
-        let handle = self.as_raw_window().as_win32();
+        let handle = self.as_window().as_win32();
         let mut rect = MaybeUninit::uninit();
         syscall!(BOOL, unsafe { GetClientRect(handle, rect.as_mut_ptr()) })?;
         let rect = unsafe { rect.assume_init() };
@@ -495,11 +489,11 @@ impl Window {
     }
 
     pub fn backdrop(&self) -> Result<Backdrop> {
-        unsafe { get_backdrop(self.as_raw_window().as_win32()) }
+        unsafe { get_backdrop(self.as_window().as_win32()) }
     }
 
     pub fn set_backdrop(&mut self, backdrop: Backdrop) -> Result<()> {
-        unsafe { set_backdrop(self.as_raw_window().as_win32(), backdrop) }
+        unsafe { set_backdrop(self.as_window().as_win32(), backdrop) }
     }
 
     pub async fn wait_size(&self) {

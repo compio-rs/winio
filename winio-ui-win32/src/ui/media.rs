@@ -29,7 +29,7 @@ use windows_sys::Win32::{
     },
 };
 use winio_callback::SyncCallback;
-use winio_handle::{AsContainer, AsRawWidget, AsRawWindow};
+use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{Result, Widget, ui::with_u16c};
@@ -66,7 +66,7 @@ impl Media {
             attrs.SetUnknown(&MF_MEDIA_ENGINE_CALLBACK, &callback)?;
             attrs.SetUINT64(
                 &MF_MEDIA_ENGINE_PLAYBACK_HWND,
-                handle.as_raw_window().as_win32() as _,
+                handle.as_widget().as_win32() as _,
             )?;
 
             let engine = factory.CreateInstance(0, &attrs)?;
@@ -105,7 +105,7 @@ impl Media {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     fn update_rect(&mut self) -> Result<()> {
-        let handle = self.as_raw_widget().as_win32();
+        let handle = self.as_widget().as_win32();
         let mut rect = MaybeUninit::uninit();
         syscall!(BOOL, unsafe { GetClientRect(handle, rect.as_mut_ptr()) })?;
         let rect = unsafe { rect.assume_init() };

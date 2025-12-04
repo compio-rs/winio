@@ -9,9 +9,7 @@ use windows_sys::Win32::UI::{
         WS_TABSTOP, WS_VISIBLE,
     },
 };
-use winio_handle::{
-    AsContainer, AsRawWidget, AsRawWindow, BorrowedContainer, RawContainer, RawWidget,
-};
+use winio_handle::{AsContainer, AsWidget, BorrowedContainer};
 use winio_primitive::{Point, Size};
 
 use crate::{
@@ -87,7 +85,7 @@ impl ComboBoxImpl {
             let WindowMessageCommand {
                 message, handle, ..
             } = self.handle.wait_parent(WM_COMMAND).await.command();
-            if std::ptr::eq(handle, self.handle.as_raw_window().as_win32())
+            if std::ptr::eq(handle, self.handle.as_widget().as_win32())
                 && (message == CBN_SELCHANGE)
             {
                 break;
@@ -100,7 +98,7 @@ impl ComboBoxImpl {
             let WindowMessageCommand {
                 message, handle, ..
             } = self.handle.wait_parent(WM_COMMAND).await.command();
-            if std::ptr::eq(handle, self.handle.as_raw_window().as_win32())
+            if std::ptr::eq(handle, self.handle.as_widget().as_win32())
                 && (message == CBN_EDITUPDATE)
             {
                 break;
@@ -166,11 +164,7 @@ impl ComboBoxImpl {
     }
 }
 
-impl AsRawWidget for ComboBoxImpl {
-    fn as_raw_widget(&self) -> RawWidget {
-        self.handle.as_raw_widget()
-    }
-}
+winio_handle::impl_as_widget!(ComboBoxImpl, handle);
 
 #[derive(Debug)]
 pub struct ComboBox {
@@ -189,11 +183,9 @@ impl ComboBox {
     }
 
     fn recreate(&mut self, editable: bool) -> Result<()> {
-        let parent = unsafe { GetParent(self.handle.as_raw_widget().as_win32()) };
-        let mut new_handle = ComboBoxImpl::new(
-            unsafe { BorrowedContainer::borrow_raw(RawContainer::Win32(parent)) },
-            editable,
-        )?;
+        let parent = unsafe { GetParent(self.handle.as_widget().as_win32()) };
+        let mut new_handle =
+            ComboBoxImpl::new(unsafe { BorrowedContainer::win32(parent) }, editable)?;
         new_handle.set_visible(self.handle.is_visible()?)?;
         new_handle.set_enabled(self.handle.is_enabled()?)?;
         new_handle.set_loc(self.handle.loc()?)?;

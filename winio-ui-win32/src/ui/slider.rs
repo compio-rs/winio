@@ -9,7 +9,7 @@ use windows_sys::Win32::UI::{
         GetParent, WM_HSCROLL, WM_USER, WM_VSCROLL, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
     },
 };
-use winio_handle::{AsContainer, AsRawWidget, BorrowedContainer, RawContainer, RawWidget};
+use winio_handle::{AsContainer, AsWidget, BorrowedContainer};
 use winio_primitive::{Orient, Point, Size, TickPosition};
 
 use crate::{Result, Widget};
@@ -92,11 +92,7 @@ impl SliderImpl {
     }
 }
 
-impl AsRawWidget for SliderImpl {
-    fn as_raw_widget(&self) -> RawWidget {
-        self.handle.as_raw_widget()
-    }
-}
+winio_handle::impl_as_widget!(SliderImpl, handle);
 
 #[derive(Debug)]
 pub struct Slider {
@@ -117,7 +113,7 @@ impl Slider {
     }
 
     fn recreate(&mut self, vertical: bool, tick_pos: TickPosition) -> Result<()> {
-        let parent = unsafe { GetParent(self.handle.as_raw_widget().as_win32()) };
+        let parent = unsafe { GetParent(self.handle.as_widget().as_win32()) };
         let mut style = WS_VISIBLE;
         style |= match tick_pos {
             TickPosition::None => 0,
@@ -126,10 +122,7 @@ impl Slider {
             TickPosition::Both => TBS_BOTH,
         };
         style |= if vertical { TBS_VERT } else { TBS_HORZ };
-        let mut new_handle = SliderImpl::new(
-            unsafe { BorrowedContainer::borrow_raw(RawContainer::Win32(parent)) },
-            style,
-        )?;
+        let mut new_handle = SliderImpl::new(unsafe { BorrowedContainer::win32(parent) }, style)?;
         new_handle.set_visible(self.handle.is_visible()?)?;
         new_handle.set_enabled(self.handle.is_enabled()?)?;
         new_handle.set_loc(self.handle.loc()?)?;

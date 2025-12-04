@@ -8,8 +8,7 @@ use inherit_methods_macro::inherit_methods;
 use smallvec::SmallVec;
 #[cfg(feature = "handle")]
 use winio_handle::{
-    AsContainer, AsRawContainer, AsRawWidget, AsRawWindow, AsWidget, AsWindow, BorrowedContainer,
-    BorrowedWidget, BorrowedWindow, RawContainer, RawWidget, RawWindow,
+    AsContainer, AsWidget, AsWindow, BorrowedContainer, BorrowedWidget, BorrowedWindow,
 };
 #[cfg(feature = "primitive")]
 use winio_primitive::{Failable, Layoutable, Point, Rect, Size};
@@ -177,13 +176,6 @@ impl<T: Component> DerefMut for Child<T> {
 }
 
 #[cfg(feature = "handle")]
-impl<T: AsRawWindow + Component> AsRawWindow for Child<T> {
-    fn as_raw_window(&self) -> RawWindow {
-        self.model.as_raw_window()
-    }
-}
-
-#[cfg(feature = "handle")]
 impl<T: AsWindow + Component> AsWindow for Child<T> {
     fn as_window(&self) -> BorrowedWindow<'_> {
         self.model.as_window()
@@ -191,23 +183,9 @@ impl<T: AsWindow + Component> AsWindow for Child<T> {
 }
 
 #[cfg(feature = "handle")]
-impl<T: AsRawWidget + Component> AsRawWidget for Child<T> {
-    fn as_raw_widget(&self) -> RawWidget {
-        self.model.as_raw_widget()
-    }
-}
-
-#[cfg(feature = "handle")]
 impl<T: AsWidget + Component> AsWidget for Child<T> {
     fn as_widget(&self) -> BorrowedWidget<'_> {
         self.model.as_widget()
-    }
-}
-
-#[cfg(feature = "handle")]
-impl<T: AsRawContainer + Component> AsRawContainer for Child<T> {
-    fn as_raw_container(&self) -> RawContainer {
-        self.model.as_raw_container()
     }
 }
 
