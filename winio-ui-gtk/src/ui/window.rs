@@ -3,7 +3,7 @@ use std::rc::Rc;
 use gtk4::{glib::Propagation, prelude::*};
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::{AsContainer, AsRawContainer, AsRawWindow, RawContainer, RawWindow};
+use winio_handle::{AsContainer, AsWindow, BorrowedContainer, BorrowedWindow};
 use winio_primitive::{ColorTheme, Point, Size};
 
 use crate::{GlobalRuntime, Result, Widget};
@@ -166,21 +166,17 @@ impl Window {
     }
 }
 
-impl AsRawWindow for Window {
-    fn as_raw_window(&self) -> RawWindow {
-        RawWindow::Gtk(self.window.clone())
+impl AsWindow for Window {
+    fn as_window(&self) -> BorrowedWindow<'_> {
+        BorrowedWindow::gtk(&self.window)
     }
 }
 
-winio_handle::impl_as_window!(Window);
-
-impl AsRawContainer for Window {
-    fn as_raw_container(&self) -> RawContainer {
-        RawContainer::Gtk(self.fixed.clone())
+impl AsContainer for Window {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        BorrowedContainer::gtk(&self.fixed)
     }
 }
-
-winio_handle::impl_as_container!(Window);
 
 fn set_color_theme(w: &gtk4::Window) {
     let color = w.color();
@@ -222,10 +218,8 @@ impl View {
 
 winio_handle::impl_as_widget!(View, handle);
 
-impl AsRawContainer for View {
-    fn as_raw_container(&self) -> RawContainer {
-        RawContainer::Gtk(self.fixed.clone())
+impl AsContainer for View {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        BorrowedContainer::gtk(&self.fixed)
     }
 }
-
-winio_handle::impl_as_container!(View);

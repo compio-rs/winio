@@ -81,7 +81,7 @@ async fn msgbox_custom(
     let dialog = builder.build();
 
     let res = dialog
-        .choose_future(parent.map(|w| w.as_window().to_gtk()).as_ref())
+        .choose_future(parent.as_ref().map(|w| w.as_window().to_gtk()))
         .await
         .ok();
 

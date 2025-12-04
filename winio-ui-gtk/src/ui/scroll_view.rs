@@ -1,6 +1,6 @@
 use gtk4::glib::object::Cast;
 use inherit_methods_macro::inherit_methods;
-use winio_handle::{AsContainer, AsRawContainer, RawContainer};
+use winio_handle::{AsContainer, BorrowedContainer};
 use winio_primitive::{Point, Size};
 
 use crate::{Result, Widget};
@@ -82,10 +82,8 @@ impl ScrollView {
 
 winio_handle::impl_as_widget!(ScrollView, handle);
 
-impl AsRawContainer for ScrollView {
-    fn as_raw_container(&self) -> RawContainer {
-        RawContainer::Gtk(self.fixed.clone())
+impl AsContainer for ScrollView {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        BorrowedContainer::gtk(&self.fixed)
     }
 }
-
-winio_handle::impl_as_container!(ScrollView);

@@ -3,7 +3,7 @@ use std::rc::Rc;
 use gtk4::{glib::object::Cast, prelude::WidgetExt};
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
-use winio_handle::{AsContainer, AsRawContainer, RawContainer};
+use winio_handle::{AsContainer, BorrowedContainer};
 use winio_primitive::{Point, Size};
 
 use crate::{GlobalRuntime, Result, Widget};
@@ -132,10 +132,8 @@ impl TabViewItem {
     }
 }
 
-impl AsRawContainer for TabViewItem {
-    fn as_raw_container(&self) -> RawContainer {
-        RawContainer::Gtk(self.fixed.clone())
+impl AsContainer for TabViewItem {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        BorrowedContainer::gtk(&self.fixed)
     }
 }
-
-winio_handle::impl_as_container!(TabViewItem);

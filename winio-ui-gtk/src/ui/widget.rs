@@ -1,7 +1,7 @@
 use std::cell::Cell;
 
 use gtk4::prelude::{Cast, FixedExt, WidgetExt};
-use winio_handle::{AsContainer, AsRawWidget, RawWidget};
+use winio_handle::{AsContainer, AsWidget, BorrowedWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{Error, Result};
@@ -100,9 +100,9 @@ impl Widget {
     }
 }
 
-impl AsRawWidget for Widget {
-    fn as_raw_widget(&self) -> RawWidget {
-        RawWidget::Gtk(self.widget.clone())
+impl AsWidget for Widget {
+    fn as_widget(&self) -> BorrowedWidget<'_> {
+        BorrowedWidget::gtk(&self.widget)
     }
 }
 

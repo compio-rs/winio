@@ -54,7 +54,7 @@ impl FileBox {
     pub async fn open(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
         Ok(self
             .filebox()
-            .open_future(parent.map(|w| w.as_window().to_gtk()).as_ref())
+            .open_future(parent.as_ref().map(|w| w.as_window().to_gtk()))
             .await?
             .path())
     }
@@ -62,7 +62,7 @@ impl FileBox {
     pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Result<Vec<PathBuf>> {
         Ok(self
             .filebox()
-            .open_multiple_future(parent.map(|w| w.as_window().to_gtk()).as_ref())
+            .open_multiple_future(parent.as_ref().map(|w| w.as_window().to_gtk()))
             .await?
             .into_iter()
             .filter_map(|f| f.ok())
@@ -74,7 +74,7 @@ impl FileBox {
     pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
         Ok(self
             .filebox()
-            .select_folder_future(parent.map(|w| w.as_window().to_gtk()).as_ref())
+            .select_folder_future(parent.as_ref().map(|w| w.as_window().to_gtk()))
             .await?
             .path())
     }
@@ -82,7 +82,7 @@ impl FileBox {
     pub async fn save(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
         Ok(self
             .filebox()
-            .save_future(parent.map(|w| w.as_window().to_gtk()).as_ref())
+            .save_future(parent.as_ref().map(|w| w.as_window().to_gtk()))
             .await?
             .path())
     }
