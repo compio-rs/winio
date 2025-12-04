@@ -41,8 +41,9 @@ impl<'a> BorrowedContainer<'a> {
     ///
     /// # Safety
     ///
-    /// The caller must ensure that `hwnd` is a valid handle for the lifetime
-    /// `'a`.
+    /// * The caller must ensure that `hwnd` is a valid handle for the lifetime
+    ///   `'a`.
+    /// * `hwnd` must not be null.
     #[cfg(feature = "win32")]
     pub unsafe fn win32(hwnd: windows_sys::Win32::Foundation::HWND) -> Self {
         Self(BorrowedContainerInner::Win32(hwnd, PhantomData))
