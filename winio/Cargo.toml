@@ -87,6 +87,8 @@ webview = [
 plotters = ["dep:plotters-backend"]
 all = ["media", "webview", "plotters"]
 
+raw-window-handle = ["winio-handle/raw-window-handle"]
+
 nightly = [
     "winio-elm/nightly",
     "winio-ui-win32?/nightly",
