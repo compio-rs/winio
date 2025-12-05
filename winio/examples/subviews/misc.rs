@@ -5,7 +5,7 @@ use winio::prelude::*;
 use crate::{Error, Result};
 
 cfg_if::cfg_if! {
-    if #[cfg(windows)] {
+    if #[cfg(windows_common)] {
         #[path = "misc/backdrop_win.rs"]
         mod backdrop;
     } else if #[cfg(target_os = "macos")] {
@@ -42,7 +42,7 @@ pub struct MiscPage {
 #[derive(Debug)]
 pub enum MiscPageEvent {
     ShowMessage(MessageBox),
-    #[cfg(windows)]
+    #[cfg(windows_common)]
     ChooseBackdrop(Backdrop),
     #[cfg(target_os = "macos")]
     ChooseVibrancy(Option<Vibrancy>),
@@ -58,7 +58,7 @@ pub enum MiscPageMessage {
     Show,
     RSelect(usize),
     PasswordCheck,
-    #[cfg(windows)]
+    #[cfg(windows_common)]
     ChooseBackdrop(Backdrop),
     #[cfg(target_os = "macos")]
     ChooseVibrancy(Option<Vibrancy>),
@@ -185,7 +185,7 @@ impl Component for MiscPage {
                 RadioButtonGroupEvent::Click(i) => MiscPageMessage::RSelect(i)
             },
             self.backdrop => {
-                #[cfg(windows)]
+                #[cfg(windows_common)]
                 BackdropChooserEvent::ChooseBackdrop(b) => MiscPageMessage::ChooseBackdrop(b),
                 #[cfg(target_os = "macos")]
                 BackdropChooserEvent::ChooseVibrancy(v) => MiscPageMessage::ChooseVibrancy(v),
@@ -263,7 +263,7 @@ impl Component for MiscPage {
                 ));
                 Ok(false)
             }
-            #[cfg(windows)]
+            #[cfg(windows_common)]
             MiscPageMessage::ChooseBackdrop(b) => {
                 sender.output(MiscPageEvent::ChooseBackdrop(b));
                 Ok(false)

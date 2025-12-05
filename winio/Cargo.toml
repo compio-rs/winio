@@ -37,6 +37,9 @@ winio-ui-app-kit = { workspace = true }
 winio-ui-gtk = { workspace = true, optional = true }
 winio-ui-qt = { workspace = true, optional = true }
 
+[build-dependencies]
+cfg_aliases = "0.2"
+
 [dev-dependencies]
 compio = { workspace = true, default-features = true, features = [
     "time",

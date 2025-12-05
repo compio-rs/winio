@@ -3,7 +3,7 @@ use winio_elm::{Component, ComponentSender};
 use winio_layout::Layoutable;
 use winio_primitive::{Failable, Point, Size, TextWidget, Visible};
 
-#[cfg(windows)]
+#[cfg(windows_common)]
 pub use crate::sys::Backdrop;
 #[cfg(target_os = "macos")]
 pub use crate::sys::Vibrancy;
@@ -39,23 +39,23 @@ impl Window {
     pub fn client_size(&self) -> Result<Size>;
 
     /// Set window icon by resource ID.
-    #[cfg(windows)]
+    #[cfg(windows_common)]
     pub fn set_icon_by_id(&mut self, id: u16) -> Result<()>;
 
     /// Get window style.
-    #[cfg(all(windows, feature = "win32"))]
+    #[cfg(win32)]
     pub fn style(&self) -> Result<u32>;
 
     /// Set window style.
-    #[cfg(all(windows, feature = "win32"))]
+    #[cfg(win32)]
     pub fn set_style(&mut self, s: u32) -> Result<()>;
 
     /// Get window extended style.
-    #[cfg(all(windows, feature = "win32"))]
+    #[cfg(win32)]
     pub fn ex_style(&self) -> Result<u32>;
 
     /// Set window extended style.
-    #[cfg(all(windows, feature = "win32"))]
+    #[cfg(win32)]
     pub fn set_ex_style(&mut self, s: u32) -> Result<()>;
 
     /// Get the backdrop effect of the window.
@@ -67,11 +67,11 @@ impl Window {
     ///   look weird.
     /// * WinUI: Supported on 1.3 and later; the color of the title bar might be
     ///   different from the client area.
-    #[cfg(windows)]
+    #[cfg(windows_common)]
     pub fn backdrop(&self) -> Result<Backdrop>;
 
     /// Set the backdrop effect of the window.
-    #[cfg(windows)]
+    #[cfg(windows_common)]
     pub fn set_backdrop(&mut self, backdrop: Backdrop) -> Result<()>;
 
     /// Get the visual effect of the window.

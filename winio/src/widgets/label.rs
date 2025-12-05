@@ -43,11 +43,11 @@ impl Label {
     pub fn set_halign(&mut self, align: HAlign) -> Result<()>;
 
     /// If the label background is transparent.
-    #[cfg(all(windows, feature = "win32"))]
+    #[cfg(win32)]
     pub fn is_transparent(&self) -> Result<bool>;
 
     /// Set if the label background is transparent.
-    #[cfg(all(windows, feature = "win32"))]
+    #[cfg(win32)]
     pub fn set_transparent(&mut self, v: bool) -> Result<()>;
 }
 
