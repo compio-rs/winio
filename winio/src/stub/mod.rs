@@ -2,7 +2,7 @@
 #[derive(Debug)]
 pub struct Error(std::convert::Infallible);
 
-impl Display for Error {
+impl std::fmt::Display for Error {
     fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         not_impl()
     }
@@ -18,8 +18,6 @@ pub fn not_impl() -> ! {
 }
 
 mod runtime;
-use std::fmt::Display;
-
 pub use runtime::*;
 
 mod ui;
