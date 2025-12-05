@@ -99,7 +99,7 @@ enum MainMessage {
     ChooseMarkdown,
     #[cfg(feature = "webview")]
     OpenMarkdown(PathBuf),
-    #[cfg(windows_common)]
+    #[cfg(windows)]
     ChooseBackdrop(Backdrop),
     #[cfg(target_os = "macos")]
     ChooseVibrancy(Option<Vibrancy>),
@@ -187,7 +187,7 @@ impl Component for MainModel {
             },
             self.misc => {
                 MiscPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
-                #[cfg(windows_common)]
+                #[cfg(windows)]
                 MiscPageEvent::ChooseBackdrop(b) => MainMessage::ChooseBackdrop(b),
                 #[cfg(target_os = "macos")]
                 MiscPageEvent::ChooseVibrancy(v) => MainMessage::ChooseVibrancy(v),
@@ -338,7 +338,7 @@ impl Component for MainModel {
             MainMessage::OpenMarkdown(p) => {
                 self.markdown.emit(MarkdownPageMessage::OpenFile(p)).await
             }
-            #[cfg(windows_common)]
+            #[cfg(windows)]
             MainMessage::ChooseBackdrop(backdrop) => {
                 self.window.set_backdrop(backdrop)?;
                 Ok(true)

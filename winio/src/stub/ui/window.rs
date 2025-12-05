@@ -1,6 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
+pub use winio_ui_windows_common::Backdrop;
 
 use crate::stub::{Result, Widget, not_impl};
 
@@ -34,6 +35,21 @@ impl Window {
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    #[cfg(windows)]
+    pub fn set_icon_by_id(&mut self, _id: u16) -> Result<()> {
+        not_impl()
+    }
+
+    #[cfg(windows)]
+    pub fn backdrop(&self) -> Result<Backdrop> {
+        not_impl()
+    }
+
+    #[cfg(windows)]
+    pub fn set_backdrop(&mut self, _backdrop: Backdrop) -> Result<()> {
+        not_impl()
+    }
 
     pub async fn wait_size(&self) {
         not_impl()

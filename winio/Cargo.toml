@@ -27,6 +27,7 @@ plotters-backend = { version = "0.3", optional = true }
 thiserror = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
+winio-ui-windows-common = { workspace = true }
 winio-ui-win32 = { workspace = true, optional = true }
 winio-ui-winui = { workspace = true, optional = true }
 
@@ -96,6 +97,7 @@ raw-window-handle = ["winio-handle/raw-window-handle"]
 
 gen_blocks = ["winio-elm/gen_blocks"]
 once_cell_try = [
+    "winio-ui-windows-common/once_cell_try",
     "winio-ui-win32?/once_cell_try",
     "winio-ui-winui?/once_cell_try",
 ]
@@ -103,6 +105,7 @@ nightly = [
     "gen_blocks",
     "once_cell_try",
     "winio-elm/nightly",
+    "winio-ui-windows-common/nightly",
     "winio-ui-win32?/nightly",
     "winio-ui-winui?/nightly",
     "compio/nightly",
