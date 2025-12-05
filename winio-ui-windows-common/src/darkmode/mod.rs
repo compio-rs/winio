@@ -74,6 +74,7 @@ unsafe fn u16_string_eq_ignore_case(s1: &U16CStr, s2: *const u16) -> bool {
 ///
 /// `s2` should be a valid null-terminated UTF-16 string.
 #[inline]
+#[allow(unused)]
 unsafe fn u16_string_starts_with_ignore_case(s1: &U16CStr, s2: *const u16) -> bool {
     unsafe { FindStringOrdinal(FIND_STARTSWITH, s1.as_ptr(), s1.len() as _, s2, -1, 1) >= 0 }
 }

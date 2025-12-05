@@ -43,19 +43,19 @@ impl Window {
     pub fn set_icon_by_id(&mut self, id: u16) -> Result<()>;
 
     /// Get window style.
-    #[cfg(all(windows, feature = "win32"))]
+    #[cfg(win32)]
     pub fn style(&self) -> Result<u32>;
 
     /// Set window style.
-    #[cfg(all(windows, feature = "win32"))]
+    #[cfg(win32)]
     pub fn set_style(&mut self, s: u32) -> Result<()>;
 
     /// Get window extended style.
-    #[cfg(all(windows, feature = "win32"))]
+    #[cfg(win32)]
     pub fn ex_style(&self) -> Result<u32>;
 
     /// Set window extended style.
-    #[cfg(all(windows, feature = "win32"))]
+    #[cfg(win32)]
     pub fn set_ex_style(&mut self, s: u32) -> Result<()>;
 
     /// Get the backdrop effect of the window.
