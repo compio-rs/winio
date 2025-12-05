@@ -1,6 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
+#[cfg(windows)]
 pub use winio_ui_windows_common::Backdrop;
 
 use crate::stub::{Result, Widget, not_impl};
