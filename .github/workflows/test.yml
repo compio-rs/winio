@@ -35,6 +35,7 @@ jobs:
             no_default_features: true
             deps: 'qt6-base-dev qt6-webengine-dev libgtk-4-dev libwebkitgtk-6.0-dev'
           - os: 'ubuntu-24.04'
+            deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev libgtk-4-dev libwebkitgtk-6.0-dev'
             features: 'all'
             no_default_features: true
           - os: 'windows-latest'
