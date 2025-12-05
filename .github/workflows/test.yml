@@ -21,7 +21,7 @@ jobs:
         setup:
           - os: 'ubuntu-24.04'
             deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev libgtk-4-dev libwebkitgtk-6.0-dev'
-            features: 'media,webview,qt-opengl'
+            features: 'all,qt-opengl'
           - os: 'ubuntu-24.04'
             deps: 'qt6-base-dev libgtk-4-dev'
           - os: 'ubuntu-24.04'
@@ -34,6 +34,9 @@ jobs:
             features: 'gtk,webview'
             no_default_features: true
             deps: 'qt6-base-dev qt6-webengine-dev libgtk-4-dev libwebkitgtk-6.0-dev'
+          - os: 'ubuntu-24.04'
+            features: 'all'
+            no_default_features: true
           - os: 'windows-latest'
             target: 'x86_64-pc-windows-msvc'
           - os: 'windows-latest'
@@ -41,22 +44,25 @@ jobs:
             features: 'webview'
           - os: 'windows-latest'
             target: 'i686-pc-windows-msvc'
-            features: 'media,webview,win32-dark-mode,winui-enable-cbs,winui-webview-system'
+            features: 'all,win32-dark-mode,winui-enable-cbs,winui-webview-system'
           - os: 'windows-latest'
             target: 'x86_64-pc-windows-gnullvm'
-            features: 'win32,media,webview'
+            features: 'win32,all'
             no_default_features: true
           - os: 'windows-latest'
             target: 'x86_64-pc-windows-msvc'
             features: 'winui,win32-dark-mode,media'
             no_default_features: true
-          - os: 'macos-13'
-          - os: 'macos-13'
+          - os: 'windows-latest'
+            features: 'all'
+            no_default_features: true
+          - os: 'macos-14'
+          - os: 'macos-14'
             features: 'media'
-          - os: 'macos-13'
+          - os: 'macos-14'
             features: 'webview'
-          - os: 'macos-13'
-            features: 'media,webview'
+          - os: 'macos-14'
+            features: 'all'
     steps:
       - uses: actions/checkout@v4
       - name: Setup Rust Toolchain
