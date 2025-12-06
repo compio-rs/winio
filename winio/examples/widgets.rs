@@ -111,7 +111,7 @@ impl Component for MainModel {
     type Init<'a> = ();
     type Message = MainMessage;
 
-    async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             window: Window = (()) => {
                 text: "Widgets example",
@@ -155,8 +155,6 @@ impl Component for MainModel {
         tabview.push(&media)?;
         tabview.push(&webview)?;
         tabview.push(&markdown)?;
-
-        sender.post(MainMessage::Redraw);
 
         window.show()?;
 
