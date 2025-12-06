@@ -9,7 +9,7 @@ use inherit_methods_macro::inherit_methods;
 use windows::core::HRESULT;
 use windows_sys::{
     Win32::{
-        Foundation::{ERROR_ALREADY_EXISTS, ERROR_HWNDS_HAVE_DIFF_PARENT},
+        Foundation::ERROR_ALREADY_EXISTS,
         UI::{
             Controls::{
                 TCIF_TEXT, TCITEMW, TCM_ADJUSTRECT, TCM_DELETEALLITEMS, TCM_DELETEITEM,
@@ -171,7 +171,7 @@ impl TabView {
     pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
         if item.inner.borrow().index.is_some() {
             return Err(Error::from_hresult(HRESULT::from_win32(
-                ERROR_HWNDS_HAVE_DIFF_PARENT,
+                ERROR_ALREADY_EXISTS,
             )));
         }
         let item_hwnd = item.as_container().as_win32();
