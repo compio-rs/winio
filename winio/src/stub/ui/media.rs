@@ -82,6 +82,22 @@ impl Media {
     pub fn set_muted(&mut self, _v: bool) -> Result<()> {
         not_impl()
     }
+
+    pub fn is_looped(&self) -> Result<bool> {
+        not_impl()
+    }
+
+    pub fn set_looped(&mut self, _v: bool) -> Result<()> {
+        not_impl()
+    }
+
+    pub fn playback_rate(&self) -> Result<f64> {
+        not_impl()
+    }
+
+    pub fn set_playback_rate(&mut self, _v: f64) -> Result<()> {
+        not_impl()
+    }
 }
 
 winio_handle::impl_as_widget!(Media, handle);

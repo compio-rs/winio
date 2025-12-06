@@ -41,6 +41,7 @@ pub struct Media {
     notify: Arc<SyncCallback<Result<()>>>,
     #[allow(dead_code)]
     callback: IMFMediaEngineNotify,
+    rate: f64,
     _guard: MFGuard,
 }
 
@@ -70,12 +71,14 @@ impl Media {
             )?;
 
             let engine = factory.CreateInstance(0, &attrs)?;
+            engine.SetAutoPlay(false)?;
 
             Ok(Self {
                 handle,
                 callback,
                 notify,
                 engine,
+                rate: 1.0,
                 _guard,
             })
         }
@@ -136,7 +139,10 @@ impl Media {
     }
 
     pub fn play(&mut self) -> Result<()> {
-        unsafe { self.engine.Play()? };
+        unsafe {
+            self.engine.Play()?;
+            self.engine.SetPlaybackRate(self.rate)?;
+        }
         Ok(())
     }
 
@@ -173,6 +179,25 @@ impl Media {
 
     pub fn set_muted(&mut self, v: bool) -> Result<()> {
         unsafe { self.engine.SetMuted(v)? };
+        Ok(())
+    }
+
+    pub fn is_looped(&self) -> Result<bool> {
+        unsafe { Ok(self.engine.GetLoop().as_bool()) }
+    }
+
+    pub fn set_looped(&mut self, v: bool) -> Result<()> {
+        unsafe { self.engine.SetLoop(v)? };
+        Ok(())
+    }
+
+    pub fn playback_rate(&self) -> Result<f64> {
+        Ok(self.rate)
+    }
+
+    pub fn set_playback_rate(&mut self, v: f64) -> Result<()> {
+        unsafe { self.engine.SetPlaybackRate(v)? };
+        self.rate = v;
         Ok(())
     }
 }

@@ -16,6 +16,8 @@ pub struct MediaPage {
     time_label: Child<Label>,
     volume_slider: Child<Slider>,
     volume_label: Child<Label>,
+    rate_chooser: Child<ComboBox>,
+    loop_check: Child<CheckBox>,
 }
 
 impl MediaPage {
@@ -42,6 +44,8 @@ pub enum MediaPageMessage {
     Play,
     ChooseFile,
     OpenFile(PathBuf),
+    Rate,
+    Loop,
 }
 
 impl Component for MediaPage {
@@ -80,6 +84,15 @@ impl Component for MediaPage {
                 freq: 20,
             },
             volume_label: Label = (&window),
+            rate_chooser: ComboBox = (&window) => {
+                items: ["0.5x", "1x", "1.5x", "2x", "10x"],
+                selection: 1,
+                enabled: false,
+            },
+            loop_check: CheckBox = (&window) => {
+                text: "Loop",
+                enabled: false,
+            },
         }
         sender.post(MediaPageMessage::Volume);
 
@@ -103,6 +116,8 @@ impl Component for MediaPage {
             time_label,
             volume_slider,
             volume_label,
+            rate_chooser,
+            loop_check,
         })
     }
 
@@ -120,7 +135,13 @@ impl Component for MediaPage {
             },
             self.browse_button => {
                 ButtonEvent::Click => MediaPageMessage::ChooseFile,
-            }
+            },
+            self.rate_chooser => {
+                ComboBoxEvent::Select => MediaPageMessage::Rate,
+            },
+            self.loop_check => {
+                CheckBoxEvent::Click => MediaPageMessage::Loop,
+            },
         }
     }
 
@@ -168,6 +189,9 @@ impl Component for MediaPage {
                         format_duration(ct),
                         format_duration(ft)
                     ))?;
+                    if ft == ct {
+                        self.set_playing(false)?;
+                    }
                 } else {
                     self.time_slider.set_maximum(1)?;
                     self.time_slider.set_pos(0)?;
@@ -213,6 +237,10 @@ impl Component for MediaPage {
                         self.volume_slider.enable()?;
                         self.time_slider.enable()?;
                         self.play_button.enable()?;
+                        self.rate_chooser.enable()?;
+                        self.rate_chooser.set_selection(1)?;
+                        self.loop_check.enable()?;
+                        self.loop_check.set_checked(false)?;
                         self.media.play()?;
                         self.set_playing(true)?;
                     }
@@ -220,6 +248,8 @@ impl Component for MediaPage {
                         self.volume_slider.disable()?;
                         self.time_slider.disable()?;
                         self.play_button.disable()?;
+                        self.rate_chooser.disable()?;
+                        self.loop_check.disable()?;
                         self.set_playing(false)?;
                         sender.output(MediaPageEvent::ShowMessage(
                             MessageBox::new()
@@ -229,6 +259,22 @@ impl Component for MediaPage {
                         ));
                     }
                 }
+                Ok(true)
+            }
+            MediaPageMessage::Rate => {
+                let selection = self.rate_chooser.selection()?;
+                let rate = match selection {
+                    Some(0) => 0.5,
+                    Some(2) => 1.5,
+                    Some(3) => 2.0,
+                    Some(4) => 10.0,
+                    _ => 1.0,
+                };
+                self.media.set_playback_rate(rate)?;
+                Ok(true)
+            }
+            MediaPageMessage::Loop => {
+                self.media.set_looped(self.loop_check.is_checked()?)?;
                 Ok(true)
             }
         }
@@ -244,6 +290,8 @@ impl Component for MediaPage {
                 self.play_button   => { margin: margin },
                 self.time_slider   => { margin: margin, grow: true },
                 self.time_label    => { margin: margin, valign: VAlign::Center, halign: HAlign::Center },
+                self.rate_chooser  => { margin: margin, valign: VAlign::Center },
+                self.loop_check    => { margin: margin, valign: VAlign::Center },
                 self.volume_slider => { margin: margin, width: 200.0 },
                 self.volume_label  => { margin: margin, valign: VAlign::Center, halign: HAlign::Left, width: 20.0 },
                 self.browse_button => { margin: margin }

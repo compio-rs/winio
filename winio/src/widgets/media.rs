@@ -70,6 +70,18 @@ impl Media {
 
     /// Set if the player is muted.
     pub fn set_muted(&mut self, v: bool) -> Result<()>;
+
+    /// If the player is looped.
+    pub fn is_looped(&self) -> Result<bool>;
+
+    /// Set if the player is looped.
+    pub fn set_looped(&mut self, v: bool) -> Result<()>;
+
+    /// Playback rate.
+    pub fn playback_rate(&self) -> Result<f64>;
+
+    /// Set playback rate.
+    pub fn set_playback_rate(&mut self, v: f64) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
