@@ -118,7 +118,7 @@ impl TabView {
 winio_handle::impl_as_widget!(TabView, handle);
 
 #[derive(Debug)]
-struct TabViewInner {
+struct TabViewItemInner {
     parent: RefCell<Option<MUXC::TabView>>,
     item: MUXC::TabViewItem,
     canvas: MUXC::Canvas,
@@ -127,7 +127,7 @@ struct TabViewInner {
 
 #[derive(Debug, Clone)]
 pub struct TabViewItem {
-    inner: Rc<TabViewInner>,
+    inner: Rc<TabViewItemInner>,
 }
 
 impl TabViewItem {
@@ -143,7 +143,7 @@ impl TabViewItem {
         canvas.SetVerticalAlignment(VerticalAlignment::Stretch)?;
         item.SetContent(&canvas)?;
         Ok(Self {
-            inner: Rc::new(TabViewInner {
+            inner: Rc::new(TabViewItemInner {
                 parent: RefCell::new(None),
                 item,
                 canvas,
