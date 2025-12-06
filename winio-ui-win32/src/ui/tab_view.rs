@@ -169,21 +169,21 @@ impl TabView {
     }
 
     pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
+        if item.inner.borrow().index.is_some() {
+            return Err(Error::from_hresult(HRESULT::from_win32(
+                ERROR_HWNDS_HAVE_DIFF_PARENT,
+            )));
+        }
         let item_hwnd = item.as_container().as_win32();
         let previous_parent = unsafe { GetParent(item_hwnd) };
         let new_parent = self.as_widget().as_win32();
-        if previous_parent != HWND_MESSAGE {
-            if previous_parent == new_parent {
-                return Err(Error::from_hresult(HRESULT::from_win32(
-                    ERROR_ALREADY_EXISTS,
-                )));
-            } else {
-                return Err(Error::from_hresult(HRESULT::from_win32(
-                    ERROR_HWNDS_HAVE_DIFF_PARENT,
-                )));
-            }
+        if previous_parent == new_parent {
+            return Err(Error::from_hresult(HRESULT::from_win32(
+                ERROR_ALREADY_EXISTS,
+            )));
         }
         unsafe { SetParent(item_hwnd, new_parent) };
+
         self.views.insert(i, item.clone());
         {
             let mut inner = item.inner.borrow_mut();
@@ -215,7 +215,9 @@ impl TabView {
         let need_reselect = cur == Some(i);
         self.handle.send_message(TCM_DELETEITEM, i, 0);
         let item = self.views.remove(i);
-        unsafe { SetParent(item.as_container().as_win32(), HWND_MESSAGE) };
+        let mut inner = item.inner.borrow_mut();
+        unsafe { SetParent(inner.view.as_widget().as_win32(), HWND_MESSAGE) };
+        inner.index = None;
         self.reset_indices();
         if need_reselect {
             self.set_selection(0)?;
@@ -234,7 +236,9 @@ impl TabView {
     pub fn clear(&mut self) -> Result<()> {
         self.handle.send_message(TCM_DELETEALLITEMS, 0, 0);
         for item in self.views.drain(..) {
-            item.inner.borrow_mut().index = None;
+            let mut inner = item.inner.borrow_mut();
+            unsafe { SetParent(inner.view.as_widget().as_win32(), HWND_MESSAGE) };
+            inner.index = None;
         }
         Ok(())
     }

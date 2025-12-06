@@ -86,7 +86,7 @@ impl TabView {
         self.views.insert(i, item.clone());
         self.view
             .Measure(Size::new(f64::INFINITY, f64::INFINITY).to_native())?;
-        if self.len()? == 1 {
+        if self.len()? == 1 && self.selection()?.is_none() {
             self.set_selection(0)?;
         }
         Ok(())
@@ -108,6 +108,9 @@ impl TabView {
 
     pub fn clear(&mut self) -> Result<()> {
         self.view.TabItems()?.Clear()?;
+        for item in self.views.drain(..) {
+            item.inner.parent.replace(None);
+        }
         Ok(())
     }
 }
