@@ -10,7 +10,7 @@ use winio_callback::Callback;
 use winio_handle::{AsContainer, BorrowedContainer};
 use winio_primitive::{Point, Size};
 
-use crate::{GlobalRuntime, Result, catch, from_cgsize, from_nsstring, ui::Widget};
+use crate::{Error, GlobalRuntime, Result, catch, from_cgsize, from_nsstring, ui::Widget};
 
 #[derive(Debug)]
 pub struct TabView {
