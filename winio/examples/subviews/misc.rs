@@ -67,12 +67,12 @@ pub enum MiscPageMessage {
 impl Component for MiscPage {
     type Error = Error;
     type Event = MiscPageEvent;
-    type Init<'a> = &'a TabView;
+    type Init<'a> = ();
     type Message = MiscPageMessage;
 
-    async fn init(webview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
-            window: TabViewItem = (webview) => {
+            window: TabViewItem = (()) => {
                 text: "Widgets",
             },
             canvas: Canvas = (&window),

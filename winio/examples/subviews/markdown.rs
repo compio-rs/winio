@@ -49,13 +49,13 @@ pub enum MarkdownPageMessage {
 impl Component for MarkdownPage {
     type Error = Error;
     type Event = MarkdownPageEvent;
-    type Init<'a> = &'a TabView;
+    type Init<'a> = ();
     type Message = MarkdownPageMessage;
 
-    async fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let path = "README.md";
         init! {
-            window: TabViewItem = (tabview) => {
+            window: TabViewItem = (()) => {
                 text: "Markdown",
             },
             webview: FailableWebView = (&window),

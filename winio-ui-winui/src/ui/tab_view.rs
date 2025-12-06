@@ -128,7 +128,7 @@ pub struct TabViewItem {
 }
 
 impl TabViewItem {
-    pub fn new(_parent: &TabView) -> Result<Self> {
+    pub fn new() -> Result<Self> {
         let item = MUXC::TabViewItem::new()?;
         item.SetHorizontalAlignment(HorizontalAlignment::Stretch)?;
         item.SetVerticalAlignment(VerticalAlignment::Stretch)?;

@@ -255,7 +255,7 @@ pub struct TabViewItem {
 }
 
 impl TabViewItem {
-    pub fn new(_parent: &TabView) -> Result<Self> {
+    pub fn new() -> Result<Self> {
         Ok(Self {
             inner: Rc::new(RefCell::new(TabViewItemInner {
                 view: View::new_hidden(HWND_MESSAGE)?,

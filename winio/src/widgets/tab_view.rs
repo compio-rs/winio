@@ -144,11 +144,11 @@ pub enum TabViewItemMessage {}
 impl Component for TabViewItem {
     type Error = Error;
     type Event = TabViewItemEvent;
-    type Init<'a> = &'a TabView;
+    type Init<'a> = ();
     type Message = TabViewItemMessage;
 
-    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
-        let widget = sys::TabViewItem::new(&init.widget)?;
+    async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        let widget = sys::TabViewItem::new()?;
         Ok(Self { widget })
     }
 }

@@ -154,10 +154,10 @@ pub struct TabViewItem {
 }
 
 impl TabViewItem {
-    pub fn new(parent: &TabView) -> Result<Self> {
+    pub fn new() -> Result<Self> {
+        let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
         catch(|| {
             let item = NSTabViewItem::new();
-            let mtm = parent.view.mtm();
             let view = NSView::new(mtm);
             item.setView(Some(&view));
             Self { item, view }

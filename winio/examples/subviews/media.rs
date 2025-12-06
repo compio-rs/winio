@@ -47,12 +47,12 @@ pub enum MediaPageMessage {
 impl Component for MediaPage {
     type Error = Error;
     type Event = MediaPageEvent;
-    type Init<'a> = &'a TabView;
+    type Init<'a> = ();
     type Message = MediaPageMessage;
 
-    async fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
-            window: TabViewItem = (tabview) => {
+            window: TabViewItem = (()) => {
                 text: "Media",
             },
             media: Media = (&window),
