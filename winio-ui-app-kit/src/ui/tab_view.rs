@@ -10,7 +10,7 @@ use winio_callback::Callback;
 use winio_handle::{AsContainer, BorrowedContainer};
 use winio_primitive::{Point, Size};
 
-use crate::{GlobalRuntime, Result, catch, from_cgsize, from_nsstring, ui::Widget};
+use crate::{Error, GlobalRuntime, Result, catch, from_cgsize, from_nsstring, ui::Widget};
 
 #[derive(Debug)]
 pub struct TabView {
@@ -154,10 +154,10 @@ pub struct TabViewItem {
 }
 
 impl TabViewItem {
-    pub fn new(parent: &TabView) -> Result<Self> {
+    pub fn new() -> Result<Self> {
+        let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
         catch(|| {
             let item = NSTabViewItem::new();
-            let mtm = parent.view.mtm();
             let view = NSView::new(mtm);
             item.setView(Some(&view));
             Self { item, view }

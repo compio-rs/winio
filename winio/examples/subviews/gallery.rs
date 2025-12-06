@@ -83,13 +83,13 @@ pub enum GalleryPageMessage {
 impl Component for GalleryPage {
     type Error = Error;
     type Event = GalleryPageEvent;
-    type Init<'a> = &'a TabView;
+    type Init<'a> = ();
     type Message = GalleryPageMessage;
 
-    async fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let path = dirs::picture_dir();
         init! {
-            window: TabViewItem = (tabview) => {
+            window: TabViewItem = (()) => {
                 text: "Images",
             },
             canvas: Canvas = (&window),

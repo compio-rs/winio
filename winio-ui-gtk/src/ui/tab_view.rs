@@ -102,7 +102,7 @@ pub struct TabViewItem {
 }
 
 impl TabViewItem {
-    pub fn new(_parent: &TabView) -> Result<Self> {
+    pub fn new() -> Result<Self> {
         let swindow = gtk4::ScrolledWindow::new();
         swindow.set_hscrollbar_policy(gtk4::PolicyType::External);
         swindow.set_vscrollbar_policy(gtk4::PolicyType::External);

@@ -48,13 +48,13 @@ pub enum WebViewPageMessage {
 impl Component for WebViewPage {
     type Error = Error;
     type Event = WebViewPageEvent;
-    type Init<'a> = &'a TabView;
+    type Init<'a> = ();
     type Message = WebViewPageMessage;
 
-    async fn init(webview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let url = "https://www.example.com/";
         init! {
-            window: TabViewItem = (webview) => {
+            window: TabViewItem = (()) => {
                 text: "WebView",
             },
             webview: FailableWebView = (&window) => {

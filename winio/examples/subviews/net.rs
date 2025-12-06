@@ -36,13 +36,13 @@ pub enum NetPageMessage {
 impl Component for NetPage {
     type Error = Error;
     type Event = NetPageEvent;
-    type Init<'a> = &'a TabView;
+    type Init<'a> = ();
     type Message = NetPageMessage;
 
-    async fn init(tabview: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let url = "https://www.example.com/";
         init! {
-            window: TabViewItem = (tabview) => {
+            window: TabViewItem = (()) => {
                 text: "Networking",
             },
             canvas: Canvas = (&window),

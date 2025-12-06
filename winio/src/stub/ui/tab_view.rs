@@ -73,7 +73,7 @@ pub struct TabViewItem {
 
 #[inherit_methods(from = "self.handle")]
 impl TabViewItem {
-    pub fn new(_parent: &TabView) -> Result<Self> {
+    pub fn new() -> Result<Self> {
         not_impl()
     }
 

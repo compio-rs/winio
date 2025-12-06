@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 use compio_log::error;
 use inherit_methods_macro::inherit_methods;
@@ -16,6 +16,7 @@ pub struct TabView {
     on_select: SendWrapper<Rc<Callback>>,
     handle: Widget,
     view: MUXC::TabView,
+    views: Vec<TabViewItem>,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -37,6 +38,7 @@ impl TabView {
             on_select,
             handle: Widget::new(parent, view.cast()?)?,
             view,
+            views: vec![],
         })
     }
 
@@ -79,10 +81,12 @@ impl TabView {
     }
 
     pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
-        self.view.TabItems()?.InsertAt(i as _, &item.item)?;
+        self.view.TabItems()?.InsertAt(i as _, &item.inner.item)?;
+        item.inner.parent.replace(Some(self.view.clone()));
+        self.views.insert(i, item.clone());
         self.view
             .Measure(Size::new(f64::INFINITY, f64::INFINITY).to_native())?;
-        if self.len()? == 1 {
+        if self.len()? == 1 && self.selection()?.is_none() {
             self.set_selection(0)?;
         }
         Ok(())
@@ -90,6 +94,7 @@ impl TabView {
 
     pub fn remove(&mut self, i: usize) -> Result<()> {
         self.view.TabItems()?.RemoveAt(i as _)?;
+        self.views.remove(i).inner.parent.replace(None);
         Ok(())
     }
 
@@ -103,6 +108,9 @@ impl TabView {
 
     pub fn clear(&mut self) -> Result<()> {
         self.view.TabItems()?.Clear()?;
+        for item in self.views.drain(..) {
+            item.inner.parent.replace(None);
+        }
         Ok(())
     }
 }
@@ -110,15 +118,20 @@ impl TabView {
 winio_handle::impl_as_widget!(TabView, handle);
 
 #[derive(Debug)]
-pub struct TabViewItem {
-    parent: MUXC::TabView,
+struct TabViewInner {
+    parent: RefCell<Option<MUXC::TabView>>,
     item: MUXC::TabViewItem,
     canvas: MUXC::Canvas,
     text: MUXC::TextBlock,
 }
 
+#[derive(Debug, Clone)]
+pub struct TabViewItem {
+    inner: Rc<TabViewInner>,
+}
+
 impl TabViewItem {
-    pub fn new(parent: &TabView) -> Result<Self> {
+    pub fn new() -> Result<Self> {
         let item = MUXC::TabViewItem::new()?;
         item.SetHorizontalAlignment(HorizontalAlignment::Stretch)?;
         item.SetVerticalAlignment(VerticalAlignment::Stretch)?;
@@ -130,32 +143,38 @@ impl TabViewItem {
         canvas.SetVerticalAlignment(VerticalAlignment::Stretch)?;
         item.SetContent(&canvas)?;
         Ok(Self {
-            parent: parent.view.clone(),
-            item,
-            canvas,
-            text,
+            inner: Rc::new(TabViewInner {
+                parent: RefCell::new(None),
+                item,
+                canvas,
+                text,
+            }),
         })
     }
 
     pub fn text(&self) -> Result<String> {
-        Ok(self.text.Text()?.to_string_lossy())
+        Ok(self.inner.text.Text()?.to_string_lossy())
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.text.SetText(&HSTRING::from(s.as_ref()))?;
+        self.inner.text.SetText(&HSTRING::from(s.as_ref()))?;
         Ok(())
     }
 
     pub fn size(&self) -> Result<Size> {
-        Ok(Size::new(
-            self.parent.Width()?,
-            (self.parent.Height()? - 40.0).max(0.0),
-        ))
+        if let Some(parent) = self.inner.parent.borrow().as_ref() {
+            Ok(Size::new(
+                parent.Width()?,
+                (parent.Height()? - 40.0).max(0.0),
+            ))
+        } else {
+            Ok(Size::zero())
+        }
     }
 }
 
 impl AsContainer for TabViewItem {
     fn as_container(&self) -> BorrowedContainer<'_> {
-        BorrowedContainer::winui(&self.canvas)
+        BorrowedContainer::winui(&self.inner.canvas)
     }
 }

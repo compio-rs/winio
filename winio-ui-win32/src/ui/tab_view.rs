@@ -6,16 +6,21 @@ use std::{
 
 use compio::driver::syscall;
 use inherit_methods_macro::inherit_methods;
+use windows::core::HRESULT;
 use windows_sys::{
-    Win32::UI::{
-        Controls::{
-            TCIF_TEXT, TCITEMW, TCM_ADJUSTRECT, TCM_DELETEALLITEMS, TCM_DELETEITEM, TCM_GETCURSEL,
-            TCM_GETITEMCOUNT, TCM_INSERTITEMW, TCM_SETCURSEL, TCM_SETITEMW, TCN_SELCHANGE,
-            TCS_TABS, WC_TABCONTROLW,
-        },
-        WindowsAndMessaging::{
-            GetClientRect, GetParent, MoveWindow, SW_HIDE, SW_SHOW, SendMessageW, ShowWindow,
-            WM_NOTIFY, WS_CHILD, WS_CLIPCHILDREN, WS_EX_CONTROLPARENT, WS_TABSTOP, WS_VISIBLE,
+    Win32::{
+        Foundation::ERROR_ALREADY_EXISTS,
+        UI::{
+            Controls::{
+                TCIF_TEXT, TCITEMW, TCM_ADJUSTRECT, TCM_DELETEALLITEMS, TCM_DELETEITEM,
+                TCM_GETCURSEL, TCM_GETITEMCOUNT, TCM_INSERTITEMW, TCM_SETCURSEL, TCM_SETITEMW,
+                TCN_SELCHANGE, TCS_TABS, WC_TABCONTROLW,
+            },
+            WindowsAndMessaging::{
+                GetClientRect, GetParent, HWND_MESSAGE, MoveWindow, SW_HIDE, SW_SHOW, SendMessageW,
+                SetParent, ShowWindow, WM_NOTIFY, WS_CHILD, WS_CLIPCHILDREN, WS_EX_CONTROLPARENT,
+                WS_TABSTOP, WS_VISIBLE,
+            },
         },
     },
     w,
@@ -24,7 +29,7 @@ use winio_handle::{AsContainer, AsWidget, BorrowedContainer};
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::children_refresh_dark_mode;
 
-use crate::{Result, View, Widget, WindowMessageNotify, ui::with_u16c};
+use crate::{Error, Result, View, Widget, WindowMessageNotify, ui::with_u16c};
 
 #[derive(Debug)]
 pub struct TabView {
@@ -164,6 +169,21 @@ impl TabView {
     }
 
     pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
+        if item.inner.borrow().index.is_some() {
+            return Err(Error::from_hresult(HRESULT::from_win32(
+                ERROR_ALREADY_EXISTS,
+            )));
+        }
+        let item_hwnd = item.as_container().as_win32();
+        let previous_parent = unsafe { GetParent(item_hwnd) };
+        let new_parent = self.as_widget().as_win32();
+        if previous_parent == new_parent {
+            return Err(Error::from_hresult(HRESULT::from_win32(
+                ERROR_ALREADY_EXISTS,
+            )));
+        }
+        unsafe { SetParent(item_hwnd, new_parent) };
+
         self.views.insert(i, item.clone());
         {
             let mut inner = item.inner.borrow_mut();
@@ -194,7 +214,10 @@ impl TabView {
         let cur = self.selection()?;
         let need_reselect = cur == Some(i);
         self.handle.send_message(TCM_DELETEITEM, i, 0);
-        self.views.remove(i);
+        let item = self.views.remove(i);
+        let mut inner = item.inner.borrow_mut();
+        unsafe { SetParent(inner.view.as_widget().as_win32(), HWND_MESSAGE) };
+        inner.index = None;
         self.reset_indices();
         if need_reselect {
             self.set_selection(0)?;
@@ -213,7 +236,9 @@ impl TabView {
     pub fn clear(&mut self) -> Result<()> {
         self.handle.send_message(TCM_DELETEALLITEMS, 0, 0);
         for item in self.views.drain(..) {
-            item.inner.borrow_mut().index = None;
+            let mut inner = item.inner.borrow_mut();
+            unsafe { SetParent(inner.view.as_widget().as_win32(), HWND_MESSAGE) };
+            inner.index = None;
         }
         Ok(())
     }
@@ -234,10 +259,10 @@ pub struct TabViewItem {
 }
 
 impl TabViewItem {
-    pub fn new(parent: &TabView) -> Result<Self> {
+    pub fn new() -> Result<Self> {
         Ok(Self {
             inner: Rc::new(RefCell::new(TabViewItemInner {
-                view: View::new_hidden(parent.as_widget().as_win32())?,
+                view: View::new_hidden(HWND_MESSAGE)?,
                 title: String::new(),
                 index: None,
             })),

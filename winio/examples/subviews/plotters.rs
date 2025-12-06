@@ -20,12 +20,12 @@ pub enum PlottersPageMessage {}
 impl Component for PlottersPage {
     type Error = Error;
     type Event = PlottersPageEvent;
-    type Init<'a> = &'a TabView;
+    type Init<'a> = ();
     type Message = PlottersPageMessage;
 
-    async fn init(tabview: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
-            window: TabViewItem = (tabview) => {
+            window: TabViewItem = (()) => {
                 text: "Plotters",
             },
             canvas: Canvas = (&window),

@@ -111,7 +111,7 @@ impl Component for MainModel {
     type Init<'a> = ();
     type Message = MainMessage;
 
-    async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             window: Window = (()) => {
                 text: "Widgets example",
@@ -123,27 +123,27 @@ impl Component for MainModel {
                 },
             },
             tabview: TabView = (&window),
-            misc: MiscPage = (&*tabview),
-            fs: FsPage = (&*tabview),
-            net: NetPage = (&*tabview),
-            gallery: GalleryPage = (&*tabview),
-            scroll: ScrollViewPage = (&*tabview),
+            misc: MiscPage = (()),
+            fs: FsPage = (()),
+            net: NetPage = (()),
+            gallery: GalleryPage = (()),
+            scroll: ScrollViewPage = (()),
             #[cfg(feature = "plotters")]
-            plotters: PlottersPage = (&*tabview),
+            plotters: PlottersPage = (()),
             #[cfg(not(feature = "plotters"))]
-            plotters: DummyPage = ((&*tabview, "Plotters", "plotters")),
+            plotters: DummyPage = (("Plotters", "plotters")),
             #[cfg(feature = "media")]
-            media: MediaPage = (&*tabview),
+            media: MediaPage = (()),
             #[cfg(not(feature = "media"))]
-            media: DummyPage = ((&*tabview, "Media", "media")),
+            media: DummyPage = (("Media", "media")),
             #[cfg(feature = "webview")]
-            webview: WebViewPage = (&*tabview),
+            webview: WebViewPage = (()),
             #[cfg(not(feature = "webview"))]
-            webview: DummyPage = ((&*tabview, "WebView", "webview")),
+            webview: DummyPage = (("WebView", "webview")),
             #[cfg(feature = "webview")]
-            markdown: MarkdownPage = (&*tabview),
+            markdown: MarkdownPage = (()),
             #[cfg(not(feature = "webview"))]
-            markdown: DummyPage = ((&*tabview, "Markdown", "webview")),
+            markdown: DummyPage = (("Markdown", "webview")),
         }
 
         tabview.push(&misc)?;
@@ -155,8 +155,6 @@ impl Component for MainModel {
         tabview.push(&media)?;
         tabview.push(&webview)?;
         tabview.push(&markdown)?;
-
-        sender.post(MainMessage::Redraw);
 
         window.show()?;
 

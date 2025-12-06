@@ -112,7 +112,7 @@ pub struct TabViewItem {
 
 #[inherit_methods(from = "self.view")]
 impl TabViewItem {
-    pub fn new(_parent: &TabView) -> Result<Self> {
+    pub fn new() -> Result<Self> {
         let view = View::new_standalone()?;
         Ok(Self {
             view,
