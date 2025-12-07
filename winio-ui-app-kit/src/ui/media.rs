@@ -1,17 +1,26 @@
-use std::{ffi::c_void, ptr::null_mut, time::Duration};
+use std::{
+    cell::{Cell, RefCell},
+    ffi::c_void,
+    ptr::null_mut,
+    time::Duration,
+};
 
 use inherit_methods_macro::inherit_methods;
 use objc2::{
     DefinedClass, MainThreadMarker, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
     runtime::AnyObject,
+    sel,
 };
-use objc2_av_foundation::{AVPlayer, AVPlayerItem, AVPlayerItemStatus};
+use objc2_av_foundation::{
+    AVPlayer, AVPlayerItem, AVPlayerItemDidPlayToEndTimeNotification, AVPlayerItemStatus,
+};
 use objc2_av_kit::{AVPlayerView, AVPlayerViewControlsStyle};
-use objc2_core_media::CMTime;
+use objc2_core_media::{CMTime, kCMTimeZero};
 use objc2_foundation::{
-    NSDictionary, NSKeyValueChangeKey, NSKeyValueObservingOptions, NSObject,
-    NSObjectNSKeyValueObserverRegistration, NSString, NSURL, ns_string,
+    NSDictionary, NSKeyValueChangeKey, NSKeyValueObservingOptions, NSNotification,
+    NSNotificationCenter, NSObject, NSObjectNSKeyValueObserverRegistration, NSString, NSURL,
+    ns_string,
 };
 use winio_callback::Callback;
 use winio_handle::AsContainer;
@@ -92,8 +101,18 @@ impl Media {
                 NSKeyValueObservingOptions::New,
                 null_mut(),
             );
-            self.view
-                .setPlayer(Some(&AVPlayer::playerWithPlayerItem(Some(&item), mtm)));
+            NSNotificationCenter::defaultCenter().addObserver_selector_name_object(
+                &self.delegate,
+                sel!(runLoop:),
+                Some(AVPlayerItemDidPlayToEndTimeNotification),
+                Some(&item),
+            );
+            let player = AVPlayer::playerWithPlayerItem(Some(&item), mtm);
+            self.view.setPlayer(Some(&player));
+            let ivars = self.delegate.ivars();
+            ivars.player.replace(Some(player));
+            ivars.looped.set(false);
+            ivars.rate.set(1.0);
             self.url = Some(url);
             Ok(item)
         })
@@ -110,11 +129,15 @@ impl Media {
     }
 
     pub fn play(&mut self) -> Result<()> {
+        if Some(self.current_time()?) == self.full_time()? {
+            self.set_current_time(Duration::ZERO)?;
+        }
         catch(|| unsafe {
             if let Some(player) = self.view.player() {
                 player.play();
             }
-        })
+        })?;
+        self.set_playback_rate(self.delegate.ivars().rate.get())
     }
 
     pub fn pause(&mut self) -> Result<()> {
@@ -190,6 +213,33 @@ impl Media {
             }
         })
     }
+
+    pub fn is_looped(&self) -> Result<bool> {
+        Ok(self.delegate.ivars().looped.get())
+    }
+
+    pub fn set_looped(&mut self, v: bool) -> Result<()> {
+        self.delegate.ivars().looped.set(v);
+        Ok(())
+    }
+
+    pub fn playback_rate(&self) -> Result<f64> {
+        catch(|| unsafe {
+            self.view
+                .player()
+                .map(|player| player.rate() as _)
+                .unwrap_or_default()
+        })
+    }
+
+    pub fn set_playback_rate(&mut self, v: f64) -> Result<()> {
+        self.delegate.ivars().rate.set(v);
+        catch(|| unsafe {
+            if let Some(player) = self.view.player() {
+                player.setRate(v as _);
+            }
+        })
+    }
 }
 
 winio_handle::impl_as_widget!(Media, handle);
@@ -197,6 +247,9 @@ winio_handle::impl_as_widget!(Media, handle);
 #[derive(Debug, Default)]
 struct PlayerDelegateIvars {
     notify: Callback,
+    looped: Cell<bool>,
+    rate: Cell<f64>,
+    player: RefCell<Option<Retained<AVPlayer>>>,
 }
 
 define_class! {
@@ -225,6 +278,19 @@ define_class! {
         ) {
             if let Some(path) = key_path && path.isEqualToString(ns_string!("status")) {
                 self.ivars().notify.signal::<GlobalRuntime>(());
+            }
+        }
+
+        #[unsafe(method(runLoop:))]
+        unsafe fn runLoop(&self, notification: &NSNotification) {
+            if self.ivars().looped.get()
+                && let Some(player) = self.ivars().player.borrow().as_ref()
+            {
+                unsafe {
+                    player.seekToTime(kCMTimeZero);
+                    player.play();
+                    player.setRate(self.ivars().rate.get() as _);
+                }
             }
         }
     }

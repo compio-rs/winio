@@ -18,6 +18,7 @@ pub struct Media {
 impl Media {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let mpe = MUXC::MediaPlayerElement::new()?;
+        mpe.SetAutoPlay(false)?;
         Ok(Self {
             handle: Widget::new(parent, mpe.cast()?)?,
             mpe,
@@ -126,6 +127,36 @@ impl Media {
     pub fn set_muted(&mut self, v: bool) -> Result<()> {
         if let Ok(player) = self.mpe.MediaPlayer() {
             player.SetIsMuted(v)?;
+        }
+        Ok(())
+    }
+
+    pub fn is_looped(&self) -> Result<bool> {
+        if let Ok(player) = self.mpe.MediaPlayer() {
+            Ok(player.IsLoopingEnabled()?)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn set_looped(&mut self, v: bool) -> Result<()> {
+        if let Ok(player) = self.mpe.MediaPlayer() {
+            player.SetIsLoopingEnabled(v)?;
+        }
+        Ok(())
+    }
+
+    pub fn playback_rate(&self) -> Result<f64> {
+        if let Ok(player) = self.mpe.MediaPlayer() {
+            Ok(player.PlaybackRate()?)
+        } else {
+            Ok(1.0)
+        }
+    }
+
+    pub fn set_playback_rate(&mut self, v: f64) -> Result<()> {
+        if let Ok(player) = self.mpe.MediaPlayer() {
+            player.SetPlaybackRate(v)?;
         }
         Ok(())
     }

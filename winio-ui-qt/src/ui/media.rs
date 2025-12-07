@@ -130,6 +130,25 @@ impl Media {
         Ok(())
     }
 
+    pub fn is_looped(&self) -> Result<bool> {
+        Ok(self.player.loops()? == -1)
+    }
+
+    pub fn set_looped(&mut self, v: bool) -> Result<()> {
+        let loops = if v { -1 } else { 1 };
+        self.player.pin_mut().setLoops(loops)?;
+        Ok(())
+    }
+
+    pub fn playback_rate(&self) -> Result<f64> {
+        Ok(self.player.playbackRate()?)
+    }
+
+    pub fn set_playback_rate(&mut self, r: f64) -> Result<()> {
+        self.player.pin_mut().setPlaybackRate(r)?;
+        Ok(())
+    }
+
     fn on_notify(c: *const u8, loaded: bool) {
         let c = c as *const Callback<bool>;
         if let Some(c) = unsafe { c.as_ref() } {
@@ -230,6 +249,10 @@ mod ffi {
         fn setVolume(self: Pin<&mut WinioMediaPlayer>, v: f64) -> Result<()>;
         fn isMuted(self: &WinioMediaPlayer) -> Result<bool>;
         fn setMuted(self: Pin<&mut WinioMediaPlayer>, v: bool) -> Result<()>;
+        fn loops(self: &WinioMediaPlayer) -> Result<i32>;
+        fn setLoops(self: Pin<&mut WinioMediaPlayer>, l: i32) -> Result<()>;
+        fn playbackRate(self: &WinioMediaPlayer) -> Result<f64>;
+        fn setPlaybackRate(self: Pin<&mut WinioMediaPlayer>, r: f64) -> Result<()>;
         fn error(self: &WinioMediaPlayer) -> Result<QMediaPlayerError>;
 
         unsafe fn player_connect_notify(

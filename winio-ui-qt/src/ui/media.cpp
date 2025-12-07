@@ -14,7 +14,7 @@ void player_connect_notify(WinioMediaPlayer &p,
                            callback_fn_t<void(bool)> callback,
                            std::uint8_t const *data) {
     QObject::connect(&p, &QMediaPlayer::mediaStatusChanged,
-                     [callback, data](QMediaPlayer::MediaStatus status) {
+                     [&p, callback, data](QMediaPlayer::MediaStatus status) {
                          switch (status) {
                          case QMediaPlayer::LoadedMedia:
                              callback(data, true);
@@ -22,6 +22,15 @@ void player_connect_notify(WinioMediaPlayer &p,
                          case QMediaPlayer::InvalidMedia:
                              callback(data, false);
                              break;
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+                         case QMediaPlayer::EndOfMedia:
+                             // In Qt 5, we manually handle infinite looping.
+                             if (p.loops() < 0) {
+                                 p.setPosition(0);
+                                 p.play();
+                             }
+                             break;
+#endif
                          default:
                              break;
                          }
