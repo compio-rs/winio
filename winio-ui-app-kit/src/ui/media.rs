@@ -6,7 +6,7 @@ use objc2::{
     rc::{Allocated, Retained},
     runtime::AnyObject,
 };
-use objc2_av_foundation::{AVPlayer, AVPlayerItem, AVPlayerItemStatus};
+use objc2_av_foundation::{AVPlayerItem, AVPlayerItemStatus, AVPlayerLooper, AVQueuePlayer};
 use objc2_av_kit::{AVPlayerView, AVPlayerViewControlsStyle};
 use objc2_core_media::CMTime;
 use objc2_foundation::{
@@ -23,6 +23,7 @@ use crate::{Error, GlobalRuntime, Result, Widget, catch, from_nsstring};
 pub struct Media {
     handle: Widget,
     view: Retained<AVPlayerView>,
+    looper: Option<Retained<AVPlayerLooper>>,
     url: Option<Retained<NSURL>>,
     delegate: Retained<PlayerDelegate>,
 }
@@ -44,6 +45,7 @@ impl Media {
             Ok(Self {
                 handle,
                 view,
+                looper: None,
                 url: None,
                 delegate,
             })
@@ -93,7 +95,7 @@ impl Media {
                 null_mut(),
             );
             self.view
-                .setPlayer(Some(&AVPlayer::playerWithPlayerItem(Some(&item), mtm)));
+                .setPlayer(Some(&AVQueuePlayer::playerWithPlayerItem(Some(&item), mtm)));
             self.url = Some(url);
             Ok(item)
         })
@@ -187,6 +189,53 @@ impl Media {
         catch(|| unsafe {
             if let Some(player) = self.view.player() {
                 player.setMuted(v);
+            }
+        })
+    }
+
+    pub fn is_looped(&self) -> Result<bool> {
+        Ok(self.looper.is_some())
+    }
+
+    pub fn set_looped(&mut self, v: bool) -> Result<()> {
+        if v {
+            if self.looper.is_none() {
+                catch(|| unsafe {
+                    if let Some(player) = self.view.player() {
+                        let player = player
+                            .downcast::<AVQueuePlayer>()
+                            .map_err(|_| Error::NotSupported)?;
+                        if let Some(item) = player.currentItem() {
+                            let looper =
+                                AVPlayerLooper::playerLooperWithPlayer_templateItem(&player, &item);
+                            self.looper = Some(looper);
+                        }
+                    }
+                    Ok(())
+                })
+                .flatten()?;
+            }
+        } else if let Some(looper) = self.looper.take() {
+            catch(|| unsafe {
+                looper.disableLooping();
+            })?;
+        }
+        Ok(())
+    }
+
+    pub fn playback_rate(&self) -> Result<f64> {
+        catch(|| unsafe {
+            self.view
+                .player()
+                .map(|player| player.rate() as _)
+                .unwrap_or_default()
+        })
+    }
+
+    pub fn set_playback_rate(&mut self, v: f64) -> Result<()> {
+        catch(|| unsafe {
+            if let Some(player) = self.view.player() {
+                player.setRate(v as _);
             }
         })
     }
