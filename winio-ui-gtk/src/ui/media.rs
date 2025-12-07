@@ -179,7 +179,7 @@ impl Media {
         Ok(1.0)
     }
 
-    pub fn set_playback_rate(&mut self, r: f64) -> Result<()> {
+    pub fn set_playback_rate(&mut self, _r: f64) -> Result<()> {
         Err(Error::NotSupported)
     }
 }
