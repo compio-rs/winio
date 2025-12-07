@@ -27,6 +27,10 @@ public:
 };
 #else
 struct WinioMediaPlayer : public QMediaPlayer {
+private:
+    int m_loops = 1;
+
+public:
     WinioMediaPlayer() : QMediaPlayer() {}
     ~WinioMediaPlayer() override {}
 
@@ -35,6 +39,9 @@ struct WinioMediaPlayer : public QMediaPlayer {
 
     QUrl source() const { return media().canonicalUrl(); }
     void setSource(const QUrl &url) { setMedia(url); }
+
+    int loops() const { return m_loops; }
+    void setLoops(int loops) { m_loops = loops; }
 };
 #endif
 
