@@ -49,6 +49,9 @@ pub enum Error {
     /// Color theme is not available.
     #[error("Color theme is not available")]
     NoColorTheme,
+    /// Feature not supported.
+    #[error("Feature not supported")]
+    NotSupported,
 }
 
 /// Result type for GTK.

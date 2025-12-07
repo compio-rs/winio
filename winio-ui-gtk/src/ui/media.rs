@@ -159,6 +159,29 @@ impl Media {
         }
         Ok(())
     }
+
+    pub fn is_looped(&self) -> Result<bool> {
+        Ok(self
+            .source
+            .as_ref()
+            .map(|player| player.is_loop())
+            .unwrap_or_default())
+    }
+
+    pub fn set_looped(&mut self, v: bool) -> Result<()> {
+        if let Some(player) = &self.source {
+            player.set_loop(v);
+        }
+        Ok(())
+    }
+
+    pub fn playback_rate(&self) -> Result<f64> {
+        Ok(1.0)
+    }
+
+    pub fn set_playback_rate(&mut self, r: f64) -> Result<()> {
+        Err(Error::NotSupported)
+    }
 }
 
 winio_handle::impl_as_widget!(Media, handle);
