@@ -24,8 +24,7 @@ void player_connect_notify(WinioMediaPlayer &p,
                              break;
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
                          case QMediaPlayer::EndOfMedia:
-                             // We only need to handle loops for Qt 5 and
-                             // infinite loops.
+                             // In Qt 5, we manually handle infinite looping.
                              if (p.loops() < 0) {
                                  p.setPosition(0);
                                  p.play();
