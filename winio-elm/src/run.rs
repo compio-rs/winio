@@ -1,5 +1,3 @@
-use std::hint::unreachable_unchecked;
-
 #[cfg(not(feature = "gen_blocks"))]
 use async_stream::stream;
 use futures_util::{FutureExt, Stream};
@@ -89,8 +87,7 @@ fn run_events_impl<'a, T: Component>(
             let fut_start = model.start(sender);
             let fut_recv = sender.wait();
             futures_util::select! {
-                // SAFETY: never type
-                _ = fut_start.fuse() => unsafe { unreachable_unchecked() },
+                x = fut_start.fuse() => match x {},
                 _ = fut_recv.fuse() => {}
             }
             let mut need_render = false;
