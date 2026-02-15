@@ -39,6 +39,14 @@ impl ListBox {
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
+    pub fn is_multiple(&self) -> Result<bool> {
+        not_impl()
+    }
+
+    pub fn set_multiple(&mut self, _v: bool) -> Result<()> {
+        not_impl()
+    }
+
     pub fn is_selected(&self, _i: usize) -> Result<bool> {
         not_impl()
     }

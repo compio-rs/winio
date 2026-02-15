@@ -2,7 +2,7 @@
 
 std::unique_ptr<QListWidget> new_list_widget(QWidget *parent) {
     auto list = std::make_unique<QListWidget>(parent);
-    list->setSelectionMode(QAbstractItemView::MultiSelection);
+    list->setSelectionMode(QAbstractItemView::SingleSelection);
     return list;
 }
 

@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use plotters::prelude::*;
+use plotters::prelude::{Color as _, *};
 use plotters_backend::DrawingErrorKind;
 use winio::prelude::*;
 
