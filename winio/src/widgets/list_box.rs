@@ -27,6 +27,12 @@ impl ToolTip for ListBox {
 
 #[inherit_methods(from = "self.widget")]
 impl ListBox {
+    /// Get if the list box allows multiple selection.
+    pub fn is_multiple(&self) -> Result<bool>;
+
+    /// Set if the list box allows multiple selection.
+    pub fn set_multiple(&mut self, v: bool) -> Result<()>;
+
     /// Get the selected state by index.
     pub fn is_selected(&self, i: usize) -> Result<bool>;
 

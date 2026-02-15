@@ -106,7 +106,9 @@ impl Component for GalleryPage {
                           .unwrap_or_default(),
             },
             list: ObservableVec<String> = ([]),
-            listbox: ListBox = (&window),
+            listbox: ListBox = (&window) => {
+                multiple: true,
+            },
         }
 
         if let Some(path) = path {
