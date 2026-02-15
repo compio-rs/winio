@@ -41,7 +41,7 @@ impl ListBox {
             label.set_halign(gtk4::Align::Start);
             unsafe { label.unsafe_cast() }
         });
-        widget.set_selection_mode(gtk4::SelectionMode::Multiple);
+        widget.set_selection_mode(gtk4::SelectionMode::Single);
         swindow.set_child(Some(&widget));
         let handle = Widget::new(parent, unsafe { swindow.clone().unsafe_cast() })?;
         let on_changed = Rc::new(Callback::new());
@@ -86,6 +86,22 @@ impl ListBox {
     pub fn tooltip(&self) -> Result<String>;
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn is_multiple(&self) -> Result<bool> {
+        Ok(!matches!(
+            self.widget.selection_mode(),
+            gtk4::SelectionMode::Single
+        ))
+    }
+
+    pub fn set_multiple(&mut self, v: bool) -> Result<()> {
+        self.widget.set_selection_mode(if v {
+            gtk4::SelectionMode::Multiple
+        } else {
+            gtk4::SelectionMode::Single
+        });
+        Ok(())
+    }
 
     pub fn is_selected(&self, i: usize) -> Result<bool> {
         Ok(self
