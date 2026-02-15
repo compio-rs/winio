@@ -26,7 +26,6 @@ pub struct ListBox {
 impl ListBox {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let list_box = MUXC::ListBox::new()?;
-        list_box.SetSelectionMode(SelectionMode::Multiple)?;
         let on_select = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_select = on_select.clone();
@@ -65,6 +64,19 @@ impl ListBox {
     pub fn tooltip(&self) -> Result<String>;
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn is_multiple(&self) -> Result<bool> {
+        Ok(self.list_box.SelectionMode()? != SelectionMode::Single)
+    }
+
+    pub fn set_multiple(&mut self, v: bool) -> Result<()> {
+        self.list_box.SetSelectionMode(if v {
+            SelectionMode::Multiple
+        } else {
+            SelectionMode::Single
+        })?;
+        Ok(())
+    }
 
     pub fn is_selected(&self, i: usize) -> Result<bool> {
         self.list_box
