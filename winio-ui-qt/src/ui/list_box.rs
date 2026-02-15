@@ -1,5 +1,6 @@
 use std::pin::Pin;
 
+use cxx::{ExternType, type_id};
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
@@ -56,6 +57,22 @@ impl ListBox {
     pub fn tooltip(&self) -> Result<String>;
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn is_multiple(&self) -> Result<bool> {
+        Ok(!matches!(
+            self.widget.as_ref().selectionMode()?,
+            ffi::QAbstractItemViewSelectionMode::SingleSelection
+        ))
+    }
+
+    pub fn set_multiple(&mut self, v: bool) -> Result<()> {
+        self.widget.pin_mut().setSelectionMode(if v {
+            ffi::QAbstractItemViewSelectionMode::MultiSelection
+        } else {
+            ffi::QAbstractItemViewSelectionMode::SingleSelection
+        })?;
+        Ok(())
+    }
 
     pub fn is_selected(&self, i: usize) -> Result<bool> {
         if let Some(item) = unsafe { self.widget.as_ref().item(i as _)?.as_ref() } {
@@ -142,6 +159,23 @@ winio_handle::impl_as_widget!(ListBox, widget);
 
 impl_static_cast!(ffi::QListWidget, ffi::QWidget);
 
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+#[non_exhaustive]
+pub enum QAbstractItemViewSelectionMode {
+    NoSelection,
+    SingleSelection,
+    MultiSelection,
+    ExtendedSelection,
+    ContiguousSelection,
+}
+
+unsafe impl ExternType for QAbstractItemViewSelectionMode {
+    type Id = type_id!("QAbstractItemViewSelectionMode");
+    type Kind = cxx::kind::Trivial;
+}
+
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++-unwind" {
@@ -151,6 +185,7 @@ mod ffi {
         type QListWidget;
         type QListWidgetItem;
         type QString = crate::ui::QString;
+        type QAbstractItemViewSelectionMode = super::QAbstractItemViewSelectionMode;
 
         unsafe fn new_list_widget(parent: *mut QWidget) -> Result<UniquePtr<QListWidget>>;
         unsafe fn list_widget_connect_select(
@@ -161,6 +196,11 @@ mod ffi {
 
         fn item(self: &QListWidget, i: i32) -> Result<*mut QListWidgetItem>;
 
+        fn selectionMode(self: &QListWidget) -> Result<QAbstractItemViewSelectionMode>;
+        fn setSelectionMode(
+            self: Pin<&mut QListWidget>,
+            mode: QAbstractItemViewSelectionMode,
+        ) -> Result<()>;
         fn isSelected(self: &QListWidgetItem) -> Result<bool>;
         fn setSelected(self: Pin<&mut QListWidgetItem>, b: bool) -> Result<()>;
         fn text(self: &QListWidgetItem) -> Result<QString>;
