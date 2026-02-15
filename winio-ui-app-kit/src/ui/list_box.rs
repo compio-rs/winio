@@ -45,7 +45,6 @@ impl ListBox {
             let table = NSTableView::new(mtm);
             let column = NSTableColumn::new(mtm);
             table.addTableColumn(&column);
-            table.setAllowsMultipleSelection(true);
             table.setHeaderView(None);
             table.setColumnAutoresizingStyle(
                 NSTableViewColumnAutoresizingStyle::UniformColumnAutoresizingStyle,
@@ -122,6 +121,14 @@ impl ListBox {
 
     pub async fn wait_select(&self) {
         self.delegate.ivars().select.wait().await
+    }
+
+    pub fn is_multiple(&self) -> Result<bool> {
+        catch(|| self.table.allowsMultipleSelection())
+    }
+
+    pub fn set_multiple(&mut self, v: bool) -> Result<()> {
+        catch(|| self.table.setAllowsMultipleSelection(v))
     }
 
     pub fn is_selected(&self, i: usize) -> Result<bool> {
