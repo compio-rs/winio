@@ -21,6 +21,7 @@ use backdrop::*;
 
 pub struct MiscPage {
     window: Child<TabViewItem>,
+    link: Child<LinkLabel>,
     ulabel: Child<Label>,
     plabel: Child<Label>,
     uentry: Child<Edit>,
@@ -76,6 +77,10 @@ impl Component for MiscPage {
                 text: "Widgets",
             },
             canvas: Canvas = (&window),
+            link: LinkLabel = (&window) => {
+                text: "Source",
+                uri: "https://github.com/compio-rs/winio",
+            },
             ulabel: Label = (&window) => {
                 text: "Username:",
                 tooltip: "Your username",
@@ -141,6 +146,7 @@ impl Component for MiscPage {
 
         Ok(Self {
             window,
+            link,
             ulabel,
             plabel,
             uentry,
@@ -163,6 +169,7 @@ impl Component for MiscPage {
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: MiscPageMessage::Noop,
+            self.link => {},
             self.pcheck => {
                 CheckBoxEvent::Click => MiscPageMessage::PasswordCheck,
             },
@@ -280,12 +287,13 @@ impl Component for MiscPage {
         let csize = self.window.size()?;
         {
             let mut cred_panel = layout! {
-                Grid::from_str("auto,1*,auto", "1*,auto,auto,1*").unwrap(),
-                self.ulabel => { column: 0, row: 1, valign: VAlign::Center },
-                self.uentry => { column: 1, row: 1, margin: Margin::new_all_same(4.0) },
-                self.plabel => { column: 0, row: 2, valign: VAlign::Center },
-                self.pentry => { column: 1, row: 2, margin: Margin::new_all_same(4.0) },
-                self.pcheck => { column: 2, row: 2 },
+                Grid::from_str("auto,1*,auto", "1*,auto,1*,auto,auto,1*").unwrap(),
+                self.link   => { column: 0, row: 1, column_span: 3, halign: HAlign::Center, margin: Margin::new_all_same(4.0) },
+                self.ulabel => { column: 0, row: 3, valign: VAlign::Center },
+                self.uentry => { column: 1, row: 3, margin: Margin::new_all_same(4.0) },
+                self.plabel => { column: 0, row: 4, valign: VAlign::Center },
+                self.pentry => { column: 1, row: 4, margin: Margin::new_all_same(4.0) },
+                self.pcheck => { column: 2, row: 4 },
             };
 
             let mut rgroup_panel = Grid::from_str("auto", "1*,auto,auto,auto,1*").unwrap();
