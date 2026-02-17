@@ -82,7 +82,11 @@ impl LinkLabel {
     }
 
     pub fn uri(&self) -> Result<String> {
-        Ok(self.button.NavigateUri()?.ToString()?.to_string_lossy())
+        if let Ok(uri) = self.button.NavigateUri() {
+            Ok(uri.ToString()?.to_string_lossy())
+        } else {
+            Ok(String::new())
+        }
     }
 
     pub fn set_uri(&mut self, s: impl AsRef<str>) -> Result<()> {
