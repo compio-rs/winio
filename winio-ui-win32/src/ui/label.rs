@@ -130,7 +130,7 @@ impl LinkLabel {
                 0
             )
         )?;
-        handle.handle.send_message(WM_SETFONT, 0, 0);
+        handle.handle.send_message(WM_SETFONT, 0, 1);
         Ok(Self {
             handle,
             uri: String::new(),
