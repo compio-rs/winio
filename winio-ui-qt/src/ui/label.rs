@@ -136,7 +136,11 @@ impl LinkLabel {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     fn refresh_text(&mut self) -> Result<()> {
-        let text = format!(r#"<a href="{}">{}</a>"#, self.uri, self.text);
+        let mut text = "<a href=\"".to_string();
+        html_escape::encode_unquoted_attribute_to_string(&self.uri, &mut text);
+        text.push_str("\">");
+        html_escape::encode_text_to_string(&self.text, &mut text);
+        text.push_str("</a>");
         self.label.set_text(text)?;
         if self.uri.is_empty() {
             self.label.widget.pin_mut().setOpenExternalLinks(false)?;

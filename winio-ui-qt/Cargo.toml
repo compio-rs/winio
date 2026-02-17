@@ -17,6 +17,7 @@ winio-pollable = { workspace = true }
 compio-log = { workspace = true }
 
 bitflags = { workspace = true }
+html-escape = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true }
 local-sync = { workspace = true }
