@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use compio_log::info;
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows::{
@@ -30,7 +31,10 @@ impl LinkLabel {
             let on_click = on_click.clone();
             button.Click(&RoutedEventHandler::new(move |sender, _| {
                 let button = sender.ok()?.cast::<MUXC::HyperlinkButton>()?;
-                if button.NavigateUri().is_err() {
+                let uri = button.NavigateUri();
+                if let Ok(_uri) = uri {
+                    info!("Opening link: {}", _uri.ToString()?.to_string_lossy());
+                } else {
                     on_click.signal::<GlobalRuntime>(());
                 }
                 Ok(())

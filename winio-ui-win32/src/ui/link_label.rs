@@ -1,4 +1,4 @@
-use compio_log::error;
+use compio_log::{error, info};
 use inherit_methods_macro::inherit_methods;
 use windows_sys::{
     Win32::UI::{
@@ -99,6 +99,7 @@ impl LinkLabel {
                 && matches!(code, NM_CLICK | NM_RETURN)
             {
                 if !self.uri.is_empty() {
+                    info!("Opening link: {}", self.uri);
                     unsafe {
                         if let Err(_e) = with_u16c(&self.uri, |uri| {
                             let res = ShellExecuteW(
