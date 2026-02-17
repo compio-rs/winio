@@ -1,3 +1,4 @@
+use compio_log::{error, info, warn};
 use inherit_methods_macro::inherit_methods;
 use objc2::{
     DeclaredClass, MainThreadOnly, define_class, msg_send,
@@ -6,8 +7,9 @@ use objc2::{
 };
 use objc2_app_kit::{
     NSBezelStyle, NSButton, NSButtonType, NSControlStateValueOff, NSControlStateValueOn,
+    NSWorkspace,
 };
-use objc2_foundation::{MainThreadMarker, NSObject, NSString};
+use objc2_foundation::{MainThreadMarker, NSObject, NSString, NSURL};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
@@ -214,6 +216,83 @@ impl RadioButton {
 }
 
 winio_handle::impl_as_widget!(RadioButton, handle);
+
+#[derive(Debug)]
+pub struct LinkLabel {
+    handle: Button,
+    uri: String,
+}
+
+#[inherit_methods(from = "self.handle")]
+impl LinkLabel {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let handle = Button::new(parent)?;
+        catch(|| {
+            handle.view.setBordered(false);
+            handle.view.setBezelStyle(NSBezelStyle::Badge);
+        })?;
+        Ok(Self {
+            handle,
+            uri: String::new(),
+        })
+    }
+
+    pub fn is_visible(&self) -> Result<bool>;
+
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
+
+    pub fn is_enabled(&self) -> Result<bool>;
+
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
+
+    pub fn preferred_size(&self) -> Result<Size>;
+
+    pub fn loc(&self) -> Result<Point>;
+
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
+
+    pub fn size(&self) -> Result<Size>;
+
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
+
+    pub fn tooltip(&self) -> Result<String>;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn text(&self) -> Result<String>;
+
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn uri(&self) -> Result<String> {
+        Ok(self.uri.clone())
+    }
+
+    pub fn set_uri(&mut self, uri: impl AsRef<str>) -> Result<()> {
+        self.uri = uri.as_ref().to_string();
+        Ok(())
+    }
+
+    pub async fn wait_click(&self) {
+        loop {
+            self.handle.wait_click().await;
+            if self.uri.is_empty() {
+                break;
+            } else {
+                if let Some(url) = NSURL::URLWithString(&NSString::from_str(&self.uri)) {
+                    info!("Opening link: {}", self.uri);
+                    let opened = NSWorkspace::sharedWorkspace().openURL(&url);
+                    if !opened {
+                        error!("Failed to open link: {}", self.uri);
+                    }
+                } else {
+                    warn!("Invalid URL: {}", self.uri);
+                }
+            }
+        }
+    }
+}
+
+winio_handle::impl_as_widget!(LinkLabel, handle);
 
 #[derive(Debug, Default)]
 struct ButtonDelegateIvars {
