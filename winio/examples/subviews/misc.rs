@@ -287,7 +287,7 @@ impl Component for MiscPage {
         let csize = self.window.size()?;
         {
             let mut cred_panel = layout! {
-                Grid::from_str("auto,1*,auto", "1*,auto,1*,auto,auto,1*").unwrap(),
+                Grid::from_str("auto,1*,auto", "2*,auto,1*,auto,auto,2*").unwrap(),
                 self.link   => { column: 0, row: 1, column_span: 3, halign: HAlign::Center, margin: Margin::new_all_same(4.0) },
                 self.ulabel => { column: 0, row: 3, valign: VAlign::Center },
                 self.uentry => { column: 1, row: 3, margin: Margin::new_all_same(4.0) },
