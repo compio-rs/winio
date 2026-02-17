@@ -26,6 +26,9 @@ impl LinkLabel {
     /// Set the URI of the link to navigate. If the URI is not empty, no `Click`
     /// event will be triggered when the link label is clicked, and the system
     /// will try to open the link.
+    ///
+    /// There is no validation or sanitization for the URI, so be careful when
+    /// setting it. This could potentially be exploited with malicious URIs.
     pub fn set_uri(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
