@@ -118,8 +118,9 @@ impl LinkLabel {
                             error!("Failed to open link: {}", _e);
                         }
                     }
+                } else {
+                    break;
                 }
-                break;
             }
         }
     }

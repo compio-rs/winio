@@ -28,8 +28,11 @@ impl LinkLabel {
         let on_click = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_click = on_click.clone();
-            button.Click(&RoutedEventHandler::new(move |_, _| {
-                on_click.signal::<GlobalRuntime>(());
+            button.Click(&RoutedEventHandler::new(move |sender, _| {
+                let button = sender.ok()?.cast::<MUXC::HyperlinkButton>()?;
+                if button.NavigateUri().is_err() {
+                    on_click.signal::<GlobalRuntime>(());
+                }
                 Ok(())
             }))?;
         }
@@ -79,8 +82,13 @@ impl LinkLabel {
     }
 
     pub fn set_uri(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.button
-            .SetNavigateUri(&Uri::CreateUri(&HSTRING::from(s.as_ref()))?)?;
+        let s = s.as_ref();
+        if s.is_empty() {
+            self.button.SetNavigateUri(None)?;
+        } else {
+            self.button
+                .SetNavigateUri(&Uri::CreateUri(&HSTRING::from(s))?)?;
+        }
         Ok(())
     }
 
