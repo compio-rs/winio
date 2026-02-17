@@ -23,8 +23,9 @@ impl LinkLabel {
     /// The URI of the link.
     pub fn uri(&self) -> Result<String>;
 
-    /// Set the URI of the link to navigate. If the URI is empty, the link label
-    /// will still be clickable, but it won't navigate anywhere.
+    /// Set the URI of the link to navigate. If the URI is not empty, no `Click`
+    /// event will be triggered when the link label is clicked, and the system
+    /// will try to open the link.
     pub fn set_uri(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
@@ -74,8 +75,7 @@ impl Layoutable for LinkLabel {
 #[non_exhaustive]
 pub enum LinkLabelEvent {
     /// The link label has been clicked.
-    /// Note that this event is triggered even `uri` is not empty, and the
-    /// system will try to open the link.
+    /// Note that this event is not triggered if `uri` is not empty.
     Click,
 }
 
