@@ -98,23 +98,25 @@ impl LinkLabel {
             if std::ptr::eq(hwnd_from, self.handle.as_widget().as_win32())
                 && matches!(code, NM_CLICK | NM_RETURN)
             {
-                unsafe {
-                    if let Err(_e) = with_u16c(&self.uri, |uri| {
-                        let res = ShellExecuteW(
-                            std::ptr::null_mut(),
-                            w!("open"),
-                            uri.as_ptr(),
-                            std::ptr::null(),
-                            std::ptr::null(),
-                            SW_SHOW,
-                        );
-                        if res as usize <= 32 {
-                            Err(Error::from_thread())
-                        } else {
-                            Ok(())
+                if !self.uri.is_empty() {
+                    unsafe {
+                        if let Err(_e) = with_u16c(&self.uri, |uri| {
+                            let res = ShellExecuteW(
+                                std::ptr::null_mut(),
+                                w!("open"),
+                                uri.as_ptr(),
+                                std::ptr::null(),
+                                std::ptr::null(),
+                                SW_SHOW,
+                            );
+                            if res as usize <= 32 {
+                                Err(Error::from_thread())
+                            } else {
+                                Ok(())
+                            }
+                        }) {
+                            error!("Failed to open link: {}", _e);
                         }
-                    }) {
-                        error!("Failed to open link: {}", _e);
                     }
                 }
                 break;
