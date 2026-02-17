@@ -28,11 +28,12 @@ impl LinkLabel {
         widget.connect_activate_link({
             let on_click = on_click.clone();
             move |button| {
-                if button.uri().is_empty() {
+                let uri = button.uri();
+                if uri.is_empty() {
                     on_click.signal::<GlobalRuntime>(());
                     Propagation::Stop
                 } else {
-                    info!("LinkLabel will open URI {:?}", button.uri());
+                    info!("LinkLabel will open URI {:?}", uri);
                     Propagation::Proceed
                 }
             }
