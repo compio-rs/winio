@@ -171,6 +171,10 @@ impl LinkLabel {
         Ok(())
     }
 
+    pub fn is_transparent(&self) -> Result<bool>;
+
+    pub fn set_transparent(&mut self, v: bool) -> Result<()>;
+
     pub async fn wait_click(&self) {
         loop {
             let WindowMessageCommand {

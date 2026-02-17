@@ -30,6 +30,14 @@ impl LinkLabel {
     /// There is no validation or sanitization for the URI, so be careful when
     /// setting it. This could potentially be exploited with malicious URIs.
     pub fn set_uri(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    /// If the label background is transparent.
+    #[cfg(win32)]
+    pub fn is_transparent(&self) -> Result<bool>;
+
+    /// Set if the label background is transparent.
+    #[cfg(win32)]
+    pub fn set_transparent(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
