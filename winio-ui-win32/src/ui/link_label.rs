@@ -64,11 +64,8 @@ impl LinkLabel {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     fn refresh_text(&mut self) -> Result<()> {
-        let s = if self.uri.is_empty() {
-            format!(r#"<A ID="custom">{}</A>"#, self.text)
-        } else {
-            format!(r#"<A HREF="{}">{}</A>"#, self.uri, self.text)
-        };
+        // We handle the URI manually.
+        let s = format!(r#"<A ID="custom">{}</A>"#, self.text);
         self.handle.set_text(s)
     }
 
