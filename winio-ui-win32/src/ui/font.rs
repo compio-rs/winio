@@ -63,23 +63,50 @@ fn default_log_font() -> Result<&'static LOGFONTW> {
     DEFAULT_FONT.get_or_try_init(|| unsafe { system_default_font() })
 }
 
+fn create_font(dpi: u32, custom: impl FnOnce(&mut LOGFONTW)) -> Result<WinFont> {
+    let mut f = *default_log_font()?;
+    f.lfHeight = f.lfHeight.to_device(dpi);
+    f.lfWidth = f.lfWidth.to_device(dpi);
+    custom(&mut f);
+    unsafe {
+        let res = CreateFontIndirectW(&f);
+        if res.is_null() {
+            Err(Error::from_thread())
+        } else {
+            Ok(WinFont(res))
+        }
+    }
+}
+
 static DPI_FONTS: Mutex<BTreeMap<u32, WinFont>> = Mutex::new(BTreeMap::new());
 
 pub fn default_font(dpi: u32) -> Result<HFONT> {
     let mut map = DPI_FONTS.lock().unwrap();
     match map.get(&dpi) {
         Some(f) => Ok(f.0),
-        None => unsafe {
-            let mut f = *default_log_font()?;
-            f.lfHeight = f.lfHeight.to_device(dpi);
-            f.lfWidth = f.lfWidth.to_device(dpi);
-            let res = CreateFontIndirectW(&f);
-            if res.is_null() {
-                return Err(Error::from_thread());
-            }
-            map.insert(dpi, WinFont(res));
+        None => {
+            let font = create_font(dpi, |_| {})?;
+            let res = font.0;
+            map.insert(dpi, font);
             Ok(res)
-        },
+        }
+    }
+}
+
+static DPI_UNDERLINE_FONTS: Mutex<BTreeMap<u32, WinFont>> = Mutex::new(BTreeMap::new());
+
+pub fn default_underline_font(dpi: u32) -> Result<HFONT> {
+    let mut map = DPI_UNDERLINE_FONTS.lock().unwrap();
+    match map.get(&dpi) {
+        Some(f) => Ok(f.0),
+        None => {
+            let font = create_font(dpi, |f| {
+                f.lfUnderline = 1;
+            })?;
+            let res = font.0;
+            map.insert(dpi, font);
+            Ok(res)
+        }
     }
 }
 

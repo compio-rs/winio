@@ -45,6 +45,7 @@ compio-log = "0.1.0"
 bitflags = "2"
 cfg-if = "1"
 futures-util = "0.3"
+html-escape = "0.2"
 image = { version = "0.25", default-features = false }
 inherit-methods-macro = "0.1"
 local-sync = "0.1"
@@ -59,7 +60,7 @@ widestring = "1"
 windows-sys = "0.61"
 windows = "0.62"
 windows-core = "0.62"
-winui3 = { version = "0.3.7", package = "winio-winui3" }
+winui3 = { version = "0.3.8", package = "winio-winui3" }
 webview2 = { version = "0.1.0", package = "winio-webview2" }
 
 send_wrapper = "0.6"
