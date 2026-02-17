@@ -97,6 +97,7 @@ pub struct LinkLabel {
 impl LinkLabel {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let mut label = Label::new(parent)?;
+        label.set_halign(HAlign::Center)?;
         let on_click = Box::new(Callback::new());
         unsafe {
             ffi::label_connect_link_activated(

@@ -119,7 +119,8 @@ pub struct LinkLabel {
 #[inherit_methods(from = "self.handle")]
 impl LinkLabel {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
-        let handle = Label::new(parent)?;
+        let mut handle = Label::new(parent)?;
+        handle.set_halign(HAlign::Center)?;
         syscall!(
             BOOL,
             SetWindowSubclass(
