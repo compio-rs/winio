@@ -40,6 +40,9 @@ pub use text_box::*;
 mod label;
 pub use label::*;
 
+mod link_label;
+pub use link_label::*;
+
 mod progress;
 pub use progress::*;
 
