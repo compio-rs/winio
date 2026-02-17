@@ -203,6 +203,7 @@ impl Component for MiscPage {
     async fn update_children(&mut self) -> Result<bool> {
         update_children!(
             self.window,
+            self.link,
             self.ulabel,
             self.plabel,
             self.uentry,

@@ -21,10 +21,14 @@ use windows_sys::{
         Foundation::{HWND, LPARAM, LRESULT, RECT, SetLastError, WPARAM},
         Graphics::{
             Dwm::DwmExtendFrameIntoClientArea,
-            Gdi::{BLACK_BRUSH, GetStockObject, HDC, InvalidateRect, WHITE_BRUSH},
+            Gdi::{
+                BLACK_BRUSH, GetStockObject, HDC, InvalidateRect, NULL_BRUSH, SetBkMode,
+                SetTextColor, TRANSPARENT, WHITE_BRUSH,
+            },
         },
         UI::{
             Controls::{MARGINS, NMHDR},
+            Shell::GetWindowSubclass,
             WindowsAndMessaging::{
                 DefWindowProcW, DispatchMessageW, EnumChildWindows, GA_ROOT, GCLP_HBRBACKGROUND,
                 GetAncestor, IsDialogMessageW, PostQuitMessage, SWP_NOACTIVATE, SWP_NOZORDER,
@@ -43,7 +47,7 @@ use winio_ui_windows_common::{
 
 use super::RUNTIME;
 use crate::{
-    Error, Result,
+    Error, Result, link_label_wnd_proc,
     ui::{dpi::get_dpi_for_window, font::default_font},
 };
 
@@ -279,9 +283,23 @@ pub(crate) unsafe extern "system" fn window_proc(
                 warn!("window_setting_change: handle: {handle:?}, error: {_e:?}");
             }
         }
-        WM_CTLCOLORSTATIC => {
-            return unsafe { control_color_static(lparam as HWND, wparam as HDC) };
-        }
+        WM_CTLCOLORSTATIC => unsafe {
+            let hwnd = lparam as HWND;
+            let hdc = wparam as HDC;
+            let mut data = 0;
+            if GetWindowSubclass(hwnd, Some(link_label_wnd_proc), 0, &mut data) != 0 {
+                // This is a LinkLabel
+                SetBkMode(hdc, TRANSPARENT as _);
+                if is_dark_mode_allowed_for_app() {
+                    SetTextColor(hdc, 0xFFFC96);
+                } else {
+                    SetTextColor(hdc, 0xCC6600);
+                }
+                return GetStockObject(NULL_BRUSH) as _;
+            } else {
+                return control_color_static(hwnd, hdc);
+            }
+        },
         WM_CTLCOLORBTN => {
             if is_dark_mode_allowed_for_app() {
                 return unsafe { GetStockObject(BLACK_BRUSH) as _ };

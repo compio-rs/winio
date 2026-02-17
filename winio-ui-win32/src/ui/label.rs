@@ -208,7 +208,7 @@ impl LinkLabel {
 
 winio_handle::impl_as_widget!(LinkLabel, handle);
 
-unsafe extern "system" fn link_label_wnd_proc(
+pub(crate) unsafe extern "system" fn link_label_wnd_proc(
     hwnd: HWND,
     msg: u32,
     wparam: WPARAM,
