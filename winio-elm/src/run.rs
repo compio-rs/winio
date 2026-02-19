@@ -6,7 +6,7 @@ use futures_util::{FutureExt, Stream};
 use crate::stream::stream;
 use crate::{BoxComponent, Child, Component, ComponentMessage, ComponentSender};
 
-/// Events yielded by the [`run`].
+/// Events yielded by the [`Root::run`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum RunEvent<T, E> {

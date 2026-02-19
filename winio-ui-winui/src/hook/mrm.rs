@@ -1,5 +1,5 @@
 //! Hook MRM.dll to avoid errors
-//! https://github.com/microsoft/WindowsAppSDK/issues/5814
+//! <https://github.com/microsoft/WindowsAppSDK/issues/5814>
 
 use std::{env::current_exe, sync::Once};
 
