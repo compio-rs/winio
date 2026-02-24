@@ -16,7 +16,7 @@ winio-layout = { workspace = true }
 winio-handle = { workspace = true }
 winio-elm = { workspace = true, features = ["handle", "primitive"] }
 
-compio = { workspace = true }
+compio = { workspace = true, public = true }
 compio-log = { workspace = true }
 
 cfg-if = { workspace = true }
