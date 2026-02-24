@@ -22,8 +22,8 @@ scoped-tls = { workspace = true }
 thiserror = { workspace = true }
 
 gtk4 = { workspace = true, features = ["v4_14"] }
-pangocairo = "0.21"
-webkit6 = { version = "0.5", optional = true }
+pangocairo = { workspace = true }
+webkit6 = { workspace = true, optional = true }
 
 [features]
 media = []

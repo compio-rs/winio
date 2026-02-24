@@ -71,6 +71,8 @@ objc2 = "0.6"
 objc2-app-kit = "0.3"
 
 gtk4 = "0.10"
+pangocairo = "0.21"
+webkit6 = "0.5"
 
 [profile.release]
 lto = true
