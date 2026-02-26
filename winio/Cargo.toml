@@ -5,7 +5,6 @@ description = "Single-threaded async GUI runtime based on compio."
 categories = ["asynchronous", "gui"]
 keywords = ["async", "gui"]
 edition = { workspace = true }
-authors = { workspace = true }
 readme = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }

@@ -3,7 +3,6 @@ name = "winio-primitive"
 version = "0.2.0"
 description = "Primitive types for winio."
 edition = { workspace = true }
-authors = { workspace = true }
 readme = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
