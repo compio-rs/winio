@@ -99,7 +99,7 @@ macro_rules! start {
                 $crate::__start_map!($($t)*),
                 || $noop
             ),
-        )*).0;
+        )*).0
     };
 }
 
