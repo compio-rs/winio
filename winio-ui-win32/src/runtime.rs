@@ -21,10 +21,7 @@ use windows_sys::{
         Foundation::{HWND, LPARAM, LRESULT, RECT, SetLastError, WPARAM},
         Graphics::{
             Dwm::DwmExtendFrameIntoClientArea,
-            Gdi::{
-                BLACK_BRUSH, GetStockObject, HDC, InvalidateRect, NULL_BRUSH, SetBkMode,
-                SetTextColor, TRANSPARENT, WHITE_BRUSH,
-            },
+            Gdi::{BLACK_BRUSH, GetStockObject, HDC, InvalidateRect, WHITE_BRUSH},
         },
         UI::{
             Controls::{MARGINS, NMHDR},
@@ -41,8 +38,8 @@ use windows_sys::{
     core::BOOL,
 };
 use winio_ui_windows_common::{
-    Backdrop, children_refresh_dark_mode, control_color_edit, control_color_static, init_dark,
-    is_dark_mode_allowed_for_app, window_use_dark_mode,
+    Backdrop, children_refresh_dark_mode, control_color_edit, control_color_link_label,
+    control_color_static, init_dark, is_dark_mode_allowed_for_app, window_use_dark_mode,
 };
 
 use super::RUNTIME;
@@ -289,13 +286,7 @@ pub(crate) unsafe extern "system" fn window_proc(
             let mut data = 0;
             if GetWindowSubclass(hwnd, Some(link_label_wnd_proc), 0, &mut data) != 0 {
                 // This is a LinkLabel
-                SetBkMode(hdc, TRANSPARENT as _);
-                if is_dark_mode_allowed_for_app() {
-                    SetTextColor(hdc, 0xFFFC96);
-                } else {
-                    SetTextColor(hdc, 0xCC6600);
-                }
-                return GetStockObject(NULL_BRUSH) as _;
+                return control_color_link_label(hwnd, hdc);
             } else {
                 return control_color_static(hwnd, hdc);
             }
