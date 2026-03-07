@@ -117,6 +117,35 @@ pub unsafe fn control_color_static(hwnd: HWND, hdc: HDC) -> LRESULT {
 }
 
 /// # Safety
+/// It should only be called inside an wndproc, and `hwnd` & `hdc` should be
+/// valid.
+pub unsafe fn control_color_link_label(hwnd: HWND, hdc: HDC) -> LRESULT {
+    unsafe {
+        let dark = is_dark_mode_allowed_for_app();
+
+        let is_transparent = (GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32 & WS_EX_TRANSPARENT) != 0;
+
+        SetBkMode(hdc, TRANSPARENT as _);
+        if dark {
+            SetTextColor(hdc, 0xFFFC96);
+            if !is_transparent {
+                SetBkColor(hdc, BLACK);
+            }
+        } else {
+            SetTextColor(hdc, 0xCC6600);
+        }
+        let res = if is_transparent {
+            GetStockObject(NULL_BRUSH)
+        } else if dark {
+            GetStockObject(BLACK_BRUSH)
+        } else {
+            GetStockObject(WHITE_BRUSH)
+        };
+        res as _
+    }
+}
+
+/// # Safety
 /// It should only be called inside an wndproc, and `hparent` & `hwnd` & `hdc`
 /// should be valid.
 pub unsafe fn control_color_edit(hparent: HWND, hwnd: HWND, hdc: HDC) -> Option<LRESULT> {
