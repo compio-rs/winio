@@ -1,6 +1,6 @@
 [package]
 name = "winio-primitive"
-version = "0.2.0"
+version = "0.2.1"
 description = "Primitive types for winio."
 edition = { workspace = true }
 readme = { workspace = true }
