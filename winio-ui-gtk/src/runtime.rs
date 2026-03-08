@@ -1,8 +1,9 @@
 use std::{future::Future, os::fd::AsRawFd};
 
+use glib_unix::unix_fd_add_local;
 use gtk4::{
     gio::{self, prelude::ApplicationExt},
-    glib::{ControlFlow, IOCondition, MainContext, timeout_add_local_once, unix_fd_add_local},
+    glib::{ControlFlow, IOCondition, MainContext, timeout_add_local_once},
 };
 
 use crate::Result;
