@@ -21,6 +21,7 @@ scoped-tls = { workspace = true }
 thiserror = { workspace = true }
 
 gtk4 = { workspace = true, features = ["v4_14"] }
+glib-unix = { workspace = true }
 pangocairo = { workspace = true }
 webkit6 = { workspace = true, optional = true }
 
