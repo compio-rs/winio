@@ -38,6 +38,8 @@ jobs:
     name: Release-plz PR
     runs-on: ubuntu-latest
     if: ${{ github.repository_owner == 'compio-rs' }}
+    # Buggy currently
+    if: false
     permissions:
       contents: write
       pull-requests: write
