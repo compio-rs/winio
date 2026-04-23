@@ -1,5 +1,6 @@
-use std::{panic::resume_unwind, path::PathBuf};
+use std::path::PathBuf;
 
+use compio::runtime::ResumeUnwind;
 use widestring::{U16CStr, U16CString};
 use windows::{
     Win32::{
@@ -65,7 +66,8 @@ impl FileBox {
             .result()
         })
         .await
-        .unwrap_or_else(|e| resume_unwind(e))
+        .resume_unwind()
+        .expect("task cancelled")
     }
 
     pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Result<Vec<PathBuf>> {
@@ -86,7 +88,8 @@ impl FileBox {
             .results()
         })
         .await
-        .unwrap_or_else(|e| resume_unwind(e))
+        .resume_unwind()
+        .expect("task cancelled")
     }
 
     pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
@@ -107,7 +110,8 @@ impl FileBox {
             .result()
         })
         .await
-        .unwrap_or_else(|e| resume_unwind(e))
+        .resume_unwind()
+        .expect("task cancelled")
     }
 
     pub async fn save(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
@@ -128,7 +132,8 @@ impl FileBox {
             .result()
         })
         .await
-        .unwrap_or_else(|e| resume_unwind(e))
+        .resume_unwind()
+        .expect("task cancelled")
     }
 }
 

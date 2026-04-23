@@ -15,7 +15,7 @@ winio-layout = { workspace = true }
 winio-handle = { workspace = true }
 winio-elm = { workspace = true, features = ["handle", "primitive"] }
 
-compio = { workspace = true, public = true }
+compio = { workspace = true }
 compio-log = { workspace = true }
 
 cfg-if = { workspace = true }
@@ -46,12 +46,12 @@ compio = { workspace = true, default-features = true, features = [
     "rustls",
     "ring",
 ] }
-cyper = { version = "0.8.0", default-features = false, features = [
+cyper = { version = "0.9.0-rc.1", default-features = false, features = [
     "rustls",
     "http2",
     "http3-altsvc",
 ] }
-cyper-axum = "0.8.0"
+cyper-axum = "0.9.0-rc.1"
 axum = { version = "0.8", default-features = false }
 
 dirs = "6.0"

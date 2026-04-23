@@ -132,29 +132,28 @@ impl Runtime {
     }
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
+        let result = RefCell::new(None);
+        let future = async {
+            let res = future.await;
+            Application::Current()
+                .expect("Failed to get current application")
+                .Exit()
+                .expect("Failed to exit application");
+            result.replace(Some(res));
+        };
         self.enter(|| {
-            let mut result = None;
-            unsafe {
-                self.runtime.spawn_unchecked(async {
-                    result = Some(future.await);
-                    Application::Current()
-                        .expect("Failed to get current application")
-                        .Exit()
-                        .expect("Failed to exit application");
-                })
-            }
-            .detach();
+            self.runtime.enter_block_on(future, || {
+                Application::Start(&ApplicationInitializationCallback::new(app_start))
+                    .expect("Failed to start application");
 
-            Application::Start(&ApplicationInitializationCallback::new(app_start))
-                .expect("Failed to start application");
-
-            if let Some(shutdown) = &self.shutdown {
-                unsafe {
-                    SetEvent(shutdown.as_raw_handle());
+                if let Some(shutdown) = &self.shutdown {
+                    unsafe {
+                        SetEvent(shutdown.as_raw_handle());
+                    }
                 }
-            }
 
-            result.expect("Application exits but no result")
+                result.take().expect("Application exits but no result")
+            })
         })
     }
 }
