@@ -141,36 +141,36 @@ impl Runtime {
     }
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
+        let result = RefCell::new(None);
+        let future = async {
+            let res = future.await;
+            unsafe { PostQuitMessage(0) };
+            result.replace(Some(res));
+        };
         self.enter(|| {
-            let mut result = None;
-            unsafe {
-                self.runtime.spawn_unchecked(async {
-                    result = Some(future.await);
-                    PostQuitMessage(0);
-                })
-            }
-            .detach();
-
-            loop {
-                let mut msg = MaybeUninit::uninit();
-                let res = unsafe { self.runtime.get_message(msg.as_mut_ptr(), null_mut(), 0, 0) };
-                if res > 0 {
-                    let msg = unsafe { msg.assume_init() };
-                    unsafe {
-                        let root = GetAncestor(msg.hwnd, GA_ROOT);
-                        let handled = !root.is_null() && (IsDialogMessageW(root, &msg) != 0);
-                        if !handled {
-                            TranslateMessage(&msg);
-                            DispatchMessageW(&msg);
+            self.runtime.enter_block_on(future, || {
+                loop {
+                    let mut msg = MaybeUninit::uninit();
+                    let res =
+                        unsafe { self.runtime.get_message(msg.as_mut_ptr(), null_mut(), 0, 0) };
+                    if res > 0 {
+                        let msg = unsafe { msg.assume_init() };
+                        unsafe {
+                            let root = GetAncestor(msg.hwnd, GA_ROOT);
+                            let handled = !root.is_null() && (IsDialogMessageW(root, &msg) != 0);
+                            if !handled {
+                                TranslateMessage(&msg);
+                                DispatchMessageW(&msg);
+                            }
                         }
+                    } else if res == 0 {
+                        debug!("Received WM_QUIT");
+                        break result.take().expect("received WM_QUIT but no result");
+                    } else {
+                        panic!("MsgWaitForMultipleObjectsEx: {:?}", Error::from_thread());
                     }
-                } else if res == 0 {
-                    debug!("Received WM_QUIT");
-                    break result.take().expect("received WM_QUIT but no result");
-                } else {
-                    panic!("MsgWaitForMultipleObjectsEx: {:?}", Error::from_thread());
                 }
-            }
+            })
         })
     }
 
@@ -291,10 +291,8 @@ pub(crate) unsafe extern "system" fn window_proc(
                 return control_color_static(hwnd, hdc);
             }
         },
-        WM_CTLCOLORBTN => {
-            if is_dark_mode_allowed_for_app() {
-                return unsafe { GetStockObject(BLACK_BRUSH) as _ };
-            }
+        WM_CTLCOLORBTN if is_dark_mode_allowed_for_app() => {
+            return unsafe { GetStockObject(BLACK_BRUSH) as _ };
         }
         WM_CTLCOLOREDIT | WM_CTLCOLORLISTBOX => {
             if let Some(res) = unsafe { control_color_edit(handle, lparam as HWND, wparam as HDC) }

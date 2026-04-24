@@ -52,7 +52,7 @@ impl Component for WebViewPage {
     type Message = WebViewPageMessage;
 
     async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
-        let url = "https://www.example.com/";
+        let url = "https://compio.rs/";
         init! {
             window: TabViewItem = (()) => {
                 text: "WebView",

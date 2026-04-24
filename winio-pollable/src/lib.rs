@@ -8,13 +8,21 @@
 #[cfg(target_os = "linux")]
 use std::os::fd::OwnedFd;
 use std::{
+    cell::RefCell,
     future::Future,
     io,
     ops::{Deref, DerefMut},
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll, Waker},
     time::Duration,
 };
 
-use compio::driver::{AsRawFd, RawFd};
+use compio::{
+    driver::{AsRawFd, RawFd},
+    runtime::OptWaker,
+};
+use futures_util::FutureExt;
 
 /// See [`Runtime`]
 ///
@@ -70,11 +78,22 @@ impl Runtime {
 }
 
 impl Runtime {
+    /// Run the scheduled tasks.
+    pub fn run(&self) -> bool {
+        let main_task_remaining = if MAIN_TASK.is_set() {
+            MAIN_TASK.with(|task| task.poll())
+        } else {
+            false
+        };
+
+        self.runtime.run() | main_task_remaining
+    }
+
     /// Poll the runtime. Returns the next timeout.
     pub fn poll_and_run(&self) -> Option<Duration> {
         self.runtime.poll_with(Some(Duration::ZERO));
 
-        let remaining_tasks = self.runtime.run();
+        let remaining_tasks = self.run();
 
         if remaining_tasks {
             Some(Duration::ZERO)
@@ -83,25 +102,37 @@ impl Runtime {
         }
     }
 
+    /// Set the current main task and wait for its completion.
+    pub fn enter_block_on<F: Future<Output = ()>, T>(&self, future: F, f: impl FnOnce() -> T) -> T {
+        let opt_waker = self.runtime.opt_waker();
+        let task = unsafe { MainTask::new(future, opt_waker) };
+        MAIN_TASK.set(&task, f)
+    }
+
     /// Block on the future till it completes. Users should enter the runtime
     /// before calling this function, and poll the runtime themselves.
     pub fn block_on<F: Future>(&self, future: F, poll: impl Fn(Option<Duration>)) -> F::Output {
-        let mut result = None;
-        unsafe {
-            self.runtime
-                .spawn_unchecked(async { result = Some(future.await) })
-        }
-        .detach();
-        loop {
-            let timeout = self.poll_and_run();
-            if let Some(result) = result.take() {
-                break result;
-            }
+        let result = RefCell::new(None);
 
-            poll(timeout);
+        self.enter_block_on(
+            async {
+                let res = Some(future.await);
+                result.replace(res);
+            },
+            || {
+                loop {
+                    let timeout = self.poll_and_run();
 
-            self.clear().ok();
-        }
+                    if let Some(result) = result.take() {
+                        break result;
+                    }
+
+                    poll(timeout);
+
+                    self.clear().ok();
+                }
+            },
+        )
     }
 }
 
@@ -134,3 +165,51 @@ impl AsRawFd for Runtime {
         }
     }
 }
+
+struct MainTask {
+    future: RefCell<Pin<Box<dyn Future<Output = ()>>>>,
+    opt_waker: Arc<OptWaker>,
+    waker: Waker,
+}
+
+unsafe fn reduce_lifetime<'a>(
+    future: impl Future<Output = ()> + 'a,
+) -> Pin<Box<dyn Future<Output = ()> + 'static>> {
+    let future = Box::pin(future) as Pin<Box<dyn Future<Output = ()> + 'a>>;
+    unsafe {
+        std::mem::transmute::<
+            Pin<Box<dyn Future<Output = ()> + 'a>>,
+            Pin<Box<dyn Future<Output = ()> + 'static>>,
+        >(future)
+    }
+}
+
+impl MainTask {
+    pub unsafe fn new(future: impl Future<Output = ()>, opt_waker: Arc<OptWaker>) -> Self {
+        let waker = Waker::from(opt_waker.clone());
+        Self {
+            // SAFETY: the future will only be polled within the scope of `enter_block_on`, which
+            // guarantees that the future will not outlive the main task.
+            future: RefCell::new(unsafe { reduce_lifetime(future.fuse()) }),
+            opt_waker,
+            waker,
+        }
+    }
+
+    pub fn poll(&self) -> bool {
+        let mut cx = Context::from_waker(&self.waker);
+        if let Ok(mut fut) = self.future.try_borrow_mut() {
+            if let Poll::Ready(()) = fut.as_mut().poll(&mut cx) {
+                // The future has completed, so we should not wait for the driver to wake us up
+                // anymore.
+                true
+            } else {
+                self.opt_waker.reset()
+            }
+        } else {
+            false
+        }
+    }
+}
+
+scoped_tls::scoped_thread_local!(static MAIN_TASK: MainTask);

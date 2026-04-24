@@ -481,11 +481,9 @@ unsafe extern "system" fn dark_draw_theme_background_ex(
         && let Some((_, ty)) = HTHEME_MAP.lock().unwrap().get(&htheme)
     {
         match ty {
-            ThemeType::Progress => {
-                if ipartid == PP_TRANSPARENTBAR {
-                    unsafe { FillRect(hdc, prect, DLG_GRAY_BACK.0) };
-                    return S_OK;
-                }
+            ThemeType::Progress if ipartid == PP_TRANSPARENTBAR => {
+                unsafe { FillRect(hdc, prect, DLG_GRAY_BACK.0) };
+                return S_OK;
             }
             ThemeType::Tab => match ipartid {
                 TABP_TABITEM
@@ -729,10 +727,8 @@ unsafe extern "system" fn task_dialog_subclass(
                 error!("task_dialog_refresh: {_e:?}");
             }
         }
-        WM_CTLCOLORDLG => {
-            if is_dark_mode_allowed_for_app() {
-                return DLG_DARK_BACK.0 as _;
-            }
+        WM_CTLCOLORDLG if is_dark_mode_allowed_for_app() => {
+            return DLG_DARK_BACK.0 as _;
         }
         _ => {}
     }

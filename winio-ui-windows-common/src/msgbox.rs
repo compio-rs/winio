@@ -1,8 +1,6 @@
-use std::{
-    panic::resume_unwind,
-    ptr::{null, null_mut},
-};
+use std::ptr::{null, null_mut};
 
+use compio::runtime::ResumeUnwind;
 use widestring::U16CString;
 use windows::core::HRESULT;
 use windows_sys::Win32::{
@@ -84,7 +82,8 @@ async fn msgbox(
         (res, result)
     })
     .await
-    .unwrap_or_else(|e| resume_unwind(e));
+    .resume_unwind()
+    .expect("task cancelled");
 
     if res >= 0 {
         let res = match result {

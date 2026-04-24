@@ -53,7 +53,7 @@ impl<'a, E> StackPanel<'a, E> {
             style.size.width = match child.width {
                 Some(w) => length(w as f32),
                 None => match (self.orient, child.halign, child.grow) {
-                    (Orient::Vertical, HAlign::Stretch, _) => percent(1.0),
+                    (Orient::Vertical, HAlign::Stretch, _) => percent(1.0f32),
                     (Orient::Horizontal, _, true) => auto(),
                     _ => length(preferred_size.width as f32),
                 },
@@ -61,7 +61,7 @@ impl<'a, E> StackPanel<'a, E> {
             style.size.height = match child.height {
                 Some(h) => length(h as f32),
                 None => match (self.orient, child.valign, child.grow) {
-                    (Orient::Horizontal, VAlign::Stretch, _) => percent(1.0),
+                    (Orient::Horizontal, VAlign::Stretch, _) => percent(1.0f32),
                     (Orient::Vertical, _, true) => auto(),
                     _ => length(preferred_size.height as f32),
                 },
@@ -90,14 +90,14 @@ impl<'a, E> StackPanel<'a, E> {
                 }
             }
             if child.grow {
-                style.flex_grow = 1.0
+                style.flex_grow = 1.0f32
             }
             let node = tree.new_leaf(style)?;
             nodes.push(node);
         }
         let root = tree.new_with_children(
             Style {
-                size: taffy::Size::from_percent(1.0, 1.0),
+                size: taffy::Size::from_percent(1.0f32, 1.0f32),
                 flex_direction: match self.orient {
                     Orient::Horizontal => taffy::FlexDirection::Row,
                     Orient::Vertical => taffy::FlexDirection::Column,

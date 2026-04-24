@@ -323,11 +323,9 @@ unsafe extern "system" fn multiline_edit_wnd_proc(
         WM_GETDLGCODE => {
             res &= !(DLGC_WANTALLKEYS as isize);
         }
-        WM_KEYUP => {
-            if wparam == VK_RETURN as _ {
-                const RETURN_TEXT: *const u16 = w!("\r\n");
-                unsafe { DefSubclassProc(hwnd, EM_REPLACESEL, 1, RETURN_TEXT as _) };
-            }
+        WM_KEYUP if wparam == VK_RETURN as _ => {
+            const RETURN_TEXT: *const u16 = w!("\r\n");
+            unsafe { DefSubclassProc(hwnd, EM_REPLACESEL, 1, RETURN_TEXT as _) };
         }
         _ => {}
     }
