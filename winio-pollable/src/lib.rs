@@ -80,7 +80,13 @@ impl Runtime {
 impl Runtime {
     /// Run the scheduled tasks.
     pub fn run(&self) -> bool {
-        self.runtime.run() | MAIN_TASK.with(|task| task.poll())
+        let main_task_remaining = if MAIN_TASK.is_set() {
+            MAIN_TASK.with(|task| task.poll())
+        } else {
+            false
+        };
+
+        self.runtime.run() | main_task_remaining
     }
 
     /// Poll the runtime. Returns the next timeout.
@@ -96,7 +102,7 @@ impl Runtime {
         }
     }
 
-    /// Set the current main task and wait for it's completion.
+    /// Set the current main task and wait for its completion.
     pub fn enter_block_on<F: Future<Output = ()>, T>(&self, future: F, f: impl FnOnce() -> T) -> T {
         let opt_waker = self.runtime.opt_waker();
         let task = unsafe { MainTask::new(future, opt_waker) };
@@ -182,6 +188,8 @@ impl MainTask {
     pub unsafe fn new(future: impl Future<Output = ()>, opt_waker: Arc<OptWaker>) -> Self {
         let waker = Waker::from(opt_waker.clone());
         Self {
+            // SAFETY: the future will only be polled within the scope of `enter_block_on`, which
+            // guarantees that the future will not outlive the main task.
             future: RefCell::new(unsafe { reduce_lifetime(future.fuse()) }),
             opt_waker,
             waker,
@@ -192,6 +200,8 @@ impl MainTask {
         let mut cx = Context::from_waker(&self.waker);
         if let Ok(mut fut) = self.future.try_borrow_mut() {
             if let Poll::Ready(()) = fut.as_mut().poll(&mut cx) {
+                // The future has completed, so we should not wait for the driver to wake us up
+                // anymore.
                 true
             } else {
                 self.opt_waker.reset()
