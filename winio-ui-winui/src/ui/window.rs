@@ -1,12 +1,8 @@
-#[cfg(feature = "once_cell_try")]
-use std::cell::OnceCell;
 use std::{cell::RefCell, mem::MaybeUninit, rc::Rc, sync::Arc};
 
 use compio::driver::syscall;
 use compio_log::error;
 use inherit_methods_macro::inherit_methods;
-#[cfg(not(feature = "once_cell_try"))]
-use once_cell::unsync::OnceCell;
 use send_wrapper::SendWrapper;
 use windows::{
     Foundation::TypedEventHandler,
@@ -362,44 +358,19 @@ impl Drop for ColorThemeWatcher {
 }
 
 fn acrylic_backdrop() -> Result<SystemBackdrop> {
-    thread_local! {
-        static ACRYLIC_BACKDROP: OnceCell<SystemBackdrop> = const { OnceCell::new() };
-    }
-
-    ACRYLIC_BACKDROP.with(|cell| {
-        cell.get_or_try_init(CustomDesktopAcrylicBackdrop::compose)
-            .cloned()
-    })
+    CustomDesktopAcrylicBackdrop::compose()
 }
 
 fn mica_backdrop() -> Result<MicaBackdrop> {
-    thread_local! {
-        static MICA_BACKDROP: OnceCell<MicaBackdrop> = const { OnceCell::new() };
-    }
-
-    MICA_BACKDROP.with(|cell| {
-        cell.get_or_try_init(|| {
-            let brush = MicaBackdrop::new()?;
-            brush.SetKind(MicaKind::Base)?;
-            Ok(brush)
-        })
-        .cloned()
-    })
+    let brush = MicaBackdrop::new()?;
+    brush.SetKind(MicaKind::Base)?;
+    Ok(brush)
 }
 
 fn mica_alt_backdrop() -> Result<MicaBackdrop> {
-    thread_local! {
-        static MICA_ALT_BACKDROP: OnceCell<MicaBackdrop> = const { OnceCell::new() };
-    }
-
-    MICA_ALT_BACKDROP.with(|cell| {
-        cell.get_or_try_init(|| {
-            let brush = MicaBackdrop::new()?;
-            brush.SetKind(MicaKind::BaseAlt)?;
-            Ok(brush)
-        })
-        .cloned()
-    })
+    let brush = MicaBackdrop::new()?;
+    brush.SetKind(MicaKind::BaseAlt)?;
+    Ok(brush)
 }
 
 #[derive(Debug)]
