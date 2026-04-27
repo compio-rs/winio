@@ -72,6 +72,8 @@ impl Runtime {
             use WindowsAppSDKVersion::*;
             [
                 V1_8,
+                #[cfg(feature = "enable-cbs")]
+                Cbs1_8,
                 V1_7,
                 V1_6,
                 #[cfg(feature = "enable-cbs")]
