@@ -71,6 +71,7 @@ impl Runtime {
         let winui_dependency = init_appsdk_with({
             use WindowsAppSDKVersion::*;
             [
+                V2,
                 V1_8,
                 #[cfg(feature = "enable-cbs")]
                 Cbs1_8,
