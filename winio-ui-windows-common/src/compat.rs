@@ -1,8 +1,9 @@
 use std::{
+    cell::RefCell,
     io,
     ops::Deref,
     pin::Pin,
-    task::{Context, Poll},
+    task::{Context, Poll, Waker},
     time::Duration,
 };
 
@@ -58,7 +59,7 @@ impl Future for HandleFuture {
         if self.polled {
             Poll::Ready(Ok(()))
         } else {
-            crate::set_context(self.handle, self.timeout, cx.waker().clone());
+            set_context(self.handle, self.timeout, cx.waker().clone());
             self.polled = true;
             Poll::Pending
         }
@@ -67,6 +68,40 @@ impl Future for HandleFuture {
 
 impl Drop for HandleFuture {
     fn drop(&mut self) {
-        crate::reset_context();
+        reset_context();
     }
+}
+
+struct HandleContext {
+    handle: HANDLE,
+    timeout: Option<Duration>,
+    waker: Waker,
+}
+
+thread_local! {
+    static CONTEXT: RefCell<Option<HandleContext>> = const { RefCell::new(None) };
+}
+
+fn set_context(handle: HANDLE, timeout: Option<Duration>, waker: Waker) {
+    CONTEXT.with_borrow_mut(|ctx| {
+        ctx.replace(HandleContext {
+            handle,
+            timeout,
+            waker,
+        })
+    });
+}
+
+fn reset_context() {
+    CONTEXT.with_borrow_mut(|ctx| ctx.take());
+}
+
+pub(crate) fn get_handle() -> (Option<HANDLE>, Option<Duration>, Option<Waker>) {
+    CONTEXT.with_borrow(|ctx| {
+        if let Some(ctx) = ctx.as_ref() {
+            (Some(ctx.handle), ctx.timeout, Some(ctx.waker.clone()))
+        } else {
+            (None, None, None)
+        }
+    })
 }

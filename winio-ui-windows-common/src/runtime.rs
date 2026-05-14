@@ -1,6 +1,6 @@
 #[cfg(feature = "once_cell_try")]
 use std::cell::OnceCell;
-use std::{cell::RefCell, task::Waker, time::Duration};
+use std::time::Duration;
 
 #[cfg(not(feature = "once_cell_try"))]
 use once_cell::sync::OnceCell;
@@ -8,13 +8,23 @@ use windows::Win32::Graphics::Direct2D::{
     D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1CreateFactory, ID2D1Factory2,
 };
 use windows_sys::Win32::{
-    Foundation::{HANDLE, HWND, WAIT_FAILED, WAIT_OBJECT_0},
+    Foundation::{HWND, WAIT_FAILED, WAIT_OBJECT_0},
     System::Threading::INFINITE,
     UI::WindowsAndMessaging::{
         MSG, MWMO_ALERTABLE, MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx, PM_REMOVE,
         PeekMessageW, QS_ALLINPUT, WM_QUIT,
     },
 };
+#[cfg(not(feature = "compio-compat"))]
+use {std::task::Waker, windows_sys::Win32::Foundation::HANDLE};
+
+#[cfg(feature = "compio-compat")]
+use crate::get_handle;
+
+#[cfg(not(feature = "compio-compat"))]
+const fn get_handle() -> (Option<HANDLE>, Option<Duration>, Option<Waker>) {
+    (None, None, None)
+}
 
 thread_local! {
     static D2D1_FACTORY: OnceCell<ID2D1Factory2> = const { OnceCell::new() };
@@ -86,38 +96,4 @@ pub unsafe fn get_message(msg: *mut MSG, hwnd: HWND, min: u32, max: u32) -> i32 
             _ => {}
         }
     }
-}
-
-struct HandleContext {
-    handle: HANDLE,
-    timeout: Option<Duration>,
-    waker: Waker,
-}
-
-thread_local! {
-    static CONTEXT: RefCell<Option<HandleContext>> = const { RefCell::new(None) };
-}
-
-pub(crate) fn set_context(handle: HANDLE, timeout: Option<Duration>, waker: Waker) {
-    CONTEXT.with_borrow_mut(|ctx| {
-        ctx.replace(HandleContext {
-            handle,
-            timeout,
-            waker,
-        })
-    });
-}
-
-pub(crate) fn reset_context() {
-    CONTEXT.with_borrow_mut(|ctx| ctx.take());
-}
-
-fn get_handle() -> (Option<HANDLE>, Option<Duration>, Option<Waker>) {
-    CONTEXT.with_borrow(|ctx| {
-        if let Some(ctx) = ctx.as_ref() {
-            (Some(ctx.handle), ctx.timeout, Some(ctx.waker.clone()))
-        } else {
-            (None, None, None)
-        }
-    })
 }

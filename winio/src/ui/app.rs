@@ -1,11 +1,13 @@
 use std::future::Future;
 
-use compio::runtime::Runtime;
 use compio_log::{error, warn};
 use futures_util::StreamExt;
 use winio_elm::{Component, Root, RunEvent};
 #[cfg(feature = "compio-compat")]
-use {compio::compat::RuntimeCompat, sys::CompioAdapter};
+use {
+    compio::{compat::RuntimeCompat, runtime::Runtime},
+    sys::CompioAdapter,
+};
 
 use crate::{sys, sys::block_on};
 

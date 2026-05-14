@@ -7,7 +7,7 @@ use std::{
 use futures_util::FutureExt;
 use inherit_methods_macro::inherit_methods;
 use widestring::{U16CStr, U16CString, U16Str, u16cstr};
-use windows_core::HRESULT;
+use windows::core::HRESULT;
 use windows_sys::Win32::{
     Foundation::{ERROR_INVALID_HANDLE, HWND, LPARAM, LRESULT, SetLastError, WPARAM},
     Graphics::Gdi::{GetStockObject, InvalidateRect, MapWindowPoints, WHITE_BRUSH},
