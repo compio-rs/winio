@@ -8,10 +8,5 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-compio = { workspace = true, features = ["runtime"] }
-
 futures-util = { workspace = true }
 scoped-tls = { workspace = true }
-
-[target.'cfg(target_os = "linux")'.dependencies]
-rustix = { version = "1", features = ["event"] }

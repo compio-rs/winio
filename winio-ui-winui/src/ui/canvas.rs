@@ -12,7 +12,7 @@ use windows::{
                 Common::{D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_COLOR_F, D2D1_PIXEL_FORMAT},
                 D2D1_BITMAP_OPTIONS_CANNOT_DRAW, D2D1_BITMAP_OPTIONS_TARGET,
                 D2D1_BITMAP_PROPERTIES1, D2D1_DEVICE_CONTEXT_OPTIONS_NONE, ID2D1Bitmap1,
-                ID2D1Device, ID2D1DeviceContext, ID2D1Factory2,
+                ID2D1Device, ID2D1DeviceContext,
             },
             Direct3D::{
                 D3D_DRIVER_TYPE_HARDWARE, D3D_FEATURE_LEVEL_9_1, D3D_FEATURE_LEVEL_9_2,
@@ -40,6 +40,7 @@ use windows::{
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{ColorTheme, DrawingFont, MouseButton, Point, Rect, Size, Transform, Vector};
+use winio_ui_windows_common::d2d1_factory;
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 use winui3::{
     ISwapChainPanelNative,
@@ -52,14 +53,7 @@ use winui3::{
     },
 };
 
-use crate::{
-    Error, GlobalRuntime, RUNTIME, Result, Widget, color_theme, get_root_window, ui::Convertible,
-};
-
-#[inline]
-fn d2d1<T>(f: impl FnOnce(&ID2D1Factory2) -> Result<T>) -> Result<T> {
-    RUNTIME.with(|runtime| f(runtime.d2d1()?))
-}
+use crate::{Error, GlobalRuntime, Result, Widget, color_theme, get_root_window, ui::Convertible};
 
 #[inline]
 fn is_lost(e: &Error) -> bool {
@@ -107,8 +101,7 @@ impl SwapChain {
             let d3d11_device = device.ok_or(Error::from_hresult(E_POINTER))?;
             let dxdi_device = d3d11_device.cast::<IDXGIDevice1>()?;
             let d3d11_context = context.ok_or(Error::from_hresult(E_POINTER))?;
-            let d2d1_device: ID2D1Device =
-                d2d1(|d2d1| Ok(d2d1.CreateDevice(&dxdi_device)?.into()))?;
+            let d2d1_device: ID2D1Device = d2d1_factory()?.CreateDevice(&dxdi_device)?.into();
             let d2d1_context = d2d1_device.CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE)?;
             let desc = DXGI_SWAP_CHAIN_DESC1 {
                 Width: 100,
@@ -431,7 +424,7 @@ impl<'a> DrawingContext<'a> {
     fn new(canvas: &'a mut Canvas) -> Result<Self> {
         Ok(Self {
             ctx: winio_ui_windows_common::DrawingContext::new(
-                d2d1(|d2d1| Ok(d2d1.clone().into()))?,
+                d2d1_factory()?.into(),
                 canvas.dwrite.clone(),
                 canvas.swap_chain.d2d1_context.clone().into(),
             ),

@@ -13,7 +13,6 @@ use compio::driver::AsRawFd;
 use compio_log::*;
 use windows::{
     Foundation::Uri,
-    Win32::Graphics::Direct2D::ID2D1Factory2,
     core::{Array, HSTRING, IInspectable_Vtbl, Interface, Ref, h, imp::WeakRefCount, implement},
 };
 use windows_sys::Win32::{
@@ -44,13 +43,11 @@ use winui3::{
     init_apartment,
 };
 
-use crate::{Error, RUNTIME, Result};
+use crate::{Error, Result};
 
-pub struct Runtime {
-    runtime: winio_ui_windows_common::Runtime,
+pub(crate) struct WinUIApp {
     #[allow(dead_code)]
     winui_dependency: PackageDependency,
-    shutdown: Option<Arc<OwnedHandle>>,
 }
 
 fn init_appsdk_with(
@@ -64,7 +61,7 @@ fn init_appsdk_with(
     PackageDependency::initialize()
 }
 
-impl Runtime {
+impl WinUIApp {
     pub fn new() -> Result<Self> {
         init_apartment(ApartmentType::SingleThreaded)?;
 
@@ -98,68 +95,15 @@ impl Runtime {
         set_preferred_app_mode(PreferredAppMode::AllowDark);
 
         crate::hook::mrm::init_hook();
-        let shutdown = if !crate::hook::mq::init_hook() {
+        if !crate::hook::mq::init_hook() {
             warn!("Message queue hooking failed, fallback to dedicated thread");
-            Some(Arc::new(unsafe {
-                OwnedHandle::from_raw_handle({
-                    let handle = CreateEventW(null(), 0, 0, null());
-                    if handle.is_null() {
-                        return Err(Error::from_thread());
-                    }
-                    handle
-                })
-            }))
-        } else {
-            None
-        };
+        }
 
-        let runtime = winio_ui_windows_common::Runtime::new()?;
-
-        Ok(Self {
-            runtime,
-            winui_dependency,
-            shutdown,
-        })
-    }
-
-    pub(crate) fn d2d1(&self) -> Result<&ID2D1Factory2> {
-        self.runtime.d2d1()
-    }
-
-    pub(crate) fn run(&self) -> bool {
-        self.runtime.run()
-    }
-
-    fn enter<T, F: FnOnce() -> T>(&self, f: F) -> T {
-        self.runtime.enter(|| RUNTIME.set(self, f))
-    }
-
-    pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        let result = RefCell::new(None);
-        let future = async {
-            let res = future.await;
-            Application::Current()
-                .expect("Failed to get current application")
-                .Exit()
-                .expect("Failed to exit application");
-            result.replace(Some(res));
-        };
-        self.enter(|| {
-            self.runtime.enter_block_on(future, || {
-                Application::Start(&ApplicationInitializationCallback::new(app_start))
-                    .expect("Failed to start application");
-
-                if let Some(shutdown) = &self.shutdown {
-                    unsafe {
-                        SetEvent(shutdown.as_raw_handle());
-                    }
-                }
-
-                result.take().expect("Application exits but no result")
-            })
-        })
+        Ok(Self { winui_dependency })
     }
 }
+
+scoped_tls::scoped_thread_local!(pub(crate) static APP: WinUIApp);
 
 fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> {
     debug!("Application::Start");
@@ -182,24 +126,12 @@ fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> 
         },
     )))?;
 
-    RUNTIME.with(|runtime| {
-        if let Some(shutdown) = runtime.shutdown.clone() {
-            spawn_runtime_thread(runtime.runtime.as_raw_fd() as *const _ as usize, shutdown)?;
-        }
+    APP.with(|app| {
+        // spawn_runtime_thread()?;
         Result::Ok(())
     })?;
 
     Ok(())
-}
-
-pub(crate) unsafe fn run_runtime(msg: *mut MSG, hwnd: HWND, min: u32, max: u32) -> Option<i32> {
-    if RUNTIME.is_set() {
-        let res =
-            RUNTIME.with(|runtime| unsafe { runtime.runtime.get_message(msg, hwnd, min, max) });
-        Some(res)
-    } else {
-        None
-    }
 }
 
 static THREAD_COUNTER: AtomicBool = AtomicBool::new(false);
@@ -226,29 +158,15 @@ impl Drop for ThreadGuard {
     }
 }
 
-fn spawn_runtime_thread(runtime: usize, shutdown: Arc<OwnedHandle>) -> Result<()> {
+fn spawn_runtime_thread() -> Result<()> {
     if let Some(guard) = ThreadGuard::new() {
         let dispatcher = DispatcherQueue::GetForCurrentThread()?;
         compio::runtime::spawn_blocking(move || {
             let _guard = guard;
             loop {
-                let timeout = resume_foreground(&dispatcher, {
-                    move || RUNTIME.with(|runtime| runtime.runtime.poll_and_run())
-                });
-                let Some(timeout) = timeout else {
-                    break;
-                };
-                debug!("Waiting in {timeout:?}");
-                let timeout = match timeout {
-                    Some(timeout) => timeout.as_millis() as u32,
-                    None => INFINITE,
-                };
-                let handles = [shutdown.as_raw_handle(), runtime as RawHandle];
-                let res = unsafe { WaitForMultipleObjects(2, handles.as_ptr(), 0, timeout) };
-                if res == WAIT_OBJECT_0 {
-                    break;
-                } else if res == WAIT_FAILED {
-                    error!("WaitForMultipleObjects: {:?}", Error::from_thread());
+                let is_ready =
+                    resume_foreground(&dispatcher, move || winio_pollable::run_current_task());
+                if is_ready == Some(true) {
                     break;
                 }
             }
@@ -342,4 +260,29 @@ impl ChildClass for App {
     fn into_outer(self) -> Self::Outer {
         Self::into_outer(self)
     }
+}
+
+pub fn block_on<F: Future>(future: F) -> F::Output {
+    let app = WinUIApp::new().expect("Failed to initialize WinUI");
+
+    let waker =
+        winio_ui_windows_common::waker().expect("failed to create waker for current thread");
+
+    APP.set(&app, || {
+        let result = RefCell::new(None);
+        let future = async {
+            let res = future.await;
+            Application::Current()
+                .expect("Failed to get current application")
+                .Exit()
+                .expect("Failed to exit application");
+            result.replace(Some(res));
+        };
+        winio_pollable::enter_block_on(future, waker, || {
+            Application::Start(&ApplicationInitializationCallback::new(app_start))
+                .expect("Failed to start application");
+
+            result.take().expect("Application exits but no result")
+        })
+    })
 }

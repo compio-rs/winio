@@ -6,8 +6,6 @@
 
 pub use winio_ui_windows_common::{Error, Result};
 
-scoped_tls::scoped_thread_local!(pub(crate) static RUNTIME: Runtime);
-
 mod runtime;
 pub use runtime::*;
 

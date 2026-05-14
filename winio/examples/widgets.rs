@@ -3,6 +3,8 @@ use std::{convert::Infallible, future::Future, path::PathBuf, pin::Pin};
 use thiserror::Error;
 use winio::prelude::*;
 
+link_args::windows::stack_size!(0x800000);
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// An error from the UI backend.
