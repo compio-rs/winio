@@ -17,6 +17,9 @@ pub enum Error {
     /// Image error.
     #[error("Image error: {0}")]
     Image(#[from] image::ImageError),
+    /// Cyper error.
+    #[error("Cyper error: {0}")]
+    Cyper(#[from] cyper::Error),
 }
 
 impl<E: Into<Error> + std::fmt::Display> From<LayoutError<E>> for Error {

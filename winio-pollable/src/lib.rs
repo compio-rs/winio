@@ -13,15 +13,11 @@ use std::{
     io,
     ops::{Deref, DerefMut},
     pin::Pin,
-    sync::Arc,
     task::{Context, Poll, Waker},
     time::Duration,
 };
 
-use compio::{
-    driver::{AsRawFd, RawFd},
-    runtime::OptWaker,
-};
+use compio::driver::{AsRawFd, RawFd};
 use futures_util::FutureExt;
 
 /// See [`Runtime`]
@@ -104,8 +100,8 @@ impl Runtime {
 
     /// Set the current main task and wait for its completion.
     pub fn enter_block_on<F: Future<Output = ()>, T>(&self, future: F, f: impl FnOnce() -> T) -> T {
-        let opt_waker = self.runtime.opt_waker();
-        let task = unsafe { MainTask::new(future, opt_waker) };
+        let waker = self.runtime.waker();
+        let task = unsafe { MainTask::new(future, waker) };
         MAIN_TASK.set(&task, f)
     }
 
@@ -168,7 +164,6 @@ impl AsRawFd for Runtime {
 
 struct MainTask {
     future: RefCell<Pin<Box<dyn Future<Output = ()>>>>,
-    opt_waker: Arc<OptWaker>,
     waker: Waker,
 }
 
@@ -185,13 +180,11 @@ unsafe fn reduce_lifetime<'a>(
 }
 
 impl MainTask {
-    pub unsafe fn new(future: impl Future<Output = ()>, opt_waker: Arc<OptWaker>) -> Self {
-        let waker = Waker::from(opt_waker.clone());
+    pub unsafe fn new(future: impl Future<Output = ()>, waker: Waker) -> Self {
         Self {
             // SAFETY: the future will only be polled within the scope of `enter_block_on`, which
             // guarantees that the future will not outlive the main task.
             future: RefCell::new(unsafe { reduce_lifetime(future.fuse()) }),
-            opt_waker,
             waker,
         }
     }
@@ -204,7 +197,7 @@ impl MainTask {
                 // anymore.
                 true
             } else {
-                self.opt_waker.reset()
+                false
             }
         } else {
             false

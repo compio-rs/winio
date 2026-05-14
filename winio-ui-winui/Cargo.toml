@@ -13,7 +13,7 @@ winio-handle = { workspace = true, features = ["winui"] }
 winio-callback = { workspace = true }
 winio-ui-windows-common = { workspace = true, features = ["winui"] }
 
-compio = { workspace = true, features = ["notify-always"] }
+compio = { workspace = true }
 compio-log = { workspace = true }
 
 image = { workspace = true }

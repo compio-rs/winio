@@ -76,3 +76,8 @@ webkit6 = "0.6"
 [profile.release]
 lto = true
 codegen-units = 1
+
+[patch.crates-io]
+compio = { path = "../compio/compio" }
+compio-log = { path = "../compio/compio-log" }
+cyper = { path = "../cyper/cyper" }
