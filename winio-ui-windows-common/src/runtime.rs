@@ -1,21 +1,15 @@
 #[cfg(feature = "once_cell_try")]
 use std::cell::OnceCell;
-use std::{
-    os::windows::io::{AsRawHandle, BorrowedHandle, OwnedHandle},
-    sync::Arc,
-    task::{Wake, Waker},
-    time::Duration,
-};
+use std::time::Duration;
 
-use compio::driver::RawFd;
 #[cfg(not(feature = "once_cell_try"))]
 use once_cell::sync::OnceCell;
 use windows::Win32::Graphics::Direct2D::{
     D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1CreateFactory, ID2D1Factory2,
 };
 use windows_sys::Win32::{
-    Foundation::{HWND, WAIT_FAILED, WAIT_OBJECT_0},
-    System::Threading::{GetCurrentThread, INFINITE, QueueUserAPC},
+    Foundation::{HANDLE, HWND, WAIT_FAILED, WAIT_OBJECT_0},
+    System::Threading::INFINITE,
     UI::WindowsAndMessaging::{
         MSG, MWMO_ALERTABLE, MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx, PM_REMOVE,
         PeekMessageW, QS_ALLINPUT, WM_QUIT,
@@ -96,38 +90,4 @@ pub unsafe fn get_message(msg: *mut MSG, hwnd: HWND, min: u32, max: u32) -> i32 
 
 scoped_tls::scoped_thread_local!(static TIMEOUT: Option<Duration>);
 
-scoped_tls::scoped_thread_local!(static HANDLE: RawFd);
-
-struct ApcWaker {
-    handle: OwnedHandle,
-}
-
-impl ApcWaker {
-    pub fn new() -> std::io::Result<Self> {
-        let handle = unsafe { GetCurrentThread() };
-        let handle = unsafe { BorrowedHandle::borrow_raw(handle) }.try_clone_to_owned()?;
-        Ok(Self { handle })
-    }
-
-    fn wake_impl(&self) {
-        unsafe {
-            QueueUserAPC(Some(Self::apc_proc), self.handle.as_raw_handle() as _, 0);
-        }
-    }
-
-    unsafe extern "system" fn apc_proc(_: usize) {}
-}
-
-impl Wake for ApcWaker {
-    fn wake(self: Arc<Self>) {
-        self.wake_impl();
-    }
-
-    fn wake_by_ref(self: &Arc<Self>) {
-        self.wake_impl();
-    }
-}
-
-pub fn waker() -> std::io::Result<Waker> {
-    Ok(Waker::from(Arc::new(ApcWaker::new()?)))
-}
+scoped_tls::scoped_thread_local!(static HANDLE: HANDLE);

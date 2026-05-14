@@ -92,7 +92,7 @@ fn with_u16c<T>(s: &str, f: impl FnOnce(&U16CStr) -> crate::Result<T>) -> crate:
         let buf = s
             .encode_utf16()
             .chain([0])
-            .collect::<compio::arrayvec::ArrayVec<u16, 32>>();
+            .collect::<arrayvec::ArrayVec<u16, 32>>();
         f(U16CStr::from_slice_truncate(&buf).expect("already null-terminated"))
     } else {
         let buf = s.encode_utf16().chain([0]).collect::<Vec<u16>>();

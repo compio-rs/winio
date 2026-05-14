@@ -1,4 +1,3 @@
-use compio::driver::syscall;
 use inherit_methods_macro::inherit_methods;
 use windows_sys::{
     Win32::{
@@ -21,6 +20,7 @@ use windows_sys::{
 };
 use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{HAlign, Point, Size};
+use winio_ui_windows_common::syscall;
 
 use crate::{
     Result,

@@ -4,7 +4,6 @@ use std::{
     rc::Rc,
 };
 
-use compio::driver::syscall;
 use inherit_methods_macro::inherit_methods;
 use windows::core::HRESULT;
 use windows_sys::{
@@ -27,7 +26,7 @@ use windows_sys::{
 };
 use winio_handle::{AsContainer, AsWidget, BorrowedContainer};
 use winio_primitive::{Point, Size};
-use winio_ui_windows_common::children_refresh_dark_mode;
+use winio_ui_windows_common::{children_refresh_dark_mode, syscall};
 
 use crate::{Error, Result, View, Widget, WindowMessageNotify, ui::with_u16c};
 

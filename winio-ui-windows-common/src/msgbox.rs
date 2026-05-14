@@ -1,6 +1,5 @@
 use std::ptr::{null, null_mut};
 
-use compio::runtime::ResumeUnwind;
 use widestring::U16CString;
 use windows::core::HRESULT;
 use windows_sys::Win32::{
@@ -29,7 +28,7 @@ async fn msgbox(
     cbtns: Vec<CustomButton>,
 ) -> Result<MessageBoxResponse> {
     let parent_handle = parent.map(|p| p as isize).unwrap_or_default();
-    let (res, result) = compio::runtime::spawn_blocking(move || {
+    let (res, result) = crate::spawn_blocking(move || {
         let cbtn_ptrs = cbtns
             .iter()
             .map(|b| TASKDIALOG_BUTTON {
@@ -81,9 +80,7 @@ async fn msgbox(
         let res = unsafe { TaskDialogIndirect(&config, &mut result, null_mut(), null_mut()) };
         (res, result)
     })
-    .await
-    .resume_unwind()
-    .expect("task cancelled");
+    .await;
 
     if res >= 0 {
         let res = match result {

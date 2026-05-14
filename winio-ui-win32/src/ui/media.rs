@@ -1,6 +1,5 @@
 use std::{mem::MaybeUninit, sync::Arc, time::Duration};
 
-use compio::driver::syscall;
 use compio_log::error;
 use inherit_methods_macro::inherit_methods;
 use windows::{
@@ -31,6 +30,7 @@ use windows_sys::Win32::{
 use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{Point, Size};
+use winio_ui_windows_common::syscall;
 
 use crate::{Result, Widget, ui::with_u16c};
 

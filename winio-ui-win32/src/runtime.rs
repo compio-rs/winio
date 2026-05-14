@@ -3,12 +3,13 @@ use std::{
     collections::HashMap,
     future::Future,
     mem::MaybeUninit,
+    os::windows::io::{AsRawHandle, BorrowedHandle, OwnedHandle},
     pin::Pin,
     ptr::{null, null_mut},
-    task::{Context, Poll, Waker},
+    sync::Arc,
+    task::{Context, Poll, Wake, Waker},
 };
 
-use compio::driver::syscall;
 use compio_log::*;
 use slab::Slab;
 use windows::core::HRESULT;
@@ -23,6 +24,7 @@ use windows_sys::{
             Dwm::DwmExtendFrameIntoClientArea,
             Gdi::{BLACK_BRUSH, GetStockObject, HDC, InvalidateRect, WHITE_BRUSH},
         },
+        System::Threading::{GetCurrentThread, QueueUserAPC},
         UI::{
             Controls::{MARGINS, NMHDR},
             Shell::GetWindowSubclass,
@@ -39,7 +41,7 @@ use windows_sys::{
 };
 use winio_ui_windows_common::{
     Backdrop, children_refresh_dark_mode, control_color_edit, control_color_link_label,
-    control_color_static, init_dark, is_dark_mode_allowed_for_app, window_use_dark_mode,
+    control_color_static, init_dark, is_dark_mode_allowed_for_app, syscall, window_use_dark_mode,
 };
 
 use crate::{
@@ -382,8 +384,8 @@ pub(crate) unsafe fn refresh_background(handle: HWND) -> Result<()> {
         );
         match res {
             Ok(_) => Ok(()),
-            Err(e) if e.raw_os_error() == Some(0) => Ok(()),
-            Err(e) => Err(e.into()),
+            Err(e) if e.code().is_ok() => Ok(()),
+            Err(e) => Err(e),
         }
     }
 }
@@ -391,8 +393,9 @@ pub(crate) unsafe fn refresh_background(handle: HWND) -> Result<()> {
 pub fn block_on<F: Future>(future: F) -> F::Output {
     init_dark();
 
-    let waker =
-        winio_ui_windows_common::waker().expect("failed to create waker for current thread");
+    let waker = Waker::from(Arc::new(
+        ApcWaker::new().expect("failed to create waker for current thread"),
+    ));
 
     let registry = Registry::new();
     REGISTRY.set(&registry, || {
@@ -427,4 +430,34 @@ pub fn block_on<F: Future>(future: F) -> F::Output {
             }
         })
     })
+}
+
+struct ApcWaker {
+    handle: OwnedHandle,
+}
+
+impl ApcWaker {
+    pub fn new() -> std::io::Result<Self> {
+        let handle = unsafe { GetCurrentThread() };
+        let handle = unsafe { BorrowedHandle::borrow_raw(handle) }.try_clone_to_owned()?;
+        Ok(Self { handle })
+    }
+
+    fn wake_impl(&self) {
+        unsafe {
+            QueueUserAPC(Some(Self::apc_proc), self.handle.as_raw_handle(), 0);
+        }
+    }
+
+    unsafe extern "system" fn apc_proc(_: usize) {}
+}
+
+impl Wake for ApcWaker {
+    fn wake(self: Arc<Self>) {
+        self.wake_impl();
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        self.wake_impl();
+    }
 }

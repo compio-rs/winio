@@ -14,9 +14,9 @@ winio-callback = { workspace = true, optional = true }
 winio-pollable = { workspace = true }
 winio-ui-windows-common = { workspace = true, features = ["win32"] }
 
-compio = { workspace = true, features = ["arrayvec"] }
 compio-log = { workspace = true }
 
+arrayvec = { workspace = true }
 futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
 local-sync = { workspace = true, optional = true }

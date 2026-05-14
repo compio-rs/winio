@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use compio::runtime::ResumeUnwind;
 use widestring::{U16CStr, U16CString};
 use windows::{
     Win32::{
@@ -52,7 +51,7 @@ impl FileBox {
         let parent = parent
             .and_then(|p| p.as_window().handle().ok())
             .map(|h| h as isize);
-        compio::runtime::spawn_blocking(move || {
+        crate::spawn_blocking(move || {
             let parent = parent.map(|w| HWND(w as _));
             filebox(
                 parent,
@@ -66,15 +65,13 @@ impl FileBox {
             .result()
         })
         .await
-        .resume_unwind()
-        .expect("task cancelled")
     }
 
     pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Result<Vec<PathBuf>> {
         let parent = parent
             .and_then(|p| p.as_window().handle().ok())
             .map(|h| h as isize);
-        compio::runtime::spawn_blocking(move || {
+        crate::spawn_blocking(move || {
             let parent = parent.map(|w| HWND(w as _));
             filebox(
                 parent,
@@ -88,15 +85,13 @@ impl FileBox {
             .results()
         })
         .await
-        .resume_unwind()
-        .expect("task cancelled")
     }
 
     pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
         let parent = parent
             .and_then(|p| p.as_window().handle().ok())
             .map(|h| h as isize);
-        compio::runtime::spawn_blocking(move || {
+        crate::spawn_blocking(move || {
             let parent = parent.map(|w| HWND(w as _));
             filebox(
                 parent,
@@ -110,15 +105,13 @@ impl FileBox {
             .result()
         })
         .await
-        .resume_unwind()
-        .expect("task cancelled")
     }
 
     pub async fn save(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
         let parent = parent
             .and_then(|p| p.as_window().handle().ok())
             .map(|h| h as isize);
-        compio::runtime::spawn_blocking(move || {
+        crate::spawn_blocking(move || {
             let parent = parent.map(|w| HWND(w as _));
             filebox(
                 parent,
@@ -132,8 +125,6 @@ impl FileBox {
             .result()
         })
         .await
-        .resume_unwind()
-        .expect("task cancelled")
     }
 }
 

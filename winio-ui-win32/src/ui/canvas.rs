@@ -1,6 +1,5 @@
 use std::ptr::null_mut;
 
-use compio::driver::syscall;
 use compio_log::error;
 use futures_util::FutureExt;
 use image::DynamicImage;
@@ -32,7 +31,7 @@ use windows_sys::Win32::{
 };
 use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{DrawingFont, MouseButton, Orient, Point, Rect, Size, Transform, Vector};
-use winio_ui_windows_common::{Backdrop, d2d1_factory, is_dark_mode_allowed_for_app};
+use winio_ui_windows_common::{Backdrop, d2d1_factory, is_dark_mode_allowed_for_app, syscall};
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 
 use crate::{
@@ -210,7 +209,7 @@ impl Canvas {
         unsafe { SetLastError(0) };
         match syscall!(BOOL, MapWindowPoints(parent, handle, &mut p, 1)) {
             Ok(_) => {}
-            Err(e) if e.raw_os_error() == Some(0) => {}
+            Err(e) if e.code().is_ok() => {}
             Err(_e) => {
                 error!("MapWindowPoints: {_e:?}");
                 return None;

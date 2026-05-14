@@ -1,24 +1,14 @@
 use std::{
     cell::RefCell,
     future::Future,
-    os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle, RawHandle},
-    ptr::null,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::{Arc, Mutex},
+    task::{Wake, Waker},
 };
 
-use compio::driver::AsRawFd;
 use compio_log::*;
 use windows::{
     Foundation::Uri,
     core::{Array, HSTRING, IInspectable_Vtbl, Interface, Ref, h, imp::WeakRefCount, implement},
-};
-use windows_sys::Win32::{
-    Foundation::{HWND, WAIT_FAILED, WAIT_OBJECT_0},
-    System::Threading::{CreateEventW, INFINITE, SetEvent, WaitForMultipleObjects},
-    UI::WindowsAndMessaging::MSG,
 };
 use winio_ui_windows_common::{PreferredAppMode, init_dark, set_preferred_app_mode};
 use winui3::{
@@ -27,7 +17,6 @@ use winui3::{
         Dispatching::{DispatcherQueue, DispatcherQueueHandler},
         Xaml::{
             Application, ApplicationInitializationCallback,
-            ApplicationInitializationCallbackParams,
             Controls::XamlControlsResources,
             IApplicationFactory, IApplicationFactory_Vtbl, IApplicationOverrides,
             IApplicationOverrides_Impl, LaunchActivatedEventArgs,
@@ -43,7 +32,7 @@ use winui3::{
     init_apartment,
 };
 
-use crate::{Error, Result};
+use crate::Result;
 
 pub(crate) struct WinUIApp {
     #[allow(dead_code)]
@@ -95,9 +84,6 @@ impl WinUIApp {
         set_preferred_app_mode(PreferredAppMode::AllowDark);
 
         crate::hook::mrm::init_hook();
-        if !crate::hook::mq::init_hook() {
-            warn!("Message queue hooking failed, fallback to dedicated thread");
-        }
 
         Ok(Self { winui_dependency })
     }
@@ -105,7 +91,7 @@ impl WinUIApp {
 
 scoped_tls::scoped_thread_local!(pub(crate) static APP: WinUIApp);
 
-fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> {
+fn app_start(waker: Arc<DispatcherWaker>) -> Result<()> {
     debug!("Application::Start");
 
     let app = App::compose()?;
@@ -126,71 +112,11 @@ fn app_start(_: Ref<'_, ApplicationInitializationCallbackParams>) -> Result<()> 
         },
     )))?;
 
-    APP.with(|app| {
-        // spawn_runtime_thread()?;
-        Result::Ok(())
-    })?;
+    let dispatcher = DispatcherQueue::GetForCurrentThread()?;
+    waker.dispatcher.lock().unwrap().replace(dispatcher);
+    waker.wake();
 
     Ok(())
-}
-
-static THREAD_COUNTER: AtomicBool = AtomicBool::new(false);
-
-struct ThreadGuard;
-
-impl ThreadGuard {
-    fn new() -> Option<Self> {
-        if THREAD_COUNTER
-            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-            .is_ok()
-        {
-            Some(Self)
-        } else {
-            None
-        }
-    }
-}
-
-impl Drop for ThreadGuard {
-    fn drop(&mut self) {
-        THREAD_COUNTER.store(false, Ordering::Release);
-        info!("Runtime thread exited");
-    }
-}
-
-fn spawn_runtime_thread() -> Result<()> {
-    if let Some(guard) = ThreadGuard::new() {
-        let dispatcher = DispatcherQueue::GetForCurrentThread()?;
-        compio::runtime::spawn_blocking(move || {
-            let _guard = guard;
-            loop {
-                let is_ready =
-                    resume_foreground(&dispatcher, move || winio_pollable::run_current_task());
-                if is_ready == Some(true) {
-                    break;
-                }
-            }
-        })
-        .detach();
-    }
-    Ok(())
-}
-
-fn resume_foreground<T: Send + 'static>(
-    dispatcher: &DispatcherQueue,
-    f: impl (Fn() -> T) + Send + 'static,
-) -> Option<T> {
-    let (tx, rx) = oneshot::channel();
-    let tx = RefCell::new(Some(tx));
-    let queued = dispatcher
-        .TryEnqueue(&DispatcherQueueHandler::new(move || {
-            if let Some(tx) = tx.borrow_mut().take() {
-                tx.send(f()).ok();
-            }
-            Ok(())
-        }))
-        .unwrap_or_default();
-    if queued { rx.recv().ok() } else { None }
 }
 
 #[implement(IApplicationOverrides, IXamlMetadataProvider)]
@@ -265,10 +191,10 @@ impl ChildClass for App {
 pub fn block_on<F: Future>(future: F) -> F::Output {
     let app = WinUIApp::new().expect("Failed to initialize WinUI");
 
-    let waker =
-        winio_ui_windows_common::waker().expect("failed to create waker for current thread");
+    let dispatcher = Arc::new(DispatcherWaker::new());
+    let waker = Waker::from(dispatcher.clone());
 
-    APP.set(&app, || {
+    APP.set(&app, move || {
         let result = RefCell::new(None);
         let future = async {
             let res = future.await;
@@ -279,10 +205,47 @@ pub fn block_on<F: Future>(future: F) -> F::Output {
             result.replace(Some(res));
         };
         winio_pollable::enter_block_on(future, waker, || {
-            Application::Start(&ApplicationInitializationCallback::new(app_start))
-                .expect("Failed to start application");
+            let dispatcher = RefCell::new(Some(dispatcher));
+            Application::Start(&ApplicationInitializationCallback::new(move |_| {
+                app_start(dispatcher.borrow_mut().take().unwrap())
+            }))
+            .expect("Failed to start application");
 
             result.take().expect("Application exits but no result")
         })
     })
+}
+
+struct DispatcherWaker {
+    dispatcher: Mutex<Option<DispatcherQueue>>,
+}
+
+impl DispatcherWaker {
+    pub fn new() -> Self {
+        Self {
+            dispatcher: Mutex::new(None),
+        }
+    }
+
+    fn wake_impl(&self) {
+        let dispatcher = self.dispatcher.lock().unwrap();
+        if let Some(dispatcher) = dispatcher.as_ref() {
+            dispatcher
+                .TryEnqueue(&DispatcherQueueHandler::new(|| {
+                    winio_pollable::run_current_task();
+                    Ok(())
+                }))
+                .ok();
+        }
+    }
+}
+
+impl Wake for DispatcherWaker {
+    fn wake(self: Arc<Self>) {
+        self.wake_impl();
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        self.wake_impl();
+    }
 }

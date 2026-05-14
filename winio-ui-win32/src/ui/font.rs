@@ -3,7 +3,6 @@ use core::f32;
 use std::sync::OnceLock;
 use std::{collections::BTreeMap, mem::MaybeUninit, sync::Mutex};
 
-use compio::driver::syscall;
 #[cfg(not(feature = "once_cell_try"))]
 use once_cell::sync::OnceCell as OnceLock;
 use widestring::U16Str;
@@ -26,6 +25,7 @@ use windows_sys::Win32::{
     },
 };
 use winio_primitive::Size;
+use winio_ui_windows_common::syscall;
 
 use super::dpi::DpiAware;
 use crate::{Error, Result};

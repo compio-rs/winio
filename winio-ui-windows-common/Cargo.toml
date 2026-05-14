@@ -12,12 +12,12 @@ winio-primitive = { workspace = true }
 winio-handle = { workspace = true }
 winio-pollable = { workspace = true }
 
-compio = { workspace = true }
 compio-log = { workspace = true }
 
 cfg-if = { workspace = true }
 image = { workspace = true }
 once_cell = { workspace = true }
+oneshot = { version = "0.2", default-features = false, features = ["async"] }
 scoped-tls = { workspace = true }
 widestring = { workspace = true }
 
@@ -47,6 +47,7 @@ windows-sys = { workspace = true, features = [
     "Win32_UI_WindowsAndMessaging",
 ] }
 windows-numerics = "0.3"
+windows-threading = "0.2"
 winui3 = { workspace = true, optional = true, features = [
     "native",
     "UI_Xaml",
@@ -64,5 +65,5 @@ win32 = ["winio-handle/win32"]
 winui = ["winio-handle/winui", "dep:winui3"]
 dark-mode = ["dep:slim-detours-sys", "dep:sync-unsafe-cell"]
 
-once_cell_try = ["compio/once_cell_try"]
+once_cell_try = []
 nightly = ["once_cell_try"]
