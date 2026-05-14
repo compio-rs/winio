@@ -22,3 +22,6 @@ mod ui;
 pub use ui::*;
 
 mod hook;
+
+#[cfg(feature = "compio-compat")]
+pub use compio::compat::FuturesAdapter as CompioAdapter;

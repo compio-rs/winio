@@ -1,6 +1,6 @@
 #[cfg(feature = "once_cell_try")]
 use std::cell::OnceCell;
-use std::time::Duration;
+use std::{cell::RefCell, task::Waker, time::Duration};
 
 #[cfg(not(feature = "once_cell_try"))]
 use once_cell::sync::OnceCell;
@@ -33,11 +33,7 @@ pub fn d2d1_factory() -> crate::Result<ID2D1Factory2> {
 /// This function calls [`PeekMessageW`] internally.
 pub unsafe fn get_message(msg: *mut MSG, hwnd: HWND, min: u32, max: u32) -> i32 {
     loop {
-        let mut timeout = if TIMEOUT.is_set() {
-            TIMEOUT.with(|t| *t)
-        } else {
-            None
-        };
+        let (handle, mut timeout, waker) = get_handle();
         let is_ready = winio_pollable::run_current_task();
         if is_ready {
             timeout = Some(Duration::from_millis(0));
@@ -46,8 +42,7 @@ pub unsafe fn get_message(msg: *mut MSG, hwnd: HWND, min: u32, max: u32) -> i32 
             Some(timeout) => timeout.as_millis() as u32,
             None => INFINITE,
         };
-        let (res, queue_res) = if HANDLE.is_set() {
-            let handle = HANDLE.with(|h| *h);
+        let (res, queue_res, handle_res) = if let Some(handle) = handle {
             let res = unsafe {
                 MsgWaitForMultipleObjectsEx(
                     1,
@@ -58,7 +53,7 @@ pub unsafe fn get_message(msg: *mut MSG, hwnd: HWND, min: u32, max: u32) -> i32 
                 )
             };
             const WAIT_OBJECT_1: u32 = WAIT_OBJECT_0 + 1;
-            (res, WAIT_OBJECT_1)
+            (res, WAIT_OBJECT_1, Some(WAIT_OBJECT_0))
         } else {
             let res = unsafe {
                 MsgWaitForMultipleObjectsEx(
@@ -69,7 +64,7 @@ pub unsafe fn get_message(msg: *mut MSG, hwnd: HWND, min: u32, max: u32) -> i32 
                     MWMO_ALERTABLE | MWMO_INPUTAVAILABLE,
                 )
             };
-            (res, WAIT_OBJECT_0)
+            (res, WAIT_OBJECT_0, None)
         };
         match res {
             WAIT_FAILED => return -1,
@@ -83,11 +78,46 @@ pub unsafe fn get_message(msg: *mut MSG, hwnd: HWND, min: u32, max: u32) -> i32 
                     }
                 }
             }
+            res if Some(res) == handle_res
+                && let Some(waker) = waker =>
+            {
+                waker.wake();
+            }
             _ => {}
         }
     }
 }
 
-scoped_tls::scoped_thread_local!(static TIMEOUT: Option<Duration>);
+struct HandleContext {
+    handle: HANDLE,
+    timeout: Option<Duration>,
+    waker: Waker,
+}
 
-scoped_tls::scoped_thread_local!(static HANDLE: HANDLE);
+thread_local! {
+    static CONTEXT: RefCell<Option<HandleContext>> = const { RefCell::new(None) };
+}
+
+pub(crate) fn set_context(handle: HANDLE, timeout: Option<Duration>, waker: Waker) {
+    CONTEXT.with_borrow_mut(|ctx| {
+        ctx.replace(HandleContext {
+            handle,
+            timeout,
+            waker,
+        })
+    });
+}
+
+pub(crate) fn reset_context() {
+    CONTEXT.with_borrow_mut(|ctx| ctx.take());
+}
+
+fn get_handle() -> (Option<HANDLE>, Option<Duration>, Option<Waker>) {
+    CONTEXT.with_borrow(|ctx| {
+        if let Some(ctx) = ctx.as_ref() {
+            (Some(ctx.handle), ctx.timeout, Some(ctx.waker.clone()))
+        } else {
+            (None, None, None)
+        }
+    })
+}

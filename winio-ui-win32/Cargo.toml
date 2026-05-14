@@ -61,6 +61,7 @@ webview = [
     "dep:windows-core",
     "dep:local-sync",
 ]
+compio-compat = ["winio-ui-windows-common/compio-compat"]
 
 dark-mode = ["winio-ui-windows-common/dark-mode"]
 

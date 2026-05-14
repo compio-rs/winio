@@ -15,7 +15,7 @@ winio-layout = { workspace = true }
 winio-handle = { workspace = true }
 winio-elm = { workspace = true, features = ["handle", "primitive"] }
 
-compio = { workspace = true, features = ["compat-futures"] }
+compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
 
 cfg-if = { workspace = true }
@@ -92,7 +92,12 @@ webview = [
     "winio-ui-qt?/webview",
 ]
 plotters = ["dep:plotters-backend"]
-all = ["media", "webview", "plotters"]
+compio-compat = [
+    "compio/compat",
+    "winio-ui-win32?/compio-compat",
+    "winio-ui-winui?/compio-compat",
+]
+all = ["media", "webview", "plotters", "compio-compat"]
 
 raw-window-handle = ["winio-handle/raw-window-handle"]
 
@@ -107,7 +112,7 @@ nightly = [
     "winio-elm/nightly",
     "winio-ui-windows-common/nightly",
     "winio-ui-win32?/nightly",
-    "compio/nightly",
+    "compio?/nightly",
     "cyper/nightly",
     "cyper-axum/nightly",
 ]

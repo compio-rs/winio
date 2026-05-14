@@ -4,6 +4,8 @@
 #![cfg_attr(feature = "once_cell_try", feature(once_cell_try))]
 #![cfg(windows)]
 
+#[cfg(feature = "compio-compat")]
+pub use winio_ui_windows_common::CompioAdapter;
 pub use winio_ui_windows_common::{Error, Result};
 
 mod runtime;

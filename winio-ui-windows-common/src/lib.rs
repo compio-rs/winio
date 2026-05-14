@@ -33,6 +33,11 @@ pub use backdrop::*;
 mod runtime;
 pub use runtime::*;
 
+#[cfg(feature = "compio-compat")]
+mod compat;
+#[cfg(feature = "compio-compat")]
+pub use compat::*;
+
 pub(crate) async fn spawn_blocking<F, R>(f: F) -> R
 where
     F: FnOnce() -> R + Send + 'static,
