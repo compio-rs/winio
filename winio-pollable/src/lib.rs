@@ -10,7 +10,6 @@ use std::{
     future::Future,
     pin::Pin,
     task::{Context, Poll, Waker},
-    time::Duration,
 };
 
 use futures_util::FutureExt;
@@ -38,7 +37,7 @@ pub fn enter_block_on<F: Future<Output = ()>, T>(
 
 /// Block on a future until it completes, while also running the provided poll
 /// function to drive the runtime.
-pub fn block_on<F: Future>(future: F, waker: Waker, poll: impl Fn(Option<Duration>)) -> F::Output {
+pub fn block_on<F: Future>(future: F, waker: Waker, poll: impl Fn()) -> F::Output {
     let result = RefCell::new(None);
 
     enter_block_on(
@@ -49,7 +48,9 @@ pub fn block_on<F: Future>(future: F, waker: Waker, poll: impl Fn(Option<Duratio
         waker,
         || {
             loop {
-                poll(None);
+                if !run_current_task() {
+                    poll();
+                }
 
                 if let Some(result) = result.take() {
                     break result;

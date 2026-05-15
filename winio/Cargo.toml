@@ -94,6 +94,7 @@ webview = [
 plotters = ["dep:plotters-backend"]
 compio-compat = [
     "compio/compat",
+    "winio-ui-app-kit/compio-compat",
     "winio-ui-win32?/compio-compat",
     "winio-ui-winui?/compio-compat",
 ]

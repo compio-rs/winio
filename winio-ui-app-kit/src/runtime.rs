@@ -1,53 +1,31 @@
-use std::{future::Future, os::raw::c_void, ptr::null, time::Duration};
+use std::{
+    future::Future,
+    sync::Arc,
+    task::{Wake, Waker},
+    time::Duration,
+};
 
-use compio::driver::AsRawFd;
 use objc2::rc::Retained;
 use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy, NSEventMask};
-use objc2_core_foundation::{
-    CFFileDescriptor, CFRetained, CFRunLoop, kCFAllocatorDefault, kCFFileDescriptorReadCallBack,
-    kCFRunLoopDefaultMode,
-};
+use objc2_core_foundation::{CFRetained, CFRunLoop, kCFRunLoopDefaultMode};
 use objc2_foundation::{MainThreadMarker, NSDate, NSDefaultRunLoopMode};
 
+#[cfg(feature = "compio-compat")]
+use crate::get_context;
 use crate::{Error, Result, catch};
 
-pub struct Runtime {
-    runtime: winio_pollable::Runtime,
-    fd_source: CFRetained<CFFileDescriptor>,
-    ns_app: Retained<NSApplication>,
+#[cfg(not(feature = "compio-compat"))]
+fn get_context() -> (Option<Duration>, Option<Waker>) {
+    (None, None)
 }
 
-impl Runtime {
+pub struct App {
+    ns_app: Retained<NSApplication>,
+    waker: Waker,
+}
+
+impl App {
     pub fn new() -> Result<Self> {
-        let runtime = winio_pollable::Runtime::new()?;
-
-        unsafe extern "C-unwind" fn callback(
-            _fdref: *mut CFFileDescriptor,
-            _callback_types: usize,
-            _info: *mut c_void,
-        ) {
-        }
-
-        let fd_source = unsafe {
-            CFFileDescriptor::new(
-                kCFAllocatorDefault,
-                runtime.as_raw_fd(),
-                false,
-                Some(callback),
-                null(),
-            )
-        }
-        .ok_or(Error::NullPointer)?;
-        let source = unsafe {
-            CFFileDescriptor::new_run_loop_source(kCFAllocatorDefault, Some(&fd_source), 0)
-        }
-        .ok_or(Error::NullPointer)?;
-
-        unsafe {
-            let run_loop = CFRunLoop::current().ok_or(Error::NullPointer)?;
-            run_loop.add_source(Some(&source), kCFRunLoopDefaultMode);
-        }
-
         let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
         let ns_app = catch(|| {
             let ns_app = NSApplication::sharedApplication(mtm);
@@ -56,47 +34,64 @@ impl Runtime {
             ns_app.activateIgnoringOtherApps(true);
             ns_app
         })?;
-        Ok(Self {
-            runtime,
-            fd_source,
-            ns_app,
-        })
-    }
-
-    pub(crate) fn run(&self) {
-        self.runtime.run();
-    }
-
-    fn enter<T, F: FnOnce() -> T>(&self, f: F) -> T {
-        self.runtime.enter(|| super::RUNTIME.set(self, f))
+        let waker = Waker::from(Arc::new(CFRunLoopWaker::new()?));
+        Ok(Self { ns_app, waker })
     }
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        self.enter(|| {
-            self.runtime.block_on(future, |timeout| {
-                self.fd_source
-                    .enable_call_backs(kCFFileDescriptorReadCallBack);
-                CFRunLoop::run_in_mode(
-                    unsafe { kCFRunLoopDefaultMode },
-                    timeout.unwrap_or(Duration::MAX).as_secs_f64(),
-                    true,
-                );
-                unsafe {
-                    loop {
-                        let event = self.ns_app.nextEventMatchingMask_untilDate_inMode_dequeue(
-                            NSEventMask::Any,
-                            Some(&NSDate::distantPast()),
-                            NSDefaultRunLoopMode,
-                            true,
-                        );
-                        if let Some(event) = event {
-                            self.ns_app.sendEvent(&event);
-                        } else {
-                            break;
-                        }
+        winio_pollable::block_on(future, self.waker.clone(), || {
+            let (timeout, waker) = get_context();
+            CFRunLoop::run_in_mode(
+                unsafe { kCFRunLoopDefaultMode },
+                timeout.unwrap_or(Duration::MAX).as_secs_f64(),
+                true,
+            );
+            if let Some(waker) = waker {
+                waker.wake();
+            }
+            unsafe {
+                loop {
+                    let event = self.ns_app.nextEventMatchingMask_untilDate_inMode_dequeue(
+                        NSEventMask::Any,
+                        Some(&NSDate::distantPast()),
+                        NSDefaultRunLoopMode,
+                        true,
+                    );
+                    if let Some(event) = event {
+                        self.ns_app.sendEvent(&event);
+                    } else {
+                        break;
                     }
                 }
-            })
+            }
         })
+    }
+}
+
+struct CFRunLoopWaker {
+    run_loop: CFRetained<CFRunLoop>,
+}
+
+impl CFRunLoopWaker {
+    pub fn new() -> Result<Self> {
+        let run_loop = CFRunLoop::current().ok_or(Error::NullPointer)?;
+        Ok(Self { run_loop })
+    }
+
+    fn wake_impl(&self) {
+        self.run_loop.wake_up();
+    }
+}
+
+unsafe impl Send for CFRunLoopWaker {}
+unsafe impl Sync for CFRunLoopWaker {}
+
+impl Wake for CFRunLoopWaker {
+    fn wake(self: Arc<Self>) {
+        self.wake_impl();
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        self.wake_impl();
     }
 }
