@@ -10,14 +10,17 @@ pub(crate) struct GlobalRuntime;
 impl Runnable for GlobalRuntime {
     #[inline]
     fn run() {
-        RUNTIME.with(|runtime| runtime.run())
+        winio_pollable::run_current_task();
     }
 }
 
-scoped_tls::scoped_thread_local!(pub(crate) static RUNTIME: Runtime);
-
 mod runtime;
 pub use runtime::*;
+
+#[cfg(feature = "compio-compat")]
+mod compat;
+#[cfg(feature = "compio-compat")]
+pub use compat::*;
 
 mod ui;
 pub use ui::*;
