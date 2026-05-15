@@ -25,13 +25,14 @@ impl App {
         #[cfg(feature = "compio-compat")]
         let runtime = RuntimeCompat::new(Runtime::new()?)?;
         let name = name.as_ref().to_string();
-        // TODO: set app id
-        // #[cfg(not(any(windows, target_vendor = "apple")))]
-        // runtime.set_app_id(&name)?;
+        #[allow(unused_mut)]
+        let mut app = SysApp::new()?;
+        #[cfg(not(any(windows, target_vendor = "apple")))]
+        app.set_app_id(&name)?;
         Ok(Self {
             #[cfg(feature = "compio-compat")]
             runtime,
-            app: SysApp::new()?,
+            app,
             name,
         })
     }
