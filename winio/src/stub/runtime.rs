@@ -2,9 +2,9 @@ use std::future::Future;
 
 use super::{Result, not_impl};
 
-pub struct Runtime;
+pub struct App;
 
-impl Runtime {
+impl App {
     pub fn new() -> Result<Self> {
         not_impl()
     }
