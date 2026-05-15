@@ -8,5 +8,10 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
+winio-callback = { workspace = true, optional = true }
+
 futures-util = { workspace = true }
 scoped-tls = { workspace = true }
+
+[features]
+callback = ["dep:winio-callback"]

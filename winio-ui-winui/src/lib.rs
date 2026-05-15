@@ -3,17 +3,8 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg(windows)]
 
-use winio_callback::Runnable;
+pub(crate) use winio_pollable::GlobalRuntime;
 pub use winio_ui_windows_common::{Error, Result};
-
-pub(crate) struct GlobalRuntime;
-
-impl Runnable for GlobalRuntime {
-    #[inline]
-    fn run() {
-        winio_pollable::run_current_task();
-    }
-}
 
 mod runtime;
 pub use runtime::*;

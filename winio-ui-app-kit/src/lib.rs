@@ -7,16 +7,7 @@ use std::panic::AssertUnwindSafe;
 
 use objc2::{exception::Exception, rc::Retained};
 use objc2_foundation::NSError;
-use winio_callback::Runnable;
-
-pub(crate) struct GlobalRuntime;
-
-impl Runnable for GlobalRuntime {
-    #[inline]
-    fn run() {
-        winio_pollable::run_current_task();
-    }
-}
+pub(crate) use winio_pollable::GlobalRuntime;
 
 mod runtime;
 pub use runtime::*;

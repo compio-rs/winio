@@ -3,16 +3,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg(not(any(windows, target_os = "macos")))]
 
-use winio_callback::Runnable;
-
-pub(crate) struct GlobalRuntime;
-
-impl Runnable for GlobalRuntime {
-    #[inline]
-    fn run() {
-        winio_pollable::run_current_task();
-    }
-}
+pub(crate) use winio_pollable::GlobalRuntime;
 
 mod runtime;
 pub use runtime::*;

@@ -104,3 +104,15 @@ impl MainTask {
 }
 
 scoped_tls::scoped_thread_local!(static MAIN_TASK: MainTask);
+
+/// An adapter for [`winio_callback::Runnable`] that runs the current task.
+#[cfg(feature = "callback")]
+pub struct GlobalRuntime;
+
+#[cfg(feature = "callback")]
+impl winio_callback::Runnable for GlobalRuntime {
+    #[inline]
+    fn run() {
+        run_current_task();
+    }
+}
