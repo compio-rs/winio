@@ -390,46 +390,53 @@ pub(crate) unsafe fn refresh_background(handle: HWND) -> Result<()> {
     }
 }
 
-pub fn block_on<F: Future>(future: F) -> F::Output {
-    init_dark();
+pub struct App {
+    registry: Registry,
+    waker: Waker,
+}
 
-    let waker = Waker::from(Arc::new(
-        ApcWaker::new().expect("failed to create waker for current thread"),
-    ));
+impl App {
+    pub fn new() -> Result<Self> {
+        init_dark();
+        let waker = Waker::from(Arc::new(ApcWaker::new()?));
+        let registry = Registry::new();
+        Ok(Self { registry, waker })
+    }
 
-    let registry = Registry::new();
-    REGISTRY.set(&registry, || {
-        let result = RefCell::new(None);
-        let future = async {
-            let res = future.await;
-            unsafe { PostQuitMessage(0) };
-            result.replace(Some(res));
-        };
-        winio_pollable::enter_block_on(future, waker, || {
-            loop {
-                let mut msg = MaybeUninit::uninit();
-                let res = unsafe {
-                    winio_ui_windows_common::get_message(msg.as_mut_ptr(), null_mut(), 0, 0)
-                };
-                if res > 0 {
-                    let msg = unsafe { msg.assume_init() };
-                    unsafe {
-                        let root = GetAncestor(msg.hwnd, GA_ROOT);
-                        let handled = !root.is_null() && (IsDialogMessageW(root, &msg) != 0);
-                        if !handled {
-                            TranslateMessage(&msg);
-                            DispatchMessageW(&msg);
+    pub fn block_on<F: Future>(&self, future: F) -> F::Output {
+        REGISTRY.set(&self.registry, || {
+            let result = RefCell::new(None);
+            let future = async {
+                let res = future.await;
+                unsafe { PostQuitMessage(0) };
+                result.replace(Some(res));
+            };
+            winio_pollable::enter_block_on(future, self.waker.clone(), || {
+                loop {
+                    let mut msg = MaybeUninit::uninit();
+                    let res = unsafe {
+                        winio_ui_windows_common::get_message(msg.as_mut_ptr(), null_mut(), 0, 0)
+                    };
+                    if res > 0 {
+                        let msg = unsafe { msg.assume_init() };
+                        unsafe {
+                            let root = GetAncestor(msg.hwnd, GA_ROOT);
+                            let handled = !root.is_null() && (IsDialogMessageW(root, &msg) != 0);
+                            if !handled {
+                                TranslateMessage(&msg);
+                                DispatchMessageW(&msg);
+                            }
                         }
+                    } else if res == 0 {
+                        debug!("Received WM_QUIT");
+                        break result.take().expect("received WM_QUIT but no result");
+                    } else {
+                        panic!("MsgWaitForMultipleObjectsEx: {:?}", Error::from_thread());
                     }
-                } else if res == 0 {
-                    debug!("Received WM_QUIT");
-                    break result.take().expect("received WM_QUIT but no result");
-                } else {
-                    panic!("MsgWaitForMultipleObjectsEx: {:?}", Error::from_thread());
                 }
-            }
+            })
         })
-    })
+    }
 }
 
 struct ApcWaker {
@@ -437,7 +444,7 @@ struct ApcWaker {
 }
 
 impl ApcWaker {
-    pub fn new() -> std::io::Result<Self> {
+    pub fn new() -> Result<Self> {
         let handle = unsafe { GetCurrentThread() };
         let handle = unsafe { BorrowedHandle::borrow_raw(handle) }.try_clone_to_owned()?;
         Ok(Self { handle })

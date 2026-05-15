@@ -34,7 +34,7 @@ use winui3::{
 
 use crate::Result;
 
-pub(crate) struct WinUIApp {
+pub struct App {
     #[allow(dead_code)]
     winui_dependency: PackageDependency,
 }
@@ -50,7 +50,7 @@ fn init_appsdk_with(
     PackageDependency::initialize()
 }
 
-impl WinUIApp {
+impl App {
     pub fn new() -> Result<Self> {
         init_apartment(ApartmentType::SingleThreaded)?;
 
@@ -87,14 +87,36 @@ impl WinUIApp {
 
         Ok(Self { winui_dependency })
     }
-}
 
-scoped_tls::scoped_thread_local!(pub(crate) static APP: WinUIApp);
+    pub fn block_on<F: Future>(&self, future: F) -> F::Output {
+        let dispatcher = Arc::new(DispatcherWaker::new());
+        let waker = Waker::from(dispatcher.clone());
+
+        let result = RefCell::new(None);
+        let future = async {
+            let res = future.await;
+            Application::Current()
+                .expect("Failed to get current application")
+                .Exit()
+                .expect("Failed to exit application");
+            result.replace(Some(res));
+        };
+        winio_pollable::enter_block_on(future, waker, || {
+            let dispatcher = RefCell::new(Some(dispatcher));
+            Application::Start(&ApplicationInitializationCallback::new(move |_| {
+                app_start(dispatcher.borrow_mut().take().unwrap())
+            }))
+            .expect("Failed to start application");
+
+            result.take().expect("Application exits but no result")
+        })
+    }
+}
 
 fn app_start(waker: Arc<DispatcherWaker>) -> Result<()> {
     debug!("Application::Start");
 
-    let app = App::compose()?;
+    let app = XamlApp::compose()?;
     app.UnhandledException(Some(&UnhandledExceptionEventHandler::new(
         |_sender, args| {
             #[allow(clippy::single_match)]
@@ -120,11 +142,11 @@ fn app_start(waker: Arc<DispatcherWaker>) -> Result<()> {
 }
 
 #[implement(IApplicationOverrides, IXamlMetadataProvider)]
-struct App {
+struct XamlApp {
     provider: XamlControlsXamlMetaDataProvider,
 }
 
-impl App {
+impl XamlApp {
     pub(crate) fn compose() -> Result<Application> {
         Compose::compose(Self {
             provider: XamlControlsXamlMetaDataProvider::new()?,
@@ -132,9 +154,9 @@ impl App {
     }
 }
 
-impl ChildClassImpl for App_Impl {}
+impl ChildClassImpl for XamlApp_Impl {}
 
-impl IApplicationOverrides_Impl for App_Impl {
+impl IApplicationOverrides_Impl for XamlApp_Impl {
     fn OnLaunched(&self, _: Ref<LaunchActivatedEventArgs>) -> Result<()> {
         debug!("App::OnLaunched");
 
@@ -153,7 +175,7 @@ impl IApplicationOverrides_Impl for App_Impl {
     }
 }
 
-impl IXamlMetadataProvider_Impl for App_Impl {
+impl IXamlMetadataProvider_Impl for XamlApp_Impl {
     fn GetXamlType(&self, ty: &TypeName) -> Result<IXamlType> {
         self.provider.GetXamlType(ty)
     }
@@ -167,7 +189,7 @@ impl IXamlMetadataProvider_Impl for App_Impl {
     }
 }
 
-impl ChildClass for App {
+impl ChildClass for XamlApp {
     type BaseType = Application;
     type FactoryInterface = IApplicationFactory;
 
@@ -186,34 +208,6 @@ impl ChildClass for App {
     fn into_outer(self) -> Self::Outer {
         Self::into_outer(self)
     }
-}
-
-pub fn block_on<F: Future>(future: F) -> F::Output {
-    let app = WinUIApp::new().expect("Failed to initialize WinUI");
-
-    let dispatcher = Arc::new(DispatcherWaker::new());
-    let waker = Waker::from(dispatcher.clone());
-
-    APP.set(&app, move || {
-        let result = RefCell::new(None);
-        let future = async {
-            let res = future.await;
-            Application::Current()
-                .expect("Failed to get current application")
-                .Exit()
-                .expect("Failed to exit application");
-            result.replace(Some(res));
-        };
-        winio_pollable::enter_block_on(future, waker, || {
-            let dispatcher = RefCell::new(Some(dispatcher));
-            Application::Start(&ApplicationInitializationCallback::new(move |_| {
-                app_start(dispatcher.borrow_mut().take().unwrap())
-            }))
-            .expect("Failed to start application");
-
-            result.take().expect("Application exits but no result")
-        })
-    })
 }
 
 struct DispatcherWaker {

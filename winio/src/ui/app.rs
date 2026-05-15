@@ -9,12 +9,13 @@ use {
     sys::CompioAdapter,
 };
 
-use crate::{sys, sys::block_on};
+use crate::{sys, sys::App as SysApp};
 
 /// Root application, manages the async runtime.
 pub struct App {
     #[cfg(feature = "compio-compat")]
     runtime: RuntimeCompat<CompioAdapter>,
+    app: SysApp,
     name: String,
 }
 
@@ -30,6 +31,7 @@ impl App {
         Ok(Self {
             #[cfg(feature = "compio-compat")]
             runtime,
+            app: SysApp::new()?,
             name,
         })
     }
@@ -46,11 +48,11 @@ impl App {
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
         #[cfg(feature = "compio-compat")]
         {
-            block_on(self.runtime.execute(future))
+            self.app.block_on(self.runtime.execute(future))
         }
         #[cfg(not(feature = "compio-compat"))]
         {
-            block_on(future)
+            self.app.block_on(future)
         }
     }
 
