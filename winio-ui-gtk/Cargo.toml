@@ -19,7 +19,6 @@ compio-log = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true }
 local-sync = { workspace = true, optional = true }
-scoped-tls = { workspace = true }
 thiserror = { workspace = true }
 
 gtk4 = { workspace = true, features = ["v4_14"] }

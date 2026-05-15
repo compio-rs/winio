@@ -19,7 +19,6 @@ cfg-if = { workspace = true }
 image = { workspace = true }
 once_cell = { workspace = true }
 oneshot = { version = "0.2", default-features = false, features = ["async"] }
-scoped-tls = { workspace = true }
 widestring = { workspace = true }
 
 windows = { workspace = true, features = [

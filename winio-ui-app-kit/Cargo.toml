@@ -20,7 +20,6 @@ arrayvec = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true }
 local-sync = { workspace = true }
-scoped-tls = { workspace = true }
 thiserror = { workspace = true }
 
 block2 = "0.6"
