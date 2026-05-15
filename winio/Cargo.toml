@@ -97,6 +97,7 @@ compio-compat = [
     "winio-ui-app-kit/compio-compat",
     "winio-ui-win32?/compio-compat",
     "winio-ui-winui?/compio-compat",
+    "winio-ui-qt?/compio-compat",
 ]
 all = ["media", "webview", "plotters", "compio-compat"]
 
