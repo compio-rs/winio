@@ -1,7 +1,7 @@
 use std::{
     future::Future,
-    sync::Arc,
-    task::{Wake, Waker},
+    ptr::NonNull,
+    task::{RawWaker, RawWakerVTable, Waker},
     time::Duration,
 };
 
@@ -34,7 +34,7 @@ impl App {
             ns_app.activateIgnoringOtherApps(true);
             ns_app
         })?;
-        let waker = Waker::from(Arc::new(CFRunLoopWaker::new()?));
+        let waker = run_loop_waker(CFRunLoop::current().ok_or(Error::NullPointer)?);
         Ok(Self { ns_app, waker })
     }
 
@@ -68,30 +68,45 @@ impl App {
     }
 }
 
-struct CFRunLoopWaker {
-    run_loop: CFRetained<CFRunLoop>,
+fn run_loop_waker(run_loop: CFRetained<CFRunLoop>) -> Waker {
+    unsafe { Waker::from_raw(run_loop_raw_waker(run_loop)) }
 }
 
-impl CFRunLoopWaker {
-    pub fn new() -> Result<Self> {
-        let run_loop = CFRunLoop::current().ok_or(Error::NullPointer)?;
-        Ok(Self { run_loop })
-    }
+fn run_loop_raw_waker(run_loop: CFRetained<CFRunLoop>) -> RawWaker {
+    let data = CFRetained::into_raw(run_loop);
+    RawWaker::new(
+        data.as_ptr().cast_const().cast(),
+        &RawWakerVTable::new(
+            run_loop_clone,
+            run_loop_wake,
+            run_loop_wake_by_ref,
+            run_loop_drop,
+        ),
+    )
+}
 
-    fn wake_impl(&self) {
-        self.run_loop.wake_up();
+unsafe fn run_loop_clone(data: *const ()) -> RawWaker {
+    let data = NonNull::new(data.cast_mut().cast()).expect("data pointer is null");
+    let run_loop = unsafe { CFRetained::<CFRunLoop>::retain(data) };
+    run_loop_raw_waker(run_loop)
+}
+
+unsafe fn run_loop_wake(data: *const ()) {
+    if let Some(data) = NonNull::new(data.cast_mut().cast()) {
+        let run_loop = unsafe { CFRetained::<CFRunLoop>::from_raw(data) };
+        run_loop.wake_up();
     }
 }
 
-unsafe impl Send for CFRunLoopWaker {}
-unsafe impl Sync for CFRunLoopWaker {}
-
-impl Wake for CFRunLoopWaker {
-    fn wake(self: Arc<Self>) {
-        self.wake_impl();
+unsafe fn run_loop_wake_by_ref(data: *const ()) {
+    if let Some(data) = NonNull::new(data.cast_mut().cast()) {
+        let run_loop = unsafe { CFRetained::<CFRunLoop>::retain(data) };
+        run_loop.wake_up();
     }
+}
 
-    fn wake_by_ref(self: &Arc<Self>) {
-        self.wake_impl();
+unsafe fn run_loop_drop(data: *const ()) {
+    if let Some(data) = NonNull::new(data.cast_mut().cast()) {
+        let _ = unsafe { CFRetained::<CFRunLoop>::from_raw(data) };
     }
 }
