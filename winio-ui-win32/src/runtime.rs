@@ -1,3 +1,5 @@
+#[cfg(not(feature = "compio-compat"))]
+use std::time::Duration;
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -20,13 +22,14 @@ use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongW as SetClassLongPt
 use windows_sys::{
     Win32::{
         Foundation::{
-            HWND, LPARAM, LRESULT, RECT, SetLastError, WAIT_FAILED, WAIT_OBJECT_0, WPARAM,
+            HANDLE, HWND, LPARAM, LRESULT, NTSTATUS, RECT, SetLastError, WAIT_FAILED,
+            WAIT_OBJECT_0, WPARAM,
         },
         Graphics::{
             Dwm::DwmExtendFrameIntoClientArea,
             Gdi::{BLACK_BRUSH, GetStockObject, HDC, InvalidateRect, WHITE_BRUSH},
         },
-        System::Threading::{GetCurrentThread, INFINITE, QueueUserAPC},
+        System::Threading::{GetCurrentThread, INFINITE},
         UI::{
             Controls::{MARGINS, NMHDR},
             Shell::GetWindowSubclass,
@@ -46,8 +49,6 @@ use winio_ui_windows_common::{
     Backdrop, children_refresh_dark_mode, control_color_edit, control_color_link_label,
     control_color_static, init_dark, is_dark_mode_allowed_for_app, syscall, window_use_dark_mode,
 };
-#[cfg(not(feature = "compio-compat"))]
-use {std::time::Duration, windows_sys::Win32::Foundation::HANDLE};
 
 #[cfg(feature = "compio-compat")]
 use crate::get_handle;
@@ -453,11 +454,12 @@ impl ApcWaker {
     }
 
     fn wake_impl(&self) {
-        unsafe extern "system" fn apc_proc(_: usize) {}
-
-        unsafe {
-            QueueUserAPC(Some(apc_proc), self.handle.as_raw_handle(), 0);
+        #[link(name = "ntdll")]
+        unsafe extern "system" {
+            fn NtAlertThread(thread_handle: HANDLE) -> NTSTATUS;
         }
+
+        unsafe { NtAlertThread(self.handle.as_raw_handle()) };
     }
 }
 
