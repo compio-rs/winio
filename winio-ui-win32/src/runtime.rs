@@ -36,7 +36,7 @@ use windows_sys::{
                 MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW, PostQuitMessage, QS_ALLINPUT,
                 SWP_NOACTIVATE, SWP_NOZORDER, SendMessageW, SetWindowPos, TranslateMessage,
                 WM_COMMAND, WM_CTLCOLORBTN, WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC,
-                WM_DPICHANGED, WM_NOTIFY, WM_QUIT, WM_SETFONT, WM_SETTINGCHANGE,
+                WM_DPICHANGED, WM_NOTIFY, WM_SETFONT, WM_SETTINGCHANGE,
             },
         },
     },
@@ -423,21 +423,17 @@ impl App {
                 res
             };
             winio_pollable::block_on(future, self.waker.clone(), || {
-                let mut msg = MaybeUninit::uninit();
-                let res = unsafe { get_message(msg.as_mut_ptr()) };
+                let res = get_message();
                 match res {
                     Err(e) => panic!("MsgWaitForMultipleObjectsEx: {:?}", e),
-                    Ok(Some(res)) if res > 0 => {
-                        let msg = unsafe { msg.assume_init() };
-                        unsafe {
-                            let root = GetAncestor(msg.hwnd, GA_ROOT);
-                            let handled = !root.is_null() && (IsDialogMessageW(root, &msg) != 0);
-                            if !handled {
-                                TranslateMessage(&msg);
-                                DispatchMessageW(&msg);
-                            }
+                    Ok(Some(msg)) => unsafe {
+                        let root = GetAncestor(msg.hwnd, GA_ROOT);
+                        let handled = !root.is_null() && (IsDialogMessageW(root, &msg) != 0);
+                        if !handled {
+                            TranslateMessage(&msg);
+                            DispatchMessageW(&msg);
                         }
-                    }
+                    },
                     Ok(_) => {}
                 }
             })
@@ -475,7 +471,7 @@ impl Wake for ApcWaker {
     }
 }
 
-unsafe fn get_message(msg: *mut MSG) -> Result<Option<i32>> {
+fn get_message() -> Result<Option<MSG>> {
     let (handle, timeout, waker) = get_handle();
     let timeout = match timeout {
         Some(timeout) => timeout.as_millis() as u32,
@@ -508,13 +504,11 @@ unsafe fn get_message(msg: *mut MSG) -> Result<Option<i32>> {
     match res {
         WAIT_FAILED => return Err(Error::from_thread()),
         res if res == queue_res => {
-            let res = unsafe { PeekMessageW(msg, null_mut(), 0, 0, PM_REMOVE) };
+            let mut msg = MaybeUninit::uninit();
+            let res = unsafe { PeekMessageW(msg.as_mut_ptr(), null_mut(), 0, 0, PM_REMOVE) };
             if res != 0 {
-                if unsafe { (*msg).message } == WM_QUIT {
-                    return Ok(Some(0));
-                } else {
-                    return Ok(Some(1));
-                }
+                let msg = unsafe { msg.assume_init() };
+                return Ok(Some(msg));
             }
         }
         res if Some(res) == handle_res
