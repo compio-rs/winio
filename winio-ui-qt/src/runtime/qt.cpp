@@ -18,36 +18,39 @@ static std::vector<const char *> args_ptr(rust::Vec<rust::String> const &args) {
 WinioQtEventLoop::WinioQtEventLoop(rust::Vec<rust::String> args)
     : m_args(std::move(args)), m_args_ptr(args_ptr(m_args)),
       m_argc(m_args.size()), m_app{m_argc, (char **)m_args_ptr.data()},
-      m_notifier{std::nullopt} {
+      m_notifier{std::nullopt}, m_timer{std::nullopt} {
     QApplication::setQuitOnLastWindowClosed(false);
 }
 
 void WinioQtEventLoop::registerFd(int fd, int timeout,
                                   rust::Fn<void()> callback) {
-    if (timeout != 0) {
-        m_notifier.emplace(fd, QSocketNotifier::Read);
-        if (timeout < 0) {
-            QObject::connect(&*m_notifier, &QSocketNotifier::activated,
-                             []() {});
-            m_notifier->setEnabled(true);
-        } else {
-            m_timer.emplace();
-            m_timer->setSingleShot(true);
-            m_timer->setInterval(timeout);
-            QObject::connect(&*m_notifier, &QSocketNotifier::activated,
-                             [this, callback]() {
-                                 if (m_timer)
-                                     m_timer->stop();
-                                 callback();
-                             });
-            QObject::connect(&*m_timer, &QTimer::timeout, [this, callback]() {
-                if (m_notifier)
-                    m_notifier->setEnabled(false);
-                callback();
-            });
-            m_notifier->setEnabled(true);
-            m_timer->start();
-        }
+    if (timeout == 0) {
+        callback();
+        return;
+    }
+
+    m_notifier.emplace(fd, QSocketNotifier::Read);
+    if (timeout < 0) {
+        QObject::connect(&*m_notifier, &QSocketNotifier::activated,
+                         [callback]() { callback(); });
+        m_notifier->setEnabled(true);
+    } else {
+        m_timer.emplace();
+        m_timer->setSingleShot(true);
+        m_timer->setInterval(timeout);
+        QObject::connect(&*m_notifier, &QSocketNotifier::activated,
+                         [this, callback]() {
+                             if (m_timer)
+                                 m_timer->stop();
+                             callback();
+                         });
+        QObject::connect(&*m_timer, &QTimer::timeout, [this, callback]() {
+            if (m_notifier)
+                m_notifier->setEnabled(false);
+            callback();
+        });
+        m_notifier->setEnabled(true);
+        m_timer->start();
     }
 }
 
