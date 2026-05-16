@@ -4,8 +4,6 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(missing_docs)]
 
-#[doc(no_inline)]
-pub use compio;
 #[doc(inline)]
 pub use winio_elm as elm;
 #[doc(inline)]

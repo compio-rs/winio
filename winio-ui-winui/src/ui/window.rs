@@ -1,6 +1,5 @@
 use std::{cell::RefCell, mem::MaybeUninit, rc::Rc, sync::Arc};
 
-use compio::driver::syscall;
 use compio_log::error;
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
@@ -20,7 +19,7 @@ use winio_callback::{Callback, SyncCallback};
 use winio_handle::{AsContainer, AsWindow, BorrowedContainer, BorrowedWindow};
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{
-    Backdrop, get_current_module_handle, set_backdrop, window_use_dark_mode,
+    Backdrop, get_current_module_handle, set_backdrop, syscall, window_use_dark_mode,
 };
 use winui3::{
     IWindowNative,

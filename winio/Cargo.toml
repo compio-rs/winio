@@ -15,7 +15,7 @@ winio-layout = { workspace = true }
 winio-handle = { workspace = true }
 winio-elm = { workspace = true, features = ["handle", "primitive"] }
 
-compio = { workspace = true }
+compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
 
 cfg-if = { workspace = true }
@@ -46,12 +46,12 @@ compio = { workspace = true, default-features = true, features = [
     "rustls",
     "ring",
 ] }
-cyper = { version = "0.9.0-rc.1", default-features = false, features = [
+cyper = { version = "0.9.0-rc.3", default-features = false, features = [
     "rustls",
     "http2",
     "http3-altsvc",
 ] }
-cyper-axum = "0.9.0-rc.1"
+cyper-axum = "0.9.0-rc.2"
 axum = { version = "0.8", default-features = false }
 
 dirs = "6.0"
@@ -66,6 +66,8 @@ pulldown-cmark = "0.13"
 send_wrapper = { workspace = true, features = ["futures"] }
 tracing-subscriber = "0.3"
 url = "2"
+
+link_args = "0.6"
 
 [features]
 default = ["qt", "win32"]
@@ -90,7 +92,16 @@ webview = [
     "winio-ui-qt?/webview",
 ]
 plotters = ["dep:plotters-backend"]
-all = ["media", "webview", "plotters"]
+compio-compat = [
+    "compio/runtime",
+    "compio/compat",
+    "winio-ui-app-kit/compio-compat",
+    "winio-ui-win32?/compio-compat",
+    "winio-ui-winui?/compio-compat",
+    "winio-ui-gtk?/compio-compat",
+    "winio-ui-qt?/compio-compat",
+]
+all = ["media", "webview", "plotters", "compio-compat"]
 
 raw-window-handle = ["winio-handle/raw-window-handle"]
 
@@ -105,7 +116,7 @@ nightly = [
     "winio-elm/nightly",
     "winio-ui-windows-common/nightly",
     "winio-ui-win32?/nightly",
-    "compio/nightly",
+    "compio?/nightly",
     "cyper/nightly",
     "cyper-axum/nightly",
 ]

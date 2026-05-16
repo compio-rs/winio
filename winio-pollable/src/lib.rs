@@ -5,170 +5,63 @@
 
 #![warn(missing_docs)]
 
-#[cfg(target_os = "linux")]
-use std::os::fd::OwnedFd;
 use std::{
     cell::RefCell,
     future::Future,
-    io,
-    ops::{Deref, DerefMut},
     pin::Pin,
-    sync::Arc,
     task::{Context, Poll, Waker},
-    time::Duration,
 };
 
-use compio::{
-    driver::{AsRawFd, RawFd},
-    runtime::OptWaker,
-};
 use futures_util::FutureExt;
 
-/// See [`Runtime`]
-///
-/// [`Runtime`]: compio::runtime::Runtime
-pub struct Runtime {
-    runtime: compio::runtime::Runtime,
-    #[cfg(target_os = "linux")]
-    efd: Option<OwnedFd>,
-}
-
-#[cfg(target_os = "linux")]
-impl Runtime {
-    /// Create [`Runtime`].
-    pub fn new() -> io::Result<Self> {
-        use rustix::event::{EventfdFlags, eventfd};
-        let efd = eventfd(0, EventfdFlags::CLOEXEC | EventfdFlags::NONBLOCK)?;
-        let mut builder = compio::driver::ProactorBuilder::new();
-        builder.register_eventfd(efd.as_raw_fd());
-        let runtime = compio::runtime::RuntimeBuilder::new()
-            .with_proactor(builder)
-            .build()?;
-        let efd = if runtime.driver_type().is_iouring() {
-            Some(efd)
-        } else {
-            None
-        };
-        Ok(Self { runtime, efd })
-    }
-
-    /// Clear the eventfd, if possible.
-    pub(crate) fn clear(&self) -> io::Result<()> {
-        if let Some(efd) = &self.efd {
-            let mut buf = [0u8; 8];
-            rustix::io::read(efd, &mut buf)?;
-        }
-        Ok(())
+/// Run the current task that is blocking on. Returns true if the task has
+/// completed, and false otherwise.
+pub fn run_current_task() -> bool {
+    if MAIN_TASK.is_set() {
+        MAIN_TASK.with(|task| task.poll())
+    } else {
+        false
     }
 }
 
-#[cfg(not(target_os = "linux"))]
-impl Runtime {
-    /// Create [`Runtime`].
-    pub fn new() -> io::Result<Self> {
-        Ok(Self {
-            runtime: compio::runtime::Runtime::new()?,
-        })
-    }
-
-    /// Clear the eventfd, if possible.
-    pub(crate) fn clear(&self) -> io::Result<()> {
-        Ok(())
-    }
+/// Set the current task that is going to be blocked on, and run the provided
+/// function.
+pub fn enter_block_on<F: Future<Output = ()>, T>(
+    future: F,
+    waker: Waker,
+    f: impl FnOnce() -> T,
+) -> T {
+    let task = unsafe { MainTask::new(future, waker) };
+    MAIN_TASK.set(&task, f)
 }
 
-impl Runtime {
-    /// Run the scheduled tasks.
-    pub fn run(&self) -> bool {
-        let main_task_remaining = if MAIN_TASK.is_set() {
-            MAIN_TASK.with(|task| task.poll())
-        } else {
-            false
-        };
+/// Block on a future until it completes, while also running the provided poll
+/// function to drive the runtime.
+pub fn block_on<F: Future>(future: F, waker: Waker, poll: impl Fn()) -> F::Output {
+    let result = RefCell::new(None);
 
-        self.runtime.run() | main_task_remaining
-    }
-
-    /// Poll the runtime. Returns the next timeout.
-    pub fn poll_and_run(&self) -> Option<Duration> {
-        self.runtime.poll_with(Some(Duration::ZERO));
-
-        let remaining_tasks = self.run();
-
-        if remaining_tasks {
-            Some(Duration::ZERO)
-        } else {
-            self.runtime.current_timeout()
-        }
-    }
-
-    /// Set the current main task and wait for its completion.
-    pub fn enter_block_on<F: Future<Output = ()>, T>(&self, future: F, f: impl FnOnce() -> T) -> T {
-        let opt_waker = self.runtime.opt_waker();
-        let task = unsafe { MainTask::new(future, opt_waker) };
-        MAIN_TASK.set(&task, f)
-    }
-
-    /// Block on the future till it completes. Users should enter the runtime
-    /// before calling this function, and poll the runtime themselves.
-    pub fn block_on<F: Future>(&self, future: F, poll: impl Fn(Option<Duration>)) -> F::Output {
-        let result = RefCell::new(None);
-
-        self.enter_block_on(
-            async {
-                let res = Some(future.await);
-                result.replace(res);
-            },
-            || {
-                loop {
-                    let timeout = self.poll_and_run();
-
-                    if let Some(result) = result.take() {
-                        break result;
-                    }
-
-                    poll(timeout);
-
-                    self.clear().ok();
+    enter_block_on(
+        async {
+            let res = Some(future.await);
+            result.replace(res);
+        },
+        waker,
+        || {
+            loop {
+                if !run_current_task() {
+                    poll();
                 }
-            },
-        )
-    }
-}
 
-impl Deref for Runtime {
-    type Target = compio::runtime::Runtime;
-
-    fn deref(&self) -> &Self::Target {
-        &self.runtime
-    }
-}
-
-impl DerefMut for Runtime {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.runtime
-    }
-}
-
-impl AsRawFd for Runtime {
-    fn as_raw_fd(&self) -> RawFd {
-        #[cfg(target_os = "linux")]
-        {
-            self.efd
-                .as_ref()
-                .map(|f| f.as_raw_fd())
-                .unwrap_or_else(|| self.runtime.as_raw_fd())
-        }
-        #[cfg(not(target_os = "linux"))]
-        {
-            self.runtime.as_raw_fd()
-        }
-    }
+                if let Some(result) = result.take() {
+                    break result;
+                }
+            }
+        },
+    )
 }
 
 struct MainTask {
     future: RefCell<Pin<Box<dyn Future<Output = ()>>>>,
-    opt_waker: Arc<OptWaker>,
     waker: Waker,
 }
 
@@ -185,13 +78,11 @@ unsafe fn reduce_lifetime<'a>(
 }
 
 impl MainTask {
-    pub unsafe fn new(future: impl Future<Output = ()>, opt_waker: Arc<OptWaker>) -> Self {
-        let waker = Waker::from(opt_waker.clone());
+    pub unsafe fn new(future: impl Future<Output = ()>, waker: Waker) -> Self {
         Self {
             // SAFETY: the future will only be polled within the scope of `enter_block_on`, which
             // guarantees that the future will not outlive the main task.
             future: RefCell::new(unsafe { reduce_lifetime(future.fuse()) }),
-            opt_waker,
             waker,
         }
     }
@@ -204,7 +95,7 @@ impl MainTask {
                 // anymore.
                 true
             } else {
-                self.opt_waker.reset()
+                false
             }
         } else {
             false
@@ -213,3 +104,15 @@ impl MainTask {
 }
 
 scoped_tls::scoped_thread_local!(static MAIN_TASK: MainTask);
+
+/// An adapter for [`winio_callback::Runnable`] that runs the current task.
+#[cfg(feature = "callback")]
+pub struct GlobalRuntime;
+
+#[cfg(feature = "callback")]
+impl winio_callback::Runnable for GlobalRuntime {
+    #[inline]
+    fn run() {
+        run_current_task();
+    }
+}

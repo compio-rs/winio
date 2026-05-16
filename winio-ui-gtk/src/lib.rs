@@ -3,21 +3,15 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg(not(any(windows, target_os = "macos")))]
 
-use winio_callback::Runnable;
-
-pub(crate) struct GlobalRuntime;
-
-impl Runnable for GlobalRuntime {
-    #[inline]
-    fn run() {
-        RUNTIME.with(|runtime| runtime.run())
-    }
-}
-
-scoped_tls::scoped_thread_local!(pub(crate) static RUNTIME: Runtime);
+pub(crate) use winio_pollable::GlobalRuntime;
 
 mod runtime;
 pub use runtime::*;
+
+#[cfg(feature = "compio-compat")]
+mod compat;
+#[cfg(feature = "compio-compat")]
+pub use compat::*;
 
 mod ui;
 pub use ui::*;

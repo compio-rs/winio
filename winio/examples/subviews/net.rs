@@ -54,7 +54,7 @@ impl Component for NetPage {
             },
         }
 
-        let client = Client::new();
+        let client = Client::new()?;
 
         let url = url.to_string();
         spawn(fetch(client.clone(), url, sender.clone())).detach();

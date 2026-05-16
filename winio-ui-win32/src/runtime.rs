@@ -1,37 +1,45 @@
+#[cfg(not(feature = "compio-compat"))]
+use std::time::Duration;
 use std::{
     cell::RefCell,
     collections::HashMap,
     future::Future,
     mem::MaybeUninit,
+    os::windows::io::{AsRawHandle, BorrowedHandle, OwnedHandle},
     pin::Pin,
     ptr::{null, null_mut},
-    task::{Context, Poll, Waker},
+    sync::Arc,
+    task::{Context, Poll, Wake, Waker},
 };
 
-use compio::driver::syscall;
 use compio_log::*;
 use slab::Slab;
-use windows::{Win32::Graphics::Direct2D::ID2D1Factory2, core::HRESULT};
+use windows::core::HRESULT;
 #[cfg(target_pointer_width = "64")]
 use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongPtrW;
 #[cfg(not(target_pointer_width = "64"))]
 use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongW as SetClassLongPtrW;
 use windows_sys::{
     Win32::{
-        Foundation::{HWND, LPARAM, LRESULT, RECT, SetLastError, WPARAM},
+        Foundation::{
+            HANDLE, HWND, LPARAM, LRESULT, NTSTATUS, RECT, SetLastError, WAIT_FAILED,
+            WAIT_OBJECT_0, WPARAM,
+        },
         Graphics::{
             Dwm::DwmExtendFrameIntoClientArea,
             Gdi::{BLACK_BRUSH, GetStockObject, HDC, InvalidateRect, WHITE_BRUSH},
         },
+        System::Threading::{GetCurrentThread, INFINITE},
         UI::{
             Controls::{MARGINS, NMHDR},
             Shell::GetWindowSubclass,
             WindowsAndMessaging::{
                 DefWindowProcW, DispatchMessageW, EnumChildWindows, GA_ROOT, GCLP_HBRBACKGROUND,
-                GetAncestor, IsDialogMessageW, PostQuitMessage, SWP_NOACTIVATE, SWP_NOZORDER,
-                SendMessageW, SetWindowPos, TranslateMessage, WM_COMMAND, WM_CTLCOLORBTN,
-                WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC, WM_DPICHANGED, WM_NOTIFY,
-                WM_SETFONT, WM_SETTINGCHANGE,
+                GetAncestor, IsDialogMessageW, MSG, MWMO_ALERTABLE, MWMO_INPUTAVAILABLE,
+                MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW, PostQuitMessage, QS_ALLINPUT,
+                SWP_NOACTIVATE, SWP_NOZORDER, SendMessageW, SetWindowPos, TranslateMessage,
+                WM_COMMAND, WM_CTLCOLORBTN, WM_CTLCOLOREDIT, WM_CTLCOLORLISTBOX, WM_CTLCOLORSTATIC,
+                WM_DPICHANGED, WM_NOTIFY, WM_SETFONT, WM_SETTINGCHANGE,
             },
         },
     },
@@ -39,14 +47,20 @@ use windows_sys::{
 };
 use winio_ui_windows_common::{
     Backdrop, children_refresh_dark_mode, control_color_edit, control_color_link_label,
-    control_color_static, init_dark, is_dark_mode_allowed_for_app, window_use_dark_mode,
+    control_color_static, init_dark, is_dark_mode_allowed_for_app, syscall, window_use_dark_mode,
 };
 
-use super::RUNTIME;
+#[cfg(feature = "compio-compat")]
+use crate::get_handle;
 use crate::{
     Error, Result, link_label_wnd_proc,
     ui::{dpi::get_dpi_for_window, font::default_font},
 };
+
+#[cfg(not(feature = "compio-compat"))]
+const fn get_handle() -> (Option<HANDLE>, Option<Duration>, Option<Waker>) {
+    (None, None, None)
+}
 
 #[derive(Clone, Copy)]
 pub(crate) enum WindowMessage {
@@ -115,63 +129,15 @@ impl Default for FutureState {
     }
 }
 
-pub struct Runtime {
-    runtime: winio_ui_windows_common::Runtime,
+pub(crate) struct Registry {
     registry: RefCell<HashMap<(HWND, u32), Slab<FutureState>>>,
 }
 
-impl Runtime {
-    pub fn new() -> Result<Self> {
-        init_dark();
-
-        let runtime = winio_ui_windows_common::Runtime::new()?;
-
-        Ok(Self {
-            runtime,
+impl Registry {
+    pub fn new() -> Self {
+        Self {
             registry: RefCell::new(HashMap::new()),
-        })
-    }
-
-    pub(crate) fn d2d1(&self) -> Result<&ID2D1Factory2> {
-        self.runtime.d2d1()
-    }
-
-    fn enter<T, F: FnOnce() -> T>(&self, f: F) -> T {
-        self.runtime.enter(|| RUNTIME.set(self, f))
-    }
-
-    pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        let result = RefCell::new(None);
-        let future = async {
-            let res = future.await;
-            unsafe { PostQuitMessage(0) };
-            result.replace(Some(res));
-        };
-        self.enter(|| {
-            self.runtime.enter_block_on(future, || {
-                loop {
-                    let mut msg = MaybeUninit::uninit();
-                    let res =
-                        unsafe { self.runtime.get_message(msg.as_mut_ptr(), null_mut(), 0, 0) };
-                    if res > 0 {
-                        let msg = unsafe { msg.assume_init() };
-                        unsafe {
-                            let root = GetAncestor(msg.hwnd, GA_ROOT);
-                            let handled = !root.is_null() && (IsDialogMessageW(root, &msg) != 0);
-                            if !handled {
-                                TranslateMessage(&msg);
-                                DispatchMessageW(&msg);
-                            }
-                        }
-                    } else if res == 0 {
-                        debug!("Received WM_QUIT");
-                        break result.take().expect("received WM_QUIT but no result");
-                    } else {
-                        panic!("MsgWaitForMultipleObjectsEx: {:?}", Error::from_thread());
-                    }
-                }
-            })
-        })
+        }
     }
 
     fn set_current_msg(&self, handle: HWND, message: u32, wparam: WPARAM, lparam: LPARAM) -> bool {
@@ -250,10 +216,12 @@ impl Runtime {
     }
 }
 
+scoped_tls::scoped_thread_local!(pub(crate) static REGISTRY: Registry);
+
 /// # Safety
 /// The caller should ensure the handle valid.
 pub(crate) unsafe fn wait(handle: HWND, msg: u32) -> impl Future<Output = WindowMessage> {
-    RUNTIME.with(|runtime| unsafe { runtime.register_message(handle, msg) })
+    REGISTRY.with(|reg| unsafe { reg.register_message(handle, msg) })
 }
 
 fn window_setting_change(handle: HWND) -> Result<()> {
@@ -321,9 +289,9 @@ pub(crate) unsafe extern "system" fn window_proc(
         }
         _ => {}
     }
-    let res = RUNTIME.with(|runtime| {
+    let res = REGISTRY.with(|runtime| {
         let res = runtime.set_current_msg(handle, msg, wparam, lparam);
-        runtime.runtime.run();
+        winio_pollable::run_current_task();
         res
     });
     if res {
@@ -358,8 +326,8 @@ impl Future for MsgFuture {
     type Output = WindowMessage;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        if let Some(msg) = RUNTIME
-            .with(|runtime| runtime.replace_waker(self.id, self.handle, self.msg, cx.waker()))
+        if let Some(msg) =
+            REGISTRY.with(|reg| reg.replace_waker(self.id, self.handle, self.msg, cx.waker()))
         {
             Poll::Ready(msg)
         } else {
@@ -370,7 +338,7 @@ impl Future for MsgFuture {
 
 impl Drop for MsgFuture {
     fn drop(&mut self) {
-        RUNTIME.with(|runtime| runtime.deregister(self.id, self.handle, self.msg));
+        REGISTRY.with(|reg| reg.deregister(self.id, self.handle, self.msg));
     }
 }
 
@@ -429,8 +397,128 @@ pub(crate) unsafe fn refresh_background(handle: HWND) -> Result<()> {
         );
         match res {
             Ok(_) => Ok(()),
-            Err(e) if e.raw_os_error() == Some(0) => Ok(()),
-            Err(e) => Err(e.into()),
+            Err(e) if e.code().is_ok() => Ok(()),
+            Err(e) => Err(e),
         }
     }
+}
+
+pub struct App {
+    registry: Registry,
+    waker: Waker,
+}
+
+impl App {
+    pub fn new() -> Result<Self> {
+        init_dark();
+        let waker = Waker::from(Arc::new(ApcWaker::new()?));
+        let registry = Registry::new();
+        Ok(Self { registry, waker })
+    }
+
+    pub fn block_on<F: Future>(&self, future: F) -> F::Output {
+        REGISTRY.set(&self.registry, || {
+            let future = async {
+                let res = future.await;
+                unsafe { PostQuitMessage(0) };
+                res
+            };
+            winio_pollable::block_on(future, self.waker.clone(), || {
+                let res = get_message();
+                match res {
+                    Err(e) => panic!("MsgWaitForMultipleObjectsEx: {:?}", e),
+                    Ok(Some(msg)) => unsafe {
+                        let root = GetAncestor(msg.hwnd, GA_ROOT);
+                        let handled = !root.is_null() && (IsDialogMessageW(root, &msg) != 0);
+                        if !handled {
+                            TranslateMessage(&msg);
+                            DispatchMessageW(&msg);
+                        }
+                    },
+                    Ok(_) => {}
+                }
+            })
+        })
+    }
+}
+
+struct ApcWaker {
+    handle: OwnedHandle,
+}
+
+impl ApcWaker {
+    pub fn new() -> Result<Self> {
+        let handle = unsafe { GetCurrentThread() };
+        let handle = unsafe { BorrowedHandle::borrow_raw(handle) }.try_clone_to_owned()?;
+        Ok(Self { handle })
+    }
+
+    fn wake_impl(&self) {
+        #[link(name = "ntdll")]
+        unsafe extern "system" {
+            fn NtAlertThread(thread_handle: HANDLE) -> NTSTATUS;
+        }
+
+        unsafe { NtAlertThread(self.handle.as_raw_handle()) };
+    }
+}
+
+impl Wake for ApcWaker {
+    fn wake(self: Arc<Self>) {
+        self.wake_impl();
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        self.wake_impl();
+    }
+}
+
+fn get_message() -> Result<Option<MSG>> {
+    let (handle, timeout, waker) = get_handle();
+    let timeout = match timeout {
+        Some(timeout) => timeout.as_millis() as u32,
+        None => INFINITE,
+    };
+    let (res, queue_res, handle_res) = if let Some(handle) = handle {
+        let res = unsafe {
+            MsgWaitForMultipleObjectsEx(
+                1,
+                &handle,
+                timeout,
+                QS_ALLINPUT,
+                MWMO_ALERTABLE | MWMO_INPUTAVAILABLE,
+            )
+        };
+        const WAIT_OBJECT_1: u32 = WAIT_OBJECT_0 + 1;
+        (res, WAIT_OBJECT_1, Some(WAIT_OBJECT_0))
+    } else {
+        let res = unsafe {
+            MsgWaitForMultipleObjectsEx(
+                0,
+                std::ptr::null(),
+                timeout,
+                QS_ALLINPUT,
+                MWMO_ALERTABLE | MWMO_INPUTAVAILABLE,
+            )
+        };
+        (res, WAIT_OBJECT_0, None)
+    };
+    match res {
+        WAIT_FAILED => return Err(Error::from_thread()),
+        res if res == queue_res => {
+            let mut msg = MaybeUninit::uninit();
+            let res = unsafe { PeekMessageW(msg.as_mut_ptr(), null_mut(), 0, 0, PM_REMOVE) };
+            if res != 0 {
+                let msg = unsafe { msg.assume_init() };
+                return Ok(Some(msg));
+            }
+        }
+        res if Some(res) == handle_res
+            && let Some(waker) = waker =>
+        {
+            waker.wake();
+        }
+        _ => {}
+    }
+    Ok(None)
 }

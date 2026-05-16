@@ -3,7 +3,6 @@ use std::{
     ptr::null_mut,
 };
 
-use compio::driver::syscall;
 use compio_log::error;
 use futures_util::FutureExt;
 use inherit_methods_macro::inherit_methods;
@@ -27,6 +26,7 @@ use windows_sys::{
 };
 use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{Point, Size};
+use winio_ui_windows_common::syscall;
 
 use crate::{Result, View, ui::Widget, window_class_name};
 

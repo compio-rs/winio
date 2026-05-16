@@ -4,10 +4,10 @@ use std::{
     sync::Once,
 };
 
-use compio::driver::syscall;
 use futures_util::FutureExt;
 use inherit_methods_macro::inherit_methods;
 use widestring::{U16CStr, U16CString, U16Str, u16cstr};
+use windows::core::HRESULT;
 use windows_sys::Win32::{
     Foundation::{ERROR_INVALID_HANDLE, HWND, LPARAM, LRESULT, SetLastError, WPARAM},
     Graphics::Gdi::{GetStockObject, InvalidateRect, MapWindowPoints, WHITE_BRUSH},
@@ -31,7 +31,7 @@ use winio_handle::{
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{
     Backdrop, PreferredAppMode, control_use_dark_mode, get_current_module_handle,
-    set_preferred_app_mode, window_use_dark_mode,
+    set_preferred_app_mode, syscall, window_use_dark_mode,
 };
 
 use crate::{
@@ -199,8 +199,8 @@ impl Widget {
                 MapWindowPoints(HWND_DESKTOP, GetParent(handle), &mut rect as *mut _ as _, 2)
             ) {
                 Ok(_) => {}
-                Err(e) if e.raw_os_error() == Some(0) => {}
-                Err(e) => return Err(e.into()),
+                Err(e) if e.code().is_ok() => {}
+                Err(e) => return Err(e),
             }
             Ok((rect.left, rect.right))
         }
@@ -319,8 +319,8 @@ impl Widget {
         );
         match res {
             Ok(_) => Ok(()),
-            Err(e) if e.raw_os_error() == Some(0) => Ok(()),
-            Err(e) => Err(e.into()),
+            Err(e) if e.code().is_ok() => Ok(()),
+            Err(e) => Err(e),
         }
     }
 
@@ -339,13 +339,10 @@ impl Widget {
         );
         match res {
             Ok(_) => Ok(()),
-            Err(e)
-                if e.raw_os_error() == Some(0)
-                    || e.raw_os_error() == Some(ERROR_INVALID_HANDLE as _) =>
-            {
+            Err(e) if e.code().is_ok() || e.code() == HRESULT::from_win32(ERROR_INVALID_HANDLE) => {
                 Ok(())
             }
-            Err(e) => Err(e.into()),
+            Err(e) => Err(e),
         }
     }
 

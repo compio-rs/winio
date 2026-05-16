@@ -1,4 +1,3 @@
-use compio::driver::syscall;
 use inherit_methods_macro::inherit_methods;
 use windows_sys::Win32::UI::{
     Controls::{SetScrollInfo, WC_SCROLLBARW},
@@ -9,6 +8,7 @@ use windows_sys::Win32::UI::{
 };
 use winio_handle::{AsContainer, AsWidget, BorrowedContainer};
 use winio_primitive::{Orient, Point, Size};
+use winio_ui_windows_common::syscall;
 
 use crate::{Result, Widget};
 

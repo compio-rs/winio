@@ -1,6 +1,5 @@
 use std::ptr::{addr_of_mut, null_mut};
 
-use compio::driver::syscall;
 use compio_log::error;
 use windows_sys::{
     Win32::{
@@ -14,6 +13,8 @@ use windows_sys::{
     core::BOOL,
 };
 use winio_primitive::{Monitor, Point, Rect, Size};
+
+use crate::syscall;
 
 pub fn monitor_get_all() -> crate::Result<Vec<Monitor>> {
     let mut res = vec![];

@@ -11,11 +11,13 @@ repository = { workspace = true }
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true, features = ["win32"] }
 winio-callback = { workspace = true, optional = true }
+winio-pollable = { workspace = true }
 winio-ui-windows-common = { workspace = true, features = ["win32"] }
 
-compio = { workspace = true, features = ["arrayvec"] }
+compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
 
+arrayvec = { workspace = true }
 futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
 local-sync = { workspace = true, optional = true }
@@ -60,6 +62,7 @@ webview = [
     "dep:windows-core",
     "dep:local-sync",
 ]
+compio-compat = ["compio/runtime", "compio/compat"]
 
 dark-mode = ["winio-ui-windows-common/dark-mode"]
 

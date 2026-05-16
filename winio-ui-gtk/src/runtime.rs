@@ -1,31 +1,32 @@
-use std::{future::Future, os::fd::AsRawFd};
+use std::{
+    future::Future,
+    task::{RawWaker, RawWakerVTable, Waker},
+};
 
-use glib_unix::unix_fd_add_local;
 use gtk4::{
     gio::{self, prelude::ApplicationExt},
-    glib::{ControlFlow, IOCondition, MainContext, timeout_add_local_once},
+    glib::{
+        MainContext,
+        ffi::GMainContext,
+        translate::{FromGlibPtrBorrow, FromGlibPtrFull, IntoGlibPtr},
+    },
 };
 
 use crate::Result;
 
-pub struct Runtime {
-    runtime: winio_pollable::Runtime,
+pub struct App {
     app: gio::Application,
     ctx: MainContext,
 }
 
-impl Runtime {
+impl App {
     pub fn new() -> Result<Self> {
-        let runtime = winio_pollable::Runtime::new()?;
-        let poll_fd = runtime.as_raw_fd();
         let ctx = MainContext::default();
         gtk4::init()?;
         let app = gio::Application::new(None, gio::ApplicationFlags::FLAGS_NONE);
         app.set_default();
 
-        unix_fd_add_local(poll_fd, IOCondition::IN, |_fd, _cond| ControlFlow::Continue);
-
-        Ok(Self { runtime, app, ctx })
+        Ok(Self { app, ctx })
     }
 
     pub fn set_app_id(&mut self, name: &str) -> Result<()> {
@@ -33,27 +34,50 @@ impl Runtime {
         Ok(())
     }
 
-    pub(crate) fn run(&self) {
-        self.runtime.run();
-    }
-
-    fn enter<T, F: FnOnce() -> T>(&self, f: F) -> T {
-        self.runtime.enter(|| super::RUNTIME.set(self, f))
-    }
-
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        self.enter(|| {
-            self.runtime.block_on(future, |timeout| {
-                let source_id = timeout.map(|timeout| timeout_add_local_once(timeout, || {}));
-
-                self.ctx.iteration(true);
-
-                if let Some(source_id) = source_id
-                    && self.ctx.find_source_by_id(&source_id).is_some()
-                {
-                    source_id.remove();
-                }
-            })
+        winio_pollable::block_on(future, glib_waker(self.ctx.clone()), || {
+            self.ctx.iteration(true);
         })
     }
+}
+
+fn glib_waker(ctx: MainContext) -> Waker {
+    unsafe { Waker::from_raw(glib_raw_waker(ctx)) }
+}
+
+fn glib_raw_waker(ctx: MainContext) -> RawWaker {
+    let ctx: *mut GMainContext = ctx.into_glib_ptr();
+    RawWaker::new(
+        ctx.cast(),
+        &RawWakerVTable::new(
+            glib_waker_clone,
+            glib_waker_wake,
+            glib_waker_wake_by_ref,
+            glib_waker_drop,
+        ),
+    )
+}
+
+unsafe fn glib_waker_clone(ctx: *const ()) -> RawWaker {
+    let ctx = ctx.cast::<GMainContext>().cast_mut();
+    let ctx = unsafe { MainContext::from_glib_borrow(ctx) };
+    let ctx = ctx.clone();
+    glib_raw_waker(ctx)
+}
+
+unsafe fn glib_waker_wake(ctx: *const ()) {
+    let ctx = ctx.cast::<GMainContext>().cast_mut();
+    let ctx = unsafe { MainContext::from_glib_full(ctx) };
+    ctx.wakeup();
+}
+
+unsafe fn glib_waker_wake_by_ref(ctx: *const ()) {
+    let ctx = ctx.cast::<GMainContext>().cast_mut();
+    let ctx = unsafe { MainContext::from_glib_borrow(ctx) };
+    ctx.wakeup();
+}
+
+unsafe fn glib_waker_drop(ctx: *const ()) {
+    let ctx = ctx.cast::<GMainContext>().cast_mut();
+    let _ = unsafe { MainContext::from_glib_full(ctx) };
 }

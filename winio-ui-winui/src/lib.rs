@@ -3,19 +3,8 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg(windows)]
 
-use winio_callback::Runnable;
+pub(crate) use winio_pollable::GlobalRuntime;
 pub use winio_ui_windows_common::{Error, Result};
-
-pub(crate) struct GlobalRuntime;
-
-impl Runnable for GlobalRuntime {
-    #[inline]
-    fn run() {
-        RUNTIME.with(|runtime| runtime.run());
-    }
-}
-
-scoped_tls::scoped_thread_local!(pub(crate) static RUNTIME: Runtime);
 
 mod runtime;
 pub use runtime::*;
@@ -24,3 +13,6 @@ mod ui;
 pub use ui::*;
 
 mod hook;
+
+#[cfg(feature = "compio-compat")]
+pub use compio::compat::FuturesAdapter as CompioAdapter;

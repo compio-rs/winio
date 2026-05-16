@@ -3,24 +3,38 @@ use std::future::Future;
 use compio_log::{error, warn};
 use futures_util::StreamExt;
 use winio_elm::{Component, Root, RunEvent};
+#[cfg(feature = "compio-compat")]
+use {
+    compio::{compat::RuntimeCompat, runtime::Runtime},
+    sys::CompioAdapter,
+};
 
-use crate::{sys, sys::Runtime};
+use crate::{sys, sys::App as SysApp};
 
 /// Root application, manages the async runtime.
 pub struct App {
-    runtime: Runtime,
+    #[cfg(feature = "compio-compat")]
+    runtime: RuntimeCompat<CompioAdapter>,
+    app: SysApp,
     name: String,
 }
 
 impl App {
     /// Create [`App`] with application name.
     pub fn new(name: impl AsRef<str>) -> sys::Result<Self> {
-        #[allow(unused_mut)]
-        let mut runtime = Runtime::new()?;
+        #[cfg(feature = "compio-compat")]
+        let runtime = RuntimeCompat::new(Runtime::new()?)?;
         let name = name.as_ref().to_string();
+        #[allow(unused_mut)]
+        let mut app = SysApp::new()?;
         #[cfg(not(any(windows, target_vendor = "apple")))]
-        runtime.set_app_id(&name)?;
-        Ok(Self { runtime, name })
+        app.set_app_id(&name)?;
+        Ok(Self {
+            #[cfg(feature = "compio-compat")]
+            runtime,
+            app,
+            name,
+        })
     }
 
     /// The application name.
@@ -33,7 +47,14 @@ impl App {
     /// The inner runtime might exits the inner application loop after the
     /// execution of the future.
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        self.runtime.block_on(future)
+        #[cfg(feature = "compio-compat")]
+        {
+            self.app.block_on(self.runtime.execute(future))
+        }
+        #[cfg(not(feature = "compio-compat"))]
+        {
+            self.app.block_on(future)
+        }
     }
 
     /// Run the component till the first event is emitted. [`RunEvent`] is

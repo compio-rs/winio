@@ -44,6 +44,7 @@ impl ListBox {
         catch(|| unsafe {
             let table = NSTableView::new(mtm);
             let column = NSTableColumn::new(mtm);
+            column.setEditable(false);
             table.addTableColumn(&column);
             table.setHeaderView(None);
             table.setColumnAutoresizingStyle(

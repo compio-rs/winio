@@ -7,24 +7,18 @@ use std::panic::AssertUnwindSafe;
 
 use objc2::{exception::Exception, rc::Retained};
 use objc2_foundation::NSError;
-use winio_callback::Runnable;
-
-pub(crate) struct GlobalRuntime;
-
-impl Runnable for GlobalRuntime {
-    #[inline]
-    fn run() {
-        RUNTIME.with(|runtime| runtime.run())
-    }
-}
-
-scoped_tls::scoped_thread_local!(pub(crate) static RUNTIME: Runtime);
+pub(crate) use winio_pollable::GlobalRuntime;
 
 mod runtime;
 pub use runtime::*;
 
 mod ui;
 pub use ui::*;
+
+#[cfg(feature = "compio-compat")]
+mod compat;
+#[cfg(feature = "compio-compat")]
+pub use compat::*;
 
 /// Error type for AppKit.
 #[derive(Debug, thiserror::Error)]

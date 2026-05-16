@@ -8,10 +8,10 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-compio = { workspace = true, features = ["runtime"] }
+winio-callback = { workspace = true, optional = true }
 
 futures-util = { workspace = true }
 scoped-tls = { workspace = true }
 
-[target.'cfg(target_os = "linux")'.dependencies]
-rustix = { version = "1", features = ["event"] }
+[features]
+callback = ["dep:winio-callback"]

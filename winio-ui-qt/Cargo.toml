@@ -11,8 +11,9 @@ repository = { workspace = true }
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true, features = ["qt"] }
 winio-callback = { workspace = true }
-winio-pollable = { workspace = true }
+winio-pollable = { workspace = true, features = ["callback"] }
 
+compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
 
 bitflags = { workspace = true }
@@ -32,5 +33,7 @@ qt-build-utils = { version = "0.8" }
 [features]
 media = []
 webview = []
+
+compio-compat = ["compio/runtime", "compio/compat"]
 
 opengl = []

@@ -1,6 +1,5 @@
 use std::ptr::null_mut;
 
-use compio::driver::syscall;
 use compio_log::error;
 use futures_util::FutureExt;
 use image::DynamicImage;
@@ -12,8 +11,7 @@ use windows::Win32::{
             Common::{D2D_SIZE_U, D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_COLOR_F, D2D1_PIXEL_FORMAT},
             D2D1_FEATURE_LEVEL_DEFAULT, D2D1_HWND_RENDER_TARGET_PROPERTIES,
             D2D1_PRESENT_OPTIONS_NONE, D2D1_RENDER_TARGET_PROPERTIES,
-            D2D1_RENDER_TARGET_TYPE_HARDWARE, D2D1_RENDER_TARGET_USAGE_NONE, ID2D1Factory,
-            ID2D1HwndRenderTarget,
+            D2D1_RENDER_TARGET_TYPE_HARDWARE, D2D1_RENDER_TARGET_USAGE_NONE, ID2D1HwndRenderTarget,
         },
         Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM,
     },
@@ -33,41 +31,34 @@ use windows_sys::Win32::{
 };
 use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{DrawingFont, MouseButton, Orient, Point, Rect, Size, Transform, Vector};
-use winio_ui_windows_common::{Backdrop, is_dark_mode_allowed_for_app};
+use winio_ui_windows_common::{Backdrop, d2d1_factory, is_dark_mode_allowed_for_app, syscall};
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 
 use crate::{
-    RUNTIME, Result, get_backdrop,
+    Result, get_backdrop,
     ui::{Widget, font::dwrite_factory},
 };
 
-#[inline]
-fn d2d1<T>(f: impl FnOnce(&ID2D1Factory) -> Result<T>) -> Result<T> {
-    RUNTIME.with(|runtime| f(runtime.d2d1()?))
-}
-
 fn create_target(handle: HWND) -> Result<ID2D1HwndRenderTarget> {
     unsafe {
-        d2d1(|d2d| {
-            d2d.CreateHwndRenderTarget(
-                &D2D1_RENDER_TARGET_PROPERTIES {
-                    r#type: D2D1_RENDER_TARGET_TYPE_HARDWARE,
-                    pixelFormat: D2D1_PIXEL_FORMAT {
-                        format: DXGI_FORMAT_B8G8R8A8_UNORM,
-                        alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
-                    },
-                    dpiX: 0.0,
-                    dpiY: 0.0,
-                    usage: D2D1_RENDER_TARGET_USAGE_NONE,
-                    minLevel: D2D1_FEATURE_LEVEL_DEFAULT,
+        d2d1_factory()?.CreateHwndRenderTarget(
+            &D2D1_RENDER_TARGET_PROPERTIES {
+                r#type: D2D1_RENDER_TARGET_TYPE_HARDWARE,
+                pixelFormat: D2D1_PIXEL_FORMAT {
+                    format: DXGI_FORMAT_B8G8R8A8_UNORM,
+                    alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
                 },
-                &D2D1_HWND_RENDER_TARGET_PROPERTIES {
-                    hwnd: windows::Win32::Foundation::HWND(handle),
-                    pixelSize: D2D_SIZE_U::default(),
-                    presentOptions: D2D1_PRESENT_OPTIONS_NONE,
-                },
-            )
-        })
+                dpiX: 0.0,
+                dpiY: 0.0,
+                usage: D2D1_RENDER_TARGET_USAGE_NONE,
+                minLevel: D2D1_FEATURE_LEVEL_DEFAULT,
+            },
+            &D2D1_HWND_RENDER_TARGET_PROPERTIES {
+                hwnd: windows::Win32::Foundation::HWND(handle),
+                pixelSize: D2D_SIZE_U::default(),
+                presentOptions: D2D1_PRESENT_OPTIONS_NONE,
+            },
+        )
     }
 }
 
@@ -218,7 +209,7 @@ impl Canvas {
         unsafe { SetLastError(0) };
         match syscall!(BOOL, MapWindowPoints(parent, handle, &mut p, 1)) {
             Ok(_) => {}
-            Err(e) if e.raw_os_error() == Some(0) => {}
+            Err(e) if e.code().is_ok() => {}
             Err(_e) => {
                 error!("MapWindowPoints: {_e:?}");
                 return None;
@@ -255,7 +246,7 @@ impl<'a> DrawingContext<'a> {
     fn new(canvas: &'a mut Canvas) -> Result<Self> {
         Ok(Self {
             ctx: winio_ui_windows_common::DrawingContext::new(
-                d2d1(|f| Ok(f.clone()))?,
+                d2d1_factory()?.into(),
                 dwrite_factory()?.clone(),
                 canvas.target.clone().into(),
             ),

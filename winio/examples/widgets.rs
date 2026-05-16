@@ -1,7 +1,11 @@
-use std::{convert::Infallible, future::Future, path::PathBuf, pin::Pin};
+#[cfg(feature = "compio-compat")]
+use std::path::PathBuf;
+use std::{convert::Infallible, future::Future, pin::Pin};
 
 use thiserror::Error;
 use winio::prelude::*;
+
+link_args::windows::stack_size!(0x800000);
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -17,6 +21,9 @@ pub enum Error {
     /// Image error.
     #[error("Image error: {0}")]
     Image(#[from] image::ImageError),
+    /// Cyper error.
+    #[error("Cyper error: {0}")]
+    Cyper(#[from] cyper::Error),
 }
 
 impl<E: Into<Error> + std::fmt::Display> From<LayoutError<E>> for Error {
@@ -63,22 +70,10 @@ struct MainModel {
     net: Child<NetPage>,
     gallery: Child<GalleryPage>,
     scroll: Child<ScrollViewPage>,
-    #[cfg(feature = "plotters")]
     plotters: Child<PlottersPage>,
-    #[cfg(not(feature = "plotters"))]
-    plotters: Child<DummyPage>,
-    #[cfg(feature = "media")]
     media: Child<MediaPage>,
-    #[cfg(not(feature = "media"))]
-    media: Child<DummyPage>,
-    #[cfg(feature = "webview")]
     webview: Child<WebViewPage>,
-    #[cfg(not(feature = "webview"))]
-    webview: Child<DummyPage>,
-    #[cfg(feature = "webview")]
     markdown: Child<MarkdownPage>,
-    #[cfg(not(feature = "webview"))]
-    markdown: Child<DummyPage>,
 }
 
 #[derive(Debug)]
@@ -86,18 +81,22 @@ enum MainMessage {
     Noop,
     Close,
     Redraw,
+    #[cfg(feature = "compio-compat")]
     ChooseFile,
+    #[cfg(feature = "compio-compat")]
     OpenFile(PathBuf),
+    #[cfg(feature = "compio-compat")]
     ChooseFolder,
+    #[cfg(feature = "compio-compat")]
     OpenFolder(PathBuf),
     ShowMessage(MessageBox),
-    #[cfg(feature = "media")]
+    #[cfg(all(feature = "media", feature = "compio-compat"))]
     ChooseMedia,
-    #[cfg(feature = "media")]
+    #[cfg(all(feature = "media", feature = "compio-compat"))]
     OpenMedia(PathBuf),
-    #[cfg(feature = "webview")]
+    #[cfg(all(feature = "webview", feature = "compio-compat"))]
     ChooseMarkdown,
-    #[cfg(feature = "webview")]
+    #[cfg(all(feature = "webview", feature = "compio-compat"))]
     OpenMarkdown(PathBuf),
     #[cfg(windows)]
     ChooseBackdrop(Backdrop),
@@ -124,26 +123,35 @@ impl Component for MainModel {
             },
             tabview: TabView = (&window),
             misc: MiscPage = (()),
+            #[cfg(feature = "compio-compat")]
             fs: FsPage = (()),
+            #[cfg(not(feature = "compio-compat"))]
+            fs: DummyPage = (("File IO", "compio-compat")),
+            #[cfg(feature = "compio-compat")]
             net: NetPage = (()),
+            #[cfg(not(feature = "compio-compat"))]
+            net: DummyPage = (("Networking", "compio-compat")),
+            #[cfg(feature = "compio-compat")]
             gallery: GalleryPage = (()),
+            #[cfg(not(feature = "compio-compat"))]
+            gallery: DummyPage = (("Images", "compio-compat")),
             scroll: ScrollViewPage = (()),
             #[cfg(feature = "plotters")]
             plotters: PlottersPage = (()),
             #[cfg(not(feature = "plotters"))]
             plotters: DummyPage = (("Plotters", "plotters")),
-            #[cfg(feature = "media")]
+            #[cfg(all(feature = "media", feature = "compio-compat"))]
             media: MediaPage = (()),
-            #[cfg(not(feature = "media"))]
-            media: DummyPage = (("Media", "media")),
+            #[cfg(not(all(feature = "media", feature = "compio-compat")))]
+            media: DummyPage = (("Media", "media,compio-compat")),
             #[cfg(feature = "webview")]
             webview: WebViewPage = (()),
             #[cfg(not(feature = "webview"))]
             webview: DummyPage = (("WebView", "webview")),
-            #[cfg(feature = "webview")]
+            #[cfg(all(feature = "webview", feature = "compio-compat"))]
             markdown: MarkdownPage = (()),
-            #[cfg(not(feature = "webview"))]
-            markdown: DummyPage = (("Markdown", "webview")),
+            #[cfg(not(all(feature = "webview", feature = "compio-compat")))]
+            markdown: DummyPage = (("Markdown", "webview,compio-compat")),
         }
 
         tabview.push(&misc)?;
@@ -191,27 +199,30 @@ impl Component for MainModel {
                 MiscPageEvent::ChooseVibrancy(v) => MainMessage::ChooseVibrancy(v),
             },
             self.fs => {
+                #[cfg(feature = "compio-compat")]
                 FsPageEvent::ChooseFile => MainMessage::ChooseFile,
             },
             self.net => {},
             self.gallery => {
+                #[cfg(feature = "compio-compat")]
                 GalleryPageEvent::ChooseFolder => MainMessage::ChooseFolder,
+                #[cfg(feature = "compio-compat")]
                 GalleryPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
             },
             self.scroll => {
                 ScrollViewPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
             },
             self.media => {
-                #[cfg(feature = "media")]
+                #[cfg(all(feature = "media", feature = "compio-compat"))]
                 MediaPageEvent::ChooseFile => MainMessage::ChooseMedia,
-                #[cfg(feature = "media")]
+                #[cfg(all(feature = "media", feature = "compio-compat"))]
                 MediaPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
             },
             self.webview => {},
             self.markdown => {
-                #[cfg(feature = "webview")]
+                #[cfg(all(feature = "webview", feature = "compio-compat"))]
                 MarkdownPageEvent::ChooseFile => MainMessage::ChooseMarkdown,
-                #[cfg(feature = "webview")]
+                #[cfg(all(feature = "webview", feature = "compio-compat"))]
                 MarkdownPageEvent::MessageBox(mb) => MainMessage::ShowMessage(mb),
             },
         }
@@ -274,7 +285,17 @@ impl Component for MainModel {
                 }
                 Ok(false)
             }
-            MainMessage::Redraw => self.gallery.emit(GalleryPageMessage::Redraw).await,
+            MainMessage::Redraw => {
+                #[cfg(feature = "compio-compat")]
+                {
+                    self.gallery.emit(GalleryPageMessage::Redraw).await
+                }
+                #[cfg(not(feature = "compio-compat"))]
+                {
+                    Ok(true)
+                }
+            }
+            #[cfg(feature = "compio-compat")]
             MainMessage::ChooseFile => {
                 if let Some(p) = FileBox::new()
                     .title("Open file")
@@ -286,7 +307,9 @@ impl Component for MainModel {
                 }
                 Ok(false)
             }
+            #[cfg(feature = "compio-compat")]
             MainMessage::OpenFile(p) => self.fs.emit(FsPageMessage::OpenFile(p)).await,
+            #[cfg(feature = "compio-compat")]
             MainMessage::ChooseFolder => {
                 if let Some(p) = FileBox::new()
                     .title("Open folder")
@@ -297,6 +320,7 @@ impl Component for MainModel {
                 }
                 Ok(false)
             }
+            #[cfg(feature = "compio-compat")]
             MainMessage::OpenFolder(p) => {
                 self.gallery.emit(GalleryPageMessage::OpenFolder(p)).await
             }
@@ -304,7 +328,7 @@ impl Component for MainModel {
                 mb.show(&self.window).await?;
                 Ok(false)
             }
-            #[cfg(feature = "media")]
+            #[cfg(all(feature = "media", feature = "compio-compat"))]
             MainMessage::ChooseMedia => {
                 if let Some(p) = FileBox::new()
                     .title("Open media file")
@@ -317,9 +341,9 @@ impl Component for MainModel {
                 }
                 Ok(false)
             }
-            #[cfg(feature = "media")]
+            #[cfg(all(feature = "media", feature = "compio-compat"))]
             MainMessage::OpenMedia(p) => self.media.emit(MediaPageMessage::OpenFile(p)).await,
-            #[cfg(feature = "webview")]
+            #[cfg(all(feature = "webview", feature = "compio-compat"))]
             MainMessage::ChooseMarkdown => {
                 if let Some(p) = FileBox::new()
                     .title("Open markdown file")
@@ -332,7 +356,7 @@ impl Component for MainModel {
                 }
                 Ok(false)
             }
-            #[cfg(feature = "webview")]
+            #[cfg(all(feature = "webview", feature = "compio-compat"))]
             MainMessage::OpenMarkdown(p) => {
                 self.markdown.emit(MarkdownPageMessage::OpenFile(p)).await
             }

@@ -11,17 +11,15 @@ repository = { workspace = true }
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true, features = ["winui"] }
 winio-callback = { workspace = true }
+winio-pollable = { workspace = true, features = ["callback"] }
 winio-ui-windows-common = { workspace = true, features = ["winui"] }
 
-compio = { workspace = true, features = ["notify-always"] }
+compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
 
 image = { workspace = true }
 inherit-methods-macro = { workspace = true }
-once_cell = { workspace = true }
-oneshot = { version = "0.2", default-features = false, features = ["std"] }
 percent-encoding = { workspace = true, optional = true }
-scoped-tls = { workspace = true }
 send_wrapper = { workspace = true }
 widestring = { workspace = true }
 
@@ -39,9 +37,7 @@ winui3 = { workspace = true, features = [
     "UI_Xaml_XamlTypeInfo",
 ] }
 windows-sys = { workspace = true, features = [
-    "Win32_Security",
     "Win32_System_Diagnostics_Debug",
-    "Win32_System_Threading",
     "Win32_UI_HiDpi",
 ] }
 windows = { workspace = true, features = [
@@ -52,7 +48,6 @@ windows = { workspace = true, features = [
     "Win32_Graphics_Direct3D",
     "Win32_Graphics_Direct3D11",
     "Win32_Graphics_Dxgi",
-    "Win32_Storage_Packaging_Appx",
 ] }
 windows-core = { workspace = true }
 
@@ -62,6 +57,7 @@ sync-unsafe-cell = { workspace = true }
 [features]
 media = ["windows/Media_Core", "dep:percent-encoding"]
 webview = ["winui3/Web_WebView2_Core"]
+compio-compat = ["compio/compat-futures"]
 
 # Use CBS WinUI3 shipped with Windows
 enable-cbs = []
