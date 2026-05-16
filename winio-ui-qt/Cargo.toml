@@ -34,6 +34,6 @@ qt-build-utils = { version = "0.8" }
 media = []
 webview = []
 
-compio-compat = ["compio/compat"]
+compio-compat = ["compio/runtime", "compio/compat"]
 
 opengl = []

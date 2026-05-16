@@ -12,7 +12,6 @@ winio-primitive = { workspace = true }
 winio-handle = { workspace = true }
 winio-pollable = { workspace = true }
 
-compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
 
 cfg-if = { workspace = true }
@@ -64,8 +63,6 @@ embed-resource = "3"
 win32 = ["winio-handle/win32"]
 winui = ["winio-handle/winui", "dep:winui3"]
 dark-mode = ["dep:slim-detours-sys", "dep:sync-unsafe-cell"]
-
-compio-compat = ["compio/runtime", "compio/compat"]
 
 once_cell_try = []
 nightly = ["once_cell_try"]

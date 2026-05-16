@@ -30,4 +30,9 @@ webkit6 = { workspace = true, optional = true }
 media = []
 webview = ["dep:webkit6"]
 
-compio-compat = ["compio/compat", "dep:local-sync", "dep:glib-unix"]
+compio-compat = [
+    "compio/runtime",
+    "compio/compat",
+    "dep:local-sync",
+    "dep:glib-unix",
+]
