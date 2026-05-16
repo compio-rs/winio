@@ -26,9 +26,6 @@ impl App {
         let app = gio::Application::new(None, gio::ApplicationFlags::FLAGS_NONE);
         app.set_default();
 
-        // unix_fd_add_local(poll_fd, IOCondition::IN, |_fd, _cond|
-        // ControlFlow::Continue);
-
         Ok(Self { app, ctx })
     }
 
