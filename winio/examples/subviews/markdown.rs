@@ -9,6 +9,7 @@ use std::{
 
 use axum::{http::Uri, response::IntoResponse};
 use compio::{buf::buf_try, fs::File, io::AsyncReadAtExt, net::TcpListener, runtime::spawn};
+use futures_util::FutureExt;
 use local_sync::oneshot;
 use send_wrapper::SendWrapper;
 use winio::prelude::*;
@@ -96,9 +97,7 @@ impl Component for MarkdownPage {
                         })
                     }),
                 )
-                .with_graceful_shutdown(async move {
-                    shutdown_rx.await.ok();
-                });
+                .with_graceful_shutdown(shutdown_rx.map(|_| ()));
                 let local_addr = serve.local_addr()?;
                 sender.post(MarkdownPageMessage::SetAddr(local_addr));
                 serve.await
