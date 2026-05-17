@@ -6,6 +6,7 @@ use std::{
 };
 
 use compio_log::*;
+use futures_util::FutureExt;
 use windows::{
     Foundation::Uri,
     core::{Array, HSTRING, IInspectable_Vtbl, Interface, Ref, h, imp::WeakRefCount, implement},
@@ -93,14 +94,13 @@ impl App {
         let waker = Waker::from(dispatcher.clone());
 
         let result = RefCell::new(None);
-        let future = async {
-            let res = future.await;
+        let future = future.map(|res| {
             Application::Current()
                 .expect("Failed to get current application")
                 .Exit()
                 .expect("Failed to exit application");
             result.replace(Some(res));
-        };
+        });
         winio_pollable::enter_block_on(future, waker, || {
             let dispatcher = RefCell::new(Some(dispatcher));
             Application::Start(&ApplicationInitializationCallback::new(move |_| {

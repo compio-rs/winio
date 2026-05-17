@@ -17,6 +17,7 @@ winio-ui-windows-common = { workspace = true, features = ["winui"] }
 compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
 
+futures-util = { workspace = true }
 image = { workspace = true }
 inherit-methods-macro = { workspace = true }
 percent-encoding = { workspace = true, optional = true }

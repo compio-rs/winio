@@ -13,6 +13,7 @@ use std::{
 };
 
 use compio_log::*;
+use futures_util::FutureExt;
 use slab::Slab;
 use windows::core::HRESULT;
 #[cfg(target_pointer_width = "64")]
@@ -418,11 +419,9 @@ impl App {
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
         REGISTRY.set(&self.registry, || {
-            let future = async {
-                let res = future.await;
-                unsafe { PostQuitMessage(0) };
-                res
-            };
+            let future = future.inspect(|_| unsafe {
+                PostQuitMessage(0);
+            });
             winio_pollable::block_on(future, self.waker.clone(), || {
                 let res = get_message();
                 match res {

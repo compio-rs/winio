@@ -81,7 +81,12 @@ impl App {
     /// The inner runtime might exits the inner application loop after the
     /// execution of the future.
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        self.app.block_on(self.runtime.execute(future))
+        let future = self.runtime.execute(future);
+        if std::mem::size_of_val(&future) >= 2048 {
+            self.app.block_on(Box::pin(future))
+        } else {
+            self.app.block_on(future)
+        }
     }
 
     /// Run the component till the first event is emitted. [`RunEvent`] is

@@ -67,8 +67,6 @@ send_wrapper = { workspace = true, features = ["futures"] }
 tracing-subscriber = "0.3"
 url = "2"
 
-link_args = "0.6"
-
 [features]
 default = ["qt", "win32"]
 win32 = ["dep:winio-ui-win32"]

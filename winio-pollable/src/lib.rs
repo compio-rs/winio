@@ -41,10 +41,9 @@ pub fn block_on<F: Future>(future: F, waker: Waker, poll: impl Fn()) -> F::Outpu
     let result = RefCell::new(None);
 
     enter_block_on(
-        async {
-            let res = Some(future.await);
-            result.replace(res);
-        },
+        future.map(|res| {
+            result.replace(Some(res));
+        }),
         waker,
         || {
             loop {

@@ -5,8 +5,6 @@ use std::{convert::Infallible, future::Future, pin::Pin};
 use thiserror::Error;
 use winio::prelude::*;
 
-link_args::windows::stack_size!(0x800000);
-
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// An error from the UI backend.
@@ -247,16 +245,14 @@ impl Component for MainModel {
                 self.window.update(),
                 self.tabview.update(),
                 visible_subview,
-                async {
-                    futures_util::future::try_join_all(subviews.into_iter()).await?;
-                    Ok::<_, Error>(false)
-                },
+                futures_util::future::try_join_all(subviews.into_iter()).map_ok(|_| false),
             )
         } else {
-            try_join_update!(self.window.update(), self.tabview.update(), async {
-                futures_util::future::try_join_all(subviews.into_iter()).await?;
-                Ok::<_, Error>(false)
-            })
+            try_join_update!(
+                self.window.update(),
+                self.tabview.update(),
+                futures_util::future::try_join_all(subviews.into_iter()).map_ok(|_| false)
+            )
         }
     }
 
