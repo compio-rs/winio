@@ -16,6 +16,7 @@ winio-pollable = { workspace = true, features = ["callback"] }
 compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
 
+futures-util = { workspace = true, optional = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true }
 local-sync = { workspace = true, optional = true }
@@ -33,6 +34,7 @@ webview = ["dep:webkit6"]
 compio-compat = [
     "compio/runtime",
     "compio/compat",
-    "dep:local-sync",
+    "dep:futures-util",
     "dep:glib-unix",
+    "dep:local-sync",
 ]

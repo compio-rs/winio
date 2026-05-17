@@ -1,6 +1,7 @@
 use std::{io, ops::Deref, os::fd::AsRawFd, time::Duration};
 
 use compio::{compat::Adapter, runtime::Runtime};
+use futures_util::TryFutureExt;
 use glib_unix::unix_fd_add_local;
 use gtk4::glib::{ControlFlow, IOCondition, future_with_timeout};
 use local_sync::oneshot;
@@ -33,7 +34,7 @@ impl Adapter for CompioAdapter {
                 ControlFlow::Break
             },
         );
-        let fut = async move { rx.await.map_err(|_| io::ErrorKind::Interrupted.into()) };
+        let fut = rx.map_err(|_| io::ErrorKind::Interrupted.into());
         if let Some(timeout) = timeout {
             future_with_timeout(timeout, fut)
                 .await
