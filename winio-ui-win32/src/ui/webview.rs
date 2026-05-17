@@ -1,4 +1,4 @@
-use std::{cell::RefCell, future::Future, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use webview2::{
     CreateCoreWebView2Environment, ICoreWebView2, ICoreWebView2Controller,
@@ -207,18 +207,12 @@ impl WebView {
         }
     }
 
-    pub fn wait_navigating(&self) -> impl Future<Output = ()> + 'static + use<> {
-        let navigating = self.navigating.clone();
-        async move {
-            navigating.wait().await;
-        }
+    pub async fn wait_navigating(&self) {
+        self.navigating.wait().await;
     }
 
-    pub fn wait_navigated(&self) -> impl Future<Output = ()> + 'static + use<> {
-        let navigated = self.navigated.clone();
-        async move {
-            navigated.wait().await;
-        }
+    pub async fn wait_navigated(&self) {
+        self.navigated.wait().await;
     }
 }
 
