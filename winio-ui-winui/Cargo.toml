@@ -1,6 +1,6 @@
 [package]
 name = "winio-ui-winui"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.2"
 description = "WinUI backend for winio."
 edition = { workspace = true }
 readme = { workspace = true }
