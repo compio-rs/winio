@@ -33,9 +33,8 @@ impl Button {
             let handle = Widget::from_uiview(parent, Retained::cast_unchecked(view.clone()))?;
 
             let delegate = ButtonDelegate::new(mtm);
-            let obj: &objc2::runtime::AnyObject = &delegate;
             view.addTarget_action_forControlEvents(
-                Some(obj),
+                Some(&delegate),
                 sel!(onAction),
                 UIControlEvents::TouchUpInside,
             );

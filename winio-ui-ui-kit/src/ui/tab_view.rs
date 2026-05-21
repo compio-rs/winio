@@ -15,6 +15,8 @@ use winio_primitive::{Point, Size};
 
 use crate::{Error, GlobalRuntime, Result, catch, from_cgsize, from_nsstring, ui::Widget};
 
+const TAB_HEIGHT: f64 = 30.0;
+
 #[derive(Debug)]
 pub struct TabView {
     handle: Widget,
@@ -77,12 +79,12 @@ impl TabView {
         catch(|| {
             self.segment.setFrame(CGRect::new(
                 CGPoint::new(0.0, 0.0),
-                CGSize::new(v.width, 30.0),
+                CGSize::new(v.width, TAB_HEIGHT),
             ));
             for vw in self.views.borrow().iter() {
                 vw.setFrame(CGRect::new(
-                    CGPoint::new(0.0, 30.0),
-                    CGSize::new(v.width, v.height - 30.0),
+                    CGPoint::new(0.0, TAB_HEIGHT),
+                    CGSize::new(v.width, v.height - TAB_HEIGHT),
                 ));
             }
         })
@@ -104,8 +106,19 @@ impl TabView {
         })
     }
 
+    fn update_visible(&self) {
+        let index = self.segment.selectedSegmentIndex();
+        if index >= 0 {
+            let index = index as usize;
+            for (idx, vw) in self.views.borrow().iter().enumerate() {
+                vw.setHidden(idx != index);
+            }
+        }
+    }
+
     pub async fn wait_select(&self) {
-        self.delegate.ivars().did_select.wait().await
+        self.delegate.ivars().did_select.wait().await;
+        self.update_visible();
     }
 
     pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
@@ -114,8 +127,8 @@ impl TabView {
                 .insertSegmentWithTitle_atIndex_animated(Some(&item.label), i, false);
             let size = self.size()?;
             item.view.setFrame(CGRect::new(
-                CGPoint::new(0.0, 30.0),
-                CGSize::new(size.width, size.height - 30.0),
+                CGPoint::new(0.0, TAB_HEIGHT),
+                CGSize::new(size.width, size.height - TAB_HEIGHT),
             ));
             item.view.setHidden(self.views.borrow().len() != i);
             self.view.addSubview(&item.view);

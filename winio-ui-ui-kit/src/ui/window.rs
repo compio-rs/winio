@@ -27,7 +27,7 @@ impl Window {
     pub fn new() -> Result<Self> {
         let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
 
-        let mut this = catch(|| {
+        catch(|| {
             let scene = crate::current_scene()?;
 
             let scene = Retained::downcast(scene).map_err(|_| Error::NullPointer)?;
@@ -38,7 +38,14 @@ impl Window {
             wnd.setRootViewController(Some(&controller));
             wnd.makeKeyWindow();
 
-            let content_view = controller.view().ok_or(Error::NullPointer)?;
+            let root_view = controller.view().ok_or(Error::NullPointer)?;
+            let content_view = UIView::new(mtm);
+            root_view.addSubview(&content_view);
+            // TODO: Why?
+            let mut frame = root_view.frame();
+            frame.origin.x = frame.size.width / 2.0;
+            frame.origin.y = frame.size.height / 2.0;
+            content_view.setFrame(frame);
 
             Ok(Self {
                 wnd,
@@ -46,9 +53,7 @@ impl Window {
                 delegate: controller,
             })
         })
-        .flatten()?;
-        this.set_loc(Point::zero())?;
-        Ok(this)
+        .flatten()
     }
 
     pub fn is_visible(&self) -> Result<bool> {
@@ -189,10 +194,6 @@ impl WindowDelegate {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-#[non_exhaustive]
-pub enum Vibrancy {}
-
 #[derive(Debug)]
 pub(crate) struct Widget {
     view: Retained<UIView>,
@@ -200,13 +201,11 @@ pub(crate) struct Widget {
 
 impl Widget {
     pub fn from_uiview(parent: impl AsContainer, view: Retained<UIView>) -> Result<Self> {
-        let mut this = catch(|| {
+        catch(|| {
             let parent = parent.as_container().as_ui_kit();
             parent.addSubview(&view);
             Self { view }
-        })?;
-        this.set_loc(Point::zero())?;
-        Ok(this)
+        })
     }
 
     pub fn is_visible(&self) -> Result<bool> {
