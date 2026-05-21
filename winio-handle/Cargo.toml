@@ -32,5 +32,6 @@ win32 = []
 winui = ["dep:winui3"]
 qt = []
 gtk = ["dep:gtk4"]
+android = []
 
 raw-window-handle = ["dep:raw-window-handle"]

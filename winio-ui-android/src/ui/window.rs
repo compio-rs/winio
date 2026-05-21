@@ -1,13 +1,12 @@
 //! Android window widget, based on JNI and FrameLayout
 
-use {
-    super::{
-        super::{JObjectExt, define_event, recv_event},
-        BaseWidget, vm_exec_on_ui_thread,
-    },
-    inherit_methods_macro::inherit_methods,
-    winio_handle::{AsRawWindow, AsWindow, BorrowedWindow, RawWindow},
-    winio_primitive::{Point, Size},
+use inherit_methods_macro::inherit_methods;
+use winio_handle::{AsWindow, BorrowedWindow};
+use winio_primitive::{Point, Size};
+
+use super::{
+    super::{JObjectExt, define_event, recv_event},
+    BaseWidget, vm_exec_on_ui_thread,
 };
 
 define_event!(
@@ -28,7 +27,7 @@ pub struct Window {
     inner: BaseWidget,
 }
 
-//noinspection SpellCheckingInspection
+// noinspection SpellCheckingInspection
 #[inherit_methods(from = "self.inner")]
 impl Window {
     const WINDOW_CLASS: &'static str = "rs/compio/winio/Window";
@@ -37,7 +36,7 @@ impl Window {
     where
         W: AsWindow,
     {
-        let parent = parent.map(|w| w.as_window().as_raw_window().clone());
+        let parent = parent.map(|w| w.as_window().clone());
         let inner = vm_exec_on_ui_thread(move |mut env, act| {
             let window = if let Some(parent) = parent.as_ref() {
                 env.new_object(
@@ -100,15 +99,8 @@ impl Window {
         S: AsRef<str>;
 }
 
-impl AsRawWindow for Window {
-    fn as_raw_window(&self) -> RawWindow {
-        // Return pointer or handle to FrameLayout
-        (&*self.inner).clone()
-    }
-}
-
 impl AsWindow for Window {
     fn as_window(&self) -> BorrowedWindow<'_> {
-        unsafe { BorrowedWindow::borrow_raw(self.as_raw_window()) }
+        unsafe { BorrowedWindow::android() }
     }
 }

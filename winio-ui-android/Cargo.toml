@@ -20,7 +20,7 @@ oneshot = { version = "0.1.13", features = ["default"] }
 
 winio-primitive = { workspace = true }
 winio-callback = { workspace = true }
-winio-handle = { workspace = true }
+winio-handle = { workspace = true, features = ["android"]}
 winio-pollable = { workspace = true }
 
 compio = { workspace = true }
