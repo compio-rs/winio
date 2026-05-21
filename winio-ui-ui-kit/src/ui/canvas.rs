@@ -95,11 +95,12 @@ impl Canvas {
 
     pub async fn wait_mouse_move(&self) -> Point {
         self.view.ivars().touches_moved.wait().await;
-        Point::zero()
+        // TODO
+        std::future::pending().await
     }
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
-        Vector::zero()
+        std::future::pending().await
     }
 }
 
