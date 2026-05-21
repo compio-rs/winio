@@ -1,4 +1,6 @@
-use {std::path::PathBuf, winio_handle::AsWindow};
+use std::path::PathBuf;
+
+use winio_handle::AsWindow;
 
 #[derive(Debug, Default, Clone)]
 pub struct FileBox;

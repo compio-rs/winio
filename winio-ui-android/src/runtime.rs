@@ -1,8 +1,8 @@
-use {
-    super::RUNTIME,
-    std::{future::Future, thread::sleep, time::Duration},
-    winio_pollable::Runtime as PollableRuntime,
-};
+use std::{future::Future, thread::sleep, time::Duration};
+
+use winio_pollable::Runtime as PollableRuntime;
+
+use super::RUNTIME;
 
 pub struct Runtime {
     inner: PollableRuntime,

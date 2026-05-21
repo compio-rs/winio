@@ -1,15 +1,15 @@
-use {
-    super::{BaseWidget, vm_exec_on_ui_thread},
-    image::DynamicImage,
-    inherit_methods_macro::inherit_methods,
-    jni::{objects::GlobalRef,JNIEnv,errors::Result as JniResult},
-    std::marker::PhantomData,
-    winio_handle::{AsWindow, impl_as_widget},
-    winio_primitive::{
-        BrushPen, DrawingFont, LinearGradientBrush, MouseButton, Point, RadialGradientBrush, Rect,
-        Size, SolidColorBrush, Vector,
-    },
+use std::marker::PhantomData;
+
+use image::DynamicImage;
+use inherit_methods_macro::inherit_methods;
+use jni::{JNIEnv, errors::Result as JniResult, objects::GlobalRef};
+use winio_handle::{AsWindow, impl_as_widget};
+use winio_primitive::{
+    BrushPen, DrawingFont, LinearGradientBrush, MouseButton, Point, RadialGradientBrush, Rect,
+    Size, SolidColorBrush, Vector,
 };
+
+use super::{BaseWidget, vm_exec_on_ui_thread};
 
 /// Drawing brush.
 pub trait Brush {
@@ -194,7 +194,7 @@ pub struct Canvas {
     inner: BaseWidget,
 }
 
-//noinspection SpellCheckingInspection
+// noinspection SpellCheckingInspection
 #[inherit_methods(from = "self.inner")]
 impl Canvas {
     const WIDGET_CLASS: &'static str = "rs/compio/winio/Canvas";

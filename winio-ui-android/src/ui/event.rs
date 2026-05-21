@@ -1,6 +1,6 @@
 #[macro_export]
 macro_rules! define_event {
-    ($var_name: ident, $fn_name: ident) => {
+    ($var_name:ident, $fn_name:ident) => {
         static $var_name: std::sync::LazyLock<
             std::sync::Mutex<std::collections::HashMap<i32, Vec<oneshot::Sender<()>>>>,
         > = std::sync::LazyLock::new(Default::default);
@@ -27,7 +27,7 @@ macro_rules! define_event {
 
 #[macro_export]
 macro_rules! recv_event {
-    ($widget: expr, $var_name: ident) => {
+    ($widget:expr, $var_name:ident) => {
         if let Ok(mut lock) = $var_name.lock() {
             let (tx, rx) = oneshot::channel();
             let hash_code = $widget.inner.hash_code();

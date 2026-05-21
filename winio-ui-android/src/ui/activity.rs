@@ -1,21 +1,20 @@
 #![allow(non_snake_case)]
 
-use {
-    jni::{
-        AttachGuard, JNIEnv, JavaVM,
-        errors::{Error, JniError, Result as JniResult},
-        objects::{GlobalRef, JObject},
-        sys::{JNI_VERSION_1_6, jint},
-    },
-    std::{
-        collections::HashMap,
-        env::set_var,
-        fs::File,
-        io::{BufRead, BufReader},
-        os::{raw::c_void, unix::prelude::*},
-        sync::{LazyLock, Mutex, OnceLock},
-        thread::spawn,
-    },
+use std::{
+    collections::HashMap,
+    env::set_var,
+    fs::File,
+    io::{BufRead, BufReader},
+    os::{raw::c_void, unix::prelude::*},
+    sync::{LazyLock, Mutex, OnceLock},
+    thread::spawn,
+};
+
+use jni::{
+    AttachGuard, JNIEnv, JavaVM,
+    errors::{Error, JniError, Result as JniResult},
+    objects::{GlobalRef, JObject},
+    sys::{JNI_VERSION_1_6, jint},
 };
 
 static JAVA_VM: OnceLock<JavaVM> = OnceLock::new();

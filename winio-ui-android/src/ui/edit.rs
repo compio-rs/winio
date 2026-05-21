@@ -1,11 +1,10 @@
-use {
-    super::{
-        super::{JObjectExt, define_event, recv_event},
-        BaseWidget, vm_exec_on_ui_thread,
-    },
-    inherit_methods_macro::inherit_methods,
-    winio_handle::{AsWindow, impl_as_widget},
-    winio_primitive::{HAlign, Point, Size},
+use inherit_methods_macro::inherit_methods;
+use winio_handle::{AsWindow, impl_as_widget};
+use winio_primitive::{HAlign, Point, Size};
+
+use super::{
+    super::{JObjectExt, define_event, recv_event},
+    BaseWidget, vm_exec_on_ui_thread,
 };
 
 define_event!(
@@ -18,7 +17,7 @@ pub struct Edit {
     inner: BaseWidget,
 }
 
-//noinspection SpellCheckingInspection
+// noinspection SpellCheckingInspection
 #[inherit_methods(from = "self.inner")]
 impl Edit {
     const WIDGET_CLASS: &'static str = "rs/compio/winio/Edit";

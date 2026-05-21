@@ -1,16 +1,15 @@
-use {
-    super::BaseWidget,
-    inherit_methods_macro::inherit_methods,
-    winio_handle::{AsWindow, impl_as_widget},
-    winio_primitive::{HAlign, Point, Size},
-};
+use inherit_methods_macro::inherit_methods;
+use winio_handle::{AsWindow, impl_as_widget};
+use winio_primitive::{HAlign, Point, Size};
+
+use super::BaseWidget;
 
 #[derive(Debug)]
 pub struct Label {
     inner: BaseWidget,
 }
 
-//noinspection SpellCheckingInspection
+// noinspection SpellCheckingInspection
 #[inherit_methods(from = "self.inner")]
 impl Label {
     const WIDGET_CLASS: &'static str = "rs/compio/winio/Label";
@@ -21,10 +20,10 @@ impl Label {
     where
         S: AsRef<str>;
 
-    //noinspection SpellCheckingInspection
+    // noinspection SpellCheckingInspection
     pub fn halign(&self) -> HAlign;
 
-    //noinspection SpellCheckingInspection
+    // noinspection SpellCheckingInspection
     pub fn set_halign(&self, align: HAlign);
 
     pub fn is_visible(&self) -> bool;

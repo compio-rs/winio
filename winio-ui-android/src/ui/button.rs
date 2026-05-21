@@ -1,11 +1,10 @@
-use {
-    super::{
-        super::{define_event, recv_event},
-        BaseWidget,
-    },
-    inherit_methods_macro::inherit_methods,
-    winio_handle::{AsWindow, impl_as_widget},
-    winio_primitive::{Point, Size},
+use inherit_methods_macro::inherit_methods;
+use winio_handle::{AsWindow, impl_as_widget};
+use winio_primitive::{Point, Size};
+
+use super::{
+    super::{define_event, recv_event},
+    BaseWidget,
 };
 
 define_event!(
@@ -18,7 +17,7 @@ pub struct Button {
     inner: BaseWidget,
 }
 
-//noinspection SpellCheckingInspection
+// noinspection SpellCheckingInspection
 #[inherit_methods(from = "self.inner")]
 impl Button {
     const WIDGET_CLASS: &'static str = "rs/compio/winio/Button";

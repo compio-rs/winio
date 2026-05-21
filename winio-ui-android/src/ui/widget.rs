@@ -1,20 +1,20 @@
-use {
-    super::{super::JObjectExt, vm_exec, vm_exec_on_ui_thread},
-    jni::objects::JObject,
-    std::ops::Deref,
-    winio_handle::{AsRawWindow, BorrowedWindow, RawWidget},
-    winio_primitive::{HAlign, Point, Size},
-};
+use std::ops::Deref;
+
+use jni::objects::JObject;
+use winio_handle::{AsRawWindow, BorrowedWindow, RawWidget};
+use winio_primitive::{HAlign, Point, Size};
+
+use super::{super::JObjectExt, vm_exec, vm_exec_on_ui_thread};
 
 #[derive(Clone, Debug)]
 pub struct BaseWidget {
     inner: RawWidget,
 }
 
-//noinspection SpellCheckingInspection
+// noinspection SpellCheckingInspection
 impl BaseWidget {
-    const HALIGN_LEFT: i32 = 0;
     const HALIGN_CENTER: i32 = 1;
+    const HALIGN_LEFT: i32 = 0;
     const HALIGN_RIGHT: i32 = 2;
     const HALIGN_STRETCH: i32 = 3;
 

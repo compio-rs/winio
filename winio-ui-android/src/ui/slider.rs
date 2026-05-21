@@ -1,9 +1,8 @@
-use {
-    super::BaseWidget,
-    inherit_methods_macro::inherit_methods,
-    winio_handle::{AsWindow, impl_as_widget},
-    winio_primitive::{Orient, Point, Size},
-};
+use inherit_methods_macro::inherit_methods;
+use winio_handle::{AsWindow, impl_as_widget};
+use winio_primitive::{Orient, Point, Size};
+
+use super::BaseWidget;
 
 #[derive(Debug)]
 pub struct Slider {

@@ -1,12 +1,11 @@
-use {
-    encoding_rs::GBK,
-    std::{
-        env::var,
-        fs::read_dir,
-        path::Path,
-        process::{Command, Stdio, exit},
-    },
+use std::{
+    env::var,
+    fs::read_dir,
+    path::Path,
+    process::{Command, Stdio, exit},
 };
+
+use encoding_rs::GBK;
 
 fn main() {
     if let Ok(classes_dir) = var("CARGO_APK2_CLASSES_DIR")

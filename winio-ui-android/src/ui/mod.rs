@@ -22,12 +22,27 @@ mod tooltip;
 mod widget;
 mod window;
 
+pub use accent::*;
+pub use activity::*;
+pub use button::*;
+pub use canvas::*;
+pub use check_box::*;
+pub use combo_box::*;
+pub use edit::*;
+pub use filebox::*;
+pub use label::*;
+pub use list_box::*;
+pub use monitor::*;
+pub use msgbox::*;
+pub use progress::*;
+pub use radio_button::*;
+pub use scroll_bar::*;
+pub use slider::*;
+pub use text_box::*;
+pub use tooltip::*;
+pub use widget::*;
+pub use window::*;
 use winio_primitive::ColorTheme;
-pub use {
-    accent::*, activity::*, button::*, canvas::*, check_box::*, combo_box::*, edit::*, filebox::*,
-    label::*, list_box::*, monitor::*, msgbox::*, progress::*, radio_button::*, scroll_bar::*,
-    slider::*, text_box::*, tooltip::*, widget::*, window::*,
-};
 
 pub fn color_theme() -> ColorTheme {
     ColorTheme::Dark

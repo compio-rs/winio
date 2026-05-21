@@ -1,8 +1,8 @@
-use {
-    super::{super::JObjectExt, vm_exec_on_ui_thread},
-    std::ops::{Deref, DerefMut},
-    winio_handle::{AsWidget, RawWidget},
-};
+use std::ops::{Deref, DerefMut};
+
+use winio_handle::{AsWidget, RawWidget};
+
+use super::{super::JObjectExt, vm_exec_on_ui_thread};
 
 #[derive(Debug)]
 pub struct ToolTip<T> {
@@ -10,7 +10,7 @@ pub struct ToolTip<T> {
     tooltip: RawWidget,
 }
 
-//noinspection SpellCheckingInspection
+// noinspection SpellCheckingInspection
 impl<T> ToolTip<T> {
     const WIDGET_CLASS: &'static str = "rs/compio/winio/Tooltip";
 

@@ -1,16 +1,15 @@
-use {
-    super::BaseWidget,
-    inherit_methods_macro::inherit_methods,
-    winio_handle::{AsWindow, impl_as_widget},
-    winio_primitive::{Point, Size},
-};
+use inherit_methods_macro::inherit_methods;
+use winio_handle::{AsWindow, impl_as_widget};
+use winio_primitive::{Point, Size};
+
+use super::BaseWidget;
 
 #[derive(Debug)]
 pub struct Progress {
     inner: BaseWidget,
 }
 
-//noinspection SpellCheckingInspection
+// noinspection SpellCheckingInspection
 #[inherit_methods(from = "self.inner")]
 impl Progress {
     const WIDGET_CLASS: &'static str = "rs/compio/winio/Progress";

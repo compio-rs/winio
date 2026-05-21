@@ -1,11 +1,9 @@
-use {
-    jni::{
-        JNIEnv,
-        errors::Result,
-        objects::{JDoubleArray, JIntArray, JObject, JString},
-    },
-    winio_primitive::{Point, Size},
+use jni::{
+    JNIEnv,
+    errors::Result,
+    objects::{JDoubleArray, JIntArray, JObject, JString},
 };
+use winio_primitive::{Point, Size};
 
 pub trait JObjectExt<O> {
     fn to(self, env: &mut JNIEnv) -> Result<O>;
