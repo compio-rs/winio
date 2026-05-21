@@ -33,6 +33,9 @@ winio-ui-winui = { workspace = true, optional = true }
 [target.'cfg(target_os = "macos")'.dependencies]
 winio-ui-app-kit = { workspace = true }
 
+[target.'cfg(target_os = "android")'.dependencies]
+winio-ui-android = { workspace = true }
+
 [target.'cfg(not(any(windows, target_os = "macos")))'.dependencies]
 winio-ui-gtk = { workspace = true, optional = true }
 winio-ui-qt = { workspace = true, optional = true }
