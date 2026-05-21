@@ -16,18 +16,29 @@ winio-pollable = { workspace = true, features = ["callback"] }
 compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
 
+arrayvec = { workspace = true }
 futures-util = "0.3"
+image = { workspace = true }
+inherit-methods-macro = { workspace = true }
+local-sync = { workspace = true }
 thiserror = { workspace = true }
 
-block2 = "0.6"
+block2 = { workspace = true }
 dispatch2 = "0.3"
 objc2 = { workspace = true, features = ["exception"] }
-objc2-foundation = "0.3"
+objc2-av-kit = { workspace = true, optional = true }
+objc2-av-foundation = { workspace = true, optional = true }
+objc2-core-foundation = { workspace = true }
+objc2-core-graphics = { workspace = true }
+objc2-core-media = { workspace = true, optional = true }
+objc2-core-text = { workspace = true }
+objc2-foundation = { workspace = true }
 objc2-ui-kit = { workspace = true }
+objc2-web-kit = { workspace = true, optional = true }
 
 [features]
-media = []
-webview = []
+media = ["dep:objc2-av-kit", "dep:objc2-av-foundation", "dep:objc2-core-media"]
+webview = ["dep:objc2-web-kit"]
 
 compio-compat = ["compio/compat-futures"]
 

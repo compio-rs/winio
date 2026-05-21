@@ -3,11 +3,21 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg(target_os = "ios")]
 
-mod runtime;
+use std::panic::AssertUnwindSafe;
+
+#[cfg(feature = "compio-compat")]
+pub use compio::compat::FuturesAdapter as CompioAdapter;
 use objc2::{exception::Exception, rc::Retained};
 use objc2_foundation::NSError;
+pub(crate) use winio_pollable::GlobalRuntime;
+
+mod runtime;
 pub use runtime::*;
 
+mod ui;
+pub use ui::*;
+
+/// Error type for UIKit.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
@@ -20,9 +30,18 @@ pub enum Error {
     /// NSError.
     #[error("NSError: {0:?}")]
     NS(Option<Retained<NSError>>),
+    /// Channel recv error.
+    #[error("Channel recv error: {0}")]
+    ChannelRecv(#[from] local_sync::oneshot::error::RecvError),
+    /// Null pointer returned.
+    #[error("Null pointer returned")]
+    NullPointer,
     /// Called from non-main thread.
     #[error("Called from non-main thread")]
     NotMainThread,
+    /// Feature not supported.
+    #[error("Feature not supported")]
+    NotSupported,
 }
 
 // SAFETY: NSException & NSError are thread-safe.
@@ -53,8 +72,15 @@ impl From<Option<Retained<NSError>>> for Error {
     }
 }
 
-/// Result type for AppKit.
+/// Result type for UIKit.
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
-#[cfg(feature = "compio-compat")]
-pub use compio::compat::FuturesAdapter as CompioAdapter;
+pub(crate) fn catch<F, R>(f: F) -> Result<R>
+where
+    F: FnOnce() -> R,
+{
+    match objc2::exception::catch(AssertUnwindSafe(f)) {
+        Ok(v) => Ok(v),
+        Err(exc) => Err(Error::from(exc)),
+    }
+}

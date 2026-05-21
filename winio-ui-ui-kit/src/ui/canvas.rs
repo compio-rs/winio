@@ -1,0 +1,958 @@
+use std::{
+    cell::{Cell, RefCell},
+    ptr::{null, null_mut},
+    rc::Rc,
+};
+
+use compio_log::*;
+use image::DynamicImage;
+use inherit_methods_macro::inherit_methods;
+use objc2::{
+    DeclaredClass, MainThreadOnly, define_class, msg_send,
+    rc::{Allocated, Retained},
+};
+use objc2_core_foundation::{
+    CFMutableArray, CFMutableAttributedString, CFRange, CFRetained, CGAffineTransform,
+    kCFAllocatorDefault,
+};
+use objc2_core_graphics::{
+    CGAffineTransformIsIdentity, CGAffineTransformMake, CGBitmapContextCreate,
+    CGBitmapContextCreateImage, CGColor, CGColorSpace, CGContext, CGGradient,
+    CGGradientDrawingOptions, CGMutablePath, CGPath, kCGColorWhite,
+};
+use objc2_core_text::{
+    CTFont, CTFontDescriptor, CTFontSymbolicTraits, CTFramesetter, kCTFontAttributeName,
+    kCTForegroundColorAttributeName,
+};
+use objc2_foundation::{MainThreadMarker, NSPoint, NSRect, NSSize, NSString};
+use objc2_ui_kit::{UIImage, UIView};
+use winio_callback::Callback;
+use winio_handle::AsContainer;
+use winio_primitive::{
+    BrushPen, Color, DrawingFont, GradientStop, HAlign, LinearGradientBrush, MouseButton, Point,
+    RadialGradientBrush, Rect, RelativePoint, Size, SolidColorBrush, Transform, VAlign, Vector,
+};
+
+use crate::{
+    Error, GlobalRuntime, Result, catch,
+    ui::{TollFreeBridge, Widget, from_cgsize, transform_point, transform_rect},
+};
+
+#[derive(Debug)]
+pub struct Canvas {
+    view: Retained<CanvasView>,
+    handle: Widget,
+}
+
+#[inherit_methods(from = "self.handle")]
+impl Canvas {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let parent = parent.as_container();
+        let view = catch(|| CanvasView::new(parent.as_ui_kit().mtm()))?;
+        let handle = Widget::from_uiview(parent, view.clone().into_super())?;
+        Ok(Self { view, handle })
+    }
+
+    pub fn is_visible(&self) -> Result<bool>;
+
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
+
+    pub fn is_enabled(&self) -> Result<bool>;
+
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
+
+    pub fn loc(&self) -> Result<Point>;
+
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
+
+    pub fn size(&self) -> Result<Size>;
+
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
+
+    pub fn tooltip(&self) -> Result<String>;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn context(&mut self) -> Result<DrawingContext<'_>> {
+        Ok(DrawingContext {
+            size: self.size()?,
+            actions: self.view.ivars().take_buffer(),
+            canvas: self,
+            transform: Transform::identity(),
+            ended: false,
+        })
+    }
+
+    pub async fn wait_mouse_down(&self) -> MouseButton {
+        self.view.ivars().touches_began.wait().await;
+        MouseButton::Left
+    }
+
+    pub async fn wait_mouse_up(&self) -> MouseButton {
+        self.view.ivars().touches_ended.wait().await;
+        MouseButton::Left
+    }
+
+    pub async fn wait_mouse_move(&self) -> Point {
+        self.view.ivars().touches_moved.wait().await;
+        Point::zero()
+    }
+
+    pub async fn wait_mouse_wheel(&self) -> Vector {
+        Vector::zero()
+    }
+}
+
+winio_handle::impl_as_widget!(Canvas, handle);
+
+#[derive(Debug)]
+#[doc(hidden)]
+pub enum DrawGradientAction {
+    Linear {
+        gradient: CFRetained<CGGradient>,
+        start_point: NSPoint,
+        end_point: NSPoint,
+    },
+    Radial {
+        gradient: CFRetained<CGGradient>,
+        start_center: NSPoint,
+        start_radius: f64,
+        end_center: NSPoint,
+        end_radius: f64,
+    },
+}
+
+impl DrawGradientAction {
+    fn draw(&self, context: &CGContext) {
+        match self {
+            Self::Linear {
+                gradient,
+                start_point,
+                end_point,
+            } => {
+                CGContext::draw_linear_gradient(
+                    Some(context),
+                    Some(gradient),
+                    *start_point,
+                    *end_point,
+                    CGGradientDrawingOptions::all(),
+                );
+            }
+            Self::Radial {
+                gradient,
+                start_center,
+                start_radius,
+                end_center,
+                end_radius,
+            } => {
+                CGContext::draw_radial_gradient(
+                    Some(context),
+                    Some(gradient),
+                    *start_center,
+                    *start_radius,
+                    *end_center,
+                    *end_radius,
+                    CGGradientDrawingOptions::all(),
+                );
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+#[doc(hidden)]
+pub enum DrawAction {
+    Path(CFRetained<CGPath>, CFRetained<CGColor>, Option<f64>),
+    GradientPath(CFRetained<CGPath>, DrawGradientAction, Option<f64>),
+    Text(CFRetained<CTFramesetter>, NSRect),
+    GradientText(CFRetained<CTFramesetter>, DrawGradientAction, NSRect),
+    Image(DrawingImage, NSRect, Option<NSRect>),
+    Transform(CGAffineTransform),
+}
+
+impl DrawAction {
+    fn with_width(self, width: f64) -> Self {
+        match self {
+            Self::Path(path, color, _) => Self::Path(path, color, Some(width)),
+            Self::GradientPath(path, gradient, _) => {
+                Self::GradientPath(path, gradient, Some(width))
+            }
+            _ => self,
+        }
+    }
+
+    fn draw_rect(actions: &[Self], _rect: NSRect, factor: f64) {
+        let Some(context) = objc2_ui_kit::UIGraphicsGetCurrentContext() else {
+            error!("Cannot get current CGContext");
+            return;
+        };
+        let context: &CGContext = &context;
+        let mut current_transform = None;
+        for action in actions {
+            CGContext::save_g_state(Some(context));
+            if let Some(transform) = &current_transform {
+                CGContext::concat_ctm(Some(context), *transform);
+            }
+            match action {
+                Self::Path(path, color, width) => {
+                    CGContext::add_path(Some(context), Some(path));
+                    if let Some(width) = width {
+                        CGContext::set_stroke_color_with_color(Some(context), Some(color));
+                        CGContext::set_line_width(Some(context), *width);
+                        CGContext::stroke_path(Some(context));
+                    } else {
+                        CGContext::set_fill_color_with_color(Some(context), Some(color));
+                        CGContext::fill_path(Some(context));
+                    }
+                }
+                Self::GradientPath(path, gradient, width) => {
+                    CGContext::add_path(Some(context), Some(path));
+                    if let Some(width) = width {
+                        CGContext::set_line_width(Some(context), *width);
+                        CGContext::replace_path_with_stroked_path(Some(context));
+                        CGContext::clip(Some(context));
+                        gradient.draw(context);
+                    } else {
+                        CGContext::clip(Some(context));
+                        gradient.draw(context);
+                    }
+                }
+                Self::Text(framesetter, rect) => unsafe {
+                    let text_path = CGPath::with_rect(*rect, null());
+
+                    let frame = framesetter.frame(CFRange::new(0, 0), &text_path, None);
+
+                    frame.draw(context);
+                },
+                Self::GradientText(framesetter, gradient, rect) => unsafe {
+                    let colorspace = CGColorSpace::new_device_gray();
+                    let Some(mask) = CGBitmapContextCreate(
+                        null_mut(),
+                        (rect.size.width * factor) as _,
+                        (rect.size.height * factor) as _,
+                        8,
+                        (rect.size.width * factor) as _,
+                        colorspace.as_deref(),
+                        0,
+                    ) else {
+                        error!("Cannot create CGBitmapContext");
+                        continue;
+                    };
+
+                    let text_path =
+                        CGPath::with_rect(NSRect::new(NSPoint::ZERO, rect.size), null());
+
+                    let frame = framesetter.frame(CFRange::new(0, 0), &text_path, None);
+
+                    CGContext::scale_ctm(Some(&mask), factor, factor);
+                    frame.draw(&mask);
+
+                    let mask_image = CGBitmapContextCreateImage(Some(&mask));
+                    CGContext::clip_to_mask(Some(context), *rect, mask_image.as_deref());
+                    gradient.draw(context);
+                },
+                Self::Image(image, rect, clip) => {
+                    let cg_image = unsafe { image.rep.CGImage() };
+                    if let Some(clip) = clip {
+                        CGContext::clip_to_rect(Some(context), *clip);
+                    }
+                    CGContext::draw_image(Some(context), *rect, cg_image.as_deref());
+                }
+                Self::Transform(transform) => {
+                    if CGAffineTransformIsIdentity(*transform) {
+                        current_transform = None;
+                    } else {
+                        current_transform = Some(*transform);
+                    }
+                }
+            }
+            CGContext::restore_g_state(Some(context));
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct CanvasViewIvars {
+    touches_began: Callback,
+    touches_moved: Callback,
+    touches_ended: Callback,
+    actions: RefCell<Vec<DrawAction>>,
+    actions_buf: RefCell<Vec<DrawAction>>,
+    factor: Cell<f64>,
+}
+
+impl CanvasViewIvars {
+    pub fn take_buffer(&self) -> Vec<DrawAction> {
+        std::mem::take(&mut self.actions_buf.borrow_mut())
+    }
+
+    pub fn swap_buffer(&self, buf: &mut Vec<DrawAction>) {
+        {
+            let mut actions = self.actions.borrow_mut();
+            std::mem::swap::<Vec<DrawAction>>(&mut actions, buf);
+        }
+        {
+            let mut actions_buf = self.actions_buf.borrow_mut();
+            std::mem::swap::<Vec<DrawAction>>(&mut actions_buf, buf);
+            actions_buf.clear();
+        }
+    }
+}
+
+define_class! {
+    #[unsafe(super(UIView))]
+    #[name = "WinioCanvasViewUIKit"]
+    #[ivars = CanvasViewIvars]
+    #[thread_kind = MainThreadOnly]
+    #[derive(Debug)]
+    struct CanvasView;
+
+    #[allow(non_snake_case)]
+    impl CanvasView {
+        #[unsafe(method_id(initWithFrame:))]
+        fn initWithFrame(this: Allocated<Self>, frame: NSRect) -> Option<Retained<Self>> {
+            let this = this.set_ivars(CanvasViewIvars::default());
+            unsafe { msg_send![super(this), initWithFrame: frame] }
+        }
+
+        #[unsafe(method(drawRect:))]
+        unsafe fn drawRect(&self, rect: NSRect) {
+            let ivars = self.ivars();
+            DrawAction::draw_rect(&ivars.actions.borrow(), rect, ivars.factor.get())
+        }
+
+        #[unsafe(method(touchesBegan:withEvent:))]
+        unsafe fn touchesBegan(&self, _touches: &objc2_ui_kit::UITouch, _event: Option<&objc2_ui_kit::UIEvent>) {
+            self.ivars().touches_began.signal::<GlobalRuntime>(());
+        }
+
+        #[unsafe(method(touchesMoved:withEvent:))]
+        unsafe fn touchesMoved(&self, _touches: &objc2_ui_kit::UITouch, _event: Option<&objc2_ui_kit::UIEvent>) {
+            self.ivars().touches_moved.signal::<GlobalRuntime>(());
+        }
+
+        #[unsafe(method(touchesEnded:withEvent:))]
+        unsafe fn touchesEnded(&self, _touches: &objc2_ui_kit::UITouch, _event: Option<&objc2_ui_kit::UIEvent>) {
+            self.ivars().touches_ended.signal::<GlobalRuntime>(());
+        }
+    }
+}
+
+impl CanvasView {
+    pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
+        unsafe { msg_send![mtm.alloc::<Self>(), initWithFrame: NSRect::ZERO] }
+    }
+}
+
+pub struct DrawingContext<'a> {
+    size: Size,
+    actions: Vec<DrawAction>,
+    canvas: &'a mut Canvas,
+    transform: Transform,
+    ended: bool,
+}
+
+impl Drop for DrawingContext<'_> {
+    fn drop(&mut self) {
+        if let Err(_e) = self.end() {
+            error!("Error dropping DrawingContext: {_e:?}");
+        }
+    }
+}
+
+impl DrawingContext<'_> {
+    fn end(&mut self) -> Result<()> {
+        if !self.ended {
+            let ivars = self.canvas.view.ivars();
+            ivars.swap_buffer(&mut self.actions);
+            ivars.factor.set(
+                self.canvas
+                    .view
+                    .window()
+                    .map(|w| w.screen().scale())
+                    .unwrap_or(1.0),
+            );
+            catch(|| self.canvas.view.setNeedsDisplay())?;
+            self.ended = true;
+        }
+        Ok(())
+    }
+
+    pub fn close(mut self) -> Result<()> {
+        self.end()
+    }
+
+    pub fn set_transform(&mut self, transform: Transform) -> Result<()> {
+        self.transform = transform;
+        self.actions.push(DrawAction::Transform(CGAffineTransform {
+            a: transform.m11,
+            b: transform.m12,
+            c: transform.m21,
+            d: transform.m22,
+            tx: transform.m31,
+            ty: transform.m32,
+        }));
+        Ok(())
+    }
+
+    pub fn transform(&self) -> Result<Transform> {
+        Ok(self.transform)
+    }
+
+    fn draw(&mut self, pen: impl Pen, path: CFRetained<CGPath>) -> Result<()> {
+        self.actions.push(pen.create_action(path)?);
+        Ok(())
+    }
+
+    fn fill(&mut self, brush: impl Brush, path: CFRetained<CGPath>) -> Result<()> {
+        self.actions.push(brush.create_action(path)?);
+        Ok(())
+    }
+
+    pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) -> Result<()> {
+        self.draw(pen, path.0.clone())
+    }
+
+    pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) -> Result<()> {
+        self.fill(brush, path.0.clone())
+    }
+
+    pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> Result<()> {
+        let path = path_arc(self.size, rect, start, end, false);
+        self.draw(pen, unsafe { CFRetained::cast_unchecked(path) })
+    }
+
+    pub fn draw_pie(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> Result<()> {
+        let path = path_arc(self.size, rect, start, end, true);
+        self.draw(pen, unsafe { CFRetained::cast_unchecked(path) })
+    }
+
+    pub fn fill_pie(&mut self, brush: impl Brush, rect: Rect, start: f64, end: f64) -> Result<()> {
+        let path = path_arc(self.size, rect, start, end, true);
+        self.fill(brush, unsafe { CFRetained::cast_unchecked(path) })
+    }
+
+    pub fn draw_ellipse(&mut self, pen: impl Pen, rect: Rect) -> Result<()> {
+        let path = path_ellipse(self.size, rect);
+        self.draw(pen, path)
+    }
+
+    pub fn fill_ellipse(&mut self, brush: impl Brush, rect: Rect) -> Result<()> {
+        let path = path_ellipse(self.size, rect);
+        self.fill(brush, path)
+    }
+
+    pub fn draw_line(&mut self, pen: impl Pen, start: Point, end: Point) -> Result<()> {
+        let path = path_line(self.size, start, end);
+        self.draw(pen, unsafe { CFRetained::cast_unchecked(path) })
+    }
+
+    pub fn draw_rect(&mut self, pen: impl Pen, rect: Rect) -> Result<()> {
+        let path = path_rect(self.size, rect);
+        self.draw(pen, path)
+    }
+
+    pub fn fill_rect(&mut self, brush: impl Brush, rect: Rect) -> Result<()> {
+        let path = path_rect(self.size, rect);
+        self.fill(brush, path)
+    }
+
+    pub fn draw_round_rect(&mut self, pen: impl Pen, rect: Rect, round: Size) -> Result<()> {
+        let path = path_round_rect(self.size, rect, round);
+        self.draw(pen, path)
+    }
+
+    pub fn fill_round_rect(&mut self, brush: impl Brush, rect: Rect, round: Size) -> Result<()> {
+        let path = path_round_rect(self.size, rect, round);
+        self.fill(brush, path)
+    }
+
+    pub fn draw_str(
+        &mut self,
+        brush: impl Brush,
+        font: DrawingFont,
+        pos: Point,
+        text: &str,
+    ) -> Result<()> {
+        let color = brush.text_color()?;
+        let (framesetter, rect) = measure_str(font, &color, pos, text, self.size)?;
+        let rect = transform_rect(self.size, rect);
+        self.actions
+            .push(brush.create_text_action(framesetter, rect)?);
+        Ok(())
+    }
+
+    pub fn measure_str(&self, font: DrawingFont, text: &str) -> Result<Size> {
+        let color =
+            unsafe { CGColor::constant_color(Some(kCGColorWhite)).ok_or(Error::NullPointer) }?;
+        Ok(measure_str(font, &color, Point::zero(), text, self.size)?
+            .1
+            .size)
+    }
+
+    pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage> {
+        DrawingImage::new(image)
+    }
+
+    pub fn draw_image(
+        &mut self,
+        image_rep: &DrawingImage,
+        rect: Rect,
+        clip: Option<Rect>,
+    ) -> Result<()> {
+        let rect = transform_rect(self.size, rect);
+        let clip = clip.map(|clip| transform_rect(self.size, clip));
+        self.actions
+            .push(DrawAction::Image(image_rep.clone(), rect, clip));
+        Ok(())
+    }
+
+    pub fn create_path_builder(&self, start: Point) -> Result<DrawingPathBuilder> {
+        Ok(DrawingPathBuilder::new(self.size, start))
+    }
+}
+
+pub struct DrawingPath(CFRetained<CGPath>);
+
+pub struct DrawingPathBuilder {
+    size: Size,
+    path: CFRetained<CGMutablePath>,
+}
+
+impl DrawingPathBuilder {
+    fn new(size: Size, start: Point) -> Self {
+        unsafe {
+            let path = CGMutablePath::new();
+            let p = transform_point(size, start);
+            CGMutablePath::move_to_point(Some(&path), null(), p.x, p.y);
+            Self { size, path }
+        }
+    }
+
+    pub fn add_line(&mut self, p: Point) -> Result<()> {
+        let p = transform_point(self.size, p);
+        unsafe {
+            CGMutablePath::add_line_to_point(Some(&self.path), null(), p.x, p.y);
+        }
+        Ok(())
+    }
+
+    pub fn add_arc(
+        &mut self,
+        center: Point,
+        radius: Size,
+        start: f64,
+        end: f64,
+        clockwise: bool,
+    ) -> Result<()> {
+        let startp = Point::new(
+            center.x + radius.width * start.cos(),
+            center.y + radius.height * start.sin(),
+        );
+
+        let rate = radius.height / radius.width;
+        let transform = CGAffineTransformMake(1.0, 0.0, 0.0, rate, 0.0, 0.0);
+
+        self.add_line(startp)?;
+        let center = transform_point(self.size, center);
+        unsafe {
+            CGMutablePath::add_arc(
+                Some(&self.path),
+                &transform,
+                center.x,
+                center.y / rate,
+                radius.width,
+                -start,
+                -end,
+                clockwise,
+            );
+        }
+        Ok(())
+    }
+
+    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) -> Result<()> {
+        let p1 = transform_point(self.size, p1);
+        let p2 = transform_point(self.size, p2);
+        let p3 = transform_point(self.size, p3);
+        unsafe {
+            CGMutablePath::add_curve_to_point(
+                Some(&self.path),
+                null(),
+                p1.x,
+                p1.y,
+                p2.x,
+                p2.y,
+                p3.x,
+                p3.y,
+            );
+        }
+        Ok(())
+    }
+
+    pub fn build(self, close: bool) -> Result<DrawingPath> {
+        unsafe {
+            if close {
+                CGMutablePath::close_subpath(Some(&self.path));
+            }
+            Ok(DrawingPath(CFRetained::cast_unchecked(self.path)))
+        }
+    }
+}
+
+fn path_arc(s: Size, rect: Rect, start: f64, end: f64, pie: bool) -> CFRetained<CGMutablePath> {
+    let radius = rect.size / 2.0;
+    let centerp = Point::new(rect.origin.x + radius.width, rect.origin.y + radius.height);
+    let startp = Point::new(
+        centerp.x + radius.width * start.cos(),
+        centerp.y + radius.height * start.sin(),
+    );
+
+    let rate = radius.height / radius.width;
+    let transform = CGAffineTransformMake(1.0, 0.0, 0.0, rate, 0.0, 0.0);
+
+    unsafe {
+        let path = CGMutablePath::new();
+        let centerp = transform_point(s, centerp);
+        let startp = transform_point(s, startp);
+        if pie {
+            CGMutablePath::move_to_point(Some(&path), null(), centerp.x, centerp.y);
+            CGMutablePath::add_line_to_point(Some(&path), null(), startp.x, startp.y / rate);
+        } else {
+            CGMutablePath::move_to_point(Some(&path), null(), startp.x, startp.y);
+        }
+        CGMutablePath::add_arc(
+            Some(&path),
+            &transform,
+            centerp.x,
+            centerp.y / rate,
+            radius.width,
+            -start,
+            -end,
+            true,
+        );
+        if pie {
+            CGMutablePath::close_subpath(Some(&path));
+        }
+        path
+    }
+}
+
+fn path_ellipse(s: Size, rect: Rect) -> CFRetained<CGPath> {
+    let rect = transform_rect(s, rect);
+    unsafe { CGPath::with_ellipse_in_rect(rect, null()) }
+}
+
+fn path_line(s: Size, start: Point, end: Point) -> CFRetained<CGMutablePath> {
+    unsafe {
+        let path = CGMutablePath::new();
+        let p = transform_point(s, start);
+        CGMutablePath::move_to_point(Some(&path), null(), p.x, p.y);
+        let p = transform_point(s, end);
+        CGMutablePath::add_line_to_point(Some(&path), null(), p.x, p.y);
+        path
+    }
+}
+
+fn path_rect(s: Size, rect: Rect) -> CFRetained<CGPath> {
+    let rect = transform_rect(s, rect);
+    unsafe { CGPath::with_rect(rect, null()) }
+}
+
+fn path_round_rect(s: Size, rect: Rect, round: Size) -> CFRetained<CGPath> {
+    let rect = transform_rect(s, rect);
+    unsafe { CGPath::with_rounded_rect(rect, round.width, round.height, null()) }
+}
+
+fn measure_str(
+    font: DrawingFont,
+    color: &CGColor,
+    pos: Point,
+    text: &str,
+    bound: Size,
+) -> Result<(CFRetained<CTFramesetter>, Rect)> {
+    let astr = create_attr_str(&font, color, text)?;
+    let framesetter = unsafe { CTFramesetter::with_attributed_string(&astr) };
+    let size = from_cgsize(unsafe {
+        framesetter.suggest_frame_size_with_constraints(
+            CFRange::new(0, 0),
+            None,
+            NSSize::new(bound.width, bound.height + font.size),
+            null_mut(),
+        )
+    });
+    let mut x = pos.x;
+    let mut y = pos.y;
+    match font.halign {
+        HAlign::Center => x -= size.width / 2.0,
+        HAlign::Right => x -= size.width,
+        _ => {}
+    }
+    match font.valign {
+        VAlign::Center => y -= size.height / 2.0,
+        VAlign::Bottom => y -= size.height,
+        _ => {}
+    }
+    Ok((framesetter, Rect::new(Point::new(x, y), size)))
+}
+
+fn create_attr_str(
+    font: &DrawingFont,
+    color: &CGColor,
+    text: &str,
+) -> Result<CFRetained<CFMutableAttributedString>> {
+    unsafe {
+        let mut fontdes = CTFontDescriptor::with_name_and_size(
+            NSString::from_str(&font.family).bridge(),
+            font.size,
+        );
+
+        let mut traits = CTFontSymbolicTraits::empty();
+        if font.italic {
+            traits |= CTFontSymbolicTraits::TraitItalic;
+        }
+        if font.bold {
+            traits |= CTFontSymbolicTraits::TraitBold;
+        }
+        if !traits.is_empty() {
+            fontdes = fontdes
+                .copy_with_symbolic_traits(traits, traits)
+                .unwrap_or(fontdes);
+        }
+
+        let nfont = CTFont::with_font_descriptor(&fontdes, font.size, null());
+
+        let astr =
+            CFMutableAttributedString::new(kCFAllocatorDefault, 0).ok_or(Error::NullPointer)?;
+        let text = NSString::from_str(text);
+        CFMutableAttributedString::replace_string(
+            Some(&astr),
+            CFRange::new(0, 0),
+            Some(text.bridge()),
+        );
+        CFMutableAttributedString::set_attribute(
+            Some(&astr),
+            CFRange::new(0, text.length() as _),
+            Some(kCTFontAttributeName),
+            Some(&nfont),
+        );
+        CFMutableAttributedString::set_attribute(
+            Some(&astr),
+            CFRange::new(0, text.length() as _),
+            Some(kCTForegroundColorAttributeName),
+            Some(color),
+        );
+        Ok(astr)
+    }
+}
+
+fn to_cgcolor(c: Color) -> CFRetained<CGColor> {
+    CGColor::new_generic_rgb(
+        c.r as f64 / 255.0,
+        c.g as f64 / 255.0,
+        c.b as f64 / 255.0,
+        c.a as f64 / 255.0,
+    )
+}
+
+fn real_point(p: RelativePoint, rect: NSRect) -> NSPoint {
+    let p = NSPoint::new(p.x, p.y);
+    NSPoint::new(
+        rect.origin.x + rect.size.width * p.x,
+        rect.origin.y + rect.size.height * p.y,
+    )
+}
+
+/// Drawing brush.
+pub trait Brush {
+    #[doc(hidden)]
+    fn create_action(&self, path: CFRetained<CGPath>) -> Result<DrawAction>;
+
+    #[doc(hidden)]
+    fn text_color(&self) -> Result<CFRetained<CGColor>>;
+
+    #[doc(hidden)]
+    fn create_text_action(
+        &self,
+        framesetter: CFRetained<CTFramesetter>,
+        rect: NSRect,
+    ) -> Result<DrawAction>;
+}
+
+impl<B: Brush> Brush for &'_ B {
+    fn create_action(&self, path: CFRetained<CGPath>) -> Result<DrawAction> {
+        (**self).create_action(path)
+    }
+
+    fn text_color(&self) -> Result<CFRetained<CGColor>> {
+        (**self).text_color()
+    }
+
+    fn create_text_action(
+        &self,
+        framesetter: CFRetained<CTFramesetter>,
+        rect: NSRect,
+    ) -> Result<DrawAction> {
+        (**self).create_text_action(framesetter, rect)
+    }
+}
+
+impl Brush for SolidColorBrush {
+    fn create_action(&self, path: CFRetained<CGPath>) -> Result<DrawAction> {
+        Ok(DrawAction::Path(path, to_cgcolor(self.color), None))
+    }
+
+    fn text_color(&self) -> Result<CFRetained<CGColor>> {
+        Ok(to_cgcolor(self.color))
+    }
+
+    fn create_text_action(
+        &self,
+        framesetter: CFRetained<CTFramesetter>,
+        rect: NSRect,
+    ) -> Result<DrawAction> {
+        Ok(DrawAction::Text(framesetter, rect))
+    }
+}
+
+fn create_gradient(stops: &[GradientStop]) -> Result<CFRetained<CGGradient>> {
+    let colors = CFMutableArray::<CGColor>::with_capacity(stops.len());
+    let mut locs = Vec::with_capacity(stops.len());
+    for stop in stops {
+        let cgcolor = to_cgcolor(stop.color);
+        colors.append(cgcolor.as_ref());
+        locs.push(stop.pos)
+    }
+    unsafe {
+        CGGradient::with_colors(None, Some(colors.bridge()), locs.as_ptr())
+            .ok_or(Error::NullPointer)
+    }
+}
+
+fn linear_gradient(b: &LinearGradientBrush, rect: NSRect) -> Result<DrawGradientAction> {
+    let gradient = create_gradient(&b.stops)?;
+    Ok(DrawGradientAction::Linear {
+        gradient,
+        start_point: real_point(b.start, rect),
+        end_point: real_point(b.end, rect),
+    })
+}
+
+impl Brush for LinearGradientBrush {
+    fn create_action(&self, path: CFRetained<CGPath>) -> Result<DrawAction> {
+        let rect = CGPath::bounding_box(Some(&path));
+        Ok(DrawAction::GradientPath(
+            path,
+            linear_gradient(self, rect)?,
+            None,
+        ))
+    }
+
+    fn text_color(&self) -> Result<CFRetained<CGColor>> {
+        unsafe { CGColor::constant_color(Some(kCGColorWhite)).ok_or(Error::NullPointer) }
+    }
+
+    fn create_text_action(
+        &self,
+        framesetter: CFRetained<CTFramesetter>,
+        rect: NSRect,
+    ) -> Result<DrawAction> {
+        Ok(DrawAction::GradientText(
+            framesetter,
+            linear_gradient(self, rect)?,
+            rect,
+        ))
+    }
+}
+
+fn radial_gradient(b: &RadialGradientBrush, rect: NSRect) -> Result<DrawGradientAction> {
+    let gradient = create_gradient(&b.stops)?;
+    Ok(DrawGradientAction::Radial {
+        gradient,
+        start_center: real_point(b.origin, rect),
+        start_radius: 0.0,
+        end_center: real_point(b.center, rect),
+        end_radius: (b.radius.width * rect.size.width).max(b.radius.height * rect.size.height),
+    })
+}
+
+impl Brush for RadialGradientBrush {
+    fn create_action(&self, path: CFRetained<CGPath>) -> Result<DrawAction> {
+        let rect = CGPath::bounding_box(Some(&path));
+        Ok(DrawAction::GradientPath(
+            path,
+            radial_gradient(self, rect)?,
+            None,
+        ))
+    }
+
+    fn text_color(&self) -> Result<CFRetained<CGColor>> {
+        unsafe { CGColor::constant_color(Some(kCGColorWhite)).ok_or(Error::NullPointer) }
+    }
+
+    fn create_text_action(
+        &self,
+        framesetter: CFRetained<CTFramesetter>,
+        rect: NSRect,
+    ) -> Result<DrawAction> {
+        Ok(DrawAction::GradientText(
+            framesetter,
+            radial_gradient(self, rect)?,
+            rect,
+        ))
+    }
+}
+
+/// Drawing pen.
+pub trait Pen {
+    #[doc(hidden)]
+    fn brush(&self) -> &dyn Brush;
+    #[doc(hidden)]
+    fn width(&self) -> f64;
+
+    #[doc(hidden)]
+    fn create_action(&self, path: CFRetained<CGPath>) -> Result<DrawAction> {
+        Ok(self.brush().create_action(path)?.with_width(self.width()))
+    }
+}
+
+impl<P: Pen> Pen for &'_ P {
+    fn brush(&self) -> &dyn Brush {
+        (**self).brush()
+    }
+
+    fn width(&self) -> f64 {
+        (**self).width()
+    }
+}
+
+impl<B: Brush> Pen for BrushPen<B> {
+    fn brush(&self) -> &dyn Brush {
+        &self.brush
+    }
+
+    fn width(&self) -> f64 {
+        self.width
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DrawingImage {
+    #[allow(unused)]
+    buffer: Rc<Vec<u8>>,
+    rep: Retained<UIImage>,
+}
+
+impl DrawingImage {
+    fn new(image: DynamicImage) -> Result<Self> {
+        let buffer = image.into_bytes();
+        let rep = catch(UIImage::new)?;
+        Ok(Self {
+            buffer: Rc::new(buffer),
+            rep,
+        })
+    }
+
+    pub fn size(&self) -> Result<Size> {
+        catch(|| unsafe { from_cgsize(self.rep.size()) })
+    }
+}
