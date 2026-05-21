@@ -4,7 +4,7 @@ use objc2::{
     rc::{Allocated, Retained, Weak},
 };
 use objc2_foundation::{MainThreadMarker, NSObject, NSObjectProtocol, NSSize};
-use objc2_ui_kit::{UIApplication, UISceneActivationState, UIScreen, UIView, UIWindow};
+use objc2_ui_kit::{UIScreen, UIView, UIViewController, UIWindow};
 use winio_callback::Callback;
 use winio_handle::{
     AsContainer, AsWidget, AsWindow, BorrowedContainer, BorrowedWidget, BorrowedWindow,
@@ -28,25 +28,19 @@ impl Window {
         let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
 
         let mut this = catch(|| {
-            let scenes = UIApplication::sharedApplication(mtm).connectedScenes();
-            let scene = scenes
-                .iter()
-                .find(|scene| scene.activationState() == UISceneActivationState::ForegroundActive)
-                .ok_or(Error::NullPointer)?;
+            let scene = crate::current_scene()?;
 
-            let scene = Retained::downcast(scene).unwrap();
+            let scene = Retained::downcast(scene).map_err(|_| Error::NullPointer)?;
 
             let wnd = UIWindow::initWithWindowScene(UIWindow::alloc(mtm), &scene);
 
+            let controller = UIViewController::new(mtm);
+            wnd.setRootViewController(Some(&controller));
+            wnd.makeKeyWindow();
+
             let delegate = WindowDelegate::new(mtm);
 
-            wnd.makeKeyAndVisible();
-
-            let content_view = wnd
-                .rootViewController()
-                .ok_or(Error::NullPointer)?
-                .view()
-                .ok_or(Error::NullPointer)?;
+            let content_view = controller.view().ok_or(Error::NullPointer)?;
 
             Ok(Self {
                 wnd,
