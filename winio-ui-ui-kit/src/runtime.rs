@@ -28,7 +28,7 @@ impl App {
     }
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        let future = future.map(|res| {
+        let future = future.map(|_| {
             std::process::exit(0);
         });
         winio_pollable::enter_block_on(future, dispatcher_waker(), || {

@@ -1,9 +1,12 @@
+use std::cell::RefCell;
+
 use inherit_methods_macro::inherit_methods;
 use objc2::{
     DeclaredClass, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
     sel,
 };
+use objc2_core_foundation::{CGPoint, CGRect, CGSize};
 use objc2_foundation::{MainThreadMarker, NSObject, NSString};
 use objc2_ui_kit::{UIControlEvents, UISegmentedControl, UIView};
 use winio_callback::Callback;
@@ -18,7 +21,7 @@ pub struct TabView {
     view: Retained<UIView>,
     segment: Retained<UISegmentedControl>,
     delegate: Retained<TabViewDelegate>,
-    views: std::cell::RefCell<Vec<Retained<UIView>>>,
+    views: RefCell<Vec<Retained<UIView>>>,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -49,7 +52,7 @@ impl TabView {
                 view,
                 segment,
                 delegate,
-                views: std::cell::RefCell::new(Vec::new()),
+                views: RefCell::new(Vec::new()),
             })
         })
         .flatten()
@@ -72,14 +75,14 @@ impl TabView {
     pub fn set_size(&mut self, v: Size) -> Result<()> {
         self.handle.set_size(v)?;
         catch(|| {
-            self.segment.setFrame(objc2_core_foundation::CGRect::new(
-                objc2_core_foundation::CGPoint::new(0.0, 0.0),
-                objc2_core_foundation::CGSize::new(v.width, 30.0),
+            self.segment.setFrame(CGRect::new(
+                CGPoint::new(0.0, 0.0),
+                CGSize::new(v.width, 30.0),
             ));
             for vw in self.views.borrow().iter() {
-                vw.setFrame(objc2_core_foundation::CGRect::new(
-                    objc2_core_foundation::CGPoint::new(0.0, 30.0),
-                    objc2_core_foundation::CGSize::new(v.width, v.height - 30.0),
+                vw.setFrame(CGRect::new(
+                    CGPoint::new(0.0, 30.0),
+                    CGSize::new(v.width, v.height - 30.0),
                 ));
             }
         })
@@ -110,16 +113,20 @@ impl TabView {
             self.segment
                 .insertSegmentWithTitle_atIndex_animated(Some(&item.label), i, false);
             let size = self.size()?;
-            item.view.setFrame(objc2_core_foundation::CGRect::new(
-                objc2_core_foundation::CGPoint::new(0.0, 30.0),
-                objc2_core_foundation::CGSize::new(size.width, size.height - 30.0),
+            item.view.setFrame(CGRect::new(
+                CGPoint::new(0.0, 30.0),
+                CGSize::new(size.width, size.height - 30.0),
             ));
             item.view.setHidden(self.views.borrow().len() != i);
             self.view.addSubview(&item.view);
             self.views.borrow_mut().insert(i, item.view.clone());
             Ok(())
         })
-        .flatten()
+        .flatten()?;
+        if self.len()? == 1 {
+            self.set_selection(0)?;
+        }
+        Ok(())
     }
 
     pub fn remove(&mut self, i: usize) -> Result<()> {

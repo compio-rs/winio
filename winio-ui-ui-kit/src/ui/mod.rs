@@ -95,6 +95,26 @@ pub(crate) fn to_cgsize(size: Size) -> NSSize {
 }
 
 #[inline]
+pub(crate) fn to_cgrect(rect: Rect) -> NSRect {
+    NSRect::new(to_cgpoint(rect.origin), to_cgsize(rect.size))
+}
+
+#[inline]
+pub(crate) fn from_cgrect(rect: NSRect) -> Rect {
+    Rect::new(from_cgpoint(rect.origin), from_cgsize(rect.size))
+}
+
+#[inline]
+pub(crate) fn to_cgpoint(p: Point) -> NSPoint {
+    NSPoint::new(p.x, p.y)
+}
+
+#[inline]
+pub(crate) fn from_cgpoint(p: NSPoint) -> Point {
+    Point::new(p.x, p.y)
+}
+
+#[inline]
 pub(crate) fn transform_rect(_s: Size, rect: Rect) -> NSRect {
     NSRect::new(
         NSPoint::new(rect.origin.x, rect.origin.y),

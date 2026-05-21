@@ -1,19 +1,19 @@
 use inherit_methods_macro::inherit_methods;
 use objc2::{
     DeclaredClass, MainThreadOnly, define_class, msg_send,
-    rc::{Allocated, Retained, Weak},
+    rc::{Allocated, Retained},
 };
-use objc2_foundation::{MainThreadMarker, NSObject, NSObjectProtocol, NSSize};
-use objc2_ui_kit::{UIScreen, UIView, UIViewController, UIWindow};
+use objc2_foundation::{MainThreadMarker, NSObjectProtocol, NSSize};
+use objc2_ui_kit::{UIView, UIViewController, UIWindow};
 use winio_callback::Callback;
 use winio_handle::{
     AsContainer, AsWidget, AsWindow, BorrowedContainer, BorrowedWidget, BorrowedWindow,
 };
-use winio_primitive::{Point, Rect, Size};
+use winio_primitive::{Point, Size};
 
 use crate::{
-    Error, Result, catch,
-    ui::{from_cgsize, to_cgsize, transform_cgrect, transform_rect},
+    Error, GlobalRuntime, Result, catch, from_cgpoint, to_cgpoint,
+    ui::{from_cgrect, from_cgsize, to_cgsize},
 };
 
 #[derive(Debug)]
@@ -34,18 +34,16 @@ impl Window {
 
             let wnd = UIWindow::initWithWindowScene(UIWindow::alloc(mtm), &scene);
 
-            let controller = UIViewController::new(mtm);
+            let controller = WindowDelegate::new(mtm);
             wnd.setRootViewController(Some(&controller));
             wnd.makeKeyWindow();
-
-            let delegate = WindowDelegate::new(mtm);
 
             let content_view = controller.view().ok_or(Error::NullPointer)?;
 
             Ok(Self {
                 wnd,
                 content_view,
-                delegate,
+                delegate: controller,
             })
         })
         .flatten()?;
@@ -53,35 +51,41 @@ impl Window {
         Ok(this)
     }
 
-    fn screen(&self) -> Retained<UIScreen> {
-        self.wnd.screen()
-    }
-
     pub fn is_visible(&self) -> Result<bool> {
         catch(|| !self.wnd.isHidden())
     }
 
     pub fn set_visible(&mut self, v: bool) -> Result<()> {
-        catch(|| self.wnd.setHidden(!v))
+        catch(|| {
+            self.wnd.setHidden(!v);
+            #[cfg(target_abi = "macabi")]
+            {
+                if v {
+                    use objc2_ui_kit::{UIApplication, UISceneSessionActivationRequest};
+
+                    let mtm = self.wnd.mtm();
+                    let app = UIApplication::sharedApplication(mtm);
+                    let request = unsafe { UISceneSessionActivationRequest::new() };
+                    let activity = self.wnd.windowScene().unwrap().userActivity();
+                    request.setUserActivity(activity.as_deref());
+                    app.activateSceneSessionForRequest_errorHandler(&request, None);
+                }
+            }
+        })
     }
 
     pub fn loc(&self) -> Result<Point> {
         catch(|| {
             let frame = self.wnd.frame();
-            let screen_frame = self.screen().bounds();
-            Ok(transform_cgrect(from_cgsize(screen_frame.size), frame).origin)
+            Ok(from_cgrect(frame).origin)
         })
         .flatten()
     }
 
     pub fn set_loc(&mut self, p: Point) -> Result<()> {
         catch(|| {
-            let frame = self.wnd.frame();
-            let screen_frame = self.screen().bounds();
-            let frame = transform_rect(
-                from_cgsize(screen_frame.size),
-                Rect::new(p, from_cgsize(frame.size)),
-            );
+            let mut frame = self.wnd.frame();
+            frame.origin = to_cgpoint(p);
             self.wnd.setFrame(frame);
         })
     }
@@ -154,7 +158,7 @@ struct WindowDelegateIvars {
 }
 
 define_class! {
-    #[unsafe(super(NSObject))]
+    #[unsafe(super(UIViewController))]
     #[name = "WinioWindowDelegateUIKit"]
     #[ivars = WindowDelegateIvars]
     #[thread_kind = MainThreadOnly]
@@ -167,6 +171,12 @@ define_class! {
         fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
             let this = this.set_ivars(WindowDelegateIvars::default());
             unsafe { msg_send![super(this), init] }
+        }
+
+        #[unsafe(method(viewDidLayoutSubviews))]
+        fn viewDidLayoutSubviews(&self) {
+            let () = unsafe { msg_send![super(self), viewDidLayoutSubviews] };
+            self.ivars().did_resize.signal::<GlobalRuntime>(());
         }
     }
 
@@ -185,7 +195,6 @@ pub enum Vibrancy {}
 
 #[derive(Debug)]
 pub(crate) struct Widget {
-    parent: Weak<UIView>,
     view: Retained<UIView>,
 }
 
@@ -194,17 +203,10 @@ impl Widget {
         let mut this = catch(|| {
             let parent = parent.as_container().as_ui_kit();
             parent.addSubview(&view);
-            Self {
-                parent: Weak::from_retained(parent),
-                view,
-            }
+            Self { view }
         })?;
         this.set_loc(Point::zero())?;
         Ok(this)
-    }
-
-    pub fn parent(&self) -> Result<Retained<UIView>> {
-        catch(|| self.parent.load())?.ok_or(Error::NullPointer)
     }
 
     pub fn is_visible(&self) -> Result<bool> {
@@ -233,24 +235,16 @@ impl Widget {
     pub fn loc(&self) -> Result<Point> {
         catch(|| {
             let frame = self.view.frame();
-            let parent_frame = self.parent()?.frame();
-            Ok(transform_cgrect(from_cgsize(parent_frame.size), frame).origin)
+            from_cgpoint(frame.origin)
         })
-        .flatten()
     }
 
     pub fn set_loc(&mut self, p: Point) -> Result<()> {
         catch(|| {
-            let frame = self.view.frame();
-            let parent_frame = self.parent()?.frame();
-            let frame = transform_rect(
-                from_cgsize(parent_frame.size),
-                Rect::new(p, from_cgsize(frame.size)),
-            );
+            let mut frame = self.view.frame();
+            frame.origin = to_cgpoint(p);
             self.view.setFrame(frame);
-            Ok(())
         })
-        .flatten()
     }
 
     pub fn size(&self) -> Result<Size> {
