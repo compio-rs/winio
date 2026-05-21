@@ -1,0 +1,38 @@
+[package]
+name = "winio-ui-ui-kit"
+version = "0.1.0-rc.1"
+description = "UI Kit backend for winio."
+edition = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[target.'cfg(target_os = "ios")'.dependencies]
+winio-primitive = { workspace = true }
+winio-handle = { workspace = true }
+winio-callback = { workspace = true }
+winio-pollable = { workspace = true, features = ["callback"] }
+
+compio = { workspace = true, default-features = false, optional = true }
+compio-log = { workspace = true }
+
+futures-util = "0.3"
+thiserror = { workspace = true }
+
+block2 = "0.6"
+dispatch2 = "0.3"
+objc2 = { workspace = true, features = ["exception"] }
+objc2-foundation = "0.3"
+objc2-ui-kit = { workspace = true }
+
+[features]
+media = []
+webview = []
+
+compio-compat = ["compio/compat-futures"]
+
+objc-static = [
+    "objc2/unstable-static-class-inlined",
+    "objc2/unstable-static-sel-inlined",
+    "objc2-foundation/unstable-static-nsstring",
+]

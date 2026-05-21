@@ -1,7 +1,7 @@
 //! Qt backend for winio.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![cfg(not(any(windows, target_os = "macos")))]
+#![cfg(not(any(windows, target_os = "macos", target_os = "ios")))]
 
 pub(crate) use winio_pollable::GlobalRuntime;
 

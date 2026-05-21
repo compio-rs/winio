@@ -5,7 +5,10 @@ fn main() {
 
     let target_os = std::env::var("CARGO_CFG_TARGET_OS");
 
-    if target_os.as_deref() != Ok("windows") && target_os.as_deref() != Ok("macos") {
+    if target_os.as_deref() != Ok("windows")
+        && target_os.as_deref() != Ok("macos")
+        && target_os.as_deref() != Ok("ios")
+    {
         let mut modules = vec![
             "Core".into(),
             "Gui".into(),
