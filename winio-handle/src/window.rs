@@ -18,6 +18,16 @@ cfg_if::cfg_if! {
         use objc2::rc::Retained;
 
         type BorrowedWindowInner<'a> = &'a Retained<objc2_app_kit::NSWindow>;
+    } else if #[cfg(target_os = "android")] {
+        use std::marker::PhantomData;
+
+        #[derive(Clone, Copy)]
+        enum BorrowedWindowInner<'a> {
+            #[cfg(feature = "android")]
+            Android((), PhantomData<&'a ()>),
+            #[cfg(not(feature = "android"))]
+            Dummy(std::convert::Infallible, PhantomData<&'a ()>),
+        }
     } else {
         use std::marker::PhantomData;
 
@@ -107,7 +117,7 @@ impl<'a> BorrowedWindow<'a> {
 }
 
 #[allow(unreachable_patterns)]
-#[cfg(not(any(windows, target_os = "macos")))]
+#[cfg(not(any(windows, target_os = "macos", target_os = "android")))]
 impl<'a> BorrowedWindow<'a> {
     /// Create from Qt `QWidget`.
     ///
@@ -175,6 +185,17 @@ impl<'a> HasWindowHandle for BorrowedWindow<'a> {
     #[cfg(not(any(windows, target_os = "macos")))]
     fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
         Err(HandleError::NotSupported)
+    }
+}
+
+#[allow(unreachable_patterns)]
+#[cfg(target_os = "android")]
+impl<'a> BorrowedWindow<'a> {
+    #[cfg(feature = "android")]
+    /// Create from Android `Window`
+    pub unsafe fn android() -> Self {
+        BorrowedWindow(BorrowedWindowInner::Android((), Default::default()));
+        unimplemented!()
     }
 }
 

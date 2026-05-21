@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
         use std::marker::PhantomData;
@@ -15,6 +17,9 @@ cfg_if::cfg_if! {
         use objc2::rc::Retained;
 
         type BorrowedWidgetInner<'a> = &'a Retained<objc2_app_kit::NSView>;
+    } else if #[cfg(target_os = "android")] {
+        // TODO: actual implementation
+        type BorrowedWidgetInner<'a> = PhantomData<&'a ()>;
     } else {
         use std::marker::PhantomData;
 
@@ -88,7 +93,7 @@ impl<'a> BorrowedWidget<'a> {
 }
 
 #[allow(unreachable_patterns)]
-#[cfg(not(any(windows, target_os = "macos")))]
+#[cfg(not(any(windows, target_os = "macos", target_os = "android")))]
 impl<'a> BorrowedWidget<'a> {
     /// Create from Qt `QWidget`.
     ///
@@ -122,6 +127,17 @@ impl<'a> BorrowedWidget<'a> {
             BorrowedWidgetInner::Gtk(w) => w,
             _ => panic!("unsupported handle type"),
         }
+    }
+}
+
+#[allow(unreachable_patterns)]
+#[cfg(target_os = "android")]
+impl<'a> BorrowedWidget<'a> {
+    #[cfg(feature = "android")]
+    /// Create from Android `Widget`
+    pub unsafe fn android() -> Self {
+        BorrowedWidget(PhantomData::default());
+        unimplemented!()
     }
 }
 
