@@ -1,10 +1,12 @@
+use std::cell::RefCell;
+
 use inherit_methods_macro::inherit_methods;
 use objc2::{
     DeclaredClass, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
     runtime::ProtocolObject,
 };
-use objc2_foundation::{MainThreadMarker, NSObject, NSObjectProtocol, NSString};
+use objc2_foundation::{MainThreadMarker, NSInteger, NSObject, NSObjectProtocol, NSString};
 use objc2_ui_kit::{
     UIPickerView, UIPickerViewDataSource, UIPickerViewDelegate, UITextBorderStyle, UITextField,
 };
@@ -12,10 +14,7 @@ use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{
-    GlobalRuntime, Result, catch,
-    ui::{Widget, from_nsstring},
-};
+use crate::{GlobalRuntime, Result, catch, ui::Widget};
 
 #[derive(Debug)]
 pub struct ComboBox {
@@ -23,7 +22,6 @@ pub struct ComboBox {
     view: Retained<UITextField>,
     picker: Retained<UIPickerView>,
     delegate: Retained<ComboBoxDelegate>,
-    items: std::cell::RefCell<Vec<String>>,
     editable: bool,
 }
 
@@ -36,7 +34,6 @@ impl ComboBox {
         catch(|| unsafe {
             let view = UITextField::new(mtm);
             view.setBorderStyle(UITextBorderStyle::RoundedRect);
-            view.setEnabled(false);
 
             let picker = UIPickerView::new(mtm);
 
@@ -55,7 +52,6 @@ impl ComboBox {
                 view,
                 picker,
                 delegate,
-                items: std::cell::RefCell::new(Vec::new()),
                 editable: false,
             })
         })
@@ -85,18 +81,20 @@ impl ComboBox {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub fn text(&self) -> Result<String> {
-        catch(|| from_nsstring(&self.view.text().unwrap_or_default()))
+        Ok(self
+            .selection()?
+            .map(|i| self.delegate.ivars().items.borrow()[i].clone())
+            .unwrap_or_default())
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
-        let ns = NSString::from_str(s.as_ref());
-        catch(|| self.view.setText(Some(&ns)))
+        catch(|| self.view.setText(Some(&NSString::from_str(s.as_ref()))))
     }
 
     pub fn selection(&self) -> Result<Option<usize>> {
+        let len = self.len()?;
         catch(|| {
             let index = self.picker.selectedRowInComponent(0);
-            let len = self.items.borrow().len();
             if index < 0 || len == 0 || (index as usize) >= len {
                 None
             } else {
@@ -109,10 +107,6 @@ impl ComboBox {
         catch(|| {
             self.picker
                 .selectRow_inComponent_animated(i as isize, 0, false);
-            let items = self.items.borrow();
-            if let Some(text) = items.get(i) {
-                self.view.setText(Some(&NSString::from_str(text)));
-            }
         })
     }
 
@@ -121,7 +115,6 @@ impl ComboBox {
     }
 
     pub fn set_editable(&mut self, v: bool) -> Result<()> {
-        catch(|| self.view.setEnabled(v))?;
         self.editable = v;
         Ok(())
     }
@@ -135,7 +128,7 @@ impl ComboBox {
     }
 
     pub fn len(&self) -> Result<usize> {
-        Ok(self.items.borrow().len())
+        Ok(self.delegate.ivars().items.borrow().len())
     }
 
     pub fn is_empty(&self) -> Result<bool> {
@@ -143,21 +136,25 @@ impl ComboBox {
     }
 
     pub fn clear(&mut self) -> Result<()> {
-        self.items.borrow_mut().clear();
+        self.delegate.ivars().items.borrow_mut().clear();
         catch(|| self.picker.reloadAllComponents())
     }
 
     pub fn get(&self, i: usize) -> Result<String> {
-        Ok(self.items.borrow()[i].clone())
+        Ok(self.delegate.ivars().items.borrow()[i].clone())
     }
 
     pub fn set(&mut self, i: usize, s: impl AsRef<str>) -> Result<()> {
-        self.items.borrow_mut()[i] = s.as_ref().to_string();
+        self.delegate.ivars().items.borrow_mut()[i] = s.as_ref().to_string();
         catch(|| self.picker.reloadAllComponents())
     }
 
     pub fn insert(&mut self, i: usize, s: impl AsRef<str>) -> Result<()> {
-        self.items.borrow_mut().insert(i, s.as_ref().to_string());
+        self.delegate
+            .ivars()
+            .items
+            .borrow_mut()
+            .insert(i, s.as_ref().to_string());
         catch(|| self.picker.reloadAllComponents())?;
         if !self.is_editable()? && self.len()? == 1 {
             self.set_selection(0)?;
@@ -166,7 +163,7 @@ impl ComboBox {
     }
 
     pub fn remove(&mut self, i: usize) -> Result<()> {
-        self.items.borrow_mut().remove(i);
+        self.delegate.ivars().items.borrow_mut().remove(i);
         catch(|| self.picker.reloadAllComponents())
     }
 }
@@ -177,6 +174,7 @@ winio_handle::impl_as_widget!(ComboBox, handle);
 struct ComboBoxDelegateIvars {
     changed: Callback,
     select: Callback,
+    items: RefCell<Vec<String>>,
 }
 
 define_class! {
@@ -209,6 +207,21 @@ define_class! {
         ) {
             self.ivars().select.signal::<GlobalRuntime>(());
         }
+
+        #[unsafe(method_id(pickerView:titleForRow:forComponent:))]
+        fn pickerView_titleForRow_forComponent(
+            &self,
+            picker_view: &UIPickerView,
+            row: NSInteger,
+            _component: NSInteger,
+        ) -> Option<Retained<NSString>> {
+            let items = self.ivars().items.borrow();
+            if row < 0 || (row as usize) >= items.len() {
+                None
+            } else {
+                Some(NSString::from_str(&items[row as usize]))
+            }
+        }
     }
 
     #[allow(non_snake_case)]
@@ -224,7 +237,7 @@ define_class! {
             _picker_view: &UIPickerView,
             _component: isize,
         ) -> isize {
-            0
+            self.ivars().items.borrow().len() as isize
         }
     }
 }

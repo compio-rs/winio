@@ -1,9 +1,8 @@
 use std::{cell::Cell, rc::Rc};
 
-use arrayvec::ArrayVec;
 use block2::StackBlock;
 use objc2::rc::Retained;
-use objc2_foundation::{MainThreadMarker, NSString};
+use objc2_foundation::{MainThreadMarker, NSString, ns_string};
 use objc2_ui_kit::{
     UIAlertAction, UIAlertActionStyle, UIAlertController, UIAlertControllerStyle, UIApplication,
 };
@@ -17,7 +16,7 @@ async fn msgbox_custom(
     msg: String,
     title: String,
     instr: String,
-    style: MessageBoxStyle,
+    _style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
 ) -> Result<MessageBoxResponse> {
@@ -29,138 +28,95 @@ async fn msgbox_custom(
     catch(|| {
         let alert = UIAlertController::alertControllerWithTitle_message_preferredStyle(
             Some(&NSString::from_str(&title)),
-            Some(&NSString::from_str(&msg)),
+            Some(&NSString::from_str(&if instr.is_empty() {
+                msg
+            } else {
+                format!("{}\n\n{}", instr, msg)
+            })),
             UIAlertControllerStyle::Alert,
             mtm,
         );
 
-        let mut responses = ArrayVec::<MessageBoxResponse, 6>::new();
-
-        if btns.contains(MessageBoxButton::Ok) {
+        let add_action = |response: MessageBoxResponse,
+                          text: &NSString,
+                          action: UIAlertActionStyle| {
             let tx = tx.clone();
             let block = StackBlock::new(move |_| {
                 if let Some(tx) = tx.take() {
-                    tx.send(MessageBoxResponse::Ok).ok();
+                    tx.send(response).ok();
                 }
             });
-            let action = UIAlertAction::actionWithTitle_style_handler(
-                Some(ns_string!("Ok")),
-                UIAlertActionStyle::Default,
-                Some(&block),
-                mtm,
-            );
+            let action =
+                UIAlertAction::actionWithTitle_style_handler(Some(text), action, Some(&block), mtm);
             alert.addAction(&action);
-            responses.push(MessageBoxResponse::Ok);
+        };
+
+        if btns.contains(MessageBoxButton::Ok) {
+            add_action(
+                MessageBoxResponse::Ok,
+                ns_string!("Ok"),
+                UIAlertActionStyle::Default,
+            );
         }
 
         if btns.contains(MessageBoxButton::Yes) {
-            let tx = tx.clone();
-            let block = StackBlock::new(move |_| {
-                if let Some(tx) = tx.take() {
-                    tx.send(MessageBoxResponse::Yes).ok();
-                }
-            });
-            let action = UIAlertAction::actionWithTitle_style_handler(
-                Some(ns_string!("Yes")),
+            add_action(
+                MessageBoxResponse::Yes,
+                ns_string!("Yes"),
                 UIAlertActionStyle::Default,
-                Some(&block),
-                mtm,
             );
-            alert.addAction(&action);
-            responses.push(MessageBoxResponse::Yes);
         }
 
         if btns.contains(MessageBoxButton::No) {
-            let tx = tx.clone();
-            let block = StackBlock::new(move |_| {
-                if let Some(tx) = tx.take() {
-                    tx.send(MessageBoxResponse::No).ok();
-                }
-            });
-            let action = UIAlertAction::actionWithTitle_style_handler(
-                Some(ns_string!("No")),
+            add_action(
+                MessageBoxResponse::No,
+                ns_string!("No"),
                 UIAlertActionStyle::Default,
-                Some(&block),
-                mtm,
             );
-            alert.addAction(&action);
-            responses.push(MessageBoxResponse::No);
         }
 
         if btns.contains(MessageBoxButton::Cancel) {
-            let tx = tx.clone();
-            let block = StackBlock::new(move |_| {
-                if let Some(tx) = tx.take() {
-                    tx.send(MessageBoxResponse::Cancel).ok();
-                }
-            });
-            let action = UIAlertAction::actionWithTitle_style_handler(
-                Some(ns_string!("Cancel")),
+            add_action(
+                MessageBoxResponse::Cancel,
+                ns_string!("Cancel"),
                 UIAlertActionStyle::Cancel,
-                Some(&block),
-                mtm,
             );
-            alert.addAction(&action);
-            responses.push(MessageBoxResponse::Cancel);
         }
 
         if btns.contains(MessageBoxButton::Retry) {
-            let tx = tx.clone();
-            let block = StackBlock::new(move |_| {
-                if let Some(tx) = tx.take() {
-                    tx.send(MessageBoxResponse::Retry).ok();
-                }
-            });
-            let action = UIAlertAction::actionWithTitle_style_handler(
-                Some(ns_string!("Try again")),
+            add_action(
+                MessageBoxResponse::Retry,
+                ns_string!("Try again"),
                 UIAlertActionStyle::Default,
-                Some(&block),
-                mtm,
             );
-            alert.addAction(&action);
-            responses.push(MessageBoxResponse::Retry);
         }
 
         if btns.contains(MessageBoxButton::Close) {
-            let tx = tx.clone();
-            let block = StackBlock::new(move |_| {
-                if let Some(tx) = tx.take() {
-                    tx.send(MessageBoxResponse::Close).ok();
-                }
-            });
-            let action = UIAlertAction::actionWithTitle_style_handler(
-                Some(ns_string!("Close")),
-                UIAlertActionStyle::Default,
-                Some(&block),
-                mtm,
+            add_action(
+                MessageBoxResponse::Close,
+                ns_string!("Close"),
+                UIAlertActionStyle::Destructive,
             );
-            alert.addAction(&action);
-            responses.push(MessageBoxResponse::Close);
         }
 
         for b in cbtns {
-            let result = b.result;
-            let tx = tx.clone();
-            let block = StackBlock::new(move |_| {
-                if let Some(tx) = tx.take() {
-                    tx.send(MessageBoxResponse::Custom(result)).ok();
-                }
-            });
-            let action = UIAlertAction::actionWithTitle_style_handler(
-                Some(&b.text),
+            add_action(
+                MessageBoxResponse::Custom(b.result),
+                &b.text,
                 UIAlertActionStyle::Default,
-                Some(&block),
-                mtm,
             );
-            alert.addAction(&action);
-            responses.push(MessageBoxResponse::Custom(result));
         }
 
-        // Show the alert
-        let app = UIApplication::sharedApplication(mtm);
-        if let Some(key_window) = app.keyWindow()
-            && let Some(vc) = key_window.rootViewController()
-        {
+        let controller = if let Some(parent) = parent {
+            parent.as_window().as_ui_kit().rootViewController()
+        } else {
+            // It's OK because we want any window.
+            #[allow(deprecated)]
+            UIApplication::sharedApplication(mtm)
+                .keyWindow()
+                .and_then(|wnd| wnd.rootViewController())
+        };
+        if let Some(vc) = controller {
             vc.presentViewController_animated_completion(&alert, true, None);
         }
     })?;
@@ -226,16 +182,14 @@ impl MessageBox {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CustomButton {
     pub result: u16,
-    pub text: Retained<objc2_foundation::NSString>,
+    pub text: Retained<NSString>,
 }
 
 impl CustomButton {
     pub fn new(result: u16, text: &str) -> Self {
         Self {
             result,
-            text: objc2_foundation::NSString::from_str(text),
+            text: NSString::from_str(text),
         }
     }
 }
-
-use objc2_foundation::ns_string;

@@ -3,6 +3,7 @@ use objc2::{
     DeclaredClass, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
 };
+use objc2_core_foundation::CGPoint;
 use objc2_foundation::{MainThreadMarker, NSObjectProtocol, NSSize};
 use objc2_ui_kit::{UIView, UIViewController, UIWindow};
 use winio_callback::Callback;
@@ -21,6 +22,7 @@ pub struct Window {
     wnd: Retained<UIWindow>,
     content_view: Retained<UIView>,
     delegate: Retained<WindowDelegate>,
+    title: String,
 }
 
 impl Window {
@@ -38,19 +40,16 @@ impl Window {
             wnd.setRootViewController(Some(&controller));
             wnd.makeKeyWindow();
 
-            let root_view = controller.view().ok_or(Error::NullPointer)?;
-            let content_view = UIView::new(mtm);
-            root_view.addSubview(&content_view);
-            // TODO: Why?
-            let mut frame = root_view.frame();
-            frame.origin.x = frame.size.width / 2.0;
-            frame.origin.y = frame.size.height / 2.0;
-            content_view.setFrame(frame);
+            // let root_view = controller.view().ok_or(Error::NullPointer)?;
+            // let content_view = UIView::new(mtm);
+            // root_view.addSubview(&content_view);
+            let content_view = controller.view().ok_or(Error::NullPointer)?;
 
             Ok(Self {
                 wnd,
                 content_view,
                 delegate: controller,
+                title: String::new(),
             })
         })
         .flatten()
@@ -71,7 +70,10 @@ impl Window {
                     let mtm = self.wnd.mtm();
                     let app = UIApplication::sharedApplication(mtm);
                     let request = unsafe { UISceneSessionActivationRequest::new() };
-                    let activity = self.wnd.windowScene().unwrap().userActivity();
+                    let activity = self
+                        .wnd
+                        .windowScene()
+                        .and_then(|scene| scene.userActivity());
                     request.setUserActivity(activity.as_deref());
                     app.activateSceneSessionForRequest_errorHandler(&request, None);
                 }
@@ -111,22 +113,27 @@ impl Window {
     }
 
     pub fn client_size(&self) -> Result<Size> {
-        catch(|| {
-            let frame = self.wnd.frame();
-            from_cgsize(frame.size)
-        })
+        catch(|| from_cgsize(self.content_view.frame().size))
     }
 
     pub fn text(&self) -> Result<String> {
-        Ok(String::new())
+        Ok(self.title.clone())
     }
 
-    pub fn set_text(&mut self, _s: impl AsRef<str>) -> Result<()> {
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.title = s.as_ref().to_string();
         Ok(())
     }
 
     pub async fn wait_size(&self) {
-        self.delegate.ivars().did_resize.wait().await
+        self.delegate.ivars().did_resize.wait().await;
+
+        const TITLE_BAR_HEIGHT: f64 = 30.0;
+
+        let mut frame = self.wnd.frame();
+        frame.origin = CGPoint::new(0.0, TITLE_BAR_HEIGHT);
+        frame.size.height -= TITLE_BAR_HEIGHT;
+        self.content_view.setFrame(frame);
     }
 
     pub async fn wait_move(&self) {

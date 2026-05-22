@@ -104,6 +104,7 @@ pub struct CheckBox {
 impl CheckBox {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let handle = Button::new(parent)?;
+        catch(|| handle.view.setChangesSelectionAsPrimaryAction(true))?;
         Ok(Self { handle })
     }
 
