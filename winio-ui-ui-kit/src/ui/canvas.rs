@@ -16,16 +16,16 @@ use objc2_core_foundation::{
     kCFAllocatorDefault,
 };
 use objc2_core_graphics::{
-    CGAffineTransformIsIdentity, CGAffineTransformMake, CGBitmapContextCreate,
-    CGBitmapContextCreateImage, CGColor, CGColorSpace, CGContext, CGGradient,
-    CGGradientDrawingOptions, CGMutablePath, CGPath, kCGColorWhite,
+    CGAffineTransformIsIdentity, CGAffineTransformMake, CGAffineTransformMakeScale,
+    CGBitmapContextCreate, CGBitmapContextCreateImage, CGColor, CGColorSpace, CGContext,
+    CGGradient, CGGradientDrawingOptions, CGMutablePath, CGPath, kCGColorWhite,
 };
 use objc2_core_text::{
     CTFont, CTFontDescriptor, CTFontSymbolicTraits, CTFramesetter, kCTFontAttributeName,
     kCTForegroundColorAttributeName,
 };
 use objc2_foundation::{MainThreadMarker, NSPoint, NSRect, NSSize, NSString};
-use objc2_ui_kit::{UIImage, UIView};
+use objc2_ui_kit::{UIGraphicsGetCurrentContext, UIImage, UIView};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{
@@ -35,7 +35,7 @@ use winio_primitive::{
 
 use crate::{
     Error, GlobalRuntime, Result, catch,
-    ui::{TollFreeBridge, Widget, from_cgsize, transform_point, transform_rect},
+    ui::{TollFreeBridge, Widget, from_cgsize, to_cgpoint, to_cgrect},
 };
 
 #[derive(Debug)]
@@ -48,7 +48,11 @@ pub struct Canvas {
 impl Canvas {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let parent = parent.as_container();
-        let view = catch(|| CanvasView::new(parent.as_ui_kit().mtm()))?;
+        let view = catch(|| {
+            let view = CanvasView::new(parent.as_ui_kit().mtm());
+            view.setTransform(CGAffineTransformMakeScale(1.0, -1.0));
+            view
+        })?;
         let handle = Widget::from_uiview(parent, view.clone().into_super())?;
         Ok(Self { view, handle })
     }
@@ -183,7 +187,7 @@ impl DrawAction {
     }
 
     fn draw_rect(actions: &[Self], _rect: NSRect, factor: f64) {
-        let Some(context) = objc2_ui_kit::UIGraphicsGetCurrentContext() else {
+        let Some(context) = UIGraphicsGetCurrentContext() else {
             error!("Cannot get current CGContext");
             return;
         };
@@ -477,7 +481,7 @@ impl DrawingContext<'_> {
     ) -> Result<()> {
         let color = brush.text_color()?;
         let (framesetter, rect) = measure_str(font, &color, pos, text, self.size)?;
-        let rect = transform_rect(self.size, rect);
+        let rect = to_cgrect(rect);
         self.actions
             .push(brush.create_text_action(framesetter, rect)?);
         Ok(())
@@ -501,8 +505,8 @@ impl DrawingContext<'_> {
         rect: Rect,
         clip: Option<Rect>,
     ) -> Result<()> {
-        let rect = transform_rect(self.size, rect);
-        let clip = clip.map(|clip| transform_rect(self.size, clip));
+        let rect = to_cgrect(rect);
+        let clip = clip.map(to_cgrect);
         self.actions
             .push(DrawAction::Image(image_rep.clone(), rect, clip));
         Ok(())
@@ -517,6 +521,7 @@ pub struct DrawingPath(CFRetained<CGPath>);
 
 pub struct DrawingPathBuilder {
     size: Size,
+    matrix: CGAffineTransform,
     path: CFRetained<CGMutablePath>,
 }
 
@@ -524,16 +529,17 @@ impl DrawingPathBuilder {
     fn new(size: Size, start: Point) -> Self {
         unsafe {
             let path = CGMutablePath::new();
-            let p = transform_point(size, start);
-            CGMutablePath::move_to_point(Some(&path), null(), p.x, p.y);
-            Self { size, path }
+            let matrix = flip_transform(size);
+            let p = to_cgpoint(start);
+            CGMutablePath::move_to_point(Some(&path), &matrix, p.x, p.y);
+            Self { size, matrix, path }
         }
     }
 
     pub fn add_line(&mut self, p: Point) -> Result<()> {
-        let p = transform_point(self.size, p);
+        let p = to_cgpoint(p);
         unsafe {
-            CGMutablePath::add_line_to_point(Some(&self.path), null(), p.x, p.y);
+            CGMutablePath::add_line_to_point(Some(&self.path), &self.matrix, p.x, p.y);
         }
         Ok(())
     }
@@ -555,7 +561,8 @@ impl DrawingPathBuilder {
         let transform = CGAffineTransformMake(1.0, 0.0, 0.0, rate, 0.0, 0.0);
 
         self.add_line(startp)?;
-        let center = transform_point(self.size, center);
+        let mut center = to_cgpoint(center);
+        center.y = self.size.height - center.y;
         unsafe {
             CGMutablePath::add_arc(
                 Some(&self.path),
@@ -572,13 +579,13 @@ impl DrawingPathBuilder {
     }
 
     pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) -> Result<()> {
-        let p1 = transform_point(self.size, p1);
-        let p2 = transform_point(self.size, p2);
-        let p3 = transform_point(self.size, p3);
+        let p1 = to_cgpoint(p1);
+        let p2 = to_cgpoint(p2);
+        let p3 = to_cgpoint(p3);
         unsafe {
             CGMutablePath::add_curve_to_point(
                 Some(&self.path),
-                null(),
+                &self.matrix,
                 p1.x,
                 p1.y,
                 p2.x,
@@ -600,6 +607,10 @@ impl DrawingPathBuilder {
     }
 }
 
+fn flip_transform(s: Size) -> CGAffineTransform {
+    CGAffineTransformMake(1.0, 0.0, 0.0, -1.0, 0.0, s.height)
+}
+
 fn path_arc(s: Size, rect: Rect, start: f64, end: f64, pie: bool) -> CFRetained<CGMutablePath> {
     let radius = rect.size / 2.0;
     let centerp = Point::new(rect.origin.x + radius.width, rect.origin.y + radius.height);
@@ -610,16 +621,22 @@ fn path_arc(s: Size, rect: Rect, start: f64, end: f64, pie: bool) -> CFRetained<
 
     let rate = radius.height / radius.width;
     let transform = CGAffineTransformMake(1.0, 0.0, 0.0, rate, 0.0, 0.0);
+    let trivial_transform = flip_transform(s);
 
     unsafe {
         let path = CGMutablePath::new();
-        let centerp = transform_point(s, centerp);
-        let startp = transform_point(s, startp);
+        let centerp = to_cgpoint(centerp);
+        let startp = to_cgpoint(startp);
         if pie {
-            CGMutablePath::move_to_point(Some(&path), null(), centerp.x, centerp.y);
-            CGMutablePath::add_line_to_point(Some(&path), null(), startp.x, startp.y / rate);
+            CGMutablePath::move_to_point(Some(&path), &trivial_transform, centerp.x, centerp.y);
+            CGMutablePath::add_line_to_point(
+                Some(&path),
+                &trivial_transform,
+                startp.x,
+                startp.y / rate,
+            );
         } else {
-            CGMutablePath::move_to_point(Some(&path), null(), startp.x, startp.y);
+            CGMutablePath::move_to_point(Some(&path), &trivial_transform, startp.x, startp.y);
         }
         CGMutablePath::add_arc(
             Some(&path),
@@ -639,29 +656,33 @@ fn path_arc(s: Size, rect: Rect, start: f64, end: f64, pie: bool) -> CFRetained<
 }
 
 fn path_ellipse(s: Size, rect: Rect) -> CFRetained<CGPath> {
-    let rect = transform_rect(s, rect);
-    unsafe { CGPath::with_ellipse_in_rect(rect, null()) }
+    let rect = to_cgrect(rect);
+    let transform = flip_transform(s);
+    unsafe { CGPath::with_ellipse_in_rect(rect, &transform) }
 }
 
 fn path_line(s: Size, start: Point, end: Point) -> CFRetained<CGMutablePath> {
     unsafe {
         let path = CGMutablePath::new();
-        let p = transform_point(s, start);
-        CGMutablePath::move_to_point(Some(&path), null(), p.x, p.y);
-        let p = transform_point(s, end);
-        CGMutablePath::add_line_to_point(Some(&path), null(), p.x, p.y);
+        let transform = flip_transform(s);
+        let p = to_cgpoint(start);
+        CGMutablePath::move_to_point(Some(&path), &transform, p.x, p.y);
+        let p = to_cgpoint(end);
+        CGMutablePath::add_line_to_point(Some(&path), &transform, p.x, p.y);
         path
     }
 }
 
 fn path_rect(s: Size, rect: Rect) -> CFRetained<CGPath> {
-    let rect = transform_rect(s, rect);
-    unsafe { CGPath::with_rect(rect, null()) }
+    let rect = to_cgrect(rect);
+    let transform = flip_transform(s);
+    unsafe { CGPath::with_rect(rect, &transform) }
 }
 
 fn path_round_rect(s: Size, rect: Rect, round: Size) -> CFRetained<CGPath> {
-    let rect = transform_rect(s, rect);
-    unsafe { CGPath::with_rounded_rect(rect, round.width, round.height, null()) }
+    let rect = to_cgrect(rect);
+    let transform = flip_transform(s);
+    unsafe { CGPath::with_rounded_rect(rect, round.width, round.height, &transform) }
 }
 
 fn measure_str(
@@ -682,7 +703,7 @@ fn measure_str(
         )
     });
     let mut x = pos.x;
-    let mut y = pos.y;
+    let mut y = bound.height - pos.y;
     match font.halign {
         HAlign::Center => x -= size.width / 2.0,
         HAlign::Right => x -= size.width,
@@ -690,7 +711,7 @@ fn measure_str(
     }
     match font.valign {
         VAlign::Center => y -= size.height / 2.0,
-        VAlign::Bottom => y -= size.height,
+        VAlign::Top => y -= size.height,
         _ => {}
     }
     Ok((framesetter, Rect::new(Point::new(x, y), size)))
@@ -756,7 +777,7 @@ fn to_cgcolor(c: Color) -> CFRetained<CGColor> {
 }
 
 fn real_point(p: RelativePoint, rect: NSRect) -> NSPoint {
-    let p = NSPoint::new(p.x, p.y);
+    let p = NSPoint::new(p.x, 1.0 - p.y);
     NSPoint::new(
         rect.origin.x + rect.size.width * p.x,
         rect.origin.y + rect.size.height * p.y,
