@@ -12,8 +12,8 @@ use winio_handle::{
 use winio_primitive::{Point, Size};
 
 use crate::{
-    Error, RESIZE_SLAB, Result, catch, first_ui_window_scene, from_cgpoint, from_cgrect,
-    from_cgsize, to_cgpoint, to_cgsize,
+    Error, RESIZE_SLAB, Result, catch, first_ui_window_scene, from_cgpoint, from_cgsize,
+    to_cgpoint, to_cgsize,
 };
 
 #[derive(Debug)]
@@ -80,19 +80,11 @@ impl Window {
     }
 
     pub fn loc(&self) -> Result<Point> {
-        catch(|| {
-            let frame = self.wnd.frame();
-            Ok(from_cgrect(frame).origin)
-        })
-        .flatten()
+        Ok(Point::zero())
     }
 
-    pub fn set_loc(&mut self, p: Point) -> Result<()> {
-        catch(|| {
-            let mut frame = self.wnd.frame();
-            frame.origin = to_cgpoint(p);
-            self.wnd.setFrame(frame);
-        })
+    pub fn set_loc(&mut self, _p: Point) -> Result<()> {
+        Ok(())
     }
 
     pub fn size(&self) -> Result<Size> {
