@@ -1,11 +1,10 @@
+use std::rc::Rc;
+
 use inherit_methods_macro::inherit_methods;
-use objc2::{
-    DeclaredClass, MainThreadOnly, define_class, msg_send,
-    rc::{Allocated, Retained},
-};
+use objc2::{MainThreadOnly, rc::Retained};
 use objc2_core_foundation::CGPoint;
-use objc2_foundation::{MainThreadMarker, NSObjectProtocol, NSSize};
-use objc2_ui_kit::{UIView, UIViewController, UIWindow};
+use objc2_foundation::{MainThreadMarker, NSSize};
+use objc2_ui_kit::{UIApplication, UIView, UIViewController, UIWindow};
 use winio_callback::Callback;
 use winio_handle::{
     AsContainer, AsWidget, AsWindow, BorrowedContainer, BorrowedWidget, BorrowedWindow,
@@ -13,7 +12,7 @@ use winio_handle::{
 use winio_primitive::{Point, Size};
 
 use crate::{
-    Error, GlobalRuntime, Result, catch, from_cgpoint, to_cgpoint,
+    Error, RESIZE_SLAB, Result, catch, from_cgpoint, to_cgpoint,
     ui::{from_cgrect, from_cgsize, to_cgsize},
 };
 
@@ -21,8 +20,8 @@ use crate::{
 pub struct Window {
     wnd: Retained<UIWindow>,
     content_view: Retained<UIView>,
-    delegate: Retained<WindowDelegate>,
-    title: String,
+    did_resize: Rc<Callback<Size>>,
+    resize_index: usize,
 }
 
 impl Window {
@@ -30,26 +29,32 @@ impl Window {
         let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
 
         catch(|| {
-            let scene = crate::current_scene()?;
+            let app = UIApplication::sharedApplication(mtm);
+            let scene = app
+                .connectedScenes()
+                .iter()
+                .next()
+                .ok_or(Error::NullPointer)?;
 
             let scene = Retained::downcast(scene).map_err(|_| Error::NullPointer)?;
 
             let wnd = UIWindow::initWithWindowScene(UIWindow::alloc(mtm), &scene);
 
-            let controller = WindowDelegate::new(mtm);
+            let controller = UIViewController::new(mtm);
+
+            let did_resize = Rc::new(Callback::new());
+            let index = RESIZE_SLAB.with_borrow_mut(|s| s.insert(did_resize.clone()));
+
             wnd.setRootViewController(Some(&controller));
             wnd.makeKeyWindow();
 
-            // let root_view = controller.view().ok_or(Error::NullPointer)?;
-            // let content_view = UIView::new(mtm);
-            // root_view.addSubview(&content_view);
             let content_view = controller.view().ok_or(Error::NullPointer)?;
 
             Ok(Self {
                 wnd,
                 content_view,
-                delegate: controller,
-                title: String::new(),
+                did_resize,
+                resize_index: index,
             })
         })
         .flatten()
@@ -117,35 +122,42 @@ impl Window {
     }
 
     pub fn text(&self) -> Result<String> {
-        Ok(self.title.clone())
+        Ok(String::new())
     }
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.title = s.as_ref().to_string();
+    pub fn set_text(&mut self, _s: impl AsRef<str>) -> Result<()> {
         Ok(())
     }
 
     pub async fn wait_size(&self) {
-        self.delegate.ivars().did_resize.wait().await;
+        let new_size = self.did_resize.wait().await;
 
         const TITLE_BAR_HEIGHT: f64 = 30.0;
 
         let mut frame = self.wnd.frame();
+        frame.size = to_cgsize(new_size);
+        self.wnd.setFrame(frame);
         frame.origin = CGPoint::new(0.0, TITLE_BAR_HEIGHT);
         frame.size.height -= TITLE_BAR_HEIGHT;
         self.content_view.setFrame(frame);
     }
 
     pub async fn wait_move(&self) {
-        self.delegate.ivars().did_move.wait().await
+        std::future::pending().await
     }
 
     pub async fn wait_close(&self) {
-        self.delegate.ivars().should_close.wait().await
+        std::future::pending().await
     }
 
     pub async fn wait_theme_changed(&self) {
-        self.delegate.ivars().defaults_change.wait().await
+        std::future::pending().await
+    }
+}
+
+impl Drop for Window {
+    fn drop(&mut self) {
+        RESIZE_SLAB.with_borrow_mut(|s| s.remove(self.resize_index));
     }
 }
 
@@ -158,46 +170,6 @@ impl AsWindow for Window {
 impl AsContainer for Window {
     fn as_container(&self) -> BorrowedContainer<'_> {
         BorrowedContainer::ui_kit(&self.content_view)
-    }
-}
-
-#[derive(Debug, Default)]
-struct WindowDelegateIvars {
-    did_resize: Callback,
-    did_move: Callback,
-    should_close: Callback,
-    defaults_change: Callback,
-}
-
-define_class! {
-    #[unsafe(super(UIViewController))]
-    #[name = "WinioWindowDelegateUIKit"]
-    #[ivars = WindowDelegateIvars]
-    #[thread_kind = MainThreadOnly]
-    #[derive(Debug)]
-    struct WindowDelegate;
-
-    #[allow(non_snake_case)]
-    impl WindowDelegate {
-        #[unsafe(method_id(init))]
-        fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
-            let this = this.set_ivars(WindowDelegateIvars::default());
-            unsafe { msg_send![super(this), init] }
-        }
-
-        #[unsafe(method(viewDidLayoutSubviews))]
-        fn viewDidLayoutSubviews(&self) {
-            let () = unsafe { msg_send![super(self), viewDidLayoutSubviews] };
-            self.ivars().did_resize.signal::<GlobalRuntime>(());
-        }
-    }
-
-    unsafe impl NSObjectProtocol for WindowDelegate {}
-}
-
-impl WindowDelegate {
-    pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
-        unsafe { msg_send![mtm.alloc::<Self>(), init] }
     }
 }
 

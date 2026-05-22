@@ -1,13 +1,8 @@
 use std::time::Duration;
 
 use inherit_methods_macro::inherit_methods;
-use objc2::{
-    MainThreadOnly, define_class, msg_send,
-    rc::{Allocated, Retained},
-};
-use objc2_foundation::{MainThreadMarker, NSObject, NSObjectProtocol};
+use objc2::{MainThreadOnly, rc::Retained};
 use objc2_ui_kit::UIView;
-use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
@@ -16,7 +11,6 @@ use crate::{Result, Widget, catch};
 #[derive(Debug)]
 pub struct Media {
     handle: Widget,
-    delegate: Retained<PlayerDelegate>,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -30,9 +24,7 @@ impl Media {
             let handle =
                 Widget::from_uiview(parent, unsafe { Retained::cast_unchecked(view.clone()) })?;
 
-            let delegate = PlayerDelegate::new(mtm);
-
-            Ok(Self { handle, delegate })
+            Ok(Self { handle })
         })
         .flatten()
     }
@@ -119,34 +111,3 @@ impl Media {
 }
 
 winio_handle::impl_as_widget!(Media, handle);
-
-#[derive(Debug, Default)]
-struct PlayerDelegateIvars {
-    notify: Callback,
-}
-
-define_class! {
-    #[unsafe(super(NSObject))]
-    #[name = "WinioPlayerDelegateUIKit"]
-    #[ivars = PlayerDelegateIvars]
-    #[thread_kind = MainThreadOnly]
-    #[derive(Debug)]
-    struct PlayerDelegate;
-
-    #[allow(non_snake_case)]
-    impl PlayerDelegate {
-        #[unsafe(method_id(init))]
-        fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
-            let this = this.set_ivars(PlayerDelegateIvars::default());
-            unsafe { msg_send![super(this), init] }
-        }
-    }
-
-    unsafe impl NSObjectProtocol for PlayerDelegate {}
-}
-
-impl PlayerDelegate {
-    pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
-        unsafe { msg_send![mtm.alloc::<Self>(), init] }
-    }
-}

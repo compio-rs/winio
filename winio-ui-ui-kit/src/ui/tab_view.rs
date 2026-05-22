@@ -130,7 +130,7 @@ impl TabView {
                 CGPoint::new(0.0, TAB_HEIGHT),
                 CGSize::new(size.width, size.height - TAB_HEIGHT),
             ));
-            item.view.setHidden(self.views.borrow().len() != i);
+            item.view.setHidden(true);
             self.view.addSubview(&item.view);
             self.views.borrow_mut().insert(i, item.view.clone());
             Ok(())

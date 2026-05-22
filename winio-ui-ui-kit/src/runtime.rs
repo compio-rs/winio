@@ -1,21 +1,26 @@
 use std::{
     cell::RefCell,
+    rc::Rc,
     task::{RawWaker, RawWakerVTable, Waker},
 };
 
 use dispatch2::DispatchQueue;
 use futures_util::FutureExt;
 use objc2::{
-    ClassType, MainThreadMarker, MainThreadOnly, Message, define_class, msg_send,
+    ClassType, MainThreadMarker, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
 };
 use objc2_foundation::{NSObject, NSObjectProtocol, ns_string};
 use objc2_ui_kit::{
-    UIApplication, UIApplicationDelegate, UIScene, UISceneConfiguration, UISceneConnectionOptions,
-    UISceneDelegate, UISceneSession,
+    UIApplication, UIApplicationDelegate, UICoordinateSpace, UIScene, UISceneConfiguration,
+    UISceneConnectionOptions, UISceneDelegate, UISceneSession, UIWindowScene,
+    UIWindowSceneDelegate, UIWindowSceneGeometry,
 };
+use slab::Slab;
+use winio_callback::Callback;
+use winio_primitive::Size;
 
-use crate::{Error, Result};
+use crate::{Error, Result, from_cgsize};
 
 pub struct App {
     mtm: MainThreadMarker,
@@ -75,13 +80,7 @@ unsafe fn dispatcher_wake_by_ref(_: *const ()) {
 unsafe fn dispatcher_drop(_: *const ()) {}
 
 thread_local! {
-    static CURRENT_SCENE: RefCell<Option<Retained<UIScene>>> = const { RefCell::new(None) };
-}
-
-pub(crate) fn current_scene() -> Result<Retained<UIScene>> {
-    CURRENT_SCENE
-        .with_borrow(|scene| scene.clone())
-        .ok_or(Error::NullPointer)
+    pub(crate) static RESIZE_SLAB: RefCell<Slab<Rc<Callback<Size>>>> = const { RefCell::new(Slab::new()) };
 }
 
 #[derive(Debug)]
@@ -133,7 +132,26 @@ define_class! {
             session: &UISceneSession,
             connection_options: &UISceneConnectionOptions,
         ) {
-            CURRENT_SCENE.with_borrow_mut(|s| *s = Some(scene.retain()));
+            winio_pollable::run_current_task();
+        }
+    }
+
+    #[allow(non_snake_case)]
+    unsafe impl UIWindowSceneDelegate for AppDelegate {
+        #[unsafe(method(windowScene:didUpdateEffectiveGeometry:))]
+        fn windowScene_didUpdateEffectiveGeometry(
+            &self,
+            window_scene: &UIWindowScene,
+            previous_effective_geometry: &UIWindowSceneGeometry,
+        ) {
+            let geometry = window_scene.effectiveGeometry();
+            let bounds = geometry.coordinateSpace(self.mtm()).bounds();
+            let size = from_cgsize(bounds.size);
+            RESIZE_SLAB.with_borrow(|s| {
+                for (_, callback) in s.iter() {
+                    callback.signal::<()>(size);
+                }
+            });
             winio_pollable::run_current_task();
         }
     }

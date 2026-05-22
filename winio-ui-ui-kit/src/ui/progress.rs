@@ -10,6 +10,8 @@ use crate::{Result, catch, ui::Widget};
 pub struct Progress {
     handle: Widget,
     view: Retained<UIProgressView>,
+    minimum: usize,
+    maximum: usize,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -22,7 +24,12 @@ impl Progress {
             let view = UIProgressView::new(mtm);
             let handle = Widget::from_uiview(parent, Retained::cast_unchecked(view.clone()))?;
 
-            Ok(Self { handle, view })
+            Ok(Self {
+                handle,
+                view,
+                minimum: 0,
+                maximum: 100,
+            })
         })
         .flatten()
     }
@@ -35,9 +42,7 @@ impl Progress {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size> {
-        Ok(Size::new(0.0, 5.0))
-    }
+    pub fn preferred_size(&self) -> Result<Size>;
 
     pub fn loc(&self) -> Result<Point>;
 
@@ -52,27 +57,35 @@ impl Progress {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub fn minimum(&self) -> Result<usize> {
-        Ok(0)
+        Ok(self.minimum)
     }
 
-    pub fn set_minimum(&mut self, _v: usize) -> Result<()> {
+    pub fn set_minimum(&mut self, v: usize) -> Result<()> {
+        self.minimum = v;
         Ok(())
     }
 
     pub fn maximum(&self) -> Result<usize> {
-        Ok(100)
+        Ok(self.maximum)
     }
 
-    pub fn set_maximum(&mut self, _v: usize) -> Result<()> {
+    pub fn set_maximum(&mut self, v: usize) -> Result<()> {
+        self.maximum = v;
         Ok(())
     }
 
     pub fn pos(&self) -> Result<usize> {
-        catch(|| (self.view.progress() * 100.0) as usize)
+        catch(|| {
+            (self.view.progress() * ((self.maximum - self.minimum) as f32) + self.minimum as f32)
+                as usize
+        })
     }
 
     pub fn set_pos(&mut self, pos: usize) -> Result<()> {
-        catch(|| self.view.setProgress_animated(pos as f32 / 100.0, true))
+        catch(|| {
+            self.view
+                .setProgress_animated(pos as f32 / ((self.maximum - self.minimum) as f32), true)
+        })
     }
 
     pub fn is_indeterminate(&self) -> Result<bool> {

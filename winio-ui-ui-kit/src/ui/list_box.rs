@@ -228,10 +228,10 @@ define_class! {
                     )
                 });
             let data = self.ivars().data.borrow();
-            if let Some(text) = data.get(index_path.row() as usize) {
-                if let Some(label) = cell.textLabel() {
-                    label.setText(Some(&NSString::from_str(text)));
-                }
+            if let Some(text) = data.get(index_path.row() as usize)
+                && let Some(label) = cell.textLabel()
+            {
+                label.setText(Some(&NSString::from_str(text)));
             }
             Some(cell)
         }

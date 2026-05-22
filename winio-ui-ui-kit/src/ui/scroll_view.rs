@@ -1,10 +1,11 @@
 use inherit_methods_macro::inherit_methods;
 use objc2::{MainThreadOnly, rc::Retained};
+use objc2_core_foundation::CGSize;
 use objc2_ui_kit::{UIScrollView, UIView};
 use winio_handle::{AsContainer, BorrowedContainer};
 use winio_primitive::{Point, Size};
 
-use crate::{Result, catch, ui::Widget};
+use crate::{Result, catch, from_cgrect, to_cgrect, ui::Widget};
 
 #[derive(Debug)]
 pub struct ScrollView {
@@ -21,8 +22,11 @@ impl ScrollView {
 
         catch(|| {
             let view = UIScrollView::new(mtm);
-            let inner_view: Retained<UIView> = unsafe { Retained::cast_unchecked(view.clone()) };
-            let handle = Widget::from_uiview(parent, inner_view.clone())?;
+            let inner_view = unsafe { Retained::cast_unchecked::<UIView>(view.clone()) };
+            // let inner_view = UIView::new(mtm);
+            view.setScrollEnabled(true);
+            let handle =
+                Widget::from_uiview(parent, unsafe { Retained::cast_unchecked(view.clone()) })?;
 
             Ok(Self {
                 handle,
@@ -49,7 +53,33 @@ impl ScrollView {
 
     pub fn set_size(&mut self, v: Size) -> Result<()> {
         self.handle.set_size(v)?;
-        Ok(())
+        catch(|| {
+            let subviews = self.inner_view.subviews();
+            let frames = subviews
+                .iter()
+                .map(|c| {
+                    let mut frame = c.frame();
+                    let size = c.sizeThatFits(CGSize::ZERO);
+                    frame.size.width = frame.size.width.max(size.width);
+                    frame.size.height = frame.size.height.max(size.height);
+                    from_cgrect(frame)
+                })
+                .collect::<Vec<_>>();
+            let rect = frames
+                .iter()
+                .copied()
+                .reduce(|a, b| a.union(&b))
+                .unwrap_or_default();
+            let mut rect = rect.to_box2d();
+            rect.min = rect.min.min(Point::zero());
+            let mut rect = rect.to_rect();
+            if rect.height() < v.height {
+                rect.size.height = v.height;
+            }
+            let frame = to_cgrect(rect);
+            self.view.setContentSize(frame.size);
+            self.inner_view.setFrame(frame);
+        })
     }
 
     pub fn hscroll(&self) -> Result<bool> {
