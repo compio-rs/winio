@@ -1,3 +1,8 @@
+//! Apple common methods for winio.
+
+#![allow(unused_features)]
+#![cfg(any(target_os = "macos", target_os = "ios"))]
+
 use objc2::{exception::Exception, rc::Retained};
 use objc2_foundation::NSError;
 
