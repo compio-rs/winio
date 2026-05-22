@@ -14,6 +14,8 @@ objc2-core-graphics = { workspace = true }
 objc2-core-text = { workspace = true }
 objc2-foundation = { workspace = true }
 
+compio-log = { workspace = true }
+image = { workspace = true }
 local-sync = { workspace = true }
 thiserror = { workspace = true }
 winio-primitive = { workspace = true }

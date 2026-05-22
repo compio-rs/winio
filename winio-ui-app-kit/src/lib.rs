@@ -5,7 +5,7 @@
 
 pub(crate) use winio_pollable::GlobalRuntime;
 pub(crate) use winio_ui_apple_common::*;
-pub use winio_ui_apple_common::{Error, Result};
+pub use winio_ui_apple_common::{Brush, DrawingImage, Error, Pen, Result};
 
 mod runtime;
 pub use runtime::*;

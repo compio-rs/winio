@@ -1,16 +1,21 @@
 use inherit_methods_macro::inherit_methods;
 use objc2::{
-    DeclaredClass, MainThreadOnly, define_class, msg_send,
+    AnyThread, DeclaredClass, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
     runtime::ProtocolObject,
 };
-use objc2_foundation::{MainThreadMarker, NSObject, NSObjectProtocol, NSString};
-use objc2_ui_kit::{NSTextAlignment, UIScrollViewDelegate, UITextView, UITextViewDelegate};
+use objc2_foundation::{
+    MainThreadMarker, NSAttributedString, NSDictionary, NSObject, NSObjectProtocol, NSString,
+};
+use objc2_ui_kit::{
+    NSAttributedStringNSStringDrawing, NSFontAttributeName, NSTextAlignment, UIScrollViewDelegate,
+    UITextView, UITextViewDelegate,
+};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{HAlign, Point, Size};
 
-use crate::{GlobalRuntime, Result, catch, ui::Widget};
+use crate::{GlobalRuntime, Result, catch, from_cgsize, ui::Widget};
 
 #[derive(Debug)]
 pub struct TextBox {
@@ -53,11 +58,44 @@ impl TextBox {
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
     pub fn min_size(&self) -> Result<Size> {
-        Ok(Size::new(50.0, 30.0))
+        let text = self.text()?;
+        catch(|| unsafe {
+            let font = self.text_view.font();
+            let text = NSAttributedString::initWithString_attributes(
+                NSAttributedString::alloc(),
+                &NSString::from_str(text.split('\n').next().unwrap_or(&text)),
+                if let Some(font) = font {
+                    Some(NSDictionary::from_slices(
+                        &[NSFontAttributeName],
+                        &[font.as_ref()],
+                    ))
+                } else {
+                    None
+                }
+                .as_deref(),
+            );
+            from_cgsize(text.size())
+        })
     }
 
     pub fn preferred_size(&self) -> Result<Size> {
-        self.min_size()
+        catch(|| unsafe {
+            let font = self.text_view.font();
+            let text = NSAttributedString::initWithString_attributes(
+                NSAttributedString::alloc(),
+                &self.text_view.text(),
+                if let Some(font) = font {
+                    Some(NSDictionary::from_slices(
+                        &[NSFontAttributeName],
+                        &[font.as_ref()],
+                    ))
+                } else {
+                    None
+                }
+                .as_deref(),
+            );
+            from_cgsize(text.size())
+        })
     }
 
     pub fn loc(&self) -> Result<Point>;
@@ -82,25 +120,24 @@ impl TextBox {
     }
 
     pub fn halign(&self) -> Result<HAlign> {
-        catch(|| {
-            let raw = self.text_view.textAlignment();
-            match raw {
-                NSTextAlignment::Center => HAlign::Center,
-                NSTextAlignment::Right => HAlign::Right,
-                NSTextAlignment::Justified => HAlign::Stretch,
-                _ => HAlign::Left,
-            }
-        })
+        let align = catch(|| self.text_view.textAlignment())?;
+        let align = match align {
+            NSTextAlignment::Right => HAlign::Right,
+            NSTextAlignment::Center => HAlign::Center,
+            NSTextAlignment::Justified => HAlign::Stretch,
+            _ => HAlign::Left,
+        };
+        Ok(align)
     }
 
     pub fn set_halign(&mut self, align: HAlign) -> Result<()> {
-        let raw = match align {
+        let align = match align {
             HAlign::Left => NSTextAlignment::Left,
             HAlign::Center => NSTextAlignment::Center,
             HAlign::Right => NSTextAlignment::Right,
             HAlign::Stretch => NSTextAlignment::Justified,
         };
-        catch(|| self.text_view.setTextAlignment(raw))
+        catch(|| self.text_view.setTextAlignment(align))
     }
 
     pub fn is_readonly(&self) -> Result<bool> {

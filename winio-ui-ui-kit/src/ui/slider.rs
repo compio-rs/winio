@@ -5,6 +5,7 @@ use objc2::{
     runtime::AnyObject,
     sel,
 };
+use objc2_core_graphics::{CGAffineTransformIdentity, CGAffineTransformMakeRotation};
 use objc2_foundation::NSObject;
 use objc2_ui_kit::{UIControlEvents, UISlider};
 use winio_callback::Callback;
@@ -18,6 +19,7 @@ pub struct Slider {
     handle: Widget,
     view: Retained<UISlider>,
     delegate: Retained<SliderDelegate>,
+    vertical: bool,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -44,6 +46,7 @@ impl Slider {
                 handle,
                 view,
                 delegate,
+                vertical: false,
             })
         })
         .flatten()
@@ -58,7 +61,11 @@ impl Slider {
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
     pub fn preferred_size(&self) -> Result<Size> {
-        Ok(Size::new(0.0, 30.0))
+        if self.vertical {
+            Ok(Size::new(20.0, 0.0))
+        } else {
+            Ok(Size::new(0.0, 20.0))
+        }
     }
 
     pub fn loc(&self) -> Result<Point>;
@@ -82,10 +89,21 @@ impl Slider {
     }
 
     pub fn orient(&self) -> Result<Orient> {
-        Ok(Orient::Horizontal)
+        if self.vertical {
+            Ok(Orient::Vertical)
+        } else {
+            Ok(Orient::Horizontal)
+        }
     }
 
-    pub fn set_orient(&mut self, _v: Orient) -> Result<()> {
+    pub fn set_orient(&mut self, v: Orient) -> Result<()> {
+        self.vertical = matches!(v, Orient::Vertical);
+        if self.vertical {
+            self.view
+                .setTransform(CGAffineTransformMakeRotation(std::f64::consts::FRAC_PI_2));
+        } else {
+            self.view.setTransform(unsafe { CGAffineTransformIdentity });
+        }
         Ok(())
     }
 
@@ -127,6 +145,71 @@ impl Slider {
 }
 
 winio_handle::impl_as_widget!(Slider, handle);
+
+#[derive(Debug)]
+pub struct ScrollBar {
+    handle: Slider,
+}
+
+#[inherit_methods(from = "self.handle")]
+impl ScrollBar {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let slider = Slider::new(parent)?;
+        Ok(Self { handle: slider })
+    }
+
+    pub fn is_visible(&self) -> Result<bool>;
+
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
+
+    pub fn is_enabled(&self) -> Result<bool>;
+
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
+
+    pub fn preferred_size(&self) -> Result<Size>;
+
+    pub fn loc(&self) -> Result<Point>;
+
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
+
+    pub fn size(&self) -> Result<Size>;
+
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
+
+    pub fn tooltip(&self) -> Result<String>;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn orient(&self) -> Result<Orient>;
+
+    pub fn set_orient(&mut self, v: Orient) -> Result<()>;
+
+    pub fn minimum(&self) -> Result<usize>;
+
+    pub fn set_minimum(&mut self, v: usize) -> Result<()>;
+
+    pub fn maximum(&self) -> Result<usize>;
+
+    pub fn set_maximum(&mut self, v: usize) -> Result<()>;
+
+    pub fn page(&self) -> Result<usize> {
+        Ok(1)
+    }
+
+    pub fn set_page(&mut self, _v: usize) -> Result<()> {
+        Ok(())
+    }
+
+    pub fn pos(&self) -> Result<usize>;
+
+    pub fn set_pos(&mut self, v: usize) -> Result<()>;
+
+    pub async fn wait_change(&self) {
+        self.handle.wait_change().await
+    }
+}
+
+winio_handle::impl_as_widget!(ScrollBar, handle);
 
 #[derive(Debug, Default)]
 struct SliderDelegateIvars {

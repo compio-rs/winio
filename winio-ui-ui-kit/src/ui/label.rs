@@ -64,25 +64,24 @@ impl Label {
     }
 
     pub fn halign(&self) -> Result<HAlign> {
-        catch(|| {
-            let raw = self.view.textAlignment();
-            match raw {
-                NSTextAlignment::Center => HAlign::Center,
-                NSTextAlignment::Right => HAlign::Right,
-                NSTextAlignment::Justified => HAlign::Stretch,
-                _ => HAlign::Left,
-            }
-        })
+        let align = catch(|| self.view.textAlignment())?;
+        let align = match align {
+            NSTextAlignment::Right => HAlign::Right,
+            NSTextAlignment::Center => HAlign::Center,
+            NSTextAlignment::Justified => HAlign::Stretch,
+            _ => HAlign::Left,
+        };
+        Ok(align)
     }
 
     pub fn set_halign(&mut self, align: HAlign) -> Result<()> {
-        let raw = match align {
+        let align = match align {
             HAlign::Left => NSTextAlignment::Left,
             HAlign::Center => NSTextAlignment::Center,
             HAlign::Right => NSTextAlignment::Right,
             HAlign::Stretch => NSTextAlignment::Justified,
         };
-        catch(|| self.view.setTextAlignment(raw))
+        catch(|| self.view.setTextAlignment(align))
     }
 }
 

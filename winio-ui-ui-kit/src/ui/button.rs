@@ -1,3 +1,4 @@
+use compio_log::info;
 use inherit_methods_macro::inherit_methods;
 use objc2::{
     DeclaredClass, MainThreadOnly, define_class, msg_send,
@@ -260,8 +261,9 @@ impl LinkLabel {
             if self.uri.is_empty() {
                 break;
             } else {
-                let app = UIApplication::sharedApplication(MainThreadMarker::new().unwrap());
                 if let Some(url) = NSURL::URLWithString(&NSString::from_str(&self.uri)) {
+                    info!("Opening link: {}", self.uri);
+                    let app = UIApplication::sharedApplication(MainThreadMarker::new().unwrap());
                     unsafe {
                         let options = NSDictionary::new();
                         app.openURL_options_completionHandler(&url, &options, None);
