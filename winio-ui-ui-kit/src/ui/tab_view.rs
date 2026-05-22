@@ -74,13 +74,12 @@ impl TabView {
 
     pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) -> Result<()> {
+    pub fn set_size(&mut self, mut v: Size) -> Result<()> {
+        v.height = v.height.max(TAB_HEIGHT);
         self.handle.set_size(v)?;
         catch(|| {
-            self.segment.setFrame(CGRect::new(
-                CGPoint::new(0.0, 0.0),
-                CGSize::new(v.width, TAB_HEIGHT),
-            ));
+            self.segment
+                .setFrame(CGRect::new(CGPoint::ZERO, CGSize::new(v.width, TAB_HEIGHT)));
             for vw in self.views.borrow().iter() {
                 vw.setFrame(CGRect::new(
                     CGPoint::new(0.0, TAB_HEIGHT),
@@ -125,7 +124,8 @@ impl TabView {
         catch(|| {
             self.segment
                 .insertSegmentWithTitle_atIndex_animated(Some(&item.label), i, false);
-            let size = self.size()?;
+            let mut size = self.size()?;
+            size.height = size.height.max(TAB_HEIGHT);
             item.view.setFrame(CGRect::new(
                 CGPoint::new(0.0, TAB_HEIGHT),
                 CGSize::new(size.width, size.height - TAB_HEIGHT),
