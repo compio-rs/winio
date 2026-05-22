@@ -16,6 +16,7 @@
 //! | Qt       | [`QWidget`]   |
 //! | Gtk      | [`GtkWindow`] |
 //! | AppKit   | [`NSWindow`]  |
+//! | UIKit    | [`UIWindow`]  |
 //!
 //! ## Platform specific
 //! * Qt: The window is a [`QMainWindow`].
@@ -32,6 +33,7 @@
 //! | Qt       | [`QWidget`]   |
 //! | Gtk      | [`GtkFixed`]  |
 //! | AppKit   | [`NSView`]    |
+//! | UIKit    | [`UIView`]    |
 //!
 //! ## Platform specific
 //! * WinUI: The parent of all widgets must be a [`Canvas`], and the widget will
@@ -51,6 +53,7 @@
 //! | Qt       | [`QWidget`]          |
 //! | Gtk      | [`GtkWidget`]        |
 //! | AppKit   | [`NSView`]           |
+//! | UIKit    | [`UIView`]           |
 //!
 //! [`HWND`]: https://learn.microsoft.com/en-us/windows/apps/develop/ui/retrieve-hwnd
 //! [`Window`]: https://learn.microsoft.com/en-us/windows/windows-app-sdk/api/winrt/microsoft.ui.xaml.window
@@ -64,6 +67,8 @@
 //! [`GtkWidget`]: https://docs.gtk.org/gtk4/class.Widget.html
 //! [`NSWindow`]: https://developer.apple.com/documentation/appkit/nswindow
 //! [`NSView`]: https://developer.apple.com/documentation/appkit/nsview
+//! [`UIWindow`]: https://developer.apple.com/documentation/uikit/uiwindow
+//! [`UIView`]: https://developer.apple.com/documentation/uikit/uiview
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(missing_docs)]

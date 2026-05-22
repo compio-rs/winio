@@ -1,4 +1,6 @@
 //! UIKit backend for winio.
+//!
+//! The runtime calls `UIApplicationMain` and runs on the main thread.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg(target_os = "ios")]
