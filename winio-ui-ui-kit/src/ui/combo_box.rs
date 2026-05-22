@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
 use inherit_methods_macro::inherit_methods;
 use objc2::{
@@ -7,11 +7,13 @@ use objc2::{
     runtime::ProtocolObject,
     sel,
 };
-use objc2_foundation::{MainThreadMarker, NSInteger, NSObject, NSObjectProtocol, NSString};
+use objc2_foundation::{
+    MainThreadMarker, NSArray, NSInteger, NSObject, NSObjectProtocol, NSString, NSValue,
+};
 use objc2_ui_kit::{
     UIControlEvents, UIModalPresentationStyle, UIPickerView, UIPickerViewDataSource,
     UIPickerViewDelegate, UIPopoverArrowDirection, UITextBorderStyle, UITextField,
-    UIViewController,
+    UITextFieldDelegate, UIViewController,
 };
 use winio_callback::Callback;
 use winio_handle::AsContainer;
@@ -40,6 +42,8 @@ impl ComboBox {
             let picker = UIPickerView::new(mtm);
 
             let delegate = ComboBoxDelegate::new(mtm);
+            let del_obj = ProtocolObject::from_ref(&*delegate);
+            view.setDelegate(Some(del_obj));
             let del_obj = ProtocolObject::from_ref(&*delegate);
             picker.setDelegate(Some(del_obj));
             let del_obj = ProtocolObject::from_ref(&*delegate);
@@ -124,11 +128,12 @@ impl ComboBox {
     }
 
     pub fn is_editable(&self) -> Result<bool> {
-        catch(|| self.view.isEnabled())
+        Ok(self.delegate.ivars().editable.get())
     }
 
     pub fn set_editable(&mut self, v: bool) -> Result<()> {
-        catch(|| self.view.setEnabled(v))
+        self.delegate.ivars().editable.set(v);
+        Ok(())
     }
 
     pub async fn wait_change(&self) {
@@ -193,6 +198,7 @@ struct ComboBoxDelegateIvars {
     changed: Callback,
     select: Callback,
     items: RefCell<Vec<String>>,
+    editable: Cell<bool>,
 }
 
 define_class! {
@@ -237,6 +243,19 @@ define_class! {
     }
 
     unsafe impl NSObjectProtocol for ComboBoxDelegate {}
+
+    #[allow(non_snake_case)]
+    unsafe impl UITextFieldDelegate for ComboBoxDelegate {
+        #[unsafe(method(textField:shouldChangeCharactersInRanges:replacementString:))]
+        fn textField_shouldChangeCharactersInRanges_replacementString(
+            &self,
+            text_field: &UITextField,
+            ranges: &NSArray<NSValue>,
+            string: &NSString,
+        ) -> bool {
+            self.ivars().editable.get()
+        }
+    }
 
     #[allow(non_snake_case)]
     unsafe impl UIPickerViewDelegate for ComboBoxDelegate {
