@@ -70,7 +70,7 @@ impl Progress {
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        self.maximum = v;
+        self.maximum = v.max(self.minimum + 1);
         Ok(())
     }
 
@@ -83,8 +83,10 @@ impl Progress {
 
     pub fn set_pos(&mut self, pos: usize) -> Result<()> {
         catch(|| {
-            self.view
-                .setProgress_animated(pos as f32 / ((self.maximum - self.minimum) as f32), true)
+            self.view.setProgress_animated(
+                (pos - self.minimum) as f32 / ((self.maximum - self.minimum) as f32),
+                true,
+            )
         })
     }
 
