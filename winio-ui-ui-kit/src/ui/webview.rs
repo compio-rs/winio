@@ -2,17 +2,28 @@ use inherit_methods_macro::inherit_methods;
 use objc2::{
     DeclaredClass, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
+    runtime::ProtocolObject,
 };
-use objc2_foundation::{MainThreadMarker, NSObject, NSObjectProtocol};
+use objc2_foundation::{
+    MainThreadMarker, NSObject, NSObjectProtocol, NSString, NSURL, NSURLRequest,
+};
+use objc2_web_kit::{WKNavigation, WKNavigationDelegate, WKWebViewConfiguration};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{Result, catch, ui::Widget};
+use crate::{
+    Error, GlobalRuntime, Result, catch,
+    ui::{Widget, from_nsstring},
+};
+
+mod generated;
+use generated::*;
 
 #[derive(Debug)]
 pub struct WebView {
     handle: Widget,
+    view: Retained<WKWebView>,
     delegate: Retained<WebViewDelegate>,
 }
 
@@ -20,15 +31,25 @@ pub struct WebView {
 impl WebView {
     pub async fn new(parent: impl AsContainer) -> Result<Self> {
         let parent = parent.as_container();
-        let mtm = parent.as_ui_kit().mtm();
+        let parent_view = parent.as_ui_kit();
+        let mtm = parent_view.mtm();
 
         catch(|| unsafe {
-            let view = objc2_ui_kit::UIView::new(mtm);
+            let frame = parent_view.frame();
+            let config = WKWebViewConfiguration::new(mtm);
+            let view =
+                WKWebView::initWithFrame_configuration(WKWebView::alloc(mtm), frame, &config);
             let handle = Widget::from_uiview(parent, Retained::cast_unchecked(view.clone()))?;
 
             let delegate = WebViewDelegate::new(mtm);
+            let del_obj = ProtocolObject::from_ref(&*delegate);
+            view.setNavigationDelegate(Some(del_obj));
 
-            Ok(Self { handle, delegate })
+            Ok(Self {
+                handle,
+                view,
+                delegate,
+            })
         })
         .flatten()
     }
@@ -54,39 +75,67 @@ impl WebView {
     pub fn set_size(&mut self, v: Size) -> Result<()>;
 
     pub fn source(&self) -> Result<String> {
-        Ok(String::new())
+        catch(|| unsafe {
+            self.view
+                .URL()
+                .and_then(|url| url.absoluteString())
+                .map(|s| from_nsstring(&s))
+                .unwrap_or_default()
+        })
     }
 
-    pub fn set_source(&mut self, _s: impl AsRef<str>) -> Result<()> {
-        Ok(())
+    pub fn set_source(&mut self, s: impl AsRef<str>) -> Result<()> {
+        let s = s.as_ref();
+        if s.is_empty() {
+            return self.set_html("");
+        }
+
+        catch(|| {
+            let url = NSURL::URLWithString(&NSString::from_str(s)).ok_or(Error::NullPointer)?;
+            let req = NSURLRequest::requestWithURL(&url);
+            unsafe { self.view.loadRequest(&req) };
+            Ok(())
+        })
+        .flatten()
     }
 
-    pub fn set_html(&mut self, _html: impl AsRef<str>) -> Result<()> {
-        Ok(())
+    pub fn set_html(&mut self, html: impl AsRef<str>) -> Result<()> {
+        catch(|| unsafe {
+            self.view
+                .loadHTMLString_baseURL(&NSString::from_str(html.as_ref()), None);
+        })
     }
 
     pub fn can_go_forward(&self) -> Result<bool> {
-        Ok(false)
+        catch(|| unsafe { self.view.canGoForward() })
     }
 
     pub fn go_forward(&mut self) -> Result<()> {
-        Ok(())
+        catch(|| unsafe {
+            self.view.goForward();
+        })
     }
 
     pub fn can_go_back(&self) -> Result<bool> {
-        Ok(false)
+        catch(|| unsafe { self.view.canGoBack() })
     }
 
     pub fn go_back(&mut self) -> Result<()> {
-        Ok(())
+        catch(|| unsafe {
+            self.view.goBack();
+        })
     }
 
     pub fn reload(&mut self) -> Result<()> {
-        Ok(())
+        catch(|| unsafe {
+            self.view.reload();
+        })
     }
 
     pub fn stop(&mut self) -> Result<()> {
-        Ok(())
+        catch(|| unsafe {
+            self.view.stopLoading();
+        })
     }
 
     pub async fn wait_navigating(&self) {
@@ -124,6 +173,27 @@ define_class! {
     }
 
     unsafe impl NSObjectProtocol for WebViewDelegate {}
+
+    #[allow(non_snake_case)]
+    unsafe impl WKNavigationDelegate for WebViewDelegate {
+        #[unsafe(method(webView:didCommitNavigation:))]
+        unsafe fn webView_didCommitNavigation(
+            &self,
+            _web_view: &WKWebView,
+            _navigation: Option<&WKNavigation>,
+        ) {
+            self.ivars().navigating.signal::<GlobalRuntime>(());
+        }
+
+        #[unsafe(method(webView:didFinishNavigation:))]
+        unsafe fn webView_didFinishNavigation(
+            &self,
+            _web_view: &WKWebView,
+            _navigation: Option<&WKNavigation>,
+        ) {
+            self.ivars().navigated.signal::<GlobalRuntime>(());
+        }
+    }
 }
 
 impl WebViewDelegate {

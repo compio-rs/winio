@@ -34,10 +34,11 @@ objc2-ui-kit = { workspace = true, features = [
     "objc2-uniform-type-identifiers",
 ] }
 objc2-uniform-type-identifiers = { workspace = true }
+objc2-web-kit = { workspace = true, optional = true }
 
 [features]
 media = []
-webview = []
+webview = ["dep:objc2-web-kit"]
 
 compio-compat = ["compio/compat-futures"]
 
