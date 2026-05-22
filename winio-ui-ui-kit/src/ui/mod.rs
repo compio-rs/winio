@@ -1,8 +1,9 @@
 use std::ffi::CStr;
 
+use objc2::rc::Retained;
 use objc2_core_foundation::{CFArray, CFRange, CFString, CFStringBuiltInEncodings};
 use objc2_foundation::{MainThreadMarker, NSPoint, NSRect, NSSize, NSString};
-use objc2_ui_kit::{UIApplication, UITraitEnvironment, UIUserInterfaceStyle};
+use objc2_ui_kit::{UIApplication, UIUserInterfaceStyle, UIWindowScene};
 use winio_primitive::{ColorTheme, Point, Rect, Size};
 
 mod canvas;
@@ -67,21 +68,31 @@ mod tab_view;
 pub use tab_view::*;
 
 // OK to use `keyWindow` because it is for application wide theme detection.
-#[allow(deprecated)]
 pub fn color_theme() -> crate::Result<ColorTheme> {
+    let theme = first_ui_window_scene()?
+        .map(|scene| {
+            let trait_collection = scene.traitCollection();
+            let style = unsafe { trait_collection.userInterfaceStyle() };
+            match style {
+                UIUserInterfaceStyle::Dark => ColorTheme::Dark,
+                _ => ColorTheme::Light,
+            }
+        })
+        .unwrap_or(ColorTheme::Light);
+    Ok(theme)
+}
+
+pub(crate) fn first_ui_window_scene() -> crate::Result<Option<Retained<UIWindowScene>>> {
+    let mtm = MainThreadMarker::new().ok_or(crate::Error::NotMainThread)?;
     crate::catch(|| {
-        let mtm = MainThreadMarker::new().ok_or(crate::Error::NotMainThread)?;
         let app = UIApplication::sharedApplication(mtm);
-        let key_window = app.keyWindow().ok_or(crate::Error::NullPointer)?;
-        let trait_collection = key_window.traitCollection();
-        let style = unsafe { trait_collection.userInterfaceStyle() };
-        let theme = match style {
-            UIUserInterfaceStyle::Dark => ColorTheme::Dark,
-            _ => ColorTheme::Light,
-        };
-        Ok(theme)
+        for scene in app.connectedScenes() {
+            if let Ok(scene) = Retained::downcast::<UIWindowScene>(scene) {
+                return Some(scene);
+            }
+        }
+        None
     })
-    .flatten()
 }
 
 #[inline]

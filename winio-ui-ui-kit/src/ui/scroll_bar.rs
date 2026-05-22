@@ -5,6 +5,7 @@ use objc2::{
     runtime::AnyObject,
     sel,
 };
+use objc2_core_graphics::{CGAffineTransformIdentity, CGAffineTransformMakeRotation};
 use objc2_foundation::NSObject;
 use objc2_ui_kit::{UIControlEvents, UISlider};
 use winio_callback::Callback;
@@ -204,6 +205,15 @@ impl ScrollBar {
 
     pub fn set_orient(&mut self, v: Orient) -> Result<()> {
         self.vertical = matches!(v, Orient::Vertical);
+        if self.vertical {
+            self.handle
+                .view
+                .setTransform(CGAffineTransformMakeRotation(std::f64::consts::FRAC_PI_2));
+        } else {
+            self.handle
+                .view
+                .setTransform(unsafe { CGAffineTransformIdentity });
+        }
         Ok(())
     }
 

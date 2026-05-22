@@ -3,13 +3,11 @@ use std::{cell::Cell, rc::Rc};
 use block2::StackBlock;
 use objc2::rc::Retained;
 use objc2_foundation::{MainThreadMarker, NSString, ns_string};
-use objc2_ui_kit::{
-    UIAlertAction, UIAlertActionStyle, UIAlertController, UIAlertControllerStyle, UIApplication,
-};
+use objc2_ui_kit::{UIAlertAction, UIAlertActionStyle, UIAlertController, UIAlertControllerStyle};
 use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
-use crate::{Error, Result, catch};
+use crate::{Error, Result, catch, first_ui_window_scene};
 
 async fn msgbox_custom(
     parent: Option<impl AsWindow>,
@@ -110,16 +108,16 @@ async fn msgbox_custom(
         let controller = if let Some(parent) = parent {
             parent.as_window().as_ui_kit().rootViewController()
         } else {
-            // It's OK because we want any window.
-            #[allow(deprecated)]
-            UIApplication::sharedApplication(mtm)
-                .keyWindow()
+            first_ui_window_scene()?
+                .and_then(|scene| scene.keyWindow())
                 .and_then(|wnd| wnd.rootViewController())
         };
         if let Some(vc) = controller {
             vc.presentViewController_animated_completion(&alert, true, None);
         }
-    })?;
+        Ok(())
+    })
+    .flatten()?;
 
     rx.await.map_err(Into::into)
 }

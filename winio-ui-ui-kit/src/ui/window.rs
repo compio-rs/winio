@@ -4,7 +4,7 @@ use inherit_methods_macro::inherit_methods;
 use objc2::{MainThreadOnly, rc::Retained};
 use objc2_core_foundation::CGPoint;
 use objc2_foundation::{MainThreadMarker, NSSize};
-use objc2_ui_kit::{UIApplication, UIView, UIViewController, UIWindow};
+use objc2_ui_kit::{UIView, UIViewController, UIWindow};
 use winio_callback::Callback;
 use winio_handle::{
     AsContainer, AsWidget, AsWindow, BorrowedContainer, BorrowedWidget, BorrowedWindow,
@@ -12,7 +12,7 @@ use winio_handle::{
 use winio_primitive::{Point, Size};
 
 use crate::{
-    Error, RESIZE_SLAB, Result, catch, from_cgpoint, to_cgpoint,
+    Error, RESIZE_SLAB, Result, catch, first_ui_window_scene, from_cgpoint, to_cgpoint,
     ui::{from_cgrect, from_cgsize, to_cgsize},
 };
 
@@ -29,14 +29,7 @@ impl Window {
         let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
 
         catch(|| {
-            let app = UIApplication::sharedApplication(mtm);
-            let scene = app
-                .connectedScenes()
-                .iter()
-                .next()
-                .ok_or(Error::NullPointer)?;
-
-            let scene = Retained::downcast(scene).map_err(|_| Error::NullPointer)?;
+            let scene = first_ui_window_scene()?.ok_or(Error::NullPointer)?;
 
             let wnd = UIWindow::initWithWindowScene(UIWindow::alloc(mtm), &scene);
 

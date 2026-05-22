@@ -1,10 +1,17 @@
 use std::path::PathBuf;
 
-use objc2::rc::Retained;
-use objc2_foundation::NSString;
+use objc2::{
+    DefinedClass, MainThreadMarker, MainThreadOnly, Message, define_class, msg_send,
+    rc::{Allocated, Retained},
+    runtime::ProtocolObject,
+};
+use objc2_foundation::{NSArray, NSObject, NSObjectProtocol, NSString, NSURL};
+use objc2_ui_kit::{UIDocumentPickerDelegate, UIDocumentPickerViewController};
+use objc2_uniform_type_identifiers::UTType;
+use winio_callback::Callback;
 use winio_handle::AsWindow;
 
-use crate::{Error, Result};
+use crate::{Error, GlobalRuntime, Result, catch, first_ui_window_scene, from_nsstring};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileFilter {
@@ -54,37 +61,117 @@ impl FileBox {
     }
 
     pub async fn open(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
-        filebox(parent, &self.filters, false)
+        Ok(filebox(parent, self.filters, false)
             .await?
             .into_iter()
-            .next()
-            .transpose()
+            .next())
     }
 
     pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Result<Vec<PathBuf>> {
-        filebox(parent, &self.filters, true)
-            .await?
-            .into_iter()
-            .collect()
+        filebox(parent, self.filters, true).await
     }
 
-    pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
-        filebox_folder(parent).await
+    pub async fn open_folder(self, _parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
+        Err(Error::NotSupported)
     }
 
-    pub async fn save(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
-        Ok(None)
+    pub async fn save(self, _parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
+        Err(Error::NotSupported)
     }
 }
 
 async fn filebox(
-    _parent: Option<impl AsWindow>,
-    _filters: &[FileFilter],
-    _multiple: bool,
-) -> Result<Vec<Result<PathBuf>>> {
-    Err(Error::NotSupported)
+    parent: Option<impl AsWindow>,
+    filters: Vec<FileFilter>,
+    multiple: bool,
+) -> Result<Vec<PathBuf>> {
+    let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
+    let delegate = catch(|| {
+        let ns_filters = NSArray::from_retained_slice(
+            &filters
+                .into_iter()
+                .filter_map(|f| {
+                    let pattern = f.pattern;
+                    if pattern == "*.*" || pattern == "*" {
+                        None
+                    } else {
+                        UTType::typeWithFilenameExtension(&NSString::from_str(
+                            pattern.strip_prefix("*.").unwrap_or(&pattern),
+                        ))
+                    }
+                })
+                .collect::<Vec<_>>(),
+        );
+        let browser =
+            UIDocumentPickerViewController::initForOpeningContentTypes(mtm.alloc(), &ns_filters);
+        browser.setAllowsMultipleSelection(multiple);
+        browser.setShouldShowFileExtensions(true);
+        let delegate = FilePickerDelegate::new(mtm);
+        let del_obj = ProtocolObject::from_ref(&*delegate);
+        browser.setDelegate(Some(del_obj));
+        let controller = if let Some(parent) = parent {
+            parent.as_window().as_ui_kit().rootViewController()
+        } else {
+            first_ui_window_scene()?
+                .and_then(|scene| scene.keyWindow())
+                .and_then(|wnd| wnd.rootViewController())
+        };
+        if let Some(vc) = controller {
+            vc.presentViewController_animated_completion(&browser, true, None);
+        }
+        Ok(delegate)
+    })
+    .flatten()?;
+    let urls = delegate.ivars().on_pick.wait().await;
+    Ok(urls
+        .into_iter()
+        .filter_map(|url| url.path().map(|s| from_nsstring(&s)).map(PathBuf::from))
+        .collect())
 }
 
-async fn filebox_folder(_parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
-    Err(Error::NotSupported)
+#[derive(Debug, Default)]
+struct FilePickerDelegateIvars {
+    on_pick: Callback<Retained<NSArray<NSURL>>>,
+}
+
+define_class! {
+    #[unsafe(super(NSObject))]
+    #[name = "WinioFilePickerDelegateUIKit"]
+    #[ivars = FilePickerDelegateIvars]
+    #[thread_kind = MainThreadOnly]
+    #[derive(Debug)]
+    struct FilePickerDelegate;
+
+    impl FilePickerDelegate {
+        #[unsafe(method_id(init))]
+        fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
+            let this = this.set_ivars(FilePickerDelegateIvars::default());
+            unsafe { msg_send![super(this), init] }
+        }
+    }
+
+    unsafe impl NSObjectProtocol for FilePickerDelegate {}
+
+    #[allow(non_snake_case)]
+    unsafe impl UIDocumentPickerDelegate for FilePickerDelegate {
+        #[unsafe(method(documentPicker:didPickDocumentsAtURLs:))]
+        unsafe fn documentPicker_didPickDocumentsAtURLs(
+            &self,
+            _controller: &UIDocumentPickerViewController,
+            urls: &NSArray<NSURL>,
+        ) {
+            self.ivars().on_pick.signal::<GlobalRuntime>(urls.retain());
+        }
+
+        #[unsafe(method(documentPickerWasCancelled:))]
+        fn documentPickerWasCancelled(&self, controller: &UIDocumentPickerViewController) {
+            self.ivars().on_pick.signal::<GlobalRuntime>(NSArray::new());
+        }
+    }
+}
+
+impl FilePickerDelegate {
+    pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
+        unsafe { msg_send![mtm.alloc::<Self>(), init] }
+    }
 }
