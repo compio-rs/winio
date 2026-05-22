@@ -23,10 +23,8 @@ impl ScrollView {
         catch(|| {
             let view = UIScrollView::new(mtm);
             let inner_view = unsafe { Retained::cast_unchecked::<UIView>(view.clone()) };
-            // let inner_view = UIView::new(mtm);
             view.setScrollEnabled(true);
-            let handle =
-                Widget::from_uiview(parent, unsafe { Retained::cast_unchecked(view.clone()) })?;
+            let handle = Widget::from_uiview(parent, inner_view.clone())?;
 
             Ok(Self {
                 handle,
@@ -78,7 +76,6 @@ impl ScrollView {
             }
             let frame = to_cgrect(rect);
             self.view.setContentSize(frame.size);
-            self.inner_view.setFrame(frame);
         })
     }
 
