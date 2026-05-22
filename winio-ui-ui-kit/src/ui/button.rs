@@ -10,10 +10,7 @@ use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{
-    GlobalRuntime, Result, catch,
-    ui::{Widget, from_nsstring},
-};
+use crate::{GlobalRuntime, Result, catch, from_nsstring, ui::Widget};
 
 #[derive(Debug)]
 pub struct Button {

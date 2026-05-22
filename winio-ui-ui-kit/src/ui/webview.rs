@@ -12,10 +12,7 @@ use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{
-    Error, GlobalRuntime, Result, catch,
-    ui::{Widget, from_nsstring},
-};
+use crate::{Error, GlobalRuntime, Result, Widget, catch, from_nsstring};
 
 mod generated;
 use generated::*;

@@ -12,8 +12,8 @@ use winio_handle::{
 use winio_primitive::{Point, Size};
 
 use crate::{
-    Error, RESIZE_SLAB, Result, catch, first_ui_window_scene, from_cgpoint, to_cgpoint,
-    ui::{from_cgrect, from_cgsize, to_cgsize},
+    Error, RESIZE_SLAB, Result, catch, first_ui_window_scene, from_cgpoint, from_cgrect,
+    from_cgsize, to_cgpoint, to_cgsize,
 };
 
 #[derive(Debug)]

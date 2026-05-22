@@ -16,10 +16,7 @@ use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{HAlign, Point, Size};
 
-use crate::{
-    Error, GlobalRuntime, Result, catch,
-    ui::{Widget, from_cgsize, from_nsstring},
-};
+use crate::{Error, GlobalRuntime, Result, Widget, catch, from_cgsize, from_nsstring};
 
 #[derive(Debug)]
 pub struct TextBox {

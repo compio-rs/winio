@@ -12,6 +12,7 @@ winio-primitive = { workspace = true }
 winio-handle = { workspace = true }
 winio-callback = { workspace = true }
 winio-pollable = { workspace = true, features = ["callback"] }
+winio-ui-apple-common = { workspace = true }
 
 compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }

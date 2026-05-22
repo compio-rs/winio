@@ -73,7 +73,7 @@ impl TextBox {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub fn text(&self) -> Result<String> {
-        catch(|| crate::ui::from_nsstring(&self.text_view.text()))
+        catch(|| crate::from_nsstring(&self.text_view.text()))
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {

@@ -79,7 +79,7 @@ impl Edit {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub fn text(&self) -> Result<String> {
-        catch(|| crate::ui::from_nsstring(&self.view.text().unwrap_or_default()))
+        catch(|| crate::from_nsstring(&self.view.text().unwrap_or_default()))
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {

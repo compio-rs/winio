@@ -1,0 +1,26 @@
+[package]
+name = "winio-ui-apple-common"
+version = "0.1.0-rc.1"
+description = "Common code shared between AppKit and UIKit backends for winio."
+edition = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+objc2 = { workspace = true, features = ["exception"] }
+objc2-core-foundation = { workspace = true }
+objc2-core-graphics = { workspace = true }
+objc2-core-text = { workspace = true }
+objc2-foundation = { workspace = true }
+
+local-sync = { workspace = true }
+thiserror = { workspace = true }
+winio-primitive = { workspace = true }
+
+[features]
+objc-static = [
+    "objc2/unstable-static-class-inlined",
+    "objc2/unstable-static-sel-inlined",
+    "objc2-foundation/unstable-static-nsstring",
+]

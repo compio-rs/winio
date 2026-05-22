@@ -3,11 +3,9 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg(target_os = "macos")]
 
-use std::panic::AssertUnwindSafe;
-
-use objc2::{exception::Exception, rc::Retained};
-use objc2_foundation::NSError;
 pub(crate) use winio_pollable::GlobalRuntime;
+pub(crate) use winio_ui_apple_common::*;
+pub use winio_ui_apple_common::{Error, Result};
 
 mod runtime;
 pub use runtime::*;
@@ -19,71 +17,3 @@ pub use ui::*;
 mod compat;
 #[cfg(feature = "compio-compat")]
 pub use compat::*;
-
-/// Error type for AppKit.
-#[derive(Debug, thiserror::Error)]
-#[non_exhaustive]
-pub enum Error {
-    /// IO error.
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
-    /// Objective-C exception.
-    #[error("Objective-C exception: {0:?}")]
-    ObjC(Option<Retained<Exception>>),
-    /// NSError.
-    #[error("NSError: {0:?}")]
-    NS(Option<Retained<NSError>>),
-    /// Channel recv error.
-    #[error("Channel recv error: {0}")]
-    ChannelRecv(#[from] local_sync::oneshot::error::RecvError),
-    /// Null pointer returned.
-    #[error("Null pointer returned")]
-    NullPointer,
-    /// Called from non-main thread.
-    #[error("Called from non-main thread")]
-    NotMainThread,
-    /// Feature not supported.
-    #[error("Feature not supported")]
-    NotSupported,
-}
-
-// SAFETY: NSException & NSError are thread-safe.
-unsafe impl Send for Error {}
-unsafe impl Sync for Error {}
-
-impl From<Retained<Exception>> for Error {
-    fn from(exc: Retained<Exception>) -> Self {
-        Error::ObjC(Some(exc))
-    }
-}
-
-impl From<Option<Retained<Exception>>> for Error {
-    fn from(exc: Option<Retained<Exception>>) -> Self {
-        Error::ObjC(exc)
-    }
-}
-
-impl From<Retained<NSError>> for Error {
-    fn from(err: Retained<NSError>) -> Self {
-        Error::NS(Some(err))
-    }
-}
-
-impl From<Option<Retained<NSError>>> for Error {
-    fn from(err: Option<Retained<NSError>>) -> Self {
-        Error::NS(err)
-    }
-}
-
-/// Result type for AppKit.
-pub type Result<T, E = Error> = std::result::Result<T, E>;
-
-pub(crate) fn catch<F, R>(f: F) -> Result<R>
-where
-    F: FnOnce() -> R,
-{
-    match objc2::exception::catch(AssertUnwindSafe(f)) {
-        Ok(v) => Ok(v),
-        Err(exc) => Err(Error::from(exc)),
-    }
-}

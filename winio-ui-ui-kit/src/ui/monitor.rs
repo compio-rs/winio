@@ -2,7 +2,7 @@ use objc2::{MainThreadMarker, rc::Retained};
 use objc2_ui_kit::{UIApplication, UIWindowScene};
 use winio_primitive::{Monitor, Point, Rect, Size};
 
-use crate::{Error, Result, catch, ui::from_cgsize};
+use crate::{Error, Result, catch, from_cgsize};
 
 pub fn monitor_get_all() -> Result<Vec<Monitor>> {
     let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;

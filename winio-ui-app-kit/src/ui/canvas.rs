@@ -37,8 +37,8 @@ use winio_primitive::{
 };
 
 use crate::{
-    Error, GlobalRuntime, Result, catch,
-    ui::{TollFreeBridge, Widget, from_cgsize, transform_cgpoint, transform_point, transform_rect},
+    Error, GlobalRuntime, Result, TollFreeBridge, Widget, catch, from_cgsize, transform_cgpoint,
+    transform_point, transform_rect,
 };
 
 #[derive(Debug)]
