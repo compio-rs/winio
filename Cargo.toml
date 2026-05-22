@@ -13,6 +13,8 @@ members = [
     "winio-ui-gtk",
     "winio-ui-qt",
     "winio-ui-app-kit",
+    "winio-ui-ui-kit",
+    "winio-ui-apple-common",
 ]
 
 resolver = "3"
@@ -36,6 +38,8 @@ winio-ui-winui = { path = "winio-ui-winui", version = "0.6.0-rc.2" }
 winio-ui-gtk = { path = "winio-ui-gtk", version = "0.6.0-rc.1" }
 winio-ui-qt = { path = "winio-ui-qt", version = "0.6.0-rc.1" }
 winio-ui-app-kit = { path = "winio-ui-app-kit", version = "0.6.0-rc.1" }
+winio-ui-ui-kit = { path = "winio-ui-ui-kit", version = "0.1.0-rc.1" }
+winio-ui-apple-common = { path = "winio-ui-apple-common", version = "0.1.0-rc.1" }
 
 compio = { version = "0.19.0-rc.2", default-features = false }
 compio-log = "0.1.0"
@@ -52,6 +56,7 @@ once_cell = "1"
 paste = "1.0"
 percent-encoding = "2"
 scoped-tls = "1.0"
+slab = "0.4"
 thiserror = "2.0"
 tuplex = "0.1"
 widestring = "1"
@@ -66,8 +71,19 @@ send_wrapper = "0.6"
 slim-detours-sys = "0.4"
 sync-unsafe-cell = "0.1"
 
+block2 = "0.6"
 objc2 = "0.6"
 objc2-app-kit = "0.3"
+objc2-av-foundation = "0.3"
+objc2-av-kit = "0.3"
+objc2-core-foundation = "0.3"
+objc2-core-graphics = "0.3"
+objc2-core-media = "0.3"
+objc2-core-text = "0.3"
+objc2-foundation = "0.3"
+objc2-ui-kit = "0.3"
+objc2-uniform-type-identifiers = "0.3"
+objc2-web-kit = "0.3"
 
 gtk4 = "0.11"
 glib-unix = "0.22"

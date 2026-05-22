@@ -7,7 +7,7 @@ use objc2_foundation::{MainThreadMarker, NSArray, NSString};
 use objc2_uniform_type_identifiers::UTType;
 use winio_handle::AsWindow;
 
-use crate::{Error, Result, catch, ui::from_nsstring};
+use crate::{Error, Result, catch, from_nsstring};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileFilter {

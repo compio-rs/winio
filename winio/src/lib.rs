@@ -30,6 +30,8 @@ cfg_if::cfg_if! {
         }
     } else if #[cfg(target_os = "macos")] {
         use winio_ui_app_kit as sys;
+    } else if #[cfg(target_os = "ios")] {
+        use winio_ui_ui_kit as sys;
     } else {
         #[cfg(all(feature = "gtk", feature = "qt"))]
         compile_error!("You must choose only one of these features: [\"gtk\", \"qt\"]");

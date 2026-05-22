@@ -115,8 +115,12 @@ impl Component for MainModel {
                 size: Size::new(800.0, 600.0),
                 loc: {
                     let monitors = Monitor::all()?;
-                    let region = monitors[0].client_scaled();
-                    region.origin + region.size / 2.0 - window.size()? / 2.0
+                    if let Some(monitor) = monitors.first() {
+                        let region = monitor.client_scaled();
+                        region.origin + region.size / 2.0 - window.size()? / 2.0
+                    } else {
+                        Point::zero()
+                    }
                 },
             },
             tabview: TabView = (&window),
