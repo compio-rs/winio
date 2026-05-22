@@ -8,7 +8,7 @@ use compio_log::*;
 use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
 use objc2::{
-    DeclaredClass, MainThreadOnly, define_class, msg_send,
+    AnyThread, DeclaredClass, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
 };
 use objc2_core_foundation::{
@@ -18,7 +18,7 @@ use objc2_core_foundation::{
 use objc2_core_graphics::{
     CGAffineTransformIsIdentity, CGAffineTransformMake, CGAffineTransformMakeScale,
     CGBitmapContextCreate, CGBitmapContextCreateImage, CGColor, CGColorSpace, CGContext,
-    CGGradient, CGGradientDrawingOptions, CGMutablePath, CGPath, kCGColorWhite,
+    CGGradient, CGGradientDrawingOptions, CGImageAlphaInfo, CGMutablePath, CGPath, kCGColorWhite,
 };
 use objc2_core_text::{
     CTFont, CTFontDescriptor, CTFontSymbolicTraits, CTFramesetter, kCTFontAttributeName,
@@ -34,7 +34,7 @@ use winio_primitive::{
 };
 
 use crate::{
-    Error, GlobalRuntime, Result, catch,
+    Error, GlobalRuntime, Result, catch, transform_rect,
     ui::{TollFreeBridge, Widget, from_cgsize, to_cgpoint, to_cgrect},
 };
 
@@ -505,7 +505,7 @@ impl DrawingContext<'_> {
         rect: Rect,
         clip: Option<Rect>,
     ) -> Result<()> {
-        let rect = to_cgrect(rect);
+        let rect = transform_rect(self.size, rect);
         let clip = clip.map(to_cgrect);
         self.actions
             .push(DrawAction::Image(image_rep.clone(), rect, clip));
@@ -966,8 +966,27 @@ pub struct DrawingImage {
 
 impl DrawingImage {
     fn new(image: DynamicImage) -> Result<Self> {
-        let buffer = image.into_bytes();
-        let rep = catch(UIImage::new)?;
+        let width = image.width();
+        let height = image.height();
+        let (mut buffer, spp) = match image {
+            DynamicImage::ImageRgba8(_) => (image.into_bytes(), 4),
+            _ => (DynamicImage::ImageRgba8(image.into_rgba8()).into_bytes(), 4),
+        };
+        let ptr = buffer.as_mut_ptr();
+        let space = CGColorSpace::new_device_rgb();
+        let context = unsafe {
+            CGBitmapContextCreate(
+                ptr.cast(),
+                width as _,
+                height as _,
+                spp * 2,
+                spp * width as usize,
+                space.as_deref(),
+                CGImageAlphaInfo::PremultipliedLast.0,
+            )
+        };
+        let image = CGBitmapContextCreateImage(context.as_deref()).ok_or(Error::NullPointer)?;
+        let rep = catch(|| UIImage::initWithCGImage(UIImage::alloc(), &image))?;
         Ok(Self {
             buffer: Rc::new(buffer),
             rep,
@@ -975,6 +994,7 @@ impl DrawingImage {
     }
 
     pub fn size(&self) -> Result<Size> {
-        catch(|| unsafe { from_cgsize(self.rep.size()) })
+        let size = catch(|| unsafe { from_cgsize(self.rep.size()) })?;
+        Ok(size)
     }
 }

@@ -6,18 +6,20 @@ use objc2::{
     rc::{Allocated, Retained},
     runtime::ProtocolObject,
 };
-use objc2_core_foundation::CGRect;
-use objc2_foundation::{NSIndexPath, NSInteger, NSObject, NSObjectProtocol, NSString, ns_string};
+use objc2_core_foundation::{CGRect, CGSize};
+use objc2_foundation::{
+    NSDictionary, NSIndexPath, NSInteger, NSObject, NSObjectProtocol, NSString, ns_string,
+};
 use objc2_ui_kit::{
-    NSIndexPathUIKitAdditions, UIScrollViewDelegate, UITableView, UITableViewCell,
-    UITableViewCellStyle, UITableViewDataSource, UITableViewDelegate, UITableViewScrollPosition,
-    UITableViewStyle,
+    NSFontAttributeName, NSIndexPathUIKitAdditions, NSStringDrawing, UIFont, UIScrollViewDelegate,
+    UITableView, UITableViewCell, UITableViewCellStyle, UITableViewDataSource, UITableViewDelegate,
+    UITableViewScrollPosition, UITableViewStyle,
 };
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{GlobalRuntime, Result, catch, ui::Widget};
+use crate::{GlobalRuntime, Result, catch, from_cgsize, ui::Widget};
 
 #[derive(Debug)]
 pub struct ListBox {
@@ -65,11 +67,25 @@ impl ListBox {
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
     pub fn min_size(&self) -> Result<Size> {
-        Ok(Size::new(50.0, 20.0))
+        catch(|| unsafe {
+            let font = UIFont::systemFontOfSize(UIFont::systemFontSize());
+            let attrs = NSDictionary::from_slices(&[NSFontAttributeName], &[font.as_ref()]);
+            let mut width = 0.0f64;
+            let mut height = 0.0f64;
+            for s in self.delegate.ivars().data.borrow().iter() {
+                let s = NSString::from_str(s);
+                let size = s.sizeWithAttributes(Some(&attrs));
+                width = width.max(size.width);
+                height = height.max(size.height);
+            }
+            Size::new(width + 40.0, height)
+        })
     }
 
     pub fn preferred_size(&self) -> Result<Size> {
-        Ok(Size::new(100.0, 100.0))
+        let mut size = catch(|| from_cgsize(self.table.sizeThatFits(CGSize::ZERO)))?;
+        size.width = self.min_size()?.width;
+        Ok(size)
     }
 
     pub fn loc(&self) -> Result<Point>;

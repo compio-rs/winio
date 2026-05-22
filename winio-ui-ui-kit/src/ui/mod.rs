@@ -125,6 +125,14 @@ pub(crate) fn from_cgpoint(p: NSPoint) -> Point {
     Point::new(p.x, p.y)
 }
 
+#[inline]
+pub(crate) fn transform_rect(s: Size, rect: Rect) -> NSRect {
+    NSRect::new(
+        NSPoint::new(rect.origin.x, s.height - rect.size.height - rect.origin.y),
+        to_cgsize(rect.size),
+    )
+}
+
 trait TollFreeBridge<T>: Sized {
     fn bridge(&self) -> &T {
         unsafe { &*(std::ptr::addr_of!(*self).cast::<T>()) }
