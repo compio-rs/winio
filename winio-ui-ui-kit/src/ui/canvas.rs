@@ -10,14 +10,14 @@ use objc2::{
     DeclaredClass, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
 };
-use objc2_core_foundation::{CFRange, CFRetained, CGAffineTransform};
+use objc2_core_foundation::{CFRange, CFRetained, CGAffineTransform, CGPoint};
 use objc2_core_graphics::{
     CGAffineTransformMake, CGAffineTransformMakeScale, CGColor, CGMutablePath, CGPath,
     kCGColorWhite,
 };
 use objc2_core_text::CTFramesetter;
-use objc2_foundation::{MainThreadMarker, NSRect, NSSize};
-use objc2_ui_kit::{UIGraphicsGetCurrentContext, UIView};
+use objc2_foundation::{MainThreadMarker, NSRect, NSSet, NSSize};
+use objc2_ui_kit::{UIEvent, UIGraphicsGetCurrentContext, UITouch, UIView};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{
@@ -26,7 +26,7 @@ use winio_primitive::{
 
 use crate::{
     Brush, DrawAction, DrawingImage, Error, GlobalRuntime, Pen, Result, Widget, catch,
-    create_attr_str, from_cgsize, to_cgpoint, to_cgrect, transform_rect,
+    create_attr_str, from_cgsize, to_cgpoint, to_cgrect, transform_cgpoint, transform_rect,
 };
 
 #[derive(Debug)]
@@ -89,9 +89,10 @@ impl Canvas {
     }
 
     pub async fn wait_mouse_move(&self) -> Point {
-        self.view.ivars().touches_moved.wait().await;
-        // TODO
-        std::future::pending().await
+        let p = self.view.ivars().touches_moved.wait().await;
+        let size = self.view.frame().size;
+        let size = from_cgsize(size);
+        transform_cgpoint(size, p)
     }
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
@@ -112,7 +113,7 @@ fn draw_rect(actions: &[DrawAction], _rect: NSRect, factor: f64) {
 #[derive(Debug, Default)]
 struct CanvasViewIvars {
     touches_began: Callback,
-    touches_moved: Callback,
+    touches_moved: Callback<CGPoint>,
     touches_ended: Callback,
     actions: RefCell<Vec<DrawAction>>,
     actions_buf: RefCell<Vec<DrawAction>>,
@@ -160,17 +161,19 @@ define_class! {
         }
 
         #[unsafe(method(touchesBegan:withEvent:))]
-        unsafe fn touchesBegan(&self, _touches: &objc2_ui_kit::UITouch, _event: Option<&objc2_ui_kit::UIEvent>) {
+        unsafe fn touchesBegan(&self, _touches: &NSSet<UITouch>, _event: &UIEvent) {
             self.ivars().touches_began.signal::<GlobalRuntime>(());
         }
 
         #[unsafe(method(touchesMoved:withEvent:))]
-        unsafe fn touchesMoved(&self, _touches: &objc2_ui_kit::UITouch, _event: Option<&objc2_ui_kit::UIEvent>) {
-            self.ivars().touches_moved.signal::<GlobalRuntime>(());
+        unsafe fn touchesMoved(&self, touches: &NSSet<UITouch>, _event: &UIEvent) {
+            if let Some(touch) = touches.iter().next() {
+                self.ivars().touches_moved.signal::<GlobalRuntime>(touch.locationInView(Some(self)));
+            }
         }
 
         #[unsafe(method(touchesEnded:withEvent:))]
-        unsafe fn touchesEnded(&self, _touches: &objc2_ui_kit::UITouch, _event: Option<&objc2_ui_kit::UIEvent>) {
+        unsafe fn touchesEnded(&self, _touches: &NSSet<UITouch>, _event: &UIEvent) {
             self.ivars().touches_ended.signal::<GlobalRuntime>(());
         }
     }
