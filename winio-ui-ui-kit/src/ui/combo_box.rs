@@ -5,16 +5,19 @@ use objc2::{
     DeclaredClass, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
     runtime::ProtocolObject,
+    sel,
 };
 use objc2_foundation::{MainThreadMarker, NSInteger, NSObject, NSObjectProtocol, NSString};
 use objc2_ui_kit::{
-    UIPickerView, UIPickerViewDataSource, UIPickerViewDelegate, UITextBorderStyle, UITextField,
+    UIControlEvents, UIModalPresentationStyle, UIPickerView, UIPickerViewDataSource,
+    UIPickerViewDelegate, UIPopoverArrowDirection, UITextBorderStyle, UITextField,
+    UIViewController,
 };
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{GlobalRuntime, Result, catch, ui::Widget};
+use crate::{GlobalRuntime, Result, catch, first_ui_window_scene, ui::Widget};
 
 #[derive(Debug)]
 pub struct ComboBox {
@@ -22,7 +25,6 @@ pub struct ComboBox {
     view: Retained<UITextField>,
     picker: Retained<UIPickerView>,
     delegate: Retained<ComboBoxDelegate>,
-    editable: bool,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -45,6 +47,14 @@ impl ComboBox {
 
             view.setInputView(Some(&picker));
 
+            if cfg!(target_abi = "macabi") {
+                view.addTarget_action_forControlEvents(
+                    Some(&delegate),
+                    sel!(showInputView:),
+                    UIControlEvents::EditingDidBegin,
+                );
+            }
+
             let handle = Widget::from_uiview(parent, Retained::cast_unchecked(view.clone()))?;
 
             Ok(Self {
@@ -52,7 +62,6 @@ impl ComboBox {
                 view,
                 picker,
                 delegate,
-                editable: false,
             })
         })
         .flatten()
@@ -107,16 +116,19 @@ impl ComboBox {
         catch(|| {
             self.picker
                 .selectRow_inComponent_animated(i as isize, 0, false);
+
+            self.view.setText(Some(&NSString::from_str(
+                &self.delegate.ivars().items.borrow()[i],
+            )));
         })
     }
 
     pub fn is_editable(&self) -> Result<bool> {
-        Ok(self.editable)
+        catch(|| self.view.isEnabled())
     }
 
     pub fn set_editable(&mut self, v: bool) -> Result<()> {
-        self.editable = v;
-        Ok(())
+        catch(|| self.view.setEnabled(v))
     }
 
     pub async fn wait_change(&self) {
@@ -124,7 +136,13 @@ impl ComboBox {
     }
 
     pub async fn wait_select(&self) {
-        self.delegate.ivars().select.wait().await
+        self.delegate.ivars().select.wait().await;
+
+        if let Ok(Some(i)) = self.selection() {
+            self.view.setText(Some(&NSString::from_str(
+                &self.delegate.ivars().items.borrow()[i],
+            )));
+        }
     }
 
     pub fn len(&self) -> Result<usize> {
@@ -191,6 +209,30 @@ define_class! {
         fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
             let this = this.set_ivars(ComboBoxDelegateIvars::default());
             unsafe { msg_send![super(this), init] }
+        }
+
+        #[unsafe(method(showInputView:))]
+        fn showInputView(&self, sender: &UITextField) {
+            let input_view = sender.inputView();
+
+            if let Some(input_view) = input_view {
+                let vc = UIViewController::new(input_view.mtm());
+                vc.setView(Some(&input_view));
+                vc.setModalPresentationStyle(UIModalPresentationStyle::Popover);
+
+                if let Some(popover) = vc.popoverPresentationController() {
+                    popover.setSourceView(Some(sender));
+                    popover.setSourceRect(sender.bounds());
+                    popover.setPermittedArrowDirections(UIPopoverArrowDirection::Any);
+                }
+
+                if let Ok(Some(scene)) = first_ui_window_scene()
+                    && let Some(window) = scene.keyWindow()
+                    && let Some(controller) = window.rootViewController()
+                {
+                    controller.presentViewController_animated_completion(&vc, true, None);
+                }
+            }
         }
     }
 
