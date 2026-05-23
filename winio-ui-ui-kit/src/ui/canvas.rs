@@ -12,7 +12,7 @@ use objc2::{
 };
 use objc2_core_foundation::{CFRange, CFRetained, CGAffineTransform, CGPoint};
 use objc2_core_graphics::{
-    CGAffineTransformMake, CGAffineTransformMakeScale, CGColor, CGMutablePath, CGPath,
+    CGAffineTransformMake, CGAffineTransformMakeScale, CGColor, CGContext, CGMutablePath, CGPath,
     kCGColorWhite,
 };
 use objc2_core_text::CTFramesetter;
@@ -102,11 +102,12 @@ impl Canvas {
 
 winio_handle::impl_as_widget!(Canvas, handle);
 
-fn draw_rect(actions: &[DrawAction], _rect: NSRect, factor: f64) {
+fn draw_rect(actions: &[DrawAction], rect: NSRect, factor: f64) {
     let Some(context) = UIGraphicsGetCurrentContext() else {
         error!("Cannot get current CGContext");
         return;
     };
+    CGContext::clear_rect(Some(&context), rect);
     DrawAction::draw_rect(actions, &context, factor);
 }
 
