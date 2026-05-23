@@ -7,20 +7,19 @@ macro_rules! define_event {
 
         #[allow(non_snake_case)]
         #[unsafe(no_mangle)]
-        extern "C" fn $fn_name(env: jni::JNIEnv, obj: jni::objects::JObject) {
-            let Ok(w) = env.new_global_ref(obj) else {
-                return;
-            };
-            let w: BaseWidget = w.into();
-
-            if let Ok(mut lock) = $var_name.lock()
-                && let Some(mut senders) = lock.remove(&w.hash_code())
-            {
-                drop(lock);
-                while let Some(sender) = senders.pop() {
-                    let _ = sender.send(());
+        extern "system" fn $fn_name(mut env: jni::EnvUnowned<'_>, obj: jni::objects::JObject) {
+            let _ = env.with_env_no_catch(|env| {
+                let w: BaseWidget = env.new_global_ref(obj)?.into();
+                if let Ok(mut lock) = $var_name.lock()
+                    && let Some(mut senders) = lock.remove(&w.hash_code())
+                {
+                    drop(lock);
+                    while let Some(sender) = senders.pop() {
+                        let _ = sender.send(());
+                    }
                 }
-            }
+                Ok(())
+            });
         }
     };
 }

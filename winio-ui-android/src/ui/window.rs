@@ -40,14 +40,17 @@ impl Window {
         let inner = vm_exec_on_ui_thread(move |mut env, act| {
             let window = if let Some(parent) = parent.as_ref() {
                 env.new_object(
-                    Self::WINDOW_CLASS,
-                    format!("(Landroid/content/Context;L{};)V", Self::WINDOW_CLASS).as_str(),
+                    jni::strings::JNIString::from(Self::WINDOW_CLASS),
+                    jni::strings::JNIString::from(format!(
+                        "(Landroid/content/Context;L{};)V",
+                        Self::WINDOW_CLASS
+                    )),
                     &[act.as_obj().into(), parent.as_obj().into()],
                 )
             } else {
                 env.new_object(
-                    Self::WINDOW_CLASS,
-                    "(Landroid/content/Context;)V",
+                    jni::strings::JNIString::from(Self::WINDOW_CLASS),
+                    jni::strings::JNIString::from("(Landroid/content/Context;)V"),
                     &[act.as_obj().into()],
                 )
             }?;
@@ -71,11 +74,16 @@ impl Window {
     }
 
     pub fn client_size(&self) -> Size {
-        let w = self.inner.clone();
+        let w = self.inner.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "getClientSize", "()[D", &[])?
-                .l()?
-                .to(&mut env)
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("getClientSize"),
+                jni::jni_sig!("()[D"),
+                &[],
+            )?
+            .l()?
+            .to(&mut env)
         })
         .unwrap()
     }
@@ -101,12 +109,12 @@ impl Window {
 
 impl AsWindow for Window {
     fn as_window(&self) -> BorrowedWindow<'_> {
-        unsafe { BorrowedWindow::android(&*self.inner) }
+        unsafe { BorrowedWindow::android(&&self.inner) }
     }
 }
 
 impl Window {
     pub fn as_container(&self) -> BorrowedContainer<'_> {
-        unsafe { BorrowedContainer::android(&*self.inner) }
+        unsafe { BorrowedContainer::android(&&self.inner) }
     }
 }

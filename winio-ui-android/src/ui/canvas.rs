@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
-use jni::{JNIEnv, errors::Result as JniResult, objects::GlobalRef};
+use jni::{Env, errors::Result as JniResult};
 use winio_handle::{AsWindow, impl_as_widget};
 use winio_primitive::{
     BrushPen, DrawingFont, LinearGradientBrush, MouseButton, Point, RadialGradientBrush, Rect,
@@ -10,32 +10,33 @@ use winio_primitive::{
 };
 
 use super::{BaseWidget, vm_exec_on_ui_thread};
+use crate::GlobalRef;
 
 /// Drawing brush.
 pub trait Brush {
-    fn get_raw(&self, env: &mut JNIEnv) -> JniResult<GlobalRef>;
+    fn get_raw(&self, env: &mut Env<'_>) -> JniResult<GlobalRef>;
 }
 
 impl<B: Brush> Brush for &'_ B {
-    fn get_raw(&self, env: &mut JNIEnv) -> JniResult<GlobalRef> {
+    fn get_raw(&self, env: &mut Env<'_>) -> JniResult<GlobalRef> {
         B::get_raw(self, env)
     }
 }
 
 impl Brush for LinearGradientBrush {
-    fn get_raw(&self, _env: &mut JNIEnv) -> JniResult<GlobalRef> {
+    fn get_raw(&self, _env: &mut Env<'_>) -> JniResult<GlobalRef> {
         todo!()
     }
 }
 
 impl Brush for RadialGradientBrush {
-    fn get_raw(&self, _env: &mut JNIEnv) -> JniResult<GlobalRef> {
+    fn get_raw(&self, _env: &mut Env<'_>) -> JniResult<GlobalRef> {
         todo!()
     }
 }
 
 impl Brush for SolidColorBrush {
-    fn get_raw(&self, _env: &mut JNIEnv) -> JniResult<GlobalRef> {
+    fn get_raw(&self, _env: &mut Env<'_>) -> JniResult<GlobalRef> {
         todo!()
     }
 }
@@ -216,7 +217,7 @@ impl Canvas {
     }
 
     pub fn context(&self) -> DrawingContext<'_> {
-        let w = self.inner.clone();
+        let w = self.inner.duplicate();
         let inner = vm_exec_on_ui_thread(move |mut env, _| {
             let ctx = env
                 .call_method(

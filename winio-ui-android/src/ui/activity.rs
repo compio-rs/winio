@@ -11,18 +11,20 @@ use std::{
 };
 
 use jni::{
-    AttachGuard, JNIEnv, JavaVM,
+    Env, EnvUnowned, JavaVM,
     errors::{Error, JniError, Result as JniResult},
-    objects::{GlobalRef, JObject},
+    objects::JObject,
     sys::{JNI_VERSION_1_6, jint},
 };
+
+use crate::GlobalRef;
 
 static JAVA_VM: OnceLock<JavaVM> = OnceLock::new();
 static ACTIVITY: Mutex<Option<GlobalRef>> = Mutex::new(None);
 static UI_THREAD_PENDINGS: LazyLock<Mutex<HashMap<i64, Box<dyn FnOnce() + Send + Sync>>>> =
     LazyLock::new(Default::default);
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum ActivityMessage {
     Created,
     Start,
@@ -42,14 +44,15 @@ unsafe extern "system" {
 fn handle_message(activity: JObject, message: ActivityMessage) {
     match message {
         ActivityMessage::Created => {
-            if let Ok(mut lock) = ACTIVITY.lock()
-                && let Some(vm) = JAVA_VM.get()
-                && let Ok(env) = vm.attach_current_thread()
-                && let Ok(act) = env.new_global_ref(activity)
-            {
-                lock.replace(act);
-                drop(lock);
-                spawn(|| unsafe { main() });
+            if let Some(vm) = JAVA_VM.get() {
+                let _ = vm.attach_current_thread::<_, (), Error>(|env| {
+                    if let Ok(mut lock) = ACTIVITY.lock() {
+                        lock.replace(env.new_global_ref(activity)?);
+                        drop(lock);
+                        spawn(|| unsafe { main() });
+                    }
+                    Ok(())
+                });
             }
         }
 
@@ -73,55 +76,76 @@ fn handle_message(activity: JObject, message: ActivityMessage) {
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn Java_rs_compio_winio_Activity_on_1start(_env: JNIEnv, activity: JObject) {
+extern "system" fn Java_rs_compio_winio_Activity_on_1start(
+    _env: EnvUnowned<'_>,
+    activity: JObject,
+) {
     handle_message(activity, ActivityMessage::Start);
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn Java_rs_compio_winio_Activity_on_1resume(_env: JNIEnv, activity: JObject) {
+extern "system" fn Java_rs_compio_winio_Activity_on_1resume(
+    _env: EnvUnowned<'_>,
+    activity: JObject,
+) {
     handle_message(activity, ActivityMessage::Resume);
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn Java_rs_compio_winio_Activity_on_1pause(_env: JNIEnv, activity: JObject) {
+extern "system" fn Java_rs_compio_winio_Activity_on_1pause(
+    _env: EnvUnowned<'_>,
+    activity: JObject,
+) {
     handle_message(activity, ActivityMessage::Pause);
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn Java_rs_compio_winio_Activity_on_1stop(_env: JNIEnv, activity: JObject) {
+extern "system" fn Java_rs_compio_winio_Activity_on_1stop(_env: EnvUnowned<'_>, activity: JObject) {
     handle_message(activity, ActivityMessage::Stop);
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn Java_rs_compio_winio_Activity_on_1destroy(_env: JNIEnv, activity: JObject) {
+extern "system" fn Java_rs_compio_winio_Activity_on_1destroy(
+    _env: EnvUnowned<'_>,
+    activity: JObject,
+) {
     handle_message(activity, ActivityMessage::Destroy);
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn Java_rs_compio_winio_Activity_on_1configuration_1changed(
-    env: JNIEnv,
+extern "system" fn Java_rs_compio_winio_Activity_on_1configuration_1changed(
+    mut env: EnvUnowned<'_>,
     activity: JObject,
     new_config: JObject,
 ) {
-    handle_message(
-        activity,
-        ActivityMessage::ConfigChanged(env.new_global_ref(new_config).unwrap()),
-    );
+    let _ = env.with_env_no_catch::<_, (), Error>(|env| {
+        handle_message(
+            activity,
+            ActivityMessage::ConfigChanged(env.new_global_ref(new_config)?),
+        );
+        Ok(())
+    });
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn Java_rs_compio_winio_Activity_on_1low_1memory(_env: JNIEnv, activity: JObject) {
+extern "system" fn Java_rs_compio_winio_Activity_on_1low_1memory(
+    _env: EnvUnowned<'_>,
+    activity: JObject,
+) {
     handle_message(activity, ActivityMessage::LowMemory);
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn Java_rs_compio_winio_Activity_on_1create(_env: JNIEnv, activity: JObject) {
+extern "system" fn Java_rs_compio_winio_Activity_on_1create(
+    _env: EnvUnowned<'_>,
+    activity: JObject,
+) {
     handle_message(activity, ActivityMessage::Created)
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn Java_rs_compio_winio_Activity_on_1run_1ui_1thread(
-    _env: JNIEnv,
+extern "system" fn Java_rs_compio_winio_Activity_on_1run_1ui_1thread(
+    _env: EnvUnowned<'_>,
     activity: JObject,
     id: i64,
 ) {
@@ -162,15 +186,20 @@ pub unsafe extern "C" fn JNI_OnLoad(vm: JavaVM, _: *mut c_void) -> jint {
 
 pub fn vm_exec<F, R>(f: F) -> JniResult<R>
 where
-    F: FnOnce(AttachGuard, GlobalRef) -> JniResult<R>,
+    F: FnOnce(&mut Env<'_>, GlobalRef) -> JniResult<R>,
 {
     if let Some(vm) = JAVA_VM.get() {
-        let env = vm.attach_current_thread()?;
-        let activity = ACTIVITY
-            .lock()
-            .map_or(None, |lock| lock.clone())
-            .unwrap_or_else(|| env.new_global_ref(JObject::null()).unwrap());
-        f(env, activity)
+        vm.attach_current_thread::<_, R, Error>(|env| {
+            let activity = match ACTIVITY
+                .lock()
+                .ok()
+                .and_then(|lock| lock.as_ref().map(|a| a.as_obj()))
+            {
+                Some(activity) => env.new_global_ref(activity)?,
+                None => GlobalRef::null(),
+            };
+            f(env, activity)
+        })
     } else {
         Err(Error::NullPtr("No java VM."))
     }
@@ -178,12 +207,12 @@ where
 
 pub fn vm_exec_on_ui_thread<F, R>(f: F) -> JniResult<R>
 where
-    F: FnOnce(AttachGuard, GlobalRef) -> JniResult<R> + Send + Sync + 'static,
+    F: FnOnce(&mut Env<'_>, GlobalRef) -> JniResult<R> + Send + Sync + 'static,
     R: Send + Sync + 'static,
 {
     static mut IDX: i64 = 0;
 
-    vm_exec(|mut env, act| {
+    vm_exec(|env, act| {
         let Ok(mut lock) = UI_THREAD_PENDINGS.lock() else {
             return Err(Error::JniCall(JniError::Unknown));
         };
@@ -191,26 +220,24 @@ where
         let (tx, rx) = oneshot::channel();
         unsafe {
             IDX += 1;
-            let act2 = act.clone();
+            let act2 = env.new_global_ref(act.as_obj())?;
             lock.insert(
                 IDX,
                 Box::new(move || {
                     let _ = if let Some(vm) = JAVA_VM.get() {
-                        let env = match vm.attach_current_thread() {
-                            Ok(env) => env,
-                            Err(e) => {
-                                let _ = tx.send(Err(e));
-                                return;
-                            }
-                        };
-                        tx.send(f(env, act2))
+                        tx.send(vm.attach_current_thread::<_, R, Error>(|env| f(env, act2)))
                     } else {
                         tx.send(Err(Error::NullPtr("No java VM.")))
                     };
                 }),
             );
             drop(lock);
-            env.call_method(act.as_obj(), "runOnUiThread", "(J)V", &[IDX.into()])?;
+            env.call_method(
+                act.as_obj(),
+                jni::jni_str!("runOnUiThread"),
+                jni::jni_sig!("(J)V"),
+                &[IDX.into()],
+            )?;
         }
         rx.recv().unwrap()
     })

@@ -1,9 +1,9 @@
 use std::ops::{Deref, DerefMut};
 
-use jni::objects::GlobalRef;
 use winio_handle::AsWidget;
 
-use super::{super::JObjectExt, vm_exec_on_ui_thread};
+use super::{super::JObjectExt, vm_exec, vm_exec_on_ui_thread};
+use crate::GlobalRef;
 
 #[derive(Debug)]
 pub struct ToolTip<T> {
@@ -15,12 +15,21 @@ pub struct ToolTip<T> {
 impl<T> ToolTip<T> {
     const WIDGET_CLASS: &'static str = "rs/compio/winio/Tooltip";
 
+    fn duplicate_tooltip(&self) -> GlobalRef {
+        vm_exec(|env, _| env.new_global_ref(self.tooltip.as_obj())).unwrap()
+    }
+
     pub fn tooltip(&self) -> String {
-        let w = self.tooltip.clone();
+        let w = self.duplicate_tooltip();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "getTooltip", "()Ljava/lang/CharSequence;", &[])?
-                .l()?
-                .to(&mut env)
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("getTooltip"),
+                jni::jni_sig!("()Ljava/lang/CharSequence;"),
+                &[],
+            )?
+            .l()?
+            .to(&mut env)
         })
         .unwrap()
     }
@@ -30,13 +39,13 @@ impl<T> ToolTip<T> {
         S: AsRef<str>,
     {
         let text = text.as_ref().to_owned();
-        let w = self.tooltip.clone();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        let w = self.duplicate_tooltip();
+        vm_exec_on_ui_thread(move |env, _| {
             let text = env.new_string(&text)?;
             env.call_method(
                 w.as_obj(),
-                "setTooltip",
-                "(Ljava/lang/CharSequence;)V",
+                jni::jni_str!("setTooltip"),
+                jni::jni_sig!("(Ljava/lang/CharSequence;)V"),
                 &[(&text).into()],
             )?
             .v()
@@ -48,11 +57,12 @@ impl<T> ToolTip<T> {
     where
         T: AsWidget,
     {
-        let w = (inner.as_widget().to_android()).clone();
-        let tooltip = vm_exec_on_ui_thread(move |mut env, _| {
+        let w =
+            vm_exec(|env, _| env.new_global_ref(inner.as_widget().to_android().as_obj())).unwrap();
+        let tooltip = vm_exec_on_ui_thread(move |env, _| {
             let tooltip = env.new_object(
-                Self::WIDGET_CLASS,
-                "(Landroid/view/View;)V",
+                jni::strings::JNIString::from(Self::WIDGET_CLASS),
+                jni::jni_sig!("(Landroid/view/View;)V"),
                 &[w.as_obj().into()],
             )?;
             env.new_global_ref(tooltip)

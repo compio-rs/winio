@@ -1,10 +1,11 @@
 use std::ops::Deref;
 
-use jni::objects::{GlobalRef, JObject};
+use jni::objects::JObject;
 use winio_handle::{AsWindow, BorrowedWidget, BorrowedWindow};
 use winio_primitive::{HAlign, Point, Size};
 
 use super::{super::JObjectExt, vm_exec, vm_exec_on_ui_thread};
+use crate::GlobalRef;
 
 #[derive(Clone, Debug)]
 pub struct BaseWidget {
@@ -23,12 +24,14 @@ impl BaseWidget {
         S: AsRef<str>,
         T: From<Self>,
     {
-        let parent = parent.as_window().to_android().clone();
+        let parent =
+            vm_exec(|mut env, _| env.new_global_ref(parent.as_window().to_android().as_obj()))
+                .unwrap();
         let widget_class = widget_class.as_ref().to_owned();
         let inner = vm_exec_on_ui_thread(move |mut env, _| {
             let widget = env.new_object(
-                &widget_class,
-                "(Lrs/compio/winio/Window;)V",
+                jni::strings::JNIString::from(widget_class.as_str()),
+                jni::strings::JNIString::from("(Lrs/compio/winio/Window;)V"),
                 &[parent.as_obj().into()],
             )?;
             env.new_global_ref(widget)
@@ -39,50 +42,78 @@ impl BaseWidget {
         T::from(inner)
     }
 
+    pub(crate) fn as_obj(&self) -> &JObject<'static> {
+        self.inner.as_obj()
+    }
+
+    pub(crate) fn duplicate(&self) -> GlobalRef {
+        vm_exec(|mut env, _| env.new_global_ref(self.inner.as_obj())).unwrap()
+    }
+
     pub(crate) fn hash_code(&self) -> i32 {
         vm_exec(|mut env, _| {
-            env.call_method(self.inner.as_obj(), "hashCode", "()I", &[])?
-                .i()
+            env.call_method(
+                self.inner.as_obj(),
+                jni::jni_str!("hashCode"),
+                jni::jni_sig!("()I"),
+                &[],
+            )?
+            .i()
         })
         .unwrap()
     }
 
     pub(crate) fn loc(&self) -> Point {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "getLoc", "()[D", &[])?
-                .l()?
-                .to(&mut env)
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("getLoc"),
+                jni::jni_sig!("()[D"),
+                &[],
+            )?
+            .l()?
+            .to(&mut env)
         })
         .unwrap()
     }
 
     pub(crate) fn set_loc(&self, p: Point) {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "setLoc", "(DD)V", &[p.x.into(), p.y.into()])?
-                .v()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("setLoc"),
+                jni::jni_sig!("(DD)V"),
+                &[p.x.into(), p.y.into()],
+            )?
+            .v()
         })
         .unwrap();
     }
 
     pub(crate) fn size(&self) -> Size {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "getSize", "()[D", &[])?
-                .l()?
-                .to(&mut env)
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("getSize"),
+                jni::jni_sig!("()[D"),
+                &[],
+            )?
+            .l()?
+            .to(&mut env)
         })
         .unwrap()
     }
 
     pub(crate) fn set_size(&self, size: Size) {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
             env.call_method(
                 w.as_obj(),
-                "setSize",
-                "(DD)V",
+                jni::jni_str!("setSize"),
+                jni::jni_sig!("(DD)V"),
                 &[size.width.into(), size.height.into()],
             )?
             .v()
@@ -91,38 +122,59 @@ impl BaseWidget {
     }
 
     pub(crate) fn preferred_size(&self) -> Size {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "getPreferredSize", "()[D", &[])?
-                .l()?
-                .to(&mut env)
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("getPreferredSize"),
+                jni::jni_sig!("()[D"),
+                &[],
+            )?
+            .l()?
+            .to(&mut env)
         })
         .unwrap()
     }
 
     pub(crate) fn is_visible(&self) -> bool {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "isVisible", "()Z", &[])?.z()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("isVisible"),
+                jni::jni_sig!("()Z"),
+                &[],
+            )?
+            .z()
         })
         .unwrap()
     }
 
     pub(crate) fn set_visible(&self, visible: bool) {
-        let w = self.inner.clone();
-        vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "setVisible", "(Z)V", &[visible.into()])?
-                .v()
+        let w = self.duplicate();
+        vm_exec_on_ui_thread(move |env, _| {
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("setVisible"),
+                jni::jni_sig!("(Z)V"),
+                &[visible.into()],
+            )?
+            .v()
         })
         .unwrap();
     }
 
     pub(crate) fn text(&self) -> String {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "getText", "()Ljava/lang/CharSequence;", &[])?
-                .l()?
-                .to(&mut env)
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("getText"),
+                jni::jni_sig!("()Ljava/lang/CharSequence;"),
+                &[],
+            )?
+            .l()?
+            .to(&mut env)
         })
         .unwrap()
     }
@@ -132,13 +184,13 @@ impl BaseWidget {
         S: AsRef<str>,
     {
         let text = text.as_ref().to_owned();
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
             let text = env.new_string(&text)?;
             env.call_method(
                 w.as_obj(),
-                "setText",
-                "(Ljava/lang/CharSequence;)V",
+                jni::jni_str!("setText"),
+                jni::jni_sig!("(Ljava/lang/CharSequence;)V"),
                 &[(&text).into()],
             )?
             .v()
@@ -147,9 +199,15 @@ impl BaseWidget {
     }
 
     pub fn halign(&self) -> HAlign {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         let align = vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "getHAlign", "()I", &[])?.i()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("getHAlign"),
+                jni::jni_sig!("()I"),
+                &[],
+            )?
+            .i()
         })
         .unwrap();
 
@@ -169,65 +227,97 @@ impl BaseWidget {
             HAlign::Right => Self::HALIGN_RIGHT,
             HAlign::Stretch => Self::HALIGN_STRETCH,
         };
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "setHAlign", "(I)V", &[value.into()])?
-                .v()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("setHAlign"),
+                jni::jni_sig!("(I)V"),
+                &[value.into()],
+            )?
+            .v()
         })
         .unwrap();
     }
 
     pub(crate) fn is_checked(&self) -> bool {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "isChecked", "()Z", &[])?.z()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("isChecked"),
+                jni::jni_sig!("()Z"),
+                &[],
+            )?
+            .z()
         })
         .unwrap()
     }
 
     pub(crate) fn set_checked(&self, checked: bool) {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "setChecked", "(Z)V", &[checked.into()])?
-                .v()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("setChecked"),
+                jni::jni_sig!("(Z)V"),
+                &[checked.into()],
+            )?
+            .v()
         })
         .unwrap();
     }
 
     pub(crate) fn is_enabled(&self) -> bool {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "isEnabled", "()Z", &[])?.z()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("isEnabled"),
+                jni::jni_sig!("()Z"),
+                &[],
+            )?
+            .z()
         })
         .unwrap()
     }
 
     pub(crate) fn set_enabled(&self, enabled: bool) {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "setEnabled", "(Z)V", &[enabled.into()])?
-                .v()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("setEnabled"),
+                jni::jni_sig!("(Z)V"),
+                &[enabled.into()],
+            )?
+            .v()
         })
         .unwrap();
     }
 
     pub(crate) fn range(&self) -> (usize, usize) {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "getRange", "()[I", &[])?
-                .l()?
-                .to(&mut env)
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("getRange"),
+                jni::jni_sig!("()[I"),
+                &[],
+            )?
+            .l()?
+            .to(&mut env)
         })
         .unwrap()
     }
 
     pub(crate) fn set_range(&self, min: usize, max: usize) {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
             env.call_method(
                 w.as_obj(),
-                "setRange",
-                "(II)V",
+                jni::jni_str!("setRange"),
+                jni::jni_sig!("(II)V"),
                 &[(min as i32).into(), (max as i32).into()],
             )?
             .v()
@@ -236,38 +326,54 @@ impl BaseWidget {
     }
 
     pub(crate) fn pos(&self) -> usize {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "getPos", "()I", &[])?.i()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("getPos"),
+                jni::jni_sig!("()I"),
+                &[],
+            )?
+            .i()
         })
         .unwrap() as _
     }
 
     pub(crate) fn set_pos(&self, pos: usize) {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "setPos", "(I)V", &[(pos as i32).into()])?
-                .v()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("setPos"),
+                jni::jni_sig!("(I)V"),
+                &[(pos as i32).into()],
+            )?
+            .v()
         })
         .unwrap();
     }
 
     pub(crate) fn is_indeterminate(&self) -> bool {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "isIndeterminate", "()Z", &[])?
-                .z()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("isIndeterminate"),
+                jni::jni_sig!("()Z"),
+                &[],
+            )?
+            .z()
         })
         .unwrap()
     }
 
     pub(crate) fn set_indeterminate(&self, indeterminate: bool) {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
             env.call_method(
                 w.as_obj(),
-                "setIndeterminate",
-                "(Z)V",
+                jni::jni_str!("setIndeterminate"),
+                jni::jni_sig!("(Z)V"),
                 &[indeterminate.into()],
             )?
             .v()
@@ -276,54 +382,82 @@ impl BaseWidget {
     }
 
     pub(crate) fn minimum(&self) -> usize {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "getMinimum", "()I", &[])?.i()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("getMinimum"),
+                jni::jni_sig!("()I"),
+                &[],
+            )?
+            .i()
         })
         .unwrap() as _
     }
 
     pub(crate) fn set_minimum(&self, minimum: usize) {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "setMinimum", "(I)V", &[(minimum as i32).into()])?
-                .v()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("setMinimum"),
+                jni::jni_sig!("(I)V"),
+                &[(minimum as i32).into()],
+            )?
+            .v()
         })
         .unwrap();
     }
 
     pub(crate) fn maximum(&self) -> usize {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "getMaximum", "()I", &[])?.i()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("getMaximum"),
+                jni::jni_sig!("()I"),
+                &[],
+            )?
+            .i()
         })
         .unwrap() as _
     }
 
     pub(crate) fn set_maximum(&self, maximum: usize) {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "setMaximum", "(I)V", &[(maximum as i32).into()])?
-                .v()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("setMaximum"),
+                jni::jni_sig!("(I)V"),
+                &[(maximum as i32).into()],
+            )?
+            .v()
         })
         .unwrap();
     }
 
     pub(crate) fn clear(&self) {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "clear", "()V", &[])?.v()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("clear"),
+                jni::jni_sig!("()V"),
+                &[],
+            )?
+            .v()
         })
         .unwrap()
     }
 
     pub(crate) fn get(&self, i: usize) -> String {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
             env.call_method(
                 w.as_obj(),
-                "get",
-                "(I)Ljava/lang/CharSequence;",
+                jni::jni_str!("get"),
+                jni::jni_sig!("(I)Ljava/lang/CharSequence;"),
                 &[(i as i32).into()],
             )?
             .l()?
@@ -337,13 +471,13 @@ impl BaseWidget {
         S: AsRef<str>,
     {
         let item = item.as_ref().to_owned();
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
             let text = env.new_string(&item)?;
             env.call_method(
                 w.as_obj(),
-                "set",
-                "(ILjava/lang/CharSequence;)V",
+                jni::jni_str!("set"),
+                jni::jni_sig!("(ILjava/lang/CharSequence;)V"),
                 &[(i as i32).into(), (&text).into()],
             )?
             .v()
@@ -356,13 +490,13 @@ impl BaseWidget {
         S: AsRef<str>,
     {
         let item = item.as_ref().to_owned();
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
             let text = env.new_string(&item)?;
             env.call_method(
                 w.as_obj(),
-                "insert",
-                "(ILjava/lang/CharSequence;)V",
+                jni::jni_str!("insert"),
+                jni::jni_sig!("(ILjava/lang/CharSequence;)V"),
                 &[(i as i32).into(), (&text).into()],
             )?
             .v()
@@ -371,32 +505,42 @@ impl BaseWidget {
     }
 
     pub(crate) fn remove(&self, i: usize) {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "remove", "(I)V", &[(i as i32).into()])?
-                .v()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("remove"),
+                jni::jni_sig!("(I)V"),
+                &[(i as i32).into()],
+            )?
+            .v()
         })
         .unwrap();
     }
 
     pub(crate) fn selection(&self) -> Option<usize> {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "getSelection", "()Ljava/lang/Integer;", &[])?
-                .l()?
-                .to(&mut env)
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("getSelection"),
+                jni::jni_sig!("()Ljava/lang/Integer;"),
+                &[],
+            )?
+            .l()?
+            .to(&mut env)
         })
         .unwrap()
     }
 
     pub(crate) fn set_selection(&self, i: Option<usize>) {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
             let i = if let Some(i) = i {
                 env.call_static_method(
                     "java/lang/Integer",
-                    "valueOf",
-                    "(I)Ljava/lang/Integer;",
+                    jni::jni_str!("valueOf"),
+                    jni::jni_sig!("(I)Ljava/lang/Integer;"),
                     &[(i as i32).into()],
                 )?
                 .l()?
@@ -405,8 +549,8 @@ impl BaseWidget {
             };
             env.call_method(
                 w.as_obj(),
-                "setSelection",
-                "(Ljava/lang/Integer;)V",
+                jni::jni_str!("setSelection"),
+                jni::jni_sig!("(Ljava/lang/Integer;)V"),
                 &[(&i).into()],
             )?
             .v()
@@ -415,40 +559,63 @@ impl BaseWidget {
     }
 
     pub(crate) fn len(&self) -> usize {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "getLength", "()I", &[])?.i()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("getLength"),
+                jni::jni_sig!("()I"),
+                &[],
+            )?
+            .i()
         })
         .unwrap() as _
     }
 
     pub(crate) fn is_editable(&self) -> bool {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "isEditable", "()Z", &[])?.z()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("isEditable"),
+                jni::jni_sig!("()Z"),
+                &[],
+            )?
+            .z()
         })
         .unwrap()
     }
 
     pub(crate) fn set_editable(&self, editable: bool) {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "setEditable", "(Z)V", &[editable.into()])?
-                .v()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("setEditable"),
+                jni::jni_sig!("(Z)V"),
+                &[editable.into()],
+            )?
+            .v()
         })
         .unwrap();
     }
 
     pub(crate) fn is_empty(&self) -> bool {
-        let w = self.inner.clone();
+        let w = self.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
-            env.call_method(w.as_obj(), "isEmpty", "()Z", &[])?.z()
+            env.call_method(
+                w.as_obj(),
+                jni::jni_str!("isEmpty"),
+                jni::jni_sig!("()Z"),
+                &[],
+            )?
+            .z()
         })
         .unwrap()
     }
 
     pub fn as_widget(&self) -> BorrowedWidget<'_> {
-        unsafe { BorrowedWidget::android(&self.inner) }
+        unsafe { BorrowedWidget::android(&&self.inner) }
     }
 }
 

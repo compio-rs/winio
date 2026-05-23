@@ -27,7 +27,7 @@ impl Edit {
     }
 
     pub fn text(&self) -> String {
-        let w = self.inner.clone();
+        let w = self.inner.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
             env.call_method(
                 w.as_obj(),
@@ -46,7 +46,7 @@ impl Edit {
         S: AsRef<str>;
 
     pub fn is_password(&self) -> bool {
-        let w = self.inner.clone();
+        let w = self.inner.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
             env.call_method(w.as_obj(), "isPassword", "()[D", &[])?.z()
         })
@@ -54,7 +54,7 @@ impl Edit {
     }
 
     pub fn set_password(&self, password: bool) {
-        let w = self.inner.clone();
+        let w = self.inner.duplicate();
         vm_exec_on_ui_thread(move |mut env, _| {
             env.call_method(w.as_obj(), "setPassword", "(Z)V", &[password.into()])?
                 .v()
