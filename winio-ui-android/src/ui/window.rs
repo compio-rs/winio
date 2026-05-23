@@ -36,7 +36,7 @@ impl Window {
     where
         W: AsWindow,
     {
-        let parent = parent.map(|w| w.as_window().clone());
+        let parent = parent.map(|w| w.as_window().to_android().clone());
         let inner = vm_exec_on_ui_thread(move |mut env, act| {
             let window = if let Some(parent) = parent.as_ref() {
                 env.new_object(
@@ -101,6 +101,6 @@ impl Window {
 
 impl AsWindow for Window {
     fn as_window(&self) -> BorrowedWindow<'_> {
-        unsafe { BorrowedWindow::android() }
+        unsafe { BorrowedWindow::android((&*self.inner).clone()) }
     }
 }

@@ -1,13 +1,14 @@
 use std::ops::{Deref, DerefMut};
 
-use winio_handle::{AsWidget, RawWidget};
+use jni::objects::GlobalRef;
+use winio_handle::AsWidget;
 
 use super::{super::JObjectExt, vm_exec_on_ui_thread};
 
 #[derive(Debug)]
 pub struct ToolTip<T> {
     inner: T,
-    tooltip: RawWidget,
+    tooltip: GlobalRef,
 }
 
 // noinspection SpellCheckingInspection
@@ -47,7 +48,7 @@ impl<T> ToolTip<T> {
     where
         T: AsWidget,
     {
-        let w = (&*inner.as_widget()).clone();
+        let w = (inner.as_widget().to_android()).clone();
         let tooltip = vm_exec_on_ui_thread(move |mut env, _| {
             let tooltip = env.new_object(
                 Self::WIDGET_CLASS,

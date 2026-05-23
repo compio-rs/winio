@@ -1,14 +1,14 @@
 use std::ops::Deref;
 
-use jni::objects::JObject;
-use winio_handle::{AsRawWindow, BorrowedWindow, RawWidget};
+use jni::objects::{GlobalRef, JObject};
+use winio_handle::{AsWindow, BorrowedWidget, BorrowedWindow};
 use winio_primitive::{HAlign, Point, Size};
 
 use super::{super::JObjectExt, vm_exec, vm_exec_on_ui_thread};
 
 #[derive(Clone, Debug)]
 pub struct BaseWidget {
-    inner: RawWidget,
+    inner: GlobalRef,
 }
 
 // noinspection SpellCheckingInspection
@@ -18,7 +18,7 @@ impl BaseWidget {
     const HALIGN_RIGHT: i32 = 2;
     const HALIGN_STRETCH: i32 = 3;
 
-    pub(crate) fn new(inner: RawWidget) -> Self {
+    pub(crate) fn new(inner: GlobalRef) -> Self {
         Self { inner }
     }
 
@@ -27,7 +27,7 @@ impl BaseWidget {
         S: AsRef<str>,
         T: From<Self>,
     {
-        let parent = parent.as_raw_window();
+        let parent = parent.as_window().to_android();
         let widget_class = widget_class.as_ref().to_owned();
         let inner = vm_exec_on_ui_thread(move |mut env, _| {
             let widget = env.new_object(
@@ -450,16 +450,20 @@ impl BaseWidget {
         })
         .unwrap()
     }
+
+    pub fn as_widget(&self) -> BorrowedWidget<'static> {
+        unsafe { BorrowedWidget::android(self.inner.clone()) }
+    }
 }
 
-impl From<RawWidget> for BaseWidget {
-    fn from(value: RawWidget) -> Self {
-        Self::new(value)
+impl From<GlobalRef> for BaseWidget {
+    fn from(value: GlobalRef) -> Self {
+        Self { inner: value }
     }
 }
 
 impl Deref for BaseWidget {
-    type Target = RawWidget;
+    type Target = GlobalRef;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
