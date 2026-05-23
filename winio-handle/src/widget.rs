@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
         use std::marker::PhantomData;
@@ -16,7 +18,10 @@ cfg_if::cfg_if! {
 
         type BorrowedWidgetInner<'a> = &'a Retained<objc2_app_kit::NSView>;
     } else if #[cfg(target_os = "android")] {
-        type BorrowedWidgetInner<'a> = &'a jni::objects::GlobalRef;
+        #[derive(Clone)]
+        enum BorrowedWidgetInner<'a> {
+            Android(jni::objects::GlobalRef, PhantomData<&'a ()>),
+        }
     } else if #[cfg(target_os = "ios")] {
         use objc2::rc::Retained;
 
@@ -39,7 +44,8 @@ cfg_if::cfg_if! {
 }
 
 /// Raw widget handle.
-#[derive(Clone, Copy)]
+#[cfg_attr(target_os = "android", derive(Clone))]
+#[cfg_attr(not(target_os = "android"), derive(Clone, Copy))]
 pub struct BorrowedWidget<'a>(BorrowedWidgetInner<'a>);
 
 #[allow(unreachable_patterns)]
@@ -150,8 +156,17 @@ impl<'a> BorrowedWidget<'a> {
 #[cfg(target_os = "android")]
 impl<'a> BorrowedWidget<'a> {
     /// Create from Android `Widget`
-    pub unsafe fn android() -> Self {
-        unimplemented!()
+    ///
+    /// SAFETY: `j_obj` must be an valid `Widget`.
+    pub unsafe fn android(j_obj: jni::objects::GlobalRef) -> Self {
+        BorrowedWidget(BorrowedWidgetInner::Android(j_obj, PhantomData::default()))
+    }
+
+    /// Get Android `Widget`.
+    pub fn to_android(&self) -> jni::objects::GlobalRef {
+        match &self.0 {
+            BorrowedWidgetInner::Android(global_ref, _phantom_data) => global_ref.clone(),
+        }
     }
 }
 
@@ -163,7 +178,10 @@ pub trait AsWidget {
 
 impl AsWidget for BorrowedWidget<'_> {
     fn as_widget(&self) -> BorrowedWidget<'_> {
-        *self
+        #[cfg(target_os = "android")]
+        return self.clone();
+        #[cfg(not(target_os = "android"))]
+        return *self;
     }
 }
 

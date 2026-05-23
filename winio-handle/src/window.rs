@@ -209,8 +209,17 @@ impl<'a> HasWindowHandle for BorrowedWindow<'a> {
 #[cfg(target_os = "android")]
 impl<'a> BorrowedWindow<'a> {
     /// Create from Android `Window`
-    pub unsafe fn android() -> Self {
-        unimplemented!()
+    ///
+    /// Safety: j_obj must be valid `Window`.
+    pub unsafe fn android(j_obj: jni::objects::GlobalRef) -> Self {
+        BorrowedWindow(BorrowedWindowInner::Android(j_obj, PhantomData::default()))
+    }
+
+    /// Get Android `Window`.
+    pub fn to_android(&self) -> jni::objects::GlobalRef {
+        match &self.0 {
+            BorrowedWindowInner::Android(global_ref, _) => global_ref.clone(),
+        }
     }
 }
 
