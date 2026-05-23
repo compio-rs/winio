@@ -92,6 +92,8 @@ glib-unix = "0.22"
 pangocairo = "0.22"
 webkit6 = "0.6"
 
+jni = "0.21.1"
+
 [profile.release]
 lto = true
 codegen-units = 1

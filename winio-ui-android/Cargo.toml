@@ -11,9 +11,9 @@ repository = { workspace = true }
 
 [target.'cfg(target_os = "android")'.dependencies]
 image = { workspace = true, default-features = false }
+jni = { workspace = true }
 futures-util = "0.3.31"
 libc = "1.0.0-alpha.1"
-jni = "0.21.1"
 log = "0.4"
 
 oneshot = { version = "0.1.13", features = ["default"] }
