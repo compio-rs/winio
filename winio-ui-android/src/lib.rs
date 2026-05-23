@@ -5,6 +5,9 @@
 
 scoped_tls::scoped_thread_local!(pub(crate) static RUNTIME: Runtime);
 
+#[cfg(feature = "compio-compat")]
+pub use compio::compat::FuturesAdapter as CompioAdapter;
+
 mod convert;
 pub use convert::*;
 

@@ -31,3 +31,6 @@ scoped-tls = { workspace = true }
 
 [build-dependencies]
 encoding_rs = "0.8.35"
+
+[features]
+compio-compat = ["compio/compat-futures"]
