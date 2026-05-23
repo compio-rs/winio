@@ -2,16 +2,17 @@ use std::rc::Rc;
 
 use inherit_methods_macro::inherit_methods;
 use objc2::{MainThreadOnly, rc::Retained};
-use objc2_foundation::{MainThreadMarker, NSArray, NSSize};
+use objc2_foundation::{MainThreadMarker, NSArray, NSSize, NSString};
 use objc2_ui_kit::{NSLayoutConstraint, UIView, UIViewController, UIWindow};
 use winio_callback::Callback;
 use winio_handle::{
     AsContainer, AsWidget, AsWindow, BorrowedContainer, BorrowedWidget, BorrowedWindow,
 };
 use winio_primitive::{Point, Size};
+use winio_ui_apple_common::from_nsstring;
 
 use crate::{
-    Error, RESIZE_SLAB, Result, catch, first_ui_window_scene, from_cgpoint, from_cgsize,
+    Error, MOVE_SLAB, RESIZE_SLAB, Result, catch, first_ui_window_scene, from_cgpoint, from_cgsize,
     to_cgpoint, to_cgsize,
 };
 
@@ -19,8 +20,10 @@ use crate::{
 pub struct Window {
     wnd: Retained<UIWindow>,
     content_view: Retained<UIView>,
-    did_resize: Rc<Callback<Size>>,
+    did_resize: Rc<Callback>,
+    did_move: Rc<Callback>,
     resize_index: usize,
+    move_index: usize,
 }
 
 impl Window {
@@ -35,7 +38,9 @@ impl Window {
             let controller = UIViewController::new(mtm);
 
             let did_resize = Rc::new(Callback::new());
-            let index = RESIZE_SLAB.with_borrow_mut(|s| s.insert(did_resize.clone()));
+            let resize_index = RESIZE_SLAB.with_borrow_mut(|s| s.insert(did_resize.clone()));
+            let did_move = Rc::new(Callback::new());
+            let move_index = MOVE_SLAB.with_borrow_mut(|s| s.insert(did_move.clone()));
 
             wnd.setRootViewController(Some(&controller));
             wnd.makeKeyWindow();
@@ -65,7 +70,9 @@ impl Window {
                 wnd,
                 content_view,
                 did_resize,
-                resize_index: index,
+                resize_index,
+                did_move,
+                move_index,
             })
         })
         .flatten()
@@ -103,11 +110,22 @@ impl Window {
     }
 
     pub fn text(&self) -> Result<String> {
-        Ok(String::new())
+        catch(|| {
+            self.wnd
+                .windowScene()
+                .map(|s| s.title())
+                .as_deref()
+                .map(from_nsstring)
+                .unwrap_or_default()
+        })
     }
 
-    pub fn set_text(&mut self, _s: impl AsRef<str>) -> Result<()> {
-        Ok(())
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
+        catch(|| {
+            if let Some(scene) = self.wnd.windowScene() {
+                scene.setTitle(Some(&NSString::from_str(s.as_ref())));
+            }
+        })
     }
 
     pub async fn wait_size(&self) {
@@ -115,7 +133,7 @@ impl Window {
     }
 
     pub async fn wait_move(&self) {
-        std::future::pending().await
+        self.did_move.wait().await;
     }
 
     pub async fn wait_close(&self) {
@@ -130,6 +148,7 @@ impl Window {
 impl Drop for Window {
     fn drop(&mut self) {
         RESIZE_SLAB.with_borrow_mut(|s| s.remove(self.resize_index));
+        MOVE_SLAB.with_borrow_mut(|s| s.remove(self.move_index));
     }
 }
 

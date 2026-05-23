@@ -17,10 +17,9 @@ use objc2_ui_kit::{
     UIWindowSceneDelegate, UIWindowSceneGeometry,
 };
 use slab::Slab;
-use winio_callback::Callback;
-use winio_primitive::Size;
+use winio_callback::{Callback, Runnable};
 
-use crate::{Error, Result, from_cgsize};
+use crate::{Error, Result};
 
 pub struct App {
     mtm: MainThreadMarker,
@@ -80,7 +79,24 @@ unsafe fn dispatcher_wake_by_ref(_: *const ()) {
 unsafe fn dispatcher_drop(_: *const ()) {}
 
 thread_local! {
-    pub(crate) static RESIZE_SLAB: RefCell<Slab<Rc<Callback<Size>>>> = const { RefCell::new(Slab::new()) };
+    pub(crate) static RESIZE_SLAB: RefCell<Slab<Rc<Callback>>> = const { RefCell::new(Slab::new()) };
+    pub(crate) static MOVE_SLAB: RefCell<Slab<Rc<Callback>>> = const { RefCell::new(Slab::new()) };
+}
+
+fn signal_resize<R: Runnable>() {
+    RESIZE_SLAB.with_borrow(|s| {
+        for (_, callback) in s.iter() {
+            callback.signal::<R>(());
+        }
+    });
+}
+
+fn signal_move<R: Runnable>() {
+    MOVE_SLAB.with_borrow(|s| {
+        for (_, callback) in s.iter() {
+            callback.signal::<R>(());
+        }
+    });
 }
 
 #[derive(Debug)]
@@ -134,6 +150,12 @@ define_class! {
         ) {
             winio_pollable::run_current_task();
         }
+
+        #[unsafe(method(sceneDidBecomeActive:))]
+        fn sceneDidBecomeActive(&self, scene: &UIScene) {
+            signal_resize::<()>();
+            winio_pollable::run_current_task();
+        }
     }
 
     #[allow(non_snake_case)]
@@ -142,16 +164,17 @@ define_class! {
         fn windowScene_didUpdateEffectiveGeometry(
             &self,
             window_scene: &UIWindowScene,
-            previous_effective_geometry: &UIWindowSceneGeometry,
+            previous_effective_geometry: Option<&UIWindowSceneGeometry>,
         ) {
             let geometry = window_scene.effectiveGeometry();
             let bounds = geometry.coordinateSpace(self.mtm()).bounds();
-            let size = from_cgsize(bounds.size);
-            RESIZE_SLAB.with_borrow(|s| {
-                for (_, callback) in s.iter() {
-                    callback.signal::<()>(size);
-                }
-            });
+            let previous_bounds = previous_effective_geometry.map(|g| g.coordinateSpace(self.mtm()).bounds());
+            if Some(bounds.size) != previous_bounds.map(|b| b.size) {
+                signal_resize::<()>();
+            }
+            if Some(bounds.origin) != previous_bounds.map(|b| b.origin) {
+                signal_move::<()>();
+            }
             winio_pollable::run_current_task();
         }
     }

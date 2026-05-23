@@ -16,7 +16,7 @@ APP_BUNDLE = ${BUILD_DIR}/${APP_NAME}.app
 APP_EXEC = ${APP_BUNDLE}/Contents/MacOS/${EXAMPLE}
 INFO_PLIST = winio-ui-ui-kit/Info.plist
 
-.PHONY: all build bundle run debug clean
+.PHONY: all build bundle run open debug clean
 
 all: bundle
 
@@ -31,6 +31,9 @@ bundle: build ${INFO_PLIST}
 
 run: bundle
 	${APP_EXEC}
+
+open: bundle
+	open ${APP_BUNDLE}
 
 debug: bundle
 	lldb -o run -- ${APP_EXEC}
