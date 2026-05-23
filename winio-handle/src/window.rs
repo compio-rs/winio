@@ -21,9 +21,9 @@ cfg_if::cfg_if! {
     } else if #[cfg(target_os = "android")] {
         use std::marker::PhantomData;
 
-        #[derive(Clone, Copy)]
+        #[derive(Clone)]
         enum BorrowedWindowInner<'a> {
-            Android((), PhantomData<&'a ()>),
+            Android(jni::objects::GlobalRef, PhantomData<&'a ()>),
         }
     } else if #[cfg(target_os = "ios")] {
         use objc2::rc::Retained;
@@ -47,7 +47,8 @@ cfg_if::cfg_if! {
 }
 
 /// Raw window handle.
-#[derive(Clone, Copy)]
+#[cfg_attr(not(target_os = "android"), derive(Clone, Copy))]
+#[cfg_attr(target_os = "android", derive(Clone))]
 pub struct BorrowedWindow<'a>(BorrowedWindowInner<'a>);
 
 #[allow(unreachable_patterns)]
@@ -209,7 +210,6 @@ impl<'a> HasWindowHandle for BorrowedWindow<'a> {
 impl<'a> BorrowedWindow<'a> {
     /// Create from Android `Window`
     pub unsafe fn android() -> Self {
-        BorrowedWindow(BorrowedWindowInner::Android((), Default::default()));
         unimplemented!()
     }
 }
@@ -222,7 +222,10 @@ pub trait AsWindow {
 
 impl AsWindow for BorrowedWindow<'_> {
     fn as_window(&self) -> BorrowedWindow<'_> {
-        *self
+        #[cfg(target_os = "android")]
+        return self.clone();
+        #[cfg(not(target_os = "android"))]
+        return *self;
     }
 }
 

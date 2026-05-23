@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
         use std::marker::PhantomData;
@@ -18,8 +16,7 @@ cfg_if::cfg_if! {
 
         type BorrowedWidgetInner<'a> = &'a Retained<objc2_app_kit::NSView>;
     } else if #[cfg(target_os = "android")] {
-        // TODO: actual implementation
-        type BorrowedWidgetInner<'a> = PhantomData<&'a ()>;
+        type BorrowedWidgetInner<'a> = &'a jni::objects::GlobalRef;
     } else if #[cfg(target_os = "ios")] {
         use objc2::rc::Retained;
 
@@ -154,7 +151,6 @@ impl<'a> BorrowedWidget<'a> {
 impl<'a> BorrowedWidget<'a> {
     /// Create from Android `Widget`
     pub unsafe fn android() -> Self {
-        BorrowedWidget(PhantomData::default());
         unimplemented!()
     }
 }
