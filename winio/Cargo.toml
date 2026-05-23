@@ -133,3 +133,7 @@ winui-enable-cbs = ["winio-ui-winui?/enable-cbs"]
 winui-webview-system = ["winio-ui-winui?/webview-system"]
 objc-static = ["winio-ui-app-kit/objc-static"]
 qt-opengl = ["winio-ui-qt?/opengl"]
+
+[package.metadata.bundle.example.widgets]
+name = "Widgets"
+identifier = "rs.compio.winio.widgets"
