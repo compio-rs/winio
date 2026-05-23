@@ -64,6 +64,9 @@ jobs:
             features: 'webview'
           - os: 'macos-14'
             features: 'all'
+          - os: 'macos-14'
+            target: 'aarch64-apple-ios-macabi'
+            features: 'all'
     steps:
       - uses: actions/checkout@v4
       - name: Setup Rust Toolchain

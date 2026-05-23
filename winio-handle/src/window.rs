@@ -25,6 +25,12 @@ cfg_if::cfg_if! {
         enum BorrowedWindowInner<'a> {
             Android((), PhantomData<&'a ()>),
         }
+    } else if #[cfg(target_os = "ios")] {
+        use objc2::rc::Retained;
+
+        type BorrowedWindowInner<'a> = &'a Retained<objc2_ui_kit::UIWindow>;
+    } else if #[cfg(target_vendor = "apple")] {
+        compile_error!("Other Apple platforms (like watchOS and tvOS) are not supported yet.");
     } else {
         use std::marker::PhantomData;
 
@@ -113,8 +119,21 @@ impl<'a> BorrowedWindow<'a> {
     }
 }
 
+#[cfg(target_os = "ios")]
+impl<'a> BorrowedWindow<'a> {
+    /// Create from `UIWindow`.
+    pub fn ui_kit(window: &'a Retained<objc2_ui_kit::UIWindow>) -> Self {
+        Self(window)
+    }
+
+    /// Get `UIWindow`.
+    pub fn as_ui_kit(&self) -> &'a Retained<objc2_ui_kit::UIWindow> {
+        self.0
+    }
+}
+
 #[allow(unreachable_patterns)]
-#[cfg(not(any(windows, target_os = "macos", target_os = "android")))]
+#[cfg(not(any(windows, target_vendor = "apple", target_os = "android")))]
 impl<'a> BorrowedWindow<'a> {
     /// Create from Qt `QWidget`.
     ///

@@ -22,8 +22,8 @@ use winio_handle::{
 use winio_primitive::{Point, Rect, Size};
 
 use crate::{
-    Error, GlobalRuntime, Result, catch,
-    ui::{from_cgsize, from_nsstring, to_cgsize, transform_cgrect, transform_rect},
+    Error, GlobalRuntime, Result, catch, from_cgsize, from_nsstring, to_cgsize, transform_cgrect,
+    transform_rect,
 };
 
 #[derive(Debug)]

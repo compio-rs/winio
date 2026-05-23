@@ -20,6 +20,12 @@ cfg_if::cfg_if! {
     } else if #[cfg(target_os = "android")] {
         // TODO: actual implementation
         type BorrowedWidgetInner<'a> = PhantomData<&'a ()>;
+    } else if #[cfg(target_os = "ios")] {
+        use objc2::rc::Retained;
+
+        type BorrowedWidgetInner<'a> = &'a Retained<objc2_ui_kit::UIView>;
+    } else if #[cfg(target_vendor = "apple")] {
+        compile_error!("Other Apple platforms (like watchOS and tvOS) are not supported yet.");
     } else {
         use std::marker::PhantomData;
 
@@ -92,8 +98,21 @@ impl<'a> BorrowedWidget<'a> {
     }
 }
 
+#[cfg(target_os = "ios")]
+impl<'a> BorrowedWidget<'a> {
+    /// Create from `UIView`.
+    pub fn ui_kit(view: &'a Retained<objc2_ui_kit::UIView>) -> Self {
+        Self(view)
+    }
+
+    /// Get `UIView`.
+    pub fn as_ui_kit(&self) -> &'a Retained<objc2_ui_kit::UIView> {
+        self.0
+    }
+}
+
 #[allow(unreachable_patterns)]
-#[cfg(not(any(windows, target_os = "macos", target_os = "android")))]
+#[cfg(not(any(windows, target_vendor = "apple", target_os = "android")))]
 impl<'a> BorrowedWidget<'a> {
     /// Create from Qt `QWidget`.
     ///

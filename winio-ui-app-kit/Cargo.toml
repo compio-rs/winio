@@ -12,6 +12,7 @@ winio-primitive = { workspace = true }
 winio-handle = { workspace = true }
 winio-callback = { workspace = true }
 winio-pollable = { workspace = true, features = ["callback"] }
+winio-ui-apple-common = { workspace = true }
 
 compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
@@ -22,22 +23,22 @@ image = { workspace = true }
 local-sync = { workspace = true }
 thiserror = { workspace = true }
 
-block2 = "0.6"
+block2 = { workspace = true }
 objc2 = { workspace = true, features = ["exception"] }
-objc2-core-foundation = "0.3"
-objc2-core-graphics = "0.3"
-objc2-core-text = "0.3"
-objc2-foundation = "0.3"
+objc2-core-foundation = { workspace = true }
+objc2-core-graphics = { workspace = true }
+objc2-core-text = { workspace = true }
+objc2-foundation = { workspace = true }
 objc2-app-kit = { workspace = true, features = [
     "objc2-uniform-type-identifiers",
 ] }
-objc2-uniform-type-identifiers = "0.3"
-objc2-av-kit = { version = "0.3", optional = true }
-objc2-av-foundation = { version = "0.3", features = [
+objc2-uniform-type-identifiers = { workspace = true }
+objc2-av-kit = { workspace = true, optional = true }
+objc2-av-foundation = { workspace = true, features = [
     "objc2-core-media",
 ], optional = true }
-objc2-core-media = { version = "0.3", optional = true }
-objc2-web-kit = { version = "0.3", optional = true }
+objc2-core-media = { workspace = true, optional = true }
+objc2-web-kit = { workspace = true, optional = true }
 
 [features]
 media = ["dep:objc2-av-kit", "dep:objc2-av-foundation", "dep:objc2-core-media"]
@@ -45,8 +46,4 @@ webview = ["dep:objc2-web-kit"]
 
 compio-compat = ["compio/runtime", "compio/compat"]
 
-objc-static = [
-    "objc2/unstable-static-class-inlined",
-    "objc2/unstable-static-sel-inlined",
-    "objc2-foundation/unstable-static-nsstring",
-]
+objc-static = ["winio-ui-apple-common/objc-static"]

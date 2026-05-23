@@ -4,10 +4,11 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
 
     let target_os = std::env::var("CARGO_CFG_TARGET_OS");
+    let target_vendor = std::env::var("CARGO_CFG_TARGET_VENDOR");
 
     if target_os.as_deref() != Ok("windows")
-        && target_os.as_deref() != Ok("macos")
         && target_os.as_deref() != Ok("android")
+        && target_vendor.as_deref() != Ok("apple")
     {
         let mut modules = vec![
             "Core".into(),

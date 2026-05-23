@@ -7,7 +7,7 @@ readme = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 
-[target.'cfg(not(any(windows, target_os = "macos")))'.dependencies]
+[target.'cfg(not(any(windows, target_vendor = "apple")))'.dependencies]
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true, features = ["qt"] }
 winio-callback = { workspace = true }

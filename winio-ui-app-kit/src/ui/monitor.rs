@@ -3,10 +3,7 @@ use objc2_app_kit::{NSDeviceResolution, NSScreen};
 use objc2_foundation::NSValue;
 use winio_primitive::{Monitor, Point, Rect, Size};
 
-use crate::{
-    Error, Result, catch,
-    ui::{from_cgsize, transform_cgrect},
-};
+use crate::{Error, Result, catch, from_cgsize, transform_cgrect};
 
 pub fn monitor_get_all() -> Result<Vec<Monitor>> {
     let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;

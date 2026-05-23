@@ -32,6 +32,10 @@ cfg_if::cfg_if! {
         use winio_ui_app_kit as sys;
     } else if #[cfg(target_os = "android")] {
         use winio_ui_android as sys;
+    } else if #[cfg(target_os = "ios")] {
+        use winio_ui_ui_kit as sys;
+    } else if #[cfg(target_vendor = "apple")] {
+        compile_error!("Other Apple platforms (like watchOS and tvOS) are not supported yet.");
     } else {
         #[cfg(all(feature = "gtk", feature = "qt"))]
         compile_error!("You must choose only one of these features: [\"gtk\", \"qt\"]");
