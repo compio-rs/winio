@@ -1,7 +1,7 @@
 //! GTK backend for winio.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![cfg(not(any(windows, target_os = "macos", target_os = "ios")))]
+#![cfg(not(any(windows, target_vendor = "apple")))]
 
 pub(crate) use winio_pollable::GlobalRuntime;
 

@@ -22,6 +22,8 @@ cfg_if::cfg_if! {
         use objc2::rc::Retained;
 
         type BorrowedWindowInner<'a> = &'a Retained<objc2_ui_kit::UIWindow>;
+    } else if #[cfg(target_vendor = "apple")] {
+        compile_error!("Other Apple platforms (like watchOS and tvOS) are not supported yet.");
     } else {
         use std::marker::PhantomData;
 
@@ -124,7 +126,7 @@ impl<'a> BorrowedWindow<'a> {
 }
 
 #[allow(unreachable_patterns)]
-#[cfg(not(any(windows, target_os = "macos", target_os = "ios")))]
+#[cfg(not(any(windows, target_vendor = "apple")))]
 impl<'a> BorrowedWindow<'a> {
     /// Create from Qt `QWidget`.
     ///

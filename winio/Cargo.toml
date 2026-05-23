@@ -36,7 +36,7 @@ winio-ui-app-kit = { workspace = true }
 [target.'cfg(target_os = "ios")'.dependencies]
 winio-ui-ui-kit = { workspace = true }
 
-[target.'cfg(not(any(windows, target_os = "macos", target_os = "ios")))'.dependencies]
+[target.'cfg(not(any(windows, target_vendor = "apple")))'.dependencies]
 winio-ui-gtk = { workspace = true, optional = true }
 winio-ui-qt = { workspace = true, optional = true }
 

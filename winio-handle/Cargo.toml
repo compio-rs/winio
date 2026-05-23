@@ -20,7 +20,7 @@ winui3 = { workspace = true, optional = true, features = [
 ] }
 windows-core = { workspace = true }
 
-[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
+[target.'cfg(target_vendor = "apple")'.dependencies]
 objc2 = { workspace = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -29,7 +29,7 @@ objc2-app-kit = { workspace = true }
 [target.'cfg(target_os = "ios")'.dependencies]
 objc2-ui-kit = { workspace = true }
 
-[target.'cfg(not(any(windows, target_os = "macos", target_os = "ios")))'.dependencies]
+[target.'cfg(not(any(windows, target_vendor = "apple")))'.dependencies]
 gtk4 = { workspace = true, optional = true }
 
 [features]
