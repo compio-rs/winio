@@ -25,10 +25,9 @@ impl BaseWidget {
         T: From<Self>,
     {
         let parent =
-            vm_exec(|mut env, _| env.new_global_ref(parent.as_window().to_android().as_obj()))
-                .unwrap();
+            vm_exec(|env, _| env.new_global_ref(parent.as_window().to_android().as_obj())).unwrap();
         let widget_class = widget_class.as_ref().to_owned();
-        let inner = vm_exec_on_ui_thread(move |mut env, _| {
+        let inner = vm_exec_on_ui_thread(move |env, _| {
             let widget = env.new_object(
                 jni::strings::JNIString::from(widget_class.as_str()),
                 jni::strings::JNIString::from("(Lrs/compio/winio/Window;)V"),
@@ -47,11 +46,11 @@ impl BaseWidget {
     }
 
     pub(crate) fn duplicate(&self) -> GlobalRef {
-        vm_exec(|mut env, _| env.new_global_ref(self.inner.as_obj())).unwrap()
+        vm_exec(|env, _| env.new_global_ref(self.inner.as_obj())).unwrap()
     }
 
     pub(crate) fn hash_code(&self) -> i32 {
-        vm_exec(|mut env, _| {
+        vm_exec(|env, _| {
             env.call_method(
                 self.inner.as_obj(),
                 jni::jni_str!("hashCode"),
@@ -65,7 +64,7 @@ impl BaseWidget {
 
     pub(crate) fn loc(&self) -> Point {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("getLoc"),
@@ -73,14 +72,14 @@ impl BaseWidget {
                 &[],
             )?
             .l()?
-            .to(&mut env)
+            .to(env)
         })
         .unwrap()
     }
 
     pub(crate) fn set_loc(&self, p: Point) {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("setLoc"),
@@ -94,7 +93,7 @@ impl BaseWidget {
 
     pub(crate) fn size(&self) -> Size {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("getSize"),
@@ -102,14 +101,14 @@ impl BaseWidget {
                 &[],
             )?
             .l()?
-            .to(&mut env)
+            .to(env)
         })
         .unwrap()
     }
 
     pub(crate) fn set_size(&self, size: Size) {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("setSize"),
@@ -123,7 +122,7 @@ impl BaseWidget {
 
     pub(crate) fn preferred_size(&self) -> Size {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("getPreferredSize"),
@@ -131,14 +130,14 @@ impl BaseWidget {
                 &[],
             )?
             .l()?
-            .to(&mut env)
+            .to(env)
         })
         .unwrap()
     }
 
     pub(crate) fn is_visible(&self) -> bool {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("isVisible"),
@@ -166,7 +165,7 @@ impl BaseWidget {
 
     pub(crate) fn text(&self) -> String {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("getText"),
@@ -174,7 +173,7 @@ impl BaseWidget {
                 &[],
             )?
             .l()?
-            .to(&mut env)
+            .to(env)
         })
         .unwrap()
     }
@@ -185,7 +184,7 @@ impl BaseWidget {
     {
         let text = text.as_ref().to_owned();
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             let text = env.new_string(&text)?;
             env.call_method(
                 w.as_obj(),
@@ -200,7 +199,7 @@ impl BaseWidget {
 
     pub fn halign(&self) -> HAlign {
         let w = self.duplicate();
-        let align = vm_exec_on_ui_thread(move |mut env, _| {
+        let align = vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("getHAlign"),
@@ -228,7 +227,7 @@ impl BaseWidget {
             HAlign::Stretch => Self::HALIGN_STRETCH,
         };
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("setHAlign"),
@@ -242,7 +241,7 @@ impl BaseWidget {
 
     pub(crate) fn is_checked(&self) -> bool {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("isChecked"),
@@ -256,7 +255,7 @@ impl BaseWidget {
 
     pub(crate) fn set_checked(&self, checked: bool) {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("setChecked"),
@@ -270,7 +269,7 @@ impl BaseWidget {
 
     pub(crate) fn is_enabled(&self) -> bool {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("isEnabled"),
@@ -284,7 +283,7 @@ impl BaseWidget {
 
     pub(crate) fn set_enabled(&self, enabled: bool) {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("setEnabled"),
@@ -298,7 +297,7 @@ impl BaseWidget {
 
     pub(crate) fn range(&self) -> (usize, usize) {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("getRange"),
@@ -306,14 +305,14 @@ impl BaseWidget {
                 &[],
             )?
             .l()?
-            .to(&mut env)
+            .to(env)
         })
         .unwrap()
     }
 
     pub(crate) fn set_range(&self, min: usize, max: usize) {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("setRange"),
@@ -327,7 +326,7 @@ impl BaseWidget {
 
     pub(crate) fn pos(&self) -> usize {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("getPos"),
@@ -341,7 +340,7 @@ impl BaseWidget {
 
     pub(crate) fn set_pos(&self, pos: usize) {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("setPos"),
@@ -355,7 +354,7 @@ impl BaseWidget {
 
     pub(crate) fn is_indeterminate(&self) -> bool {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("isIndeterminate"),
@@ -369,7 +368,7 @@ impl BaseWidget {
 
     pub(crate) fn set_indeterminate(&self, indeterminate: bool) {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("setIndeterminate"),
@@ -383,7 +382,7 @@ impl BaseWidget {
 
     pub(crate) fn minimum(&self) -> usize {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("getMinimum"),
@@ -397,7 +396,7 @@ impl BaseWidget {
 
     pub(crate) fn set_minimum(&self, minimum: usize) {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("setMinimum"),
@@ -411,7 +410,7 @@ impl BaseWidget {
 
     pub(crate) fn maximum(&self) -> usize {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("getMaximum"),
@@ -425,7 +424,7 @@ impl BaseWidget {
 
     pub(crate) fn set_maximum(&self, maximum: usize) {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("setMaximum"),
@@ -439,7 +438,7 @@ impl BaseWidget {
 
     pub(crate) fn clear(&self) {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("clear"),
@@ -453,7 +452,7 @@ impl BaseWidget {
 
     pub(crate) fn get(&self, i: usize) -> String {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("get"),
@@ -461,7 +460,7 @@ impl BaseWidget {
                 &[(i as i32).into()],
             )?
             .l()?
-            .to(&mut env)
+            .to(env)
         })
         .unwrap()
     }
@@ -472,7 +471,7 @@ impl BaseWidget {
     {
         let item = item.as_ref().to_owned();
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             let text = env.new_string(&item)?;
             env.call_method(
                 w.as_obj(),
@@ -491,7 +490,7 @@ impl BaseWidget {
     {
         let item = item.as_ref().to_owned();
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             let text = env.new_string(&item)?;
             env.call_method(
                 w.as_obj(),
@@ -506,7 +505,7 @@ impl BaseWidget {
 
     pub(crate) fn remove(&self, i: usize) {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("remove"),
@@ -520,7 +519,7 @@ impl BaseWidget {
 
     pub(crate) fn selection(&self) -> Option<usize> {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("getSelection"),
@@ -528,14 +527,14 @@ impl BaseWidget {
                 &[],
             )?
             .l()?
-            .to(&mut env)
+            .to(env)
         })
         .unwrap()
     }
 
     pub(crate) fn set_selection(&self, i: Option<usize>) {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             let i = if let Some(i) = i {
                 env.call_static_method(
                     "java/lang/Integer",
@@ -560,7 +559,7 @@ impl BaseWidget {
 
     pub(crate) fn len(&self) -> usize {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("getLength"),
@@ -574,7 +573,7 @@ impl BaseWidget {
 
     pub(crate) fn is_editable(&self) -> bool {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("isEditable"),
@@ -588,7 +587,7 @@ impl BaseWidget {
 
     pub(crate) fn set_editable(&self, editable: bool) {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("setEditable"),
@@ -602,7 +601,7 @@ impl BaseWidget {
 
     pub(crate) fn is_empty(&self) -> bool {
         let w = self.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("isEmpty"),

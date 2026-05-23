@@ -37,7 +37,7 @@ impl Window {
         W: AsWindow,
     {
         let parent = parent.map(|w| w.as_window().to_android().clone());
-        let inner = vm_exec_on_ui_thread(move |mut env, act| {
+        let inner = vm_exec_on_ui_thread(move |env, act| {
             let window = if let Some(parent) = parent.as_ref() {
                 env.new_object(
                     jni::strings::JNIString::from(Self::WINDOW_CLASS),
@@ -75,7 +75,7 @@ impl Window {
 
     pub fn client_size(&self) -> Size {
         let w = self.inner.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("getClientSize"),
@@ -83,7 +83,7 @@ impl Window {
                 &[],
             )?
             .l()?
-            .to(&mut env)
+            .to(env)
         })
         .unwrap()
     }

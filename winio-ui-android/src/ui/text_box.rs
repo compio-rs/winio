@@ -28,7 +28,7 @@ impl TextBox {
 
     pub fn text(&self) -> String {
         let w = self.inner.duplicate();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 "getTextString",
@@ -36,7 +36,7 @@ impl TextBox {
                 &[],
             )?
             .l()?
-            .to(&mut env)
+            .to(env)
         })
         .unwrap()
     }

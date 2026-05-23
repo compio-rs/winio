@@ -21,7 +21,7 @@ impl<T> ToolTip<T> {
 
     pub fn tooltip(&self) -> String {
         let w = self.duplicate_tooltip();
-        vm_exec_on_ui_thread(move |mut env, _| {
+        vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
                 jni::jni_str!("getTooltip"),
@@ -29,7 +29,7 @@ impl<T> ToolTip<T> {
                 &[],
             )?
             .l()?
-            .to(&mut env)
+            .to(env)
         })
         .unwrap()
     }

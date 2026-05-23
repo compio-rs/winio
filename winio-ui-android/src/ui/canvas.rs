@@ -218,7 +218,7 @@ impl Canvas {
 
     pub fn context(&self) -> DrawingContext<'_> {
         let w = self.inner.duplicate();
-        let inner = vm_exec_on_ui_thread(move |mut env, _| {
+        let inner = vm_exec_on_ui_thread(move |env, _| {
             let ctx = env
                 .call_method(
                     w.as_obj(),
