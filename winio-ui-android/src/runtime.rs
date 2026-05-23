@@ -10,7 +10,7 @@ use super::RUNTIME;
 const ALOOPER_PREPARE_ALLOW_NON_CALLBACKS: i32 = 1;
 
 #[link(name = "android")]
-extern "C" {
+unsafe extern "C" {
     fn ALooper_forThread() -> *mut c_void;
     fn ALooper_prepare(opts: i32) -> *mut c_void;
     fn ALooper_pollOnce(
@@ -74,12 +74,7 @@ fn looper_waker(looper: NonNull<c_void>) -> Waker {
 fn looper_raw_waker(looper: NonNull<c_void>) -> RawWaker {
     RawWaker::new(
         looper.as_ptr().cast(),
-        &RawWakerVTable::new(
-            looper_clone,
-            looper_wake,
-            looper_wake_by_ref,
-            looper_drop,
-        ),
+        &RawWakerVTable::new(looper_clone, looper_wake, looper_wake_by_ref, looper_drop),
     )
 }
 
