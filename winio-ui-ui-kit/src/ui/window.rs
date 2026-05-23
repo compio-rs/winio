@@ -2,9 +2,8 @@ use std::rc::Rc;
 
 use inherit_methods_macro::inherit_methods;
 use objc2::{MainThreadOnly, rc::Retained};
-use objc2_core_foundation::CGPoint;
-use objc2_foundation::{MainThreadMarker, NSSize};
-use objc2_ui_kit::{UIView, UIViewController, UIWindow};
+use objc2_foundation::{MainThreadMarker, NSArray, NSSize};
+use objc2_ui_kit::{NSLayoutConstraint, UIView, UIViewController, UIWindow};
 use winio_callback::Callback;
 use winio_handle::{
     AsContainer, AsWidget, AsWindow, BorrowedContainer, BorrowedWidget, BorrowedWindow,
@@ -41,7 +40,26 @@ impl Window {
             wnd.setRootViewController(Some(&controller));
             wnd.makeKeyWindow();
 
-            let content_view = controller.view().ok_or(Error::NullPointer)?;
+            let root_view = controller.view().ok_or(Error::NullPointer)?;
+            let content_view = UIView::new(mtm);
+            root_view.addSubview(&content_view);
+            content_view.setTranslatesAutoresizingMaskIntoConstraints(false);
+            let c1 = content_view
+                .leftAnchor()
+                .constraintEqualToAnchor(&root_view.safeAreaLayoutGuide().leftAnchor());
+            let c2 = content_view
+                .rightAnchor()
+                .constraintEqualToAnchor(&root_view.safeAreaLayoutGuide().rightAnchor());
+            let c3 = content_view
+                .topAnchor()
+                .constraintEqualToAnchor(&root_view.safeAreaLayoutGuide().topAnchor());
+            let c4 = content_view
+                .bottomAnchor()
+                .constraintEqualToAnchor(&root_view.safeAreaLayoutGuide().bottomAnchor());
+            NSLayoutConstraint::activateConstraints(
+                &NSArray::from_retained_slice(&[c1, c2, c3, c4]),
+                mtm,
+            );
 
             Ok(Self {
                 wnd,
@@ -58,25 +76,7 @@ impl Window {
     }
 
     pub fn set_visible(&mut self, v: bool) -> Result<()> {
-        catch(|| {
-            self.wnd.setHidden(!v);
-            #[cfg(target_abi = "macabi")]
-            {
-                if v {
-                    use objc2_ui_kit::{UIApplication, UISceneSessionActivationRequest};
-
-                    let mtm = self.wnd.mtm();
-                    let app = UIApplication::sharedApplication(mtm);
-                    let request = unsafe { UISceneSessionActivationRequest::new() };
-                    let activity = self
-                        .wnd
-                        .windowScene()
-                        .and_then(|scene| scene.userActivity());
-                    request.setUserActivity(activity.as_deref());
-                    app.activateSceneSessionForRequest_errorHandler(&request, None);
-                }
-            }
-        })
+        catch(|| self.wnd.setHidden(!v))
     }
 
     pub fn loc(&self) -> Result<Point> {
@@ -94,12 +94,8 @@ impl Window {
         })
     }
 
-    pub fn set_size(&mut self, v: Size) -> Result<()> {
-        catch(|| {
-            let mut frame = self.wnd.frame();
-            frame.size = to_cgsize(v);
-            self.wnd.setFrame(frame);
-        })
+    pub fn set_size(&mut self, _v: Size) -> Result<()> {
+        Ok(())
     }
 
     pub fn client_size(&self) -> Result<Size> {
@@ -115,16 +111,7 @@ impl Window {
     }
 
     pub async fn wait_size(&self) {
-        let new_size = self.did_resize.wait().await;
-
-        const TITLE_BAR_HEIGHT: f64 = 30.0;
-
-        let mut frame = self.wnd.frame();
-        frame.size = to_cgsize(new_size);
-        self.wnd.setFrame(frame);
-        frame.origin = CGPoint::new(0.0, TITLE_BAR_HEIGHT);
-        frame.size.height -= TITLE_BAR_HEIGHT;
-        self.content_view.setFrame(frame);
+        self.did_resize.wait().await;
     }
 
     pub async fn wait_move(&self) {

@@ -61,7 +61,10 @@ where
 {
     match objc2::exception::catch(std::panic::AssertUnwindSafe(f)) {
         Ok(v) => Ok(v),
-        Err(exc) => Err(Error::from(exc)),
+        Err(exc) => {
+            compio_log::error!("Caught Objective-C exception: {exc:?}");
+            Err(Error::from(exc))
+        }
     }
 }
 
