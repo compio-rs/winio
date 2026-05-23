@@ -16,7 +16,7 @@ futures-util = "0.3.31"
 libc = "1.0.0-alpha.1"
 log = "0.4"
 
-oneshot = { version = "0.2.1", features = ["std"] }
+oneshot = { version = "0.2.1", features = ["std", "async"] }
 
 winio-primitive = { workspace = true }
 winio-callback = { workspace = true }
