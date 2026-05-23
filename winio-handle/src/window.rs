@@ -23,10 +23,7 @@ cfg_if::cfg_if! {
 
         #[derive(Clone, Copy)]
         enum BorrowedWindowInner<'a> {
-            #[cfg(feature = "android")]
             Android((), PhantomData<&'a ()>),
-            #[cfg(not(feature = "android"))]
-            Dummy(std::convert::Infallible, PhantomData<&'a ()>),
         }
     } else {
         use std::marker::PhantomData;
@@ -191,7 +188,6 @@ impl<'a> HasWindowHandle for BorrowedWindow<'a> {
 #[allow(unreachable_patterns)]
 #[cfg(target_os = "android")]
 impl<'a> BorrowedWindow<'a> {
-    #[cfg(feature = "android")]
     /// Create from Android `Window`
     pub unsafe fn android() -> Self {
         BorrowedWindow(BorrowedWindowInner::Android((), Default::default()));

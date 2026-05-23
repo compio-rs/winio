@@ -133,7 +133,6 @@ impl<'a> BorrowedWidget<'a> {
 #[allow(unreachable_patterns)]
 #[cfg(target_os = "android")]
 impl<'a> BorrowedWidget<'a> {
-    #[cfg(feature = "android")]
     /// Create from Android `Widget`
     pub unsafe fn android() -> Self {
         BorrowedWidget(PhantomData::default());
