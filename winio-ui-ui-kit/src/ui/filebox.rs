@@ -7,7 +7,7 @@ use objc2::{
 };
 use objc2_foundation::{NSArray, NSObject, NSObjectProtocol, NSString, NSURL};
 use objc2_ui_kit::{UIDocumentPickerDelegate, UIDocumentPickerViewController};
-use objc2_uniform_type_identifiers::UTType;
+use objc2_uniform_type_identifiers::{UTType, UTTypeData};
 use winio_callback::Callback;
 use winio_handle::AsWindow;
 
@@ -87,21 +87,23 @@ async fn filebox(
 ) -> Result<Vec<PathBuf>> {
     let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
     let delegate = catch(|| {
-        let ns_filters = NSArray::from_retained_slice(
-            &filters
-                .into_iter()
-                .filter_map(|f| {
-                    let pattern = f.pattern;
-                    if pattern == "*.*" || pattern == "*" {
-                        None
-                    } else {
-                        UTType::typeWithFilenameExtension(&NSString::from_str(
-                            pattern.strip_prefix("*.").unwrap_or(&pattern),
-                        ))
-                    }
-                })
-                .collect::<Vec<_>>(),
-        );
+        let mut ns_filters = filters
+            .into_iter()
+            .filter_map(|f| {
+                let pattern = f.pattern;
+                if pattern == "*.*" || pattern == "*" {
+                    Some(unsafe { UTTypeData.retain() })
+                } else {
+                    UTType::typeWithFilenameExtension(&NSString::from_str(
+                        pattern.strip_prefix("*.").unwrap_or(&pattern),
+                    ))
+                }
+            })
+            .collect::<Vec<_>>();
+        if ns_filters.is_empty() {
+            ns_filters.push(unsafe { UTTypeData.retain() });
+        }
+        let ns_filters = NSArray::from_retained_slice(&ns_filters);
         let browser =
             UIDocumentPickerViewController::initForOpeningContentTypes(mtm.alloc(), &ns_filters);
         browser.setAllowsMultipleSelection(multiple);

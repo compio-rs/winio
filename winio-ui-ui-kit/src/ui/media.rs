@@ -1,16 +1,40 @@
-use std::time::Duration;
+use std::{
+    cell::{Cell, RefCell},
+    ffi::c_void,
+    ptr::null_mut,
+    time::Duration,
+};
 
 use inherit_methods_macro::inherit_methods;
-use objc2::{MainThreadOnly, rc::Retained};
+use objc2::{
+    ClassType, DefinedClass, MainThreadMarker, MainThreadOnly, define_class, msg_send,
+    rc::{Allocated, Retained},
+    runtime::{AnyClass, AnyObject},
+    sel,
+};
+use objc2_av_foundation::{
+    AVPlayer, AVPlayerItem, AVPlayerItemDidPlayToEndTimeNotification, AVPlayerItemStatus,
+    AVPlayerLayer,
+};
+use objc2_core_media::{CMTime, kCMTimeZero};
+use objc2_foundation::{
+    NSDictionary, NSKeyValueChangeKey, NSKeyValueObservingOptions, NSNotification,
+    NSNotificationCenter, NSObject, NSObjectNSKeyValueObserverRegistration, NSString, NSURL,
+    ns_string,
+};
 use objc2_ui_kit::UIView;
+use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{Result, Widget, catch};
+use crate::{Error, GlobalRuntime, Result, Widget, catch, from_nsstring};
 
 #[derive(Debug)]
 pub struct Media {
     handle: Widget,
+    view: Retained<AVPlayerView>,
+    url: Option<Retained<NSURL>>,
+    delegate: Retained<PlayerDelegate>,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -19,12 +43,18 @@ impl Media {
         let parent = parent.as_container();
         let mtm = parent.as_ui_kit().mtm();
 
-        catch(|| {
-            let view = UIView::new(mtm);
-            let handle =
-                Widget::from_uiview(parent, unsafe { Retained::cast_unchecked(view.clone()) })?;
+        catch(|| unsafe {
+            let view = AVPlayerView::new(mtm);
+            let handle = Widget::from_uiview(parent, Retained::cast_unchecked(view.clone()))?;
 
-            Ok(Self { handle })
+            let delegate = PlayerDelegate::new(mtm);
+
+            Ok(Self {
+                handle,
+                view,
+                url: None,
+                delegate,
+            })
         })
         .flatten()
     }
@@ -50,64 +80,268 @@ impl Media {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub fn url(&self) -> Result<String> {
-        Ok(String::new())
+        Ok(self
+            .url
+            .as_ref()
+            .and_then(|url| url.absoluteString())
+            .map(|s| from_nsstring(&s))
+            .unwrap_or_default())
     }
 
-    pub async fn load(&mut self, _url: impl AsRef<str>) -> Result<()> {
-        Ok(())
+    pub async fn load(&mut self, url: impl AsRef<str>) -> Result<()> {
+        let item = catch(|| unsafe {
+            let url = NSURL::URLWithString(&NSString::from_str(url.as_ref()))
+                .ok_or(Error::NullPointer)?;
+            let mtm = self.delegate.mtm();
+            let item = AVPlayerItem::playerItemWithURL(&url, mtm);
+            item.addObserver_forKeyPath_options_context(
+                &self.delegate,
+                ns_string!("status"),
+                NSKeyValueObservingOptions::New,
+                null_mut(),
+            );
+            NSNotificationCenter::defaultCenter().addObserver_selector_name_object(
+                &self.delegate,
+                sel!(runLoop:),
+                Some(AVPlayerItemDidPlayToEndTimeNotification),
+                Some(&item),
+            );
+            let player = AVPlayer::playerWithPlayerItem(Some(&item), mtm);
+            self.view.setPlayer(Some(&player));
+            let ivars = self.delegate.ivars();
+            ivars.player.replace(Some(player));
+            ivars.looped.set(false);
+            ivars.rate.set(1.0);
+            self.url = Some(url);
+            Ok(item)
+        })
+        .flatten()?;
+        self.delegate.ivars().notify.wait().await;
+        catch(|| unsafe {
+            if item.status() == AVPlayerItemStatus::ReadyToPlay {
+                Ok(())
+            } else {
+                Err(Error::NS(item.error()))
+            }
+        })
+        .flatten()
     }
 
     pub fn play(&mut self) -> Result<()> {
-        Ok(())
+        if Some(self.current_time()?) == self.full_time()? {
+            self.set_current_time(Duration::ZERO)?;
+        }
+        catch(|| unsafe {
+            if let Some(player) = self.view.player() {
+                player.play();
+            }
+        })?;
+        self.set_playback_rate(self.delegate.ivars().rate.get())
     }
 
     pub fn pause(&mut self) -> Result<()> {
-        Ok(())
+        catch(|| unsafe {
+            if let Some(player) = self.view.player() {
+                player.pause();
+            }
+        })
     }
 
     pub fn full_time(&self) -> Result<Option<Duration>> {
-        Ok(None)
+        catch(|| unsafe {
+            self.view
+                .player()
+                .and_then(|player| player.currentItem())
+                .and_then(|item| {
+                    let t = item.duration();
+                    Duration::try_from_secs_f64(t.seconds()).ok()
+                })
+        })
     }
 
     pub fn current_time(&self) -> Result<Duration> {
-        Ok(Duration::ZERO)
+        catch(|| unsafe {
+            self.view
+                .player()
+                .and_then(|player| {
+                    let ct = player.currentTime();
+                    Duration::try_from_secs_f64(ct.seconds()).ok()
+                })
+                .unwrap_or_default()
+        })
     }
 
-    pub fn set_current_time(&mut self, _t: Duration) -> Result<()> {
-        Ok(())
+    pub fn set_current_time(&mut self, t: Duration) -> Result<()> {
+        catch(|| unsafe {
+            if let Some(player) = self.view.player() {
+                player.seekToTime(CMTime::with_seconds(t.as_secs_f64(), 600));
+            }
+        })
     }
 
     pub fn volume(&self) -> Result<f64> {
-        Ok(1.0)
+        catch(|| unsafe {
+            self.view
+                .player()
+                .map(|player| player.volume() as _)
+                .unwrap_or_default()
+        })
     }
 
-    pub fn set_volume(&mut self, _v: f64) -> Result<()> {
-        Ok(())
+    pub fn set_volume(&mut self, v: f64) -> Result<()> {
+        catch(|| unsafe {
+            if let Some(player) = self.view.player() {
+                player.setVolume(v as _);
+            }
+        })
     }
 
     pub fn is_muted(&self) -> Result<bool> {
-        Ok(false)
+        catch(|| unsafe {
+            self.view
+                .player()
+                .map(|player| player.isMuted())
+                .unwrap_or_default()
+        })
     }
 
-    pub fn set_muted(&mut self, _v: bool) -> Result<()> {
-        Ok(())
+    pub fn set_muted(&mut self, v: bool) -> Result<()> {
+        catch(|| unsafe {
+            if let Some(player) = self.view.player() {
+                player.setMuted(v);
+            }
+        })
     }
 
     pub fn is_looped(&self) -> Result<bool> {
-        Ok(false)
+        Ok(self.delegate.ivars().looped.get())
     }
 
-    pub fn set_looped(&mut self, _v: bool) -> Result<()> {
+    pub fn set_looped(&mut self, v: bool) -> Result<()> {
+        self.delegate.ivars().looped.set(v);
         Ok(())
     }
 
     pub fn playback_rate(&self) -> Result<f64> {
-        Ok(1.0)
+        catch(|| unsafe {
+            self.view
+                .player()
+                .map(|player| player.rate() as _)
+                .unwrap_or_default()
+        })
     }
 
-    pub fn set_playback_rate(&mut self, _v: f64) -> Result<()> {
-        Ok(())
+    pub fn set_playback_rate(&mut self, v: f64) -> Result<()> {
+        self.delegate.ivars().rate.set(v);
+        catch(|| unsafe {
+            if let Some(player) = self.view.player() {
+                player.setRate(v as _);
+            }
+        })
     }
 }
 
 winio_handle::impl_as_widget!(Media, handle);
+
+#[derive(Debug, Default)]
+struct AVPlayerViewIvars {}
+
+define_class! {
+    #[unsafe(super(UIView))]
+    #[name = "WinioAVPlayerView"]
+    #[ivars = AVPlayerViewIvars]
+    #[thread_kind = MainThreadOnly]
+    #[derive(Debug)]
+    struct AVPlayerView;
+
+    #[allow(non_snake_case)]
+    impl AVPlayerView {
+        #[unsafe(method_id(init))]
+        fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
+            let this = this.set_ivars(AVPlayerViewIvars::default());
+            unsafe { msg_send![super(this), init] }
+        }
+
+        #[unsafe(method(layerClass))]
+        fn layerClass() -> &'static AnyClass {
+            AVPlayerLayer::class()
+        }
+    }
+}
+
+#[allow(non_snake_case)]
+impl AVPlayerView {
+    pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
+        unsafe { msg_send![mtm.alloc::<Self>(), init] }
+    }
+
+    fn av_player_layer(&self) -> Retained<AVPlayerLayer> {
+        unsafe { Retained::cast_unchecked(self.layer()) }
+    }
+
+    unsafe fn player(&self) -> Option<Retained<AVPlayer>> {
+        unsafe { self.av_player_layer().player(self.mtm()) }
+    }
+
+    unsafe fn setPlayer(&self, player: Option<&AVPlayer>) {
+        unsafe { self.av_player_layer().setPlayer(player) }
+    }
+}
+
+#[derive(Debug, Default)]
+struct PlayerDelegateIvars {
+    notify: Callback,
+    looped: Cell<bool>,
+    rate: Cell<f64>,
+    player: RefCell<Option<Retained<AVPlayer>>>,
+}
+
+define_class! {
+    #[unsafe(super(NSObject))]
+    #[name = "WinioPlayerDelegate"]
+    #[ivars = PlayerDelegateIvars]
+    #[thread_kind = MainThreadOnly]
+    #[derive(Debug)]
+    struct PlayerDelegate;
+
+    #[allow(non_snake_case)]
+    impl PlayerDelegate {
+        #[unsafe(method_id(init))]
+        fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
+            let this = this.set_ivars(PlayerDelegateIvars::default());
+            unsafe { msg_send![super(this), init] }
+        }
+
+        #[unsafe(method(observeValueForKeyPath:ofObject:change:context:))]
+        unsafe fn observeValueForKeyPath_ofObject_change_context(
+            &self,
+            key_path: Option<&NSString>,
+            _object: Option<&AnyObject>,
+            _change: Option<&NSDictionary<NSKeyValueChangeKey, AnyObject>>,
+            _context: *mut c_void,
+        ) {
+            if let Some(path) = key_path && path.isEqualToString(ns_string!("status")) {
+                self.ivars().notify.signal::<GlobalRuntime>(());
+            }
+        }
+
+        #[unsafe(method(runLoop:))]
+        unsafe fn runLoop(&self, notification: &NSNotification) {
+            if self.ivars().looped.get()
+                && let Some(player) = self.ivars().player.borrow().as_ref()
+            {
+                unsafe {
+                    player.seekToTime(kCMTimeZero);
+                    player.play();
+                    player.setRate(self.ivars().rate.get() as _);
+                }
+            }
+        }
+    }
+}
+
+impl PlayerDelegate {
+    pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
+        unsafe { msg_send![mtm.alloc::<Self>(), init] }
+    }
+}
