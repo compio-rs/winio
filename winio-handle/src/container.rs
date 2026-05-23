@@ -42,8 +42,7 @@ cfg_if::cfg_if! {
 }
 
 /// Raw container handle.
-#[cfg_attr(target_os = "android", derive(Clone))]
-#[cfg_attr(not(target_os = "android"), derive(Clone, Copy))]
+#[derive(Clone, Copy)]
 pub struct BorrowedContainer<'a>(BorrowedContainerInner<'a>);
 
 #[allow(unreachable_patterns)]
@@ -173,10 +172,7 @@ pub trait AsContainer {
 
 impl AsContainer for BorrowedContainer<'_> {
     fn as_container(&self) -> BorrowedContainer<'_> {
-        #[cfg(target_os = "android")]
-        return self.clone();
-        #[cfg(not(target_os = "android"))]
-        return *self;
+        *self
     }
 }
 

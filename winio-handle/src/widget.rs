@@ -42,8 +42,7 @@ cfg_if::cfg_if! {
 }
 
 /// Raw widget handle.
-#[cfg_attr(target_os = "android", derive(Clone))]
-#[cfg_attr(not(target_os = "android"), derive(Clone, Copy))]
+#[derive(Clone, Copy)]
 pub struct BorrowedWidget<'a>(BorrowedWidgetInner<'a>);
 
 #[allow(unreachable_patterns)]
@@ -174,10 +173,7 @@ pub trait AsWidget {
 
 impl AsWidget for BorrowedWidget<'_> {
     fn as_widget(&self) -> BorrowedWidget<'_> {
-        #[cfg(target_os = "android")]
-        return self.clone();
-        #[cfg(not(target_os = "android"))]
-        return *self;
+        *self
     }
 }
 

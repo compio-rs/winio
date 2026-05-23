@@ -44,8 +44,7 @@ cfg_if::cfg_if! {
 }
 
 /// Raw window handle.
-#[cfg_attr(not(target_os = "android"), derive(Clone, Copy))]
-#[cfg_attr(target_os = "android", derive(Clone))]
+#[derive(Clone, Copy)]
 pub struct BorrowedWindow<'a>(BorrowedWindowInner<'a>);
 
 #[allow(unreachable_patterns)]
@@ -226,10 +225,7 @@ pub trait AsWindow {
 
 impl AsWindow for BorrowedWindow<'_> {
     fn as_window(&self) -> BorrowedWindow<'_> {
-        #[cfg(target_os = "android")]
-        return self.clone();
-        #[cfg(not(target_os = "android"))]
-        return *self;
+        *self
     }
 }
 
