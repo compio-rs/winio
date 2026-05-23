@@ -18,10 +18,6 @@ impl BaseWidget {
     const HALIGN_RIGHT: i32 = 2;
     const HALIGN_STRETCH: i32 = 3;
 
-    pub(crate) fn new(inner: GlobalRef) -> Self {
-        Self { inner }
-    }
-
     pub(crate) fn create<S, T>(parent: BorrowedWindow, widget_class: S) -> T
     where
         S: AsRef<str>,
