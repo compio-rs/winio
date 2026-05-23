@@ -199,6 +199,7 @@ struct ComboBoxDelegateIvars {
     select: Callback,
     items: RefCell<Vec<String>>,
     editable: Cell<bool>,
+    input_view_controller: RefCell<Option<Retained<UIViewController>>>,
 }
 
 define_class! {
@@ -219,25 +220,25 @@ define_class! {
 
         #[unsafe(method(showInputView:))]
         fn showInputView(&self, sender: &UITextField) {
-            let input_view = sender.inputView();
-
-            if let Some(input_view) = input_view {
-                let vc = UIViewController::new(input_view.mtm());
-                vc.setView(Some(&input_view));
+            let mut vc = self.ivars().input_view_controller.borrow_mut();
+            let vc = vc.get_or_insert_with(|| {
+                let vc = UIViewController::new(sender.mtm());
+                vc.setView(sender.inputView().as_deref());
                 vc.setModalPresentationStyle(UIModalPresentationStyle::Popover);
+                vc
+            });
 
-                if let Some(popover) = vc.popoverPresentationController() {
-                    popover.setSourceView(Some(sender));
-                    popover.setSourceRect(sender.bounds());
-                    popover.setPermittedArrowDirections(UIPopoverArrowDirection::Any);
-                }
+            if let Some(popover) = vc.popoverPresentationController() {
+                popover.setSourceView(Some(sender));
+                popover.setSourceRect(sender.bounds());
+                popover.setPermittedArrowDirections(UIPopoverArrowDirection::Any);
+            }
 
-                if let Ok(Some(scene)) = first_ui_window_scene()
-                    && let Some(window) = scene.keyWindow()
-                    && let Some(controller) = window.rootViewController()
-                {
-                    controller.presentViewController_animated_completion(&vc, true, None);
-                }
+            if let Ok(Some(scene)) = first_ui_window_scene()
+                && let Some(window) = scene.keyWindow()
+                && let Some(controller) = window.rootViewController()
+            {
+                controller.presentViewController_animated_completion(vc, true, None);
             }
         }
     }
