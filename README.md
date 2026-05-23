@@ -8,13 +8,14 @@ All IO requests could be issued in the same thread as GUI, without blocking the 
 
 Read the [examples](winio/examples) and learn more!
 
-| Backend | Light                                  | Dark                                 |
-| ------- | -------------------------------------- | ------------------------------------ |
-| Win32   | ![Win32 Light](assets/win32.light.png) | ![Win32 Dark](assets/win32.dark.png) |
-| WinUI 3 | ![WinUI Light](assets/winui.light.png) | ![WinUI Dark](assets/winui.dark.png) |
-| Qt 6    | ![Qt Light](assets/qt.light.png)       | ![Qt Dark](assets/qt.dark.png)       |
-| GTK 4   | ![GTK Light](assets/gtk.light.png)     | ![GTK Dark](assets/gtk.dark.png)     |
-| AppKit  | ![macOS Light](assets/mac.light.png)   | ![macOS Dark](assets/mac.dark.png)   |
+| Backend              | Light                                        | Dark                                       |
+| -------------------- | -------------------------------------------- | ------------------------------------------ |
+| Win32                | ![Win32 Light](assets/win32.light.png)       | ![Win32 Dark](assets/win32.dark.png)       |
+| WinUI 3              | ![WinUI Light](assets/winui.light.png)       | ![WinUI Dark](assets/winui.dark.png)       |
+| Qt 6                 | ![Qt Light](assets/qt.light.png)             | ![Qt Dark](assets/qt.dark.png)             |
+| GTK 4                | ![GTK Light](assets/gtk.light.png)           | ![GTK Dark](assets/gtk.dark.png)           |
+| AppKit               | ![macOS Light](assets/mac.light.png)         | ![macOS Dark](assets/mac.dark.png)         |
+| UIKit (Mac Catalyst) | ![Catalyst Light](assets/catalyst.light.png) | ![Catalyst Dark](assets/catalyst.dark.png) |
 
 ## Quick start
 
