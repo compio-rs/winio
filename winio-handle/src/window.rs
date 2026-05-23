@@ -19,12 +19,7 @@ cfg_if::cfg_if! {
 
         type BorrowedWindowInner<'a> = &'a Retained<objc2_app_kit::NSWindow>;
     } else if #[cfg(target_os = "android")] {
-        use std::marker::PhantomData;
-
-        #[derive(Clone)]
-        enum BorrowedWindowInner<'a> {
-            Android(jni::objects::GlobalRef, PhantomData<&'a ()>),
-        }
+        type BorrowedWindowInner<'a> = &'a jni::objects::GlobalRef;
     } else if #[cfg(target_os = "ios")] {
         use objc2::rc::Retained;
 
@@ -211,15 +206,13 @@ impl<'a> BorrowedWindow<'a> {
     /// Create from Android `Window`
     ///
     /// Safety: j_obj must be valid `Window`.
-    pub unsafe fn android(j_obj: jni::objects::GlobalRef) -> Self {
-        BorrowedWindow(BorrowedWindowInner::Android(j_obj, PhantomData::default()))
+    pub unsafe fn android(j_obj: &'a jni::objects::GlobalRef) -> Self {
+        BorrowedWindow(j_obj)
     }
 
     /// Get Android `Window`.
-    pub fn to_android(&self) -> jni::objects::GlobalRef {
-        match &self.0 {
-            BorrowedWindowInner::Android(global_ref, _) => global_ref.clone(),
-        }
+    pub fn to_android(&self) -> &'a jni::objects::GlobalRef {
+        self.0
     }
 }
 

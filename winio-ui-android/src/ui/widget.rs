@@ -23,7 +23,7 @@ impl BaseWidget {
         S: AsRef<str>,
         T: From<Self>,
     {
-        let parent = parent.as_window().to_android();
+        let parent = parent.as_window().to_android().clone();
         let widget_class = widget_class.as_ref().to_owned();
         let inner = vm_exec_on_ui_thread(move |mut env, _| {
             let widget = env.new_object(
@@ -447,8 +447,8 @@ impl BaseWidget {
         .unwrap()
     }
 
-    pub fn as_widget(&self) -> BorrowedWidget<'static> {
-        unsafe { BorrowedWidget::android(self.inner.clone()) }
+    pub fn as_widget(&self) -> BorrowedWidget<'_> {
+        unsafe { BorrowedWidget::android(&self.inner) }
     }
 }
 

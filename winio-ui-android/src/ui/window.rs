@@ -101,12 +101,12 @@ impl Window {
 
 impl AsWindow for Window {
     fn as_window(&self) -> BorrowedWindow<'_> {
-        unsafe { BorrowedWindow::android((&*self.inner).clone()) }
+        unsafe { BorrowedWindow::android(&*self.inner) }
     }
 }
 
 impl Window {
-    pub fn as_container(&self) -> BorrowedContainer<'static> {
-        unsafe { BorrowedContainer::android((&*self.inner).clone()) }
+    pub fn as_container(&self) -> BorrowedContainer<'_> {
+        unsafe { BorrowedContainer::android(&*self.inner) }
     }
 }

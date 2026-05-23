@@ -24,10 +24,7 @@ cfg_if::cfg_if! {
     } else if #[cfg(target_os = "android")] {
         use jni::objects::GlobalRef;
 
-        #[derive(Clone)]
-        enum BorrowedContainerInner<'a> {
-            Android(GlobalRef, std::marker::PhantomData<&'a()>),
-        }
+        type BorrowedContainerInner<'a> = &'a GlobalRef;
     } else {
         use std::marker::PhantomData;
 
@@ -157,20 +154,13 @@ impl<'a> BorrowedContainer<'a> {
     /// Create from Android `Container`.
     ///
     /// Safety: `j_obj` must be valid `Container`.
-    pub unsafe fn android(j_obj: jni::objects::GlobalRef) -> Self {
-        use std::marker::PhantomData;
-
-        BorrowedContainer(BorrowedContainerInner::Android(
-            j_obj,
-            PhantomData::default(),
-        ))
+    pub unsafe fn android(j_obj: &'a jni::objects::GlobalRef) -> Self {
+        BorrowedContainer(&j_obj)
     }
 
     /// Get Android `Container`.
-    pub fn to_android(&self) -> jni::objects::GlobalRef {
-        match &self.0 {
-            BorrowedContainerInner::Android(global_ref, _) => global_ref.clone(),
-        }
+    pub fn to_android(&self) -> &'a jni::objects::GlobalRef {
+        self.0
     }
 }
 

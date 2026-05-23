@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
         use std::marker::PhantomData;
@@ -18,10 +16,7 @@ cfg_if::cfg_if! {
 
         type BorrowedWidgetInner<'a> = &'a Retained<objc2_app_kit::NSView>;
     } else if #[cfg(target_os = "android")] {
-        #[derive(Clone)]
-        enum BorrowedWidgetInner<'a> {
-            Android(jni::objects::GlobalRef, PhantomData<&'a ()>),
-        }
+        type BorrowedWidgetInner<'a> = &'a jni::objects::GlobalRef;
     } else if #[cfg(target_os = "ios")] {
         use objc2::rc::Retained;
 
@@ -158,15 +153,13 @@ impl<'a> BorrowedWidget<'a> {
     /// Create from Android `Widget`
     ///
     /// SAFETY: `j_obj` must be an valid `Widget`.
-    pub unsafe fn android(j_obj: jni::objects::GlobalRef) -> Self {
-        BorrowedWidget(BorrowedWidgetInner::Android(j_obj, PhantomData::default()))
+    pub unsafe fn android(j_obj: &'a jni::objects::GlobalRef) -> Self {
+        BorrowedWidget(j_obj)
     }
 
     /// Get Android `Widget`.
-    pub fn to_android(&self) -> jni::objects::GlobalRef {
-        match &self.0 {
-            BorrowedWidgetInner::Android(global_ref, _phantom_data) => global_ref.clone(),
-        }
+    pub fn to_android(&self) -> &'a jni::objects::GlobalRef {
+        self.0
     }
 }
 
