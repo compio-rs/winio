@@ -1,6 +1,6 @@
-use std::{future::Future, thread::sleep, time::Duration};
+use std::future::Future;
 
-use winio_pollable::Runtime as PollableRuntime;
+use compio::runtime::Runtime as PollableRuntime;
 
 use super::RUNTIME;
 
@@ -26,10 +26,6 @@ impl Runtime {
     }
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        self.enter(|| {
-            self.inner.block_on(future, |timeout| {
-                sleep(timeout.unwrap_or_else(|| Duration::from_millis(10)));
-            })
-        })
+        self.enter(|| self.inner.block_on(future))
     }
 }
