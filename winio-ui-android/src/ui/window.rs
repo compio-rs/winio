@@ -1,7 +1,7 @@
 //! Android window widget, based on JNI and FrameLayout
 
 use inherit_methods_macro::inherit_methods;
-use winio_handle::{AsWindow, BorrowedWindow};
+use winio_handle::{AsWindow, BorrowedContainer, BorrowedWindow};
 use winio_primitive::{Point, Size};
 
 use super::{
@@ -102,5 +102,11 @@ impl Window {
 impl AsWindow for Window {
     fn as_window(&self) -> BorrowedWindow<'_> {
         unsafe { BorrowedWindow::android((&*self.inner).clone()) }
+    }
+}
+
+impl Window {
+    pub fn as_container(&self) -> BorrowedContainer<'static> {
+        unsafe { BorrowedContainer::android((&*self.inner).clone()) }
     }
 }
