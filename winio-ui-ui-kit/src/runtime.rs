@@ -10,7 +10,7 @@ use objc2::{
     ClassType, MainThreadMarker, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
 };
-use objc2_foundation::{NSObject, NSObjectProtocol, ns_string};
+use objc2_foundation::{NSObject, NSObjectProtocol, NSString, ns_string};
 use objc2_ui_kit::{
     UIApplication, UIApplicationDelegate, UICoordinateSpace, UIScene, UISceneConfiguration,
     UISceneConnectionOptions, UISceneDelegate, UISceneSession, UIWindowScene,
@@ -37,9 +37,11 @@ impl App {
         });
         winio_pollable::enter_block_on(future, dispatcher_waker(), || {
             crate::catch(|| {
-                // Register the class.
-                let _ = AppDelegate::new(self.mtm);
-                UIApplication::main(None, Some(ns_string!(AppDelegate::NAME)), self.mtm);
+                UIApplication::main(
+                    None,
+                    Some(&NSString::from_class(AppDelegate::class())),
+                    self.mtm,
+                );
             })
             .unwrap()
         })
@@ -99,7 +101,7 @@ fn signal_move<R: Runnable>() {
     });
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct AppDelegateIvars {}
 
 define_class! {
@@ -113,7 +115,7 @@ define_class! {
     impl AppDelegate {
         #[unsafe(method_id(init))]
         fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
-            let this = this.set_ivars(AppDelegateIvars {});
+            let this = this.set_ivars(AppDelegateIvars::default());
             unsafe { msg_send![super(this), init] }
         }
     }
@@ -134,13 +136,35 @@ define_class! {
                 Some(ns_string!("Default Configuration")),
                 &connecting_scene_session.role()
             );
-            unsafe { scene_config.setDelegateClass(Some(AppDelegate::class())) };
+            unsafe { scene_config.setDelegateClass(Some(SceneDelegate::class())) };
             scene_config
         }
     }
+}
+
+#[derive(Debug, Default)]
+struct SceneDelegateIvars {}
+
+define_class! {
+    #[unsafe(super(NSObject))]
+    #[name = "SceneDelegate"]
+    #[ivars = SceneDelegateIvars]
+    #[thread_kind = MainThreadOnly]
+    #[derive(Debug)]
+    struct SceneDelegate;
+
+    impl SceneDelegate {
+        #[unsafe(method_id(init))]
+        fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
+            let this = this.set_ivars(SceneDelegateIvars::default());
+            unsafe { msg_send![super(this), init] }
+        }
+    }
+
+    unsafe impl NSObjectProtocol for SceneDelegate {}
 
     #[allow(non_snake_case)]
-    unsafe impl UISceneDelegate for AppDelegate {
+    unsafe impl UISceneDelegate for SceneDelegate {
         #[unsafe(method(scene:willConnectToSession:options:))]
         fn scene_willConnectToSession_options(
             &self,
@@ -159,7 +183,7 @@ define_class! {
     }
 
     #[allow(non_snake_case)]
-    unsafe impl UIWindowSceneDelegate for AppDelegate {
+    unsafe impl UIWindowSceneDelegate for SceneDelegate {
         #[unsafe(method(windowScene:didUpdateEffectiveGeometry:))]
         fn windowScene_didUpdateEffectiveGeometry(
             &self,
@@ -177,11 +201,5 @@ define_class! {
             }
             winio_pollable::run_current_task();
         }
-    }
-}
-
-impl AppDelegate {
-    pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
-        unsafe { msg_send![mtm.alloc(), init] }
     }
 }
