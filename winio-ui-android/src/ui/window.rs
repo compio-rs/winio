@@ -9,6 +9,7 @@ use super::{
     super::{JObjectExt, define_event, recv_event},
     BaseWidget, vm_exec_on_ui_thread,
 };
+use crate::JAVA_VM;
 
 define_event!(
     WAIT_FOR_WINDOW_CLOSING,
@@ -42,10 +43,13 @@ impl Window {
             .map(AsWindow::as_window)
             .as_ref()
             .map(BorrowedWindow::to_android)
-            .map(|g| g.as_obj());
+            .map(|g| {
+                let vm = JAVA_VM.get().expect("Java VM must be initialized on load");
+                vm.attach_current_thread(|env| env.new_global_ref(g))
+            });
 
         let inner = vm_exec_on_ui_thread(move |env, act| {
-            let window = if let Some(parent) = parent.as_ref() {
+            let window = if let Some(Ok(parent)) = parent.as_ref() {
                 env.new_object(
                     JNIString::new(Self::WINDOW_CLASS),
                     RuntimeMethodSignature::from_str(format!(
@@ -54,7 +58,7 @@ impl Window {
                     ))
                     .expect("Invalid signature")
                     .method_signature(),
-                    &[act.as_obj().into(), parent.to_android().into()],
+                    &[act.as_obj().into(), parent.as_obj().into()],
                 )
             } else {
                 env.new_object(

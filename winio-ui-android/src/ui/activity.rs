@@ -19,7 +19,7 @@ use jni::{
 
 use crate::GlobalRef;
 
-static JAVA_VM: OnceLock<JavaVM> = OnceLock::new();
+pub(crate) static JAVA_VM: OnceLock<JavaVM> = OnceLock::new();
 static ACTIVITY: Mutex<Option<GlobalRef>> = Mutex::new(None);
 static UI_THREAD_PENDINGS: LazyLock<Mutex<HashMap<i64, Box<dyn FnOnce() + Send + Sync>>>> =
     LazyLock::new(Default::default);
