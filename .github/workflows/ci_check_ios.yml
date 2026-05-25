@@ -28,7 +28,7 @@ jobs:
       - name: Setup Rust Toolchain
         run: rustup toolchain install ${{ matrix.toolchain }}
       - name: Setup target
-        run: rustup target add ${{ matrix.setup.target }}
+        run: rustup +${{ matrix.toolchain }} target add ${{ matrix.setup.target }}
       - name: Build on ${{ matrix.setup.os }} ${{ matrix.toolchain }} ${{ matrix.setup.target }}
         shell: bash
         run: |
