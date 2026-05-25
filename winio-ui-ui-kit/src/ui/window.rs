@@ -1,9 +1,13 @@
-use std::rc::Rc;
+use std::{ptr::NonNull, rc::Rc};
 
+use block2::StackBlock;
 use inherit_methods_macro::inherit_methods;
 use objc2::{MainThreadOnly, rc::Retained};
 use objc2_foundation::{MainThreadMarker, NSArray, NSSize, NSString};
-use objc2_ui_kit::{NSLayoutConstraint, UIView, UIViewController, UIWindow};
+use objc2_ui_kit::{
+    NSLayoutConstraint, UIColor, UITraitCollection, UIUserInterfaceStyle, UIView, UIViewController,
+    UIWindow,
+};
 use winio_callback::Callback;
 use winio_handle::{
     AsContainer, AsWidget, AsWindow, BorrowedContainer, BorrowedWidget, BorrowedWindow,
@@ -34,6 +38,25 @@ impl Window {
             let scene = first_ui_window_scene()?.ok_or(Error::NullPointer)?;
 
             let wnd = UIWindow::initWithWindowScene(UIWindow::alloc(mtm), &scene);
+
+            if !cfg!(target_abi = "macabi") {
+                fn provider(collection: NonNull<UITraitCollection>) -> NonNull<UIColor> {
+                    fn provider_impl(collection: &UITraitCollection) -> Retained<UIColor> {
+                        match unsafe { collection.userInterfaceStyle() } {
+                            UIUserInterfaceStyle::Dark => UIColor::blackColor(),
+                            _ => UIColor::whiteColor(),
+                        }
+                    }
+                    unsafe {
+                        NonNull::new_unchecked(Retained::into_raw(provider_impl(
+                            collection.as_ref(),
+                        )))
+                    }
+                }
+                let provider = StackBlock::new(provider);
+                let bg_color = unsafe { UIColor::colorWithDynamicProvider(&provider) };
+                wnd.setBackgroundColor(Some(&bg_color));
+            }
 
             let controller = UIViewController::new(mtm);
 

@@ -133,10 +133,10 @@ define_class! {
             connecting_scene_session: &UISceneSession,
             options: &UISceneConnectionOptions,
         ) -> Retained<UISceneConfiguration> {
-            let scene_config = UISceneConfiguration::initWithName_sessionRole(
-                UISceneConfiguration::alloc(self.mtm()),
+            let scene_config = UISceneConfiguration::configurationWithName_sessionRole(
                 Some(ns_string!("Default Configuration")),
-                &connecting_scene_session.role()
+                &connecting_scene_session.role(),
+                self.mtm(),
             );
             unsafe { scene_config.setDelegateClass(Some(SceneDelegate::class())) };
             scene_config
