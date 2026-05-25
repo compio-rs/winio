@@ -1,0 +1,48 @@
+name: Check iOS
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ${{ matrix.setup.os }}
+    strategy:
+      matrix:
+        toolchain: ['nightly']
+        setup:
+          - os: 'macos-14'
+            target: 'aarch64-apple-ios'
+          - os: 'macos-14'
+            target: 'aarch64-apple-ios-sim'
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Rust Toolchain
+        run: rustup toolchain install ${{ matrix.toolchain }}
+      - name: Setup target
+        run: rustup target add ${{ matrix.setup.target }}
+      - name: Build on ${{ matrix.setup.os }} ${{ matrix.toolchain }} ${{ matrix.setup.target }}
+        shell: bash
+        run: |
+          set -ex
+
+          ARGS=("--features" "all")
+
+          # Add feature "nightly" if toolchain is nightly
+          if [[ "${{ matrix.toolchain }}" == "nightly" ]]; then
+              ARGS+=("--features" "nightly")
+          fi
+          # Specify target if target is not empty
+          if [[ -n "${{ matrix.setup.target }}" ]]; then
+              ARGS+=("--target" "${{ matrix.setup.target }}")
+          fi
+
+          cargo +${{ matrix.toolchain }} check --all-targets --workspace "${ARGS[@]}"
