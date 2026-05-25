@@ -16,6 +16,7 @@ Read the [examples](winio/examples) and learn more!
 | GTK 4                | ![GTK Light](assets/gtk.light.png)           | ![GTK Dark](assets/gtk.dark.png)           |
 | AppKit               | ![macOS Light](assets/mac.light.png)         | ![macOS Dark](assets/mac.dark.png)         |
 | UIKit (Mac Catalyst) | ![Catalyst Light](assets/catalyst.light.png) | ![Catalyst Dark](assets/catalyst.dark.png) |
+| UIKit (iOS)          | ![iOS Light](assets/ios.light.png)           | ![iOS Dark](assets/ios.dark.png)           |
 
 ## Quick start
 
