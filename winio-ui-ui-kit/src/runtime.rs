@@ -85,20 +85,22 @@ thread_local! {
     pub(crate) static MOVE_SLAB: RefCell<Slab<Rc<Callback>>> = const { RefCell::new(Slab::new()) };
 }
 
-fn signal_resize<R: Runnable>() {
+fn signal_resize<R: Runnable>() -> bool {
     RESIZE_SLAB.with_borrow(|s| {
         for (_, callback) in s.iter() {
             callback.signal::<R>(());
         }
-    });
+        !s.is_empty()
+    })
 }
 
-fn signal_move<R: Runnable>() {
+fn signal_move<R: Runnable>() -> bool {
     MOVE_SLAB.with_borrow(|s| {
         for (_, callback) in s.iter() {
             callback.signal::<R>(());
         }
-    });
+        !s.is_empty()
+    })
 }
 
 #[derive(Debug, Default)]
@@ -177,8 +179,9 @@ define_class! {
 
         #[unsafe(method(sceneDidBecomeActive:))]
         fn sceneDidBecomeActive(&self, scene: &UIScene) {
-            signal_resize::<()>();
-            winio_pollable::run_current_task();
+            if signal_resize::<()>() {
+                winio_pollable::run_current_task();
+            }
         }
     }
 
@@ -193,13 +196,16 @@ define_class! {
             let geometry = window_scene.effectiveGeometry();
             let bounds = geometry.coordinateSpace(self.mtm()).bounds();
             let previous_bounds = previous_effective_geometry.map(|g| g.coordinateSpace(self.mtm()).bounds());
+            let mut has_callbacks = false;
             if Some(bounds.size) != previous_bounds.map(|b| b.size) {
-                signal_resize::<()>();
+                has_callbacks |= signal_resize::<()>();
             }
             if Some(bounds.origin) != previous_bounds.map(|b| b.origin) {
-                signal_move::<()>();
+                has_callbacks |= signal_move::<()>();
             }
-            winio_pollable::run_current_task();
+            if has_callbacks {
+                winio_pollable::run_current_task();
+            }
         }
     }
 }
