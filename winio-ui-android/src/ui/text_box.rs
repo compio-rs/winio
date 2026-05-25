@@ -1,4 +1,5 @@
 use inherit_methods_macro::inherit_methods;
+use jni::{jni_sig, jni_str};
 use winio_handle::{AsWindow, impl_as_widget};
 use winio_primitive::{HAlign, Point, Size};
 
@@ -31,8 +32,8 @@ impl TextBox {
         vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
-                "getTextString",
-                "()Ljava/lang/CharSequence;",
+                jni_str!("getTextString"),
+                jni_sig!("()Ljava/lang/CharSequence;"),
                 &[],
             )?
             .l()?

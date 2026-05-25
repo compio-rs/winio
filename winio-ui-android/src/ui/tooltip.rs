@@ -1,5 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
+use jni::strings::JNIString;
 use winio_handle::AsWidget;
 
 use super::{super::JObjectExt, vm_exec, vm_exec_on_ui_thread};
@@ -61,7 +62,7 @@ impl<T> ToolTip<T> {
             vm_exec(|env, _| env.new_global_ref(inner.as_widget().to_android().as_obj())).unwrap();
         let tooltip = vm_exec_on_ui_thread(move |env, _| {
             let tooltip = env.new_object(
-                jni::strings::JNIString::from(Self::WIDGET_CLASS),
+                JNIString::new(Self::WIDGET_CLASS),
                 jni::jni_sig!("(Landroid/view/View;)V"),
                 &[w.as_obj().into()],
             )?;

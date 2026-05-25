@@ -18,7 +18,7 @@ macro_rules! define_event {
                         let _ = sender.send(());
                     }
                 }
-                Ok(())
+                Result::<_, jni::errors::Error>::Ok(())
             });
         }
     };

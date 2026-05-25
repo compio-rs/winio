@@ -1,6 +1,7 @@
 //! Android window widget, based on JNI and FrameLayout
 
 use inherit_methods_macro::inherit_methods;
+use jni::{jni_sig, signature::RuntimeMethodSignature, strings::JNIString};
 use winio_handle::{AsWindow, BorrowedContainer, BorrowedWindow};
 use winio_primitive::{Point, Size};
 
@@ -32,25 +33,33 @@ pub struct Window {
 impl Window {
     const WINDOW_CLASS: &'static str = "rs/compio/winio/Window";
 
-    pub fn new<W>(parent: Option<W>) -> Self
+    pub fn new<'a, W>(parent: Option<W>) -> Self
     where
-        W: AsWindow,
+        W: AsWindow + 'a,
     {
-        let parent = parent.map(|w| w.as_window().to_android().clone());
+        let parent = parent
+            .as_ref()
+            .map(AsWindow::as_window)
+            .as_ref()
+            .map(BorrowedWindow::to_android)
+            .map(|g| g.as_obj());
+
         let inner = vm_exec_on_ui_thread(move |env, act| {
             let window = if let Some(parent) = parent.as_ref() {
                 env.new_object(
-                    jni::strings::JNIString::from(Self::WINDOW_CLASS),
-                    jni::strings::JNIString::from(format!(
+                    JNIString::new(Self::WINDOW_CLASS),
+                    RuntimeMethodSignature::from_str(format!(
                         "(Landroid/content/Context;L{};)V",
                         Self::WINDOW_CLASS
-                    )),
-                    &[act.as_obj().into(), parent.as_obj().into()],
+                    ))
+                    .expect("Invalid signature")
+                    .method_signature(),
+                    &[act.as_obj().into(), parent.to_android().into()],
                 )
             } else {
                 env.new_object(
-                    jni::strings::JNIString::from(Self::WINDOW_CLASS),
-                    jni::strings::JNIString::from("(Landroid/content/Context;)V"),
+                    JNIString::new(Self::WINDOW_CLASS),
+                    jni_sig!("(Landroid/content/Context;)V"),
                     &[act.as_obj().into()],
                 )
             }?;
@@ -109,7 +118,7 @@ impl Window {
 
 impl AsWindow for Window {
     fn as_window(&self) -> BorrowedWindow<'_> {
-        unsafe { BorrowedWindow::android(&&self.inner) }
+        unsafe { BorrowedWindow::android(&self.inner) }
     }
 }
 

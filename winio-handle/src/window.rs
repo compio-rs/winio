@@ -207,7 +207,7 @@ impl<'a> BorrowedWindow<'a> {
     /// Create from Android `Window`
     ///
     /// Safety: j_obj must be valid `Window`.
-    pub unsafe fn android(j_obj: &'a &'a Global<JObject<'static>>) -> Self {
+    pub unsafe fn android(j_obj: &'a Global<JObject<'static>>) -> Self {
         BorrowedWindow(j_obj)
     }
 

@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
-use jni::{Env, errors::Result as JniResult};
+use jni::{Env, errors::Result as JniResult, jni_str, signature::RuntimeMethodSignature};
 use winio_handle::{AsWindow, impl_as_widget};
 use winio_primitive::{
     BrushPen, DrawingFont, LinearGradientBrush, MouseButton, Point, RadialGradientBrush, Rect,
@@ -222,8 +222,13 @@ impl Canvas {
             let ctx = env
                 .call_method(
                     w.as_obj(),
-                    "context",
-                    format!("()L{}$DrawingContext;", Self::WIDGET_CLASS),
+                    jni_str!("context"),
+                    RuntimeMethodSignature::from_str(format!(
+                        "()L{}$DrawingContext;",
+                        Self::WIDGET_CLASS
+                    ))
+                    .expect("invalid signature")
+                    .method_signature(),
                     &[],
                 )?
                 .l()?;

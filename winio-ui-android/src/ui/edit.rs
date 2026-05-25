@@ -1,4 +1,5 @@
 use inherit_methods_macro::inherit_methods;
+use jni::{jni_sig, jni_str};
 use winio_handle::{AsWindow, impl_as_widget};
 use winio_primitive::{HAlign, Point, Size};
 
@@ -31,8 +32,8 @@ impl Edit {
         vm_exec_on_ui_thread(move |env, _| {
             env.call_method(
                 w.as_obj(),
-                "getTextString",
-                "()Ljava/lang/CharSequence;",
+                jni_str!("getTextString"),
+                jni_sig!("()Ljava/lang/CharSequence;"),
                 &[],
             )?
             .l()?
@@ -48,7 +49,8 @@ impl Edit {
     pub fn is_password(&self) -> bool {
         let w = self.inner.duplicate();
         vm_exec_on_ui_thread(move |env, _| {
-            env.call_method(w.as_obj(), "isPassword", "()[D", &[])?.z()
+            env.call_method(w.as_obj(), jni_str!("isPassword"), jni_sig!("()[D"), &[])?
+                .z()
         })
         .unwrap()
     }
@@ -56,8 +58,13 @@ impl Edit {
     pub fn set_password(&self, password: bool) {
         let w = self.inner.duplicate();
         vm_exec_on_ui_thread(move |env, _| {
-            env.call_method(w.as_obj(), "setPassword", "(Z)V", &[password.into()])?
-                .v()
+            env.call_method(
+                w.as_obj(),
+                jni_str!("setPassword"),
+                jni_sig!("(Z)V"),
+                &[password.into()],
+            )?
+            .v()
         })
         .unwrap();
     }

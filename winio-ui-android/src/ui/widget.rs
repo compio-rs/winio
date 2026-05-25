@@ -1,15 +1,15 @@
 use std::ops::Deref;
 
-use jni::objects::JObject;
+use jni::{jni_sig, jni_str, objects::JObject, refs::Global, strings::JNIString};
 use winio_handle::{AsWindow, BorrowedWidget, BorrowedWindow};
 use winio_primitive::{HAlign, Point, Size};
 
 use super::{super::JObjectExt, vm_exec, vm_exec_on_ui_thread};
 use crate::GlobalRef;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct BaseWidget {
-    inner: GlobalRef,
+    inner: Global<JObject<'static>>,
 }
 
 // noinspection SpellCheckingInspection
@@ -29,8 +29,8 @@ impl BaseWidget {
         let widget_class = widget_class.as_ref().to_owned();
         let inner = vm_exec_on_ui_thread(move |env, _| {
             let widget = env.new_object(
-                jni::strings::JNIString::from(widget_class.as_str()),
-                jni::strings::JNIString::from("(Lrs/compio/winio/Window;)V"),
+                JNIString::new(widget_class.as_str()),
+                jni_sig!("(Lrs/compio/winio/Window;)V"),
                 &[parent.as_obj().into()],
             )?;
             env.new_global_ref(widget)
@@ -537,9 +537,9 @@ impl BaseWidget {
         vm_exec_on_ui_thread(move |env, _| {
             let i = if let Some(i) = i {
                 env.call_static_method(
-                    "java/lang/Integer",
-                    jni::jni_str!("valueOf"),
-                    jni::jni_sig!("(I)Ljava/lang/Integer;"),
+                    jni_str!("java/lang/Integer"),
+                    jni_str!("valueOf"),
+                    jni_sig!("(I)Ljava/lang/Integer;"),
                     &[(i as i32).into()],
                 )?
                 .l()?
@@ -548,8 +548,8 @@ impl BaseWidget {
             };
             env.call_method(
                 w.as_obj(),
-                jni::jni_str!("setSelection"),
-                jni::jni_sig!("(Ljava/lang/Integer;)V"),
+                jni_str!("setSelection"),
+                jni_sig!("(Ljava/lang/Integer;)V"),
                 &[(&i).into()],
             )?
             .v()
