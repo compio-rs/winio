@@ -190,13 +190,11 @@ where
 {
     if let Some(vm) = JAVA_VM.get() {
         vm.attach_current_thread::<_, R, Error>(|env| {
-            let activity = match ACTIVITY
-                .lock()
-                .ok()
-                .and_then(|lock| lock.as_ref().map(|a| a.as_obj()))
-            {
-                Some(activity) => env.new_global_ref(activity)?,
-                None => GlobalRef::null(),
+            let activity = match ACTIVITY.lock().ok() {
+                Some(ref lock) if let Some(activity) = lock.as_ref() => {
+                    env.new_global_ref(activity)?
+                }
+                _ => GlobalRef::null(),
             };
             f(env, activity)
         })

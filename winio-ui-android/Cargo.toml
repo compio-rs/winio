@@ -13,7 +13,7 @@ repository = { workspace = true }
 image = { workspace = true, default-features = false }
 jni = { workspace = true }
 futures-util = "0.3.31"
-libc = "1.0.0-alpha.1"
+libc = "0.2"
 log = "0.4"
 
 oneshot = { version = "0.2.1", features = ["std", "async"] }
