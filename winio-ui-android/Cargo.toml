@@ -10,24 +10,27 @@ repository = { workspace = true }
 [dependencies]
 
 [target.'cfg(target_os = "android")'.dependencies]
-image = { workspace = true, default-features = false }
-jni = { workspace = true }
-futures-util = "0.3.31"
-libc = "0.2"
-log = "0.4"
-
-oneshot = { version = "0.2.1", features = ["std", "async"] }
-
 winio-primitive = { workspace = true }
 winio-callback = { workspace = true }
 winio-handle = { workspace = true }
 winio-pollable = { workspace = true }
 
-compio = { workspace = true }
+compio = { workspace = true, default-features = false }
+compio-log = { workspace = true }
 
+android-activity = { workspace = true, features = ["game-activity"] }
+jni = { workspace = true }
+jni-min-helper = "0.4"
+ndk = "0.9"
+ndk-context = "0.1"
+ndk-sys = "0.6"
+
+futures-util = { workspace = true }
+image = { workspace = true, default-features = false }
 inherit-methods-macro = { workspace = true }
-
+oneshot = { workspace = true, features = ["std", "async"] }
 scoped-tls = { workspace = true }
+thiserror = { workspace = true }
 
 [build-dependencies]
 encoding_rs = "0.8.35"

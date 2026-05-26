@@ -153,9 +153,11 @@ impl<'a> BorrowedContainer<'a> {
 impl<'a> BorrowedContainer<'a> {
     /// Create from Android `Container`.
     ///
-    /// Safety: `j_obj` must be valid `Container`.
+    /// # Safety
+    ///
+    /// `j_obj` must be valid `Container`.
     pub unsafe fn android(j_obj: &'a jni::objects::Global<JObject<'static>>) -> Self {
-        BorrowedContainer(&j_obj)
+        BorrowedContainer(j_obj)
     }
 
     /// Get Android `Container`.

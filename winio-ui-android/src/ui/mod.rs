@@ -1,7 +1,6 @@
 //! Android UI widgets for winio.
 
 mod accent;
-mod activity;
 mod button;
 mod canvas;
 mod check_box;
@@ -23,7 +22,6 @@ mod widget;
 mod window;
 
 pub use accent::*;
-pub use activity::*;
 pub use button::*;
 pub use canvas::*;
 pub use check_box::*;
@@ -45,5 +43,5 @@ pub use window::*;
 use winio_primitive::ColorTheme;
 
 pub fn color_theme() -> ColorTheme {
-    ColorTheme::Dark
+    ColorTheme::Light
 }

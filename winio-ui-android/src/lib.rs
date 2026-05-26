@@ -3,8 +3,6 @@
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![cfg(target_os = "android")]
 
-scoped_tls::scoped_thread_local!(pub(crate) static RUNTIME: Runtime);
-
 #[cfg(feature = "compio-compat")]
 pub use compio::compat::FuturesAdapter as CompioAdapter;
 
@@ -18,3 +16,15 @@ mod ui;
 pub use ui::*;
 
 pub type GlobalRef = jni::objects::Global<jni::objects::JObject<'static>>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    /// JNI error.
+    #[error("JNI error: {0}")]
+    Jni(#[from] jni::errors::Error),
+    /// No thread looper available.
+    #[error("No thread looper available")]
+    NoThreadLooper,
+}
+
+pub type Result<T> = std::result::Result<T, Error>;

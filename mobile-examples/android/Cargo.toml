@@ -3,6 +3,9 @@ name = "winio-android-example"
 version = "0.1.0"
 edition.workspace = true
 
+[lib]
+crate-type = ["cdylib"]
+
 [package.metadata.android]
 package = "rs.compio.winio"
 use_aapt2 = true
@@ -24,21 +27,8 @@ name = "android.app.lib_name"
 actions = ["android.intent.action.VIEW", "android.intent.action.MAIN"]
 categories = ["android.intent.category.LAUNCHER"]
 
-[[example]]
-name = "hello"
-crate-type = ["cdylib"]
-
-[[example]]
-name = "widgets"
-crate-type = ["cdylib"]
-
-[lib]
-crate-type = ["cdylib"]
-
-[dependencies]
-
 [target.'cfg(target_os = "android")'.dependencies]
-futures-util.workspace = true
-android_logger = "0.15.1"
-log.workspace = true
-winio.path = "../../winio"
+winio = { path = "../../winio" }
+
+futures-util = { workspace = true }
+android-activity = { workspace = true }

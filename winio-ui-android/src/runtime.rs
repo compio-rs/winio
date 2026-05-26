@@ -1,98 +1,112 @@
 use std::{
+    cell::RefCell,
     future::Future,
-    os::raw::c_void,
-    ptr::NonNull,
     task::{RawWaker, RawWakerVTable, Waker},
 };
 
-use super::RUNTIME;
+use android_activity::{AndroidApp, MainEvent, PollEvent};
+use futures_util::FutureExt;
+use jni::{Env, objects::JObject, vm::JavaVM};
+use ndk_sys::{ALooper, ALooper_acquire, ALooper_forThread, ALooper_release, ALooper_wake};
 
-const ALOOPER_PREPARE_ALLOW_NON_CALLBACKS: i32 = 1;
-
-#[link(name = "android")]
-unsafe extern "C" {
-    fn ALooper_forThread() -> *mut c_void;
-    fn ALooper_prepare(opts: i32) -> *mut c_void;
-    fn ALooper_pollOnce(
-        timeoutMillis: i32,
-        outFd: *mut i32,
-        outEvents: *mut i32,
-        outData: *mut *mut c_void,
-    ) -> i32;
-    fn ALooper_wake(looper: *mut c_void);
-}
+use crate::{Error, GlobalRef, Result};
 
 pub struct App {
-    looper: NonNull<c_void>,
-}
-
-pub type Runtime = App;
-
-impl Default for App {
-    fn default() -> Self {
-        Self::new()
-    }
+    app: AndroidApp,
 }
 
 impl App {
-    pub fn new() -> Self {
-        let looper = unsafe {
-            let looper = ALooper_forThread();
-            if looper.is_null() {
-                ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS)
-            } else {
-                looper
-            }
-        };
-
-        let looper = NonNull::new(looper).expect("failed to prepare Android looper");
-        Self { looper }
+    pub fn new(app: AndroidApp) -> Result<Self> {
+        let _ = unsafe { JavaVM::from_raw(app.vm_as_ptr().cast()) };
+        Ok(Self { app })
     }
 
-    fn enter<T, F: FnOnce() -> T>(&self, f: F) -> T {
-        RUNTIME.set(self, f)
+    pub(crate) fn app(&self) -> &AndroidApp {
+        &self.app
+    }
+
+    pub(crate) fn activity(&self, env: &Env<'_>) -> Result<GlobalRef> {
+        let activity = self.app.activity_as_ptr();
+        Ok(unsafe { env.global_from_raw::<JObject>(activity as jni::sys::jobject) })
     }
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        self.enter(|| {
-            winio_pollable::block_on(future, looper_waker(self.looper), || unsafe {
-                let _ = ALooper_pollOnce(
-                    -1,
-                    std::ptr::null_mut(),
-                    std::ptr::null_mut(),
-                    std::ptr::null_mut(),
-                );
-            })
+        APP.set(self, || {
+            let result = RefCell::new(None);
+            winio_pollable::enter_block_on(
+                future.map(|res| {
+                    result.replace(Some(res));
+                }),
+                looper_waker(),
+                || {
+                    self.app.poll_events(None, |event| {
+                        compio_log::debug!("Event: {:?}", event);
+                        match event {
+                            PollEvent::Wake | PollEvent::Timeout => {
+                                winio_pollable::run_current_task();
+                            }
+                            PollEvent::Main(e) => match e {
+                                MainEvent::Start => {
+                                    winio_pollable::run_current_task();
+                                }
+                                _ => {}
+                            },
+                            _ => {}
+                        }
+                    });
+                    result.take().expect("app exited unexpectedly")
+                },
+            )
         })
     }
 }
 
-fn looper_waker(looper: NonNull<c_void>) -> Waker {
+scoped_tls::scoped_thread_local!(pub(crate) static APP: App);
+
+fn looper_waker() -> Waker {
+    let looper = unsafe { ALooper_forThread() };
+    unsafe { ALooper_acquire(looper) };
     unsafe { Waker::from_raw(looper_raw_waker(looper)) }
 }
 
-fn looper_raw_waker(looper: NonNull<c_void>) -> RawWaker {
+fn looper_raw_waker(looper: *mut ALooper) -> RawWaker {
     RawWaker::new(
-        looper.as_ptr().cast(),
+        looper.cast(),
         &RawWakerVTable::new(looper_clone, looper_wake, looper_wake_by_ref, looper_drop),
     )
 }
 
 unsafe fn looper_clone(data: *const ()) -> RawWaker {
-    let looper = NonNull::new(data.cast_mut().cast()).expect("looper pointer is null");
+    let looper = data.cast_mut().cast();
+    unsafe { ALooper_acquire(looper) };
     looper_raw_waker(looper)
 }
 
 unsafe fn looper_wake(data: *const ()) {
-    unsafe { looper_wake_by_ref(data) }
-}
-
-unsafe fn looper_wake_by_ref(data: *const ()) {
-    if let Some(looper) = NonNull::new(data.cast_mut().cast()) {
-        unsafe {
-            ALooper_wake(looper.as_ptr());
-        }
+    unsafe {
+        looper_wake_by_ref(data);
+        looper_drop(data);
     }
 }
 
-unsafe fn looper_drop(_: *const ()) {}
+unsafe fn looper_wake_by_ref(data: *const ()) {
+    let looper = data.cast_mut().cast();
+    unsafe { ALooper_wake(looper) }
+}
+
+unsafe fn looper_drop(data: *const ()) {
+    let looper = data.cast_mut().cast();
+    unsafe { ALooper_release(looper) }
+}
+
+pub fn vm_exec<F, R>(f: F) -> Result<R>
+where
+    F: FnOnce(&mut Env<'_>) -> Result<R>,
+{
+    let vm = JavaVM::singleton()?;
+    vm.attach_current_thread::<_, R, Error>(f)
+}
+
+pub fn current_activity() -> Result<GlobalRef> {
+    vm_exec(|env| APP.with(|app| app.activity(env)))
+}

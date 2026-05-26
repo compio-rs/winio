@@ -1,9 +1,10 @@
 use jni::{
     Env,
-    errors::Result,
     objects::{JDoubleArray, JIntArray, JObject, JString},
 };
 use winio_primitive::{Point, Size};
+
+use crate::Result;
 
 pub trait JObjectExt<O> {
     fn to(self, env: &mut Env<'_>) -> Result<O>;

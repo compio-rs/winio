@@ -3,10 +3,7 @@ use jni::{jni_sig, jni_str};
 use winio_handle::{AsWindow, impl_as_widget};
 use winio_primitive::{HAlign, Point, Size};
 
-use super::{
-    super::{JObjectExt, define_event, recv_event},
-    BaseWidget, vm_exec_on_ui_thread,
-};
+use crate::{BaseWidget, JObjectExt, define_event, recv_event, vm_exec_on_ui_thread};
 
 define_event!(
     WAIT_FOR_EDIT_CHANGING,
