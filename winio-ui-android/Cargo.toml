@@ -18,7 +18,7 @@ winio-pollable = { workspace = true }
 compio = { workspace = true, default-features = false }
 compio-log = { workspace = true }
 
-android-activity = { workspace = true, features = ["game-activity"] }
+android-activity = { workspace = true, features = ["native-activity"] }
 jni = { workspace = true }
 jni-min-helper = "0.4"
 ndk = "0.9"

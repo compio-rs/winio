@@ -1,14 +1,27 @@
 #![cfg(target_os = "android")]
 
 use android_activity::AndroidApp;
+use compio_log::metadata::LevelFilter;
+use tracing_subscriber::prelude::*;
 use winio::{Error, Result, prelude::*};
 
 #[unsafe(no_mangle)]
 fn android_main(app: AndroidApp) {
-    App::new("rs.compio.winio.hello", app)
+    tracing_subscriber::registry()
+        .with(tracing_android_trace::AndroidTraceLayer::new())
+        .with(tracing_subscriber::fmt::layer().with_filter(LevelFilter::TRACE))
+        .init();
+
+    unsafe {
+        std::env::set_var("RUST_BACKTRACE", "1");
+    }
+
+    if let Err(e) = App::new("rs.compio.winio.hello", app)
         .expect("cannot create app")
         .run::<MainModel>(())
-        .unwrap();
+    {
+        compio_log::error!("App error: {e:?}");
+    }
 }
 
 pub struct MainModel {

@@ -7,7 +7,7 @@ use std::{
 
 use android_activity::{AndroidApp, MainEvent, PollEvent};
 use futures_util::FutureExt;
-use jni::{Env, objects::JObject, vm::JavaVM};
+use jni::{Env, objects::JObject, refs::Global, vm::JavaVM};
 use ndk_sys::{ALooper, ALooper_acquire, ALooper_forThread, ALooper_release, ALooper_wake};
 use slab::Slab;
 use winio_callback::{Callback, Runnable};
@@ -25,8 +25,9 @@ impl App {
     }
 
     pub(crate) fn activity(&self, env: &Env<'_>) -> Result<GlobalRef> {
-        let activity = self.app.activity_as_ptr();
-        Ok(unsafe { env.global_from_raw::<JObject>(activity as jni::sys::jobject) })
+        let activity = self.app.activity_as_ptr() as jni::sys::jobject;
+        let activity = unsafe { env.as_cast_raw::<Global<JObject>>(&activity)? };
+        Ok(env.new_global_ref(&activity)?)
     }
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
@@ -38,25 +39,31 @@ impl App {
                 }),
                 looper_waker(),
                 || {
-                    self.app.poll_events(None, |event| {
-                        compio_log::debug!("Event: {:?}", event);
-                        match event {
-                            PollEvent::Wake | PollEvent::Timeout => {
-                                winio_pollable::run_current_task();
-                            }
-                            PollEvent::Main(e) => match e {
-                                MainEvent::Start => {
+                    let mut destroyed = false;
+                    while !destroyed {
+                        self.app.poll_events(None, |event| {
+                            compio_log::debug!("Event: {:?}", event);
+                            match event {
+                                PollEvent::Wake | PollEvent::Timeout => {
                                     winio_pollable::run_current_task();
                                 }
-                                MainEvent::ConfigChanged { .. } if signal_resize::<()>() => {
-                                    winio_pollable::run_current_task();
-                                }
+                                PollEvent::Main(e) => match e {
+                                    MainEvent::Start => {
+                                        winio_pollable::run_current_task();
+                                    }
+                                    MainEvent::ConfigChanged { .. } if signal_resize::<()>() => {
+                                        winio_pollable::run_current_task();
+                                    }
+                                    MainEvent::Destroy => {
+                                        destroyed = true;
+                                    }
+                                    _ => {}
+                                },
                                 _ => {}
-                            },
-                            _ => {}
-                        }
-                    });
-                    result.take().expect("app exited unexpectedly")
+                            }
+                        });
+                    }
+                    result.take().expect("app exited without returning a value")
                 },
             )
         })

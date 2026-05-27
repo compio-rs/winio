@@ -3,7 +3,7 @@
 use std::rc::Rc;
 
 use inherit_methods_macro::inherit_methods;
-use jni::{jni_sig, strings::JNIString};
+use jni::strings::JNIString;
 use winio_callback::Callback;
 use winio_handle::{AsWindow, BorrowedWindow};
 use winio_primitive::{Point, Size};
@@ -27,13 +27,13 @@ impl Window {
             let act = current_activity()?;
             let window = env.new_object(
                 JNIString::new(Self::WINDOW_CLASS),
-                jni_sig!("(Landroid/content/Context;)V"),
+                jni::jni_sig!("(Landroid/content/Context;)V"),
                 &[act.as_obj().into()],
             )?;
             env.call_method(
                 act.as_obj(),
                 jni::jni_str!("setContentView"),
-                jni_sig!("(Landroid/view/View;)V"),
+                jni::jni_sig!("(Landroid/view/View;)V"),
                 &[(&window).into()],
             )?
             .v()?;
@@ -65,9 +65,13 @@ impl Window {
 
     pub fn set_size(&mut self, size: Size) -> Result<()>;
 
-    pub fn text(&self) -> Result<String>;
+    pub fn text(&self) -> Result<String> {
+        Ok(String::new())
+    }
 
-    pub fn set_text(&mut self, text: impl AsRef<str>) -> Result<()>;
+    pub fn set_text(&mut self, _text: impl AsRef<str>) -> Result<()> {
+        Ok(())
+    }
 
     pub async fn wait_close(&self) {
         std::future::pending().await

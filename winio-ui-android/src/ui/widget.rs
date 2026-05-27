@@ -117,7 +117,7 @@ impl BaseWidget {
     pub fn set_size(&mut self, size: Size) -> Result<()> {
         vm_exec(move |env| {
             let params = env.new_object(
-                jni::jni_str!("android/view/ViewGroup$LayoutParams"),
+                jni::jni_str!("android/view/FrameLayout$LayoutParams"),
                 jni::jni_sig!("(II)V"),
                 &[(size.width as i32).into(), (size.height as i32).into()],
             )?;
