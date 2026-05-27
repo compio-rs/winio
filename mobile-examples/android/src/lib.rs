@@ -1,16 +1,14 @@
 #![cfg(target_os = "android")]
 
 use android_activity::AndroidApp;
-use winio::prelude::*;
+use winio::{Error, Result, prelude::*};
 
 #[unsafe(no_mangle)]
 fn android_main(app: AndroidApp) {
-    android_logger::init_once(
-        android_logger::Config::default()
-            .with_tag("winio")
-            .with_max_level(log::LevelFilter::Info),
-    );
-    App::new("rs.compio.winio.hello", app).run::<MainModel>(());
+    App::new("rs.compio.winio.hello", app)
+        .expect("cannot create app")
+        .run::<MainModel>(())
+        .unwrap();
 }
 
 pub struct MainModel {
@@ -26,11 +24,12 @@ pub enum MainMessage {
 }
 
 impl Component for MainModel {
+    type Error = Error;
     type Event = ();
     type Init<'a> = ();
     type Message = MainMessage;
 
-    fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
+    async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             window: Window = (()) => {
                 text: "Hello example",
@@ -41,9 +40,9 @@ impl Component for MainModel {
             },
         }
 
-        window.show();
+        window.show()?;
 
-        Self { window, text }
+        Ok(Self { window, text })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -56,22 +55,30 @@ impl Component for MainModel {
         }
     }
 
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> bool {
-        futures_util::future::join(self.window.update(), self.text.update()).await;
+    async fn update_children(&mut self) -> Result<bool> {
+        update_children!(self.window, self.text)
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
         match message {
-            MainMessage::Noop => false,
+            MainMessage::Noop => Ok(false),
             MainMessage::Close => {
                 sender.output(());
-                false
+                Ok(false)
             }
-            MainMessage::Redraw => true,
+            MainMessage::Redraw => Ok(true),
         }
     }
 
-    fn render(&mut self, _sender: &ComponentSender<Self>) {
-        let csize = self.window.client_size();
+    fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
+        let csize = self.window.client_size()?;
         {
-            self.text.set_size(csize);
+            self.text.set_size(csize)?;
         }
+        Ok(())
     }
 }

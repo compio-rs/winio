@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use jni::{Env, jni_sig, objects::JObject, strings::JNIString};
+use jni::{Env, objects::JObject, strings::JNIString};
 use winio_handle::{AsContainer, AsWidget, BorrowedContainer, BorrowedWidget};
 use winio_primitive::{HAlign, Point, Size};
 
@@ -34,7 +34,7 @@ impl BaseWidget {
         let context = current_activity()?;
         let widget = env.new_object(
             JNIString::new(widget_class),
-            jni_sig!("(Landroid/content/Context;)V"),
+            jni::jni_sig!("(Landroid/content/Context;)V"),
             &[context.as_obj().into()],
         )?;
         env.call_method(
@@ -50,19 +50,6 @@ impl BaseWidget {
 
     pub fn as_obj(&self) -> &JObject<'static> {
         self.inner.as_obj()
-    }
-
-    pub fn hash_code(&self) -> Result<i32> {
-        vm_exec(|env| {
-            Ok(env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("hashCode"),
-                    jni::jni_sig!("()I"),
-                    &[],
-                )?
-                .i()?)
-        })
     }
 
     pub fn loc(&self) -> Result<Point> {
@@ -341,5 +328,11 @@ impl Deref for BaseWidget {
 impl AsWidget for BaseWidget {
     fn as_widget(&self) -> BorrowedWidget<'_> {
         unsafe { BorrowedWidget::android(&self.inner) }
+    }
+}
+
+impl AsContainer for BaseWidget {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        unsafe { BorrowedContainer::android(&self.inner) }
     }
 }

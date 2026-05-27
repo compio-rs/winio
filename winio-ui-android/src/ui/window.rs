@@ -5,14 +5,15 @@ use std::rc::Rc;
 use inherit_methods_macro::inherit_methods;
 use jni::{jni_sig, strings::JNIString};
 use winio_callback::Callback;
-use winio_handle::{AsWindow, BorrowedContainer, BorrowedWindow};
+use winio_handle::{AsWindow, BorrowedWindow};
 use winio_primitive::{Point, Size};
 
-use crate::{BaseWidget, RESIZE_SLAB, Result, current_activity, vm_exec};
+use crate::{BaseWidget, GlobalRef, RESIZE_SLAB, Result, current_activity, vm_exec};
 
 #[derive(Debug)]
 pub struct Window {
     inner: BaseWidget,
+    activity: GlobalRef,
     on_resize: Rc<Callback>,
     resize_index: usize,
 }
@@ -22,7 +23,7 @@ impl Window {
     const WINDOW_CLASS: &'static str = "android/widget/FrameLayout";
 
     pub fn new() -> Result<Self> {
-        let inner = vm_exec(move |env| {
+        vm_exec(move |env| {
             let act = current_activity()?;
             let window = env.new_object(
                 JNIString::new(Self::WINDOW_CLASS),
@@ -30,20 +31,21 @@ impl Window {
                 &[act.as_obj().into()],
             )?;
             env.call_method(
-                act,
+                act.as_obj(),
                 jni::jni_str!("setContentView"),
                 jni_sig!("(Landroid/view/View;)V"),
                 &[(&window).into()],
             )?
             .v()?;
-            Ok(env.new_global_ref(window)?)
-        })?;
-        let on_resize = Rc::new(Callback::new());
-        let resize_index = RESIZE_SLAB.with_borrow_mut(|s| s.insert(on_resize.clone()));
-        Ok(Self {
-            inner: inner.into(),
-            on_resize,
-            resize_index,
+            let inner = env.new_global_ref(window)?;
+            let on_resize = Rc::new(Callback::new());
+            let resize_index = RESIZE_SLAB.with_borrow_mut(|s| s.insert(on_resize.clone()));
+            Ok(Self {
+                inner: inner.into(),
+                activity: act,
+                on_resize,
+                resize_index,
+            })
         })
     }
 
@@ -78,19 +80,19 @@ impl Window {
     pub async fn wait_size(&self) {
         self.on_resize.wait().await;
     }
+
+    pub async fn wait_theme_changed(&self) {
+        std::future::pending().await
+    }
 }
 
 impl AsWindow for Window {
     fn as_window(&self) -> BorrowedWindow<'_> {
-        unsafe { BorrowedWindow::android(&self.inner) }
+        unsafe { BorrowedWindow::android(&self.activity) }
     }
 }
 
-impl Window {
-    pub fn as_container(&self) -> BorrowedContainer<'_> {
-        unsafe { BorrowedContainer::android(&self.inner) }
-    }
-}
+winio_handle::impl_as_container!(Window, inner);
 
 impl Drop for Window {
     fn drop(&mut self) {

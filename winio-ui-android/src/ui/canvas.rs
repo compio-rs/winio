@@ -6,7 +6,7 @@ use jni::{Env, errors::Result as JniResult};
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{
     BrushPen, DrawingFont, LinearGradientBrush, MouseButton, Point, RadialGradientBrush, Rect,
-    Size, SolidColorBrush, Vector,
+    Size, SolidColorBrush, Transform, Vector,
 };
 
 use crate::{BaseWidget, GlobalRef, Result};
@@ -51,118 +51,110 @@ impl<B: Brush> Pen for BrushPen<B> {}
 pub struct DrawingImage;
 
 impl DrawingImage {
-    pub fn size(&self) -> Size {
+    pub fn size(&self) -> Result<Size> {
         todo!()
     }
 }
 
 pub struct DrawingContext<'a> {
-    inner: GlobalRef,
     _a: PhantomData<&'a ()>,
 }
 
 impl<'a> DrawingContext<'a> {
-    pub fn draw_path<P>(&self, _pen: P, _path: &DrawingPath)
-    where
-        P: Pen,
-    {
+    pub fn close(self) -> Result<()> {
         todo!()
     }
 
-    pub fn fill_path<B>(&self, _brush: B, _path: &DrawingPath)
-    where
-        B: Brush,
-    {
+    pub fn set_transform(&mut self, _transform: Transform) -> Result<()> {
         todo!()
     }
 
-    pub fn draw_arc<P>(&self, _pen: P, _rect: Rect, _start: f64, _end: f64)
-    where
-        P: Pen,
-    {
+    pub fn transform(&self) -> Result<Transform> {
         todo!()
     }
 
-    pub fn draw_pie<P>(&self, _pen: P, _rect: Rect, _start: f64, _end: f64)
-    where
-        P: Pen,
-    {
+    pub fn draw_path(&mut self, _pen: impl Pen, _path: &DrawingPath) -> Result<()> {
         todo!()
     }
 
-    pub fn fill_pie<B>(&self, _brush: B, _rect: Rect, _start: f64, _end: f64)
-    where
-        B: Brush,
-    {
+    pub fn fill_path(&mut self, _brush: impl Brush, _path: &DrawingPath) -> Result<()> {
         todo!()
     }
 
-    pub fn draw_ellipse<P>(&self, _pen: P, _rect: Rect)
-    where
-        P: Pen,
-    {
+    pub fn draw_arc(&mut self, _pen: impl Pen, _rect: Rect, _start: f64, _end: f64) -> Result<()> {
         todo!()
     }
 
-    pub fn fill_ellipse<B>(&self, _brush: B, _rect: Rect)
-    where
-        B: Brush,
-    {
+    pub fn draw_pie(&mut self, _pen: impl Pen, _rect: Rect, _start: f64, _end: f64) -> Result<()> {
         todo!()
     }
 
-    pub fn draw_line<P>(&self, _pen: P, _start: Point, _end: Point)
-    where
-        P: Pen,
-    {
+    pub fn fill_pie(
+        &mut self,
+        _brush: impl Brush,
+        _rect: Rect,
+        _start: f64,
+        _end: f64,
+    ) -> Result<()> {
         todo!()
     }
 
-    pub fn draw_rect<P>(&self, _pen: P, _rect: Rect)
-    where
-        P: Pen,
-    {
+    pub fn draw_ellipse(&mut self, _pen: impl Pen, _rect: Rect) -> Result<()> {
         todo!()
     }
 
-    pub fn fill_rect<B>(&self, _brush: B, _rect: Rect)
-    where
-        B: Brush,
-    {
+    pub fn fill_ellipse(&mut self, _brush: impl Brush, _rect: Rect) -> Result<()> {
         todo!()
     }
 
-    pub fn draw_round_rect<P>(&self, _pen: P, _rect: Rect, _round: Size)
-    where
-        P: Pen,
-    {
+    pub fn draw_line(&mut self, _pen: impl Pen, _start: Point, _end: Point) -> Result<()> {
         todo!()
     }
 
-    pub fn fill_round_rect<B>(&self, _brush: B, _rect: Rect, _round: Size)
-    where
-        B: Brush,
-    {
+    pub fn draw_rect(&mut self, _pen: impl Pen, _rect: Rect) -> Result<()> {
         todo!()
     }
 
-    pub fn draw_str<B, S>(&self, _brush: B, _font: DrawingFont, _pos: Point, _text: S)
-    where
-        B: Brush,
-        S: AsRef<str>,
-    {
+    pub fn fill_rect(&mut self, _brush: impl Brush, _rect: Rect) -> Result<()> {
         todo!()
     }
 
-    pub fn create_image(&self, _image: DynamicImage) -> DrawingImage {
+    pub fn draw_round_rect(&mut self, _pen: impl Pen, _rect: Rect, _round: Size) -> Result<()> {
         todo!()
     }
 
-    pub fn draw_image(&self, _image_rep: &DrawingImage, _rect: Rect, _clip: Option<Rect>) {
+    pub fn fill_round_rect(&mut self, _brush: impl Brush, _rect: Rect, _round: Size) -> Result<()> {
         todo!()
     }
 
-    pub fn create_path_builder(&self, _start: Point) -> DrawingPathBuilder {
+    pub fn draw_str(
+        &mut self,
+        _brush: impl Brush,
+        _font: DrawingFont,
+        _pos: Point,
+        _text: &str,
+    ) -> Result<()> {
+        todo!()
+    }
+
+    pub fn measure_str(&self, _font: DrawingFont, _text: &str) -> Result<Size> {
+        todo!()
+    }
+
+    pub fn create_image(&self, _image: DynamicImage) -> Result<DrawingImage> {
+        todo!()
+    }
+
+    pub fn draw_image(
+        &mut self,
+        _image: &DrawingImage,
+        _rect: Rect,
+        _clip: Option<Rect>,
+    ) -> Result<()> {
+        todo!()
+    }
+
+    pub fn create_path_builder(&self, _start: Point) -> Result<DrawingPathBuilder> {
         todo!()
     }
 }
@@ -172,19 +164,26 @@ pub struct DrawingPath;
 pub struct DrawingPathBuilder;
 
 impl DrawingPathBuilder {
-    pub fn add_line(&self, _p: Point) {
+    pub fn add_line(&mut self, _p: Point) -> Result<()> {
         todo!()
     }
 
-    pub fn add_arc(&self, _center: Point, _radius: Size, _start: f64, _end: f64, _clockwise: bool) {
+    pub fn add_arc(
+        &mut self,
+        _center: Point,
+        _radius: Size,
+        _start: f64,
+        _end: f64,
+        _clockwise: bool,
+    ) -> Result<()> {
         todo!()
     }
 
-    pub fn add_bezier(&self, _p1: Point, _p2: Point, _p3: Point) {
+    pub fn add_bezier(&mut self, _p1: Point, _p2: Point, _p3: Point) -> Result<()> {
         todo!()
     }
 
-    pub fn build(self, _close: bool) -> DrawingPath {
+    pub fn build(self, _close: bool) -> Result<DrawingPath> {
         todo!()
     }
 }
@@ -225,7 +224,7 @@ impl Canvas {
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn context(&self) -> DrawingContext<'_> {
+    pub fn context(&self) -> Result<DrawingContext<'_>> {
         todo!()
     }
 

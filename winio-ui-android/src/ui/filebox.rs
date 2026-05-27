@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use winio_handle::AsWindow;
+use winio_handle::MaybeBorrowedWindow;
+
+use crate::Result;
 
 #[derive(Debug, Default, Clone)]
 pub struct FileBox;
@@ -10,24 +12,15 @@ impl FileBox {
         todo!()
     }
 
-    pub fn title<S>(&mut self, _title: S)
-    where
-        S: AsRef<str>,
-    {
+    pub fn title(&mut self, _title: impl AsRef<str>) {
         todo!()
     }
 
-    pub fn filename<S>(&mut self, _filename: S)
-    where
-        S: AsRef<str>,
-    {
+    pub fn filename(&mut self, _filename: impl AsRef<str>) {
         todo!()
     }
 
-    pub fn filters<I>(&mut self, _filters: I)
-    where
-        I: IntoIterator<Item = FileFilter>,
-    {
+    pub fn filters(&mut self, _filters: impl IntoIterator<Item = FileFilter>) {
         todo!()
     }
 
@@ -35,31 +28,31 @@ impl FileBox {
         todo!()
     }
 
-    pub async fn open<W>(self, _parent: Option<W>) -> Option<PathBuf>
-    where
-        W: AsWindow,
-    {
+    pub async fn open(
+        self,
+        _parent: impl Into<MaybeBorrowedWindow<'_>>,
+    ) -> Result<Option<PathBuf>> {
         todo!()
     }
 
-    pub async fn open_multiple<W>(self, _parent: Option<W>) -> Vec<PathBuf>
-    where
-        W: AsWindow,
-    {
+    pub async fn open_multiple(
+        self,
+        _parent: impl Into<MaybeBorrowedWindow<'_>>,
+    ) -> Result<Vec<PathBuf>> {
         todo!()
     }
 
-    pub async fn open_folder<W>(self, _parent: Option<W>) -> Option<PathBuf>
-    where
-        W: AsWindow,
-    {
+    pub async fn open_folder(
+        self,
+        _parent: impl Into<MaybeBorrowedWindow<'_>>,
+    ) -> Result<Option<PathBuf>> {
         todo!()
     }
 
-    pub async fn save<W>(self, _parent: Option<W>) -> Option<PathBuf>
-    where
-        W: AsWindow,
-    {
+    pub async fn save(
+        self,
+        _parent: impl Into<MaybeBorrowedWindow<'_>>,
+    ) -> Result<Option<PathBuf>> {
         todo!()
     }
 }
@@ -68,10 +61,7 @@ impl FileBox {
 pub struct FileFilter;
 
 impl FileFilter {
-    pub fn new<S>(_name: S, _pattern: S) -> Self
-    where
-        S: AsRef<str>,
-    {
+    pub fn new(_name: impl AsRef<str>, _pattern: impl AsRef<str>) -> Self {
         todo!()
     }
 }

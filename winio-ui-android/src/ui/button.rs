@@ -136,6 +136,10 @@ impl Button {
 
     pub fn preferred_size(&self) -> Result<Size>;
 
+    pub fn tooltip(&self) -> Result<String>;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, text: impl AsRef<str>) -> Result<()>;
@@ -179,6 +183,10 @@ impl CheckBox {
     pub fn set_size(&mut self, v: Size) -> Result<()>;
 
     pub fn preferred_size(&self) -> Result<Size>;
+
+    pub fn tooltip(&self) -> Result<String>;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub fn text(&self) -> Result<String>;
 
@@ -224,6 +232,10 @@ impl RadioButton {
     pub fn set_size(&mut self, v: Size) -> Result<()>;
 
     pub fn preferred_size(&self) -> Result<Size>;
+
+    pub fn tooltip(&self) -> Result<String>;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub fn is_enabled(&self) -> Result<bool>;
 

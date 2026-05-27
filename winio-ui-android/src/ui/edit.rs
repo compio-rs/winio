@@ -16,7 +16,6 @@ pub struct Edit {
 
 mod input_type {
     pub const TYPE_CLASS_TEXT: i32 = 0x1;
-    pub const TYPE_TEXT_VARIATION_NORMAL: i32 = 0x0;
     pub const TYPE_TEXT_VARIATION_PASSWORD: i32 = 0x80;
     pub const TYPE_TEXT_FLAG_MULTI_LINE: i32 = 0x20000;
 }
@@ -69,6 +68,8 @@ impl Edit {
     pub fn size(&self) -> Result<Size>;
 
     pub fn set_size(&mut self, v: Size) -> Result<()>;
+
+    pub(crate) fn min_size(&self) -> Result<Size>;
 
     pub fn preferred_size(&self) -> Result<Size>;
 
@@ -128,11 +129,27 @@ impl Edit {
     }
 
     pub fn set_password(&mut self, password: bool) -> Result<()> {
-        let ty = if password {
-            input_type::TYPE_CLASS_TEXT | input_type::TYPE_TEXT_VARIATION_PASSWORD
+        let mut ty = self.input_type()?;
+        if password {
+            ty |= input_type::TYPE_TEXT_VARIATION_PASSWORD;
         } else {
-            input_type::TYPE_CLASS_TEXT | input_type::TYPE_TEXT_VARIATION_NORMAL
-        };
+            ty &= !input_type::TYPE_TEXT_VARIATION_PASSWORD;
+        }
+        self.set_input_type(ty)
+    }
+
+    pub fn is_readonly(&self) -> Result<bool> {
+        let ty = self.input_type()?;
+        Ok((ty & input_type::TYPE_CLASS_TEXT) != 0)
+    }
+
+    pub fn set_readonly(&mut self, readonly: bool) -> Result<()> {
+        let mut ty = self.input_type()?;
+        if readonly {
+            ty |= input_type::TYPE_CLASS_TEXT;
+        } else {
+            ty &= !input_type::TYPE_CLASS_TEXT;
+        }
         self.set_input_type(ty)
     }
 
@@ -173,6 +190,8 @@ impl TextBox {
 
     pub fn set_size(&mut self, v: Size) -> Result<()>;
 
+    pub fn min_size(&self) -> Result<Size>;
+
     pub fn preferred_size(&self) -> Result<Size>;
 
     pub fn tooltip(&self) -> Result<String>;
@@ -187,18 +206,9 @@ impl TextBox {
 
     pub fn set_halign(&mut self, align: HAlign) -> Result<()>;
 
-    pub fn is_readonly(&self) -> Result<bool> {
-        Ok(self.inner.input_type()? == 0)
-    }
+    pub fn is_readonly(&self) -> Result<bool>;
 
-    pub fn set_readonly(&mut self, readonly: bool) -> Result<()> {
-        let ty = if readonly {
-            0
-        } else {
-            input_type::TYPE_CLASS_TEXT | input_type::TYPE_TEXT_FLAG_MULTI_LINE
-        };
-        self.inner.set_input_type(ty)
-    }
+    pub fn set_readonly(&mut self, readonly: bool) -> Result<()>;
 
     pub async fn wait_change(&self) {
         self.inner.wait_change().await;

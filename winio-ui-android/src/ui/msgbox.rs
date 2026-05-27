@@ -1,5 +1,7 @@
-use winio_handle::AsWindow;
+use winio_handle::MaybeBorrowedWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
+
+use crate::Result;
 
 #[derive(Debug, Default, Clone)]
 pub struct MessageBox;
@@ -9,24 +11,15 @@ impl MessageBox {
         todo!()
     }
 
-    pub fn message<S>(&mut self, _msg: S)
-    where
-        S: AsRef<str>,
-    {
+    pub fn message(&mut self, _msg: impl AsRef<str>) {
         todo!()
     }
 
-    pub fn title<S>(&mut self, _title: S)
-    where
-        S: AsRef<str>,
-    {
+    pub fn title(&mut self, _title: impl AsRef<str>) {
         todo!()
     }
 
-    pub fn instruction<S>(&mut self, _instr: S)
-    where
-        S: AsRef<str>,
-    {
+    pub fn instruction(&mut self, _instr: impl AsRef<str>) {
         todo!()
     }
 
@@ -42,17 +35,14 @@ impl MessageBox {
         todo!()
     }
 
-    pub fn custom_buttons<I>(&mut self, _buttons: I)
-    where
-        I: IntoIterator<Item = CustomButton>,
-    {
+    pub fn custom_buttons(&mut self, _btns: impl IntoIterator<Item = impl Into<CustomButton>>) {
         todo!()
     }
 
-    pub async fn show<W>(self, _parent: Option<W>) -> MessageBoxResponse
-    where
-        W: AsWindow,
-    {
+    pub async fn show(
+        self,
+        _parent: impl Into<MaybeBorrowedWindow<'_>>,
+    ) -> Result<MessageBoxResponse> {
         todo!()
     }
 }
@@ -61,10 +51,7 @@ impl MessageBox {
 pub struct CustomButton;
 
 impl CustomButton {
-    pub fn new<S>(_result: u16, _text: S) -> Self
-    where
-        S: AsRef<str>,
-    {
+    pub fn new(_result: u16, _label: impl AsRef<str>) -> Self {
         todo!()
     }
 }
