@@ -21,7 +21,7 @@ use objc2_ui_kit::{UIEvent, UIGraphicsGetCurrentContext, UITouch, UIView};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{
-    DrawingFont, HAlign, MouseButton, Point, Rect, Size, Transform, VAlign, Vector,
+    ColorTheme, DrawingFont, HAlign, MouseButton, Point, Rect, Size, Transform, VAlign, Vector,
 };
 
 use crate::{
@@ -107,7 +107,12 @@ fn draw_rect(actions: &[DrawAction], rect: NSRect, factor: f64) {
         error!("Cannot get current CGContext");
         return;
     };
-    CGContext::clear_rect(Some(&context), rect);
+    if !matches!(crate::color_theme(), Ok(ColorTheme::Dark)) {
+        CGContext::set_rgb_fill_color(Some(&context), 1.0, 1.0, 1.0, 1.0);
+        CGContext::fill_rect(Some(&context), rect);
+    } else {
+        CGContext::clear_rect(Some(&context), rect);
+    }
     DrawAction::draw_rect(actions, &context, factor);
 }
 

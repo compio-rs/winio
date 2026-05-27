@@ -68,7 +68,7 @@ jobs:
             target: 'aarch64-apple-ios-macabi'
             features: 'all'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup Rust Toolchain
         run: rustup toolchain install ${{ matrix.toolchain }}
       - name: Install Linux dependencies

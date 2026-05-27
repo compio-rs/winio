@@ -10,7 +10,7 @@ use objc2::{
     ClassType, MainThreadMarker, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
 };
-use objc2_foundation::{NSObject, NSObjectProtocol, ns_string};
+use objc2_foundation::{NSObject, NSObjectProtocol, NSString, ns_string};
 use objc2_ui_kit::{
     UIApplication, UIApplicationDelegate, UICoordinateSpace, UIScene, UISceneConfiguration,
     UISceneConnectionOptions, UISceneDelegate, UISceneSession, UIWindowScene,
@@ -37,9 +37,11 @@ impl App {
         });
         winio_pollable::enter_block_on(future, dispatcher_waker(), || {
             crate::catch(|| {
-                // Register the class.
-                let _ = AppDelegate::new(self.mtm);
-                UIApplication::main(None, Some(ns_string!(AppDelegate::NAME)), self.mtm);
+                UIApplication::main(
+                    None,
+                    Some(&NSString::from_class(AppDelegate::class())),
+                    self.mtm,
+                );
             })
             .unwrap()
         })
@@ -83,23 +85,25 @@ thread_local! {
     pub(crate) static MOVE_SLAB: RefCell<Slab<Rc<Callback>>> = const { RefCell::new(Slab::new()) };
 }
 
-fn signal_resize<R: Runnable>() {
+fn signal_resize<R: Runnable>() -> bool {
     RESIZE_SLAB.with_borrow(|s| {
         for (_, callback) in s.iter() {
             callback.signal::<R>(());
         }
-    });
+        !s.is_empty()
+    })
 }
 
-fn signal_move<R: Runnable>() {
+fn signal_move<R: Runnable>() -> bool {
     MOVE_SLAB.with_borrow(|s| {
         for (_, callback) in s.iter() {
             callback.signal::<R>(());
         }
-    });
+        !s.is_empty()
+    })
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct AppDelegateIvars {}
 
 define_class! {
@@ -113,7 +117,7 @@ define_class! {
     impl AppDelegate {
         #[unsafe(method_id(init))]
         fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
-            let this = this.set_ivars(AppDelegateIvars {});
+            let this = this.set_ivars(AppDelegateIvars::default());
             unsafe { msg_send![super(this), init] }
         }
     }
@@ -129,18 +133,40 @@ define_class! {
             connecting_scene_session: &UISceneSession,
             options: &UISceneConnectionOptions,
         ) -> Retained<UISceneConfiguration> {
-            let scene_config = UISceneConfiguration::initWithName_sessionRole(
-                UISceneConfiguration::alloc(self.mtm()),
+            let scene_config = UISceneConfiguration::configurationWithName_sessionRole(
                 Some(ns_string!("Default Configuration")),
-                &connecting_scene_session.role()
+                &connecting_scene_session.role(),
+                self.mtm(),
             );
-            unsafe { scene_config.setDelegateClass(Some(AppDelegate::class())) };
+            unsafe { scene_config.setDelegateClass(Some(SceneDelegate::class())) };
             scene_config
         }
     }
+}
+
+#[derive(Debug, Default)]
+struct SceneDelegateIvars {}
+
+define_class! {
+    #[unsafe(super(NSObject))]
+    #[name = "SceneDelegate"]
+    #[ivars = SceneDelegateIvars]
+    #[thread_kind = MainThreadOnly]
+    #[derive(Debug)]
+    struct SceneDelegate;
+
+    impl SceneDelegate {
+        #[unsafe(method_id(init))]
+        fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
+            let this = this.set_ivars(SceneDelegateIvars::default());
+            unsafe { msg_send![super(this), init] }
+        }
+    }
+
+    unsafe impl NSObjectProtocol for SceneDelegate {}
 
     #[allow(non_snake_case)]
-    unsafe impl UISceneDelegate for AppDelegate {
+    unsafe impl UISceneDelegate for SceneDelegate {
         #[unsafe(method(scene:willConnectToSession:options:))]
         fn scene_willConnectToSession_options(
             &self,
@@ -153,13 +179,14 @@ define_class! {
 
         #[unsafe(method(sceneDidBecomeActive:))]
         fn sceneDidBecomeActive(&self, scene: &UIScene) {
-            signal_resize::<()>();
-            winio_pollable::run_current_task();
+            if signal_resize::<()>() {
+                winio_pollable::run_current_task();
+            }
         }
     }
 
     #[allow(non_snake_case)]
-    unsafe impl UIWindowSceneDelegate for AppDelegate {
+    unsafe impl UIWindowSceneDelegate for SceneDelegate {
         #[unsafe(method(windowScene:didUpdateEffectiveGeometry:))]
         fn windowScene_didUpdateEffectiveGeometry(
             &self,
@@ -169,19 +196,16 @@ define_class! {
             let geometry = window_scene.effectiveGeometry();
             let bounds = geometry.coordinateSpace(self.mtm()).bounds();
             let previous_bounds = previous_effective_geometry.map(|g| g.coordinateSpace(self.mtm()).bounds());
+            let mut has_callbacks = false;
             if Some(bounds.size) != previous_bounds.map(|b| b.size) {
-                signal_resize::<()>();
+                has_callbacks |= signal_resize::<()>();
             }
             if Some(bounds.origin) != previous_bounds.map(|b| b.origin) {
-                signal_move::<()>();
+                has_callbacks |= signal_move::<()>();
             }
-            winio_pollable::run_current_task();
+            if has_callbacks {
+                winio_pollable::run_current_task();
+            }
         }
-    }
-}
-
-impl AppDelegate {
-    pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
-        unsafe { msg_send![mtm.alloc(), init] }
     }
 }
