@@ -2,15 +2,14 @@ use std::marker::PhantomData;
 
 use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
-use jni::{Env, errors::Result as JniResult, jni_str, signature::RuntimeMethodSignature};
-use winio_handle::{AsWindow, impl_as_widget};
+use jni::{Env, errors::Result as JniResult};
+use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{
     BrushPen, DrawingFont, LinearGradientBrush, MouseButton, Point, RadialGradientBrush, Rect,
     Size, SolidColorBrush, Vector,
 };
 
-use super::{BaseWidget, vm_exec_on_ui_thread};
-use crate::GlobalRef;
+use crate::{BaseWidget, GlobalRef, Result};
 
 /// Drawing brush.
 pub trait Brush {
@@ -200,6 +199,32 @@ pub struct Canvas {
 impl Canvas {
     const WIDGET_CLASS: &'static str = "rs/compio/winio/Canvas";
 
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        Ok(Self {
+            inner: BaseWidget::new(parent.as_container(), Self::WIDGET_CLASS)?,
+        })
+    }
+
+    pub fn is_visible(&self) -> Result<bool>;
+
+    pub fn set_visible(&mut self, visible: bool) -> Result<()>;
+
+    pub fn is_enabled(&self) -> Result<bool>;
+
+    pub fn set_enabled(&mut self, enabled: bool) -> Result<()>;
+
+    pub fn loc(&self) -> Result<Point>;
+
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
+
+    pub fn size(&self) -> Result<Size>;
+
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
+
+    pub fn context(&self) -> DrawingContext<'_> {
+        todo!()
+    }
+
     pub async fn wait_mouse_move(&self) -> Point {
         todo!()
     }
@@ -214,61 +239,6 @@ impl Canvas {
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
         todo!()
-    }
-
-    pub fn context(&self) -> DrawingContext<'_> {
-        let w = self.inner.duplicate();
-        let inner = vm_exec_on_ui_thread(move |env, _| {
-            let ctx = env
-                .call_method(
-                    w.as_obj(),
-                    jni_str!("context"),
-                    RuntimeMethodSignature::from_str(format!(
-                        "()L{}$DrawingContext;",
-                        Self::WIDGET_CLASS
-                    ))
-                    .expect("invalid signature")
-                    .method_signature(),
-                    &[],
-                )?
-                .l()?;
-            env.new_global_ref(ctx)
-        })
-        .unwrap();
-
-        DrawingContext {
-            inner,
-            _a: Default::default(),
-        }
-    }
-
-    pub fn is_visible(&self) -> bool;
-
-    pub fn set_visible(&self, visible: bool);
-
-    pub fn is_enabled(&self) -> bool;
-
-    pub fn set_enabled(&self, enabled: bool);
-
-    pub fn loc(&self) -> Point;
-
-    pub fn set_loc(&self, p: Point);
-
-    pub fn size(&self) -> Size;
-
-    pub fn set_size(&self, v: Size);
-
-    pub fn new<W>(parent: W) -> Self
-    where
-        W: AsWindow,
-    {
-        BaseWidget::create(parent.as_window(), Self::WIDGET_CLASS)
-    }
-}
-
-impl From<BaseWidget> for Canvas {
-    fn from(value: BaseWidget) -> Self {
-        Self { inner: value }
     }
 }
 

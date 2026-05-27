@@ -1,8 +1,8 @@
 use inherit_methods_macro::inherit_methods;
-use winio_handle::{AsWindow, impl_as_widget};
+use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Point, Size};
 
-use super::BaseWidget;
+use crate::{BaseWidget, Result, vm_exec};
 
 #[derive(Debug)]
 pub struct Progress {
@@ -12,57 +12,142 @@ pub struct Progress {
 // noinspection SpellCheckingInspection
 #[inherit_methods(from = "self.inner")]
 impl Progress {
-    const WIDGET_CLASS: &'static str = "rs/compio/winio/Progress";
+    const WIDGET_CLASS: &'static str = "android/widget/ProgressBar";
 
-    pub fn range(&self) -> (usize, usize);
-
-    pub fn set_range(&self, min: usize, max: usize);
-
-    pub fn pos(&self) -> usize;
-
-    pub fn set_pos(&self, pos: usize);
-
-    pub fn is_indeterminate(&self) -> bool;
-
-    pub fn set_indeterminate(&self, indeterminate: bool);
-
-    pub fn is_visible(&self) -> bool;
-
-    pub fn set_visible(&self, visible: bool);
-
-    pub fn is_enabled(&self) -> bool;
-
-    pub fn set_enabled(&self, enabled: bool);
-
-    pub fn loc(&self) -> Point;
-
-    pub fn set_loc(&self, p: Point);
-
-    pub fn size(&self) -> Size;
-
-    pub fn set_size(&self, v: Size);
-
-    pub fn preferred_size(&self) -> Size;
-
-    pub fn minimum(&self) -> usize;
-
-    pub fn set_minimum(&self, minimum: usize);
-
-    pub fn maximum(&self) -> usize;
-
-    pub fn set_maximum(&self, maximum: usize);
-
-    pub fn new<W>(parent: W) -> Self
-    where
-        W: AsWindow,
-    {
-        BaseWidget::create(parent.as_window(), Self::WIDGET_CLASS)
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        vm_exec(|env| {
+            let inner = BaseWidget::new_with_env(env, parent.as_container(), Self::WIDGET_CLASS)?;
+            env.call_method(
+                inner.as_obj(),
+                jni::jni_str!("setIndeterminate"),
+                jni::jni_sig!("(Z)V"),
+                &[false.into()],
+            )?
+            .v()?;
+            Ok(Self { inner })
+        })
     }
-}
 
-impl From<BaseWidget> for Progress {
-    fn from(value: BaseWidget) -> Self {
-        Self { inner: value }
+    pub fn is_visible(&self) -> Result<bool>;
+
+    pub fn set_visible(&mut self, visible: bool) -> Result<()>;
+
+    pub fn is_enabled(&self) -> Result<bool>;
+
+    pub fn set_enabled(&mut self, enabled: bool) -> Result<()>;
+
+    pub fn loc(&self) -> Result<Point>;
+
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
+
+    pub fn size(&self) -> Result<Size>;
+
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
+
+    pub fn preferred_size(&self) -> Result<Size>;
+
+    pub fn minimum(&self) -> Result<usize> {
+        vm_exec(|env| {
+            Ok(env
+                .call_method(
+                    self.inner.as_obj(),
+                    jni::jni_str!("getMin"),
+                    jni::jni_sig!("()I"),
+                    &[],
+                )?
+                .i()? as _)
+        })
+    }
+
+    pub fn set_minimum(&mut self, minimum: usize) -> Result<()> {
+        vm_exec(|env| {
+            env.call_method(
+                self.inner.as_obj(),
+                jni::jni_str!("setMin"),
+                jni::jni_sig!("(I)V"),
+                &[(minimum as i32).into()],
+            )?
+            .v()?;
+            Ok(())
+        })
+    }
+
+    pub fn maximum(&self) -> Result<usize> {
+        vm_exec(|env| {
+            Ok(env
+                .call_method(
+                    self.inner.as_obj(),
+                    jni::jni_str!("getMax"),
+                    jni::jni_sig!("()I"),
+                    &[],
+                )?
+                .i()? as _)
+        })
+    }
+
+    pub fn set_maximum(&mut self, maximum: usize) -> Result<()> {
+        vm_exec(|env| {
+            env.call_method(
+                self.inner.as_obj(),
+                jni::jni_str!("setMax"),
+                jni::jni_sig!("(I)V"),
+                &[(maximum as i32).into()],
+            )?
+            .v()?;
+            Ok(())
+        })
+    }
+
+    pub fn pos(&self) -> Result<usize> {
+        vm_exec(|env| {
+            Ok(env
+                .call_method(
+                    self.inner.as_obj(),
+                    jni::jni_str!("getProgress"),
+                    jni::jni_sig!("()I"),
+                    &[],
+                )?
+                .i()? as _)
+        })
+    }
+
+    pub fn set_pos(&mut self, pos: usize) -> Result<()> {
+        vm_exec(|env| {
+            env.call_method(
+                self.inner.as_obj(),
+                jni::jni_str!("setProgress"),
+                jni::jni_sig!("(I)V"),
+                &[(pos as i32).into()],
+            )?
+            .v()?;
+            Ok(())
+        })
+    }
+
+    pub fn is_indeterminate(&self) -> Result<bool> {
+        vm_exec(|env| {
+            Ok(env
+                .call_method(
+                    self.inner.as_obj(),
+                    jni::jni_str!("isIndeterminate"),
+                    jni::jni_sig!("()Z"),
+                    &[],
+                )?
+                .z()?)
+        })
+    }
+
+    pub fn set_indeterminate(&mut self, indeterminate: bool) -> Result<()> {
+        vm_exec(|env| {
+            env.call_method(
+                self.inner.as_obj(),
+                jni::jni_str!("setIndeterminate"),
+                jni::jni_sig!("(Z)V"),
+                &[indeterminate.into()],
+            )?
+            .v()?;
+            Ok(())
+        })
     }
 }
 

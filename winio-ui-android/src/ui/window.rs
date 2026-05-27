@@ -53,19 +53,19 @@ impl Window {
 
     pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&self, visible: bool) -> Result<()>;
+    pub fn set_visible(&mut self, visible: bool) -> Result<()>;
 
     pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&self, p: Point) -> Result<()>;
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
     pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&self, size: Size) -> Result<()>;
+    pub fn set_size(&mut self, size: Size) -> Result<()>;
 
     pub fn text(&self) -> Result<String>;
 
-    pub fn set_text(&self, text: impl AsRef<str>) -> Result<()>;
+    pub fn set_text(&mut self, text: impl AsRef<str>) -> Result<()>;
 
     pub async fn wait_close(&self) {
         std::future::pending().await
@@ -76,7 +76,7 @@ impl Window {
     }
 
     pub async fn wait_size(&self) {
-        todo!()
+        self.on_resize.wait().await;
     }
 }
 
