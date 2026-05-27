@@ -154,7 +154,9 @@ impl<'a> BorrowedWidget<'a> {
 impl<'a> BorrowedWidget<'a> {
     /// Create from Android `Widget`
     ///
-    /// SAFETY: `j_obj` must be an valid `Widget`.
+    /// # Safety
+    ///
+    /// `j_obj` must be an valid `Widget`.
     pub unsafe fn android(j_obj: &'a Global<JObject<'static>>) -> Self {
         BorrowedWidget(j_obj)
     }

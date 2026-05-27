@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     future::Future,
+    rc::Rc,
     task::{RawWaker, RawWakerVTable, Waker},
 };
 
@@ -8,6 +9,8 @@ use android_activity::{AndroidApp, MainEvent, PollEvent};
 use futures_util::FutureExt;
 use jni::{Env, objects::JObject, vm::JavaVM};
 use ndk_sys::{ALooper, ALooper_acquire, ALooper_forThread, ALooper_release, ALooper_wake};
+use slab::Slab;
+use winio_callback::{Callback, Runnable};
 
 use crate::{Error, GlobalRef, Result};
 
@@ -49,6 +52,11 @@ impl App {
                                 MainEvent::Start => {
                                     winio_pollable::run_current_task();
                                 }
+                                MainEvent::ConfigChanged { .. } => {
+                                    if signal_resize::<()>() {
+                                        winio_pollable::run_current_task();
+                                    }
+                                }
                                 _ => {}
                             },
                             _ => {}
@@ -62,6 +70,19 @@ impl App {
 }
 
 scoped_tls::scoped_thread_local!(pub(crate) static APP: App);
+
+thread_local! {
+    pub(crate) static RESIZE_SLAB: RefCell<Slab<Rc<Callback>>> = const { RefCell::new(Slab::new()) };
+}
+
+fn signal_resize<R: Runnable>() -> bool {
+    RESIZE_SLAB.with_borrow(|s| {
+        for (_, callback) in s.iter() {
+            callback.signal::<R>(());
+        }
+        !s.is_empty()
+    })
+}
 
 fn looper_waker() -> Waker {
     let looper = unsafe { ALooper_forThread() };

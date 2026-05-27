@@ -1,15 +1,20 @@
 //! Android window widget, based on JNI and FrameLayout
 
+use std::rc::Rc;
+
 use inherit_methods_macro::inherit_methods;
 use jni::{jni_sig, strings::JNIString};
+use winio_callback::Callback;
 use winio_handle::{AsWindow, BorrowedContainer, BorrowedWindow};
 use winio_primitive::{Point, Size};
 
-use crate::{BaseWidget, Result, current_activity, vm_exec};
+use crate::{BaseWidget, RESIZE_SLAB, Result, current_activity, vm_exec};
 
 #[derive(Debug)]
 pub struct Window {
     inner: BaseWidget,
+    on_resize: Rc<Callback>,
+    resize_index: usize,
 }
 
 #[inherit_methods(from = "self.inner")]
@@ -33,8 +38,12 @@ impl Window {
             .v()?;
             Ok(env.new_global_ref(window)?)
         })?;
+        let on_resize = Rc::new(Callback::new());
+        let resize_index = RESIZE_SLAB.with_borrow_mut(|s| s.insert(on_resize.clone()));
         Ok(Self {
             inner: inner.into(),
+            on_resize,
+            resize_index,
         })
     }
 
@@ -63,7 +72,7 @@ impl Window {
     }
 
     pub async fn wait_move(&self) {
-        todo!()
+        std::future::pending().await
     }
 
     pub async fn wait_size(&self) {
@@ -80,5 +89,11 @@ impl AsWindow for Window {
 impl Window {
     pub fn as_container(&self) -> BorrowedContainer<'_> {
         unsafe { BorrowedContainer::android(&self.inner) }
+    }
+}
+
+impl Drop for Window {
+    fn drop(&mut self) {
+        RESIZE_SLAB.with_borrow_mut(|s| s.remove(self.resize_index));
     }
 }

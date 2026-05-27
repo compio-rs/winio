@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
-use jni::{jni_sig, objects::JObject, strings::JNIString};
-use winio_handle::{AsWidget, AsWindow, BorrowedWidget, BorrowedWindow};
+use jni::{Env, jni_sig, objects::JObject, strings::JNIString};
+use winio_handle::{AsContainer, AsWidget, BorrowedContainer, BorrowedWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{GlobalRef, JObjectExt, Result, current_activity, vm_exec};
@@ -13,25 +13,30 @@ pub(crate) struct BaseWidget {
 
 // noinspection SpellCheckingInspection
 impl BaseWidget {
-    pub(crate) fn new(parent: BorrowedWindow, widget_class: &str) -> Result<Self> {
-        let parent = vm_exec(|env| Ok(env.new_global_ref(parent.as_window().to_android())?))?;
-        let inner = vm_exec(move |env| {
-            let context = current_activity()?;
-            let widget = env.new_object(
-                JNIString::new(widget_class),
-                jni_sig!("(Landroid/content/Context;)V"),
-                &[context.as_obj().into()],
-            )?;
-            env.call_method(
-                parent.as_obj(),
-                jni::jni_str!("addView"),
-                jni::jni_sig!("(Landroid/view/View;)V"),
-                &[(&widget).into()],
-            )?
-            .v()?;
-            Ok(env.new_global_ref(widget)?)
-        })?;
+    pub(crate) fn new(parent: BorrowedContainer, widget_class: &str) -> Result<Self> {
+        vm_exec(|env| Self::new_with_env(env, parent, widget_class))
+    }
 
+    pub(crate) fn new_with_env(
+        env: &mut Env,
+        parent: BorrowedContainer,
+        widget_class: &str,
+    ) -> Result<Self> {
+        let parent = env.new_global_ref(parent.as_container().to_android())?;
+        let context = current_activity()?;
+        let widget = env.new_object(
+            JNIString::new(widget_class),
+            jni_sig!("(Landroid/content/Context;)V"),
+            &[context.as_obj().into()],
+        )?;
+        env.call_method(
+            parent.as_obj(),
+            jni::jni_str!("addView"),
+            jni::jni_sig!("(Landroid/view/View;)V"),
+            &[(&widget).into()],
+        )?
+        .v()?;
+        let inner = env.new_global_ref(widget)?;
         Ok(Self { inner })
     }
 

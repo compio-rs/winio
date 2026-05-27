@@ -30,6 +30,7 @@ image = { workspace = true, default-features = false }
 inherit-methods-macro = { workspace = true }
 oneshot = { workspace = true, features = ["std", "async"] }
 scoped-tls = { workspace = true }
+slab = { workspace = true }
 thiserror = { workspace = true }
 
 [build-dependencies]
