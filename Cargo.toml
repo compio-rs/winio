@@ -16,7 +16,7 @@ members = [
     "winio-ui-android",
     "winio-ui-ui-kit",
     "winio-ui-apple-common",
-    "mobile-examples/android",
+    "winio-example",
 ]
 
 resolver = "3"
