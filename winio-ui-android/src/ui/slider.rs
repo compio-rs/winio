@@ -1,8 +1,8 @@
 use inherit_methods_macro::inherit_methods;
-use winio_handle::{AsWindow, impl_as_widget};
-use winio_primitive::{Orient, Point, Size};
+use winio_handle::{AsContainer, impl_as_widget};
+use winio_primitive::{Orient, Point, Size, TickPosition};
 
-use super::BaseWidget;
+use crate::{BaseWidget, Result};
 
 #[derive(Debug)]
 pub struct Slider {
@@ -11,74 +11,81 @@ pub struct Slider {
 
 #[inherit_methods(from = "self.inner")]
 impl Slider {
+    pub fn new(_parent: impl AsContainer) -> Result<Self> {
+        todo!()
+    }
+
+    pub fn is_visible(&self) -> Result<bool>;
+
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
+
+    pub fn is_enabled(&self) -> Result<bool>;
+
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
+
+    pub fn preferred_size(&self) -> Result<Size>;
+
+    pub fn loc(&self) -> Result<Point>;
+
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
+
+    pub fn size(&self) -> Result<Size>;
+
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
+
+    pub fn tooltip(&self) -> Result<String>;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn tick_pos(&self) -> Result<TickPosition> {
+        todo!()
+    }
+
+    pub fn set_tick_pos(&mut self, _v: TickPosition) -> Result<()> {
+        todo!()
+    }
+
+    pub fn orient(&self) -> Result<Orient> {
+        todo!()
+    }
+
+    pub fn set_orient(&mut self, _v: Orient) -> Result<()> {
+        todo!()
+    }
+
+    pub fn minimum(&self) -> Result<usize> {
+        todo!()
+    }
+
+    pub fn set_minimum(&mut self, _v: usize) -> Result<()> {
+        todo!()
+    }
+
+    pub fn maximum(&self) -> Result<usize> {
+        todo!()
+    }
+
+    pub fn set_maximum(&mut self, _v: usize) -> Result<()> {
+        todo!()
+    }
+
+    pub fn freq(&self) -> Result<usize> {
+        todo!()
+    }
+
+    pub fn set_freq(&mut self, _v: usize) -> Result<()> {
+        todo!()
+    }
+
+    pub fn pos(&self) -> Result<usize> {
+        todo!()
+    }
+
+    pub fn set_pos(&mut self, _pos: usize) -> Result<()> {
+        todo!()
+    }
+
     pub async fn wait_change(&self) {
-        todo!()
-    }
-
-    pub fn orient(&self) -> Orient {
-        todo!()
-    }
-
-    pub fn set_orient(&self, _v: Orient) {
-        todo!()
-    }
-
-    pub fn minimum(&self) -> usize {
-        todo!()
-    }
-
-    pub fn set_minimum(&self, _v: usize) {
-        todo!()
-    }
-
-    pub fn maximum(&self) -> usize {
-        todo!()
-    }
-
-    pub fn set_maximum(&self, _v: usize) {
-        todo!()
-    }
-
-    pub fn freq(&self) -> usize {
-        todo!()
-    }
-
-    pub fn set_freq(&self, _v: usize) {
-        todo!()
-    }
-
-    pub fn pos(&self) -> usize {
-        todo!()
-    }
-
-    pub fn set_pos(&self, _pos: usize) {
-        todo!()
-    }
-
-    pub fn is_visible(&self) -> bool;
-
-    pub fn set_visible(&self, visible: bool);
-
-    pub fn is_enabled(&self) -> bool;
-
-    pub fn set_enabled(&self, enabled: bool);
-
-    pub fn loc(&self) -> Point;
-
-    pub fn set_loc(&self, p: Point);
-
-    pub fn size(&self) -> Size;
-
-    pub fn set_size(&self, v: Size);
-
-    pub fn preferred_size(&self) -> Size {
-        todo!()
-    }
-
-    pub fn new<W>(_parent: W) -> Self
-    where
-        W: AsWindow,
-    {
         todo!()
     }
 }

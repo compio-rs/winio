@@ -51,22 +51,46 @@ pub struct App {
 
 impl App {
     /// Create [`App`] with application name.
-    pub fn new(name: impl AsRef<str>) -> sys::Result<Self> {
-        Self::new_impl(name, Runtime::new()?)
+    pub fn new(
+        name: impl AsRef<str>,
+        #[cfg(target_os = "android")] app: android_activity::AndroidApp,
+    ) -> sys::Result<Self> {
+        Self::new_impl(
+            name,
+            Runtime::new()?,
+            #[cfg(target_os = "android")]
+            app,
+        )
     }
 
     /// Create [`App`] with application name and a custom compio [`Runtime`].
     #[cfg(feature = "compio-compat")]
-    pub fn new_with_runtime(name: impl AsRef<str>, runtime: Runtime) -> sys::Result<Self> {
-        Self::new_impl(name, runtime)
+    pub fn new_with_runtime(
+        name: impl AsRef<str>,
+        runtime: Runtime,
+        #[cfg(target_os = "android")] app: android_activity::AndroidApp,
+    ) -> sys::Result<Self> {
+        Self::new_impl(
+            name,
+            runtime,
+            #[cfg(target_os = "android")]
+            app,
+        )
     }
 
-    fn new_impl(name: impl AsRef<str>, runtime: Runtime) -> sys::Result<Self> {
+    fn new_impl(
+        name: impl AsRef<str>,
+        runtime: Runtime,
+        #[cfg(target_os = "android")] app: android_activity::AndroidApp,
+    ) -> sys::Result<Self> {
         let runtime = WinioRuntimeCompat::new(runtime)?;
         let name = name.as_ref().to_string();
         #[allow(unused_mut)]
-        let mut app = SysApp::new()?;
-        #[cfg(not(any(windows, target_vendor = "apple")))]
+        let mut app = SysApp::new(
+            #[cfg(target_os = "android")]
+            app,
+        )?;
+        #[cfg(not(any(windows, target_vendor = "apple", target_os = "android")))]
         app.set_app_id(&name)?;
         Ok(Self { runtime, app, name })
     }

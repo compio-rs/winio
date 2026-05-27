@@ -1,94 +1,138 @@
+use std::sync::Arc;
+
 use inherit_methods_macro::inherit_methods;
-use winio_handle::{AsWindow, impl_as_widget};
+use jni::objects::JObject;
+use winio_callback::SyncCallback;
+use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Point, Size};
 
-use super::{
-    super::{define_event, recv_event},
-    BaseWidget,
-};
-
-define_event!(
-    WAIT_FOR_COMBO_BOX_CHANGING,
-    Java_rs_compio_winio_ComboBox_on_1changed
-);
-define_event!(
-    WAIT_FOR_COMBO_BOX_SELECTING,
-    Java_rs_compio_winio_ComboBox_on_1selected
-);
+use crate::{BaseWidget, Result, vm_exec};
 
 #[derive(Debug)]
 pub struct ComboBox {
     inner: BaseWidget,
+    on_select: Arc<SyncCallback>,
 }
 
 // noinspection SpellCheckingInspection
 #[inherit_methods(from = "self.inner")]
 impl ComboBox {
-    const WIDGET_CLASS: &'static str = "rs/compio/winio/ComboBox";
+    const WIDGET_CLASS: &'static str = "android/widget/Spinner";
+
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let on_select = Arc::new(SyncCallback::new());
+        vm_exec(|env| {
+            let proxy = jni_min_helper::DynamicProxy::build(
+                env,
+                &jni::refs::LoaderContext::None,
+                [jni::jni_str!(
+                    "android/widget/AdapterView$OnItemSelectedListener"
+                )],
+                {
+                    let on_select = on_select.clone();
+                    move |env, method, _args| {
+                        if method.get_name(env)?.to_string() == "onItemSelected" {
+                            on_select.signal(());
+                        }
+                        Ok(JObject::null())
+                    }
+                },
+            )?;
+            let inner = BaseWidget::new_with_env(env, parent.as_container(), Self::WIDGET_CLASS)?;
+            env.call_method(
+                inner.as_obj(),
+                jni::jni_str!("setOnItemSelectedListener"),
+                jni::jni_sig!("(Landroid/widget/AdapterView$OnItemSelectedListener;)V"),
+                &[proxy.as_ref().into()],
+            )?
+            .v()?;
+            Ok(Self { inner, on_select })
+        })
+    }
+
+    pub fn is_visible(&self) -> Result<bool>;
+
+    pub fn set_visible(&mut self, visible: bool) -> Result<()>;
+
+    pub fn is_enabled(&self) -> Result<bool>;
+
+    pub fn set_enabled(&mut self, enabled: bool) -> Result<()>;
+
+    pub fn loc(&self) -> Result<Point>;
+
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
+
+    pub fn size(&self) -> Result<Size>;
+
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
+
+    pub fn preferred_size(&self) -> Result<Size>;
+
+    pub fn tooltip(&self) -> Result<String>;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn text(&self) -> Result<String> {
+        match self.selection()? {
+            Some(i) => self.get(i),
+            None => Ok(String::new()),
+        }
+    }
+
+    pub fn set_text(&mut self, _s: impl AsRef<str>) -> Result<()> {
+        Ok(())
+    }
+
+    pub fn selection(&self) -> Result<Option<usize>> {
+        todo!()
+    }
+
+    pub fn set_selection(&mut self, _i: usize) -> Result<()> {
+        todo!()
+    }
+
+    pub fn is_editable(&self) -> Result<bool> {
+        todo!()
+    }
+
+    pub fn set_editable(&mut self, _v: bool) -> Result<()> {
+        todo!()
+    }
+
+    pub fn len(&self) -> Result<usize> {
+        todo!()
+    }
+
+    pub fn is_empty(&self) -> Result<bool> {
+        todo!()
+    }
+
+    pub fn clear(&mut self) -> Result<()> {
+        todo!()
+    }
+
+    pub fn get(&self, _i: usize) -> Result<String> {
+        todo!()
+    }
+
+    pub fn set(&mut self, _i: usize, _s: impl AsRef<str>) -> Result<()> {
+        todo!()
+    }
+
+    pub fn insert(&mut self, _i: usize, _s: impl AsRef<str>) -> Result<()> {
+        todo!()
+    }
+
+    pub fn remove(&mut self, _i: usize) -> Result<()> {
+        todo!()
+    }
 
     pub async fn wait_change(&self) {
-        recv_event!(self, WAIT_FOR_COMBO_BOX_CHANGING)
+        std::future::pending().await
     }
 
     pub async fn wait_select(&self) {
-        recv_event!(self, WAIT_FOR_COMBO_BOX_SELECTING)
-    }
-
-    pub fn selection(&self) -> Option<usize>;
-
-    pub fn set_selection(&self, i: Option<usize>);
-
-    pub fn len(&self) -> usize;
-
-    pub fn is_editable(&self) -> bool;
-
-    pub fn set_editable(&self, editable: bool);
-
-    pub fn is_empty(&self) -> bool;
-
-    pub fn clear(&self);
-
-    pub fn get(&self, i: usize) -> String;
-
-    pub fn set<S>(&self, i: usize, item: S)
-    where
-        S: AsRef<str>;
-
-    pub fn insert<S>(&self, i: usize, item: S)
-    where
-        S: AsRef<str>;
-
-    pub fn remove(&self, i: usize);
-
-    pub fn is_visible(&self) -> bool;
-
-    pub fn set_visible(&self, visible: bool);
-
-    pub fn is_enabled(&self) -> bool;
-
-    pub fn set_enabled(&self, enabled: bool);
-
-    pub fn loc(&self) -> Point;
-
-    pub fn set_loc(&self, p: Point);
-
-    pub fn size(&self) -> Size;
-
-    pub fn set_size(&self, v: Size);
-
-    pub fn preferred_size(&self) -> Size;
-
-    pub fn new<W>(parent: W) -> Self
-    where
-        W: AsWindow,
-    {
-        BaseWidget::create(parent.as_window(), Self::WIDGET_CLASS)
-    }
-}
-
-impl From<BaseWidget> for ComboBox {
-    fn from(value: BaseWidget) -> Self {
-        Self { inner: value }
+        self.on_select.wait().await
     }
 }
 

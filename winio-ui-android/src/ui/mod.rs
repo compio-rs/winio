@@ -13,7 +13,6 @@ mod msgbox;
 mod progress;
 mod scroll_bar;
 mod slider;
-mod text_box;
 mod widget;
 mod window;
 
@@ -30,11 +29,10 @@ pub use msgbox::*;
 pub use progress::*;
 pub use scroll_bar::*;
 pub use slider::*;
-pub use text_box::*;
 pub(crate) use widget::*;
 pub use window::*;
 use winio_primitive::ColorTheme;
 
-pub fn color_theme() -> ColorTheme {
-    ColorTheme::Light
+pub fn color_theme() -> crate::Result<ColorTheme> {
+    Ok(ColorTheme::Light)
 }

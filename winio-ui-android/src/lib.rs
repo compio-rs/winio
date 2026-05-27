@@ -22,9 +22,15 @@ pub enum Error {
     /// JNI error.
     #[error("JNI error: {0}")]
     Jni(#[from] jni::errors::Error),
+    /// IO error.
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
     /// No thread looper available.
     #[error("No thread looper available")]
     NoThreadLooper,
+    /// Feature not supported.
+    #[error("Feature not supported")]
+    NotSupported,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

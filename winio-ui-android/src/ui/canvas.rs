@@ -221,6 +221,10 @@ impl Canvas {
 
     pub fn set_size(&mut self, v: Size) -> Result<()>;
 
+    pub fn tooltip(&self) -> Result<String>;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+
     pub fn context(&self) -> DrawingContext<'_> {
         todo!()
     }

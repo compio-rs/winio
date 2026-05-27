@@ -52,10 +52,6 @@ impl BaseWidget {
         self.inner.as_obj()
     }
 
-    pub fn duplicate(&self) -> Result<GlobalRef> {
-        vm_exec(|env| Ok(env.new_global_ref(self.as_obj())?))
-    }
-
     pub fn hash_code(&self) -> Result<i32> {
         vm_exec(|env| {
             Ok(env
@@ -223,6 +219,14 @@ impl BaseWidget {
             .v()?;
             Ok(())
         })
+    }
+
+    pub fn tooltip(&self) -> Result<String> {
+        Ok(String::new())
+    }
+
+    pub fn set_tooltip(&mut self, _s: impl AsRef<str>) -> Result<()> {
+        Ok(())
     }
 
     pub fn text(&self) -> Result<String> {

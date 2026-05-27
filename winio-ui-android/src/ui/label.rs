@@ -46,6 +46,10 @@ impl Label {
 
     pub fn preferred_size(&self) -> Result<Size>;
 
+    pub fn tooltip(&self) -> Result<String>;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, text: impl AsRef<str>) -> Result<()>;

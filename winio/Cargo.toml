@@ -35,6 +35,7 @@ winio-ui-app-kit = { workspace = true }
 
 [target.'cfg(target_os = "android")'.dependencies]
 winio-ui-android = { workspace = true }
+android-activity = { workspace = true }
 
 [target.'cfg(target_os = "ios")'.dependencies]
 winio-ui-ui-kit = { workspace = true }
@@ -88,6 +89,7 @@ media = [
     "winio-ui-winui?/media",
     "winio-ui-gtk?/media",
     "winio-ui-qt?/media",
+    "winio-ui-android/media",
 ]
 webview = [
     "winio-ui-app-kit/webview",
@@ -96,6 +98,7 @@ webview = [
     "winio-ui-winui?/webview",
     "winio-ui-gtk?/webview",
     "winio-ui-qt?/webview",
+    "winio-ui-android/webview",
 ]
 plotters = ["dep:plotters-backend"]
 compio-compat = [
@@ -107,6 +110,7 @@ compio-compat = [
     "winio-ui-winui?/compio-compat",
     "winio-ui-gtk?/compio-compat",
     "winio-ui-qt?/compio-compat",
+    "winio-ui-android/compio-compat",
 ]
 all = ["media", "webview", "plotters", "compio-compat"]
 

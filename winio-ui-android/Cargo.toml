@@ -34,4 +34,7 @@ slab = { workspace = true }
 thiserror = { workspace = true }
 
 [features]
+media = []
+webview = []
+
 compio-compat = ["compio/compat-futures"]

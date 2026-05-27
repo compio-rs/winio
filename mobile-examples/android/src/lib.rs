@@ -1,7 +1,7 @@
 #![cfg(target_os = "android")]
 
-use winio::prelude::*;
 use android_activity::AndroidApp;
+use winio::prelude::*;
 
 #[unsafe(no_mangle)]
 fn android_main(app: AndroidApp) {
@@ -10,7 +10,7 @@ fn android_main(app: AndroidApp) {
             .with_tag("winio")
             .with_max_level(log::LevelFilter::Info),
     );
-    App::new("rs.compio.winio.hello").run::<MainModel>(());
+    App::new("rs.compio.winio.hello", app).run::<MainModel>(());
 }
 
 pub struct MainModel {
@@ -26,9 +26,9 @@ pub enum MainMessage {
 }
 
 impl Component for MainModel {
+    type Event = ();
     type Init<'a> = ();
     type Message = MainMessage;
-    type Event = ();
 
     fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Self {
         init! {

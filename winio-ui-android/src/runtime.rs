@@ -24,10 +24,6 @@ impl App {
         Ok(Self { app })
     }
 
-    pub(crate) fn app(&self) -> &AndroidApp {
-        &self.app
-    }
-
     pub(crate) fn activity(&self, env: &Env<'_>) -> Result<GlobalRef> {
         let activity = self.app.activity_as_ptr();
         Ok(unsafe { env.global_from_raw::<JObject>(activity as jni::sys::jobject) })
@@ -52,10 +48,8 @@ impl App {
                                 MainEvent::Start => {
                                     winio_pollable::run_current_task();
                                 }
-                                MainEvent::ConfigChanged { .. } => {
-                                    if signal_resize::<()>() {
-                                        winio_pollable::run_current_task();
-                                    }
+                                MainEvent::ConfigChanged { .. } if signal_resize::<()>() => {
+                                    winio_pollable::run_current_task();
                                 }
                                 _ => {}
                             },
