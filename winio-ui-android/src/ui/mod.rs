@@ -6,7 +6,6 @@ mod canvas;
 mod check_box;
 mod combo_box;
 mod edit;
-mod event;
 mod filebox;
 mod label;
 mod list_box;
@@ -38,7 +37,7 @@ pub use scroll_bar::*;
 pub use slider::*;
 pub use text_box::*;
 pub use tooltip::*;
-pub use widget::*;
+pub(crate) use widget::*;
 pub use window::*;
 use winio_primitive::ColorTheme;
 
