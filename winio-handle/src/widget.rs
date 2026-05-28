@@ -16,8 +16,7 @@ cfg_if::cfg_if! {
 
         type BorrowedWidgetInner<'a> = &'a Retained<objc2_app_kit::NSView>;
     } else if #[cfg(target_os = "android")] {
-        use jni::refs::Global;
-        use jni::objects::JObject;
+        use jni::objects::{Global, JObject};
 
         type BorrowedWidgetInner<'a> = &'a Global<JObject<'static>>;
     } else if #[cfg(target_os = "ios")] {

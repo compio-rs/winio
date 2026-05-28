@@ -22,8 +22,7 @@ cfg_if::cfg_if! {
     } else if #[cfg(target_vendor = "apple")] {
         compile_error!("Other Apple platforms (like watchOS and tvOS) are not supported yet.");
     } else if #[cfg(target_os = "android")] {
-        use jni::refs::Global;
-        use jni::objects::JObject;
+        use jni::objects::{Global, JObject};
 
         type BorrowedContainerInner<'a> = &'a Global<JObject<'static>>;
     } else {
