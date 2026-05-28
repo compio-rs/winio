@@ -7,7 +7,8 @@ use std::{
 
 use android_activity::{AndroidApp, MainEvent, PollEvent};
 use futures_util::FutureExt;
-use jni::{Env, objects::JObject, refs::Global, vm::JavaVM};
+use jni::{Env, objects::JObject, refs::Global};
+use jni_min_helper::jni_get_vm;
 use ndk_sys::{ALooper, ALooper_acquire, ALooper_forThread, ALooper_release, ALooper_wake};
 use slab::Slab;
 use winio_callback::{Callback, Runnable};
@@ -20,7 +21,6 @@ pub struct App {
 
 impl App {
     pub fn new(app: AndroidApp) -> Result<Self> {
-        let _ = unsafe { JavaVM::from_raw(app.vm_as_ptr().cast()) };
         Ok(Self { app })
     }
 
@@ -125,7 +125,7 @@ pub fn vm_exec<F, R>(f: F) -> Result<R>
 where
     F: FnOnce(&mut Env<'_>) -> Result<R>,
 {
-    let vm = JavaVM::singleton()?;
+    let vm = jni_get_vm();
     vm.attach_current_thread::<_, R, Error>(f)
 }
 

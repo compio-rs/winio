@@ -1,18 +1,76 @@
+use std::sync::Arc;
+
 use inherit_methods_macro::inherit_methods;
+use jni::{
+    Env,
+    objects::{JObject, JString},
+    refs::LoaderContext,
+};
+use jni_min_helper::DynamicProxy;
+use winio_callback::SyncCallback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{BaseWidget, Result};
+use crate::{BaseWidget, GlobalRef, JObjectExt, Result, vm_exec};
 
 #[derive(Debug)]
 pub struct LinkLabel {
-    handle: BaseWidget,
+    inner: BaseWidget,
+    on_click: Arc<SyncCallback>,
+    url_span: GlobalRef,
+    click_span: GlobalRef,
 }
 
-#[inherit_methods(from = "self.handle")]
+#[inherit_methods(from = "self.inner")]
 impl LinkLabel {
-    pub fn new(_parent: impl AsContainer) -> Result<Self> {
-        todo!()
+    const WIDGET_CLASS: &'static str = "android/widget/TextView";
+
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        vm_exec(|env| {
+            let inner = BaseWidget::new_with_env(env, parent.as_container(), Self::WIDGET_CLASS)?;
+            let on_click = Arc::new(SyncCallback::new());
+
+            let click_span = env.new_object(
+                jni::jni_str!("rs/compio/winio/ClickableSpan"),
+                jni::jni_sig!("()V"),
+                &[],
+            )?;
+            let proxy = DynamicProxy::build(
+                env,
+                &LoaderContext::None,
+                [jni::jni_str!("java/lang/Runnable")],
+                {
+                    let on_click = on_click.clone();
+                    move |_env, _method, _args| {
+                        on_click.signal(());
+                        Ok(JObject::null())
+                    }
+                },
+            )?;
+            env.call_method(
+                &click_span,
+                jni::jni_str!("setOnClick"),
+                jni::jni_sig!("(Ljava/lang/Runnable;)V"),
+                &[proxy.as_ref().into()],
+            )?
+            .v()?;
+            let click_span = env.new_global_ref(click_span)?;
+
+            let url = JString::new(env, "")?;
+            let url_span = env.new_object(
+                jni::jni_str!("android/text/style/URLSpan"),
+                jni::jni_sig!("(Ljava/lang/String;)V"),
+                &[(&url).into()],
+            )?;
+            let url_span = env.new_global_ref(url_span)?;
+
+            Ok(Self {
+                inner,
+                on_click,
+                url_span,
+                click_span,
+            })
+        })
     }
 
     pub fn is_visible(&self) -> Result<bool>;
@@ -37,21 +95,116 @@ impl LinkLabel {
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn text(&self) -> Result<String>;
-
-    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
-
-    pub fn uri(&self) -> Result<String> {
-        todo!()
+    fn update_text_impl(&mut self, env: &mut Env, text: JObject, s: &str) -> Result<()> {
+        let length = env
+            .call_method(&text, jni::jni_str!("length"), jni::jni_sig!("()I"), &[])?
+            .i()?;
+        env.call_method(
+            &text,
+            jni::jni_str!("setSpan"),
+            jni::jni_sig!("(Ljava/lang/Object;III)V"),
+            &[
+                (if s.is_empty() {
+                    self.click_span.as_obj()
+                } else {
+                    self.url_span.as_obj()
+                })
+                .into(),
+                0.into(),
+                length.into(),
+                0.into(),
+            ],
+        )?
+        .v()?;
+        env.call_method(
+            self.inner.as_obj(),
+            jni::jni_str!("setText"),
+            jni::jni_sig!("(Ljava/lang/CharSequence;)V"),
+            &[(&text).into()],
+        )?
+        .v()?;
+        Ok(())
     }
 
-    pub fn set_uri(&mut self, _s: impl AsRef<str>) -> Result<()> {
-        todo!()
+    pub fn text(&self) -> Result<String> {
+        vm_exec(|env| {
+            let spannable = env
+                .call_method(
+                    self.inner.as_obj(),
+                    jni::jni_str!("getText"),
+                    jni::jni_sig!("()Ljava/lang/CharSequence;"),
+                    &[],
+                )?
+                .l()?;
+            let str = env
+                .call_method(
+                    &spannable,
+                    jni::jni_str!("toString"),
+                    jni::jni_sig!("()Ljava/lang/String;"),
+                    &[],
+                )?
+                .l()?
+                .to(env)?;
+            Ok(str)
+        })
+    }
+
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
+        let uri = self.uri()?;
+        vm_exec(|env| {
+            let str = JString::new(env, s.as_ref())?;
+            let text = env.new_object(
+                jni::jni_str!("android/text/SpannableString"),
+                jni::jni_sig!("(Ljava/lang/CharSequence;)V"),
+                &[(&str).into()],
+            )?;
+            self.update_text_impl(env, text, &uri)?;
+            Ok(())
+        })
+    }
+
+    pub fn uri(&self) -> Result<String> {
+        vm_exec(|env| {
+            let url = env
+                .call_method(
+                    &self.url_span,
+                    jni::jni_str!("getURL"),
+                    jni::jni_sig!("()Ljava/lang/String;"),
+                    &[],
+                )?
+                .l()?
+                .to(env)?;
+            Ok(url)
+        })
+    }
+
+    pub fn set_uri(&mut self, s: impl AsRef<str>) -> Result<()> {
+        let s = s.as_ref();
+        vm_exec(|env| {
+            let url = JString::new(env, s)?;
+            env.call_method(
+                &self.url_span,
+                jni::jni_str!("<init>"),
+                jni::jni_sig!("(Ljava/lang/String;)V"),
+                &[(&url).into()],
+            )?
+            .v()?;
+            let text = env
+                .call_method(
+                    self.inner.as_obj(),
+                    jni::jni_str!("getText"),
+                    jni::jni_sig!("()Ljava/lang/CharSequence;"),
+                    &[],
+                )?
+                .l()?;
+            self.update_text_impl(env, text, s)?;
+            Ok(())
+        })
     }
 
     pub async fn wait_click(&self) {
-        todo!()
+        self.on_click.wait().await;
     }
 }
 
-winio_handle::impl_as_widget!(LinkLabel, handle);
+winio_handle::impl_as_widget!(LinkLabel, inner);
