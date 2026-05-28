@@ -25,9 +25,9 @@ pub enum Error {
     /// IO error.
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-    /// No thread looper available.
-    #[error("No thread looper available")]
-    NoThreadLooper,
+    /// No application available.
+    #[error("No application available")]
+    NoApp,
     /// Feature not supported.
     #[error("Feature not supported")]
     NotSupported,

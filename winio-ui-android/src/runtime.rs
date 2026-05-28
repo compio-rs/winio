@@ -171,5 +171,5 @@ where
 }
 
 pub fn current_activity() -> Result<&'static GlobalRef> {
-    ACTIVITY.get().ok_or(Error::NoThreadLooper)
+    ACTIVITY.get().ok_or(Error::NoApp)
 }

@@ -1,9 +1,7 @@
-#![cfg(target_os = "android")]
-
-use android_activity::AndroidApp;
-use compio_log::metadata::LevelFilter;
-use tracing_subscriber::prelude::*;
 use winio::prelude::*;
+
+#[cfg(target_os = "android")]
+mod android;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -28,30 +26,7 @@ impl<E: Into<Error> + std::fmt::Display> From<LayoutError<E>> for Error {
     }
 }
 
-type Result<T> = std::result::Result<T, Error>;
-
-#[unsafe(no_mangle)]
-fn android_main(app: AndroidApp) {
-    tracing_subscriber::registry()
-        .with(tracing_android_trace::AndroidTraceLayer::new())
-        .with(
-            tracing_subscriber::fmt::layer()
-                .with_ansi(false)
-                .with_filter(LevelFilter::DEBUG),
-        )
-        .init();
-
-    unsafe {
-        std::env::set_var("RUST_BACKTRACE", "1");
-    }
-
-    let app = App::new("rs.compio.winio.hello", app).expect("cannot create app");
-    app.block_on(|| async {
-        if let Err(e) = App::execute_until_event::<MainModel>(()).await {
-            compio_log::error!("App error: {e:?}");
-        }
-    })
-}
+pub type Result<T> = std::result::Result<T, Error>;
 
 pub struct MainModel {
     window: Child<Window>,
@@ -83,7 +58,7 @@ impl Component for MainModel {
             },
             link: LinkLabel = (&window) => {
                 text: "Visit winio on GitHub",
-                uri: "https://github.com/compio-rs/winio.git",
+                uri: "https://github.com/compio-rs/winio",
             },
         }
 
@@ -99,6 +74,7 @@ impl Component for MainModel {
                 WindowEvent::Close => MainMessage::Close,
                 WindowEvent::Resize => MainMessage::Redraw,
             },
+            self.link => {},
         }
     }
 

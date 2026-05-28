@@ -49,44 +49,126 @@ pub struct App {
 }
 
 impl App {
-    /// Create [`App`] with application name.
-    pub fn new(
-        name: impl AsRef<str>,
-        #[cfg(target_os = "android")] app: android_activity::AndroidApp,
-    ) -> sys::Result<Self> {
-        Self::new_impl(
-            name,
-            #[cfg(target_os = "android")]
-            app,
-        )
-    }
-
-    fn new_impl(
-        name: impl AsRef<str>,
-        #[cfg(target_os = "android")] app: android_activity::AndroidApp,
-    ) -> sys::Result<Self> {
-        let name = name.as_ref().to_string();
-        #[allow(unused_mut)]
-        let mut app = SysApp::new(
-            #[cfg(target_os = "android")]
-            app,
-        )?;
-        #[cfg(not(any(windows, target_vendor = "apple", target_os = "android")))]
-        app.set_app_id(&name)?;
-        Ok(Self { app, name })
+    /// Create [`AppBuilder`] to build the application.
+    pub fn builder() -> AppBuilder {
+        AppBuilder::default()
     }
 
     /// The application name.
     pub fn name(&self) -> &str {
         &self.name
     }
+}
 
+/// Builder for [`App`].
+#[derive(Default)]
+pub struct AppBuilder {
+    name: String,
+    #[cfg(target_os = "android")]
+    app: Option<android_activity::AndroidApp>,
+}
+
+impl AppBuilder {
+    /// Set the application name. The name is used for application
+    /// identification and might be used for notification or icon display on
+    /// some platforms.
+    pub fn name(mut self, name: impl AsRef<str>) -> Self {
+        self.name = name.as_ref().to_string();
+        self
+    }
+
+    /// Set the Android application. This is required on Android platform.
+    #[cfg(target_os = "android")]
+    pub fn android_app(mut self, app: android_activity::AndroidApp) -> Self {
+        self.app = Some(app);
+        self
+    }
+
+    /// Build the application. This will consume the builder and return the
+    /// application instance.
+    pub fn build(self) -> sys::Result<App> {
+        let app = SysApp::new(
+            #[cfg(target_os = "android")]
+            self.app.ok_or(sys::Error::NoApp)?,
+        )?;
+        #[cfg(not(any(windows, target_vendor = "apple", target_os = "android")))]
+        app.set_app_id(&self.name)?;
+        Ok(App {
+            app,
+            name: self.name,
+        })
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+impl App {
+    /// Block on the future till it completes.
+    ///
+    /// The inner runtime might exits the inner application loop after the
+    /// execution of the future.
+    pub fn block_on<F: Future>(&self, future: F) -> F::Output {
+        self.block_on_with_runtime(Runtime::new().unwrap(), future)
+    }
+
+    /// Block on the future with a custom runtime.
+    ///
+    /// The inner runtime might exits the inner application loop after the
+    /// execution of the future.
+    pub fn block_on_with_runtime<F: Future>(&self, runtime: Runtime, future: F) -> F::Output {
+        let compat = WinioRuntimeCompat::new(runtime).unwrap();
+        let future = compat.execute(future);
+        if std::mem::size_of_val(&future) >= 2048 {
+            self.app.block_on(Box::pin(future))
+        } else {
+            self.app.block_on(future)
+        }
+    }
+}
+
+#[cfg(target_os = "android")]
+impl App {
+    /// Spawn the future on the main thread.
+    ///
+    /// The inner runtime might exits the inner application loop after the
+    /// execution of the future.
+    pub fn spawn<F: Future<Output = ()>>(
+        &self,
+        future: impl (FnOnce() -> F) + Sync + Send + 'static,
+    ) {
+        self.spawn_with_runtime(|| Runtime::new().unwrap(), future);
+    }
+
+    /// Spawn the future on the main thread with a custom runtime.
+    pub fn spawn_with_runtime<F: Future<Output = ()>>(
+        &self,
+        runtime: impl (FnOnce() -> Runtime) + Sync + Send + 'static,
+        future: impl (FnOnce() -> F) + Sync + Send + 'static,
+    ) {
+        self.app.block_on(move || {
+            let runtime = runtime();
+            let compat = WinioRuntimeCompat::new(runtime).unwrap();
+            async move { compat.execute(future()).await }
+        })
+    }
+}
+
+/// Extension trait for [`Component`] to run the component.
+#[allow(async_fn_in_trait)]
+pub trait ComponentExt: Component {
     /// Run the component till the first event is emitted. [`RunEvent`] is
     /// flattened to [`Result`].
-    pub async fn execute<'a, T: Component>(
-        init: impl Into<T::Init<'a>>,
-    ) -> Result<T::Event, T::Error> {
-        let mut component = Root::<T>::init(init).await?;
+    async fn run<'a>(init: impl Into<Self::Init<'a>>) -> Result<Self::Event, Self::Error>;
+
+    /// Run the component utill [`RunEvent::Event`] is emitted. Other variants
+    /// of [`RunEvent`] are ignored.
+    async fn run_until_event<'a>(
+        init: impl Into<Self::Init<'a>>,
+    ) -> Result<Self::Event, Self::Error>;
+}
+
+impl<T: Component> ComponentExt for T {
+    async fn run<'a>(init: impl Into<Self::Init<'a>>) -> Result<Self::Event, Self::Error> {
+        let mut component = Root::<Self>::init(init).await?;
         let stream = component.run();
         let mut stream = std::pin::pin!(stream);
         stream
@@ -96,12 +178,10 @@ impl App {
             .flatten()
     }
 
-    /// Run the component utill [`RunEvent::Event`] is emitted. Other variants
-    /// of [`RunEvent`] are ignored.
-    pub async fn execute_until_event<'a, T: Component>(
-        init: impl Into<T::Init<'a>>,
-    ) -> Result<T::Event, T::Error> {
-        let mut component = Root::<T>::init(init).await?;
+    async fn run_until_event<'a>(
+        init: impl Into<Self::Init<'a>>,
+    ) -> Result<Self::Event, Self::Error> {
+        let mut component = Root::<Self>::init(init).await?;
         let stream = component.run();
         let mut stream = std::pin::pin!(stream);
         while let Some(event) = stream.next().await {
@@ -119,71 +199,5 @@ impl App {
             }
         }
         unreachable!("component exits unexpectedly")
-    }
-}
-
-#[cfg(not(target_os = "android"))]
-impl App {
-    /// Block on the future till it completes.
-    ///
-    /// The inner runtime might exits the inner application loop after the
-    /// execution of the future.
-    pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        let future = self.runtime.execute(future);
-        if std::mem::size_of_val(&future) >= 2048 {
-            self.app.block_on(Box::pin(future))
-        } else {
-            self.app.block_on(future)
-        }
-    }
-
-    /// Equivalent to calling [`block_on`](Self::block_on) on
-    /// [`execute`](Self::execute).
-    pub fn run<'a, T: Component>(
-        &self,
-        init: impl Into<T::Init<'a>>,
-    ) -> Result<T::Event, T::Error> {
-        self.block_on(Self::execute::<T>(init))
-    }
-
-    /// Equivalent to calling [`block_on`](Self::block_on) on
-    /// [`execute_until_event`](Self::execute_until_event).
-    pub fn run_until_event<'a, T: Component>(
-        &self,
-        init: impl Into<T::Init<'a>>,
-    ) -> Result<T::Event, T::Error> {
-        self.block_on(Self::execute_until_event::<T>(init))
-    }
-}
-
-#[cfg(target_os = "android")]
-impl App {
-    /// Block on the future till it completes.
-    ///
-    /// The inner runtime might exits the inner application loop after the
-    /// execution of the future.
-    ///
-    /// The future is created on the main thread instead of the current thread.
-    pub fn block_on<F: Future<Output = ()>>(
-        &self,
-        future: impl (FnOnce() -> F) + Sync + Send + 'static,
-    ) {
-        self.block_on_with_runtime(|| Runtime::new().unwrap(), future);
-    }
-
-    /// Block on the future till it completes with a custom runtime.
-    ///
-    /// Both the runtime and the future is created on the main thread instead of
-    /// the current thread.
-    pub fn block_on_with_runtime<F: Future<Output = ()>>(
-        &self,
-        runtime: impl (FnOnce() -> Runtime) + Sync + Send + 'static,
-        future: impl (FnOnce() -> F) + Sync + Send + 'static,
-    ) {
-        self.app.block_on(move || {
-            let runtime = runtime();
-            let compat = WinioRuntimeCompat::new(runtime).unwrap();
-            async move { compat.execute(future()).await }
-        })
     }
 }
