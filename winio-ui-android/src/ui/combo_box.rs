@@ -17,7 +17,6 @@ pub struct ComboBox {
     select_proxy: DynamicProxy,
 }
 
-// noinspection SpellCheckingInspection
 #[inherit_methods(from = "self.inner")]
 impl ComboBox {
     const WIDGET_CLASS: &'static str = "android/widget/Spinner";

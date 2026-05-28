@@ -193,7 +193,6 @@ pub struct Canvas {
     inner: BaseWidget,
 }
 
-// noinspection SpellCheckingInspection
 #[inherit_methods(from = "self.inner")]
 impl Canvas {
     const WIDGET_CLASS: &'static str = "rs/compio/winio/Canvas";

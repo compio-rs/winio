@@ -9,7 +9,6 @@ pub struct Label {
     inner: BaseWidget,
 }
 
-// noinspection SpellCheckingInspection
 #[inherit_methods(from = "self.inner")]
 impl Label {
     const WIDGET_CLASS: &'static str = "android/widget/TextView";

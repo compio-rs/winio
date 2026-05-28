@@ -19,7 +19,6 @@ pub(crate) mod gravity {
     pub const RIGHT: i32 = 0x5;
 }
 
-// noinspection SpellCheckingInspection
 impl BaseWidget {
     pub(crate) fn new(parent: BorrowedContainer, widget_class: &str) -> Result<Self> {
         vm_exec(|env| Self::new_with_env(env, parent, widget_class))

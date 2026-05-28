@@ -214,7 +214,6 @@ pub struct RadioButton {
     inner: ButtonImpl,
 }
 
-// noinspection SpellCheckingInspection
 #[inherit_methods(from = "self.inner")]
 impl RadioButton {
     const WIDGET_CLASS: &'static str = "android/widget/RadioButton";

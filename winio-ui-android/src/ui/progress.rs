@@ -9,7 +9,6 @@ pub struct Progress {
     inner: BaseWidget,
 }
 
-// noinspection SpellCheckingInspection
 #[inherit_methods(from = "self.inner")]
 impl Progress {
     const WIDGET_CLASS: &'static str = "android/widget/ProgressBar";
