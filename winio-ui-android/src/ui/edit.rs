@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use inherit_methods_macro::inherit_methods;
 use jni::objects::JObject;
+use jni_min_helper::DynamicProxy;
 use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{HAlign, Point, Size};
@@ -12,6 +13,8 @@ use crate::{BaseWidget, JObjectExt, Result, vm_exec};
 pub struct Edit {
     inner: BaseWidget,
     on_change: Arc<SyncCallback>,
+    #[allow(dead_code)]
+    change_proxy: DynamicProxy,
 }
 
 mod input_type {
@@ -27,7 +30,7 @@ impl Edit {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let on_change = Arc::new(SyncCallback::new());
         vm_exec(|env| {
-            let proxy = jni_min_helper::DynamicProxy::build(
+            let change_proxy = DynamicProxy::build(
                 env,
                 &jni::refs::LoaderContext::None,
                 [jni::jni_str!("android/text/TextWatcher")],
@@ -46,10 +49,14 @@ impl Edit {
                 inner.as_obj(),
                 jni::jni_str!("addTextChangedListener"),
                 jni::jni_sig!("(Landroid/text/TextWatcher;)V"),
-                &[proxy.as_ref().into()],
+                &[change_proxy.as_ref().into()],
             )?
             .v()?;
-            Ok(Self { inner, on_change })
+            Ok(Self {
+                inner,
+                on_change,
+                change_proxy,
+            })
         })
     }
 

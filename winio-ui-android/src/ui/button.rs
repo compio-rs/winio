@@ -13,6 +13,8 @@ use crate::{BaseWidget, Result, vm_exec};
 struct ButtonImpl {
     inner: BaseWidget,
     on_click: Arc<SyncCallback>,
+    #[allow(dead_code)]
+    click_proxy: DynamicProxy,
 }
 
 #[inherit_methods(from = "self.inner")]
@@ -20,7 +22,7 @@ impl ButtonImpl {
     pub fn new(parent: impl AsContainer, class: &str) -> Result<Self> {
         let on_click = Arc::new(SyncCallback::new());
         vm_exec(|env| {
-            let proxy = DynamicProxy::build(
+            let click_proxy = DynamicProxy::build(
                 env,
                 &LoaderContext::None,
                 [jni::jni_str!("android/view/View$OnClickListener")],
@@ -37,10 +39,14 @@ impl ButtonImpl {
                 inner.as_obj(),
                 jni::jni_str!("setOnClickListener"),
                 jni::jni_sig!("(Landroid/view/View$OnClickListener;)V"),
-                &[proxy.as_ref().into()],
+                &[click_proxy.as_ref().into()],
             )?
             .v()?;
-            Ok(Self { inner, on_click })
+            Ok(Self {
+                inner,
+                on_click,
+                click_proxy,
+            })
         })
     }
 

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use inherit_methods_macro::inherit_methods;
 use jni::objects::JObject;
+use jni_min_helper::DynamicProxy;
 use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Point, Size};
@@ -12,6 +13,8 @@ use crate::{BaseWidget, Result, vm_exec};
 pub struct ComboBox {
     inner: BaseWidget,
     on_select: Arc<SyncCallback>,
+    #[allow(dead_code)]
+    select_proxy: DynamicProxy,
 }
 
 // noinspection SpellCheckingInspection
@@ -22,7 +25,7 @@ impl ComboBox {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let on_select = Arc::new(SyncCallback::new());
         vm_exec(|env| {
-            let proxy = jni_min_helper::DynamicProxy::build(
+            let select_proxy = DynamicProxy::build(
                 env,
                 &jni::refs::LoaderContext::None,
                 [jni::jni_str!(
@@ -43,10 +46,14 @@ impl ComboBox {
                 inner.as_obj(),
                 jni::jni_str!("setOnItemSelectedListener"),
                 jni::jni_sig!("(Landroid/widget/AdapterView$OnItemSelectedListener;)V"),
-                &[proxy.as_ref().into()],
+                &[select_proxy.as_ref().into()],
             )?
             .v()?;
-            Ok(Self { inner, on_select })
+            Ok(Self {
+                inner,
+                on_select,
+                select_proxy,
+            })
         })
     }
 
