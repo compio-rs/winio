@@ -33,6 +33,8 @@ dependencies {
     implementation libs.material
 
     implementation libs.games.activity
+
+    implementation project(':winio')
 }
 
 [

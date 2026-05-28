@@ -15,6 +15,7 @@ tracing_android_trace = "0.1.0"
 tracing-subscriber = "0.3"
 
 compio-log = { workspace = true }
+thiserror = { workspace = true }
 
 [features]
 default = ["enable_log"]

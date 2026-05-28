@@ -1,11 +1,10 @@
 package rs.compio.winio;
 
-import android.text.TextPaint;
 import android.view.View;
 import java.lang.Runnable;
 
 public class ClickableSpan extends android.text.style.ClickableSpan {
-    private final Runnable onClick;
+    private Runnable onClick;
 
     public ClickableSpan() {
         this.onClick = null;

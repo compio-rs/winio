@@ -58,19 +58,19 @@ impl BaseWidget {
                 .call_method(
                     self.as_obj(),
                     jni::jni_str!("getX"),
-                    jni::jni_sig!("()D"),
+                    jni::jni_sig!("()F"),
                     &[],
                 )?
-                .d()?;
+                .f()?;
             let y = env
                 .call_method(
                     self.as_obj(),
                     jni::jni_str!("getY"),
-                    jni::jni_sig!("()D"),
+                    jni::jni_sig!("()F"),
                     &[],
                 )?
-                .d()?;
-            Ok(Point::new(x, y))
+                .f()?;
+            Ok(Point::new(x as _, y as _))
         })
     }
 
@@ -79,14 +79,14 @@ impl BaseWidget {
             env.call_method(
                 self.inner.as_obj(),
                 jni::jni_str!("setX"),
-                jni::jni_sig!("(D)V"),
-                &[p.x.into()],
+                jni::jni_sig!("(F)V"),
+                &[(p.x as f32).into()],
             )?;
             env.call_method(
                 self.inner.as_obj(),
                 jni::jni_str!("setY"),
-                jni::jni_sig!("(D)V"),
-                &[p.y.into()],
+                jni::jni_sig!("(F)V"),
+                &[(p.y as f32).into()],
             )?;
             Ok(())
         })
@@ -117,7 +117,7 @@ impl BaseWidget {
     pub fn set_size(&mut self, size: Size) -> Result<()> {
         vm_exec(move |env| {
             let params = env.new_object(
-                jni::jni_str!("android/view/FrameLayout$LayoutParams"),
+                jni::jni_str!("android/widget/FrameLayout$LayoutParams"),
                 jni::jni_sig!("(II)V"),
                 &[(size.width as i32).into(), (size.height as i32).into()],
             )?;

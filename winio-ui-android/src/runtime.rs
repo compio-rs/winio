@@ -7,8 +7,7 @@ use std::{
 
 use android_activity::{AndroidApp, MainEvent, PollEvent};
 use futures_util::FutureExt;
-use jni::{Env, objects::JObject, refs::Global};
-use jni_min_helper::jni_get_vm;
+use jni::{Env, objects::JObject, refs::Global, vm::JavaVM};
 use ndk_sys::{ALooper, ALooper_acquire, ALooper_forThread, ALooper_release, ALooper_wake};
 use slab::Slab;
 use winio_callback::{Callback, Runnable};
@@ -21,6 +20,7 @@ pub struct App {
 
 impl App {
     pub fn new(app: AndroidApp) -> Result<Self> {
+        let _ = unsafe { JavaVM::from_raw(app.vm_as_ptr().cast()) };
         Ok(Self { app })
     }
 
@@ -48,10 +48,12 @@ impl App {
                                     winio_pollable::run_current_task();
                                 }
                                 PollEvent::Main(e) => match e {
-                                    MainEvent::Start => {
+                                    MainEvent::Start
+                                    | MainEvent::Resume { .. }
+                                    | MainEvent::GainedFocus => {
                                         winio_pollable::run_current_task();
                                     }
-                                    MainEvent::ConfigChanged { .. } if signal_resize::<()>() => {
+                                    MainEvent::WindowResized { .. } if signal_resize::<()>() => {
                                         winio_pollable::run_current_task();
                                     }
                                     MainEvent::Destroy => {
@@ -125,7 +127,7 @@ pub fn vm_exec<F, R>(f: F) -> Result<R>
 where
     F: FnOnce(&mut Env<'_>) -> Result<R>,
 {
-    let vm = jni_get_vm();
+    let vm = JavaVM::singleton()?;
     vm.attach_current_thread::<_, R, Error>(f)
 }
 

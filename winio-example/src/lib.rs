@@ -3,7 +3,32 @@
 use android_activity::AndroidApp;
 use compio_log::metadata::LevelFilter;
 use tracing_subscriber::prelude::*;
-use winio::{Error, Result, prelude::*};
+use winio::prelude::*;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    /// An error from the UI backend.
+    #[error("UI error: {0}")]
+    Ui(#[from] winio::Error),
+    /// An error from [`winio_layout`].
+    #[error("Layout error: {0}")]
+    Layout(#[from] TaffyError),
+    /// An IO error.
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+}
+
+impl<E: Into<Error> + std::fmt::Display> From<LayoutError<E>> for Error {
+    fn from(e: LayoutError<E>) -> Self {
+        match e {
+            LayoutError::Taffy(te) => Error::Layout(te),
+            LayoutError::Child(ce) => ce.into(),
+            _ => Error::Io(std::io::Error::other(e.to_string())),
+        }
+    }
+}
+
+type Result<T> = std::result::Result<T, Error>;
 
 #[unsafe(no_mangle)]
 fn android_main(app: AndroidApp) {
@@ -18,7 +43,7 @@ fn android_main(app: AndroidApp) {
 
     if let Err(e) = App::new("rs.compio.winio.hello", app)
         .expect("cannot create app")
-        .run::<MainModel>(())
+        .run_until_event::<MainModel>(())
     {
         compio_log::error!("App error: {e:?}");
     }
@@ -27,6 +52,7 @@ fn android_main(app: AndroidApp) {
 pub struct MainModel {
     window: Child<Window>,
     text: Child<Label>,
+    link: Child<LinkLabel>,
 }
 
 #[derive(Debug)]
@@ -51,11 +77,15 @@ impl Component for MainModel {
                 text: "Hello, world!",
                 halign: HAlign::Center,
             },
+            link: LinkLabel = (&window) => {
+                text: "Visit winio on GitHub",
+                uri: "https://github.com/compio-rs/winio.git",
+            },
         }
 
         window.show()?;
 
-        Ok(Self { window, text })
+        Ok(Self { window, text, link })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -69,7 +99,7 @@ impl Component for MainModel {
     }
 
     async fn update_children(&mut self) -> Result<bool> {
-        update_children!(self.window, self.text)
+        update_children!(self.window, self.text, self.link)
     }
 
     async fn update(
@@ -89,9 +119,20 @@ impl Component for MainModel {
 
     fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
         let csize = self.window.client_size()?;
+        compio_log::info!("csize: {csize:?}");
         {
-            self.text.set_size(csize)?;
+            let mut panel = layout! {
+                StackPanel::new(Orient::Vertical),
+                self.text => { margin: Margin::new_all_same(4.0), halign: HAlign::Center },
+                self.link => { margin: Margin::new_all_same(4.0), halign: HAlign::Center },
+            };
+            panel.set_size(csize)?;
         }
+        compio_log::info!(
+            "text rect: {:?}, link rect: {:?}",
+            self.text.rect()?,
+            self.link.rect()?
+        );
         Ok(())
     }
 }
