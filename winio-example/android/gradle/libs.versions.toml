@@ -1,12 +1,13 @@
-[plugins]
-android-application = { id = "com.android.application", version = "9.2.1" }
-
 [versions]
-appcompat = "1.7.1"
-material = "1.14.0"
-games-activity = "4.4.2"
+agp = "9.2.1"
+gamesActivity = "4.4.2"
+appcompat = "1.6.1"
+material = "1.10.0"
 
 [libraries]
-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
-material = { module = "com.google.android.material:material", version.ref = "material" }
-games-activity = { module = "androidx.games:games-activity", version.ref = "games-activity" }
+games-activity = { module = "androidx.games:games-activity", version.ref = "gamesActivity" }
+appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
