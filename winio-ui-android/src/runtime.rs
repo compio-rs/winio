@@ -1,16 +1,20 @@
 use std::{
     cell::RefCell,
     future::Future,
-    rc::Rc,
+    sync::{Arc, Mutex, OnceLock},
     task::{RawWaker, RawWakerVTable, Waker},
 };
 
 use android_activity::{AndroidApp, MainEvent, PollEvent};
+use compio_log::{debug, error, warn};
 use futures_util::FutureExt;
 use jni::{Env, objects::JObject, refs::Global, vm::JavaVM};
+use jni_min_helper::DynamicProxy;
 use ndk_sys::{ALooper, ALooper_acquire, ALooper_forThread, ALooper_release, ALooper_wake};
+use oneshot::TryRecvError;
 use slab::Slab;
-use winio_callback::{Callback, Runnable};
+use winio_callback::SyncCallback;
+use winio_pollable::MainTask;
 
 use crate::{Error, GlobalRef, Result};
 
@@ -20,71 +24,106 @@ pub struct App {
 
 impl App {
     pub fn new(app: AndroidApp) -> Result<Self> {
-        let _ = unsafe { JavaVM::from_raw(app.vm_as_ptr().cast()) };
+        let vm = unsafe { JavaVM::from_raw(app.vm_as_ptr().cast()) };
+        let activity = vm.attach_current_thread(|env| Self::activity(&app, env))?;
+        ACTIVITY.set(activity).unwrap();
         Ok(Self { app })
     }
 
-    pub(crate) fn activity(&self, env: &Env<'_>) -> Result<GlobalRef> {
-        let activity = self.app.activity_as_ptr() as jni::sys::jobject;
+    pub(crate) fn activity(app: &AndroidApp, env: &Env<'_>) -> Result<GlobalRef> {
+        let activity = app.activity_as_ptr() as jni::sys::jobject;
         let activity = unsafe { env.as_cast_raw::<Global<JObject>>(&activity)? };
         Ok(env.new_global_ref(&activity)?)
     }
 
-    pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        APP.set(self, || {
-            let result = RefCell::new(None);
-            winio_pollable::enter_block_on(
-                future.map(|res| {
-                    result.replace(Some(res));
-                }),
-                looper_waker(),
-                || {
-                    let mut destroyed = false;
-                    while !destroyed {
-                        self.app.poll_events(None, |event| {
-                            compio_log::debug!("Event: {:?}", event);
-                            match event {
-                                PollEvent::Wake | PollEvent::Timeout => {
-                                    winio_pollable::run_current_task();
-                                }
-                                PollEvent::Main(e) => match e {
-                                    MainEvent::Start
-                                    | MainEvent::Resume { .. }
-                                    | MainEvent::GainedFocus => {
-                                        winio_pollable::run_current_task();
-                                    }
-                                    MainEvent::WindowResized { .. } if signal_resize::<()>() => {
-                                        winio_pollable::run_current_task();
-                                    }
-                                    MainEvent::Destroy => {
-                                        destroyed = true;
-                                    }
-                                    _ => {}
-                                },
-                                _ => {}
-                            }
-                        });
+    fn run_current_task(&self) {
+        let res = DynamicProxy::post_to_main_looper(|_env| {
+            MAIN_TASK.with_borrow(|task| {
+                if let Some(task) = task.as_ref() {
+                    task.poll();
+                }
+            });
+            Ok(())
+        });
+        match res {
+            Ok(true) => {}
+            Ok(false) => {
+                warn!("cannot run task on main looper");
+            }
+            Err(e) => {
+                error!("Error posting task to main looper: {e:?}");
+            }
+        }
+    }
+
+    pub fn block_on<F: Future<Output = ()>>(
+        &self,
+        future: impl (FnOnce() -> F) + Sync + Send + 'static,
+    ) {
+        let (tx, rx) = oneshot::channel();
+
+        let waker = looper_waker();
+        self.app.run_on_java_main_thread(Box::new(move || {
+            let future = future().map(move |res| {
+                tx.send(res).ok();
+            });
+            let task = unsafe { MainTask::new(future, waker) };
+            MAIN_TASK.with_borrow_mut(|t| t.replace(task));
+        }));
+
+        let mut destroyed = false;
+        while !destroyed {
+            self.app.poll_events(None, |event| {
+                debug!("Event: {:?}", event);
+                match event {
+                    PollEvent::Wake | PollEvent::Timeout => {
+                        self.run_current_task();
                     }
-                    result.take().expect("app exited without returning a value")
-                },
-            )
-        })
+                    PollEvent::Main(e) => match e {
+                        MainEvent::Start
+                        | MainEvent::Resume { .. }
+                        | MainEvent::ConfigChanged { .. } => {
+                            self.run_current_task();
+                        }
+                        MainEvent::Destroy => {
+                            destroyed = true;
+                        }
+                        _ => {}
+                    },
+                    _ => {}
+                }
+            });
+        }
+        signal_destroy();
+        loop {
+            match rx.try_recv() {
+                Ok(result) => break result,
+                Err(TryRecvError::Empty) => {
+                    self.run_current_task();
+                    std::thread::yield_now();
+                }
+                Err(TryRecvError::Disconnected) => {
+                    panic!("Main task was dropped without completing");
+                }
+            }
+        }
     }
 }
 
-scoped_tls::scoped_thread_local!(pub(crate) static APP: App);
+static ACTIVITY: OnceLock<GlobalRef> = OnceLock::new();
 
 thread_local! {
-    pub(crate) static RESIZE_SLAB: RefCell<Slab<Rc<Callback>>> = const { RefCell::new(Slab::new()) };
+    static MAIN_TASK: RefCell<Option<MainTask>> = const { RefCell::new(None) };
 }
 
-fn signal_resize<R: Runnable>() -> bool {
-    RESIZE_SLAB.with_borrow(|s| {
-        for (_, callback) in s.iter() {
-            callback.signal::<R>(());
-        }
-        !s.is_empty()
-    })
+pub(crate) static DESTROY_SLAB: Mutex<Slab<Arc<SyncCallback>>> = const { Mutex::new(Slab::new()) };
+
+fn signal_destroy() -> bool {
+    let s = DESTROY_SLAB.lock().unwrap();
+    for (_, callback) in s.iter() {
+        callback.signal(());
+    }
+    !s.is_empty()
 }
 
 fn looper_waker() -> Waker {
@@ -131,6 +170,6 @@ where
     vm.attach_current_thread::<_, R, Error>(f)
 }
 
-pub fn current_activity() -> Result<GlobalRef> {
-    vm_exec(|env| APP.with(|app| app.activity(env)))
+pub fn current_activity() -> Result<&'static GlobalRef> {
+    ACTIVITY.get().ok_or(Error::NoThreadLooper)
 }

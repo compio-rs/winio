@@ -44,7 +44,6 @@ use compat_stub::*;
 
 /// Root application, manages the async runtime.
 pub struct App {
-    runtime: WinioRuntimeCompat,
     app: SysApp,
     name: String,
 }
@@ -57,22 +56,6 @@ impl App {
     ) -> sys::Result<Self> {
         Self::new_impl(
             name,
-            Runtime::new()?,
-            #[cfg(target_os = "android")]
-            app,
-        )
-    }
-
-    /// Create [`App`] with application name and a custom compio [`Runtime`].
-    #[cfg(feature = "compio-compat")]
-    pub fn new_with_runtime(
-        name: impl AsRef<str>,
-        runtime: Runtime,
-        #[cfg(target_os = "android")] app: android_activity::AndroidApp,
-    ) -> sys::Result<Self> {
-        Self::new_impl(
-            name,
-            runtime,
             #[cfg(target_os = "android")]
             app,
         )
@@ -80,10 +63,8 @@ impl App {
 
     fn new_impl(
         name: impl AsRef<str>,
-        runtime: Runtime,
         #[cfg(target_os = "android")] app: android_activity::AndroidApp,
     ) -> sys::Result<Self> {
-        let runtime = WinioRuntimeCompat::new(runtime)?;
         let name = name.as_ref().to_string();
         #[allow(unused_mut)]
         let mut app = SysApp::new(
@@ -92,7 +73,7 @@ impl App {
         )?;
         #[cfg(not(any(windows, target_vendor = "apple", target_os = "android")))]
         app.set_app_id(&name)?;
-        Ok(Self { runtime, app, name })
+        Ok(Self { app, name })
     }
 
     /// The application name.
@@ -100,23 +81,9 @@ impl App {
         &self.name
     }
 
-    /// Block on the future till it completes.
-    ///
-    /// The inner runtime might exits the inner application loop after the
-    /// execution of the future.
-    pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        let future = self.runtime.execute(future);
-        if std::mem::size_of_val(&future) >= 2048 {
-            self.app.block_on(Box::pin(future))
-        } else {
-            self.app.block_on(future)
-        }
-    }
-
     /// Run the component till the first event is emitted. [`RunEvent`] is
     /// flattened to [`Result`].
     pub async fn execute<'a, T: Component>(
-        &self,
         init: impl Into<T::Init<'a>>,
     ) -> Result<T::Event, T::Error> {
         let mut component = Root::<T>::init(init).await?;
@@ -132,7 +99,6 @@ impl App {
     /// Run the component utill [`RunEvent::Event`] is emitted. Other variants
     /// of [`RunEvent`] are ignored.
     pub async fn execute_until_event<'a, T: Component>(
-        &self,
         init: impl Into<T::Init<'a>>,
     ) -> Result<T::Event, T::Error> {
         let mut component = Root::<T>::init(init).await?;
@@ -154,6 +120,22 @@ impl App {
         }
         unreachable!("component exits unexpectedly")
     }
+}
+
+#[cfg(not(target_os = "android"))]
+impl App {
+    /// Block on the future till it completes.
+    ///
+    /// The inner runtime might exits the inner application loop after the
+    /// execution of the future.
+    pub fn block_on<F: Future>(&self, future: F) -> F::Output {
+        let future = self.runtime.execute(future);
+        if std::mem::size_of_val(&future) >= 2048 {
+            self.app.block_on(Box::pin(future))
+        } else {
+            self.app.block_on(future)
+        }
+    }
 
     /// Equivalent to calling [`block_on`](Self::block_on) on
     /// [`execute`](Self::execute).
@@ -161,7 +143,7 @@ impl App {
         &self,
         init: impl Into<T::Init<'a>>,
     ) -> Result<T::Event, T::Error> {
-        self.block_on(self.execute::<T>(init))
+        self.block_on(Self::execute::<T>(init))
     }
 
     /// Equivalent to calling [`block_on`](Self::block_on) on
@@ -170,6 +152,38 @@ impl App {
         &self,
         init: impl Into<T::Init<'a>>,
     ) -> Result<T::Event, T::Error> {
-        self.block_on(self.execute_until_event::<T>(init))
+        self.block_on(Self::execute_until_event::<T>(init))
+    }
+}
+
+#[cfg(target_os = "android")]
+impl App {
+    /// Block on the future till it completes.
+    ///
+    /// The inner runtime might exits the inner application loop after the
+    /// execution of the future.
+    ///
+    /// The future is created on the main thread instead of the current thread.
+    pub fn block_on<F: Future<Output = ()>>(
+        &self,
+        future: impl (FnOnce() -> F) + Sync + Send + 'static,
+    ) {
+        self.block_on_with_runtime(|| Runtime::new().unwrap(), future);
+    }
+
+    /// Block on the future till it completes with a custom runtime.
+    ///
+    /// Both the runtime and the future is created on the main thread instead of
+    /// the current thread.
+    pub fn block_on_with_runtime<F: Future<Output = ()>>(
+        &self,
+        runtime: impl (FnOnce() -> Runtime) + Sync + Send + 'static,
+        future: impl (FnOnce() -> F) + Sync + Send + 'static,
+    ) {
+        self.app.block_on(move || {
+            let runtime = runtime();
+            let compat = WinioRuntimeCompat::new(runtime).unwrap();
+            async move { compat.execute(future()).await }
+        })
     }
 }

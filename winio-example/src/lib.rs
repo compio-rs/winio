@@ -34,19 +34,23 @@ type Result<T> = std::result::Result<T, Error>;
 fn android_main(app: AndroidApp) {
     tracing_subscriber::registry()
         .with(tracing_android_trace::AndroidTraceLayer::new())
-        .with(tracing_subscriber::fmt::layer().with_filter(LevelFilter::TRACE))
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_ansi(false)
+                .with_filter(LevelFilter::DEBUG),
+        )
         .init();
 
     unsafe {
         std::env::set_var("RUST_BACKTRACE", "1");
     }
 
-    if let Err(e) = App::new("rs.compio.winio.hello", app)
-        .expect("cannot create app")
-        .run_until_event::<MainModel>(())
-    {
-        compio_log::error!("App error: {e:?}");
-    }
+    let app = App::new("rs.compio.winio.hello", app).expect("cannot create app");
+    app.block_on(|| async {
+        if let Err(e) = App::execute_until_event::<MainModel>(()).await {
+            compio_log::error!("App error: {e:?}");
+        }
+    })
 }
 
 pub struct MainModel {
@@ -119,20 +123,14 @@ impl Component for MainModel {
 
     fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
         let csize = self.window.client_size()?;
-        compio_log::info!("csize: {csize:?}");
         {
-            let mut panel = layout! {
-                StackPanel::new(Orient::Vertical),
-                self.text => { margin: Margin::new_all_same(4.0), halign: HAlign::Center },
-                self.link => { margin: Margin::new_all_same(4.0), halign: HAlign::Center },
+            let mut grid = layout! {
+                Grid::from_str("1*, auto, 1*", "1*, auto, auto, 1*").unwrap(),
+                self.text => { column: 1, row: 1 },
+                self.link => { column: 1, row: 2 },
             };
-            panel.set_size(csize)?;
+            grid.set_size(csize)?;
         }
-        compio_log::info!(
-            "text rect: {:?}, link rect: {:?}",
-            self.text.rect()?,
-            self.link.rect()?
-        );
         Ok(())
     }
 }
