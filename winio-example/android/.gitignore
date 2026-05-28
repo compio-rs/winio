@@ -11,6 +11,5 @@ local.properties
 
 gradle-wrapper.jar
 gradle-daemon-jvm.properties
-libs.versions.toml
 /gradlew
 /gradlew.bat

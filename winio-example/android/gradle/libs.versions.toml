@@ -1,0 +1,12 @@
+[plugins]
+android-application = { id = "com.android.application", version = "9.2.1" }
+
+[versions]
+appcompat = "1.7.1"
+material = "1.14.0"
+games-activity = "4.4.2"
+
+[libraries]
+appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+material = { module = "com.google.android.material:material", version.ref = "material" }
+games-activity = { module = "androidx.games:games-activity", version.ref = "games-activity" }
