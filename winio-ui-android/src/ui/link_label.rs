@@ -17,9 +17,13 @@ use crate::{BaseWidget, GlobalRef, JObjectExt, Result, vm_exec};
 pub struct LinkLabel {
     inner: BaseWidget,
     on_click: Arc<SyncCallback>,
+    #[allow(dead_code)]
+    click_proxy: DynamicProxy,
     url_span: GlobalRef,
     click_span: GlobalRef,
 }
+
+const SPAN_INCLUSIVE_EXCLUSIVE: i32 = 0x11;
 
 #[inherit_methods(from = "self.inner")]
 impl LinkLabel {
@@ -28,6 +32,21 @@ impl LinkLabel {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         vm_exec(|env| {
             let inner = BaseWidget::new_with_env(env, parent.as_container(), Self::WIDGET_CLASS)?;
+
+            let method = env.call_static_method(
+                jni::jni_str!("android/text/method/LinkMovementMethod"),
+                jni::jni_str!("getInstance"),
+                jni::jni_sig!("()Landroid/text/method/MovementMethod;"),
+                &[],
+            )?;
+            env.call_method(
+                inner.as_obj(),
+                jni::jni_str!("setMovementMethod"),
+                jni::jni_sig!("(Landroid/text/method/MovementMethod;)V"),
+                &[(&method).into()],
+            )?
+            .v()?;
+
             let on_click = Arc::new(SyncCallback::new());
 
             let click_span = env.new_object(
@@ -35,7 +54,7 @@ impl LinkLabel {
                 jni::jni_sig!("()V"),
                 &[],
             )?;
-            let proxy = DynamicProxy::build(
+            let click_proxy = DynamicProxy::build(
                 env,
                 &LoaderContext::None,
                 [jni::jni_str!("java/lang/Runnable")],
@@ -51,7 +70,7 @@ impl LinkLabel {
                 &click_span,
                 jni::jni_str!("setOnClick"),
                 jni::jni_sig!("(Ljava/lang/Runnable;)V"),
-                &[proxy.as_ref().into()],
+                &[click_proxy.as_ref().into()],
             )?
             .v()?;
             let click_span = env.new_global_ref(click_span)?;
@@ -67,6 +86,7 @@ impl LinkLabel {
             Ok(Self {
                 inner,
                 on_click,
+                click_proxy,
                 url_span,
                 click_span,
             })
@@ -96,9 +116,15 @@ impl LinkLabel {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     fn update_text_impl(&mut self, env: &mut Env, text: JObject, s: &str) -> Result<()> {
+        let text = env.new_object(
+            jni::jni_str!("android/text/SpannableString"),
+            jni::jni_sig!("(Ljava/lang/CharSequence;)V"),
+            &[(&text).into()],
+        )?;
         let length = env
             .call_method(&text, jni::jni_str!("length"), jni::jni_sig!("()I"), &[])?
             .i()?;
+        compio_log::info!("update_text_impl: text={:?}, s={:?}", length, s);
         env.call_method(
             &text,
             jni::jni_str!("setSpan"),
@@ -110,9 +136,9 @@ impl LinkLabel {
                     self.url_span.as_obj()
                 })
                 .into(),
-                0.into(),
+                0i32.into(),
                 length.into(),
-                0.into(),
+                SPAN_INCLUSIVE_EXCLUSIVE.into(),
             ],
         )?
         .v()?;
@@ -126,39 +152,35 @@ impl LinkLabel {
         Ok(())
     }
 
+    fn text_jstring<'a>(&self, env: &mut Env<'a>) -> Result<JObject<'a>> {
+        let spannable = env
+            .call_method(
+                self.inner.as_obj(),
+                jni::jni_str!("getText"),
+                jni::jni_sig!("()Ljava/lang/CharSequence;"),
+                &[],
+            )?
+            .l()?;
+        let str = env
+            .call_method(
+                &spannable,
+                jni::jni_str!("toString"),
+                jni::jni_sig!("()Ljava/lang/String;"),
+                &[],
+            )?
+            .l()?;
+        Ok(str)
+    }
+
     pub fn text(&self) -> Result<String> {
-        vm_exec(|env| {
-            let spannable = env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("getText"),
-                    jni::jni_sig!("()Ljava/lang/CharSequence;"),
-                    &[],
-                )?
-                .l()?;
-            let str = env
-                .call_method(
-                    &spannable,
-                    jni::jni_str!("toString"),
-                    jni::jni_sig!("()Ljava/lang/String;"),
-                    &[],
-                )?
-                .l()?
-                .to(env)?;
-            Ok(str)
-        })
+        vm_exec(|env| self.text_jstring(env)?.to(env))
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         let uri = self.uri()?;
         vm_exec(|env| {
             let str = JString::new(env, s.as_ref())?;
-            let text = env.new_object(
-                jni::jni_str!("android/text/SpannableString"),
-                jni::jni_sig!("(Ljava/lang/CharSequence;)V"),
-                &[(&str).into()],
-            )?;
-            self.update_text_impl(env, text, &uri)?;
+            self.update_text_impl(env, str.into(), &uri)?;
             Ok(())
         })
     }
@@ -182,22 +204,14 @@ impl LinkLabel {
         let s = s.as_ref();
         vm_exec(|env| {
             let url = JString::new(env, s)?;
-            env.call_method(
-                &self.url_span,
-                jni::jni_str!("<init>"),
+            let url_span = env.new_object(
+                jni::jni_str!("android/text/style/URLSpan"),
                 jni::jni_sig!("(Ljava/lang/String;)V"),
                 &[(&url).into()],
-            )?
-            .v()?;
-            let text = env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("getText"),
-                    jni::jni_sig!("()Ljava/lang/CharSequence;"),
-                    &[],
-                )?
-                .l()?;
-            self.update_text_impl(env, text, s)?;
+            )?;
+            self.url_span = env.new_global_ref(url_span)?;
+            let str = self.text_jstring(env)?;
+            self.update_text_impl(env, str, s)?;
             Ok(())
         })
     }
