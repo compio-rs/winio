@@ -28,13 +28,20 @@ ndk-sys = "0.6"
 futures-util = { workspace = true }
 image = { workspace = true, default-features = false }
 inherit-methods-macro = { workspace = true }
+once_cell = { workspace = true }
 oneshot = { workspace = true, features = ["std", "async"] }
 scoped-tls = { workspace = true }
 slab = { workspace = true }
 thiserror = { workspace = true }
+
+[build-dependencies]
+android-build = "0.1"
 
 [features]
 media = []
 webview = []
 
 compio-compat = ["compio/compat-futures"]
+
+once_cell_try = []
+nightly = ["once_cell_try"]

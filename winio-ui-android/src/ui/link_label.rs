@@ -49,11 +49,10 @@ impl LinkLabel {
 
             let on_click = Arc::new(SyncCallback::new());
 
-            let click_span = env.new_object(
-                jni::jni_str!("rs/compio/winio/ClickableSpan"),
-                jni::jni_sig!("()V"),
-                &[],
-            )?;
+            let click_span_class_name = JString::from_str(env, "rs/compio/winio/ClickableSpan")?;
+            let click_span_class =
+                crate::winio_class_loader()?.load_class(env, click_span_class_name)?;
+            let click_span = env.new_object(click_span_class, jni::jni_sig!("()V"), &[])?;
             let click_proxy = DynamicProxy::build(
                 env,
                 &LoaderContext::None,
