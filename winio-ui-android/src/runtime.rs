@@ -1,7 +1,7 @@
 use std::{
     cell::RefCell,
     future::Future,
-    sync::{Arc, Mutex, OnceLock},
+    sync::{Arc, Mutex},
     task::{RawWaker, RawWakerVTable, Waker},
 };
 
@@ -26,7 +26,7 @@ impl App {
     pub fn new(app: AndroidApp) -> Result<Self> {
         let vm = unsafe { JavaVM::from_raw(app.vm_as_ptr().cast()) };
         let activity = vm.attach_current_thread(|env| Self::activity(&app, env))?;
-        ACTIVITY.set(activity).unwrap();
+        ACTIVITY.lock().unwrap().replace(activity);
         Ok(Self { app })
     }
 
@@ -95,11 +95,16 @@ impl App {
             });
         }
         signal_destroy();
+        let mut counter = 0;
         loop {
             match rx.try_recv() {
                 Ok(result) => break result,
                 Err(TryRecvError::Empty) => {
                     self.run_current_task();
+                    counter += 1;
+                    if counter > 64 {
+                        panic!("Main task is taking a long time to complete");
+                    }
                     std::thread::yield_now();
                 }
                 Err(TryRecvError::Disconnected) => {
@@ -110,7 +115,7 @@ impl App {
     }
 }
 
-static ACTIVITY: OnceLock<GlobalRef> = OnceLock::new();
+static ACTIVITY: Mutex<Option<GlobalRef>> = Mutex::new(None);
 
 thread_local! {
     static MAIN_TASK: RefCell<Option<MainTask>> = const { RefCell::new(None) };
@@ -170,6 +175,7 @@ where
     vm.attach_current_thread::<_, R, Error>(f)
 }
 
-pub fn current_activity() -> Result<&'static GlobalRef> {
-    ACTIVITY.get().ok_or(Error::NoApp)
+pub fn current_activity<'local>(env: &mut Env<'local>) -> Result<JObject<'local>> {
+    let act = ACTIVITY.lock().unwrap();
+    Ok(env.new_local_ref(act.as_ref().ok_or(Error::NoApp)?.as_obj())?)
 }

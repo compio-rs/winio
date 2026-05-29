@@ -6,11 +6,11 @@ const UI_MODE_NIGHT_MASK: i32 = 0x30;
 const UI_MODE_NIGHT_YES: i32 = 0x20;
 
 pub fn color_theme() -> crate::Result<ColorTheme> {
-    let act = current_activity()?;
     vm_exec(|env| {
+        let act = current_activity(env)?;
         let resources = env
             .call_method(
-                act.as_obj(),
+                act,
                 jni::jni_str!("getResources"),
                 jni::jni_sig!("()Landroid/content/res/Resources;"),
                 &[],

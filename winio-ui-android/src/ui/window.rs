@@ -35,8 +35,8 @@ impl Window {
 
     pub fn new() -> Result<Self> {
         vm_exec(move |env| {
-            let act = current_activity()?;
-            let act = env.new_global_ref(act.as_obj())?;
+            let act = current_activity(env)?;
+            let act = env.new_global_ref(act)?;
             let window = env.new_object(
                 JNIString::new(Self::WINDOW_CLASS),
                 jni::jni_sig!("(Landroid/content/Context;)V"),

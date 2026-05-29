@@ -75,12 +75,12 @@ impl ComboBox {
             )?;
             let list = unsafe { JList::from_raw(env, list.into_raw()) };
             let list = env.new_global_ref(list)?;
-            let context = crate::current_activity()?;
+            let context = crate::current_activity(env)?;
             let adapter = env.new_object(
                 jni::jni_str!("android/widget/ArrayAdapter"),
                 jni::jni_sig!("(Landroid/content/Context;ILjava/util/List;)V"),
                 &[
-                    context.as_obj().into(),
+                    (&context).into(),
                     Layout::simple_spinner_item(env)?.into(),
                     list.as_obj().into(),
                 ],

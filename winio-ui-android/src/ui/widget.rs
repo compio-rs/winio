@@ -30,11 +30,11 @@ impl BaseWidget {
         widget_class: &str,
     ) -> Result<Self> {
         let parent = env.new_global_ref(parent.as_container().to_android())?;
-        let context = current_activity()?;
+        let context = current_activity(env)?;
         let widget = env.new_object(
             JNIString::new(widget_class),
             jni::jni_sig!("(Landroid/content/Context;)V"),
-            &[context.as_obj().into()],
+            &[(&context).into()],
         )?;
         env.call_method(
             parent.as_obj(),

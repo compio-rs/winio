@@ -160,7 +160,7 @@ impl MessageBox {
             let activity = if let Some(parent) = parent {
                 env.new_local_ref(parent.as_window().to_android())?
             } else {
-                env.new_local_ref(crate::current_activity()?)?
+                crate::current_activity(env)?
             };
             let activity = unsafe { Context::from_raw(env, activity.into_raw()) };
             let builder = AlertDialogBuilder::new(env, &activity)?;

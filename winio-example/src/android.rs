@@ -7,6 +7,10 @@ use crate::MainModel;
 
 #[unsafe(no_mangle)]
 fn android_main(app: AndroidApp) {
+    unsafe {
+        std::env::set_var("RUST_BACKTRACE", "1");
+    }
+
     tracing_subscriber::registry()
         .with(tracing_android_trace::AndroidTraceLayer::new())
         .with(
@@ -14,11 +18,8 @@ fn android_main(app: AndroidApp) {
                 .with_ansi(false)
                 .with_filter(LevelFilter::DEBUG),
         )
-        .init();
-
-    unsafe {
-        std::env::set_var("RUST_BACKTRACE", "1");
-    }
+        .try_init()
+        .ok();
 
     let app = App::builder()
         .android_app(app)
