@@ -387,24 +387,40 @@ jni::bind_java_type! {
     }
 }
 
-mod pixel_format {
-    pub const TRANSPARENT: i32 = -2;
-}
-
 jni::bind_java_type! {
-    SurfaceHolder => android.view.SurfaceHolder,
+    Picture => android.graphics.Picture,
     type_map {
         ACanvas => android.graphics.Canvas,
     },
+    constructors {
+        fn new(),
+    },
     methods {
-        fn lock_canvas() -> ACanvas,
-        fn unlock_canvas_and_post(canvas: &ACanvas),
-        fn set_format(format: jint),
+        fn begin_recording(width: jint, height: jint) -> ACanvas,
+        fn end_recording(),
+    },
+}
+
+jni::bind_java_type! {
+    Drawable => android.graphics.drawable.Drawable,
+}
+
+jni::bind_java_type! {
+    PictureDrawable => android.graphics.drawable.PictureDrawable,
+    type_map {
+        Drawable => android.graphics.drawable.Drawable,
+        Picture => android.graphics.Picture,
+    },
+    constructors {
+        fn new(picture: &Picture),
+    },
+    is_instance_of = {
+        base: Drawable,
     },
 }
 
 pub struct DrawingContext<'a> {
-    holder: Global<SurfaceHolder<'static>>,
+    picture: Global<Picture<'static>>,
     canvas: Global<ACanvas<'static>>,
     closed: bool,
     parent: &'a Canvas,
@@ -421,11 +437,11 @@ impl Drop for DrawingContext<'_> {
 impl<'a> DrawingContext<'a> {
     fn new(
         parent: &'a Canvas,
-        holder: Global<SurfaceHolder<'static>>,
+        picture: Global<Picture<'static>>,
         canvas: Global<ACanvas<'static>>,
     ) -> Self {
         Self {
-            holder,
+            picture,
             canvas,
             closed: false,
             parent,
@@ -435,8 +451,15 @@ impl<'a> DrawingContext<'a> {
     fn close_impl(&mut self) -> Result<()> {
         if !self.closed {
             vm_exec(|env| {
-                self.holder.unlock_canvas_and_post(env, &self.canvas)?;
+                self.picture.end_recording(env)?;
                 self.closed = true;
+                let drawable = PictureDrawable::new(env, &self.picture)?;
+                env.call_method(
+                    self.parent.inner.as_obj(),
+                    jni::jni_str!("setImageDrawable"),
+                    jni::jni_sig!("(Landroid/graphics/drawable/Drawable;)V"),
+                    &[(&drawable).into()],
+                )?;
                 Ok(())
             })
         } else {
@@ -935,7 +958,7 @@ pub struct Canvas {
 
 #[inherit_methods(from = "self.inner")]
 impl Canvas {
-    const WIDGET_CLASS: &'static str = "android/view/SurfaceView";
+    const WIDGET_CLASS: &'static str = "android/widget/ImageView";
 
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         vm_exec(|env| {
@@ -1047,29 +1070,16 @@ impl Canvas {
 
     pub fn context(&self) -> Result<DrawingContext<'_>> {
         vm_exec(|env| {
-            let holder = env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("getHolder"),
-                    jni::jni_sig!("()Landroid/view/SurfaceHolder;"),
-                    &[],
-                )?
-                .l()?;
-            let canvas = env
-                .call_method(
-                    &holder,
-                    jni::jni_str!("lockCanvas"),
-                    jni::jni_sig!("()Landroid/graphics/Canvas;"),
-                    &[],
-                )?
-                .l()?;
-            let holder = unsafe { SurfaceHolder::from_raw(env, holder.into_raw()) };
-            let holder = env.new_global_ref(holder)?;
-            let canvas = unsafe { ACanvas::from_raw(env, canvas.into_raw()) };
+            let picture = Picture::new(env)?;
+            let picture = env.new_global_ref(picture)?;
+            let canvas = picture.begin_recording(
+                env,
+                self.latest_size.width as _,
+                self.latest_size.height as _,
+            )?;
             let canvas = env.new_global_ref(canvas)?;
-            holder.set_format(env, pixel_format::TRANSPARENT)?;
             canvas.draw_r_g_b(env, 255, 255, 255)?;
-            Ok(DrawingContext::new(self, holder, canvas))
+            Ok(DrawingContext::new(self, picture, canvas))
         })
     }
 
