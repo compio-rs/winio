@@ -1,14 +1,14 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::sync::Arc;
 
 use compio_log::error;
 use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
 use jni::{
     Env,
-    objects::{JObject, JPrimitiveArray},
+    objects::JPrimitiveArray,
     refs::{Global, LoaderContext},
 };
-use jni_min_helper::DynamicProxy;
+use jni_min_helper::{DynamicProxy, JBoolean};
 use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{
@@ -97,10 +97,10 @@ jni::bind_java_type! {
     methods {
         fn set_a_r_g_b(a: jint, r: jint, g: jint, b: jint),
         fn set_style(style: &PaintStyle),
-        fn set_shader(shader: &Shader),
+        fn set_shader(shader: &Shader) -> Shader,
         fn set_stroke_width(width: jfloat),
         fn set_text_size(size: jfloat),
-        fn set_typeface(typeface: &Typeface),
+        fn set_typeface(typeface: &Typeface) -> Typeface,
     },
 }
 
@@ -137,8 +137,11 @@ jni::bind_java_type! {
         ACanvas => android.graphics.Canvas,
     },
     methods {
-        fn get_width() -> jint,
+        // fn get_width() -> jint,
         fn get_height() -> jint,
+        fn get_line_count() -> jint,
+        fn get_line_right(line: jint) -> jfloat,
+
         fn draw(canvas: &ACanvas),
     },
 }
@@ -373,6 +376,7 @@ jni::bind_java_type! {
         fn draw_oval(left: jfloat, top: jfloat, right: jfloat, bottom: jfloat, paint: &Paint),
         fn draw_path(path: &Path, paint: &Paint),
         fn draw_rect(left: jfloat, top: jfloat, right: jfloat, bottom: jfloat, paint: &Paint),
+        fn draw_r_g_b(r: jint, g: jint, b: jint),
         #[allow(clippy::too_many_arguments)]
         fn draw_round_rect(left: jfloat, top: jfloat, right: jfloat, bottom: jfloat, rx: jfloat, ry: jfloat, paint: &Paint),
         fn get_matrix() -> AMatrix,
@@ -383,6 +387,10 @@ jni::bind_java_type! {
     }
 }
 
+mod pixel_format {
+    pub const TRANSPARENT: i32 = -2;
+}
+
 jni::bind_java_type! {
     SurfaceHolder => android.view.SurfaceHolder,
     type_map {
@@ -391,6 +399,7 @@ jni::bind_java_type! {
     methods {
         fn lock_canvas() -> ACanvas,
         fn unlock_canvas_and_post(canvas: &ACanvas),
+        fn set_format(format: jint),
     },
 }
 
@@ -398,7 +407,7 @@ pub struct DrawingContext<'a> {
     holder: Global<SurfaceHolder<'static>>,
     canvas: Global<ACanvas<'static>>,
     closed: bool,
-    _p: PhantomData<&'a Canvas>,
+    parent: &'a Canvas,
 }
 
 impl Drop for DrawingContext<'_> {
@@ -409,13 +418,17 @@ impl Drop for DrawingContext<'_> {
     }
 }
 
-impl DrawingContext<'_> {
-    fn new(holder: Global<SurfaceHolder<'static>>, canvas: Global<ACanvas<'static>>) -> Self {
+impl<'a> DrawingContext<'a> {
+    fn new(
+        parent: &'a Canvas,
+        holder: Global<SurfaceHolder<'static>>,
+        canvas: Global<ACanvas<'static>>,
+    ) -> Self {
         Self {
             holder,
             canvas,
             closed: false,
-            _p: PhantomData,
+            parent,
         }
     }
 
@@ -501,8 +514,8 @@ impl DrawingContext<'_> {
                 rect.min.y as f32,
                 rect.max.x as f32,
                 rect.max.y as f32,
-                start as f32,
-                (end - start) as f32,
+                to_degree(start as f32),
+                to_degree((end - start) as f32),
                 false,
                 &paint,
             )?;
@@ -520,8 +533,8 @@ impl DrawingContext<'_> {
                 rect.min.y as f32,
                 rect.max.x as f32,
                 rect.max.y as f32,
-                start as f32,
-                (end - start) as f32,
+                to_degree(start as f32),
+                to_degree((end - start) as f32),
                 true,
                 &paint,
             )?;
@@ -539,8 +552,8 @@ impl DrawingContext<'_> {
                 rect.min.y as f32,
                 rect.max.x as f32,
                 rect.max.y as f32,
-                start as f32,
-                (end - start) as f32,
+                to_degree(start as f32),
+                to_degree((end - start) as f32),
                 true,
                 &paint,
             )?;
@@ -669,7 +682,7 @@ impl DrawingContext<'_> {
         brush: Option<impl Brush>,
         font: &DrawingFont,
         text: &str,
-    ) -> Result<StaticLayout<'local>> {
+    ) -> Result<(StaticLayout<'local>, Size)> {
         let mut style = typeface::NORMAL;
         if font.bold {
             style |= typeface::BOLD;
@@ -691,9 +704,23 @@ impl DrawingContext<'_> {
         let length = env
             .call_method(&text, jni::jni_str!("length"), jni::jni_sig!("()I"), &[])?
             .i()?;
-        let builder = StaticLayoutBuilder::obtain(env, text, 0, length, &paint, i32::MAX)?;
+        let builder = StaticLayoutBuilder::obtain(
+            env,
+            text,
+            0,
+            length,
+            &paint,
+            self.parent.latest_size.width as _,
+        )?;
         let layout = builder.build(env)?;
-        Ok(layout)
+        let height = layout.get_height(env)? as f64;
+        let mut width = 0.0f64;
+        let count = layout.get_line_count(env)?;
+        for i in 0..count {
+            let line_width = layout.get_line_right(env, i)? as f64;
+            width = width.max(line_width);
+        }
+        Ok((layout, Size::new(width, height)))
     }
 
     pub fn draw_str(
@@ -704,9 +731,9 @@ impl DrawingContext<'_> {
         text: &str,
     ) -> Result<()> {
         vm_exec(|env| {
-            let layout = self.create_layout(env, Some(brush), &font, text)?;
-            let width = layout.get_width(env)? as f64;
-            let height = layout.get_height(env)? as f64;
+            let (layout, size) = self.create_layout(env, Some(brush), &font, text)?;
+            let width = size.width;
+            let height = size.height;
             let mut x = pos.x;
             let mut y = pos.y;
             match font.halign {
@@ -736,10 +763,8 @@ impl DrawingContext<'_> {
 
     pub fn measure_str(&self, font: DrawingFont, text: &str) -> Result<Size> {
         vm_exec(|env| {
-            let layout = self.create_layout(env, None::<SolidColorBrush>, &font, text)?;
-            let width = layout.get_width(env)? as f64;
-            let height = layout.get_height(env)? as f64;
-            Ok(Size::new(width, height))
+            let (_, size) = self.create_layout(env, None::<SolidColorBrush>, &font, text)?;
+            Ok(size)
         })
     }
 
@@ -810,6 +835,10 @@ jni::bind_java_type! {
     }
 }
 
+const fn to_degree(radian: f32) -> f32 {
+    radian * 180.0 / std::f32::consts::PI
+}
+
 pub struct DrawingPath {
     path: Global<Path<'static>>,
 }
@@ -843,6 +872,12 @@ impl DrawingPathBuilder {
         end: f64,
         clockwise: bool,
     ) -> Result<()> {
+        let startp = Point::new(
+            center.x + radius.width * start.cos(),
+            center.y + radius.height * start.sin(),
+        );
+        self.add_line(startp)?;
+
         vm_exec(|env| {
             let left = center.x - radius.width;
             let top = center.y - radius.height;
@@ -856,8 +891,8 @@ impl DrawingPathBuilder {
                 top as f32,
                 right as f32,
                 bottom as f32,
-                start as f32,
-                sweep as f32,
+                to_degree(start as f32),
+                to_degree(sweep as f32),
                 true,
             )?;
             Ok(())
@@ -895,6 +930,7 @@ pub struct Canvas {
     on_move: Arc<SyncCallback<Point>>,
     #[allow(dead_code)]
     touch_proxy: DynamicProxy,
+    latest_size: Size,
 }
 
 #[inherit_methods(from = "self.inner")]
@@ -958,7 +994,7 @@ impl Canvas {
                             }
                             _ => {}
                         }
-                        Ok(JObject::null())
+                        Ok(JBoolean::new(env, true)?.into())
                     }
                 },
             )?;
@@ -974,6 +1010,7 @@ impl Canvas {
                 on_up,
                 on_move,
                 touch_proxy,
+                latest_size: Size::zero(),
             })
         })
     }
@@ -990,9 +1027,19 @@ impl Canvas {
 
     pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Result<Size>;
+    pub fn size(&self) -> Result<Size> {
+        let size = self.latest_size;
+        if size == Size::zero() {
+            self.inner.size()
+        } else {
+            Ok(size)
+        }
+    }
 
-    pub fn set_size(&mut self, v: Size) -> Result<()>;
+    pub fn set_size(&mut self, v: Size) -> Result<()> {
+        self.latest_size = v;
+        self.inner.set_size(v)
+    }
 
     pub fn tooltip(&self) -> Result<String>;
 
@@ -1020,7 +1067,9 @@ impl Canvas {
             let holder = env.new_global_ref(holder)?;
             let canvas = unsafe { ACanvas::from_raw(env, canvas.into_raw()) };
             let canvas = env.new_global_ref(canvas)?;
-            Ok(DrawingContext::new(holder, canvas))
+            holder.set_format(env, pixel_format::TRANSPARENT)?;
+            canvas.draw_r_g_b(env, 255, 255, 255)?;
+            Ok(DrawingContext::new(self, holder, canvas))
         })
     }
 
