@@ -73,7 +73,7 @@ impl BaseWidget {
         })
     }
 
-    pub fn set_loc(&mut self, p: Point) -> Result<()> {
+    pub fn set_loc(&self, p: Point) -> Result<()> {
         vm_exec(move |env| {
             env.call_method(
                 self.inner.as_obj(),
@@ -113,7 +113,7 @@ impl BaseWidget {
         })
     }
 
-    pub fn set_size(&mut self, size: Size) -> Result<()> {
+    pub fn set_size(&self, size: Size) -> Result<()> {
         vm_exec(move |env| {
             let params = env.new_object(
                 jni::jni_str!("android/widget/FrameLayout$LayoutParams"),

@@ -1,26 +1,32 @@
 //! Android window widget, based on JNI and FrameLayout
 
-use std::{cell::Cell, sync::Arc};
+use std::sync::{Arc, Mutex};
 
+use futures_util::FutureExt;
 use inherit_methods_macro::inherit_methods;
-use jni::{objects::JObject, refs::LoaderContext, strings::JNIString};
+use jni::{Env, objects::JObject, refs::LoaderContext, strings::JNIString};
 use jni_min_helper::{DynamicProxy, JInteger};
 use winio_callback::SyncCallback;
-use winio_handle::{AsWindow, BorrowedWindow};
-use winio_primitive::{Point, Size};
+use winio_handle::{AsWindow, BorrowedContainer, BorrowedWindow};
+use winio_primitive::{Margin, Point, Size};
 
 use crate::{BaseWidget, DESTROY_SLAB, GlobalRef, Result, current_activity, vm_exec};
 
 #[derive(Debug)]
 pub struct Window {
     inner: BaseWidget,
+    inner_view: BaseWidget,
     activity: GlobalRef,
-    on_resize: Arc<SyncCallback<Size>>,
+    on_resize: Arc<SyncCallback>,
     #[allow(unused)]
     on_resize_proxy: DynamicProxy,
+    on_insets: Arc<SyncCallback>,
+    #[allow(unused)]
+    insets_proxy: DynamicProxy,
     on_destroy: Arc<SyncCallback>,
     destroy_index: usize,
-    size_update: Cell<Size>,
+    size_update: Arc<Mutex<Size>>,
+    margin_update: Arc<Mutex<Margin>>,
 }
 
 #[inherit_methods(from = "self.inner")]
@@ -62,12 +68,29 @@ impl Window {
                 &[(&params).into()],
             )?
             .v()?;
-            let inner = env.new_global_ref(window)?;
+            let inner = env.new_global_ref(&window)?;
+            let inner_view = BaseWidget::new_with_env(
+                env,
+                unsafe { BorrowedContainer::android(&inner) },
+                Self::WINDOW_CLASS,
+            )?;
+
             let on_resize = Arc::new(SyncCallback::new());
+            let size_update = Arc::new(Mutex::new(Size::zero()));
+            let on_insets = Arc::new(SyncCallback::new());
+            let margin_update = Arc::new(Mutex::new(Margin::zero()));
+            let insets_proxy = set_insets_listener(
+                env,
+                act.as_obj(),
+                &window,
+                on_insets.clone(),
+                margin_update.clone(),
+            )?;
             let on_destroy = Arc::new(SyncCallback::new());
             let destroy_index = DESTROY_SLAB.lock().unwrap().insert(on_destroy.clone());
             let on_resize_proxy = {
                 let on_resize = on_resize.clone();
+                let size_update = size_update.clone();
                 let proxy = DynamicProxy::build(
                     env,
                     &LoaderContext::None,
@@ -95,8 +118,9 @@ impl Window {
                                 || right != old_right
                                 || bottom != old_bottom
                             {
-                                on_resize
-                                    .signal(Size::new((right - left) as _, (bottom - top) as _));
+                                let size = Size::new((right - left) as _, (bottom - top) as _);
+                                *size_update.lock().unwrap() = size;
+                                on_resize.signal(());
                             }
                         }
                         Ok(JObject::null())
@@ -113,23 +137,44 @@ impl Window {
             };
             Ok(Self {
                 inner: inner.into(),
+                inner_view,
                 activity: act,
                 on_resize,
                 on_resize_proxy,
+                on_insets,
+                insets_proxy,
                 on_destroy,
                 destroy_index,
-                size_update: Cell::new(Size::zero()),
+                size_update,
+                margin_update,
             })
         })
     }
 
     pub fn client_size(&self) -> Result<Size> {
-        self.size()
+        let size = self.size()?;
+        let margin = self.margin_update();
+        let size = Size::new(
+            size.width - margin.horizontal(),
+            size.height - margin.vertical(),
+        );
+        self.inner_view
+            .set_loc(Point::new(margin.left, margin.top))?;
+        self.inner_view.set_size(size)?;
+        Ok(size)
     }
 
     pub fn is_visible(&self) -> Result<bool>;
 
     pub fn set_visible(&mut self, visible: bool) -> Result<()>;
+
+    fn size_update(&self) -> Size {
+        *self.size_update.lock().unwrap()
+    }
+
+    fn margin_update(&self) -> Margin {
+        *self.margin_update.lock().unwrap()
+    }
 
     pub fn loc(&self) -> Result<Point> {
         Ok(Point::zero())
@@ -140,7 +185,7 @@ impl Window {
     }
 
     pub fn size(&self) -> Result<Size> {
-        let size = self.size_update.get();
+        let size = self.size_update();
         if size == Size::zero() {
             self.inner.preferred_size()
         } else {
@@ -169,8 +214,10 @@ impl Window {
     }
 
     pub async fn wait_size(&self) {
-        let size = self.on_resize.wait().await;
-        self.size_update.set(size);
+        futures_util::select! {
+            _ = self.on_resize.wait().fuse() => {},
+            _ = self.on_insets.wait().fuse() => {},
+        }
     }
 
     pub async fn wait_theme_changed(&self) {
@@ -184,10 +231,78 @@ impl AsWindow for Window {
     }
 }
 
-winio_handle::impl_as_container!(Window, inner);
+winio_handle::impl_as_container!(Window, inner_view);
 
 impl Drop for Window {
     fn drop(&mut self) {
         DESTROY_SLAB.lock().unwrap().remove(self.destroy_index);
     }
+}
+
+jni::bind_java_type! {
+    WindowInsetsCompat => androidx.core.view.WindowInsetsCompat,
+    type_map {
+        Insets => androidx.core.graphics.Insets,
+    },
+    methods {
+        fn get_insets(type_mask: jint) -> Insets,
+    }
+}
+
+jni::bind_java_type! {
+    WindowInsetsCompatType => "androidx.core.view.WindowInsetsCompat$Type",
+    methods {
+        static fn system_bars() -> jint,
+    }
+}
+
+jni::bind_java_type! {
+    Insets => androidx.core.graphics.Insets,
+    fields {
+        left: jint,
+        top: jint,
+        right: jint,
+        bottom: jint,
+    }
+}
+
+fn set_insets_listener(
+    env: &mut Env,
+    activity: &JObject,
+    view: &JObject,
+    on_resize: Arc<SyncCallback>,
+    margin_update: Arc<Mutex<Margin>>,
+) -> Result<DynamicProxy> {
+    let proxy = DynamicProxy::build(
+        env,
+        &LoaderContext::FromObject(activity),
+        [jni::jni_str!(
+            "androidx/core/view/OnApplyWindowInsetsListener"
+        )],
+        move |env, _method, args| {
+            let insets_compat = args.get_element(env, 1)?;
+            let insets_compat =
+                unsafe { WindowInsetsCompat::from_raw(env, insets_compat.into_raw()) };
+            let insets =
+                insets_compat.get_insets(env, WindowInsetsCompatType::system_bars(env)?)?;
+
+            let (left, top, right, bottom) = (
+                insets.left(env)?,
+                insets.top(env)?,
+                insets.right(env)?,
+                insets.bottom(env)?,
+            );
+            let margin = Margin::new(top as _, right as _, bottom as _, left as _);
+            *margin_update.lock().unwrap() = margin;
+            on_resize.signal(());
+            Ok(insets_compat.into())
+        },
+    )?;
+    env.call_static_method(
+        jni::jni_str!("androidx/core/view/ViewCompat"),
+        jni::jni_str!("setOnApplyWindowInsetsListener"),
+        jni::jni_sig!("(Landroid/view/View;Landroidx/core/view/OnApplyWindowInsetsListener;)V"),
+        &[view.into(), proxy.as_ref().into()],
+    )?;
+    Ok(proxy)
 }
