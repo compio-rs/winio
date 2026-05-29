@@ -1,11 +1,5 @@
 //! Android UI widgets for winio.
 
-use winio_primitive::ColorTheme;
-
-pub fn color_theme() -> crate::Result<ColorTheme> {
-    Ok(ColorTheme::Light)
-}
-
 mod accent;
 pub use accent::*;
 
@@ -14,6 +8,9 @@ pub use button::*;
 
 mod canvas;
 pub use canvas::*;
+
+mod color_theme;
+pub use color_theme::*;
 
 mod combo_box;
 pub use combo_box::*;

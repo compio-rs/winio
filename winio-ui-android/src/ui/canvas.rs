@@ -376,7 +376,6 @@ jni::bind_java_type! {
         fn draw_oval(left: jfloat, top: jfloat, right: jfloat, bottom: jfloat, paint: &Paint),
         fn draw_path(path: &Path, paint: &Paint),
         fn draw_rect(left: jfloat, top: jfloat, right: jfloat, bottom: jfloat, paint: &Paint),
-        fn draw_r_g_b(r: jint, g: jint, b: jint),
         #[allow(clippy::too_many_arguments)]
         fn draw_round_rect(left: jfloat, top: jfloat, right: jfloat, bottom: jfloat, rx: jfloat, ry: jfloat, paint: &Paint),
         fn get_matrix() -> AMatrix,
@@ -1078,7 +1077,6 @@ impl Canvas {
                 self.latest_size.height as _,
             )?;
             let canvas = env.new_global_ref(canvas)?;
-            canvas.draw_r_g_b(env, 255, 255, 255)?;
             Ok(DrawingContext::new(self, picture, canvas))
         })
     }
