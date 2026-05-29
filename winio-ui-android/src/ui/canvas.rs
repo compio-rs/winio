@@ -13,7 +13,7 @@ use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{
     BrushPen, DrawingFont, GradientStop, HAlign, LinearGradientBrush, MouseButton, Point,
-    RadialGradientBrush, Rect, Size, SolidColorBrush, Transform, VAlign, Vector,
+    RadialGradientBrush, Rect, RelativeToLogical, Size, SolidColorBrush, Transform, VAlign, Vector,
 };
 
 use crate::{BaseWidget, Result, vm_exec};
@@ -166,17 +166,29 @@ jni::bind_java_type! {
 
 /// Drawing brush.
 pub trait Brush {
-    fn create_paint<'local>(&self, env: &mut Env<'local>) -> Result<Paint<'local>>;
+    fn create_paint<'local>(
+        &self,
+        env: &mut Env<'local>,
+        rect: RelativeToLogical,
+    ) -> Result<Paint<'local>>;
 }
 
 impl<B: Brush> Brush for &'_ B {
-    fn create_paint<'local>(&self, env: &mut Env<'local>) -> Result<Paint<'local>> {
-        B::create_paint(self, env)
+    fn create_paint<'local>(
+        &self,
+        env: &mut Env<'local>,
+        rect: RelativeToLogical,
+    ) -> Result<Paint<'local>> {
+        B::create_paint(self, env, rect)
     }
 }
 
 impl Brush for SolidColorBrush {
-    fn create_paint<'local>(&self, env: &mut Env<'local>) -> Result<Paint<'local>> {
+    fn create_paint<'local>(
+        &self,
+        env: &mut Env<'local>,
+        _rect: RelativeToLogical,
+    ) -> Result<Paint<'local>> {
         let paint = Paint::new(env)?;
         paint.set_a_r_g_b(
             env,
@@ -214,18 +226,24 @@ fn colors_stops<'local>(
 }
 
 impl Brush for LinearGradientBrush {
-    fn create_paint<'local>(&self, env: &mut Env<'local>) -> Result<Paint<'local>> {
+    fn create_paint<'local>(
+        &self,
+        env: &mut Env<'local>,
+        rect: RelativeToLogical,
+    ) -> Result<Paint<'local>> {
         let paint = Paint::new(env)?;
         let style = PaintStyle::FILL(env)?;
         paint.set_style(env, &style)?;
         let (jcolors, jpositions) = colors_stops(env, &self.stops)?;
         let mode = TileMode::CLAMP(env)?;
+        let start = rect.transform_point(self.start);
+        let end = rect.transform_point(self.end);
         let gradient = LinearGradient::new(
             env,
-            self.start.x as f32,
-            self.start.y as f32,
-            self.end.x as f32,
-            self.end.y as f32,
+            start.x as f32,
+            start.y as f32,
+            end.x as f32,
+            end.y as f32,
             &jcolors,
             &jpositions,
             &mode,
@@ -236,17 +254,23 @@ impl Brush for LinearGradientBrush {
 }
 
 impl Brush for RadialGradientBrush {
-    fn create_paint<'local>(&self, env: &mut Env<'local>) -> Result<Paint<'local>> {
+    fn create_paint<'local>(
+        &self,
+        env: &mut Env<'local>,
+        rect: RelativeToLogical,
+    ) -> Result<Paint<'local>> {
         let paint = Paint::new(env)?;
         let style = PaintStyle::FILL(env)?;
         paint.set_style(env, &style)?;
         let (jcolors, jpositions) = colors_stops(env, &self.stops)?;
         let mode = TileMode::CLAMP(env)?;
+        let center = rect.transform_point(self.center);
+        let radius = rect.transform_vector(self.radius.to_vector());
         let gradient = RadialGradient::new(
             env,
-            self.center.x as f32,
-            self.center.y as f32,
-            self.radius.width as f32,
+            center.x as f32,
+            center.y as f32,
+            radius.x as f32,
             &jcolors,
             &jpositions,
             &mode,
@@ -258,18 +282,30 @@ impl Brush for RadialGradientBrush {
 
 /// Drawing pen.
 pub trait Pen {
-    fn create_paint<'local>(&self, env: &mut Env<'local>) -> Result<Paint<'local>>;
+    fn create_paint<'local>(
+        &self,
+        env: &mut Env<'local>,
+        rect: RelativeToLogical,
+    ) -> Result<Paint<'local>>;
 }
 
 impl<P: Pen> Pen for &'_ P {
-    fn create_paint<'local>(&self, env: &mut Env<'local>) -> Result<Paint<'local>> {
-        P::create_paint(self, env)
+    fn create_paint<'local>(
+        &self,
+        env: &mut Env<'local>,
+        rect: RelativeToLogical,
+    ) -> Result<Paint<'local>> {
+        P::create_paint(self, env, rect)
     }
 }
 
 impl<B: Brush> Pen for BrushPen<B> {
-    fn create_paint<'local>(&self, env: &mut Env<'local>) -> Result<Paint<'local>> {
-        let paint = self.brush.create_paint(env)?;
+    fn create_paint<'local>(
+        &self,
+        env: &mut Env<'local>,
+        rect: RelativeToLogical,
+    ) -> Result<Paint<'local>> {
+        let paint = self.brush.create_paint(env, rect)?;
         paint.set_stroke_width(env, self.width as _)?;
         let style = PaintStyle::STROKE(env)?;
         paint.set_style(env, &style)?;
@@ -510,9 +546,14 @@ impl<'a> DrawingContext<'a> {
         })
     }
 
+    fn logical(&self) -> RelativeToLogical {
+        let size = self.parent.latest_size;
+        RelativeToLogical::scale(size.width, size.height)
+    }
+
     pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) -> Result<()> {
         vm_exec(|env| {
-            let paint = pen.create_paint(env)?;
+            let paint = pen.create_paint(env, self.logical())?;
             self.canvas.draw_path(env, &path.path, &paint)?;
             Ok(())
         })
@@ -520,7 +561,7 @@ impl<'a> DrawingContext<'a> {
 
     pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) -> Result<()> {
         vm_exec(|env| {
-            let paint = brush.create_paint(env)?;
+            let paint = brush.create_paint(env, self.logical())?;
             self.canvas.draw_path(env, &path.path, &paint)?;
             Ok(())
         })
@@ -529,7 +570,7 @@ impl<'a> DrawingContext<'a> {
     pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> Result<()> {
         let rect = rect.to_box2d();
         vm_exec(|env| {
-            let paint = pen.create_paint(env)?;
+            let paint = pen.create_paint(env, self.logical())?;
             self.canvas.draw_arc(
                 env,
                 rect.min.x as f32,
@@ -548,7 +589,7 @@ impl<'a> DrawingContext<'a> {
     pub fn draw_pie(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> Result<()> {
         let rect = rect.to_box2d();
         vm_exec(|env| {
-            let paint = pen.create_paint(env)?;
+            let paint = pen.create_paint(env, self.logical())?;
             self.canvas.draw_arc(
                 env,
                 rect.min.x as f32,
@@ -567,7 +608,7 @@ impl<'a> DrawingContext<'a> {
     pub fn fill_pie(&mut self, brush: impl Brush, rect: Rect, start: f64, end: f64) -> Result<()> {
         let rect = rect.to_box2d();
         vm_exec(|env| {
-            let paint = brush.create_paint(env)?;
+            let paint = brush.create_paint(env, self.logical())?;
             self.canvas.draw_arc(
                 env,
                 rect.min.x as f32,
@@ -586,7 +627,7 @@ impl<'a> DrawingContext<'a> {
     pub fn draw_ellipse(&mut self, pen: impl Pen, rect: Rect) -> Result<()> {
         let rect = rect.to_box2d();
         vm_exec(|env| {
-            let paint = pen.create_paint(env)?;
+            let paint = pen.create_paint(env, self.logical())?;
             self.canvas.draw_oval(
                 env,
                 rect.min.x as f32,
@@ -602,7 +643,7 @@ impl<'a> DrawingContext<'a> {
     pub fn fill_ellipse(&mut self, brush: impl Brush, rect: Rect) -> Result<()> {
         let rect = rect.to_box2d();
         vm_exec(|env| {
-            let paint = brush.create_paint(env)?;
+            let paint = brush.create_paint(env, self.logical())?;
             self.canvas.draw_oval(
                 env,
                 rect.min.x as f32,
@@ -617,7 +658,7 @@ impl<'a> DrawingContext<'a> {
 
     pub fn draw_line(&mut self, pen: impl Pen, start: Point, end: Point) -> Result<()> {
         vm_exec(|env| {
-            let paint = pen.create_paint(env)?;
+            let paint = pen.create_paint(env, self.logical())?;
             self.canvas.draw_line(
                 env,
                 start.x as f32,
@@ -633,7 +674,7 @@ impl<'a> DrawingContext<'a> {
     pub fn draw_rect(&mut self, pen: impl Pen, rect: Rect) -> Result<()> {
         let rect = rect.to_box2d();
         vm_exec(|env| {
-            let paint = pen.create_paint(env)?;
+            let paint = pen.create_paint(env, self.logical())?;
             self.canvas.draw_rect(
                 env,
                 rect.min.x as f32,
@@ -649,7 +690,7 @@ impl<'a> DrawingContext<'a> {
     pub fn fill_rect(&mut self, brush: impl Brush, rect: Rect) -> Result<()> {
         let rect = rect.to_box2d();
         vm_exec(|env| {
-            let paint = brush.create_paint(env)?;
+            let paint = brush.create_paint(env, self.logical())?;
             self.canvas.draw_rect(
                 env,
                 rect.min.x as f32,
@@ -665,7 +706,7 @@ impl<'a> DrawingContext<'a> {
     pub fn draw_round_rect(&mut self, pen: impl Pen, rect: Rect, round: Size) -> Result<()> {
         let rect = rect.to_box2d();
         vm_exec(|env| {
-            let paint = pen.create_paint(env)?;
+            let paint = pen.create_paint(env, self.logical())?;
             self.canvas.draw_round_rect(
                 env,
                 rect.min.x as f32,
@@ -683,7 +724,7 @@ impl<'a> DrawingContext<'a> {
     pub fn fill_round_rect(&mut self, brush: impl Brush, rect: Rect, round: Size) -> Result<()> {
         let rect = rect.to_box2d();
         vm_exec(|env| {
-            let paint = brush.create_paint(env)?;
+            let paint = brush.create_paint(env, self.logical())?;
             self.canvas.draw_round_rect(
                 env,
                 rect.min.x as f32,
@@ -715,7 +756,7 @@ impl<'a> DrawingContext<'a> {
         let family = env.new_string(&font.family)?;
         let typeface = Typeface::create(env, family, style)?;
         let paint = if let Some(brush) = brush {
-            let paint = brush.create_paint(env)?;
+            let paint = brush.create_paint(env, self.logical())?;
             TextPaint::with_paint(env, paint)?
         } else {
             TextPaint::new(env)?
