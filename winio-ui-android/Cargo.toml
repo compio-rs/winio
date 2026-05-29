@@ -21,16 +21,14 @@ compio-log = { workspace = true }
 android-activity = { workspace = true, features = ["game-activity"] }
 jni = { workspace = true }
 jni-min-helper = "0.4"
-ndk = "0.9"
-ndk-context = "0.1"
 ndk-sys = "0.6"
 
+futures-channel = { workspace = true }
 futures-util = { workspace = true }
 image = { workspace = true, default-features = false }
 inherit-methods-macro = { workspace = true }
 once_cell = { workspace = true }
 oneshot = { workspace = true, features = ["std", "async"] }
-scoped-tls = { workspace = true }
 slab = { workspace = true }
 thiserror = { workspace = true }
 

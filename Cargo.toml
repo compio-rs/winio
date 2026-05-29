@@ -51,6 +51,7 @@ compio-log = "0.1.0"
 arrayvec = "0.7"
 bitflags = "2"
 cfg-if = "1"
+futures-channel = "0.3"
 futures-util = "0.3"
 html-escape = "0.2"
 image = { version = "0.25", default-features = false }

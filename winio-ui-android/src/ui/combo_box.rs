@@ -1,17 +1,37 @@
 use std::sync::Arc;
 
 use inherit_methods_macro::inherit_methods;
-use jni::objects::JObject;
+use jni::{
+    Env,
+    objects::{JList, JObject},
+    refs::Global,
+};
 use jni_min_helper::DynamicProxy;
 use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Point, Size};
 
-use crate::{BaseWidget, Result, vm_exec};
+use crate::{BaseWidget, GlobalRef, JObjectExt, Result, vm_exec};
+
+jni::bind_java_type! {
+    Layout => "android.R$layout",
+    fields {
+        static simple_spinner_item {
+            sig = jint,
+            name = "simple_spinner_item",
+        },
+        static simple_spinner_dropdown_item {
+            sig = jint,
+            name = "simple_spinner_dropdown_item",
+        },
+    }
+}
 
 #[derive(Debug)]
 pub struct ComboBox {
     inner: BaseWidget,
+    list: Global<JList<'static>>,
+    adapter: GlobalRef,
     on_select: Arc<SyncCallback>,
     #[allow(dead_code)]
     select_proxy: DynamicProxy,
@@ -48,8 +68,41 @@ impl ComboBox {
                 &[select_proxy.as_ref().into()],
             )?
             .v()?;
+            let list = env.new_object(
+                jni::jni_str!("java/util/ArrayList"),
+                jni::jni_sig!("()V"),
+                &[],
+            )?;
+            let list = unsafe { JList::from_raw(env, list.into_raw()) };
+            let list = env.new_global_ref(list)?;
+            let context = crate::current_activity()?;
+            let adapter = env.new_object(
+                jni::jni_str!("android/widget/ArrayAdapter"),
+                jni::jni_sig!("(Landroid/content/Context;ILjava/util/List;)V"),
+                &[
+                    context.as_obj().into(),
+                    Layout::simple_spinner_item(env)?.into(),
+                    list.as_obj().into(),
+                ],
+            )?;
+            env.call_method(
+                &adapter,
+                jni::jni_str!("setDropDownViewResource"),
+                jni::jni_sig!("(I)V"),
+                &[Layout::simple_spinner_dropdown_item(env)?.into()],
+            )?;
+            env.call_method(
+                inner.as_obj(),
+                jni::jni_str!("setAdapter"),
+                jni::jni_sig!("(Landroid/widget/SpinnerAdapter;)V"),
+                &[(&adapter).into()],
+            )?
+            .v()?;
+            let adapter = env.new_global_ref(adapter)?;
             Ok(Self {
                 inner,
+                list,
+                adapter,
                 on_select,
                 select_proxy,
             })
@@ -89,48 +142,107 @@ impl ComboBox {
         Ok(())
     }
 
-    pub fn selection(&self) -> Result<Option<usize>> {
-        todo!()
+    fn invalidate(&self, env: &mut Env) -> Result<()> {
+        env.call_method(
+            self.adapter.as_obj(),
+            jni::jni_str!("notifyDataSetChanged"),
+            jni::jni_sig!("()V"),
+            &[],
+        )?
+        .v()?;
+        Ok(())
     }
 
-    pub fn set_selection(&mut self, _i: usize) -> Result<()> {
-        todo!()
+    pub fn selection(&self) -> Result<Option<usize>> {
+        vm_exec(|env| {
+            let pos = env
+                .call_method(
+                    self.inner.as_obj(),
+                    jni::jni_str!("getSelectedItemPosition"),
+                    jni::jni_sig!("()I"),
+                    &[],
+                )?
+                .i()?;
+            if pos >= 0 {
+                Ok(Some(pos as _))
+            } else {
+                Ok(None)
+            }
+        })
+    }
+
+    pub fn set_selection(&mut self, i: usize) -> Result<()> {
+        vm_exec(|env| {
+            env.call_method(
+                self.inner.as_obj(),
+                jni::jni_str!("setSelection"),
+                jni::jni_sig!("(I)V"),
+                &[(i as i32).into()],
+            )?
+            .v()?;
+            Ok(())
+        })
     }
 
     pub fn is_editable(&self) -> Result<bool> {
-        todo!()
+        Ok(false)
     }
 
     pub fn set_editable(&mut self, _v: bool) -> Result<()> {
-        todo!()
+        Ok(())
     }
 
     pub fn len(&self) -> Result<usize> {
-        todo!()
+        vm_exec(|env| {
+            let size = self.list.size(env)?;
+            Ok(size as _)
+        })
     }
 
     pub fn is_empty(&self) -> Result<bool> {
-        todo!()
+        vm_exec(|env| {
+            let empty = self.list.is_empty(env)?;
+            Ok(empty)
+        })
     }
 
     pub fn clear(&mut self) -> Result<()> {
-        todo!()
+        vm_exec(|env| {
+            self.list.clear(env)?;
+            self.invalidate(env)?;
+            Ok(())
+        })
     }
 
-    pub fn get(&self, _i: usize) -> Result<String> {
-        todo!()
+    pub fn get(&self, i: usize) -> Result<String> {
+        vm_exec(|env| self.list.get(env, i as _)?.to(env))
     }
 
-    pub fn set(&mut self, _i: usize, _s: impl AsRef<str>) -> Result<()> {
-        todo!()
+    pub fn set(&mut self, i: usize, s: impl AsRef<str>) -> Result<()> {
+        vm_exec(|env| {
+            self.list.remove(env, i as _)?;
+            let str = env.new_string(s.as_ref())?;
+            self.list.insert(env, i as _, str)?;
+            self.invalidate(env)?;
+            Ok(())
+        })
     }
 
-    pub fn insert(&mut self, _i: usize, _s: impl AsRef<str>) -> Result<()> {
-        todo!()
+    pub fn insert(&mut self, i: usize, s: impl AsRef<str>) -> Result<()> {
+        vm_exec(|env| {
+            let str = env.new_string(s.as_ref())?;
+            self.list.insert(env, i as _, str)?;
+            self.invalidate(env)?;
+            Ok(())
+        })
     }
 
-    pub fn remove(&mut self, _i: usize) -> Result<()> {
-        todo!()
+    pub fn remove(&mut self, i: usize) -> Result<()> {
+        vm_exec(|env| {
+            self.list.remove(env, i as _)?;
+            self.invalidate(env)?;
+            Ok(())
+        })
     }
 
     pub async fn wait_change(&self) {

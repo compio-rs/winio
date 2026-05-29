@@ -1,3 +1,5 @@
+use std::convert::Infallible;
+
 use winio::prelude::*;
 
 #[cfg(target_os = "android")]
@@ -26,13 +28,32 @@ impl<E: Into<Error> + std::fmt::Display> From<LayoutError<E>> for Error {
     }
 }
 
+impl From<Infallible> for Error {
+    fn from(e: Infallible) -> Self {
+        match e {}
+    }
+}
+
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub struct MainModel {
     window: Child<Window>,
-    text: Child<Label>,
     link: Child<LinkLabel>,
+    ulabel: Child<Label>,
+    plabel: Child<Label>,
+    uentry: Child<Edit>,
+    pentry: Child<Edit>,
+    pcheck: Child<CheckBox>,
     canvas: Child<Canvas>,
+    combo: Child<ComboBox>,
+    list: Child<ObservableVec<String>>,
+    radios: Child<RadioButtonGroup>,
+    rindex: usize,
+    push_button: Child<Button>,
+    pop_button: Child<Button>,
+    show_button: Child<Button>,
+    progress: Child<Progress>,
+    mltext: Child<TextBox>,
 }
 
 #[derive(Debug)]
@@ -40,6 +61,13 @@ pub enum MainMessage {
     Noop,
     Close,
     Redraw,
+    List(ObservableVecEvent<String>),
+    Select,
+    Push,
+    Pop,
+    Show,
+    RSelect(usize),
+    PasswordCheck,
 }
 
 impl Component for MainModel {
@@ -53,24 +81,91 @@ impl Component for MainModel {
             window: Window = (()) => {
                 text: "Hello example",
             },
-            text: Label = (&window) => {
-                text: "Hello, world!",
-                halign: HAlign::Center,
-            },
+            canvas: Canvas = (&window),
             link: LinkLabel = (&window) => {
-                text: "Visit winio on GitHub",
+                text: "Source",
                 uri: "https://github.com/compio-rs/winio",
             },
-            canvas: Canvas = (&window),
+            ulabel: Label = (&window) => {
+                text: "Username:",
+                tooltip: "Your username",
+                halign: HAlign::Right,
+            },
+            plabel: Label = (&window) => {
+                text: "Password:",
+                halign: HAlign::Right,
+            },
+            uentry: Edit = (&window) => {
+                text: "AAA",
+            },
+            pentry: Edit = (&window) => {
+                text: "123456",
+                password: true,
+            },
+            pcheck: CheckBox = (&window) => {
+                text: "Show",
+                checked: false,
+            },
+            combo: ComboBox = (&window),
+            list: ObservableVec<String> = ([]) => {
+                // https://www.zhihu.com/question/23600507/answer/140640887
+                items: [
+                    "烫烫烫",
+                    "昍昍昍",
+                    "ﾌﾌﾌﾌﾌﾌ",
+                    "쳌쳌쳌"
+                ],
+            },
+            r1: RadioButton = (&window) => {
+                text: "屯屯屯",
+                checked: true,
+            },
+            r2: RadioButton = (&window) => {
+                text: "锟斤拷",
+            },
+            r3: RadioButton = (&window) => {
+                text: "╠╠╠"
+            },
+            radios: RadioButtonGroup = ([r1, r2, r3]),
+            push_button: Button = (&window) => {
+                text: "Push",
+            },
+            pop_button: Button = (&window) => {
+                text: "Pop",
+                tooltip: "Pop the last entry in the combo box."
+            },
+            show_button: Button = (&window) => {
+                text: "Show",
+                tooltip: "Show the current selection in the combo box.\nIf no selection, show \"No selection.\"",
+            },
+            progress: Progress = (&window) => {
+                indeterminate: true,
+            },
+            mltext: TextBox = (&window) => {
+                text: "This is an example of\nmulti-line text box.",
+            },
         }
 
         window.show()?;
 
         Ok(Self {
             window,
-            text,
             link,
+            ulabel,
+            plabel,
+            uentry,
+            pentry,
+            pcheck,
             canvas,
+            combo,
+            list,
+            radios,
+            rindex: 0,
+            push_button,
+            pop_button,
+            show_button,
+            progress,
+            mltext,
         })
     }
 
@@ -82,12 +177,49 @@ impl Component for MainModel {
                 WindowEvent::Resize => MainMessage::Redraw,
             },
             self.link => {},
-            self.canvas => {},
+            self.pcheck => {
+                CheckBoxEvent::Click => MainMessage::PasswordCheck,
+            },
+            self.combo => {
+                ComboBoxEvent::Select => MainMessage::Select,
+            },
+            self.push_button => {
+                ButtonEvent::Click => MainMessage::Push,
+            },
+            self.pop_button => {
+                ButtonEvent::Click => MainMessage::Pop,
+            },
+            self.show_button => {
+                ButtonEvent::Click => MainMessage::Show,
+            },
+            self.list => {
+                e => MainMessage::List(e),
+            },
+            self.radios => {
+                RadioButtonGroupEvent::Click(i) => MainMessage::RSelect(i)
+            },
         }
     }
 
     async fn update_children(&mut self) -> Result<bool> {
-        update_children!(self.window, self.text, self.link, self.canvas)
+        update_children!(
+            self.window,
+            self.link,
+            self.ulabel,
+            self.plabel,
+            self.uentry,
+            self.pentry,
+            self.pcheck,
+            self.canvas,
+            self.combo,
+            self.list,
+            self.radios,
+            self.push_button,
+            self.pop_button,
+            self.show_button,
+            self.progress,
+            self.mltext,
+        )
     }
 
     async fn update(
@@ -102,19 +234,102 @@ impl Component for MainModel {
                 Ok(false)
             }
             MainMessage::Redraw => Ok(true),
+            MainMessage::PasswordCheck => {
+                self.pentry.set_password(!self.pcheck.is_checked()?)?;
+                Ok(true)
+            }
+            MainMessage::List(e) => {
+                self.pop_button.set_enabled(!self.list.is_empty())?;
+                Ok(self
+                    .combo
+                    .emit(ComboBoxMessage::from_observable_vec_event(e))
+                    .await?)
+            }
+            MainMessage::Select => Ok(true),
+            MainMessage::Push => {
+                self.list.push(self.radios[self.rindex].text()?);
+                Ok(false)
+            }
+            MainMessage::Pop => {
+                self.list.pop();
+                Ok(false)
+            }
+            MainMessage::RSelect(i) => {
+                self.rindex = i;
+                let text = self.radios[self.rindex].text()?;
+                self.push_button
+                    .set_tooltip(format!("Push \"{text}\" to the back of the combo box."))?;
+                Ok(false)
+            }
+            MainMessage::Show => {
+                MessageBox::new()
+                    .title("Show selected item")
+                    .message(
+                        self.combo
+                            .selection()?
+                            .and_then(|index| self.list.get(index))
+                            .map(|s| s.as_str())
+                            .unwrap_or("No selection."),
+                    )
+                    .buttons(MessageBoxButton::Ok)
+                    .show(&self.window)
+                    .await?;
+                Ok(false)
+            }
         }
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
         let csize = self.window.client_size()?;
         {
-            let mut grid = layout! {
-                Grid::from_str("1*, auto, 1*", "1*, auto, auto, 1*, 1*").unwrap(),
-                self.text => { column: 1, row: 1 },
-                self.link => { column: 1, row: 2 },
-                self.canvas => { column: 1, row: 3 },
+            let mut cred_panel = layout! {
+                Grid::from_str("auto,1*,auto", "2*,auto,1*,auto,auto,2*").unwrap(),
+                self.link   => { column: 0, row: 1, column_span: 3, halign: HAlign::Center, margin: Margin::new_all_same(4.0) },
+                self.ulabel => { column: 0, row: 3, valign: VAlign::Center },
+                self.uentry => { column: 1, row: 3, margin: Margin::new_all_same(4.0) },
+                self.plabel => { column: 0, row: 4, valign: VAlign::Center },
+                self.pentry => { column: 1, row: 4, margin: Margin::new_all_same(4.0) },
+                self.pcheck => { column: 2, row: 4 },
             };
-            grid.set_size(csize)?;
+
+            let mut rgroup_panel = Grid::from_str("auto", "1*,auto,auto,auto,1*").unwrap();
+
+            for (i, rb) in self.radios.iter_mut().enumerate() {
+                rgroup_panel.push(rb).row(i + 1).finish();
+            }
+
+            let mut buttons_panel = layout! {
+                StackPanel::new(Orient::Vertical),
+                self.push_button => { margin: Margin::new_all_same(4.0) },
+                self.pop_button  => { margin: Margin::new_all_same(4.0) },
+                self.show_button => { margin: Margin::new_all_same(4.0) },
+            };
+
+            let mut root_panel = if csize.width < csize.height {
+                layout! {
+                    Grid::from_str("1*", "1*,1*,auto,auto,1*,1*,1*").unwrap(),
+                    cred_panel    => { column: 0, row: 0 },
+                    rgroup_panel  => { column: 0, row: 1, halign: HAlign::Center },
+                    self.combo    => { column: 0, row: 2, halign: HAlign::Center },
+                    self.progress => { column: 0, row: 3 },
+                    self.canvas   => { column: 0, row: 4 },
+                    self.mltext   => { column: 0, row: 5, margin: Margin::new_all_same(8.0) },
+                    buttons_panel => { column: 0, row: 6 },
+                }
+            } else {
+                layout! {
+                    Grid::from_str("1*,1*,1*", "1*,auto,1*").unwrap(),
+                    cred_panel    => { column: 1, row: 0 },
+                    rgroup_panel  => { column: 2, row: 0, halign: HAlign::Center },
+                    self.canvas   => { column: 0, row: 1, row_span: 2 },
+                    self.combo    => { column: 1, row: 1, halign: HAlign::Center },
+                    self.progress => { column: 2, row: 1 },
+                    self.mltext   => { column: 1, row: 2, margin: Margin::new_all_same(8.0) },
+                    buttons_panel => { column: 2, row: 2 },
+                }
+            };
+
+            root_panel.set_size(csize)?;
         }
 
         let size = self.canvas.size()?;
