@@ -35,6 +35,14 @@ dependencies {
     implementation libs.games.activity
 }
 
+def localProperties = new Properties()
+def localPropsFile = rootProject.file('local.properties')
+if (localPropsFile.exists()) {
+    localProperties.load(localPropsFile.newDataInputStream())
+}
+
+def abiList = localProperties.getProperty('ndk.abis', 'arm64-v8a').split(',').collect { it.trim() }
+
 [
         Debug: null,
         Profile: '--release',
@@ -49,14 +57,14 @@ dependencies {
     }
     tasks.register("cargoBuild$taskPostfix", Exec) {
         workingDir "../.."
-        commandLine 'cargo', 'ndk',
-                // '-t', 'armeabi-v7a',
-                '-t', 'arm64-v8a',
-                // '-t', 'x86_64',
-                '-P', '36',
-                '-o', 'android/app/src/main/jniLibs', 'build'
-        if (profileMode != null) {
-            args profileMode
+        def cmdArgs = ['cargo', 'ndk', 'build', '-P', '36', '-o', 'android/app/src/main/jniLibs']
+        abiList.each { abi ->
+            cmdArgs.addAll(['-t', abi])
         }
+        if (profileMode != null) {
+            cmdArgs.add(profileMode)
+        }
+
+        commandLine cmdArgs
     }
 }
