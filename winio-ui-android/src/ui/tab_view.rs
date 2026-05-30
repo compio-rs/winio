@@ -7,7 +7,7 @@ use jni::{
 };
 use jni_min_helper::{DynamicProxy, JInteger};
 use winio_callback::SyncCallback;
-use winio_handle::AsContainer;
+use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{
@@ -55,9 +55,15 @@ jni::bind_java_type! {
     type_map {
         AView => android.view.View,
         Context => android.content.Context,
+        TabLayoutTab => "com.google.android.material.tabs.TabLayout$Tab",
     },
     constructors {
         fn new(&Context),
+    },
+    methods {
+        fn get_selected_tab_position() -> jint,
+        fn get_tab_at(index: jint) -> TabLayoutTab,
+        fn select_tab(tab: &TabLayoutTab),
     },
     is_instance_of = {
         view = AView,
@@ -120,12 +126,20 @@ jni::bind_java_type! {
     constructors {
         fn new(),
     },
+    methods {
+        fn get_pages() -> JList,
+
+        fn notify_item_inserted(position: jint),
+        fn notify_item_removed(position: jint),
+        fn notify_item_range_removed(start: jint, count: jint),
+    },
     is_instance_of = {
         base = RecyclerViewAdapter,
     }
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct TabView {
     handle: BaseWidget<LinearLayout<'static>>,
     tab: Global<TabLayout<'static>>,
@@ -250,31 +264,66 @@ impl TabView {
     pub fn set_size(&mut self, v: Size) -> Result<()>;
 
     pub fn selection(&self) -> Result<Option<usize>> {
-        todo!()
+        vm_exec(|env| {
+            let pos = self.tab.get_selected_tab_position(env)?;
+            if pos >= 0 {
+                Ok(Some(pos as usize))
+            } else {
+                Ok(None)
+            }
+        })
     }
 
-    pub fn set_selection(&mut self, _i: usize) -> Result<()> {
-        todo!()
+    pub fn set_selection(&mut self, i: usize) -> Result<()> {
+        vm_exec(|env| {
+            let tab = self.tab.get_tab_at(env, i as _)?;
+            self.tab.select_tab(env, &tab)?;
+            Ok(())
+        })
     }
 
-    pub fn insert(&mut self, _i: usize, _item: &TabViewItem) -> Result<()> {
-        todo!()
+    pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
+        vm_exec(|env| {
+            let pages = self.adapter.get_pages(env)?;
+            pages.add(env, item.handle.as_widget().to_android())?;
+            let title = env.new_string(item.text()?)?;
+            self.tab_titles
+                .lock()
+                .unwrap()
+                .insert(i, env.new_global_ref(title)?);
+            self.adapter.notify_item_inserted(env, i as _)?;
+            Ok(())
+        })
     }
 
-    pub fn remove(&mut self, _i: usize) -> Result<()> {
-        todo!()
+    pub fn remove(&mut self, i: usize) -> Result<()> {
+        vm_exec(|env| {
+            let pages = self.adapter.get_pages(env)?;
+            pages.remove(env, i as _)?;
+            self.adapter.notify_item_removed(env, i as _)?;
+            Ok(())
+        })
     }
 
     pub fn len(&self) -> Result<usize> {
-        todo!()
+        vm_exec(|env| {
+            let pages = self.adapter.get_pages(env)?;
+            Ok(pages.size(env)? as usize)
+        })
     }
 
     pub fn is_empty(&self) -> Result<bool> {
-        todo!()
+        Ok(self.len()? == 0)
     }
 
     pub fn clear(&mut self) -> Result<()> {
-        todo!()
+        vm_exec(|env| {
+            let pages = self.adapter.get_pages(env)?;
+            let len = pages.size(env)?;
+            pages.clear(env)?;
+            self.adapter.notify_item_range_removed(env, 0, len)?;
+            Ok(())
+        })
     }
 
     pub async fn wait_select(&self) {
@@ -287,20 +336,26 @@ winio_handle::impl_as_widget!(TabView, handle);
 #[derive(Debug)]
 pub struct TabViewItem {
     handle: View,
+    text: String,
 }
 
 #[inherit_methods(from = "self.handle")]
 impl TabViewItem {
     pub fn new() -> Result<Self> {
-        todo!()
+        let handle = View::new_standalone()?;
+        Ok(Self {
+            handle,
+            text: String::new(),
+        })
     }
 
     pub fn text(&self) -> Result<String> {
-        todo!()
+        Ok(self.text.clone())
     }
 
-    pub fn set_text(&mut self, _s: impl AsRef<str>) -> Result<()> {
-        todo!()
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.text = s.as_ref().into();
+        Ok(())
     }
 
     pub fn size(&self) -> Result<Size>;

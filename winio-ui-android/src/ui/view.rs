@@ -20,6 +20,17 @@ impl View {
         })
     }
 
+    pub(crate) fn new_standalone() -> Result<Self> {
+        vm_exec(|env| {
+            let act = current_activity(env)?;
+            let widget = FrameLayout::new(env, act)?;
+            let widget = env.new_global_ref(widget)?;
+            Ok(Self {
+                inner: widget.into(),
+            })
+        })
+    }
+
     pub fn client_size(&self) -> Result<Size> {
         self.size()
     }
