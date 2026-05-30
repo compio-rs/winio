@@ -20,8 +20,6 @@ pub use runtime::*;
 mod ui;
 pub use ui::*;
 
-pub type GlobalRef = jni::objects::Global<jni::objects::JObject<'static>>;
-
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// JNI error.

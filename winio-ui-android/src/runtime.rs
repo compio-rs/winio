@@ -16,7 +16,7 @@ use slab::Slab;
 use winio_callback::SyncCallback;
 use winio_pollable::MainTask;
 
-use crate::{AView, Error, GlobalRef, Resources, Result};
+use crate::{AView, Error, Resources, Result};
 
 pub struct App {
     app: AndroidApp,
@@ -30,7 +30,7 @@ impl App {
         Ok(Self { app })
     }
 
-    pub(crate) fn activity(app: &AndroidApp, env: &Env<'_>) -> Result<GlobalRef> {
+    pub(crate) fn activity(app: &AndroidApp, env: &Env<'_>) -> Result<Global<JObject<'static>>> {
         let activity = app.activity_as_ptr() as jni::sys::jobject;
         let activity = unsafe { env.as_cast_raw::<Global<JObject>>(&activity)? };
         Ok(env.new_global_ref(&activity)?)
@@ -115,7 +115,7 @@ impl App {
     }
 }
 
-static ACTIVITY: Mutex<Option<GlobalRef>> = Mutex::new(None);
+static ACTIVITY: Mutex<Option<Global<JObject<'static>>>> = Mutex::new(None);
 
 thread_local! {
     static MAIN_TASK: RefCell<Option<MainTask>> = const { RefCell::new(None) };
