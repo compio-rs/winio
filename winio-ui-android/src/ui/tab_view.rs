@@ -2,11 +2,11 @@ use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{BaseWidget, Result};
+use crate::{AView, BaseWidget, Result};
 
 #[derive(Debug)]
 pub struct TabView {
-    handle: BaseWidget,
+    handle: BaseWidget<AView<'static>>,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -68,7 +68,7 @@ winio_handle::impl_as_widget!(TabView, handle);
 
 #[derive(Debug)]
 pub struct TabViewItem {
-    handle: BaseWidget,
+    handle: BaseWidget<AView<'static>>,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -77,9 +77,13 @@ impl TabViewItem {
         todo!()
     }
 
-    pub fn text(&self) -> Result<String>;
+    pub fn text(&self) -> Result<String> {
+        todo!()
+    }
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+    pub fn set_text(&mut self, _s: impl AsRef<str>) -> Result<()> {
+        todo!()
+    }
 
     pub fn size(&self) -> Result<Size>;
 }

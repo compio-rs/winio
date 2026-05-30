@@ -22,9 +22,9 @@ cfg_if::cfg_if! {
     } else if #[cfg(target_vendor = "apple")] {
         compile_error!("Other Apple platforms (like watchOS and tvOS) are not supported yet.");
     } else if #[cfg(target_os = "android")] {
-        use jni::objects::{Global, JObject};
+        use jni::objects::JObject;
 
-        type BorrowedContainerInner<'a> = &'a Global<JObject<'static>>;
+        type BorrowedContainerInner<'a> = &'a JObject<'static>;
     } else {
         use std::marker::PhantomData;
 
@@ -155,12 +155,12 @@ impl<'a> BorrowedContainer<'a> {
     /// # Safety
     ///
     /// `j_obj` must be valid `Container`.
-    pub unsafe fn android(j_obj: &'a jni::objects::Global<JObject<'static>>) -> Self {
+    pub unsafe fn android(j_obj: &'a JObject<'static>) -> Self {
         BorrowedContainer(j_obj)
     }
 
     /// Get Android `Container`.
-    pub fn to_android(&self) -> &'a jni::objects::Global<JObject<'static>> {
+    pub fn to_android(&self) -> &'a JObject<'static> {
         self.0
     }
 }

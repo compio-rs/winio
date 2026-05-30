@@ -7,11 +7,40 @@ use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{HAlign, Point, Size};
 
-use crate::{BaseWidget, JObjectExt, Result, vm_exec};
+use crate::{ATextView, AView, BaseWidget, Context, JObjectExt, Result, gravity, vm_exec};
+
+jni::bind_java_type! {
+    AEditText => android.widget.EditText,
+    type_map {
+        AView => android.view.View,
+        ATextView => android.widget.TextView,
+        Context => android.content.Context,
+        Editable => android.text.Editable,
+    },
+    constructors {
+        fn new(&Context),
+    },
+    methods {
+        fn get_text() -> Editable,
+        fn get_input_type() -> jint,
+        fn set_input_type(ty: jint),
+    },
+    is_instance_of = {
+        view = AView,
+        text_view = ATextView,
+    }
+}
+
+jni::bind_java_type! {
+    Editable => android.text.Editable,
+    methods {
+        fn to_string() -> JString,
+    }
+}
 
 #[derive(Debug)]
 pub struct Edit {
-    inner: BaseWidget,
+    inner: BaseWidget<AEditText<'static>>,
     on_change: Arc<SyncCallback>,
     #[allow(dead_code)]
     change_proxy: DynamicProxy,
@@ -25,11 +54,11 @@ mod input_type {
 
 #[inherit_methods(from = "self.inner")]
 impl Edit {
-    const WIDGET_CLASS: &'static str = "android/widget/EditText";
-
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let on_change = Arc::new(SyncCallback::new());
         vm_exec(|env| {
+            let act = crate::current_activity(env)?;
+            let widget = AEditText::new(env, act)?;
             let change_proxy = DynamicProxy::build(
                 env,
                 &jni::refs::LoaderContext::None,
@@ -44,7 +73,7 @@ impl Edit {
                     }
                 },
             )?;
-            let inner = BaseWidget::new_with_env(env, parent.as_container(), Self::WIDGET_CLASS)?;
+            let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
             env.call_method(
                 inner.as_obj(),
                 jni::jni_str!("addTextChangedListener"),
@@ -84,48 +113,58 @@ impl Edit {
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
+    fn as_text_view(&self) -> &ATextView<'static> {
+        self.inner.as_ref()
+    }
+
     pub fn text(&self) -> Result<String> {
+        vm_exec(move |env| self.inner.get_text(env)?.to_string(env)?.to(env))
+    }
+
+    pub fn set_text(&mut self, text: impl AsRef<str>) -> Result<()> {
         vm_exec(move |env| {
-            env.call_method(
-                self.inner.as_obj(),
-                jni::jni_str!("getTextString"),
-                jni::jni_sig!("()Ljava/lang/CharSequence;"),
-                &[],
-            )?
-            .l()?
-            .to(env)
+            let text = env.new_string(&text)?;
+            self.as_text_view().set_text(env, text)?;
+            Ok(())
         })
     }
 
-    pub fn set_text(&mut self, text: impl AsRef<str>) -> Result<()>;
+    pub fn halign(&self) -> Result<HAlign> {
+        let gravity = vm_exec(|env| Ok(self.as_text_view().get_gravity(env)?))?;
+        if gravity & gravity::CENTER_HORIZONTAL != 0 {
+            Ok(HAlign::Center)
+        } else if gravity & gravity::FILL_HORIZONTAL == gravity::FILL_HORIZONTAL {
+            Ok(HAlign::Stretch)
+        } else if gravity & gravity::RIGHT != 0 {
+            Ok(HAlign::Right)
+        } else {
+            Ok(HAlign::Left)
+        }
+    }
 
-    pub fn halign(&self) -> Result<HAlign>;
-
-    pub fn set_halign(&mut self, align: HAlign) -> Result<()>;
+    pub fn set_halign(&mut self, align: HAlign) -> Result<()> {
+        let gravity = match align {
+            HAlign::Left => gravity::LEFT,
+            HAlign::Center => gravity::CENTER_HORIZONTAL,
+            HAlign::Right => gravity::RIGHT,
+            HAlign::Stretch => gravity::FILL_HORIZONTAL,
+        } | gravity::CENTER_VERTICAL;
+        vm_exec(|env| {
+            self.as_text_view().set_gravity(env, gravity)?;
+            Ok(())
+        })
+    }
 
     pub(crate) fn input_type(&self) -> Result<i32> {
         vm_exec(move |env| {
-            let ty = env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("getInputType"),
-                    jni::jni_sig!("()I"),
-                    &[],
-                )?
-                .i()?;
+            let ty = self.inner.get_input_type(env)?;
             Ok(ty)
         })
     }
 
     pub(crate) fn set_input_type(&mut self, ty: i32) -> Result<()> {
         vm_exec(move |env| {
-            env.call_method(
-                self.inner.as_obj(),
-                jni::jni_str!("setInputType"),
-                jni::jni_sig!("(I)V"),
-                &[ty.into()],
-            )?
-            .v()?;
+            self.inner.set_input_type(env, ty)?;
             Ok(())
         })
     }

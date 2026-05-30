@@ -1,14 +1,77 @@
 use std::ops::Deref;
 
-use jni::{Env, objects::JObject, strings::JNIString};
+use jni::{
+    Env,
+    objects::JObject,
+    refs::{Global, Reference},
+};
 use winio_handle::{AsContainer, AsWidget, BorrowedContainer, BorrowedWidget};
-use winio_primitive::{HAlign, Point, Size};
+use winio_primitive::{Point, Size};
 
-use crate::{GlobalRef, JObjectExt, Result, current_activity, vm_exec};
+use crate::{Context, FrameLayout, Result, vm_exec};
+
+jni::bind_java_type! {
+    pub(crate) AView => "android.view.View",
+    type_map {
+        Context => android.content.Context,
+        ViewGroupLayoutParams => "android.view.ViewGroup$LayoutParams",
+    },
+    constructors {
+        fn new(context: &Context),
+    },
+    methods {
+        fn get_x() -> jfloat,
+        fn get_y() -> jfloat,
+        fn set_x(x: jfloat),
+        fn set_y(y: jfloat),
+        fn get_width() -> jint,
+        fn get_height() -> jint,
+        fn set_layout_params(params: &ViewGroupLayoutParams),
+        fn measure(width_spec: jint, height_spec: jint),
+        fn get_measured_width() -> jint,
+        fn get_measured_height() -> jint,
+        fn get_minimum_width() -> jint,
+        fn get_minimum_height() -> jint,
+        fn get_visibility() -> jint,
+        fn set_visibility(visibility: jint),
+        fn is_enabled() -> jboolean,
+        fn set_enabled(enabled: jboolean),
+    }
+}
+
+jni::bind_java_type! {
+    ViewGroupLayoutParams => "android.view.ViewGroup$LayoutParams",
+}
+
+jni::bind_java_type! {
+    pub(crate) FrameLayoutLayoutParams => "android.widget.FrameLayout$LayoutParams",
+    type_map {
+        ViewGroupLayoutParams => "android.view.ViewGroup$LayoutParams",
+    },
+    constructors {
+        fn new(width: jint, height: jint),
+    },
+    is_instance_of = {
+        base = ViewGroupLayoutParams,
+    }
+}
+
+jni::bind_java_type! {
+    pub(crate) OnLayoutChangeListener => "android.view.View$OnLayoutChangeListener",
+}
 
 #[derive(Debug)]
-pub(crate) struct BaseWidget {
-    inner: GlobalRef,
+pub(crate) struct BaseWidget<T>
+where
+    T: Into<JObject<'static>>
+        + AsRef<JObject<'static>>
+        + Default
+        + Reference
+        + Send
+        + Sync
+        + 'static,
+{
+    inner: Global<T>,
 }
 
 pub(crate) mod gravity {
@@ -19,190 +82,100 @@ pub(crate) mod gravity {
     pub const RIGHT: i32 = 0x5;
 }
 
-impl BaseWidget {
-    pub(crate) fn new(parent: BorrowedContainer, widget_class: &str) -> Result<Self> {
-        vm_exec(|env| Self::new_with_env(env, parent, widget_class))
-    }
-
-    pub(crate) fn new_with_env(
+impl<T> BaseWidget<T>
+where
+    T: Into<JObject<'static>>
+        + AsRef<JObject<'static>>
+        + AsRef<AView<'static>>
+        + Default
+        + Reference
+        + Send
+        + Sync
+        + 'static,
+{
+    pub(crate) fn new_with_env<'any_local, O>(
         env: &mut Env,
         parent: BorrowedContainer,
-        widget_class: &str,
-    ) -> Result<Self> {
-        let parent = env.new_global_ref(parent.as_container().to_android())?;
-        let context = current_activity(env)?;
-        let widget = env.new_object(
-            JNIString::new(widget_class),
-            jni::jni_sig!("(Landroid/content/Context;)V"),
-            &[(&context).into()],
-        )?;
-        env.call_method(
-            parent.as_obj(),
-            jni::jni_str!("addView"),
-            jni::jni_sig!("(Landroid/view/View;)V"),
-            &[(&widget).into()],
-        )?
-        .v()?;
-        let inner = env.new_global_ref(widget)?;
-        Ok(Self { inner })
+        widget: O,
+    ) -> Result<Self>
+    where
+        O: Reference<GlobalKind = T> + AsRef<JObject<'any_local>>,
+    {
+        let widget = env.new_global_ref(widget)?;
+        let parent = env.new_local_ref(parent.as_container().to_android())?;
+        let parent = unsafe { FrameLayout::from_raw(env, parent.into_raw()) };
+        parent.add_view(env, &widget)?;
+        Ok(Self { inner: widget })
     }
 
     pub fn as_obj(&self) -> &JObject<'static> {
         self.inner.as_obj()
     }
 
+    pub fn as_view(&self) -> &AView<'static> {
+        self.inner.as_ref()
+    }
+
     pub fn loc(&self) -> Result<Point> {
         vm_exec(move |env| {
-            let x = env
-                .call_method(
-                    self.as_obj(),
-                    jni::jni_str!("getX"),
-                    jni::jni_sig!("()F"),
-                    &[],
-                )?
-                .f()?;
-            let y = env
-                .call_method(
-                    self.as_obj(),
-                    jni::jni_str!("getY"),
-                    jni::jni_sig!("()F"),
-                    &[],
-                )?
-                .f()?;
+            let x = self.as_view().get_x(env)?;
+            let y = self.as_view().get_y(env)?;
             Ok(Point::new(x as _, y as _))
         })
     }
 
     pub fn set_loc(&self, p: Point) -> Result<()> {
         vm_exec(move |env| {
-            env.call_method(
-                self.inner.as_obj(),
-                jni::jni_str!("setX"),
-                jni::jni_sig!("(F)V"),
-                &[(p.x as f32).into()],
-            )?;
-            env.call_method(
-                self.inner.as_obj(),
-                jni::jni_str!("setY"),
-                jni::jni_sig!("(F)V"),
-                &[(p.y as f32).into()],
-            )?;
+            self.as_view().set_x(env, p.x as f32)?;
+            self.as_view().set_y(env, p.y as f32)?;
             Ok(())
         })
     }
 
     pub fn size(&self) -> Result<Size> {
         vm_exec(|env| {
-            let width = env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("getWidth"),
-                    jni::jni_sig!("()I"),
-                    &[],
-                )?
-                .i()?;
-            let height = env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("getHeight"),
-                    jni::jni_sig!("()I"),
-                    &[],
-                )?
-                .i()?;
+            let width = self.as_view().get_width(env)?;
+            let height = self.as_view().get_height(env)?;
             Ok(Size::new(width as _, height as _))
         })
     }
 
     pub fn set_size(&self, size: Size) -> Result<()> {
         vm_exec(move |env| {
-            let params = env.new_object(
-                jni::jni_str!("android/widget/FrameLayout$LayoutParams"),
-                jni::jni_sig!("(II)V"),
-                &[(size.width as i32).into(), (size.height as i32).into()],
-            )?;
-            env.call_method(
-                self.inner.as_obj(),
-                jni::jni_str!("setLayoutParams"),
-                jni::jni_sig!("(Landroid/view/ViewGroup$LayoutParams;)V"),
-                &[(&params).into()],
-            )?;
+            let params = FrameLayoutLayoutParams::new(env, size.width as i32, size.height as i32)?;
+            self.as_view().set_layout_params(env, params)?;
             Ok(())
         })
     }
 
     pub fn preferred_size(&self) -> Result<Size> {
         vm_exec(move |env| {
-            env.call_method(
-                self.inner.as_obj(),
-                jni::jni_str!("measure"),
-                jni::jni_sig!("(II)V"),
-                &[0i32.into(), 0i32.into()],
-            )?;
-            let width = env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("getMeasuredWidth"),
-                    jni::jni_sig!("()I"),
-                    &[],
-                )?
-                .i()?;
-            let height = env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("getMeasuredHeight"),
-                    jni::jni_sig!("()I"),
-                    &[],
-                )?
-                .i()?;
+            self.as_view().measure(env, 0, 0)?;
+            let width = self.as_view().get_measured_width(env)?;
+            let height = self.as_view().get_measured_height(env)?;
             Ok(Size::new(width as _, height as _))
         })
     }
 
     pub fn min_size(&self) -> Result<Size> {
         vm_exec(move |env| {
-            let width = env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("getMinimumWidth"),
-                    jni::jni_sig!("()I"),
-                    &[],
-                )?
-                .i()?;
-            let height = env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("getMinimumHeight"),
-                    jni::jni_sig!("()I"),
-                    &[],
-                )?
-                .i()?;
+            let width = self.as_view().get_minimum_width(env)?;
+            let height = self.as_view().get_minimum_height(env)?;
             Ok(Size::new(width as _, height as _))
         })
     }
 
     pub fn is_visible(&self) -> Result<bool> {
         vm_exec(move |env| {
-            let vis = env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("getVisibility"),
-                    jni::jni_sig!("()I"),
-                    &[],
-                )?
-                .i()?;
+            let vis = self.as_view().get_visibility(env)?;
             Ok(vis == 0)
         })
     }
 
     pub fn set_visible(&mut self, visible: bool) -> Result<()> {
         vm_exec(move |env| {
-            env.call_method(
-                self.inner.as_obj(),
-                jni::jni_str!("setVisibility"),
-                jni::jni_sig!("(I)V"),
-                &[if visible { 0 } else { 4 }.into()],
-            )?
-            .v()?;
+            self.as_view()
+                .set_visibility(env, if visible { 0 } else { 4 })?;
             Ok(())
         })
     }
@@ -215,123 +188,76 @@ impl BaseWidget {
         Ok(())
     }
 
-    pub fn text(&self) -> Result<String> {
-        vm_exec(move |env| {
-            env.call_method(
-                self.inner.as_obj(),
-                jni::jni_str!("getText"),
-                jni::jni_sig!("()Ljava/lang/CharSequence;"),
-                &[],
-            )?
-            .l()?
-            .to(env)
-        })
-    }
-
-    pub fn set_text(&mut self, text: impl AsRef<str>) -> Result<()> {
-        vm_exec(move |env| {
-            let text = env.new_string(&text)?;
-            env.call_method(
-                self.inner.as_obj(),
-                jni::jni_str!("setText"),
-                jni::jni_sig!("(Ljava/lang/CharSequence;)V"),
-                &[(&text).into()],
-            )?
-            .v()?;
-            Ok(())
-        })
-    }
-
     pub fn is_enabled(&self) -> Result<bool> {
-        vm_exec(move |env| {
-            Ok(env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("isEnabled"),
-                    jni::jni_sig!("()Z"),
-                    &[],
-                )?
-                .z()?)
-        })
+        vm_exec(move |env| Ok(self.as_view().is_enabled(env)?))
     }
 
     pub fn set_enabled(&mut self, enabled: bool) -> Result<()> {
         vm_exec(move |env| {
-            env.call_method(
-                self.inner.as_obj(),
-                jni::jni_str!("setEnabled"),
-                jni::jni_sig!("(Z)V"),
-                &[enabled.into()],
-            )?
-            .v()?;
-            Ok(())
-        })
-    }
-
-    pub fn halign(&self) -> Result<HAlign> {
-        let gravity = vm_exec(|env| {
-            Ok(env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("getGravity"),
-                    jni::jni_sig!("()I"),
-                    &[],
-                )?
-                .i()?)
-        })?;
-        if gravity & gravity::CENTER_HORIZONTAL != 0 {
-            Ok(HAlign::Center)
-        } else if gravity & gravity::FILL_HORIZONTAL == gravity::FILL_HORIZONTAL {
-            Ok(HAlign::Stretch)
-        } else if gravity & gravity::RIGHT != 0 {
-            Ok(HAlign::Right)
-        } else {
-            Ok(HAlign::Left)
-        }
-    }
-
-    pub fn set_halign(&mut self, align: HAlign) -> Result<()> {
-        let gravity = match align {
-            HAlign::Left => gravity::LEFT,
-            HAlign::Center => gravity::CENTER_HORIZONTAL,
-            HAlign::Right => gravity::RIGHT,
-            HAlign::Stretch => gravity::FILL_HORIZONTAL,
-        } | gravity::CENTER_VERTICAL;
-        vm_exec(|env| {
-            env.call_method(
-                self.inner.as_obj(),
-                jni::jni_str!("setGravity"),
-                jni::jni_sig!("(I)V"),
-                &[jni::JValue::Int(gravity)],
-            )?
-            .v()?;
+            self.as_view().set_enabled(env, enabled)?;
             Ok(())
         })
     }
 }
 
-impl From<GlobalRef> for BaseWidget {
-    fn from(value: GlobalRef) -> Self {
+impl<T> From<Global<T>> for BaseWidget<T>
+where
+    T: Into<JObject<'static>>
+        + AsRef<JObject<'static>>
+        + Default
+        + Reference
+        + Send
+        + Sync
+        + 'static,
+{
+    fn from(value: Global<T>) -> Self {
         Self { inner: value }
     }
 }
 
-impl Deref for BaseWidget {
-    type Target = GlobalRef;
+impl<T> Deref for BaseWidget<T>
+where
+    T: Into<JObject<'static>>
+        + AsRef<JObject<'static>>
+        + Default
+        + Reference
+        + Send
+        + Sync
+        + 'static,
+{
+    type Target = Global<T>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-impl AsWidget for BaseWidget {
+impl<T> AsWidget for BaseWidget<T>
+where
+    T: Into<JObject<'static>>
+        + AsRef<JObject<'static>>
+        + Default
+        + Reference
+        + Send
+        + Sync
+        + 'static,
+{
     fn as_widget(&self) -> BorrowedWidget<'_> {
-        unsafe { BorrowedWidget::android(&self.inner) }
+        unsafe { BorrowedWidget::android(self.inner.as_obj()) }
     }
 }
 
-impl AsContainer for BaseWidget {
+impl<T> AsContainer for BaseWidget<T>
+where
+    T: Into<JObject<'static>>
+        + AsRef<JObject<'static>>
+        + Default
+        + Reference
+        + Send
+        + Sync
+        + 'static,
+{
     fn as_container(&self) -> BorrowedContainer<'_> {
-        unsafe { BorrowedContainer::android(&self.inner) }
+        unsafe { BorrowedContainer::android(self.inner.as_obj()) }
     }
 }

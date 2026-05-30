@@ -1,52 +1,142 @@
 use std::sync::Arc;
 
 use inherit_methods_macro::inherit_methods;
-use jni::{objects::JObject, refs::LoaderContext};
+use jni::{
+    Env,
+    objects::JObject,
+    refs::{LoaderContext, Reference},
+};
 use jni_min_helper::DynamicProxy;
 use winio_callback::SyncCallback;
-use winio_handle::{AsContainer, impl_as_widget};
+use winio_handle::{AsContainer, AsWidget, BorrowedWidget, impl_as_widget};
 use winio_primitive::{Point, Size};
 
-use crate::{BaseWidget, Result, vm_exec};
+use crate::{ATextView, AView, BaseWidget, Context, JObjectExt, Result, current_activity, vm_exec};
+
+jni::bind_java_type! {
+    AButton => android.widget.Button,
+    type_map {
+        AView => android.view.View,
+        ATextView => android.widget.TextView,
+        Context => android.content.Context,
+    },
+    constructors {
+        fn new(context: &Context),
+    },
+    is_instance_of = {
+        view = AView,
+        text_view = ATextView,
+    }
+}
+
+jni::bind_java_type! {
+    ACompoundButton => android.widget.CompoundButton,
+    type_map {
+        AButton => android.widget.Button,
+    },
+    methods {
+        fn is_checked() -> jboolean,
+        fn set_checked(checked: jboolean),
+    },
+    is_instance_of = {
+        button = AButton,
+    }
+}
+
+jni::bind_java_type! {
+    ACheckBox => android.widget.CheckBox,
+    type_map {
+        ACompoundButton => android.widget.CompoundButton,
+        AView => android.view.View,
+        ATextView => android.widget.TextView,
+        Context => android.content.Context,
+    },
+    constructors {
+        fn new(context: &Context),
+    },
+    is_instance_of = {
+        button = ACompoundButton,
+        view = AView,
+        text_view = ATextView,
+    }
+}
+
+jni::bind_java_type! {
+    ARadioButton => android.widget.RadioButton,
+    type_map {
+        ACompoundButton => android.widget.CompoundButton,
+        AView => android.view.View,
+        ATextView => android.widget.TextView,
+        Context => android.content.Context,
+    },
+    constructors {
+        fn new(context: &Context),
+    },
+    is_instance_of = {
+        button = ACompoundButton,
+        view = AView,
+        text_view = ATextView,
+    }
+}
 
 #[derive(Debug)]
-struct ButtonImpl {
-    inner: BaseWidget,
+struct ButtonImpl<T>
+where
+    T: Into<JObject<'static>>
+        + AsRef<JObject<'static>>
+        + Default
+        + Reference
+        + Send
+        + Sync
+        + 'static,
+{
+    inner: BaseWidget<T>,
     on_click: Arc<SyncCallback>,
     #[allow(dead_code)]
     click_proxy: DynamicProxy,
 }
 
 #[inherit_methods(from = "self.inner")]
-impl ButtonImpl {
-    pub fn new(parent: impl AsContainer, class: &str) -> Result<Self> {
+impl<T> ButtonImpl<T>
+where
+    T: Into<JObject<'static>>
+        + AsRef<JObject<'static>>
+        + AsRef<AView<'static>>
+        + Default
+        + Reference
+        + Send
+        + Sync
+        + 'static,
+{
+    pub fn new<'any_local, O>(env: &mut Env, parent: impl AsContainer, widget: O) -> Result<Self>
+    where
+        O: Reference<GlobalKind = T> + AsRef<JObject<'any_local>>,
+    {
         let on_click = Arc::new(SyncCallback::new());
-        vm_exec(|env| {
-            let click_proxy = DynamicProxy::build(
-                env,
-                &LoaderContext::None,
-                [jni::jni_str!("android/view/View$OnClickListener")],
-                {
-                    let on_click = on_click.clone();
-                    move |_env, _method, _args| {
-                        on_click.signal(());
-                        Ok(JObject::null())
-                    }
-                },
-            )?;
-            let inner = BaseWidget::new_with_env(env, parent.as_container(), class)?;
-            env.call_method(
-                inner.as_obj(),
-                jni::jni_str!("setOnClickListener"),
-                jni::jni_sig!("(Landroid/view/View$OnClickListener;)V"),
-                &[click_proxy.as_ref().into()],
-            )?
-            .v()?;
-            Ok(Self {
-                inner,
-                on_click,
-                click_proxy,
-            })
+        let click_proxy = DynamicProxy::build(
+            env,
+            &LoaderContext::None,
+            [jni::jni_str!("android/view/View$OnClickListener")],
+            {
+                let on_click = on_click.clone();
+                move |_env, _method, _args| {
+                    on_click.signal(());
+                    Ok(JObject::null())
+                }
+            },
+        )?;
+        let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
+        env.call_method(
+            inner.as_obj(),
+            jni::jni_str!("setOnClickListener"),
+            jni::jni_sig!("(Landroid/view/View$OnClickListener;)V"),
+            &[click_proxy.as_ref().into()],
+        )?
+        .v()?;
+        Ok(Self {
+            inner,
+            on_click,
+            click_proxy,
         })
     }
 
@@ -72,55 +162,96 @@ impl ButtonImpl {
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn text(&self) -> Result<String>;
-
-    pub fn set_text(&mut self, text: impl AsRef<str>) -> Result<()>;
-
-    pub fn is_checked(&self) -> Result<bool> {
-        vm_exec(|env| {
-            Ok(env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("isChecked"),
-                    jni::jni_sig!("()Z"),
-                    &[],
-                )?
-                .z()?)
-        })
-    }
-
-    pub fn set_checked(&mut self, checked: bool) -> Result<()> {
-        vm_exec(|env| {
-            env.call_method(
-                self.inner.as_obj(),
-                jni::jni_str!("setChecked"),
-                jni::jni_sig!("(Z)V"),
-                &[checked.into()],
-            )?
-            .v()?;
-            Ok(())
-        })
-    }
-
     pub async fn wait_click(&self) {
         self.on_click.wait().await;
     }
 }
 
-impl_as_widget!(ButtonImpl, inner);
+impl<T> ButtonImpl<T>
+where
+    T: Into<JObject<'static>>
+        + AsRef<JObject<'static>>
+        + AsRef<AView<'static>>
+        + AsRef<ATextView<'static>>
+        + Default
+        + Reference
+        + Send
+        + Sync
+        + 'static,
+{
+    fn as_text_view(&self) -> &ATextView<'static> {
+        self.inner.as_ref()
+    }
+
+    pub fn text(&self) -> Result<String> {
+        vm_exec(move |env| self.as_text_view().get_text(env)?.to(env))
+    }
+
+    pub fn set_text(&mut self, text: impl AsRef<str>) -> Result<()> {
+        vm_exec(move |env| {
+            let text = env.new_string(&text)?;
+            self.as_text_view().set_text(env, text)?;
+            Ok(())
+        })
+    }
+}
+
+impl<T> ButtonImpl<T>
+where
+    T: Into<JObject<'static>>
+        + AsRef<JObject<'static>>
+        + AsRef<AView<'static>>
+        + AsRef<ACompoundButton<'static>>
+        + Default
+        + Reference
+        + Send
+        + Sync
+        + 'static,
+{
+    fn as_compound_button(&self) -> &ACompoundButton<'static> {
+        self.inner.as_ref()
+    }
+
+    pub fn is_checked(&self) -> Result<bool> {
+        vm_exec(|env| Ok(self.as_compound_button().is_checked(env)?))
+    }
+
+    pub fn set_checked(&mut self, checked: bool) -> Result<()> {
+        vm_exec(|env| {
+            self.as_compound_button().set_checked(env, checked)?;
+            Ok(())
+        })
+    }
+}
+
+impl<T> AsWidget for ButtonImpl<T>
+where
+    T: Into<JObject<'static>>
+        + AsRef<JObject<'static>>
+        + Default
+        + Reference
+        + Send
+        + Sync
+        + 'static,
+{
+    fn as_widget(&self) -> BorrowedWidget<'_> {
+        self.inner.as_widget()
+    }
+}
 
 #[derive(Debug)]
 pub struct Button {
-    inner: ButtonImpl,
+    inner: ButtonImpl<AButton<'static>>,
 }
 
 #[inherit_methods(from = "self.inner")]
 impl Button {
-    const WIDGET_CLASS: &'static str = "android/widget/Button";
-
     pub fn new(parent: impl AsContainer) -> Result<Self> {
-        Ok(Self {
-            inner: ButtonImpl::new(parent, Self::WIDGET_CLASS)?,
+        vm_exec(|env| {
+            let act = current_activity(env)?;
+            let widget = AButton::new(env, act)?;
+            let inner = ButtonImpl::new(env, parent, widget)?;
+            Ok(Self { inner })
         })
     }
 
@@ -159,16 +290,17 @@ impl_as_widget!(Button, inner);
 
 #[derive(Debug)]
 pub struct CheckBox {
-    inner: ButtonImpl,
+    inner: ButtonImpl<ACheckBox<'static>>,
 }
 
 #[inherit_methods(from = "self.inner")]
 impl CheckBox {
-    const WIDGET_CLASS: &'static str = "android/widget/CheckBox";
-
     pub fn new(parent: impl AsContainer) -> Result<Self> {
-        Ok(Self {
-            inner: ButtonImpl::new(parent, Self::WIDGET_CLASS)?,
+        vm_exec(|env| {
+            let act = current_activity(env)?;
+            let widget = ACheckBox::new(env, act)?;
+            let inner = ButtonImpl::new(env, parent, widget)?;
+            Ok(Self { inner })
         })
     }
 
@@ -211,16 +343,17 @@ impl_as_widget!(CheckBox, inner);
 
 #[derive(Debug)]
 pub struct RadioButton {
-    inner: ButtonImpl,
+    inner: ButtonImpl<ARadioButton<'static>>,
 }
 
 #[inherit_methods(from = "self.inner")]
 impl RadioButton {
-    const WIDGET_CLASS: &'static str = "android/widget/RadioButton";
-
     pub fn new(parent: impl AsContainer) -> Result<Self> {
-        Ok(Self {
-            inner: ButtonImpl::new(parent.as_container(), Self::WIDGET_CLASS)?,
+        vm_exec(|env| {
+            let act = current_activity(env)?;
+            let widget = ARadioButton::new(env, act)?;
+            let inner = ButtonImpl::new(env, parent, widget)?;
+            Ok(Self { inner })
         })
     }
 

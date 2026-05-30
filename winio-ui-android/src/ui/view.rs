@@ -2,20 +2,21 @@ use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{BaseWidget, Result};
+use crate::{BaseWidget, FrameLayout, Result, current_activity, vm_exec};
 
 #[derive(Debug)]
 pub struct View {
-    inner: BaseWidget,
+    inner: BaseWidget<FrameLayout<'static>>,
 }
 
 #[inherit_methods(from = "self.inner")]
 impl View {
-    const WIDGET_CLASS: &'static str = "android/widget/FrameLayout";
-
     pub fn new(parent: impl AsContainer) -> Result<Self> {
-        Ok(Self {
-            inner: BaseWidget::new(parent.as_container(), Self::WIDGET_CLASS)?,
+        vm_exec(|env| {
+            let act = current_activity(env)?;
+            let widget = FrameLayout::new(env, act)?;
+            let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
+            Ok(Self { inner })
         })
     }
 
@@ -34,10 +35,6 @@ impl View {
     pub fn size(&self) -> Result<Size>;
 
     pub fn set_size(&mut self, size: Size) -> Result<()>;
-
-    pub fn text(&self) -> Result<String>;
-
-    pub fn set_text(&mut self, text: impl AsRef<str>) -> Result<()>;
 }
 
 winio_handle::impl_as_widget!(View, inner);

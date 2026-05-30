@@ -16,7 +16,7 @@ use slab::Slab;
 use winio_callback::SyncCallback;
 use winio_pollable::MainTask;
 
-use crate::{Error, GlobalRef, Result};
+use crate::{AView, Error, GlobalRef, Result};
 
 pub struct App {
     app: AndroidApp,
@@ -167,7 +167,7 @@ unsafe fn looper_drop(data: *const ()) {
     unsafe { ALooper_release(looper) }
 }
 
-pub fn vm_exec<F, R>(f: F) -> Result<R>
+pub(crate) fn vm_exec<F, R>(f: F) -> Result<R>
 where
     F: FnOnce(&mut Env<'_>) -> Result<R>,
 {
@@ -175,7 +175,26 @@ where
     vm.attach_current_thread::<_, R, Error>(f)
 }
 
-pub fn current_activity<'local>(env: &mut Env<'local>) -> Result<JObject<'local>> {
+jni::bind_java_type! {
+    pub(crate) Context => android.content.Context,
+}
+
+jni::bind_java_type! {
+    pub(crate) Activity => android.app.Activity,
+    type_map {
+        AView => android.view.View,
+        Context => android.content.Context,
+    },
+    methods {
+        fn set_content_view(view: &AView),
+    },
+    is_instance_of = {
+        context = Context,
+    }
+}
+
+pub(crate) fn current_activity<'local>(env: &mut Env<'local>) -> Result<Activity<'local>> {
     let act = ACTIVITY.lock().unwrap();
-    Ok(env.new_local_ref(act.as_ref().ok_or(Error::NoApp)?.as_obj())?)
+    let obj = env.new_local_ref(act.as_ref().ok_or(Error::NoApp)?.as_obj())?;
+    Ok(unsafe { Activity::from_raw(env, obj.into_raw()) })
 }

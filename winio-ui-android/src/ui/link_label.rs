@@ -11,11 +11,28 @@ use winio_callback::SyncCallback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{BaseWidget, GlobalRef, JObjectExt, Result, vm_exec};
+use crate::{ATextView, BaseWidget, GlobalRef, JObjectExt, Result, current_activity, vm_exec};
+
+jni::bind_java_type! {
+    pub(crate) MovementMethod => android.text.method.MovementMethod,
+}
+
+jni::bind_java_type! {
+    LinkMovementMethod => android.text.method.LinkMovementMethod,
+    type_map {
+        MovementMethod => android.text.method.MovementMethod,
+    },
+    methods {
+        static fn get_instance() -> MovementMethod,
+    },
+    is_instance_of = {
+        base = MovementMethod,
+    }
+}
 
 #[derive(Debug)]
 pub struct LinkLabel {
-    inner: BaseWidget,
+    inner: BaseWidget<ATextView<'static>>,
     on_click: Arc<SyncCallback>,
     #[allow(dead_code)]
     click_proxy: DynamicProxy,
@@ -27,25 +44,14 @@ const SPAN_INCLUSIVE_EXCLUSIVE: i32 = 0x11;
 
 #[inherit_methods(from = "self.inner")]
 impl LinkLabel {
-    const WIDGET_CLASS: &'static str = "android/widget/TextView";
-
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         vm_exec(|env| {
-            let inner = BaseWidget::new_with_env(env, parent.as_container(), Self::WIDGET_CLASS)?;
+            let act = current_activity(env)?;
+            let widget = ATextView::new(env, act)?;
+            let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
 
-            let method = env.call_static_method(
-                jni::jni_str!("android/text/method/LinkMovementMethod"),
-                jni::jni_str!("getInstance"),
-                jni::jni_sig!("()Landroid/text/method/MovementMethod;"),
-                &[],
-            )?;
-            env.call_method(
-                inner.as_obj(),
-                jni::jni_str!("setMovementMethod"),
-                jni::jni_sig!("(Landroid/text/method/MovementMethod;)V"),
-                &[(&method).into()],
-            )?
-            .v()?;
+            let method = LinkMovementMethod::get_instance(env)?;
+            inner.set_movement_method(env, method)?;
 
             let on_click = Arc::new(SyncCallback::new());
 
@@ -120,9 +126,8 @@ impl LinkLabel {
             jni::jni_sig!("(Ljava/lang/CharSequence;)V"),
             &[(&text).into()],
         )?;
-        let length = env
-            .call_method(&text, jni::jni_str!("length"), jni::jni_sig!("()I"), &[])?
-            .i()?;
+        let text = unsafe { JString::from_raw(env, text.into_raw()) };
+        let length = text.as_char_sequence().length(env)?;
         compio_log::info!("update_text_impl: text={:?}, s={:?}", length, s);
         env.call_method(
             &text,

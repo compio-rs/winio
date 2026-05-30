@@ -2,11 +2,11 @@ use inherit_methods_macro::inherit_methods;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Orient, Point, Size};
 
-use crate::{BaseWidget, Result};
+use crate::{AView, BaseWidget, Result};
 
 #[derive(Debug)]
 pub struct ScrollBar {
-    inner: BaseWidget,
+    inner: BaseWidget<AView<'static>>,
 }
 
 #[inherit_methods(from = "self.inner")]

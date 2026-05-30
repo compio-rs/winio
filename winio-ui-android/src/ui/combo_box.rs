@@ -11,7 +11,7 @@ use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Point, Size};
 
-use crate::{BaseWidget, GlobalRef, JObjectExt, Result, vm_exec};
+use crate::{AView, BaseWidget, Context, GlobalRef, JObjectExt, Result, current_activity, vm_exec};
 
 jni::bind_java_type! {
     Layout => "android.R$layout",
@@ -27,9 +27,27 @@ jni::bind_java_type! {
     }
 }
 
+jni::bind_java_type! {
+    ASpinner => android.widget.Spinner,
+    type_map {
+        AView => android.view.View,
+        Context => android.content.Context,
+    },
+    constructors {
+        fn new(&Context),
+    },
+    methods {
+        fn get_selected_item_position() -> jint,
+        fn set_selection(position: jint),
+    },
+    is_instance_of = {
+        view = AView,
+    }
+}
+
 #[derive(Debug)]
 pub struct ComboBox {
-    inner: BaseWidget,
+    inner: BaseWidget<ASpinner<'static>>,
     list: Global<JList<'static>>,
     adapter: GlobalRef,
     on_select: Arc<SyncCallback>,
@@ -39,11 +57,11 @@ pub struct ComboBox {
 
 #[inherit_methods(from = "self.inner")]
 impl ComboBox {
-    const WIDGET_CLASS: &'static str = "android/widget/Spinner";
-
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let on_select = Arc::new(SyncCallback::new());
         vm_exec(|env| {
+            let act = current_activity(env)?;
+            let widget = ASpinner::new(env, act)?;
             let select_proxy = DynamicProxy::build(
                 env,
                 &jni::refs::LoaderContext::None,
@@ -60,7 +78,7 @@ impl ComboBox {
                     }
                 },
             )?;
-            let inner = BaseWidget::new_with_env(env, parent.as_container(), Self::WIDGET_CLASS)?;
+            let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
             env.call_method(
                 inner.as_obj(),
                 jni::jni_str!("setOnItemSelectedListener"),
@@ -155,14 +173,7 @@ impl ComboBox {
 
     pub fn selection(&self) -> Result<Option<usize>> {
         vm_exec(|env| {
-            let pos = env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("getSelectedItemPosition"),
-                    jni::jni_sig!("()I"),
-                    &[],
-                )?
-                .i()?;
+            let pos = self.inner.get_selected_item_position(env)?;
             if pos >= 0 {
                 Ok(Some(pos as _))
             } else {
@@ -173,13 +184,7 @@ impl ComboBox {
 
     pub fn set_selection(&mut self, i: usize) -> Result<()> {
         vm_exec(|env| {
-            env.call_method(
-                self.inner.as_obj(),
-                jni::jni_str!("setSelection"),
-                jni::jni_sig!("(I)V"),
-                &[(i as i32).into()],
-            )?
-            .v()?;
+            self.inner.set_selection(env, i as _)?;
             Ok(())
         })
     }

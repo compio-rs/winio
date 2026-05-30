@@ -16,9 +16,9 @@ cfg_if::cfg_if! {
 
         type BorrowedWidgetInner<'a> = &'a Retained<objc2_app_kit::NSView>;
     } else if #[cfg(target_os = "android")] {
-        use jni::objects::{Global, JObject};
+        use jni::objects::JObject;
 
-        type BorrowedWidgetInner<'a> = &'a Global<JObject<'static>>;
+        type BorrowedWidgetInner<'a> = &'a JObject<'static>;
     } else if #[cfg(target_os = "ios")] {
         use objc2::rc::Retained;
 
@@ -148,7 +148,6 @@ impl<'a> BorrowedWidget<'a> {
     }
 }
 
-#[allow(unreachable_patterns)]
 #[cfg(target_os = "android")]
 impl<'a> BorrowedWidget<'a> {
     /// Create from Android `Widget`
@@ -156,12 +155,12 @@ impl<'a> BorrowedWidget<'a> {
     /// # Safety
     ///
     /// `j_obj` must be an valid `Widget`.
-    pub unsafe fn android(j_obj: &'a Global<JObject<'static>>) -> Self {
+    pub unsafe fn android(j_obj: &'a JObject<'static>) -> Self {
         BorrowedWidget(j_obj)
     }
 
     /// Get Android `Widget`.
-    pub fn to_android(&self) -> &'a Global<JObject<'static>> {
+    pub fn to_android(&self) -> &'a JObject<'static> {
         self.0
     }
 }

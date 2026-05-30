@@ -4,19 +4,44 @@ use std::sync::{Arc, Mutex};
 
 use futures_util::FutureExt;
 use inherit_methods_macro::inherit_methods;
-use jni::{Env, objects::JObject, refs::LoaderContext, strings::JNIString};
+use jni::{
+    Env,
+    objects::JObject,
+    refs::{Global, LoaderContext},
+};
 use jni_min_helper::{DynamicProxy, JInteger};
 use winio_callback::SyncCallback;
 use winio_handle::{AsWindow, BorrowedContainer, BorrowedWindow};
 use winio_primitive::{Margin, Point, Size};
 
-use crate::{BaseWidget, DESTROY_SLAB, GlobalRef, Result, current_activity, vm_exec};
+use crate::{
+    AView, Activity, BaseWidget, Context, DESTROY_SLAB, FrameLayoutLayoutParams, Result,
+    current_activity, vm_exec,
+};
+
+jni::bind_java_type! {
+    pub(crate) FrameLayout => android.widget.FrameLayout,
+    type_map {
+        AView => android.view.View,
+        Context => android.content.Context,
+    },
+    constructors {
+        fn new(context: &Context),
+    },
+    methods {
+        fn set_fits_system_windows(fit: bool),
+        fn add_view(view: &AView),
+    },
+    is_instance_of = {
+        view = AView,
+    }
+}
 
 #[derive(Debug)]
 pub struct Window {
-    inner: BaseWidget,
-    inner_view: BaseWidget,
-    activity: GlobalRef,
+    inner: BaseWidget<FrameLayout<'static>>,
+    inner_view: BaseWidget<FrameLayout<'static>>,
+    activity: Global<Activity<'static>>,
     on_resize: Arc<SyncCallback>,
     #[allow(unused)]
     on_resize_proxy: DynamicProxy,
@@ -31,48 +56,21 @@ pub struct Window {
 
 #[inherit_methods(from = "self.inner")]
 impl Window {
-    const WINDOW_CLASS: &'static str = "android/widget/FrameLayout";
-
     pub fn new() -> Result<Self> {
         vm_exec(move |env| {
             let act = current_activity(env)?;
             let act = env.new_global_ref(act)?;
-            let window = env.new_object(
-                JNIString::new(Self::WINDOW_CLASS),
-                jni::jni_sig!("(Landroid/content/Context;)V"),
-                &[act.as_obj().into()],
-            )?;
-            env.call_method(
-                act.as_obj(),
-                jni::jni_str!("setContentView"),
-                jni::jni_sig!("(Landroid/view/View;)V"),
-                &[(&window).into()],
-            )?
-            .v()?;
-            env.call_method(
-                &window,
-                jni::jni_str!("setFitsSystemWindows"),
-                jni::jni_sig!("(Z)V"),
-                &[true.into()],
-            )?
-            .v()?;
-            let params = env.new_object(
-                jni::jni_str!("android/widget/FrameLayout$LayoutParams"),
-                jni::jni_sig!("(II)V"),
-                &[(-1i32).into(), (-1i32).into()],
-            )?;
-            env.call_method(
-                &window,
-                jni::jni_str!("setLayoutParams"),
-                jni::jni_sig!("(Landroid/view/ViewGroup$LayoutParams;)V"),
-                &[(&params).into()],
-            )?
-            .v()?;
+            let window = FrameLayout::new(env, &act)?;
+            act.set_content_view(env, &window)?;
+            window.set_fits_system_windows(env, true)?;
+            let params = FrameLayoutLayoutParams::new(env, -1, -1)?;
+            window.as_view().set_layout_params(env, &params)?;
             let inner = env.new_global_ref(&window)?;
+            let inner_view = FrameLayout::new(env, &act)?;
             let inner_view = BaseWidget::new_with_env(
                 env,
                 unsafe { BorrowedContainer::android(&inner) },
-                Self::WINDOW_CLASS,
+                inner_view,
             )?;
 
             let on_resize = Arc::new(SyncCallback::new());
@@ -88,13 +86,13 @@ impl Window {
             )?;
             let on_destroy = Arc::new(SyncCallback::new());
             let destroy_index = DESTROY_SLAB.lock().unwrap().insert(on_destroy.clone());
-            let on_resize_proxy = {
-                let on_resize = on_resize.clone();
-                let size_update = size_update.clone();
-                let proxy = DynamicProxy::build(
-                    env,
-                    &LoaderContext::None,
-                    [jni::jni_str!("android/view/View$OnLayoutChangeListener")],
+            let on_resize_proxy = DynamicProxy::build(
+                env,
+                &LoaderContext::None,
+                [jni::jni_str!("android/view/View$OnLayoutChangeListener")],
+                {
+                    let on_resize = on_resize.clone();
+                    let size_update = size_update.clone();
                     move |env, method, args| {
                         let name = method.get_name(env)?;
                         if name.try_to_string(env)? == "onLayoutChange" {
@@ -124,17 +122,16 @@ impl Window {
                             }
                         }
                         Ok(JObject::null())
-                    },
-                )?;
-                env.call_method(
-                    inner.as_obj(),
-                    jni::jni_str!("addOnLayoutChangeListener"),
-                    jni::jni_sig!("(Landroid/view/View$OnLayoutChangeListener;)V"),
-                    &[proxy.as_ref().into()],
-                )?
-                .v()?;
-                proxy
-            };
+                    }
+                },
+            )?;
+            env.call_method(
+                inner.as_obj(),
+                jni::jni_str!("addOnLayoutChangeListener"),
+                jni::jni_sig!("(Landroid/view/View$OnLayoutChangeListener;)V"),
+                &[on_resize_proxy.as_ref().into()],
+            )?
+            .v()?;
             Ok(Self {
                 inner: inner.into(),
                 inner_view,

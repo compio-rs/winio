@@ -16,7 +16,7 @@ use winio_primitive::{
     RadialGradientBrush, Rect, RelativeToLogical, Size, SolidColorBrush, Transform, VAlign, Vector,
 };
 
-use crate::{BaseWidget, Result, vm_exec};
+use crate::{AView, BaseWidget, Context, Result, current_activity, vm_exec};
 
 jni::bind_java_type! {
     PaintStyle => "android.graphics.Paint$Style",
@@ -764,9 +764,7 @@ impl<'a> DrawingContext<'a> {
         paint.as_base().set_typeface(env, &typeface)?;
         paint.as_base().set_text_size(env, font.size as f32)?;
         let text = env.new_string(text)?;
-        let length = env
-            .call_method(&text, jni::jni_str!("length"), jni::jni_sig!("()I"), &[])?
-            .i()?;
+        let length = text.as_char_sequence().length(env)?;
         let builder = StaticLayoutBuilder::obtain(
             env,
             text,
@@ -985,9 +983,23 @@ impl DrawingPathBuilder {
     }
 }
 
+jni::bind_java_type! {
+    ImageView => android.widget.ImageView,
+    type_map {
+        AView => android.view.View,
+        Context => android.content.Context,
+    },
+    constructors {
+        fn new(context: &Context),
+    },
+    is_instance_of = {
+        base: AView,
+    },
+}
+
 #[derive(Debug)]
 pub struct Canvas {
-    inner: BaseWidget,
+    inner: BaseWidget<ImageView<'static>>,
     on_down: Arc<SyncCallback>,
     on_up: Arc<SyncCallback>,
     on_move: Arc<SyncCallback<Point>>,
@@ -998,11 +1010,11 @@ pub struct Canvas {
 
 #[inherit_methods(from = "self.inner")]
 impl Canvas {
-    const WIDGET_CLASS: &'static str = "android/widget/ImageView";
-
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         vm_exec(|env| {
-            let inner = BaseWidget::new_with_env(env, parent.as_container(), Self::WIDGET_CLASS)?;
+            let act = current_activity(env)?;
+            let widget = ImageView::new(env, &act)?;
+            let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
             let on_down = Arc::new(SyncCallback::new());
             let on_up = Arc::new(SyncCallback::new());
             let on_move = Arc::new(SyncCallback::new());

@@ -7,11 +7,7 @@ use jni_min_helper::{DynamicProxy, JInteger};
 use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
-use crate::{Error, Result, vm_exec};
-
-jni::bind_java_type! {
-    Context => android.content.Context,
-}
+use crate::{Activity, Context, Error, Result, vm_exec};
 
 jni::bind_java_type! {
     AlertDialog => android.app.AlertDialog,
@@ -158,11 +154,11 @@ impl MessageBox {
     pub async fn show(self, parent: Option<impl AsWindow>) -> Result<MessageBoxResponse> {
         let (mut rx, _proxy) = vm_exec(|env| {
             let activity = if let Some(parent) = parent {
-                env.new_local_ref(parent.as_window().to_android())?
+                let act = env.new_local_ref(parent.as_window().to_android())?;
+                unsafe { Activity::from_raw(env, act.into_raw()) }
             } else {
                 crate::current_activity(env)?
             };
-            let activity = unsafe { Context::from_raw(env, activity.into_raw()) };
             let builder = AlertDialogBuilder::new(env, &activity)?;
             let msg = if self.instr.is_empty() {
                 env.new_string(self.msg)?

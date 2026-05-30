@@ -2,27 +2,45 @@ use inherit_methods_macro::inherit_methods;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Point, Size};
 
-use crate::{BaseWidget, Result, vm_exec};
+use crate::{AView, BaseWidget, Context, Result, current_activity, vm_exec};
+
+jni::bind_java_type! {
+    AProgressBar => android.widget.ProgressBar,
+    type_map {
+        AView => android.view.View,
+        Context => android.content.Context,
+    },
+    constructors {
+        fn new(&Context),
+    },
+    methods {
+        fn get_min() -> jint,
+        fn set_min(min: jint),
+        fn get_max() -> jint,
+        fn set_max(max: jint),
+        fn get_progress() -> jint,
+        fn set_progress(progress: jint),
+        fn is_indeterminate() -> jboolean,
+        fn set_indeterminate(indeterminate: jboolean),
+    },
+    is_instance_of = {
+        view = AView,
+    }
+}
 
 #[derive(Debug)]
 pub struct Progress {
-    inner: BaseWidget,
+    inner: BaseWidget<AProgressBar<'static>>,
 }
 
 #[inherit_methods(from = "self.inner")]
 impl Progress {
-    const WIDGET_CLASS: &'static str = "android/widget/ProgressBar";
-
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         vm_exec(|env| {
-            let inner = BaseWidget::new_with_env(env, parent.as_container(), Self::WIDGET_CLASS)?;
-            env.call_method(
-                inner.as_obj(),
-                jni::jni_str!("setIndeterminate"),
-                jni::jni_sig!("(Z)V"),
-                &[false.into()],
-            )?
-            .v()?;
+            let act = current_activity(env)?;
+            let widget = AProgressBar::new(env, act)?;
+            let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
+            inner.set_indeterminate(env, false)?;
             Ok(Self { inner })
         })
     }
@@ -50,105 +68,45 @@ impl Progress {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub fn minimum(&self) -> Result<usize> {
-        vm_exec(|env| {
-            Ok(env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("getMin"),
-                    jni::jni_sig!("()I"),
-                    &[],
-                )?
-                .i()? as _)
-        })
+        vm_exec(|env| Ok(self.inner.get_min(env)? as _))
     }
 
     pub fn set_minimum(&mut self, minimum: usize) -> Result<()> {
         vm_exec(|env| {
-            env.call_method(
-                self.inner.as_obj(),
-                jni::jni_str!("setMin"),
-                jni::jni_sig!("(I)V"),
-                &[(minimum as i32).into()],
-            )?
-            .v()?;
+            self.inner.set_min(env, minimum as i32)?;
             Ok(())
         })
     }
 
     pub fn maximum(&self) -> Result<usize> {
-        vm_exec(|env| {
-            Ok(env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("getMax"),
-                    jni::jni_sig!("()I"),
-                    &[],
-                )?
-                .i()? as _)
-        })
+        vm_exec(|env| Ok(self.inner.get_max(env)? as _))
     }
 
     pub fn set_maximum(&mut self, maximum: usize) -> Result<()> {
         vm_exec(|env| {
-            env.call_method(
-                self.inner.as_obj(),
-                jni::jni_str!("setMax"),
-                jni::jni_sig!("(I)V"),
-                &[(maximum as i32).into()],
-            )?
-            .v()?;
+            self.inner.set_max(env, maximum as i32)?;
             Ok(())
         })
     }
 
     pub fn pos(&self) -> Result<usize> {
-        vm_exec(|env| {
-            Ok(env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("getProgress"),
-                    jni::jni_sig!("()I"),
-                    &[],
-                )?
-                .i()? as _)
-        })
+        vm_exec(|env| Ok(self.inner.get_progress(env)? as _))
     }
 
     pub fn set_pos(&mut self, pos: usize) -> Result<()> {
         vm_exec(|env| {
-            env.call_method(
-                self.inner.as_obj(),
-                jni::jni_str!("setProgress"),
-                jni::jni_sig!("(I)V"),
-                &[(pos as i32).into()],
-            )?
-            .v()?;
+            self.inner.set_progress(env, pos as i32)?;
             Ok(())
         })
     }
 
     pub fn is_indeterminate(&self) -> Result<bool> {
-        vm_exec(|env| {
-            Ok(env
-                .call_method(
-                    self.inner.as_obj(),
-                    jni::jni_str!("isIndeterminate"),
-                    jni::jni_sig!("()Z"),
-                    &[],
-                )?
-                .z()?)
-        })
+        vm_exec(|env| Ok(self.inner.is_indeterminate(env)?))
     }
 
     pub fn set_indeterminate(&mut self, indeterminate: bool) -> Result<()> {
         vm_exec(|env| {
-            env.call_method(
-                self.inner.as_obj(),
-                jni::jni_str!("setIndeterminate"),
-                jni::jni_sig!("(Z)V"),
-                &[indeterminate.into()],
-            )?
-            .v()?;
+            self.inner.set_indeterminate(env, indeterminate)?;
             Ok(())
         })
     }

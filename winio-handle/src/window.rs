@@ -19,9 +19,9 @@ cfg_if::cfg_if! {
 
         type BorrowedWindowInner<'a> = &'a Retained<objc2_app_kit::NSWindow>;
     } else if #[cfg(target_os = "android")] {
-        use jni::objects::{Global, JObject};
+        use jni::objects::JObject;
 
-        type BorrowedWindowInner<'a> = &'a Global<JObject<'static>>;
+        type BorrowedWindowInner<'a> = &'a JObject<'static>;
     } else if #[cfg(target_os = "ios")] {
         use objc2::rc::Retained;
 
@@ -201,7 +201,6 @@ impl<'a> HasWindowHandle for BorrowedWindow<'a> {
     }
 }
 
-#[allow(unreachable_patterns)]
 #[cfg(target_os = "android")]
 impl<'a> BorrowedWindow<'a> {
     /// Create from Android `Window`
@@ -209,12 +208,12 @@ impl<'a> BorrowedWindow<'a> {
     /// # Safety
     ///
     /// j_obj must be valid `Window`.
-    pub unsafe fn android(j_obj: &'a Global<JObject<'static>>) -> Self {
+    pub unsafe fn android(j_obj: &'a JObject<'static>) -> Self {
         BorrowedWindow(j_obj)
     }
 
     /// Get Android `Window`.
-    pub fn to_android(&self) -> &'a Global<JObject<'static>> {
+    pub fn to_android(&self) -> &'a JObject<'static> {
         self.0
     }
 }
