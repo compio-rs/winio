@@ -48,6 +48,9 @@ impl From<Infallible> for Error {
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
+#[cfg(target_os = "android")]
+mod android;
+
 mod subviews;
 use subviews::*;
 

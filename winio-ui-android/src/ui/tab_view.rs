@@ -73,7 +73,7 @@ jni::bind_java_type! {
 jni::bind_java_type! {
     TabLayoutTab => "com.google.android.material.tabs.TabLayout$Tab",
     methods {
-        fn set_text(text: &JCharSequence),
+        fn set_text(text: &JCharSequence) -> TabLayoutTab,
     },
 }
 

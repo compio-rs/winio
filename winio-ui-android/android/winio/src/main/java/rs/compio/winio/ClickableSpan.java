@@ -1,6 +1,7 @@
 package rs.compio.winio;
 
 import android.view.View;
+
 import java.lang.Runnable;
 
 public class ClickableSpan extends android.text.style.ClickableSpan {

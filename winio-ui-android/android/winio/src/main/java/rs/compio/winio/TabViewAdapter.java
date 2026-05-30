@@ -3,6 +3,7 @@ package rs.compio.winio;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
@@ -21,7 +22,12 @@ public class TabViewAdapter extends RecyclerView.Adapter<TabViewAdapter.ViewHold
 
     @Override
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        return new ViewHolder(new FrameLayout(parent.getContext()));
+        FrameLayout item = new FrameLayout(parent.getContext());
+        item.setLayoutParams(new ViewGroup.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+        ));
+        return new ViewHolder(item);
     }
 
     @Override
@@ -29,10 +35,14 @@ public class TabViewAdapter extends RecyclerView.Adapter<TabViewAdapter.ViewHold
         FrameLayout itemView = (FrameLayout) holder.itemView;
         itemView.removeAllViews();
         View page = pages.get(position);
+        ViewGroup parent = (ViewGroup) page.getParent();
+        if (parent != null) {
+            parent.removeView(page);
+        }
         itemView.addView(page);
         page.setLayoutParams(new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.MATCH_PARENT
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
         ));
     }
 
