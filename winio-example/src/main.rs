@@ -4,7 +4,7 @@ fn main() -> main::Result<()> {
     use winio::prelude::*;
 
     tracing_subscriber::fmt()
-        .with_max_level(compio_log::Level::DEBUG)
+        .with_max_level(compio_log::Level::INFO)
         .init();
 
     App::builder()
