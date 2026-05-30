@@ -3,21 +3,23 @@ use jni::refs::Global;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{AView, BaseWidget, Context, FrameLayout, Result, current_activity, vm_exec};
+use crate::{
+    AView, AViewGroup, BaseWidget, Context, FrameLayout, Result, current_activity, vm_exec,
+};
 
 jni::bind_java_type! {
     AScrollView => android.widget.ScrollView,
     type_map {
         AView => android.view.View,
         Context => android.content.Context,
-        FrameLayout => android.widget.FrameLayout,
+        AViewGroup => android.view.ViewGroup,
     },
     constructors {
         fn new(&Context),
     },
     is_instance_of = {
         view = AView,
-        frame_layout = FrameLayout,
+        view_group = AViewGroup,
     }
 }
 
@@ -26,14 +28,14 @@ jni::bind_java_type! {
     type_map {
         AView => android.view.View,
         Context => android.content.Context,
-        FrameLayout => android.widget.FrameLayout,
+        AViewGroup => android.view.ViewGroup,
     },
     constructors {
         fn new(&Context),
     },
     is_instance_of = {
         view = AView,
-        frame_layout = FrameLayout,
+        view_group = AViewGroup,
     }
 }
 
@@ -55,8 +57,8 @@ impl ScrollView {
             let vertical = AScrollView::new(env, &context)?;
             let horizontal = AHorizontalScrollView::new(env, &context)?;
             let inner_view = FrameLayout::new(env, &context)?;
-            vertical.as_frame_layout().add_view(env, &horizontal)?;
-            horizontal.as_frame_layout().add_view(env, &inner_view)?;
+            vertical.as_view_group().add_view(env, &horizontal)?;
+            horizontal.as_view_group().add_view(env, &inner_view)?;
             let p = parent.as_container();
             let parent = env.new_local_ref(p.to_android())?;
             let parent =
@@ -94,31 +96,37 @@ impl ScrollView {
     fn detach(&mut self) -> Result<()> {
         vm_exec(|env| {
             if self.enable_vertical {
-                self.parent.remove_view(env, self.vertical.as_view())?;
+                self.parent
+                    .as_view_group()
+                    .remove_view(env, self.vertical.as_view())?;
                 if self.enable_horizontal {
                     // V > H > I
                     self.vertical
-                        .as_frame_layout()
+                        .as_view_group()
                         .remove_view(env, self.horizontal.as_view())?;
                     self.horizontal
-                        .as_frame_layout()
+                        .as_view_group()
                         .remove_view(env, self.inner_view.as_view())?;
                 } else {
                     // V > I
                     self.vertical
-                        .as_frame_layout()
+                        .as_view_group()
                         .remove_view(env, self.inner_view.as_view())?;
                 }
             } else {
                 if self.enable_horizontal {
                     // H > I
-                    self.parent.remove_view(env, self.horizontal.as_view())?;
+                    self.parent
+                        .as_view_group()
+                        .remove_view(env, self.horizontal.as_view())?;
                     self.horizontal
-                        .as_frame_layout()
+                        .as_view_group()
                         .remove_view(env, self.inner_view.as_view())?;
                 } else {
                     // I
-                    self.parent.remove_view(env, self.inner_view.as_view())?;
+                    self.parent
+                        .as_view_group()
+                        .remove_view(env, self.inner_view.as_view())?;
                 }
             }
             Ok(())
@@ -128,31 +136,37 @@ impl ScrollView {
     fn attach(&mut self) -> Result<()> {
         vm_exec(|env| {
             if self.enable_vertical {
-                self.parent.add_view(env, self.vertical.as_view())?;
+                self.parent
+                    .as_view_group()
+                    .add_view(env, self.vertical.as_view())?;
                 if self.enable_horizontal {
                     // V > H > I
                     self.vertical
-                        .as_frame_layout()
+                        .as_view_group()
                         .add_view(env, self.horizontal.as_view())?;
                     self.horizontal
-                        .as_frame_layout()
+                        .as_view_group()
                         .add_view(env, self.inner_view.as_view())?;
                 } else {
                     // V > I
                     self.vertical
-                        .as_frame_layout()
+                        .as_view_group()
                         .add_view(env, self.inner_view.as_view())?;
                 }
             } else {
                 if self.enable_horizontal {
                     // H > I
-                    self.parent.add_view(env, self.horizontal.as_view())?;
+                    self.parent
+                        .as_view_group()
+                        .add_view(env, self.horizontal.as_view())?;
                     self.horizontal
-                        .as_frame_layout()
+                        .as_view_group()
                         .add_view(env, self.inner_view.as_view())?;
                 } else {
                     // I
-                    self.parent.add_view(env, self.inner_view.as_view())?;
+                    self.parent
+                        .as_view_group()
+                        .add_view(env, self.inner_view.as_view())?;
                 }
             }
             Ok(())

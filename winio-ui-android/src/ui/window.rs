@@ -20,9 +20,24 @@ use crate::{
 };
 
 jni::bind_java_type! {
+    pub(crate) AViewGroup => android.view.ViewGroup,
+    type_map {
+        AView => android.view.View,
+    },
+    methods {
+        fn add_view(view: &AView),
+        fn remove_view(view: &AView),
+    },
+    is_instance_of = {
+        view = AView,
+    }
+}
+
+jni::bind_java_type! {
     pub(crate) FrameLayout => android.widget.FrameLayout,
     type_map {
         AView => android.view.View,
+        AViewGroup => android.view.ViewGroup,
         Context => android.content.Context,
     },
     constructors {
@@ -30,11 +45,10 @@ jni::bind_java_type! {
     },
     methods {
         fn set_fits_system_windows(fit: bool),
-        fn add_view(view: &AView),
-        fn remove_view(view: &AView),
     },
     is_instance_of = {
         view = AView,
+        view_group = AViewGroup,
     }
 }
 

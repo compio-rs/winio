@@ -40,7 +40,7 @@ jni::bind_java_type! {
 }
 
 jni::bind_java_type! {
-    ViewGroupLayoutParams => "android.view.ViewGroup$LayoutParams",
+    pub(crate) ViewGroupLayoutParams => "android.view.ViewGroup$LayoutParams",
 }
 
 jni::bind_java_type! {
@@ -104,7 +104,7 @@ where
         let widget = env.new_global_ref(widget)?;
         let parent = env.new_local_ref(parent.as_container().to_android())?;
         let parent = unsafe { FrameLayout::from_raw(env, parent.into_raw()) };
-        parent.add_view(env, &widget)?;
+        parent.as_view_group().add_view(env, &widget)?;
         Ok(Self { inner: widget })
     }
 

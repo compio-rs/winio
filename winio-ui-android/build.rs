@@ -16,7 +16,10 @@ fn main() {
     }
 
     if target_os == "android" {
-        let sources = [src_dir.join("ClickableSpan.java")];
+        let sources = [
+            src_dir.join("ClickableSpan.java"),
+            src_dir.join("TabViewAdapter.java"),
+        ];
         let android_jar = android_build::android_jar(None);
 
         let out_cls_dir = out_dir.join("classes");
