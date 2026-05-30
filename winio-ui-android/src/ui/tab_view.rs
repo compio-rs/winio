@@ -122,12 +122,6 @@ jni::bind_java_type! {
     },
     is_instance_of = {
         base = RecyclerViewAdapter,
-    },
-    hooks = {
-        load_class = |env, _load_context, _initialize| {
-            let click_span_class_name = JString::from_str(env, "rs/compio/winio/ClickableSpan")?;
-            crate::winio_class_loader()?.load_class(env, click_span_class_name)
-        }
     }
 }
 

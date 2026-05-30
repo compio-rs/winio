@@ -1,7 +1,15 @@
 [versions]
 agp = "9.2.1"
+core = "1.18.0"
+appcompat = "1.7.0"
+material = "1.14.0"
+viewpager2 = "1.1.0"
 
 [libraries]
+core = { module = "androidx.core:core", version.ref = "core" }
+appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+viewpager2 = { group = "androidx.viewpager2", name = "viewpager2", version.ref = "viewpager2" }
 
 [plugins]
 android-library = { id = "com.android.library", version.ref = "agp" }

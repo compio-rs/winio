@@ -1,9 +1,9 @@
 package rs.compio.winio;
 
 import android.view.View;
-import android.widgets.FrameLayout;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import androidx.recyclerview.widget.RecyclerView;
-import androidx.viewpager2.widget.ViewPager2;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,15 +20,16 @@ public class TabViewAdapter extends RecyclerView.Adapter<TabViewAdapter.ViewHold
     }
 
     @Override
-    public TabViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        return new TabViewHolder(new FrameLayout(parent.getContext()));
+    public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+        return new ViewHolder(new FrameLayout(parent.getContext()));
     }
 
     @Override
-    public void onBindViewHolder(TabViewHolder holder, int position) {
-        holder.itemView.removeAllViews();
+    public void onBindViewHolder(ViewHolder holder, int position) {
+        FrameLayout itemView = (FrameLayout) holder.itemView;
+        itemView.removeAllViews();
         View page = pages.get(position);
-        holder.itemView.addView(page);
+        itemView.addView(page);
         page.setLayoutParams(new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.MATCH_PARENT
