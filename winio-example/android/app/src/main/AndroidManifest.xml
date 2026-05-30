@@ -16,7 +16,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <meta-data android:name="android.app.lib_name" android:value="winio_example" />
+            <meta-data android:name="android.app.lib_name" android:value="main" />
         </activity>
     </application>
 

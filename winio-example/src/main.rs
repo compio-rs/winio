@@ -1,7 +1,7 @@
 #[cfg(not(target_os = "android"))]
-fn main() -> winio_example::Result<()> {
+fn main() -> main::Result<()> {
+    use main::MainModel;
     use winio::prelude::*;
-    use winio_example::MainModel;
 
     tracing_subscriber::fmt()
         .with_max_level(compio_log::Level::DEBUG)

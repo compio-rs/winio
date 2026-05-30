@@ -5,6 +5,7 @@ edition.workspace = true
 
 [lib]
 crate-type = ["lib", "cdylib"]
+name = "main"
 
 [dependencies]
 winio = { workspace = true }
