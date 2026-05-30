@@ -55,12 +55,12 @@ impl Slider {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         vm_exec(|env| {
             let act = current_activity(env)?;
-            let widget = ASlider::new(env, act)?;
+            let widget = ASlider::new(env, &act)?;
             let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
             let on_change = Arc::new(SyncCallback::new());
             let change_proxy = DynamicProxy::build(
                 env,
-                &LoaderContext::None,
+                &LoaderContext::FromObject(&act),
                 [jni::jni_str!(
                     "com/google/android/material/slider/Slider$OnChangeListener"
                 )],
@@ -75,7 +75,7 @@ impl Slider {
             env.call_method(
                 inner.as_obj(),
                 jni::jni_str!("addOnChangeListener"),
-                jni::jni_sig!("(Lcom/google/android/material/slider/Slider$OnChangeListener;)V"),
+                jni::jni_sig!("(Lcom/google/android/material/slider/BaseOnChangeListener;)V"),
                 &[change_proxy.as_ref().into()],
             )?
             .v()?;
@@ -157,7 +157,11 @@ impl Slider {
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        vm_exec(|env| self.inner.set_value_to(env, v as _))?;
+        vm_exec(|env| {
+            let min = self.inner.get_value_from(env)? as usize;
+            let v = if v <= min { min + 1 } else { v };
+            self.inner.set_value_to(env, v as _)
+        })?;
         Ok(())
     }
 
