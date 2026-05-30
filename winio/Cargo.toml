@@ -120,7 +120,6 @@ gen_blocks = ["winio-elm/gen_blocks"]
 once_cell_try = [
     "winio-ui-windows-common/once_cell_try",
     "winio-ui-win32?/once_cell_try",
-    "winio-ui-android/once_cell_try",
 ]
 nightly = [
     "gen_blocks",

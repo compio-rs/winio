@@ -4,12 +4,12 @@ plugins {
 
 android {
     namespace 'rs.compio.winio.widgets'
-    compileSdk 36
+    compileSdk 37
 
     defaultConfig {
         applicationId "rs.compio.winio.widgets"
         minSdk 24
-        targetSdk 36
+        targetSdk 37
         versionCode 1
         versionName "1.0"
     }
@@ -35,6 +35,8 @@ dependencies {
     implementation libs.core
     implementation libs.games.activity
     implementation libs.viewpager2
+
+    implementation project(':winio')
 }
 
 def localProperties = new Properties()

@@ -22,8 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Widgets example"
-include ':app'
-
+rootProject.name = "Winio"
 include ':winio'
-project(':winio').projectDir = file('../../winio-ui-android/android/winio')

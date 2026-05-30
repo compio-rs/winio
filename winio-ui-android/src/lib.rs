@@ -1,15 +1,10 @@
 //! Android backend for winio.
 
-#![allow(unused_features)]
-#![cfg_attr(docsrs, feature(doc_cfg))]
-#![cfg_attr(feature = "once_cell_try", feature(once_cell_try))]
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![cfg(target_os = "android")]
 
 #[cfg(feature = "compio-compat")]
 pub use compio::compat::FuturesAdapter as CompioAdapter;
-
-mod android;
-pub(crate) use android::*;
 
 mod convert;
 pub use convert::*;
