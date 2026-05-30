@@ -10,7 +10,18 @@ use winio_handle::AsWindow;
 use crate::{Activity, Error, Result, vm_exec};
 
 jni::bind_java_type! {
-    pub(crate) ActivityResultContract => androidx.activity.result.contract.ActivityResultContract,
+    ActivityResultCaller => androidx.activity.result.ActivityResultCaller,
+    type_map {
+        ActivityResultContract => androidx.activity.result.contract.ActivityResultContract,
+        ActivityResultLauncher => androidx.activity.result.ActivityResultLauncher,
+    },
+    methods {
+        fn register_for_activity_result(contract: &ActivityResultContract, callback: &JObject) -> ActivityResultLauncher,
+    },
+}
+
+jni::bind_java_type! {
+    ActivityResultContract => androidx.activity.result.contract.ActivityResultContract,
 }
 
 jni::bind_java_type! {
@@ -66,7 +77,7 @@ jni::bind_java_type! {
 }
 
 jni::bind_java_type! {
-    pub(crate) ActivityResultLauncher => androidx.activity.result.ActivityResultLauncher,
+    ActivityResultLauncher => androidx.activity.result.ActivityResultLauncher,
     methods {
         fn launch(input: &JObject),
     },
@@ -179,6 +190,7 @@ async fn filebox(
         } else {
             crate::current_activity(env)?
         };
+        let act = unsafe { ActivityResultCaller::from_raw(env, act.into_raw()) };
         let (tx, rx) = futures_channel::mpsc::unbounded::<Vec<PathBuf>>();
         let proxy = DynamicProxy::build(
             env,
