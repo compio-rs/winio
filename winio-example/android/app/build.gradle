@@ -61,7 +61,7 @@ def abiList = localProperties.getProperty('ndk.abis', 'arm64-v8a').split(',').co
         workingDir "../.."
         environment 'CARGO_TERM_COLOR', 'always'
 
-        def cmdArgs = ['cargo', 'ndk', 'build', '-P', '36', '-o', 'android/app/src/main/jniLibs']
+        def cmdArgs = ['cargo', 'ndk', 'build', '-P', '36', '-o', 'android/app/src/main/jniLibs', '-F', 'plotters,compio-compat']
         abiList.each { abi ->
             cmdArgs.addAll(['-t', abi])
         }
