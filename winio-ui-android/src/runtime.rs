@@ -16,7 +16,7 @@ use slab::Slab;
 use winio_callback::SyncCallback;
 use winio_pollable::MainTask;
 
-use crate::{AView, Error, Resources, Result};
+use crate::{AView, ActivityResultContract, ActivityResultLauncher, Error, Resources, Result};
 
 pub struct App {
     app: AndroidApp,
@@ -187,13 +187,16 @@ jni::bind_java_type! {
 }
 
 jni::bind_java_type! {
-    pub(crate) Activity => android.app.Activity,
+    pub(crate) Activity => com.google.androidgamesdk.GameActivity,
     type_map {
         AView => android.view.View,
         Context => android.content.Context,
+        ActivityResultContract => androidx.activity.result.contract.ActivityResultContract,
+        ActivityResultLauncher => androidx.activity.result.ActivityResultLauncher,
     },
     methods {
         fn set_content_view(view: &AView),
+        fn register_for_activity_result(contract: &ActivityResultContract, callback: &JObject) -> ActivityResultLauncher,
     },
     is_instance_of = {
         context = Context,
