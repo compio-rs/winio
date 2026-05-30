@@ -31,6 +31,7 @@ jni::bind_java_type! {
     methods {
         fn set_fits_system_windows(fit: bool),
         fn add_view(view: &AView),
+        fn remove_view(view: &AView),
     },
     is_instance_of = {
         view = AView,

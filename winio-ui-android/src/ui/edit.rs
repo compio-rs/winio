@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use inherit_methods_macro::inherit_methods;
-use jni::objects::JObject;
+use jni::{objects::JObject, refs::LoaderContext};
 use jni_min_helper::DynamicProxy;
 use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
@@ -61,7 +61,7 @@ impl Edit {
             let widget = AEditText::new(env, act)?;
             let change_proxy = DynamicProxy::build(
                 env,
-                &jni::refs::LoaderContext::None,
+                &LoaderContext::None,
                 [jni::jni_str!("android/text/TextWatcher")],
                 {
                     let on_change = on_change.clone();
