@@ -22,7 +22,7 @@ cfg-if = { workspace = true }
 futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true }
-plotters-backend = { version = "0.3", optional = true }
+plotters-backend = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
@@ -46,33 +46,6 @@ winio-ui-qt = { workspace = true, optional = true }
 
 [build-dependencies]
 cfg_aliases = "0.2"
-
-[dev-dependencies]
-compio = { workspace = true, default-features = true, features = [
-    "time",
-    "rustls",
-    "ring",
-] }
-cyper = { version = "0.9.0-rc.3", default-features = false, features = [
-    "rustls",
-    "http2",
-    "http3-altsvc",
-] }
-cyper-axum = "0.9.0-rc.2"
-axum = { version = "0.8", default-features = false }
-
-dirs = "6.0"
-futures-util = { workspace = true }
-image = { workspace = true, features = ["default-formats"] }
-itertools = "0.14"
-local-sync = { workspace = true }
-plotters = { version = "0.3", default-features = false, features = [
-    "line_series",
-] }
-pulldown-cmark = "0.13"
-send_wrapper = { workspace = true, features = ["futures"] }
-tracing-subscriber = "0.3"
-url = "2"
 
 [features]
 default = ["qt", "win32"]
@@ -127,9 +100,6 @@ nightly = [
     "winio-elm/nightly",
     "winio-ui-windows-common/nightly",
     "winio-ui-win32?/nightly",
-    "compio?/nightly",
-    "cyper/nightly",
-    "cyper-axum/nightly",
 ]
 
 win32-dark-mode = [
@@ -140,7 +110,3 @@ winui-enable-cbs = ["winio-ui-winui?/enable-cbs"]
 winui-webview-system = ["winio-ui-winui?/webview-system"]
 objc-static = ["winio-ui-app-kit/objc-static"]
 qt-opengl = ["winio-ui-qt?/opengl"]
-
-[package.metadata.bundle.example.widgets]
-name = "Widgets"
-identifier = "rs.compio.winio.widgets"

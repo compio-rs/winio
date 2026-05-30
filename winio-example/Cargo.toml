@@ -8,12 +8,36 @@ crate-type = ["lib", "cdylib"]
 
 [dependencies]
 winio = { workspace = true }
-
-futures-util = { workspace = true }
-tracing-subscriber = "0.3"
-
+compio = { workspace = true, default-features = true, features = [
+    "time",
+    "rustls",
+    "ring",
+] }
 compio-log = { workspace = true }
+cyper = { version = "0.9.0-rc.3", default-features = false, features = [
+    "rustls",
+    "http2",
+    "http3-altsvc",
+] }
+cyper-axum = "0.9.0-rc.2"
+axum = { version = "0.8", default-features = false }
+
+cfg-if = { workspace = true }
+dirs = "6.0"
+futures-util = { workspace = true }
+image = { workspace = true, features = ["default-formats"] }
+inherit-methods-macro = { workspace = true }
+itertools = "0.14"
+local-sync = { workspace = true }
+plotters = { version = "0.3", default-features = false, features = [
+    "line_series",
+] }
+plotters-backend = { workspace = true, optional = true }
+pulldown-cmark = "0.13"
+send_wrapper = { workspace = true, features = ["futures"] }
 thiserror = { workspace = true }
+tracing-subscriber = "0.3"
+url = "2"
 
 [target.'cfg(target_os = "android")'.dependencies]
 android-activity = { workspace = true }
@@ -23,5 +47,19 @@ tracing_android_trace = "0.1.0"
 default = ["enable_log"]
 enable_log = ["winio/enable_log", "compio-log/enable_log"]
 
-nightly = ["winio/nightly"]
+media = ["winio/media"]
+webview = ["winio/webview"]
+plotters = ["winio/plotters", "dep:plotters-backend"]
 compio-compat = ["winio/compio-compat"]
+all = ["media", "webview", "plotters", "compio-compat"]
+
+nightly = [
+    "winio/nightly",
+    "compio/nightly",
+    "cyper/nightly",
+    "cyper-axum/nightly",
+]
+
+[package.metadata.bundle]
+name = "Widgets"
+identifier = "rs.compio.winio.widgets"

@@ -96,6 +96,8 @@ glib-unix = "0.22"
 pangocairo = "0.22"
 webkit6 = "0.6"
 
+plotters-backend = "0.3"
+
 android-activity = "0.6"
 jni = "0.22.4"
 
