@@ -11,7 +11,7 @@ use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Point, Size};
 
-use crate::{AView, BaseWidget, Context, GlobalRef, JObjectExt, Result, current_activity, vm_exec};
+use crate::{AView, BaseWidget, Context, JObjectExt, Result, current_activity, vm_exec};
 
 jni::bind_java_type! {
     Layout => "android.R$layout",
@@ -32,6 +32,7 @@ jni::bind_java_type! {
     type_map {
         AView => android.view.View,
         Context => android.content.Context,
+        SpinnerAdapter => android.widget.SpinnerAdapter,
     },
     constructors {
         fn new(&Context),
@@ -39,17 +40,50 @@ jni::bind_java_type! {
     methods {
         fn get_selected_item_position() -> jint,
         fn set_selection(position: jint),
+        fn set_adapter(adapter: &SpinnerAdapter),
     },
     is_instance_of = {
         view = AView,
     }
 }
 
+jni::bind_java_type! {
+    ArrayList => java.util.ArrayList,
+    constructors {
+        fn new(),
+    },
+    is_instance_of = {
+        list = JList,
+    },
+}
+
+jni::bind_java_type! {
+    ArrayAdapter => android.widget.ArrayAdapter,
+    type_map {
+        Context => android.content.Context,
+        SpinnerAdapter => android.widget.SpinnerAdapter,
+    },
+    constructors {
+        fn new(context: &Context, resource: jint, objects: &JList),
+    },
+    methods {
+        fn set_drop_down_view_resource(resource: jint),
+        fn notify_data_set_changed(),
+    },
+    is_instance_of = {
+        spinner_adapter = SpinnerAdapter,
+    }
+}
+
+jni::bind_java_type! {
+    SpinnerAdapter => android.widget.SpinnerAdapter,
+}
+
 #[derive(Debug)]
 pub struct ComboBox {
     inner: BaseWidget<ASpinner<'static>>,
     list: Global<JList<'static>>,
-    adapter: GlobalRef,
+    adapter: Global<ArrayAdapter<'static>>,
     on_select: Arc<SyncCallback>,
     #[allow(dead_code)]
     select_proxy: DynamicProxy,
@@ -86,36 +120,13 @@ impl ComboBox {
                 &[select_proxy.as_ref().into()],
             )?
             .v()?;
-            let list = env.new_object(
-                jni::jni_str!("java/util/ArrayList"),
-                jni::jni_sig!("()V"),
-                &[],
-            )?;
-            let list = unsafe { JList::from_raw(env, list.into_raw()) };
+            let list = JList::from(ArrayList::new(env)?);
             let list = env.new_global_ref(list)?;
             let context = crate::current_activity(env)?;
-            let adapter = env.new_object(
-                jni::jni_str!("android/widget/ArrayAdapter"),
-                jni::jni_sig!("(Landroid/content/Context;ILjava/util/List;)V"),
-                &[
-                    (&context).into(),
-                    Layout::simple_spinner_item(env)?.into(),
-                    list.as_obj().into(),
-                ],
-            )?;
-            env.call_method(
-                &adapter,
-                jni::jni_str!("setDropDownViewResource"),
-                jni::jni_sig!("(I)V"),
-                &[Layout::simple_spinner_dropdown_item(env)?.into()],
-            )?;
-            env.call_method(
-                inner.as_obj(),
-                jni::jni_str!("setAdapter"),
-                jni::jni_sig!("(Landroid/widget/SpinnerAdapter;)V"),
-                &[(&adapter).into()],
-            )?
-            .v()?;
+            let adapter =
+                ArrayAdapter::new(env, &context, Layout::simple_spinner_item(env)?, &list)?;
+            adapter.set_drop_down_view_resource(env, Layout::simple_spinner_dropdown_item(env)?)?;
+            inner.set_adapter(env, &adapter)?;
             let adapter = env.new_global_ref(adapter)?;
             Ok(Self {
                 inner,
@@ -161,13 +172,7 @@ impl ComboBox {
     }
 
     fn invalidate(&self, env: &mut Env) -> Result<()> {
-        env.call_method(
-            self.adapter.as_obj(),
-            jni::jni_str!("notifyDataSetChanged"),
-            jni::jni_sig!("()V"),
-            &[],
-        )?
-        .v()?;
+        self.adapter.notify_data_set_changed(env)?;
         Ok(())
     }
 

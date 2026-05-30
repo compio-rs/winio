@@ -81,7 +81,7 @@ impl Label {
     }
 
     pub fn halign(&self) -> Result<HAlign> {
-        let gravity = vm_exec(|env| Ok(self.inner.get_gravity(env)?))?;
+        let gravity = vm_exec(|env| self.inner.get_gravity(env))?;
         if gravity & gravity::CENTER_HORIZONTAL != 0 {
             Ok(HAlign::Center)
         } else if gravity & gravity::FILL_HORIZONTAL == gravity::FILL_HORIZONTAL {

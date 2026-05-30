@@ -224,7 +224,7 @@ impl MessageBox {
                 unsafe { OnDismissListener::from_raw(env, cancel_listener.into_raw()) };
             dialog.set_on_dismiss_listener(env, &dismiss_listener)?;
             dialog.show(env)?;
-            Ok((rx, proxy))
+            Result::Ok((rx, proxy))
         })?;
         rx.recv()
             .await

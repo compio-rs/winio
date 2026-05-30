@@ -489,12 +489,7 @@ impl<'a> DrawingContext<'a> {
                 self.picture.end_recording(env)?;
                 self.closed = true;
                 let drawable = PictureDrawable::new(env, &self.picture)?;
-                env.call_method(
-                    self.parent.inner.as_obj(),
-                    jni::jni_str!("setImageDrawable"),
-                    jni::jni_sig!("(Landroid/graphics/drawable/Drawable;)V"),
-                    &[(&drawable).into()],
-                )?;
+                self.parent.inner.set_image_drawable(env, drawable)?;
                 Ok(())
             })
         } else {
@@ -977,7 +972,7 @@ impl DrawingPathBuilder {
 
     pub fn build(self, close: bool) -> Result<DrawingPath> {
         if close {
-            vm_exec(|env| Ok(self.path.close(env)?))?;
+            vm_exec(|env| self.path.close(env))?;
         }
         Ok(DrawingPath { path: self.path })
     }
@@ -988,12 +983,25 @@ jni::bind_java_type! {
     type_map {
         AView => android.view.View,
         Context => android.content.Context,
+        Drawable => android.graphics.drawable.Drawable,
     },
     constructors {
         fn new(context: &Context),
     },
+    methods {
+        fn set_image_drawable(drawable: &Drawable),
+    },
     is_instance_of = {
         base: AView,
+    },
+}
+
+jni::bind_java_type! {
+    MotionEvent => android.view.MotionEvent,
+    methods {
+        fn get_action() -> jint,
+        fn get_x() -> jfloat,
+        fn get_y() -> jfloat,
     },
 }
 
@@ -1032,14 +1040,8 @@ impl Canvas {
                         const ACTION_MOVE: i32 = 0x2;
 
                         let event = args.get_element(env, 1)?;
-                        let action = env
-                            .call_method(
-                                &event,
-                                jni::jni_str!("getAction"),
-                                jni::jni_sig!("()I"),
-                                &[],
-                            )?
-                            .i()?;
+                        let event = unsafe { MotionEvent::from_raw(env, event.into_raw()) };
+                        let action = event.get_action(env)?;
                         match action & 0xFF {
                             ACTION_DOWN => {
                                 on_down.signal(());
@@ -1048,22 +1050,8 @@ impl Canvas {
                                 on_up.signal(());
                             }
                             ACTION_MOVE => {
-                                let x = env
-                                    .call_method(
-                                        &event,
-                                        jni::jni_str!("getX"),
-                                        jni::jni_sig!("()F"),
-                                        &[],
-                                    )?
-                                    .f()?;
-                                let y = env
-                                    .call_method(
-                                        &event,
-                                        jni::jni_str!("getY"),
-                                        jni::jni_sig!("()F"),
-                                        &[],
-                                    )?
-                                    .f()?;
+                                let x = event.get_x(env)?;
+                                let y = event.get_y(env)?;
                                 let point = Point::new(x as f64, y as f64);
                                 on_move.signal(point);
                             }

@@ -16,7 +16,7 @@ use slab::Slab;
 use winio_callback::SyncCallback;
 use winio_pollable::MainTask;
 
-use crate::{AView, Error, GlobalRef, Result};
+use crate::{AView, Error, GlobalRef, Resources, Result};
 
 pub struct App {
     app: AndroidApp,
@@ -167,16 +167,23 @@ unsafe fn looper_drop(data: *const ()) {
     unsafe { ALooper_release(looper) }
 }
 
-pub(crate) fn vm_exec<F, R>(f: F) -> Result<R>
+pub(crate) fn vm_exec<F, R, E>(f: F) -> std::result::Result<R, E>
 where
-    F: FnOnce(&mut Env<'_>) -> Result<R>,
+    F: FnOnce(&mut Env<'_>) -> std::result::Result<R, E>,
+    E: From<jni::errors::Error>,
 {
     let vm = JavaVM::singleton()?;
-    vm.attach_current_thread::<_, R, Error>(f)
+    vm.attach_current_thread::<_, R, E>(f)
 }
 
 jni::bind_java_type! {
     pub(crate) Context => android.content.Context,
+    type_map {
+        Resources => android.content.res.Resources,
+    },
+    methods {
+        fn get_resources() -> Resources,
+    }
 }
 
 jni::bind_java_type! {

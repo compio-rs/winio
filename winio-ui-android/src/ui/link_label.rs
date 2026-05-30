@@ -4,14 +4,14 @@ use inherit_methods_macro::inherit_methods;
 use jni::{
     Env,
     objects::{JObject, JString},
-    refs::LoaderContext,
+    refs::{Global, LoaderContext},
 };
 use jni_min_helper::DynamicProxy;
 use winio_callback::SyncCallback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{ATextView, BaseWidget, GlobalRef, JObjectExt, Result, current_activity, vm_exec};
+use crate::{ATextView, BaseWidget, JObjectExt, Result, current_activity, vm_exec};
 
 jni::bind_java_type! {
     pub(crate) MovementMethod => android.text.method.MovementMethod,
@@ -30,14 +30,67 @@ jni::bind_java_type! {
     }
 }
 
+jni::bind_java_type! {
+    ClickableSpan => android.text.style.ClickableSpan,
+}
+
+jni::bind_java_type! {
+    URLSpan => android.text.style.URLSpan,
+    type_map {
+        ClickableSpan => android.text.style.ClickableSpan,
+    },
+    constructors {
+        fn new(url: &JString),
+    },
+    methods {
+        fn get_u_r_l() -> JString,
+    },
+    is_instance_of = {
+        base = ClickableSpan,
+    }
+}
+
+jni::bind_java_type! {
+    WinioClickableSpan => rs.compio.winio.ClickableSpan,
+    type_map {
+        ClickableSpan => android.text.style.ClickableSpan,
+    },
+    constructors {
+        fn new(),
+    },
+    is_instance_of = {
+        base = ClickableSpan,
+    },
+    hooks = {
+        load_class = |env, _load_context, _initialize| {
+            let click_span_class_name = JString::from_str(env, "rs/compio/winio/ClickableSpan")?;
+            crate::winio_class_loader()?.load_class(env, click_span_class_name)
+        }
+    }
+}
+
+jni::bind_java_type! {
+    SpannableString => android.text.SpannableString,
+    constructors {
+        fn new(text: &JCharSequence),
+    },
+    methods {
+        fn set_span(what: &JObject, start: i32, end: i32, flags: i32),
+        fn to_string() -> JString,
+    },
+    is_instance_of = {
+        char_sequence = JCharSequence,
+    }
+}
+
 #[derive(Debug)]
 pub struct LinkLabel {
     inner: BaseWidget<ATextView<'static>>,
     on_click: Arc<SyncCallback>,
     #[allow(dead_code)]
     click_proxy: DynamicProxy,
-    url_span: GlobalRef,
-    click_span: GlobalRef,
+    url_span: Global<URLSpan<'static>>,
+    click_span: Global<WinioClickableSpan<'static>>,
 }
 
 const SPAN_INCLUSIVE_EXCLUSIVE: i32 = 0x11;
@@ -55,10 +108,7 @@ impl LinkLabel {
 
             let on_click = Arc::new(SyncCallback::new());
 
-            let click_span_class_name = JString::from_str(env, "rs/compio/winio/ClickableSpan")?;
-            let click_span_class =
-                crate::winio_class_loader()?.load_class(env, click_span_class_name)?;
-            let click_span = env.new_object(click_span_class, jni::jni_sig!("()V"), &[])?;
+            let click_span = WinioClickableSpan::new(env)?;
             let click_proxy = DynamicProxy::build(
                 env,
                 &LoaderContext::None,
@@ -81,11 +131,7 @@ impl LinkLabel {
             let click_span = env.new_global_ref(click_span)?;
 
             let url = JString::new(env, "")?;
-            let url_span = env.new_object(
-                jni::jni_str!("android/text/style/URLSpan"),
-                jni::jni_sig!("(Ljava/lang/String;)V"),
-                &[(&url).into()],
-            )?;
+            let url_span = URLSpan::new(env, &url)?;
             let url_span = env.new_global_ref(url_span)?;
 
             Ok(Self {
@@ -120,59 +166,28 @@ impl LinkLabel {
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    fn update_text_impl(&mut self, env: &mut Env, text: JObject, s: &str) -> Result<()> {
-        let text = env.new_object(
-            jni::jni_str!("android/text/SpannableString"),
-            jni::jni_sig!("(Ljava/lang/CharSequence;)V"),
-            &[(&text).into()],
-        )?;
-        let text = unsafe { JString::from_raw(env, text.into_raw()) };
+    fn update_text_impl(&mut self, env: &mut Env, text: JString, s: &str) -> Result<()> {
+        let text = SpannableString::new(env, text.as_char_sequence())?;
         let length = text.as_char_sequence().length(env)?;
-        compio_log::info!("update_text_impl: text={:?}, s={:?}", length, s);
-        env.call_method(
-            &text,
-            jni::jni_str!("setSpan"),
-            jni::jni_sig!("(Ljava/lang/Object;III)V"),
-            &[
-                (if s.is_empty() {
-                    self.click_span.as_obj()
-                } else {
-                    self.url_span.as_obj()
-                })
-                .into(),
-                0i32.into(),
-                length.into(),
-                SPAN_INCLUSIVE_EXCLUSIVE.into(),
-            ],
-        )?
-        .v()?;
-        env.call_method(
-            self.inner.as_obj(),
-            jni::jni_str!("setText"),
-            jni::jni_sig!("(Ljava/lang/CharSequence;)V"),
-            &[(&text).into()],
-        )?
-        .v()?;
+        text.set_span(
+            env,
+            if s.is_empty() {
+                self.click_span.as_obj()
+            } else {
+                self.url_span.as_obj()
+            },
+            0,
+            length,
+            SPAN_INCLUSIVE_EXCLUSIVE,
+        )?;
+        self.inner.set_text(env, text)?;
         Ok(())
     }
 
-    fn text_jstring<'a>(&self, env: &mut Env<'a>) -> Result<JObject<'a>> {
-        let spannable = env
-            .call_method(
-                self.inner.as_obj(),
-                jni::jni_str!("getText"),
-                jni::jni_sig!("()Ljava/lang/CharSequence;"),
-                &[],
-            )?
-            .l()?;
-        let str = env
-            .call_method(
-                &spannable,
-                jni::jni_str!("toString"),
-                jni::jni_sig!("()Ljava/lang/String;"),
-                &[],
-            )?
-            .l()?;
+    fn text_jstring<'a>(&self, env: &mut Env<'a>) -> Result<JString<'a>> {
+        let spannable = self.inner.get_text(env)?;
+        let spannable = unsafe { SpannableString::from_raw(env, spannable.into_raw()) };
+        let str = spannable.to_string(env)?;
         Ok(str)
     }
 
@@ -184,22 +199,14 @@ impl LinkLabel {
         let uri = self.uri()?;
         vm_exec(|env| {
             let str = JString::new(env, s.as_ref())?;
-            self.update_text_impl(env, str.into(), &uri)?;
+            self.update_text_impl(env, str, &uri)?;
             Ok(())
         })
     }
 
     pub fn uri(&self) -> Result<String> {
         vm_exec(|env| {
-            let url = env
-                .call_method(
-                    &self.url_span,
-                    jni::jni_str!("getURL"),
-                    jni::jni_sig!("()Ljava/lang/String;"),
-                    &[],
-                )?
-                .l()?
-                .to(env)?;
+            let url = self.url_span.get_u_r_l(env)?.to(env)?;
             Ok(url)
         })
     }
@@ -208,11 +215,7 @@ impl LinkLabel {
         let s = s.as_ref();
         vm_exec(|env| {
             let url = JString::new(env, s)?;
-            let url_span = env.new_object(
-                jni::jni_str!("android/text/style/URLSpan"),
-                jni::jni_sig!("(Ljava/lang/String;)V"),
-                &[(&url).into()],
-            )?;
+            let url_span = URLSpan::new(env, &url)?;
             self.url_span = env.new_global_ref(url_span)?;
             let str = self.text_jstring(env)?;
             self.update_text_impl(env, str, s)?;
