@@ -11,10 +11,12 @@ use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Point, Size};
 
-use crate::{AView, BaseWidget, Context, JObjectExt, Result, current_activity, vm_exec};
+use crate::{
+    AView, BaseWidget, Context, JObjectExt, ListAdapter, Result, current_activity, vm_exec,
+};
 
 jni::bind_java_type! {
-    Layout => "android.R$layout",
+    pub(crate) Layout => "android.R$layout",
     fields {
         static simple_spinner_item {
             sig = jint,
@@ -23,6 +25,10 @@ jni::bind_java_type! {
         static simple_spinner_dropdown_item {
             sig = jint,
             name = "simple_spinner_dropdown_item",
+        },
+        static simple_list_item_1 {
+            sig = jint,
+            name = "simple_list_item_1",
         },
     }
 }
@@ -48,7 +54,7 @@ jni::bind_java_type! {
 }
 
 jni::bind_java_type! {
-    ArrayList => java.util.ArrayList,
+    pub(crate) ArrayList => java.util.ArrayList,
     constructors {
         fn new(),
     },
@@ -58,10 +64,11 @@ jni::bind_java_type! {
 }
 
 jni::bind_java_type! {
-    ArrayAdapter => android.widget.ArrayAdapter,
+    pub(crate) ArrayAdapter => android.widget.ArrayAdapter,
     type_map {
         Context => android.content.Context,
         SpinnerAdapter => android.widget.SpinnerAdapter,
+        ListAdapter => android.widget.ListAdapter,
     },
     constructors {
         fn new(context: &Context, resource: jint, objects: &JList),
@@ -72,11 +79,12 @@ jni::bind_java_type! {
     },
     is_instance_of = {
         spinner_adapter = SpinnerAdapter,
+        list_adapter = ListAdapter,
     }
 }
 
 jni::bind_java_type! {
-    SpinnerAdapter => android.widget.SpinnerAdapter,
+    pub(crate) SpinnerAdapter => android.widget.SpinnerAdapter,
 }
 
 #[derive(Debug)]
@@ -95,7 +103,7 @@ impl ComboBox {
         let on_select = Arc::new(SyncCallback::new());
         vm_exec(|env| {
             let act = current_activity(env)?;
-            let widget = ASpinner::new(env, act)?;
+            let widget = ASpinner::new(env, &act)?;
             let select_proxy = DynamicProxy::build(
                 env,
                 &jni::refs::LoaderContext::None,
@@ -122,9 +130,7 @@ impl ComboBox {
             .v()?;
             let list = JList::from(ArrayList::new(env)?);
             let list = env.new_global_ref(list)?;
-            let context = crate::current_activity(env)?;
-            let adapter =
-                ArrayAdapter::new(env, &context, Layout::simple_spinner_item(env)?, &list)?;
+            let adapter = ArrayAdapter::new(env, &act, Layout::simple_spinner_item(env)?, &list)?;
             adapter.set_drop_down_view_resource(env, Layout::simple_spinner_dropdown_item(env)?)?;
             inner.set_adapter(env, &adapter)?;
             let adapter = env.new_global_ref(adapter)?;
