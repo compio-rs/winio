@@ -34,6 +34,8 @@ dependencies {
 
     implementation libs.games.activity
 
+    implementation libs.rustls.platform.verifier
+
     implementation project(':winio')
 }
 

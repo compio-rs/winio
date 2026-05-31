@@ -4,6 +4,7 @@ core = "1.18.0"
 gamesActivity = "4.4.2"
 appcompat = "1.7.0"
 material = "1.14.0"
+rustlsPlatformVerifier = "latest.release"
 viewpager2 = "1.1.0"
 
 [libraries]
@@ -11,6 +12,7 @@ core = { module = "androidx.core:core", version.ref = "core" }
 games-activity = { module = "androidx.games:games-activity", version.ref = "gamesActivity" }
 appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+rustls-platform-verifier = { module = "rustls:rustls-platform-verifier", version.ref = "rustlsPlatformVerifier" }
 viewpager2 = { group = "androidx.viewpager2", name = "viewpager2", version.ref = "viewpager2" }
 
 [plugins]
