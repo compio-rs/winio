@@ -31,3 +31,13 @@ fn android_main(app: AndroidApp) {
         }
     })
 }
+
+pub(crate) fn init_rustls(window: &Window) -> Result<()> {
+    let context = window.as_window().to_android();
+    let vm = jni::JavaVM::singleton()?;
+    vm.attach_current_thread(|env| {
+        let context = env.new_local_ref(context)?;
+        rustls_platform_verifier::android::init_with_env(env, context)
+    })?;
+    Ok(())
+}

@@ -44,6 +44,9 @@ url = "2"
 android-activity = { workspace = true }
 tracing_android_trace = "0.1.0"
 
+jni = { workspace = true }
+rustls-platform-verifier = "0.7.0"
+
 [features]
 default = ["enable_log"]
 enable_log = ["winio/enable_log", "compio-log/enable_log"]

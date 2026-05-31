@@ -160,6 +160,9 @@ impl Component for MainModel {
         tabview.push(&webview)?;
         tabview.push(&markdown)?;
 
+        #[cfg(target_os = "android")]
+        android::init_rustls(&window)?;
+
         window.show()?;
 
         Ok(Self {
