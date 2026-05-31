@@ -25,4 +25,6 @@ dependencies {
 
     implementation libs.core
     implementation libs.viewpager2
+    implementation libs.media3.exoplayer
+    implementation libs.media3.ui
 }

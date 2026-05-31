@@ -4,12 +4,15 @@ core = "1.18.0"
 appcompat = "1.7.0"
 material = "1.14.0"
 viewpager2 = "1.1.0"
+media3Ui = "1.10.1"
 
 [libraries]
 core = { module = "androidx.core:core", version.ref = "core" }
 appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 viewpager2 = { group = "androidx.viewpager2", name = "viewpager2", version.ref = "viewpager2" }
+media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3Ui" }
+media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3Ui" }
 
 [plugins]
 android-library = { id = "com.android.library", version.ref = "agp" }

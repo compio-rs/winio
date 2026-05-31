@@ -30,6 +30,11 @@ pub use link_label::*;
 mod list_box;
 pub use list_box::*;
 
+#[cfg(feature = "media")]
+mod media;
+#[cfg(feature = "media")]
+pub use media::*;
+
 mod monitor;
 pub use monitor::*;
 

@@ -4,6 +4,7 @@ core = "1.18.0"
 gamesActivity = "4.4.2"
 appcompat = "1.7.0"
 material = "1.14.0"
+media3Ui = "1.10.1"
 rustlsPlatformVerifier = "latest.release"
 viewpager2 = "1.1.0"
 
@@ -12,6 +13,8 @@ core = { module = "androidx.core:core", version.ref = "core" }
 games-activity = { module = "androidx.games:games-activity", version.ref = "gamesActivity" }
 appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3Ui" }
+media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3Ui" }
 rustls-platform-verifier = { module = "rustls:rustls-platform-verifier", version.ref = "rustlsPlatformVerifier" }
 viewpager2 = { group = "androidx.viewpager2", name = "viewpager2", version.ref = "viewpager2" }
 
