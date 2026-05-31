@@ -85,6 +85,9 @@ impl App {
                         | MainEvent::ConfigChanged { .. } => {
                             self.run_current_task();
                         }
+                        MainEvent::Stop if signal_destroy() => {
+                            self.run_current_task();
+                        }
                         MainEvent::Destroy => {
                             destroyed = true;
                         }
