@@ -51,6 +51,11 @@ pub use tab_view::*;
 mod view;
 pub use view::*;
 
+#[cfg(feature = "webview")]
+mod webview;
+#[cfg(feature = "webview")]
+pub use webview::*;
+
 mod widget;
 pub(crate) use widget::*;
 
