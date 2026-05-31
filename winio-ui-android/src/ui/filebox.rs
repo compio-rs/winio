@@ -1,8 +1,14 @@
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
+use futures_channel::mpsc::UnboundedReceiver;
+use futures_util::lock::Mutex as AsyncMutex;
 use jni::{
+    Env,
     objects::{JList, JObject},
-    refs::{LoaderContext, Reference},
+    refs::{Global, LoaderContext, Reference},
 };
 use jni_min_helper::DynamicProxy;
 use winio_handle::AsWindow;
@@ -14,9 +20,10 @@ jni::bind_java_type! {
     type_map {
         ActivityResultContract => androidx.activity.result.contract.ActivityResultContract,
         ActivityResultLauncher => androidx.activity.result.ActivityResultLauncher,
+        ActivityResultCallback => androidx.activity.result.ActivityResultCallback,
     },
     methods {
-        fn register_for_activity_result(contract: &ActivityResultContract, callback: &JObject) -> ActivityResultLauncher,
+        fn register_for_activity_result(contract: &ActivityResultContract, callback: &ActivityResultCallback) -> ActivityResultLauncher,
     },
 }
 
@@ -84,10 +91,117 @@ jni::bind_java_type! {
 }
 
 jni::bind_java_type! {
+    ActivityResultCallback => androidx.activity.result.ActivityResultCallback,
+}
+
+jni::bind_java_type! {
     Uri => android.net.Uri,
     methods {
         fn get_path() -> JString,
     },
+}
+
+struct ProxyCallback {
+    proxy: DynamicProxy,
+    rx: Arc<AsyncMutex<UnboundedReceiver<Vec<PathBuf>>>>,
+}
+
+impl ProxyCallback {
+    pub fn new(env: &mut Env, context: &Activity) -> jni::errors::Result<Self> {
+        let (tx, rx) = futures_channel::mpsc::unbounded::<Vec<PathBuf>>();
+        let proxy = DynamicProxy::build(
+            env,
+            &LoaderContext::FromObject(context),
+            [jni::jni_str!(
+                "androidx/activity/result/ActivityResultCallback"
+            )],
+            move |env, _method, args| {
+                let result = args.get_element(env, 0)?;
+                if env.is_instance_of(&result, Uri::class_name())? {
+                    let uri = unsafe { Uri::from_raw(env, result.into_raw()) };
+                    let path = uri.get_path(env)?.try_to_string(env)?;
+                    tx.unbounded_send(vec![PathBuf::from(path)]).ok();
+                } else if env.is_instance_of(&result, JList::class_name())? {
+                    let list = unsafe { JList::from_raw(env, result.into_raw()) };
+                    let mut paths = vec![];
+                    for i in 0..list.size(env)? {
+                        let item = list.get(env, i)?;
+                        let uri = unsafe { Uri::from_raw(env, item.into_raw()) };
+                        let path = uri.get_path(env)?.try_to_string(env)?;
+                        paths.push(PathBuf::from(path));
+                    }
+                    tx.unbounded_send(paths).ok();
+                } else {
+                    tx.unbounded_send(vec![]).ok();
+                }
+                Ok(JObject::null())
+            },
+        )?;
+        Ok(Self {
+            proxy,
+            rx: Arc::new(AsyncMutex::new(rx)),
+        })
+    }
+
+    pub fn callback<'local>(
+        &self,
+        env: &mut Env<'local>,
+    ) -> jni::errors::Result<ActivityResultCallback<'local>> {
+        let callback = env.new_local_ref(self.proxy.as_ref())?;
+        let callback = unsafe { ActivityResultCallback::from_raw(env, callback.into_raw()) };
+        Ok(callback)
+    }
+
+    pub fn receiver(&self) -> Arc<AsyncMutex<UnboundedReceiver<Vec<PathBuf>>>> {
+        self.rx.clone()
+    }
+}
+
+static PROXY_CALLBACK: Mutex<Option<ProxyCallback>> = Mutex::new(None);
+
+static LAUNCHER_GET_CONTENT: Mutex<Option<Global<ActivityResultLauncher<'static>>>> =
+    Mutex::new(None);
+
+static LAUNCHER_GET_MULTIPLE_CONTENTS: Mutex<Option<Global<ActivityResultLauncher<'static>>>> =
+    Mutex::new(None);
+
+static LAUNCHER_OPEN_DOCUMENT_TREE: Mutex<Option<Global<ActivityResultLauncher<'static>>>> =
+    Mutex::new(None);
+
+static LAUNCHER_CREATE_DOCUMENT: Mutex<Option<Global<ActivityResultLauncher<'static>>>> =
+    Mutex::new(None);
+
+pub(crate) fn register_launcher(env: &mut Env, act: &Activity) -> jni::errors::Result<()> {
+    let callback = {
+        let mut proxy_callback = PROXY_CALLBACK.lock().unwrap();
+        *proxy_callback = Some(ProxyCallback::new(env, act)?);
+        proxy_callback.as_ref().unwrap().callback(env)?
+    };
+
+    let act = env.new_local_ref(act)?;
+    let act = unsafe { ActivityResultCaller::from_raw(env, act.into_raw()) };
+
+    let mut launcher_get_content = LAUNCHER_GET_CONTENT.lock().unwrap();
+    let action = GetContent::new(env)?;
+    let launcher = act.register_for_activity_result(env, action, &callback)?;
+    *launcher_get_content = Some(env.new_global_ref(launcher)?);
+
+    let mut launcher_get_multiple_contents = LAUNCHER_GET_MULTIPLE_CONTENTS.lock().unwrap();
+    let action = GetMultipleContents::new(env)?;
+    let launcher = act.register_for_activity_result(env, action, &callback)?;
+    *launcher_get_multiple_contents = Some(env.new_global_ref(launcher)?);
+
+    let mut launcher_open_document_tree = LAUNCHER_OPEN_DOCUMENT_TREE.lock().unwrap();
+    let action = OpenDocumentTree::new(env)?;
+    let launcher = act.register_for_activity_result(env, action, &callback)?;
+    *launcher_open_document_tree = Some(env.new_global_ref(launcher)?);
+
+    let mut launcher_create_document = LAUNCHER_CREATE_DOCUMENT.lock().unwrap();
+    let action = CreateDocument::new(env)?;
+    let launcher = act.register_for_activity_result(env, action, &callback)?;
+    *launcher_create_document = Some(env.new_global_ref(launcher)?);
+
+    Ok(())
 }
 
 #[derive(Debug, Default, Clone)]
@@ -175,7 +289,7 @@ impl FileBox {
 }
 
 async fn filebox(
-    parent: Option<impl AsWindow>,
+    _parent: Option<impl AsWindow>,
     _title: String,
     filename: String,
     _filters: Vec<FileFilter>,
@@ -183,73 +297,24 @@ async fn filebox(
     multiple: bool,
     folder: bool,
 ) -> Result<Vec<PathBuf>> {
-    let mut rx = vm_exec(|env| {
-        let act = if let Some(parent) = parent {
-            let act = env.new_local_ref(parent.as_window().to_android())?;
-            unsafe { Activity::from_raw(env, act.into_raw()) }
-        } else {
-            crate::current_activity(env)?
-        };
-        let act = unsafe { ActivityResultCaller::from_raw(env, act.into_raw()) };
-        let (tx, rx) = futures_channel::mpsc::unbounded::<Vec<PathBuf>>();
-        let proxy = DynamicProxy::build(
-            env,
-            &LoaderContext::FromObject(&act),
-            [jni::jni_str!(
-                "androidx/activity/result/ActivityResultCallback"
-            )],
-            move |env, _method, args| {
-                let result = args.get_element(env, 0)?;
-                if env.is_instance_of(&result, Uri::class_name())? {
-                    let uri = unsafe { Uri::from_raw(env, result.into_raw()) };
-                    let path = uri.get_path(env)?.try_to_string(env)?;
-                    tx.unbounded_send(vec![PathBuf::from(path)]).ok();
-                } else if env.is_instance_of(&result, JList::class_name())? {
-                    let list = unsafe { JList::from_raw(env, result.into_raw()) };
-                    let mut paths = vec![];
-                    for i in 0..list.size(env)? {
-                        let item = list.get(env, i)?;
-                        let uri = unsafe { Uri::from_raw(env, item.into_raw()) };
-                        let path = uri.get_path(env)?.try_to_string(env)?;
-                        paths.push(PathBuf::from(path));
-                    }
-                    tx.unbounded_send(paths).ok();
-                } else {
-                    tx.unbounded_send(vec![]).ok();
-                }
-                Ok(JObject::null())
-            },
-        )?;
+    vm_exec(|env| {
         let (launcher, input) = if open && multiple {
-            let action = GetMultipleContents::new(env)?;
-            (
-                act.register_for_activity_result(env, action, proxy.as_ref())?,
-                "*/*",
-            )
+            (LAUNCHER_GET_MULTIPLE_CONTENTS.lock().unwrap(), "*/*")
         } else if folder {
-            let action = OpenDocumentTree::new(env)?;
-            (
-                act.register_for_activity_result(env, action, proxy.as_ref())?,
-                "*/*",
-            )
+            (LAUNCHER_OPEN_DOCUMENT_TREE.lock().unwrap(), "*/*")
         } else if open {
-            let action = GetContent::new(env)?;
-            (
-                act.register_for_activity_result(env, action, proxy.as_ref())?,
-                "*/*",
-            )
+            (LAUNCHER_GET_CONTENT.lock().unwrap(), "*/*")
         } else {
-            let action = CreateDocument::new(env)?;
-            (
-                act.register_for_activity_result(env, action, proxy.as_ref())?,
-                filename.as_str(),
-            )
+            (LAUNCHER_CREATE_DOCUMENT.lock().unwrap(), filename.as_str())
         };
         let input = env.new_string(input)?;
-        launcher.launch(env, input)?;
-        Result::Ok(rx)
+        launcher.as_ref().unwrap().launch(env, input)?;
+        Result::Ok(())
     })?;
-    rx.recv()
+    let rx = PROXY_CALLBACK.lock().unwrap().as_ref().unwrap().receiver();
+    rx.lock()
+        .await
+        .recv()
         .await
         .map_err(|e| Error::Io(std::io::Error::other(e)))
 }

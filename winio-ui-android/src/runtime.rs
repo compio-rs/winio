@@ -187,13 +187,16 @@ jni::bind_java_type! {
 }
 
 jni::bind_java_type! {
-    pub(crate) Activity => com.google.androidgamesdk.GameActivity,
+    pub(crate) Activity => rs.compio.winio.Activity,
     type_map {
         AView => android.view.View,
         Context => android.content.Context,
     },
     methods {
         fn set_content_view(view: &AView),
+    },
+    native_methods {
+        extern fn on_create_native(),
     },
     is_instance_of = {
         context = Context,
@@ -204,4 +207,15 @@ pub(crate) fn current_activity<'local>(env: &mut Env<'local>) -> Result<Activity
     let act = ACTIVITY.lock().unwrap();
     let obj = env.new_local_ref(act.as_ref().ok_or(Error::NoApp)?.as_obj())?;
     Ok(unsafe { Activity::from_raw(env, obj.into_raw()) })
+}
+
+impl ActivityNativeInterface for ActivityAPI {
+    type Error = jni::errors::Error;
+
+    fn on_create_native<'local>(
+        env: &mut Env<'local>,
+        this: Activity<'local>,
+    ) -> std::result::Result<(), Self::Error> {
+        crate::register_launcher(env, &this)
+    }
 }

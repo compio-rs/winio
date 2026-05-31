@@ -1,8 +1,8 @@
 package rs.compio.winio.widgets;
 
-import com.google.androidgamesdk.GameActivity;
+import rs.compio.winio.Activity;
 
-public class MainActivity extends GameActivity {
+public class MainActivity extends Activity {
     static {
         System.loadLibrary("main");
     }
