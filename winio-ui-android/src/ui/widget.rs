@@ -1,5 +1,6 @@
 use std::ops::Deref;
 
+use compio_log::error;
 use jni::{
     Env,
     objects::JObject,
@@ -8,12 +9,13 @@ use jni::{
 use winio_handle::{AsContainer, AsWidget, BorrowedContainer, BorrowedWidget};
 use winio_primitive::{Point, Size};
 
-use crate::{Context, FrameLayout, Result, vm_exec};
+use crate::{AViewGroup, Context, FrameLayout, Result, vm_exec};
 
 jni::bind_java_type! {
     pub(crate) AView => "android.view.View",
     type_map {
         Context => android.content.Context,
+        AViewParent => android.view.ViewParent,
         ViewGroupLayoutParams => "android.view.ViewGroup$LayoutParams",
     },
     constructors {
@@ -26,6 +28,7 @@ jni::bind_java_type! {
         fn set_y(y: jfloat),
         fn get_width() -> jint,
         fn get_height() -> jint,
+        fn get_layout_params() -> ViewGroupLayoutParams,
         fn set_layout_params(params: &ViewGroupLayoutParams),
         fn measure(width_spec: jint, height_spec: jint),
         fn get_measured_width() -> jint,
@@ -36,23 +39,56 @@ jni::bind_java_type! {
         fn set_visibility(visibility: jint),
         fn is_enabled() -> jboolean,
         fn set_enabled(enabled: jboolean),
+        fn get_parent() -> AViewParent,
     }
 }
 
 jni::bind_java_type! {
-    pub(crate) ViewGroupLayoutParams => "android.view.ViewGroup$LayoutParams",
+    AViewParent => android.view.ViewParent,
 }
 
 jni::bind_java_type! {
-    pub(crate) FrameLayoutLayoutParams => "android.widget.FrameLayout$LayoutParams",
+    pub(crate) ViewGroupLayoutParams => "android.view.ViewGroup$LayoutParams",
+    fields {
+        width: jint,
+        height: jint,
+    }
+}
+
+jni::bind_java_type! {
+    pub(crate) ViewGroupMarginLayoutParams => "android.view.ViewGroup$MarginLayoutParams",
     type_map {
         ViewGroupLayoutParams => "android.view.ViewGroup$LayoutParams",
     },
     constructors {
         fn new(width: jint, height: jint),
     },
+    fields {
+        left_margin: jint,
+        top_margin: jint,
+        right_margin: jint,
+        bottom_margin: jint,
+    },
     is_instance_of = {
         base = ViewGroupLayoutParams,
+    }
+}
+
+jni::bind_java_type! {
+    pub(crate) FrameLayoutLayoutParams => "android.widget.FrameLayout$LayoutParams",
+    type_map {
+        ViewGroupLayoutParams => "android.view.ViewGroup$LayoutParams",
+        ViewGroupMarginLayoutParams => "android.view.ViewGroup$MarginLayoutParams",
+    },
+    constructors {
+        fn new(width: jint, height: jint),
+    },
+    fields {
+        gravity: jint,
+    },
+    is_instance_of = {
+        base = ViewGroupLayoutParams,
+        margin = ViewGroupMarginLayoutParams,
     }
 }
 
@@ -65,6 +101,7 @@ pub(crate) struct BaseWidget<T>
 where
     T: Into<JObject<'static>>
         + AsRef<JObject<'static>>
+        + AsRef<AView<'static>>
         + Default
         + Reference
         + Send
@@ -80,6 +117,7 @@ pub(crate) mod gravity {
     pub const FILL_HORIZONTAL: i32 = 0x7;
     pub const LEFT: i32 = 0x3;
     pub const RIGHT: i32 = 0x5;
+    pub const TOP: i32 = 0x30;
 }
 
 impl<T> BaseWidget<T>
@@ -126,8 +164,14 @@ where
 
     pub fn set_loc(&self, p: Point) -> Result<()> {
         vm_exec(move |env| {
-            self.as_view().set_x(env, p.x as f32)?;
-            self.as_view().set_y(env, p.y as f32)?;
+            let params = self.as_view().get_layout_params(env)?;
+            let width = params.width(env)?;
+            let height = params.height(env)?;
+            let params = FrameLayoutLayoutParams::new(env, width, height)?;
+            params.as_margin().set_left_margin(env, p.x as i32)?;
+            params.as_margin().set_top_margin(env, p.y as i32)?;
+            params.set_gravity(env, gravity::LEFT | gravity::TOP)?;
+            self.as_view().set_layout_params(env, params)?;
             Ok(())
         })
     }
@@ -142,7 +186,23 @@ where
 
     pub fn set_size(&self, size: Size) -> Result<()> {
         vm_exec(move |env| {
-            let params = FrameLayoutLayoutParams::new(env, size.width as i32, size.height as i32)?;
+            let params = self.as_view().get_layout_params(env)?;
+            let params = if env.is_instance_of(&params, FrameLayoutLayoutParams::class_name())? {
+                let params = unsafe { FrameLayoutLayoutParams::from_raw(env, params.into_raw()) };
+                params.as_base().set_width(env, size.width as i32)?;
+                params.as_base().set_height(env, size.height as i32)?;
+                params
+            } else {
+                FrameLayoutLayoutParams::new(env, size.width as i32, size.height as i32)?
+            };
+            self.as_view().set_layout_params(env, params)?;
+            Ok(())
+        })
+    }
+
+    pub(crate) fn set_wrap_content(&self) -> Result<()> {
+        vm_exec(move |env| {
+            let params = FrameLayoutLayoutParams::new(env, -2, -2)?;
             self.as_view().set_layout_params(env, params)?;
             Ok(())
         })
@@ -200,10 +260,38 @@ where
     }
 }
 
+impl<F> Drop for BaseWidget<F>
+where
+    F: Into<JObject<'static>>
+        + AsRef<JObject<'static>>
+        + AsRef<AView<'static>>
+        + Default
+        + Reference
+        + Send
+        + Sync
+        + 'static,
+{
+    fn drop(&mut self) {
+        let res = vm_exec(|env| {
+            let inner = self.as_view();
+            let parent = inner.get_parent(env)?;
+            if !parent.is_null() {
+                let parent = unsafe { AViewGroup::from_raw(env, parent.into_raw()) };
+                parent.remove_view(env, inner)?;
+            }
+            Result::Ok(())
+        });
+        if let Err(e) = res {
+            error!("Failed to remove view from parent: {:?}", e);
+        }
+    }
+}
+
 impl<T> From<Global<T>> for BaseWidget<T>
 where
     T: Into<JObject<'static>>
         + AsRef<JObject<'static>>
+        + AsRef<AView<'static>>
         + Default
         + Reference
         + Send
@@ -219,6 +307,7 @@ impl<T> Deref for BaseWidget<T>
 where
     T: Into<JObject<'static>>
         + AsRef<JObject<'static>>
+        + AsRef<AView<'static>>
         + Default
         + Reference
         + Send
@@ -236,6 +325,7 @@ impl<T> AsWidget for BaseWidget<T>
 where
     T: Into<JObject<'static>>
         + AsRef<JObject<'static>>
+        + AsRef<AView<'static>>
         + Default
         + Reference
         + Send
@@ -251,6 +341,7 @@ impl<T> AsContainer for BaseWidget<T>
 where
     T: Into<JObject<'static>>
         + AsRef<JObject<'static>>
+        + AsRef<AView<'static>>
         + Default
         + Reference
         + Send

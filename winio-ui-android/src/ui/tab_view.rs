@@ -11,8 +11,8 @@ use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{
-    AView, AViewGroup, BaseWidget, Context, Result, View, ViewGroupLayoutParams, current_activity,
-    vm_exec,
+    AView, AViewGroup, BaseWidget, Context, Result, View, ViewGroupLayoutParams,
+    WINDOW_RESIZE_CALLBACK, current_activity, vm_exec,
 };
 
 jni::bind_java_type! {
@@ -337,15 +337,64 @@ winio_handle::impl_as_widget!(TabView, handle);
 pub struct TabViewItem {
     handle: View,
     text: String,
+    #[allow(unused)]
+    on_resize_proxy: DynamicProxy,
 }
 
-#[inherit_methods(from = "self.handle")]
 impl TabViewItem {
     pub fn new() -> Result<Self> {
         let handle = View::new_standalone()?;
-        Ok(Self {
-            handle,
-            text: String::new(),
+        vm_exec(|env| {
+            let on_resize_proxy = DynamicProxy::build(
+                env,
+                &LoaderContext::None,
+                [jni::jni_str!("android/view/View$OnLayoutChangeListener")],
+                {
+                    move |env, method, args| {
+                        let name = method.get_name(env)?;
+                        if name.try_to_string(env)? == "onLayoutChange" {
+                            let mut get_element = |i: usize| -> jni::errors::Result<i32> {
+                                let obj = args.get_element(env, i)?;
+                                let int = unsafe { JInteger::from_raw(env, obj.into_raw()) };
+                                int.value(env)
+                            };
+
+                            let left = get_element(1)?;
+                            let top = get_element(2)?;
+                            let right = get_element(3)?;
+                            let bottom = get_element(4)?;
+                            let old_left = get_element(5)?;
+                            let old_top = get_element(6)?;
+                            let old_right = get_element(7)?;
+                            let old_bottom = get_element(8)?;
+
+                            if left != old_left
+                                || top != old_top
+                                || right != old_right
+                                || bottom != old_bottom
+                            {
+                                let callback = WINDOW_RESIZE_CALLBACK.lock().unwrap();
+                                if let Some(callback) = callback.as_ref() {
+                                    callback.signal(());
+                                }
+                            }
+                        }
+                        Ok(JObject::null())
+                    }
+                },
+            )?;
+            env.call_method(
+                handle.as_widget().to_android(),
+                jni::jni_str!("addOnLayoutChangeListener"),
+                jni::jni_sig!("(Landroid/view/View$OnLayoutChangeListener;)V"),
+                &[on_resize_proxy.as_ref().into()],
+            )?
+            .v()?;
+            Ok(Self {
+                handle,
+                text: String::new(),
+                on_resize_proxy,
+            })
         })
     }
 
@@ -358,7 +407,9 @@ impl TabViewItem {
         Ok(())
     }
 
-    pub fn size(&self) -> Result<Size>;
+    pub fn size(&self) -> Result<Size> {
+        self.handle.size()
+    }
 }
 
 winio_handle::impl_as_container!(TabViewItem, handle);

@@ -5,7 +5,7 @@ use winio_primitive::{Point, Size};
 use crate::{AView, BaseWidget, Context, Result, current_activity, vm_exec};
 
 jni::bind_java_type! {
-    AProgressBar => android.widget.ProgressBar,
+    AProgressBar => com.google.android.material.progressindicator.LinearProgressIndicator,
     type_map {
         AView => android.view.View,
         Context => android.content.Context,

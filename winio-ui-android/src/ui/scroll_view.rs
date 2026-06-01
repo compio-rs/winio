@@ -1,6 +1,5 @@
-use inherit_methods_macro::inherit_methods;
 use jni::refs::Global;
-use winio_handle::AsContainer;
+use winio_handle::{AsContainer, AsWidget, BorrowedWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{
@@ -49,7 +48,6 @@ pub struct ScrollView {
     enable_horizontal: bool,
 }
 
-#[inherit_methods(from = "self.vertical")]
 impl ScrollView {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         vm_exec(|env| {
@@ -77,21 +75,69 @@ impl ScrollView {
         })
     }
 
-    pub fn is_visible(&self) -> Result<bool>;
+    pub fn is_visible(&self) -> Result<bool> {
+        self.inner_view.is_visible()
+    }
 
-    pub fn set_visible(&mut self, v: bool) -> Result<()>;
+    pub fn set_visible(&mut self, v: bool) -> Result<()> {
+        self.inner_view.set_visible(v)
+    }
 
-    pub fn is_enabled(&self) -> Result<bool>;
+    pub fn is_enabled(&self) -> Result<bool> {
+        self.inner_view.is_enabled()
+    }
 
-    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
+    pub fn set_enabled(&mut self, v: bool) -> Result<()> {
+        self.inner_view.set_enabled(v)
+    }
 
-    pub fn loc(&self) -> Result<Point>;
+    pub fn loc(&self) -> Result<Point> {
+        if self.enable_vertical {
+            self.vertical.loc()
+        } else if self.enable_horizontal {
+            self.horizontal.loc()
+        } else {
+            self.inner_view.loc()
+        }
+    }
 
-    pub fn set_loc(&mut self, p: Point) -> Result<()>;
+    pub fn set_loc(&mut self, p: Point) -> Result<()> {
+        if self.enable_vertical {
+            self.vertical.set_loc(p)?;
+            self.horizontal.set_loc(Point::zero())?;
+            self.inner_view.set_loc(Point::zero())?;
+        } else if self.enable_horizontal {
+            self.horizontal.set_loc(p)?;
+            self.inner_view.set_loc(Point::zero())?;
+        } else {
+            self.inner_view.set_loc(p)?;
+        }
+        Ok(())
+    }
 
-    pub fn size(&self) -> Result<Size>;
+    pub fn size(&self) -> Result<Size> {
+        if self.enable_vertical {
+            self.vertical.size()
+        } else if self.enable_horizontal {
+            self.horizontal.size()
+        } else {
+            self.inner_view.size()
+        }
+    }
 
-    pub fn set_size(&mut self, v: Size) -> Result<()>;
+    pub fn set_size(&mut self, v: Size) -> Result<()> {
+        if self.enable_vertical {
+            self.vertical.set_size(v)?;
+            self.horizontal.set_wrap_content()?;
+            self.inner_view.set_wrap_content()?;
+        } else if self.enable_horizontal {
+            self.horizontal.set_size(v)?;
+            self.inner_view.set_wrap_content()?;
+        } else {
+            self.inner_view.set_size(v)?;
+        }
+        Ok(())
+    }
 
     fn detach(&mut self) -> Result<()> {
         vm_exec(|env| {
@@ -204,5 +250,16 @@ impl ScrollView {
     }
 }
 
-winio_handle::impl_as_widget!(ScrollView, vertical);
 winio_handle::impl_as_container!(ScrollView, inner_view);
+
+impl AsWidget for ScrollView {
+    fn as_widget(&self) -> BorrowedWidget<'_> {
+        if self.enable_vertical {
+            self.vertical.as_widget()
+        } else if self.enable_horizontal {
+            self.horizontal.as_widget()
+        } else {
+            self.inner_view.as_widget()
+        }
+    }
+}
