@@ -30,6 +30,24 @@ jni::bind_java_type! {
 }
 
 jni::bind_java_type! {
+    MaterialButton => com.google.android.material.button.MaterialButton,
+    type_map {
+        AButton => android.widget.Button,
+        AView => android.view.View,
+        ATextView => android.widget.TextView,
+        Context => android.content.Context,
+    },
+    constructors {
+        fn new(context: &Context),
+    },
+    is_instance_of = {
+        button = AButton,
+        view = AView,
+        text_view = ATextView,
+    }
+}
+
+jni::bind_java_type! {
     ACompoundButton => android.widget.CompoundButton,
     type_map {
         AButton => android.widget.Button,
@@ -44,7 +62,7 @@ jni::bind_java_type! {
 }
 
 jni::bind_java_type! {
-    ACheckBox => android.widget.CheckBox,
+    ACheckBox => com.google.android.material.checkbox.MaterialCheckBox,
     type_map {
         ACompoundButton => android.widget.CompoundButton,
         AView => android.view.View,
@@ -62,7 +80,7 @@ jni::bind_java_type! {
 }
 
 jni::bind_java_type! {
-    ARadioButton => android.widget.RadioButton,
+    ARadioButton => com.google.android.material.radiobutton.MaterialRadioButton,
     type_map {
         ACompoundButton => android.widget.CompoundButton,
         AView => android.view.View,
@@ -243,7 +261,7 @@ where
 
 #[derive(Debug)]
 pub struct Button {
-    inner: ButtonImpl<AButton<'static>>,
+    inner: ButtonImpl<MaterialButton<'static>>,
 }
 
 #[inherit_methods(from = "self.inner")]
@@ -251,7 +269,7 @@ impl Button {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         vm_exec(|env| {
             let act = current_activity(env)?;
-            let widget = AButton::new(env, act)?;
+            let widget = MaterialButton::new(env, act)?;
             let inner = ButtonImpl::new(env, parent, widget)?;
             Ok(Self { inner })
         })
