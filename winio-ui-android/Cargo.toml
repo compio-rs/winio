@@ -28,7 +28,6 @@ futures-util = { workspace = true }
 image = { workspace = true, default-features = false }
 inherit-methods-macro = { workspace = true }
 oneshot = { workspace = true, features = ["std", "async"] }
-slab = { workspace = true }
 thiserror = { workspace = true }
 
 [features]

@@ -31,10 +31,6 @@ impl View {
         })
     }
 
-    pub fn client_size(&self) -> Result<Size> {
-        self.size()
-    }
-
     pub fn is_visible(&self) -> Result<bool>;
 
     pub fn set_visible(&mut self, visible: bool) -> Result<()>;

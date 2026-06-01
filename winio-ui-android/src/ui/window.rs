@@ -15,7 +15,7 @@ use winio_handle::{AsWindow, BorrowedContainer, BorrowedWindow};
 use winio_primitive::{Margin, Point, Size};
 
 use crate::{
-    AView, Activity, BaseWidget, Context, DESTROY_SLAB, FrameLayoutLayoutParams, Result,
+    AView, Activity, BaseWidget, Context, DESTROY_CALLBACK, FrameLayoutLayoutParams, Result,
     current_activity, vm_exec,
 };
 
@@ -64,7 +64,6 @@ pub struct Window {
     #[allow(unused)]
     insets_proxy: DynamicProxy,
     on_destroy: Arc<SyncCallback>,
-    destroy_index: usize,
     size_update: Arc<Mutex<Size>>,
     margin_update: Arc<Mutex<Margin>>,
 }
@@ -89,6 +88,10 @@ impl Window {
             )?;
 
             let on_resize = Arc::new(SyncCallback::new());
+            WINDOW_RESIZE_CALLBACK
+                .lock()
+                .unwrap()
+                .replace(on_resize.clone());
             let size_update = Arc::new(Mutex::new(Size::zero()));
             let on_insets = Arc::new(SyncCallback::new());
             let margin_update = Arc::new(Mutex::new(Margin::zero()));
@@ -100,7 +103,7 @@ impl Window {
                 margin_update.clone(),
             )?;
             let on_destroy = Arc::new(SyncCallback::new());
-            let destroy_index = DESTROY_SLAB.lock().unwrap().insert(on_destroy.clone());
+            DESTROY_CALLBACK.lock().unwrap().replace(on_destroy.clone());
             let on_resize_proxy = DynamicProxy::build(
                 env,
                 &LoaderContext::None,
@@ -156,7 +159,6 @@ impl Window {
                 on_insets,
                 insets_proxy,
                 on_destroy,
-                destroy_index,
                 size_update,
                 margin_update,
             })
@@ -247,7 +249,8 @@ winio_handle::impl_as_container!(Window, inner_view);
 
 impl Drop for Window {
     fn drop(&mut self) {
-        DESTROY_SLAB.lock().unwrap().remove(self.destroy_index);
+        WINDOW_RESIZE_CALLBACK.lock().unwrap().take();
+        DESTROY_CALLBACK.lock().unwrap().take();
     }
 }
 
@@ -318,3 +321,5 @@ fn set_insets_listener(
     )?;
     Ok(proxy)
 }
+
+pub(crate) static WINDOW_RESIZE_CALLBACK: Mutex<Option<Arc<SyncCallback>>> = Mutex::new(None);

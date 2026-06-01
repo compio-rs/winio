@@ -178,7 +178,6 @@ where
 
     pub fn size(&self) -> Result<Size> {
         vm_exec(|env| {
-            self.as_view().measure(env, 0, 0)?;
             let width = self.as_view().get_width(env)?;
             let height = self.as_view().get_height(env)?;
             Ok(Size::new(width as _, height as _))

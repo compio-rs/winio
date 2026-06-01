@@ -12,7 +12,6 @@ use jni::{Env, objects::JObject, refs::Global, vm::JavaVM};
 use jni_min_helper::DynamicProxy;
 use ndk_sys::{ALooper, ALooper_acquire, ALooper_forThread, ALooper_release, ALooper_wake};
 use oneshot::TryRecvError;
-use slab::Slab;
 use winio_callback::SyncCallback;
 use winio_pollable::MainTask;
 
@@ -124,14 +123,16 @@ thread_local! {
     static MAIN_TASK: RefCell<Option<MainTask>> = const { RefCell::new(None) };
 }
 
-pub(crate) static DESTROY_SLAB: Mutex<Slab<Arc<SyncCallback>>> = const { Mutex::new(Slab::new()) };
+pub(crate) static DESTROY_CALLBACK: Mutex<Option<Arc<SyncCallback>>> = Mutex::new(None);
 
 fn signal_destroy() -> bool {
-    let s = DESTROY_SLAB.lock().unwrap();
-    for (_, callback) in s.iter() {
+    let s = DESTROY_CALLBACK.lock().unwrap();
+    if let Some(callback) = s.as_ref() {
         callback.signal(());
+        true
+    } else {
+        false
     }
-    !s.is_empty()
 }
 
 fn looper_waker() -> Waker {
