@@ -217,6 +217,11 @@ impl TextBox {
         let mut inner = Edit::new(parent)?;
         inner
             .set_input_type(input_type::TYPE_CLASS_TEXT | input_type::TYPE_TEXT_FLAG_MULTI_LINE)?;
+        vm_exec(|env| {
+            inner
+                .as_text_view()
+                .set_gravity(env, gravity::LEFT | gravity::TOP)
+        })?;
         Ok(Self { inner })
     }
 
