@@ -1,0 +1,53 @@
+name: Check Android
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain: ['nightly']
+        target:
+          - aarch64-linux-android
+          - armv7-linux-androideabi
+          - x86_64-linux-android
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Rust Toolchain
+        run: |
+          rustup default nightly
+          rustup target add ${{ matrix.target }}
+      - name: Setup target
+        run: rustup target add ${{ matrix.target }}
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
+      - name: Build nightly ${{ matrix.target }}
+        shell: bash
+        run: |
+          set -ex
+
+          ARGS=("--features" "all")
+
+          # Add feature "nightly" if toolchain is nightly
+          if [[ "nightly" == "nightly" ]]; then
+              ARGS+=("--features" "nightly")
+          fi
+          # Specify target if target is not empty
+          if [[ -n "${{ matrix.target }}" ]]; then
+              ARGS+=("--target" "${{ matrix.target }}")
+          fi
+
+          source <(cargo ndk-env --target ${{ matrix.target }})
+          cargo check --all-targets --workspace "${ARGS[@]}"

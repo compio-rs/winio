@@ -1,0 +1,42 @@
+name: Build Android
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./winio-example/android
+    strategy:
+      matrix:
+        toolchain: ['nightly']
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Rust Toolchain
+        run: |
+          rustup default nightly
+          rustup target add x86_64-linux-android
+          rustup target add aarch64-linux-android
+          rustup target add armv7-linux-androideabi
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
+      - uses: gradle/actions/setup-gradle@v6
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME_21_X64 }}
+      - name: Build APK
+        shell: bash
+        run: gradle assembleDebug
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME_21_X64 }}
