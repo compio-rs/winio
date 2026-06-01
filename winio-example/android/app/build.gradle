@@ -48,7 +48,7 @@ if (localPropsFile.exists()) {
 def abiList = localProperties.getProperty('ndk.abis', 'arm64-v8a').split(',').collect { it.trim() }
 
 [
-        Debug: null,
+        Debug  : null,
         Profile: '--release',
         Release: '--release'
 ].each {
@@ -63,10 +63,19 @@ def abiList = localProperties.getProperty('ndk.abis', 'arm64-v8a').split(',').co
         workingDir "../.."
         environment 'CARGO_TERM_COLOR', 'always'
 
-        def cmdArgs = ['cargo', 'ndk', 'build', '-P', '36', '-o', 'android/app/src/main/jniLibs', '-F', 'plotters,compio-compat']
+        def cmdArgs = [
+                'cargo', 'ndk',
+                '-P', '36',
+                '-o', 'android/app/src/main/jniLibs',
+        ]
         abiList.each { abi ->
             cmdArgs.addAll(['-t', abi])
         }
+        cmdArgs.addAll([
+                'rustc',
+                '--crate-type', 'cdylib', '--lib',
+                '-F', 'plotters,compio-compat',
+        ])
         if (profileMode != null) {
             cmdArgs.add(profileMode)
         }
