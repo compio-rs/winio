@@ -265,20 +265,24 @@ impl Component for MainModel {
         match message {
             MainMessage::Noop => Ok(false),
             MainMessage::Close => {
-                match MessageBox::new()
-                    .title("Example")
-                    .message("Close window?")
-                    .instruction("The window is about to close.")
-                    .style(MessageBoxStyle::Info)
-                    .buttons(MessageBoxButton::Yes | MessageBoxButton::No)
-                    .custom_button(CustomButton::new(114, "114"))
-                    .show(&self.window)
-                    .await?
-                {
-                    MessageBoxResponse::Yes | MessageBoxResponse::Custom(114) => {
-                        sender.output(());
+                if cfg!(any(target_os = "ios", target_os = "android")) {
+                    sender.output(());
+                } else {
+                    match MessageBox::new()
+                        .title("Example")
+                        .message("Close window?")
+                        .instruction("The window is about to close.")
+                        .style(MessageBoxStyle::Info)
+                        .buttons(MessageBoxButton::Yes | MessageBoxButton::No)
+                        .custom_button(CustomButton::new(114, "114"))
+                        .show(&self.window)
+                        .await?
+                    {
+                        MessageBoxResponse::Yes | MessageBoxResponse::Custom(114) => {
+                            sender.output(());
+                        }
+                        _ => {}
                     }
-                    _ => {}
                 }
                 Ok(false)
             }
