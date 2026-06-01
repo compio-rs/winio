@@ -11,7 +11,9 @@ use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, AsWidget, BorrowedWidget, impl_as_widget};
 use winio_primitive::{Point, Size};
 
-use crate::{ATextView, AView, BaseWidget, Context, JObjectExt, Result, current_activity, vm_exec};
+use crate::{
+    ATextView, AView, BaseWidget, Context, JCharSequenceExt, Result, current_activity, vm_exec,
+};
 
 jni::bind_java_type! {
     AButton => android.widget.Button,
@@ -203,7 +205,7 @@ where
     }
 
     pub fn text(&self) -> Result<String> {
-        vm_exec(move |env| self.as_text_view().get_text(env)?.to(env))
+        vm_exec(move |env| Ok(self.as_text_view().get_text(env)?.try_to_string(env)?))
     }
 
     pub fn set_text(&mut self, text: impl AsRef<str>) -> Result<()> {

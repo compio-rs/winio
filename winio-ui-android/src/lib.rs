@@ -7,7 +7,7 @@
 pub use compio::compat::FuturesAdapter as CompioAdapter;
 
 mod convert;
-pub use convert::*;
+pub(crate) use convert::*;
 
 mod runtime;
 pub use runtime::*;

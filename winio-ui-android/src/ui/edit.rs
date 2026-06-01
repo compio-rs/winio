@@ -7,7 +7,7 @@ use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{HAlign, Point, Size};
 
-use crate::{ATextView, AView, BaseWidget, Context, JObjectExt, Result, gravity, vm_exec};
+use crate::{ATextView, AView, BaseWidget, Context, Result, gravity, vm_exec};
 
 jni::bind_java_type! {
     AEditText => android.widget.EditText,
@@ -118,7 +118,13 @@ impl Edit {
     }
 
     pub fn text(&self) -> Result<String> {
-        vm_exec(move |env| self.inner.get_text(env)?.to_string(env)?.to(env))
+        vm_exec(move |env| {
+            Ok(self
+                .inner
+                .get_text(env)?
+                .to_string(env)?
+                .try_to_string(env)?)
+        })
     }
 
     pub fn set_text(&mut self, text: impl AsRef<str>) -> Result<()> {

@@ -3,8 +3,8 @@ use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
-    AView, BaseWidget, Context, JObjectExt, MovementMethod, Result, current_activity, gravity,
-    vm_exec,
+    AView, BaseWidget, Context, JCharSequenceExt, MovementMethod, Result, current_activity,
+    gravity, vm_exec,
 };
 
 jni::bind_java_type! {
@@ -69,7 +69,7 @@ impl Label {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub fn text(&self) -> Result<String> {
-        vm_exec(move |env| self.inner.get_text(env)?.to(env))
+        vm_exec(move |env| Ok(self.inner.get_text(env)?.try_to_string(env)?))
     }
 
     pub fn set_text(&mut self, text: impl AsRef<str>) -> Result<()> {

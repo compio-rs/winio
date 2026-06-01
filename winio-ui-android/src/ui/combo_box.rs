@@ -3,7 +3,7 @@ use std::sync::Arc;
 use inherit_methods_macro::inherit_methods;
 use jni::{
     Env,
-    objects::{JList, JObject},
+    objects::{JList, JObject, JString},
     refs::Global,
 };
 use jni_min_helper::DynamicProxy;
@@ -11,9 +11,7 @@ use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Point, Size};
 
-use crate::{
-    AView, BaseWidget, Context, JObjectExt, ListAdapter, Result, current_activity, vm_exec,
-};
+use crate::{AView, BaseWidget, Context, ListAdapter, Result, current_activity, vm_exec};
 
 jni::bind_java_type! {
     pub(crate) Layout => "android.R$layout",
@@ -231,7 +229,11 @@ impl ComboBox {
     }
 
     pub fn get(&self, i: usize) -> Result<String> {
-        vm_exec(|env| self.list.get(env, i as _)?.to(env))
+        vm_exec(|env| {
+            let item = self.list.get(env, i as _)?;
+            let item = unsafe { JString::from_raw(env, item.into_raw()) };
+            Ok(item.try_to_string(env)?)
+        })
     }
 
     pub fn set(&mut self, i: usize, s: impl AsRef<str>) -> Result<()> {

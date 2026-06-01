@@ -11,7 +11,7 @@ use winio_callback::SyncCallback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{ATextView, BaseWidget, JObjectExt, Result, current_activity, vm_exec};
+use crate::{ATextView, BaseWidget, Result, current_activity, vm_exec};
 
 jni::bind_java_type! {
     pub(crate) MovementMethod => android.text.method.MovementMethod,
@@ -186,7 +186,7 @@ impl LinkLabel {
     }
 
     pub fn text(&self) -> Result<String> {
-        vm_exec(|env| self.text_jstring(env)?.to(env))
+        vm_exec(|env| Ok(self.text_jstring(env)?.try_to_string(env)?))
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
@@ -199,10 +199,7 @@ impl LinkLabel {
     }
 
     pub fn uri(&self) -> Result<String> {
-        vm_exec(|env| {
-            let url = self.url_span.get_u_r_l(env)?.to(env)?;
-            Ok(url)
-        })
+        vm_exec(|env| Ok(self.url_span.get_u_r_l(env)?.try_to_string(env)?))
     }
 
     pub fn set_uri(&mut self, s: impl AsRef<str>) -> Result<()> {

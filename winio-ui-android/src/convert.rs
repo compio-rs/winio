@@ -1,30 +1,19 @@
-use jni::{
-    Env,
-    objects::{JCharSequence, JObject, JString},
-};
+use jni::{Env, errors::Result, objects::JCharSequence};
 
-use crate::Result;
-
-pub trait JObjectExt<O> {
-    fn to(self, env: &mut Env<'_>) -> Result<O>;
-}
-
-impl<'a> JObjectExt<String> for JObject<'a> {
-    fn to(self, env: &mut Env<'_>) -> Result<String> {
-        let s = unsafe { JString::from_raw(env, self.into_raw()) };
-        Ok(s.try_to_string(env)?)
+jni::bind_java_type! {
+    JCharSequence2 => java.lang.CharSequence,
+    methods {
+        fn to_string() -> JString,
     }
 }
 
-impl<'a> JObjectExt<String> for JCharSequence<'a> {
-    fn to(self, env: &mut Env<'_>) -> Result<String> {
-        let s = unsafe { JString::from_raw(env, self.into_raw()) };
-        Ok(s.try_to_string(env)?)
-    }
+pub(crate) trait JCharSequenceExt {
+    fn try_to_string(self, env: &mut Env<'_>) -> Result<String>;
 }
 
-impl<'a> JObjectExt<String> for JString<'a> {
-    fn to(self, env: &mut Env<'_>) -> Result<String> {
-        Ok(self.try_to_string(env)?)
+impl<'a> JCharSequenceExt for JCharSequence<'a> {
+    fn try_to_string(self, env: &mut Env<'_>) -> Result<String> {
+        let str = unsafe { JCharSequence2::from_raw(env, self.into_raw()) };
+        str.to_string(env)?.try_to_string(env)
     }
 }
