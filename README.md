@@ -6,7 +6,7 @@ All IO requests could be issued in the same thread as GUI, without blocking the 
 
 ## Example
 
-Read the [examples](winio/examples) and learn more!
+Read the [example](winio-example) and learn more!
 
 | Backend              | Light                                        | Dark                                       |
 | -------------------- | -------------------------------------------- | ------------------------------------------ |
