@@ -32,12 +32,11 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-ndk
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
         env:
           JAVA_HOME: ${{ env.JAVA_HOME_21_X64 }}
       - name: Build APK
         shell: bash
-        run: |
-          ./gradlew assembleDebug
+        run: gradle assembleDebug
         env:
           JAVA_HOME: ${{ env.JAVA_HOME_21_X64 }}
