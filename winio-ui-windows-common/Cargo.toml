@@ -17,7 +17,7 @@ compio-log = { workspace = true }
 cfg-if = { workspace = true }
 image = { workspace = true }
 once_cell = { workspace = true }
-oneshot = { version = "0.2", default-features = false, features = ["async"] }
+oneshot = { workspace = true, default-features = false, features = ["async"] }
 widestring = { workspace = true }
 
 windows = { workspace = true, features = [

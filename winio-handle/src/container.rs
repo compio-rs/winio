@@ -21,6 +21,10 @@ cfg_if::cfg_if! {
         type BorrowedContainerInner<'a> = &'a Retained<objc2_ui_kit::UIView>;
     } else if #[cfg(target_vendor = "apple")] {
         compile_error!("Other Apple platforms (like watchOS and tvOS) are not supported yet.");
+    } else if #[cfg(target_os = "android")] {
+        use jni::objects::JObject;
+
+        type BorrowedContainerInner<'a> = &'a JObject<'static>;
     } else {
         use std::marker::PhantomData;
 
@@ -107,7 +111,7 @@ impl<'a> BorrowedContainer<'a> {
 }
 
 #[allow(unreachable_patterns)]
-#[cfg(not(any(windows, target_vendor = "apple")))]
+#[cfg(not(any(windows, target_vendor = "apple", target_os = "android")))]
 impl<'a> BorrowedContainer<'a> {
     /// Create from Qt `QWidget`.
     ///
@@ -141,6 +145,23 @@ impl<'a> BorrowedContainer<'a> {
             BorrowedContainerInner::Gtk(w) => w,
             _ => panic!("unsupported handle type"),
         }
+    }
+}
+
+#[cfg(target_os = "android")]
+impl<'a> BorrowedContainer<'a> {
+    /// Create from Android `Container`.
+    ///
+    /// # Safety
+    ///
+    /// `j_obj` must be valid `Container`.
+    pub unsafe fn android(j_obj: &'a JObject<'static>) -> Self {
+        BorrowedContainer(j_obj)
+    }
+
+    /// Get Android `Container`.
+    pub fn to_android(&self) -> &'a JObject<'static> {
+        self.0
     }
 }
 

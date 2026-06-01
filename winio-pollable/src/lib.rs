@@ -59,7 +59,8 @@ pub fn block_on<F: Future>(future: F, waker: Waker, poll: impl Fn()) -> F::Outpu
     )
 }
 
-struct MainTask {
+/// A future task with a waker to wake up the driver.
+pub struct MainTask {
     future: RefCell<Pin<Box<dyn Future<Output = ()>>>>,
     waker: Waker,
 }
@@ -77,6 +78,12 @@ unsafe fn reduce_lifetime<'a>(
 }
 
 impl MainTask {
+    /// Create a new main task with the provided future and waker.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the future will not outlive the main task
+    /// and its captures.
     pub unsafe fn new(future: impl Future<Output = ()>, waker: Waker) -> Self {
         Self {
             // SAFETY: the future will only be polled within the scope of `enter_block_on`, which
@@ -86,6 +93,8 @@ impl MainTask {
         }
     }
 
+    /// Poll the future, and return true if it has completed, and false
+    /// otherwise.
     pub fn poll(&self) -> bool {
         let mut cx = Context::from_waker(&self.waker);
         if let Ok(mut fut) = self.future.try_borrow_mut() {

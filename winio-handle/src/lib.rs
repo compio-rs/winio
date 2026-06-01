@@ -9,14 +9,15 @@
 //! A window is usually both a window and a container, so it implements both
 //! [`AsWindow`] and [`AsContainer`] traits.
 //!
-//! | Platform | Native Type   |
-//! | -------- | ------------- |
-//! | Win32    | [`HWND`]      |
-//! | WinUI    | [`Window`]    |
-//! | Qt       | [`QWidget`]   |
-//! | Gtk      | [`GtkWindow`] |
-//! | AppKit   | [`NSWindow`]  |
-//! | UIKit    | [`UIWindow`]  |
+//! | Platform | Native Type      |
+//! | -------- | ---------------- |
+//! | Win32    | [`HWND`]         |
+//! | WinUI    | [`Window`]       |
+//! | Qt       | [`QWidget`]      |
+//! | Gtk      | [`GtkWindow`]    |
+//! | AppKit   | [`NSWindow`]     |
+//! | UIKit    | [`UIWindow`]     |
+//! | Android  | [`GameActivity`] |
 //!
 //! ## Platform specific
 //! * Qt: The window is a [`QMainWindow`].
@@ -26,14 +27,15 @@
 //! A container handle represents a container, such as a window or a scroll
 //! view.
 //!
-//! | Platform | Native Type   |
-//! | -------- | ------------- |
-//! | Win32    | [`HWND`]      |
-//! | WinUI    | [`Canvas`]    |
-//! | Qt       | [`QWidget`]   |
-//! | Gtk      | [`GtkFixed`]  |
-//! | AppKit   | [`NSView`]    |
-//! | UIKit    | [`UIView`]    |
+//! | Platform | Native Type     |
+//! | -------- | --------------- |
+//! | Win32    | [`HWND`]        |
+//! | WinUI    | [`Canvas`]      |
+//! | Qt       | [`QWidget`]     |
+//! | Gtk      | [`GtkFixed`]    |
+//! | AppKit   | [`NSView`]      |
+//! | UIKit    | [`UIView`]      |
+//! | Android  | [`FrameLayout`] |
 //!
 //! ## Platform specific
 //! * WinUI: The parent of all widgets must be a [`Canvas`], and the widget will
@@ -54,6 +56,7 @@
 //! | Gtk      | [`GtkWidget`]        |
 //! | AppKit   | [`NSView`]           |
 //! | UIKit    | [`UIView`]           |
+//! | Android  | [`View`]             |
 //!
 //! [`HWND`]: https://learn.microsoft.com/en-us/windows/apps/develop/ui/retrieve-hwnd
 //! [`Window`]: https://learn.microsoft.com/en-us/windows/windows-app-sdk/api/winrt/microsoft.ui.xaml.window
@@ -69,6 +72,9 @@
 //! [`NSView`]: https://developer.apple.com/documentation/appkit/nsview
 //! [`UIWindow`]: https://developer.apple.com/documentation/uikit/uiwindow
 //! [`UIView`]: https://developer.apple.com/documentation/uikit/uiview
+//! [`GameActivity`]: https://developer.android.com/games/agdk/game-activity
+//! [`FrameLayout`]: https://developer.android.com/reference/android/widget/FrameLayout
+//! [`View`]: https://developer.android.com/reference/android/view/View
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(missing_docs)]

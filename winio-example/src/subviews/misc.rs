@@ -310,16 +310,30 @@ impl Component for MiscPage {
                 self.show_button => { margin: Margin::new_all_same(4.0) },
             };
 
-            let mut root_panel = layout! {
-                Grid::from_str("1*,1*,1*", "1*,auto,1*").unwrap(),
-                self.backdrop => { column: 0, row: 0, halign: HAlign::Stretch, valign: VAlign::Center, margin: Margin::new_all_same(8.0) },
-                cred_panel    => { column: 1, row: 0 },
-                rgroup_panel  => { column: 2, row: 0, halign: HAlign::Center },
-                self.canvas   => { column: 0, row: 1, row_span: 2 },
-                self.combo    => { column: 1, row: 1, halign: HAlign::Center },
-                self.progress => { column: 2, row: 1 },
-                self.mltext   => { column: 1, row: 2, margin: Margin::new_all_same(8.0) },
-                buttons_panel => { column: 2, row: 2 },
+            let mut root_panel = if csize.width < csize.height {
+                layout! {
+                    Grid::from_str("1*", "auto,1*,1*,auto,auto,1*,1*,1*").unwrap(),
+                    self.backdrop => { column: 0, row: 0, halign: HAlign::Stretch, margin: Margin::new_all_same(8.0) },
+                    cred_panel    => { column: 0, row: 1 },
+                    rgroup_panel  => { column: 0, row: 2, halign: HAlign::Center },
+                    self.combo    => { column: 0, row: 3, halign: HAlign::Center },
+                    self.progress => { column: 0, row: 4 },
+                    self.canvas   => { column: 0, row: 5 },
+                    self.mltext   => { column: 0, row: 6, margin: Margin::new_all_same(8.0) },
+                    buttons_panel => { column: 0, row: 7 },
+                }
+            } else {
+                layout! {
+                    Grid::from_str("1*,1*,1*", "1*,auto,1*").unwrap(),
+                    self.backdrop => { column: 0, row: 0, halign: HAlign::Stretch, valign: VAlign::Center, margin: Margin::new_all_same(8.0) },
+                    cred_panel    => { column: 1, row: 0 },
+                    rgroup_panel  => { column: 2, row: 0, halign: HAlign::Center },
+                    self.canvas   => { column: 0, row: 1, row_span: 2 },
+                    self.combo    => { column: 1, row: 1, halign: HAlign::Center },
+                    self.progress => { column: 2, row: 1 },
+                    self.mltext   => { column: 1, row: 2, margin: Margin::new_all_same(8.0) },
+                    buttons_panel => { column: 2, row: 2 },
+                }
             };
 
             root_panel.set_size(csize)?;

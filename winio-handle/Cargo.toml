@@ -29,7 +29,10 @@ objc2-app-kit = { workspace = true }
 [target.'cfg(target_os = "ios")'.dependencies]
 objc2-ui-kit = { workspace = true }
 
-[target.'cfg(not(any(windows, target_vendor = "apple")))'.dependencies]
+[target.'cfg(target_os = "android")'.dependencies]
+jni = { workspace = true }
+
+[target.'cfg(not(any(windows, target_vendor = "apple", target_os = "android")))'.dependencies]
 gtk4 = { workspace = true, optional = true }
 
 [features]

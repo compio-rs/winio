@@ -30,6 +30,8 @@ cfg_if::cfg_if! {
         }
     } else if #[cfg(target_os = "macos")] {
         use winio_ui_app_kit as sys;
+    } else if #[cfg(target_os = "android")] {
+        use winio_ui_android as sys;
     } else if #[cfg(target_os = "ios")] {
         use winio_ui_ui_kit as sys;
     } else if #[cfg(target_vendor = "apple")] {

@@ -48,19 +48,13 @@ impl From<Infallible> for Error {
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
-fn main() -> Result<()> {
-    #[cfg(feature = "enable_log")]
-    tracing_subscriber::fmt()
-        .with_max_level(compio_log::Level::INFO)
-        .init();
-
-    App::new("rs.compio.winio.widgets")?.run_until_event::<MainModel>(())
-}
+#[cfg(target_os = "android")]
+mod android;
 
 mod subviews;
 use subviews::*;
 
-struct MainModel {
+pub struct MainModel {
     window: Child<Window>,
     tabview: Child<TabView>,
     misc: Child<MiscPage>,
@@ -75,7 +69,7 @@ struct MainModel {
 }
 
 #[derive(Debug)]
-enum MainMessage {
+pub enum MainMessage {
     Noop,
     Close,
     Redraw,
@@ -165,6 +159,9 @@ impl Component for MainModel {
         tabview.push(&media)?;
         tabview.push(&webview)?;
         tabview.push(&markdown)?;
+
+        #[cfg(target_os = "android")]
+        android::init_rustls(&window)?;
 
         window.show()?;
 
