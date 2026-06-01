@@ -167,6 +167,23 @@ impl<'a> BorrowedWindow<'a> {
     }
 }
 
+#[cfg(target_os = "android")]
+impl<'a> BorrowedWindow<'a> {
+    /// Create from Android `Window`
+    ///
+    /// # Safety
+    ///
+    /// j_obj must be valid `Window`.
+    pub unsafe fn android(j_obj: &'a JObject<'static>) -> Self {
+        BorrowedWindow(j_obj)
+    }
+
+    /// Get Android `Window`.
+    pub fn to_android(&self) -> &'a JObject<'static> {
+        self.0
+    }
+}
+
 #[cfg(feature = "raw-window-handle")]
 impl<'a> HasWindowHandle for BorrowedWindow<'a> {
     #[cfg(windows)]
@@ -183,38 +200,9 @@ impl<'a> HasWindowHandle for BorrowedWindow<'a> {
             .map_err(|_| HandleError::NotSupported)
     }
 
-    #[cfg(target_os = "macos")]
-    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
-        use raw_window_handle::{AppKitWindowHandle, RawWindowHandle};
-        Ok(unsafe {
-            WindowHandle::borrow_raw(RawWindowHandle::AppKit(AppKitWindowHandle::new(
-                std::ptr::NonNull::new(Retained::as_ptr(self.0).cast_mut())
-                    .expect("NSWindow is null")
-                    .cast(),
-            )))
-        })
-    }
-
-    #[cfg(not(any(windows, target_os = "macos")))]
+    #[cfg(not(windows))]
     fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
         Err(HandleError::NotSupported)
-    }
-}
-
-#[cfg(target_os = "android")]
-impl<'a> BorrowedWindow<'a> {
-    /// Create from Android `Window`
-    ///
-    /// # Safety
-    ///
-    /// j_obj must be valid `Window`.
-    pub unsafe fn android(j_obj: &'a JObject<'static>) -> Self {
-        BorrowedWindow(j_obj)
-    }
-
-    /// Get Android `Window`.
-    pub fn to_android(&self) -> &'a JObject<'static> {
-        self.0
     }
 }
 
