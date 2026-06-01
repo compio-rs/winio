@@ -84,6 +84,7 @@ struct ButtonImpl<T>
 where
     T: Into<JObject<'static>>
         + AsRef<JObject<'static>>
+        + AsRef<AView<'static>>
         + Default
         + Reference
         + Send
@@ -228,6 +229,7 @@ impl<T> AsWidget for ButtonImpl<T>
 where
     T: Into<JObject<'static>>
         + AsRef<JObject<'static>>
+        + AsRef<AView<'static>>
         + Default
         + Reference
         + Send
