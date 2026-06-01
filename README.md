@@ -1,7 +1,7 @@
 # Winio
 
 Winio is a single-threaded asynchronous GUI runtime.
-It is based on [`compio`](https://github.com/compio-rs/compio), and the GUI part is powered by Win32, WinUI 3, Qt 5/6, GTK 4, AppKit, or UIKit.
+It is based on [`compio`](https://github.com/compio-rs/compio), and the GUI part is powered by native backends.
 All IO requests could be issued in the same thread as GUI, without blocking the user interface!
 
 ## Example
@@ -17,6 +17,7 @@ Read the [example](winio-example) and learn more!
 | AppKit               | ![macOS Light](assets/mac.light.png)         | ![macOS Dark](assets/mac.dark.png)         |
 | UIKit (Mac Catalyst) | ![Catalyst Light](assets/catalyst.light.png) | ![Catalyst Dark](assets/catalyst.dark.png) |
 | UIKit (iOS)          | ![iOS Light](assets/ios.light.png)           | ![iOS Dark](assets/ios.dark.png)           |
+| Android View         | ![Android Light](assets/android.light.png)   | ![Android Dark](assets/android.dark.png)   |
 
 ## Quick start
 
