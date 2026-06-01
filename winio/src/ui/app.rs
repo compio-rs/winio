@@ -87,7 +87,8 @@ impl AppBuilder {
     /// Build the application. This will consume the builder and return the
     /// application instance.
     pub fn build(self) -> sys::Result<App> {
-        let app = SysApp::new(
+        #[allow(unused_mut)]
+        let mut app = SysApp::new(
             #[cfg(target_os = "android")]
             self.app.ok_or(sys::Error::NoApp)?,
         )?;
