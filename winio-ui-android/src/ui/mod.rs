@@ -1,8 +1,5 @@
 //! Android UI widgets for winio.
 
-mod accent;
-pub use accent::*;
-
 mod button;
 pub use button::*;
 

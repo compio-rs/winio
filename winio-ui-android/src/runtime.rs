@@ -15,7 +15,7 @@ use oneshot::TryRecvError;
 use winio_callback::SyncCallback;
 use winio_pollable::MainTask;
 
-use crate::{AView, Error, Resources, Result};
+use crate::{AView, Error, Resources, ResourcesTheme, Result};
 
 pub struct App {
     app: AndroidApp,
@@ -184,9 +184,11 @@ jni::bind_java_type! {
     pub(crate) Context => android.content.Context,
     type_map {
         Resources => android.content.res.Resources,
+        ResourcesTheme => "android.content.res.Resources$Theme",
     },
     methods {
         fn get_resources() -> Resources,
+        fn get_theme() -> ResourcesTheme,
     }
 }
 
