@@ -1,6 +1,6 @@
 [package]
 name = "winio-pollable"
-version = "0.5.0-rc.2"
+version = "0.5.0-rc.3"
 description = "A thin wrapper over compio-runtime to make it pollable."
 edition = { workspace = true }
 readme = { workspace = true }
