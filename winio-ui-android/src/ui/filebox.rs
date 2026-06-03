@@ -7,7 +7,7 @@ use futures_channel::mpsc::UnboundedReceiver;
 use futures_util::lock::Mutex as AsyncMutex;
 use jni::{
     Env,
-    objects::{JList, JObject},
+    objects::{JList, JObject, JString},
     refs::{Global, LoaderContext, Reference},
 };
 use jni_min_helper::DynamicProxy;
@@ -292,15 +292,22 @@ async fn filebox(
 ) -> Result<Vec<PathBuf>> {
     vm_exec(|env| {
         let (launcher, input) = if open && multiple {
-            (LAUNCHER_GET_MULTIPLE_CONTENTS.lock().unwrap(), "*/*")
+            (LAUNCHER_GET_MULTIPLE_CONTENTS.lock().unwrap(), Some("*/*"))
         } else if folder {
-            (LAUNCHER_OPEN_DOCUMENT_TREE.lock().unwrap(), "*/*")
+            (LAUNCHER_OPEN_DOCUMENT_TREE.lock().unwrap(), None)
         } else if open {
-            (LAUNCHER_GET_CONTENT.lock().unwrap(), "*/*")
+            (LAUNCHER_GET_CONTENT.lock().unwrap(), Some("*/*"))
         } else {
-            (LAUNCHER_CREATE_DOCUMENT.lock().unwrap(), filename.as_str())
+            (
+                LAUNCHER_CREATE_DOCUMENT.lock().unwrap(),
+                Some(filename.as_str()),
+            )
         };
-        let input = env.new_string(input)?;
+        let input = if let Some(input) = input {
+            env.new_string(input)?
+        } else {
+            JString::null()
+        };
         launcher.as_ref().unwrap().launch(env, input)?;
         Result::Ok(())
     })?;
