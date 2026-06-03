@@ -1,19 +1,23 @@
 use std::sync::Arc;
 
 use inherit_methods_macro::inherit_methods;
-use jni::{objects::JObject, refs::LoaderContext};
+use jni::{
+    objects::JObject,
+    refs::{LoaderContext, Reference},
+};
 use jni_min_helper::DynamicProxy;
 use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Orient, Point, Size, TickPosition};
 
-use crate::{AView, BaseWidget, Context, Result, current_activity, vm_exec};
+use crate::{AView, BaseWidget, Context, Result, current_activity, impl_listener, vm_exec};
 
 jni::bind_java_type! {
     ASlider => com.google.android.material.slider.Slider,
     type_map {
         AView => android.view.View,
         Context => android.content.Context,
+        BaseOnChangeListener => com.google.android.material.slider.BaseOnChangeListener
     },
     constructors {
         fn new(&Context),
@@ -30,6 +34,8 @@ jni::bind_java_type! {
         fn set_tick_visibility_mode(mode: jint),
         fn set_orientation(orient: jint),
         fn is_vertical() -> jboolean,
+
+        fn add_on_change_listener(listener: &BaseOnChangeListener),
     },
     is_instance_of = {
         view = AView,
@@ -41,6 +47,24 @@ const TICK_VISIBILITY_HIDDEN: i32 = 2;
 
 const HORIZONTAL: i32 = 0;
 const VERTICAL: i32 = 1;
+
+jni::bind_java_type! {
+    BaseOnChangeListener => com.google.android.material.slider.BaseOnChangeListener,
+}
+
+impl_listener!(BaseOnChangeListener);
+
+jni::bind_java_type! {
+    OnChangeListener => "com.google.android.material.slider.Slider$OnChangeListener",
+    type_map {
+        BaseOnChangeListener => com.google.android.material.slider.BaseOnChangeListener
+    },
+    is_instance_of = {
+        base = BaseOnChangeListener,
+    }
+}
+
+impl_listener!(OnChangeListener);
 
 #[derive(Debug)]
 pub struct Slider {
@@ -61,9 +85,7 @@ impl Slider {
             let change_proxy = DynamicProxy::build(
                 env,
                 &LoaderContext::FromObject(&act),
-                [jni::jni_str!(
-                    "com/google/android/material/slider/Slider$OnChangeListener"
-                )],
+                [OnChangeListener::class_name()],
                 {
                     let on_change = on_change.clone();
                     move |_env, _this, _args| {
@@ -72,13 +94,7 @@ impl Slider {
                     }
                 },
             )?;
-            env.call_method(
-                inner.as_obj(),
-                jni::jni_str!("addOnChangeListener"),
-                jni::jni_sig!("(Lcom/google/android/material/slider/BaseOnChangeListener;)V"),
-                &[change_proxy.as_ref().into()],
-            )?
-            .v()?;
+            inner.add_on_change_listener(env, &change_proxy)?;
             Ok(Self {
                 inner,
                 on_change,

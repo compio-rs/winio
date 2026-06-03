@@ -9,7 +9,7 @@ use jni::{
 use winio_handle::{AsContainer, AsWidget, BorrowedContainer, BorrowedWidget};
 use winio_primitive::{Point, Size};
 
-use crate::{AViewGroup, Context, FrameLayout, Result, vm_exec};
+use crate::{AViewGroup, Context, FrameLayout, Result, impl_listener, vm_exec};
 
 jni::bind_java_type! {
     pub(crate) AView => "android.view.View",
@@ -17,6 +17,8 @@ jni::bind_java_type! {
         Context => android.content.Context,
         AViewParent => android.view.ViewParent,
         ViewGroupLayoutParams => "android.view.ViewGroup$LayoutParams",
+        OnLayoutChangeListener => "android.view.View$OnLayoutChangeListener",
+        OnTouchListener => "android.view.View$OnTouchListener",
     },
     constructors {
         fn new(context: &Context),
@@ -40,6 +42,8 @@ jni::bind_java_type! {
         fn is_enabled() -> jboolean,
         fn set_enabled(enabled: jboolean),
         fn get_parent() -> AViewParent,
+        fn add_on_layout_change_listener(listener: &OnLayoutChangeListener),
+        fn set_on_touch_listener(listener: &OnTouchListener),
     }
 }
 
@@ -96,6 +100,14 @@ jni::bind_java_type! {
     pub(crate) OnLayoutChangeListener => "android.view.View$OnLayoutChangeListener",
 }
 
+impl_listener!(OnLayoutChangeListener);
+
+jni::bind_java_type! {
+    pub(crate) OnTouchListener => "android.view.View$OnTouchListener",
+}
+
+impl_listener!(OnTouchListener);
+
 #[derive(Debug)]
 pub(crate) struct BaseWidget<T>
 where
@@ -144,10 +156,6 @@ where
         let parent = unsafe { FrameLayout::from_raw(env, parent.into_raw()) };
         parent.as_view_group().add_view(env, &widget)?;
         Ok(Self { inner: widget })
-    }
-
-    pub fn as_obj(&self) -> &JObject<'static> {
-        self.inner.as_obj()
     }
 
     pub fn as_view(&self) -> &AView<'static> {

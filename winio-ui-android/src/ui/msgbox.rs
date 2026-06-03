@@ -1,13 +1,13 @@
 use jni::{
     Env,
     objects::{JObject, JString},
-    refs::LoaderContext,
+    refs::{LoaderContext, Reference},
 };
 use jni_min_helper::{DynamicProxy, JInteger};
 use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
-use crate::{Activity, Context, Error, Result, vm_exec};
+use crate::{Activity, Context, Error, Result, impl_listener, vm_exec};
 
 jni::bind_java_type! {
     AlertDialog => android.app.AlertDialog,
@@ -46,13 +46,19 @@ jni::bind_java_type! {
     OnClickListener => "android.content.DialogInterface$OnClickListener",
 }
 
+impl_listener!(OnClickListener);
+
 jni::bind_java_type! {
     OnCancelListener => "android.content.DialogInterface$OnCancelListener",
 }
 
+impl_listener!(OnCancelListener);
+
 jni::bind_java_type! {
     OnDismissListener => "android.content.DialogInterface$OnDismissListener",
 }
+
+impl_listener!(OnDismissListener);
 
 #[derive(Debug, Default, Clone)]
 pub struct MessageBox {
@@ -177,9 +183,9 @@ impl MessageBox {
                 env,
                 &LoaderContext::None,
                 [
-                    jni::jni_str!("android/content/DialogInterface$OnClickListener"),
-                    jni::jni_str!("android/content/DialogInterface$OnCancelListener"),
-                    jni::jni_str!("android/content/DialogInterface$OnDismissListener"),
+                    OnClickListener::class_name(),
+                    OnCancelListener::class_name(),
+                    OnDismissListener::class_name(),
                 ],
                 move |env, method, args| {
                     let name = method.get_name(env)?.try_to_string(env)?;
@@ -203,26 +209,19 @@ impl MessageBox {
                 },
             )?;
 
-            let click_listener = env.new_local_ref(proxy.as_ref())?;
-            let click_listener =
-                unsafe { OnClickListener::from_raw(env, click_listener.into_raw()) };
             if responses[0].is_some() {
-                builder.set_positive_button(env, &texts[0], &click_listener)?;
+                builder.set_positive_button(env, &texts[0], &proxy)?;
             }
             if responses[1].is_some() {
-                builder.set_negative_button(env, &texts[1], &click_listener)?;
+                builder.set_negative_button(env, &texts[1], &proxy)?;
             }
             if responses[2].is_some() {
-                builder.set_neutral_button(env, &texts[2], &click_listener)?;
+                builder.set_neutral_button(env, &texts[2], &proxy)?;
             }
 
             let dialog = builder.create(env)?;
-            let cancel_listener =
-                unsafe { OnCancelListener::from_raw(env, click_listener.into_raw()) };
-            dialog.set_on_cancel_listener(env, &cancel_listener)?;
-            let dismiss_listener =
-                unsafe { OnDismissListener::from_raw(env, cancel_listener.into_raw()) };
-            dialog.set_on_dismiss_listener(env, &dismiss_listener)?;
+            dialog.set_on_cancel_listener(env, &proxy)?;
+            dialog.set_on_dismiss_listener(env, &proxy)?;
             dialog.show(env)?;
             Result::Ok((rx, proxy))
         })?;

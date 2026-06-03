@@ -4,7 +4,7 @@ use inherit_methods_macro::inherit_methods;
 use jni::{
     Env,
     objects::{JList, JObject, JString},
-    refs::Global,
+    refs::{Global, Reference},
 };
 use jni_min_helper::DynamicProxy;
 use winio_callback::SyncCallback;
@@ -12,7 +12,8 @@ use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Point, Size};
 
 use crate::{
-    AView, ArrayAdapter, ArrayList, BaseWidget, Context, Layout, Result, current_activity, vm_exec,
+    AView, ArrayAdapter, ArrayList, BaseWidget, Context, Layout, OnItemSelectedListener, Result,
+    current_activity, vm_exec,
 };
 
 jni::bind_java_type! {
@@ -22,6 +23,7 @@ jni::bind_java_type! {
         Context => android.content.Context,
         ListAdapter => android.widget.ListAdapter,
         SparseBooleanArray => android.util.SparseBooleanArray,
+        OnItemSelectedListener => "android.widget.AdapterView$OnItemSelectedListener",
     },
     constructors {
         fn new(&Context),
@@ -32,6 +34,7 @@ jni::bind_java_type! {
         fn set_adapter(adapter: &ListAdapter),
         fn set_item_checked(position: jint, value: jboolean),
         fn get_checked_item_positions() -> SparseBooleanArray,
+        fn set_on_item_selected_listener(listener: &OnItemSelectedListener),
     },
     is_instance_of = {
         view = AView,
@@ -74,9 +77,7 @@ impl ListBox {
             let select_proxy = DynamicProxy::build(
                 env,
                 &jni::refs::LoaderContext::None,
-                [jni::jni_str!(
-                    "android/widget/AdapterView$OnItemSelectedListener"
-                )],
+                [OnItemSelectedListener::class_name()],
                 {
                     let on_select = on_select.clone();
                     move |env, method, _args| {
@@ -87,14 +88,8 @@ impl ListBox {
                     }
                 },
             )?;
+            widget.set_on_item_selected_listener(env, &select_proxy)?;
             let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
-            env.call_method(
-                inner.as_obj(),
-                jni::jni_str!("setOnItemSelectedListener"),
-                jni::jni_sig!("(Landroid/widget/AdapterView$OnItemSelectedListener;)V"),
-                &[select_proxy.as_ref().into()],
-            )?
-            .v()?;
             let list = JList::from(ArrayList::new(env)?);
             let list = env.new_global_ref(list)?;
             let adapter = ArrayAdapter::new(env, &act, Layout::simple_list_item_1(env)?, &list)?;

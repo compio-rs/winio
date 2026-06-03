@@ -7,7 +7,7 @@ use inherit_methods_macro::inherit_methods;
 use jni::{
     Env,
     objects::JObject,
-    refs::{Global, LoaderContext},
+    refs::{Global, LoaderContext, Reference},
 };
 use jni_min_helper::{DynamicProxy, JInteger};
 use winio_callback::SyncCallback;
@@ -15,8 +15,8 @@ use winio_handle::{AsWindow, BorrowedContainer, BorrowedWindow};
 use winio_primitive::{Margin, Point, Size};
 
 use crate::{
-    AView, Activity, BaseWidget, Context, DESTROY_CALLBACK, FrameLayoutLayoutParams, Result,
-    current_activity, vm_exec,
+    AView, Activity, BaseWidget, Context, DESTROY_CALLBACK, FrameLayoutLayoutParams,
+    OnLayoutChangeListener, Result, current_activity, impl_listener, vm_exec,
 };
 
 jni::bind_java_type! {
@@ -98,7 +98,7 @@ impl Window {
             let insets_proxy = set_insets_listener(
                 env,
                 act.as_obj(),
-                &window,
+                &window.as_view(),
                 on_insets.clone(),
                 margin_update.clone(),
             )?;
@@ -107,7 +107,7 @@ impl Window {
             let on_resize_proxy = DynamicProxy::build(
                 env,
                 &LoaderContext::None,
-                [jni::jni_str!("android/view/View$OnLayoutChangeListener")],
+                [OnLayoutChangeListener::class_name()],
                 {
                     let on_resize = on_resize.clone();
                     let size_update = size_update.clone();
@@ -143,13 +143,9 @@ impl Window {
                     }
                 },
             )?;
-            env.call_method(
-                inner.as_obj(),
-                jni::jni_str!("addOnLayoutChangeListener"),
-                jni::jni_sig!("(Landroid/view/View$OnLayoutChangeListener;)V"),
-                &[on_resize_proxy.as_ref().into()],
-            )?
-            .v()?;
+            inner
+                .as_view()
+                .add_on_layout_change_listener(env, &on_resize_proxy)?;
             Ok(Self {
                 inner: inner.into(),
                 inner_view,
@@ -281,19 +277,37 @@ jni::bind_java_type! {
     }
 }
 
+jni::bind_java_type! {
+    ViewCompat => androidx.core.view.ViewCompat,
+    type_map {
+        AView => android.view.View,
+        OnApplyWindowInsetsListener => androidx.core.view.OnApplyWindowInsetsListener,
+    },
+    methods {
+        static fn set_on_apply_window_insets_listener(
+            view: &AView,
+            listener: &OnApplyWindowInsetsListener,
+        ),
+    }
+}
+
+jni::bind_java_type! {
+    OnApplyWindowInsetsListener => androidx.core.view.OnApplyWindowInsetsListener,
+}
+
+impl_listener!(OnApplyWindowInsetsListener);
+
 fn set_insets_listener(
     env: &mut Env,
     activity: &JObject,
-    view: &JObject,
+    view: &AView,
     on_resize: Arc<SyncCallback>,
     margin_update: Arc<Mutex<Margin>>,
 ) -> Result<DynamicProxy> {
     let proxy = DynamicProxy::build(
         env,
         &LoaderContext::FromObject(activity),
-        [jni::jni_str!(
-            "androidx/core/view/OnApplyWindowInsetsListener"
-        )],
+        [OnApplyWindowInsetsListener::class_name()],
         move |env, _method, args| {
             let insets_compat = args.get_element(env, 1)?;
             let insets_compat =
@@ -313,12 +327,7 @@ fn set_insets_listener(
             Ok(insets_compat.into())
         },
     )?;
-    env.call_static_method(
-        jni::jni_str!("androidx/core/view/ViewCompat"),
-        jni::jni_str!("setOnApplyWindowInsetsListener"),
-        jni::jni_sig!("(Landroid/view/View;Landroidx/core/view/OnApplyWindowInsetsListener;)V"),
-        &[view.into(), proxy.as_ref().into()],
-    )?;
+    ViewCompat::set_on_apply_window_insets_listener(env, view, &proxy)?;
     Ok(proxy)
 }
 

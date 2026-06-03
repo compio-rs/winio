@@ -1,13 +1,16 @@
 use std::sync::Arc;
 
 use inherit_methods_macro::inherit_methods;
-use jni::{objects::JObject, refs::LoaderContext};
+use jni::{
+    objects::JObject,
+    refs::{LoaderContext, Reference},
+};
 use jni_min_helper::DynamicProxy;
 use winio_callback::SyncCallback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{AView, BaseWidget, Context, Result, current_activity, vm_exec};
+use crate::{AView, BaseWidget, Context, JRunnable, Result, current_activity, vm_exec};
 
 jni::bind_java_type! {
     AWebView => android.webkit.WebView,
@@ -44,9 +47,14 @@ jni::bind_java_type! {
     WinioWebViewClient => rs.compio.winio.WebViewClient,
     type_map {
         AWebViewClient => android.webkit.WebViewClient,
+        JRunnable => java.lang.Runnable,
     },
     constructors {
         fn new(),
+    },
+    methods {
+        fn set_on_page_started(listener: &JRunnable),
+        fn set_on_page_finished(listener: &JRunnable),
     },
     is_instance_of = {
         base = AWebViewClient,
@@ -75,44 +83,26 @@ impl WebView {
             let client = WinioWebViewClient::new(env)?;
 
             let on_started = Arc::new(SyncCallback::new());
-            let started_proxy = DynamicProxy::build(
-                env,
-                &LoaderContext::None,
-                [jni::jni_str!("java/lang/Runnable")],
-                {
+            let started_proxy =
+                DynamicProxy::build(env, &LoaderContext::None, [JRunnable::class_name()], {
                     let on_started = on_started.clone();
                     move |_env, _method, _args| {
                         on_started.signal(());
                         Ok(JObject::null())
                     }
-                },
-            )?;
-            env.call_method(
-                &client,
-                jni::jni_str!("setOnPageStarted"),
-                jni::jni_sig!("(Ljava/lang/Runnable;)V"),
-                &[started_proxy.as_ref().into()],
-            )?;
+                })?;
+            client.set_on_page_started(env, &started_proxy)?;
 
             let on_finished = Arc::new(SyncCallback::new());
-            let finished_proxy = DynamicProxy::build(
-                env,
-                &LoaderContext::None,
-                [jni::jni_str!("java/lang/Runnable")],
-                {
+            let finished_proxy =
+                DynamicProxy::build(env, &LoaderContext::None, [JRunnable::class_name()], {
                     let on_finished = on_finished.clone();
                     move |_env, _method, _args| {
                         on_finished.signal(());
                         Ok(JObject::null())
                     }
-                },
-            )?;
-            env.call_method(
-                &client,
-                jni::jni_str!("setOnPageFinished"),
-                jni::jni_sig!("(Ljava/lang/Runnable;)V"),
-                &[finished_proxy.as_ref().into()],
-            )?;
+                })?;
+            client.set_on_page_finished(env, &finished_proxy)?;
 
             inner.set_web_view_client(env, client)?;
 

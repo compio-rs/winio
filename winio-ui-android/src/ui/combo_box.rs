@@ -4,14 +4,16 @@ use inherit_methods_macro::inherit_methods;
 use jni::{
     Env,
     objects::{JList, JObject, JString},
-    refs::Global,
+    refs::{Global, Reference},
 };
 use jni_min_helper::DynamicProxy;
 use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Point, Size};
 
-use crate::{AView, BaseWidget, Context, ListAdapter, Result, current_activity, vm_exec};
+use crate::{
+    AView, BaseWidget, Context, ListAdapter, Result, current_activity, impl_listener, vm_exec,
+};
 
 jni::bind_java_type! {
     pub(crate) Layout => "android.R$layout",
@@ -37,6 +39,7 @@ jni::bind_java_type! {
         AView => android.view.View,
         Context => android.content.Context,
         SpinnerAdapter => android.widget.SpinnerAdapter,
+        OnItemSelectedListener => "android.widget.AdapterView$OnItemSelectedListener",
     },
     constructors {
         fn new(&Context),
@@ -45,6 +48,7 @@ jni::bind_java_type! {
         fn get_selected_item_position() -> jint,
         fn set_selection(position: jint),
         fn set_adapter(adapter: &SpinnerAdapter),
+        fn set_on_item_selected_listener(listener: &OnItemSelectedListener),
     },
     is_instance_of = {
         view = AView,
@@ -85,6 +89,12 @@ jni::bind_java_type! {
     pub(crate) SpinnerAdapter => android.widget.SpinnerAdapter,
 }
 
+jni::bind_java_type! {
+    pub(crate) OnItemSelectedListener => "android.widget.AdapterView$OnItemSelectedListener",
+}
+
+impl_listener!(OnItemSelectedListener);
+
 #[derive(Debug)]
 pub struct ComboBox {
     inner: BaseWidget<ASpinner<'static>>,
@@ -105,9 +115,7 @@ impl ComboBox {
             let select_proxy = DynamicProxy::build(
                 env,
                 &jni::refs::LoaderContext::None,
-                [jni::jni_str!(
-                    "android/widget/AdapterView$OnItemSelectedListener"
-                )],
+                [OnItemSelectedListener::class_name()],
                 {
                     let on_select = on_select.clone();
                     move |env, method, _args| {
@@ -118,14 +126,8 @@ impl ComboBox {
                     }
                 },
             )?;
+            widget.set_on_item_selected_listener(env, &select_proxy)?;
             let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
-            env.call_method(
-                inner.as_obj(),
-                jni::jni_str!("setOnItemSelectedListener"),
-                jni::jni_sig!("(Landroid/widget/AdapterView$OnItemSelectedListener;)V"),
-                &[select_proxy.as_ref().into()],
-            )?
-            .v()?;
             let list = JList::from(ArrayList::new(env)?);
             let list = env.new_global_ref(list)?;
             let adapter = ArrayAdapter::new(env, &act, Layout::simple_spinner_item(env)?, &list)?;

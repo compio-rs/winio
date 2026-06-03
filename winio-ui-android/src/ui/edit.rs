@@ -1,13 +1,16 @@
 use std::sync::Arc;
 
 use inherit_methods_macro::inherit_methods;
-use jni::{objects::JObject, refs::LoaderContext};
+use jni::{
+    objects::JObject,
+    refs::{LoaderContext, Reference},
+};
 use jni_min_helper::DynamicProxy;
 use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{HAlign, Point, Size};
 
-use crate::{ATextView, AView, BaseWidget, Context, Result, gravity, vm_exec};
+use crate::{ATextView, AView, BaseWidget, Context, Result, gravity, impl_listener, vm_exec};
 
 jni::bind_java_type! {
     AEditText => android.widget.EditText,
@@ -16,6 +19,7 @@ jni::bind_java_type! {
         ATextView => android.widget.TextView,
         Context => android.content.Context,
         Editable => android.text.Editable,
+        TextWatcher => android.text.TextWatcher,
     },
     constructors {
         fn new(&Context),
@@ -24,6 +28,7 @@ jni::bind_java_type! {
         fn get_text() -> Editable,
         fn get_input_type() -> jint,
         fn set_input_type(ty: jint),
+        fn add_text_changed_listener(listener: &TextWatcher),
     },
     is_instance_of = {
         view = AView,
@@ -37,6 +42,12 @@ jni::bind_java_type! {
         fn to_string() -> JString,
     }
 }
+
+jni::bind_java_type! {
+    TextWatcher => android.text.TextWatcher,
+}
+
+impl_listener!(TextWatcher);
 
 #[derive(Debug)]
 pub struct Edit {
@@ -59,11 +70,8 @@ impl Edit {
         vm_exec(|env| {
             let act = crate::current_activity(env)?;
             let widget = AEditText::new(env, act)?;
-            let change_proxy = DynamicProxy::build(
-                env,
-                &LoaderContext::None,
-                [jni::jni_str!("android/text/TextWatcher")],
-                {
+            let change_proxy =
+                DynamicProxy::build(env, &LoaderContext::None, [TextWatcher::class_name()], {
                     let on_change = on_change.clone();
                     move |env, method, _args| {
                         if method.get_name(env)?.to_string() == "onTextChanged" {
@@ -71,16 +79,9 @@ impl Edit {
                         }
                         Ok(JObject::null())
                     }
-                },
-            )?;
+                })?;
+            widget.add_text_changed_listener(env, &change_proxy)?;
             let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
-            env.call_method(
-                inner.as_obj(),
-                jni::jni_str!("addTextChangedListener"),
-                jni::jni_sig!("(Landroid/text/TextWatcher;)V"),
-                &[change_proxy.as_ref().into()],
-            )?
-            .v()?;
             Ok(Self {
                 inner,
                 on_change,

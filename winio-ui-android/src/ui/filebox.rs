@@ -13,7 +13,7 @@ use jni::{
 use jni_min_helper::DynamicProxy;
 use winio_handle::AsWindow;
 
-use crate::{Activity, Error, Result, vm_exec};
+use crate::{Activity, Error, Result, impl_listener, vm_exec};
 
 jni::bind_java_type! {
     ActivityResultCaller => androidx.activity.result.ActivityResultCaller,
@@ -94,6 +94,8 @@ jni::bind_java_type! {
     ActivityResultCallback => androidx.activity.result.ActivityResultCallback,
 }
 
+impl_listener!(ActivityResultCallback);
+
 jni::bind_java_type! {
     Uri => android.net.Uri,
     methods {
@@ -112,9 +114,7 @@ impl ProxyCallback {
         let proxy = DynamicProxy::build(
             env,
             &LoaderContext::FromObject(context),
-            [jni::jni_str!(
-                "androidx/activity/result/ActivityResultCallback"
-            )],
+            [ActivityResultCallback::class_name()],
             move |env, _method, args| {
                 let result = args.get_element(env, 0)?;
                 if env.is_instance_of(&result, Uri::class_name())? {
@@ -143,13 +143,8 @@ impl ProxyCallback {
         })
     }
 
-    pub fn callback<'local>(
-        &self,
-        env: &mut Env<'local>,
-    ) -> jni::errors::Result<ActivityResultCallback<'local>> {
-        let callback = env.new_local_ref(self.proxy.as_ref())?;
-        let callback = unsafe { ActivityResultCallback::from_raw(env, callback.into_raw()) };
-        Ok(callback)
+    pub fn callback<'local>(&self) -> &ActivityResultCallback<'local> {
+        self.proxy.as_ref()
     }
 
     pub fn receiver(&self) -> Arc<AsyncMutex<UnboundedReceiver<Vec<PathBuf>>>> {
@@ -172,33 +167,31 @@ static LAUNCHER_CREATE_DOCUMENT: Mutex<Option<Global<ActivityResultLauncher<'sta
     Mutex::new(None);
 
 pub(crate) fn register_launcher(env: &mut Env, act: &Activity) -> jni::errors::Result<()> {
-    let callback = {
-        let mut proxy_callback = PROXY_CALLBACK.lock().unwrap();
-        *proxy_callback = Some(ProxyCallback::new(env, act)?);
-        proxy_callback.as_ref().unwrap().callback(env)?
-    };
+    let mut proxy_callback = PROXY_CALLBACK.lock().unwrap();
+    *proxy_callback = Some(ProxyCallback::new(env, act)?);
+    let callback = proxy_callback.as_ref().unwrap().callback();
 
     let act = env.new_local_ref(act)?;
     let act = unsafe { ActivityResultCaller::from_raw(env, act.into_raw()) };
 
     let mut launcher_get_content = LAUNCHER_GET_CONTENT.lock().unwrap();
     let action = GetContent::new(env)?;
-    let launcher = act.register_for_activity_result(env, action, &callback)?;
+    let launcher = act.register_for_activity_result(env, action, callback)?;
     *launcher_get_content = Some(env.new_global_ref(launcher)?);
 
     let mut launcher_get_multiple_contents = LAUNCHER_GET_MULTIPLE_CONTENTS.lock().unwrap();
     let action = GetMultipleContents::new(env)?;
-    let launcher = act.register_for_activity_result(env, action, &callback)?;
+    let launcher = act.register_for_activity_result(env, action, callback)?;
     *launcher_get_multiple_contents = Some(env.new_global_ref(launcher)?);
 
     let mut launcher_open_document_tree = LAUNCHER_OPEN_DOCUMENT_TREE.lock().unwrap();
     let action = OpenDocumentTree::new(env)?;
-    let launcher = act.register_for_activity_result(env, action, &callback)?;
+    let launcher = act.register_for_activity_result(env, action, callback)?;
     *launcher_open_document_tree = Some(env.new_global_ref(launcher)?);
 
     let mut launcher_create_document = LAUNCHER_CREATE_DOCUMENT.lock().unwrap();
     let action = CreateDocument::new(env)?;
-    let launcher = act.register_for_activity_result(env, action, &callback)?;
+    let launcher = act.register_for_activity_result(env, action, callback)?;
     *launcher_create_document = Some(env.new_global_ref(launcher)?);
 
     Ok(())

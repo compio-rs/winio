@@ -12,7 +12,8 @@ use winio_handle::{AsContainer, AsWidget, BorrowedWidget, impl_as_widget};
 use winio_primitive::{Point, Size};
 
 use crate::{
-    ATextView, AView, BaseWidget, Context, JCharSequenceExt, Result, current_activity, vm_exec,
+    ATextView, AView, BaseWidget, Context, JCharSequenceExt, Result, current_activity,
+    impl_listener, vm_exec,
 };
 
 jni::bind_java_type! {
@@ -21,9 +22,13 @@ jni::bind_java_type! {
         AView => android.view.View,
         ATextView => android.widget.TextView,
         Context => android.content.Context,
+        OnClickListener => "android.view.View$OnClickListener"
     },
     constructors {
         fn new(context: &Context),
+    },
+    methods {
+        fn set_on_click_listener(listener: &OnClickListener),
     },
     is_instance_of = {
         view = AView,
@@ -66,6 +71,7 @@ jni::bind_java_type! {
 jni::bind_java_type! {
     ACheckBox => com.google.android.material.checkbox.MaterialCheckBox,
     type_map {
+        AButton => android.widget.Button,
         ACompoundButton => android.widget.CompoundButton,
         AView => android.view.View,
         ATextView => android.widget.TextView,
@@ -75,7 +81,8 @@ jni::bind_java_type! {
         fn new(context: &Context),
     },
     is_instance_of = {
-        button = ACompoundButton,
+        button = AButton,
+        compound_button = ACompoundButton,
         view = AView,
         text_view = ATextView,
     }
@@ -84,6 +91,7 @@ jni::bind_java_type! {
 jni::bind_java_type! {
     ARadioButton => com.google.android.material.radiobutton.MaterialRadioButton,
     type_map {
+        AButton => android.widget.Button,
         ACompoundButton => android.widget.CompoundButton,
         AView => android.view.View,
         ATextView => android.widget.TextView,
@@ -93,11 +101,18 @@ jni::bind_java_type! {
         fn new(context: &Context),
     },
     is_instance_of = {
-        button = ACompoundButton,
+        button = AButton,
+        compound_button = ACompoundButton,
         view = AView,
         text_view = ATextView,
     }
 }
+
+jni::bind_java_type! {
+    OnClickListener => "android.view.View$OnClickListener",
+}
+
+impl_listener!(OnClickListener);
 
 #[derive(Debug)]
 struct ButtonImpl<T>
@@ -117,6 +132,45 @@ where
     click_proxy: DynamicProxy,
 }
 
+impl<T> ButtonImpl<T>
+where
+    T: Into<JObject<'static>>
+        + AsRef<JObject<'static>>
+        + AsRef<AView<'static>>
+        + AsRef<AButton<'static>>
+        + Default
+        + Reference
+        + Send
+        + Sync
+        + 'static,
+{
+    pub fn new<'any_local, O>(env: &mut Env, parent: impl AsContainer, widget: O) -> Result<Self>
+    where
+        O: Reference<GlobalKind = T> + AsRef<JObject<'any_local>> + AsRef<AButton<'any_local>>,
+    {
+        let on_click = Arc::new(SyncCallback::new());
+        let click_proxy = DynamicProxy::build(
+            env,
+            &LoaderContext::None,
+            [OnClickListener::class_name()],
+            {
+                let on_click = on_click.clone();
+                move |_env, _method, _args| {
+                    on_click.signal(());
+                    Ok(JObject::null())
+                }
+            },
+        )?;
+        AsRef::<AButton>::as_ref(&widget).set_on_click_listener(env, &click_proxy)?;
+        let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
+        Ok(Self {
+            inner,
+            on_click,
+            click_proxy,
+        })
+    }
+}
+
 #[inherit_methods(from = "self.inner")]
 impl<T> ButtonImpl<T>
 where
@@ -129,38 +183,6 @@ where
         + Sync
         + 'static,
 {
-    pub fn new<'any_local, O>(env: &mut Env, parent: impl AsContainer, widget: O) -> Result<Self>
-    where
-        O: Reference<GlobalKind = T> + AsRef<JObject<'any_local>>,
-    {
-        let on_click = Arc::new(SyncCallback::new());
-        let click_proxy = DynamicProxy::build(
-            env,
-            &LoaderContext::None,
-            [jni::jni_str!("android/view/View$OnClickListener")],
-            {
-                let on_click = on_click.clone();
-                move |_env, _method, _args| {
-                    on_click.signal(());
-                    Ok(JObject::null())
-                }
-            },
-        )?;
-        let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
-        env.call_method(
-            inner.as_obj(),
-            jni::jni_str!("setOnClickListener"),
-            jni::jni_sig!("(Landroid/view/View$OnClickListener;)V"),
-            &[click_proxy.as_ref().into()],
-        )?
-        .v()?;
-        Ok(Self {
-            inner,
-            on_click,
-            click_proxy,
-        })
-    }
-
     pub fn is_visible(&self) -> Result<bool>;
 
     pub fn set_visible(&mut self, visible: bool) -> Result<()>;

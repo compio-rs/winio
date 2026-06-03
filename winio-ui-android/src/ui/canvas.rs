@@ -6,7 +6,7 @@ use inherit_methods_macro::inherit_methods;
 use jni::{
     Env,
     objects::JPrimitiveArray,
-    refs::{Global, LoaderContext},
+    refs::{Global, LoaderContext, Reference},
 };
 use jni_min_helper::{DynamicProxy, JBoolean};
 use winio_callback::SyncCallback;
@@ -16,7 +16,7 @@ use winio_primitive::{
     RadialGradientBrush, Rect, RelativeToLogical, Size, SolidColorBrush, Transform, VAlign, Vector,
 };
 
-use crate::{AView, BaseWidget, Context, Result, current_activity, vm_exec};
+use crate::{AView, BaseWidget, Context, OnTouchListener, Result, current_activity, vm_exec};
 
 jni::bind_java_type! {
     PaintStyle => "android.graphics.Paint$Style",
@@ -1029,7 +1029,7 @@ impl Canvas {
             let touch_proxy = DynamicProxy::build(
                 env,
                 &LoaderContext::None,
-                [jni::jni_str!("android.view.View$OnTouchListener")],
+                [OnTouchListener::class_name()],
                 {
                     let on_down = on_down.clone();
                     let on_up = on_up.clone();
@@ -1061,12 +1061,7 @@ impl Canvas {
                     }
                 },
             )?;
-            env.call_method(
-                inner.as_obj(),
-                jni::jni_str!("setOnTouchListener"),
-                jni::jni_sig!("(Landroid/view/View$OnTouchListener;)V"),
-                &[touch_proxy.as_ref().into()],
-            )?;
+            inner.as_view().set_on_touch_listener(env, &touch_proxy)?;
             Ok(Self {
                 inner,
                 on_down,

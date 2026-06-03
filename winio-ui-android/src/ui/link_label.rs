@@ -4,14 +4,14 @@ use inherit_methods_macro::inherit_methods;
 use jni::{
     Env,
     objects::{JObject, JString},
-    refs::{Global, LoaderContext},
+    refs::{Global, LoaderContext, Reference},
 };
 use jni_min_helper::DynamicProxy;
 use winio_callback::SyncCallback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{ATextView, BaseWidget, Result, current_activity, vm_exec};
+use crate::{ATextView, BaseWidget, JRunnable, Result, current_activity, vm_exec};
 
 jni::bind_java_type! {
     pub(crate) MovementMethod => android.text.method.MovementMethod,
@@ -54,9 +54,13 @@ jni::bind_java_type! {
     WinioClickableSpan => rs.compio.winio.ClickableSpan,
     type_map {
         ClickableSpan => android.text.style.ClickableSpan,
+        JRunnable => java.lang.Runnable,
     },
     constructors {
         fn new(),
+    },
+    methods {
+        fn set_on_click(listener: &JRunnable),
     },
     is_instance_of = {
         base = ClickableSpan,
@@ -103,25 +107,15 @@ impl LinkLabel {
             let on_click = Arc::new(SyncCallback::new());
 
             let click_span = WinioClickableSpan::new(env)?;
-            let click_proxy = DynamicProxy::build(
-                env,
-                &LoaderContext::None,
-                [jni::jni_str!("java/lang/Runnable")],
-                {
+            let click_proxy =
+                DynamicProxy::build(env, &LoaderContext::None, [JRunnable::class_name()], {
                     let on_click = on_click.clone();
                     move |_env, _method, _args| {
                         on_click.signal(());
                         Ok(JObject::null())
                     }
-                },
-            )?;
-            env.call_method(
-                &click_span,
-                jni::jni_str!("setOnClick"),
-                jni::jni_sig!("(Ljava/lang/Runnable;)V"),
-                &[click_proxy.as_ref().into()],
-            )?
-            .v()?;
+                })?;
+            click_span.set_on_click(env, &click_proxy)?;
             let click_span = env.new_global_ref(click_span)?;
 
             let url = JString::new(env, "")?;

@@ -11,8 +11,8 @@ use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{
-    AView, AViewGroup, BaseWidget, Context, Result, View, ViewGroupLayoutParams,
-    WINDOW_RESIZE_CALLBACK, current_activity, vm_exec,
+    AView, AViewGroup, BaseWidget, Context, OnLayoutChangeListener, Result, View,
+    ViewGroupLayoutParams, WINDOW_RESIZE_CALLBACK, current_activity, impl_listener, vm_exec,
 };
 
 jni::bind_java_type! {
@@ -56,6 +56,7 @@ jni::bind_java_type! {
         AView => android.view.View,
         Context => android.content.Context,
         TabLayoutTab => "com.google.android.material.tabs.TabLayout$Tab",
+        OnTabSelectedListener => "com.google.android.material.tabs.TabLayout$OnTabSelectedListener",
     },
     constructors {
         fn new(&Context),
@@ -64,6 +65,7 @@ jni::bind_java_type! {
         fn get_selected_tab_position() -> jint,
         fn get_tab_at(index: jint) -> TabLayoutTab,
         fn select_tab(tab: &TabLayoutTab),
+        fn add_on_tab_selected_listener(listener: &OnTabSelectedListener),
     },
     is_instance_of = {
         view = AView,
@@ -95,6 +97,8 @@ jni::bind_java_type! {
 jni::bind_java_type! {
     TabLayoutMediatorTabConfigurationStrategy => "com.google.android.material.tabs.TabLayoutMediator$TabConfigurationStrategy",
 }
+
+impl_listener!(TabLayoutMediatorTabConfigurationStrategy);
 
 jni::bind_java_type! {
     ViewPager2 => androidx.viewpager2.widget.ViewPager2,
@@ -138,6 +142,12 @@ jni::bind_java_type! {
     }
 }
 
+jni::bind_java_type! {
+    OnTabSelectedListener => "com.google.android.material.tabs.TabLayout$OnTabSelectedListener",
+}
+
+impl_listener!(OnTabSelectedListener);
+
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct TabView {
@@ -171,9 +181,7 @@ impl TabView {
             let select_proxy = DynamicProxy::build(
                 env,
                 &LoaderContext::FromObject(&act),
-                [jni::jni_str!(
-                    "com.google.android.material.tabs.TabLayout$OnTabSelectedListener"
-                )],
+                [OnTabSelectedListener::class_name()],
                 {
                     let on_select = on_select.clone();
                     move |_env, _method, _args| {
@@ -182,15 +190,7 @@ impl TabView {
                     }
                 },
             )?;
-            env.call_method(
-                &tab,
-                jni::jni_str!("addOnTabSelectedListener"),
-                jni::jni_sig!(
-                    "(Lcom/google/android/material/tabs/TabLayout$OnTabSelectedListener;)V"
-                ),
-                &[select_proxy.as_ref().into()],
-            )?
-            .v()?;
+            tab.add_on_tab_selected_listener(env, &select_proxy)?;
 
             let pager = ViewPager2::new(env, &act)?;
             let params = LinearLayoutLayoutParams::with_weight(env, -1, -1, 1.0)?;
@@ -225,11 +225,7 @@ impl TabView {
                 },
             )?;
 
-            let listener = env.new_local_ref(tab_proxy.as_ref())?;
-            let listener = unsafe {
-                TabLayoutMediatorTabConfigurationStrategy::from_raw(env, listener.into_raw())
-            };
-            let mediator = TabLayoutMediator::new(env, &tab, &pager, listener)?;
+            let mediator = TabLayoutMediator::new(env, &tab, &pager, &tab_proxy)?;
             mediator.attach(env)?;
             let mediator = env.new_global_ref(mediator)?;
 
@@ -348,7 +344,7 @@ impl TabViewItem {
             let on_resize_proxy = DynamicProxy::build(
                 env,
                 &LoaderContext::None,
-                [jni::jni_str!("android/view/View$OnLayoutChangeListener")],
+                [OnLayoutChangeListener::class_name()],
                 {
                     move |env, method, args| {
                         let name = method.get_name(env)?;
@@ -383,13 +379,10 @@ impl TabViewItem {
                     }
                 },
             )?;
-            env.call_method(
-                handle.as_widget().to_android(),
-                jni::jni_str!("addOnLayoutChangeListener"),
-                jni::jni_sig!("(Landroid/view/View$OnLayoutChangeListener;)V"),
-                &[on_resize_proxy.as_ref().into()],
-            )?
-            .v()?;
+            let view = handle.as_widget().to_android();
+            let view = env.new_local_ref(view)?;
+            let view = unsafe { AView::from_raw(env, view.into_raw()) };
+            view.add_on_layout_change_listener(env, &on_resize_proxy)?;
             Ok(Self {
                 handle,
                 text: String::new(),
