@@ -9,7 +9,7 @@ use jni::{
 use winio_handle::{AsContainer, AsWidget, BorrowedContainer, BorrowedWidget};
 use winio_primitive::{Point, Size};
 
-use crate::{AViewGroup, Context, FrameLayout, Result, impl_listener, vm_exec};
+use crate::{AViewGroup, Context, FrameLayout, Result, WindowInsets, impl_listener, vm_exec};
 
 jni::bind_java_type! {
     pub(crate) AView => "android.view.View",
@@ -19,6 +19,7 @@ jni::bind_java_type! {
         ViewGroupLayoutParams => "android.view.ViewGroup$LayoutParams",
         OnLayoutChangeListener => "android.view.View$OnLayoutChangeListener",
         OnTouchListener => "android.view.View$OnTouchListener",
+        WindowInsets => android.view.WindowInsets,
     },
     constructors {
         fn new(context: &Context),
@@ -44,6 +45,7 @@ jni::bind_java_type! {
         fn get_parent() -> AViewParent,
         fn add_on_layout_change_listener(listener: &OnLayoutChangeListener),
         fn set_on_touch_listener(listener: &OnTouchListener),
+        fn get_root_window_insets() -> WindowInsets,
     }
 }
 
