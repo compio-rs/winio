@@ -7,7 +7,12 @@ readme = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 
-[dependencies]
+include = [
+    "src/*",
+    "maven/pom.xml",
+    "maven/compio/winio/**/",
+    "maven/compio/winio/maven-metadata-local.xml",
+]
 
 [target.'cfg(target_os = "android")'.dependencies]
 winio-primitive = { workspace = true }
