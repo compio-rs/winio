@@ -7,6 +7,11 @@ readme = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+targets = ["x86_64-pc-windows-msvc"]
+
 [target.'cfg(windows)'.dependencies]
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true, features = ["winui"] }

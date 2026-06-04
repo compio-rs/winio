@@ -7,6 +7,11 @@ readme = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+targets = ["aarch64-apple-darwin", "aarch64-apple-ios"]
+
 [target.'cfg(target_vendor = "apple")'.dependencies]
 objc2 = { workspace = true, features = ["exception"] }
 objc2-core-foundation = { workspace = true }
