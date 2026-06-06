@@ -34,7 +34,6 @@ futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true }
 plotters-backend = { workspace = true, optional = true }
-thiserror = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 winio-ui-windows-common = { workspace = true }
