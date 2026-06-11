@@ -17,3 +17,7 @@ pub async fn update_uri(uri: &Path) -> crate::Result<UriFile> {
         .open(uri)
         .await?)
 }
+
+pub use std::fs::{
+    DirEntry as UriDirEntry, FileType as UriFileType, ReadDir as UriReadDir, read_dir,
+};
