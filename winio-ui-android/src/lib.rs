@@ -4,7 +4,9 @@
 #![cfg(target_os = "android")]
 
 #[cfg(feature = "compio-compat")]
-pub use compio::compat::FuturesAdapter as CompioAdapter;
+mod compat;
+#[cfg(feature = "compio-compat")]
+pub use compat::*;
 
 mod convert;
 pub(crate) use convert::*;
