@@ -1000,17 +1000,20 @@ jni::bind_java_type! {
     MotionEvent => android.view.MotionEvent,
     methods {
         fn get_action() -> jint,
+        fn get_action_button() -> jint,
         fn get_x() -> jfloat,
         fn get_y() -> jfloat,
+        fn get_axis_value(axis: jint) -> jfloat,
     },
 }
 
 #[derive(Debug)]
 pub struct Canvas {
     inner: BaseWidget<ImageView<'static>>,
-    on_down: Arc<SyncCallback>,
-    on_up: Arc<SyncCallback>,
+    on_down: Arc<SyncCallback<MouseButton>>,
+    on_up: Arc<SyncCallback<MouseButton>>,
     on_move: Arc<SyncCallback<Point>>,
+    on_scroll: Arc<SyncCallback<Vector>>,
     #[allow(dead_code)]
     touch_proxy: DynamicProxy,
     latest_size: Size,
@@ -1026,6 +1029,7 @@ impl Canvas {
             let on_down = Arc::new(SyncCallback::new());
             let on_up = Arc::new(SyncCallback::new());
             let on_move = Arc::new(SyncCallback::new());
+            let on_scroll = Arc::new(SyncCallback::new());
             let touch_proxy = DynamicProxy::build(
                 env,
                 &LoaderContext::None,
@@ -1034,26 +1038,56 @@ impl Canvas {
                     let on_down = on_down.clone();
                     let on_up = on_up.clone();
                     let on_move = on_move.clone();
+                    let on_scroll = on_scroll.clone();
                     move |env, _method, args| {
                         const ACTION_DOWN: i32 = 0x0;
                         const ACTION_UP: i32 = 0x1;
                         const ACTION_MOVE: i32 = 0x2;
+                        const ACTION_HOVER_MOVE: i32 = 0x7;
+                        const ACTION_SCROLL: i32 = 0x8;
+
+                        const AXIS_VSCROLL: i32 = 0x9;
+                        const AXIS_HSCROLL: i32 = 0xA;
+
+                        const BUTTON_PRIMARY: i32 = 0x1;
+                        const BUTTON_SECONDARY: i32 = 0x2;
+                        const BUTTON_TERTIARY: i32 = 0x4;
+
+                        const fn button(btn: i32) -> MouseButton {
+                            if btn & BUTTON_PRIMARY != 0 {
+                                MouseButton::Left
+                            } else if btn & BUTTON_SECONDARY != 0 {
+                                MouseButton::Right
+                            } else if btn & BUTTON_TERTIARY != 0 {
+                                MouseButton::Middle
+                            } else {
+                                MouseButton::Other
+                            }
+                        }
 
                         let event = args.get_element(env, 1)?;
                         let event = unsafe { MotionEvent::from_raw(env, event.into_raw()) };
                         let action = event.get_action(env)?;
                         match action & 0xFF {
                             ACTION_DOWN => {
-                                on_down.signal(());
+                                let btn = event.get_action_button(env)?;
+                                on_down.signal(button(btn));
                             }
                             ACTION_UP => {
-                                on_up.signal(());
+                                let btn = event.get_action_button(env)?;
+                                on_up.signal(button(btn));
                             }
-                            ACTION_MOVE => {
+                            ACTION_MOVE | ACTION_HOVER_MOVE => {
                                 let x = event.get_x(env)?;
                                 let y = event.get_y(env)?;
                                 let point = Point::new(x as f64, y as f64);
                                 on_move.signal(point);
+                            }
+                            ACTION_SCROLL => {
+                                let h = event.get_axis_value(env, AXIS_HSCROLL)?;
+                                let v = event.get_axis_value(env, AXIS_VSCROLL)?;
+                                let vector = Vector::new(h as f64, v as f64);
+                                on_scroll.signal(vector);
                             }
                             _ => {}
                         }
@@ -1067,6 +1101,7 @@ impl Canvas {
                 on_down,
                 on_up,
                 on_move,
+                on_scroll,
                 touch_proxy,
                 latest_size: Size::zero(),
             })
@@ -1122,17 +1157,15 @@ impl Canvas {
     }
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
-        self.on_down.wait().await;
-        MouseButton::Left
+        self.on_down.wait().await
     }
 
     pub async fn wait_mouse_up(&self) -> MouseButton {
-        self.on_up.wait().await;
-        MouseButton::Left
+        self.on_up.wait().await
     }
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
-        std::future::pending().await
+        self.on_scroll.wait().await
     }
 }
 

@@ -169,14 +169,18 @@ impl Window {
     pub fn client_size(&self) -> Result<Size> {
         let size = self.size()?;
         let margin = vm_exec(|env| {
-            let insects = self.inner.as_view().get_root_window_insets(env)?;
-            let system_bars = WindowInsetsType::system_bars(env)?;
-            let insets = insects.get_insets_ignoring_visibility(env, system_bars)?;
-            let left = insets.left(env)?;
-            let top = insets.top(env)?;
-            let right = insets.right(env)?;
-            let bottom = insets.bottom(env)?;
-            Result::Ok(Margin::new(top as _, right as _, bottom as _, left as _))
+            let insets = self.inner.as_view().get_root_window_insets(env)?;
+            if !insets.is_null() {
+                let system_bars = WindowInsetsType::system_bars(env)?;
+                let insets = insets.get_insets_ignoring_visibility(env, system_bars)?;
+                let left = insets.left(env)?;
+                let top = insets.top(env)?;
+                let right = insets.right(env)?;
+                let bottom = insets.bottom(env)?;
+                Result::Ok(Margin::new(top as _, right as _, bottom as _, left as _))
+            } else {
+                Ok(Margin::zero())
+            }
         })?;
         let size = Size::new(
             size.width - margin.horizontal(),
