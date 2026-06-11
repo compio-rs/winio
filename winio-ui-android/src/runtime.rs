@@ -6,9 +6,8 @@ use std::{
 };
 
 use android_activity::{AndroidApp, MainEvent, PollEvent};
-use compio_log::{debug, error, warn};
+use compio_log::debug;
 use jni::{Env, objects::JObject, refs::Global, vm::JavaVM};
-use jni_min_helper::DynamicProxy;
 use ndk_sys::{ALooper, ALooper_acquire, ALooper_forThread, ALooper_release, ALooper_wake};
 use winio_pollable::MainTask;
 
@@ -33,23 +32,13 @@ impl App {
     }
 
     fn run_current_task(&self) {
-        let res = DynamicProxy::post_to_main_looper(|_env| {
+        self.app.run_on_java_main_thread(Box::new(|| {
             MAIN_TASK.with_borrow(|task| {
                 if let Some(task) = task.as_ref() {
                     task.poll();
                 }
             });
-            Ok(())
-        });
-        match res {
-            Ok(true) => {}
-            Ok(false) => {
-                warn!("cannot run task on main looper");
-            }
-            Err(e) => {
-                error!("Error posting task to main looper: {e:?}");
-            }
-        }
+        }))
     }
 
     pub fn block_on<F: Future<Output = ()>>(
