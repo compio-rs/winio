@@ -99,7 +99,7 @@ impl_listener!(ActivityResultCallback);
 jni::bind_java_type! {
     Uri => android.net.Uri,
     methods {
-        fn get_path() -> JString,
+        fn to_string() -> JString,
     },
 }
 
@@ -119,16 +119,22 @@ impl ProxyCallback {
                 let result = args.get_element(env, 0)?;
                 if env.is_instance_of(&result, Uri::class_name())? {
                     let uri = unsafe { Uri::from_raw(env, result.into_raw()) };
-                    let path = uri.get_path(env)?.try_to_string(env)?;
-                    tx.unbounded_send(vec![PathBuf::from(path)]).ok();
+                    if !uri.is_null() {
+                        let path = uri.to_string(env)?.try_to_string(env)?;
+                        tx.unbounded_send(vec![PathBuf::from(path)]).ok();
+                    } else {
+                        tx.unbounded_send(vec![]).ok();
+                    }
                 } else if env.is_instance_of(&result, JList::class_name())? {
                     let list = unsafe { JList::from_raw(env, result.into_raw()) };
                     let mut paths = vec![];
                     for i in 0..list.size(env)? {
                         let item = list.get(env, i)?;
                         let uri = unsafe { Uri::from_raw(env, item.into_raw()) };
-                        let path = uri.get_path(env)?.try_to_string(env)?;
-                        paths.push(PathBuf::from(path));
+                        if !uri.is_null() {
+                            let path = uri.to_string(env)?.try_to_string(env)?;
+                            paths.push(PathBuf::from(path));
+                        }
                     }
                     tx.unbounded_send(paths).ok();
                 } else {

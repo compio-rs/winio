@@ -16,3 +16,8 @@ pub use msgbox::*;
 mod plotters;
 #[cfg(feature = "plotters")]
 pub use plotters::*;
+
+#[cfg(feature = "compio-compat")]
+mod file;
+#[cfg(feature = "compio-compat")]
+pub use file::*;

@@ -136,7 +136,11 @@ impl Component for NetPage {
                 .halign(HAlign::Left)
                 .valign(VAlign::Top)
                 .family("Courier New")
-                .size(12.0)
+                .size(if cfg!(target_os = "android") {
+                    30.0
+                } else {
+                    12.0
+                })
                 .build(),
             Point::zero(),
             match &self.text {
