@@ -1,18 +1,15 @@
 use std::{
     cell::RefCell,
     future::Future,
-    sync::{Arc, Mutex},
+    sync::Mutex,
     task::{RawWaker, RawWakerVTable, Waker},
 };
 
 use android_activity::{AndroidApp, MainEvent, PollEvent};
 use compio_log::{debug, error, warn};
-use futures_util::FutureExt;
 use jni::{Env, objects::JObject, refs::Global, vm::JavaVM};
 use jni_min_helper::DynamicProxy;
 use ndk_sys::{ALooper, ALooper_acquire, ALooper_forThread, ALooper_release, ALooper_wake};
-use oneshot::TryRecvError;
-use winio_callback::SyncCallback;
 use winio_pollable::MainTask;
 
 use crate::{AView, Error, Resources, ResourcesTheme, Result};
@@ -59,14 +56,9 @@ impl App {
         &self,
         future: impl (FnOnce() -> F) + Sync + Send + 'static,
     ) {
-        let (tx, rx) = oneshot::channel();
-
         let waker = looper_waker();
         self.app.run_on_java_main_thread(Box::new(move || {
-            let future = future().map(move |res| {
-                tx.send(res).ok();
-            });
-            let task = unsafe { MainTask::new(future, waker) };
+            let task = unsafe { MainTask::new(future(), waker) };
             MAIN_TASK.with_borrow_mut(|t| t.replace(task));
         }));
 
@@ -93,24 +85,6 @@ impl App {
                 }
             });
         }
-        signal_destroy();
-        let mut counter = 0;
-        loop {
-            match rx.try_recv() {
-                Ok(result) => break result,
-                Err(TryRecvError::Empty) => {
-                    self.run_current_task();
-                    counter += 1;
-                    if counter > 64 {
-                        panic!("Main task is taking a long time to complete");
-                    }
-                    std::thread::yield_now();
-                }
-                Err(TryRecvError::Disconnected) => {
-                    panic!("Main task was dropped without completing");
-                }
-            }
-        }
     }
 }
 
@@ -118,18 +92,6 @@ static ACTIVITY: Mutex<Option<Global<JObject<'static>>>> = Mutex::new(None);
 
 thread_local! {
     static MAIN_TASK: RefCell<Option<MainTask>> = const { RefCell::new(None) };
-}
-
-pub(crate) static DESTROY_CALLBACK: Mutex<Option<Arc<SyncCallback>>> = Mutex::new(None);
-
-fn signal_destroy() -> bool {
-    let s = DESTROY_CALLBACK.lock().unwrap();
-    if let Some(callback) = s.as_ref() {
-        callback.signal(());
-        true
-    } else {
-        false
-    }
 }
 
 fn looper_waker() -> Waker {
