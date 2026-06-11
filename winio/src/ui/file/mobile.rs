@@ -1,1 +1,1 @@
-pub use crate::sys::{UriFile, open_uri};
+pub use crate::sys::{UriFile, create_uri, open_uri, update_uri};

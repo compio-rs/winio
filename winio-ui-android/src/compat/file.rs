@@ -42,20 +42,32 @@ jni::bind_java_type! {
     }
 }
 
-pub use compio::fs::File as UriFile;
-
-pub async fn open_uri(uri: &Path) -> Result<File> {
+fn open_uri_with_mode(uri: &Path, mode: &str) -> Result<File> {
     vm_exec(|env| {
         let act = current_activity(env)?;
         let context = env.cast_local::<Context2>(act)?;
         let resolver = context.get_content_resolver(env)?;
         let uri = env.new_string(uri.to_string_lossy())?;
         let uri = Uri::parse(env, uri)?;
-        let mode = env.new_string("r")?;
+        let mode = env.new_string(mode)?;
         let pfd = resolver.open_file_descriptor(env, uri, mode)?;
         let fd = pfd.get_fd(env)?;
         let fd = unsafe { BorrowedFd::borrow_raw(fd) };
         let fd = fd.try_clone_to_owned()?;
         Result::Ok(unsafe { File::from_raw_fd(fd.into_raw_fd()) })
     })
+}
+
+pub use compio::fs::File as UriFile;
+
+pub async fn open_uri(uri: &Path) -> Result<File> {
+    open_uri_with_mode(uri, "r")
+}
+
+pub async fn create_uri(uri: &Path) -> Result<File> {
+    open_uri_with_mode(uri, "w")
+}
+
+pub async fn update_uri(uri: &Path) -> Result<File> {
+    open_uri_with_mode(uri, "rw")
 }
