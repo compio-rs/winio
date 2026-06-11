@@ -208,13 +208,17 @@ impl_as_widget!(Slider, inner);
 #[derive(Debug)]
 pub struct ScrollBar {
     handle: Slider,
+    page: usize,
 }
 
 #[inherit_methods(from = "self.handle")]
 impl ScrollBar {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let slider = Slider::new(parent)?;
-        Ok(Self { handle: slider })
+        Ok(Self {
+            handle: slider,
+            page: 0,
+        })
     }
 
     pub fn is_visible(&self) -> Result<bool>;
@@ -247,16 +251,22 @@ impl ScrollBar {
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()>;
 
-    pub fn maximum(&self) -> Result<usize>;
-
-    pub fn set_maximum(&mut self, v: usize) -> Result<()>;
-
-    pub fn page(&self) -> Result<usize> {
-        Ok(1)
+    pub fn maximum(&self) -> Result<usize> {
+        Ok(self.handle.maximum()? + self.page()?)
     }
 
-    pub fn set_page(&mut self, _v: usize) -> Result<()> {
-        Ok(())
+    pub fn set_maximum(&mut self, v: usize) -> Result<()> {
+        self.handle.set_maximum(v.saturating_sub(self.page()?))
+    }
+
+    pub fn page(&self) -> Result<usize> {
+        Ok(self.page)
+    }
+
+    pub fn set_page(&mut self, v: usize) -> Result<()> {
+        let max = self.maximum()?;
+        self.page = v;
+        self.set_maximum(max)
     }
 
     pub fn pos(&self) -> Result<usize>;
