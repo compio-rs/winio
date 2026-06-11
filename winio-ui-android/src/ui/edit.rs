@@ -74,7 +74,7 @@ impl Edit {
                 DynamicProxy::build(env, &LoaderContext::None, [TextWatcher::class_name()], {
                     let on_change = on_change.clone();
                     move |env, method, _args| {
-                        if method.get_name(env)?.to_string() == "onTextChanged" {
+                        if method.get_name(env)?.try_to_string(env)? == "onTextChanged" {
                             on_change.signal(());
                         }
                         Ok(JObject::null())

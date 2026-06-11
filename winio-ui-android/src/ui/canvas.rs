@@ -375,11 +375,11 @@ jni::bind_java_type! {
     constructors {
         fn new(left: jint, top: jint, right: jint, bottom: jint),
     },
-    methods {
-        fn left() -> jint,
-        fn top() -> jint,
-        fn right() -> jint,
-        fn bottom() -> jint,
+    fields {
+        left: jint,
+        top: jint,
+        right: jint,
+        bottom: jint,
     },
 }
 
