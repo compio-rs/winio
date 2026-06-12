@@ -258,7 +258,7 @@ impl Drop for MarkdownPage {
 }
 
 async fn read_file(path: impl AsRef<Path>) -> Result<Vec<u8>> {
-    let file = UriFile::open(path.as_ref()).await?;
+    let file = UriFile::open(path).await?;
     let (_, buffer) = buf_try!(@try file.read_to_end_at(vec![], 0).await);
     Ok(buffer)
 }

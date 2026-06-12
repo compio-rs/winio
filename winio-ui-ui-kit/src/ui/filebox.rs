@@ -5,7 +5,9 @@ use objc2::{
     rc::{Allocated, Retained},
     runtime::ProtocolObject,
 };
-use objc2_foundation::{NSArray, NSObject, NSObjectProtocol, NSString, NSURL};
+use objc2_foundation::{
+    NSArray, NSData, NSObject, NSObjectProtocol, NSString, NSTemporaryDirectory, NSURL, ns_string,
+};
 use objc2_ui_kit::{UIDocumentPickerDelegate, UIDocumentPickerViewController};
 use objc2_uniform_type_identifiers::{UTType, UTTypeData, UTTypeFolder};
 use winio_callback::Callback;
@@ -61,25 +63,28 @@ impl FileBox {
     }
 
     pub async fn open(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
-        Ok(filebox(parent, self.filters, false, false)
+        Ok(filebox(parent, self.filters, false, false, false)
             .await?
             .into_iter()
             .next())
     }
 
     pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Result<Vec<PathBuf>> {
-        filebox(parent, self.filters, true, false).await
+        filebox(parent, self.filters, true, false, false).await
     }
 
     pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
-        Ok(filebox(parent, self.filters, false, true)
+        Ok(filebox(parent, self.filters, false, true, false)
             .await?
             .into_iter()
             .next())
     }
 
-    pub async fn save(self, _parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
-        Err(Error::NotSupported)
+    pub async fn save(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
+        Ok(filebox(parent, self.filters, false, false, true)
+            .await?
+            .into_iter()
+            .next())
     }
 }
 
@@ -88,6 +93,7 @@ async fn filebox(
     filters: Vec<FileFilter>,
     multiple: bool,
     folder: bool,
+    save: bool,
 ) -> Result<Vec<PathBuf>> {
     let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
     let delegate = catch(|| {
@@ -113,8 +119,19 @@ async fn filebox(
             ns_filters
         };
         let ns_filters = NSArray::from_retained_slice(&ns_filters);
-        let browser =
-            UIDocumentPickerViewController::initForOpeningContentTypes(mtm.alloc(), &ns_filters);
+        let browser = if !save {
+            UIDocumentPickerViewController::initForOpeningContentTypes(mtm.alloc(), &ns_filters)
+        } else {
+            let dir = NSTemporaryDirectory();
+            let dir = NSURL::fileURLWithPath_isDirectory_relativeToURL(&dir, false, None);
+            let path = dir
+                .URLByAppendingPathComponent(ns_string!("winio_filebox_save_temp"))
+                .ok_or_else(|| Error::NullPointer)?;
+            let data = NSData::from_vec(vec![0; 1]);
+            data.writeToURL_atomically(&path, true);
+            let urls = NSArray::from_retained_slice(&[path]);
+            UIDocumentPickerViewController::initForExportingURLs(mtm.alloc(), &urls)
+        };
         browser.setAllowsMultipleSelection(multiple);
         browser.setShouldShowFileExtensions(true);
         let delegate = FilePickerDelegate::new(mtm);

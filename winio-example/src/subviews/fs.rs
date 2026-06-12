@@ -4,7 +4,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use compio::{buf::buf_try, io::AsyncReadAtExt, runtime::spawn};
+use compio::{
+    buf::buf_try,
+    io::{AsyncReadAtExt, AsyncWriteAtExt},
+    runtime::spawn,
+};
 use winio::prelude::*;
 
 use crate::{Error, Result};
@@ -12,7 +16,8 @@ use crate::{Error, Result};
 pub struct FsPage {
     window: Child<TabViewItem>,
     canvas: Child<Canvas>,
-    button: Child<Button>,
+    open_button: Child<Button>,
+    save_button: Child<Button>,
     label: Child<Label>,
     text: FsFetchStatus,
 }
@@ -27,13 +32,16 @@ pub enum FsFetchStatus {
 #[derive(Debug)]
 pub enum FsPageEvent {
     ChooseFile,
+    SaveFile,
 }
 
 #[derive(Debug)]
 pub enum FsPageMessage {
     Noop,
     ChooseFile,
+    ChooseSaveFile,
     OpenFile(PathBuf),
+    SaveFile(PathBuf),
     Fetch(FsFetchStatus),
 }
 
@@ -50,8 +58,11 @@ impl Component for FsPage {
                 text: "File IO",
             },
             canvas: Canvas = (&window),
-            button: Button = (&window) => {
+            open_button: Button = (&window) => {
                 text: "Choose file...",
+            },
+            save_button: Button = (&window) => {
+                text: "Save file...",
             },
             label: Label = (&window) => {
                 text: path,
@@ -65,7 +76,8 @@ impl Component for FsPage {
         Ok(Self {
             window,
             canvas,
-            button,
+            open_button,
+            save_button,
             label,
             text: FsFetchStatus::Loading,
         })
@@ -74,14 +86,23 @@ impl Component for FsPage {
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: FsPageMessage::Noop,
-            self.button => {
+            self.open_button => {
                 ButtonEvent::Click => FsPageMessage::ChooseFile,
+            },
+            self.save_button => {
+                ButtonEvent::Click => FsPageMessage::ChooseSaveFile,
             },
         }
     }
 
     async fn update_children(&mut self) -> Result<bool> {
-        update_children!(self.window, self.canvas, self.button, self.label)
+        update_children!(
+            self.window,
+            self.canvas,
+            self.open_button,
+            self.save_button,
+            self.label
+        )
     }
 
     async fn update(
@@ -95,9 +116,21 @@ impl Component for FsPage {
                 sender.output(FsPageEvent::ChooseFile);
                 Ok(false)
             }
+            FsPageMessage::ChooseSaveFile => {
+                sender.output(FsPageEvent::SaveFile);
+                Ok(false)
+            }
             FsPageMessage::OpenFile(p) => {
                 self.label.set_text(p.to_str().unwrap_or_default())?;
                 spawn(fetch(p, sender.clone())).detach();
+                Ok(true)
+            }
+            FsPageMessage::SaveFile(p) => {
+                let data = match &self.text {
+                    FsFetchStatus::Complete(s) => s.clone(),
+                    _ => String::new(),
+                };
+                spawn(save(p, data, sender.clone())).detach();
                 Ok(true)
             }
             FsPageMessage::Fetch(status) => {
@@ -113,7 +146,7 @@ impl Component for FsPage {
         {
             let mut panel = layout! {
                 StackPanel::new(Orient::Vertical),
-                self.label, self.button,
+                self.label, self.open_button, self.save_button,
                 self.canvas => { grow: true }
             };
             panel.set_size(csize)?;
@@ -158,7 +191,7 @@ impl Deref for FsPage {
 }
 
 async fn read_file(path: impl AsRef<Path>) -> Result<String> {
-    let file = UriFile::open(path.as_ref()).await?;
+    let file = UriFile::open(path).await?;
     let (_, buffer) = buf_try!(@try file.read_to_end_at(vec![], 0).await);
     Ok(String::from_utf8(buffer).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?)
 }
@@ -170,4 +203,19 @@ async fn fetch(path: impl AsRef<Path>, sender: ComponentSender<FsPage>) {
         Err(e) => FsFetchStatus::Error(format!("{e:?}")),
     };
     sender.post(FsPageMessage::Fetch(status));
+}
+
+async fn write_file(path: impl AsRef<Path>, data: String) -> Result<()> {
+    let mut file = UriFile::create(path).await?;
+    file.write_all_at(data, 0).await.0?;
+    Ok(())
+}
+
+async fn save(path: impl AsRef<Path>, data: String, sender: ComponentSender<FsPage>) {
+    match write_file(path, data).await {
+        Ok(()) => {}
+        Err(e) => {
+            sender.post(FsPageMessage::Fetch(FsFetchStatus::Error(format!("{e:?}"))));
+        }
+    }
 }

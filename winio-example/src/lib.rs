@@ -76,7 +76,11 @@ pub enum MainMessage {
     #[cfg(feature = "compio-compat")]
     ChooseFile,
     #[cfg(feature = "compio-compat")]
+    ChooseSaveFile,
+    #[cfg(feature = "compio-compat")]
     OpenFile(PathBuf),
+    #[cfg(feature = "compio-compat")]
+    SaveFile(PathBuf),
     #[cfg(feature = "compio-compat")]
     ChooseFolder,
     #[cfg(feature = "compio-compat")]
@@ -200,6 +204,8 @@ impl Component for MainModel {
             self.fs => {
                 #[cfg(feature = "compio-compat")]
                 FsPageEvent::ChooseFile => MainMessage::ChooseFile,
+                #[cfg(feature = "compio-compat")]
+                FsPageEvent::SaveFile => MainMessage::ChooseSaveFile,
             },
             self.net => {},
             self.gallery => {
@@ -305,7 +311,21 @@ impl Component for MainModel {
                 Ok(false)
             }
             #[cfg(feature = "compio-compat")]
+            MainMessage::ChooseSaveFile => {
+                if let Some(p) = FileBox::new()
+                    .title("Save file")
+                    .add_filter(("All files", "*.*"))
+                    .save(&self.window)
+                    .await?
+                {
+                    sender.post(MainMessage::SaveFile(p));
+                }
+                Ok(false)
+            }
+            #[cfg(feature = "compio-compat")]
             MainMessage::OpenFile(p) => self.fs.emit(FsPageMessage::OpenFile(p)).await,
+            #[cfg(feature = "compio-compat")]
+            MainMessage::SaveFile(p) => self.fs.emit(FsPageMessage::SaveFile(p)).await,
             #[cfg(feature = "compio-compat")]
             MainMessage::ChooseFolder => {
                 if let Some(p) = FileBox::new()
