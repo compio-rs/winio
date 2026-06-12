@@ -16,7 +16,7 @@ use crate::{
 };
 
 jni::bind_java_type! {
-    pub(crate) Layout => "android.R$layout",
+    Layout => "android.R$layout",
     fields {
         static simple_spinner_item {
             sig = jint,
@@ -25,10 +25,6 @@ jni::bind_java_type! {
         static simple_spinner_dropdown_item {
             sig = jint,
             name = "simple_spinner_dropdown_item",
-        },
-        static simple_list_item_1 {
-            sig = jint,
-            name = "simple_list_item_1",
         },
     }
 }
@@ -90,7 +86,7 @@ jni::bind_java_type! {
 }
 
 jni::bind_java_type! {
-    pub(crate) OnItemSelectedListener => "android.widget.AdapterView$OnItemSelectedListener",
+    OnItemSelectedListener => "android.widget.AdapterView$OnItemSelectedListener",
 }
 
 impl_listener!(OnItemSelectedListener);
@@ -119,7 +115,7 @@ impl ComboBox {
                 {
                     let on_select = on_select.clone();
                     move |env, method, _args| {
-                        if method.get_name(env)?.to_string() == "onItemSelected" {
+                        if method.get_name(env)?.try_to_string(env)? == "onItemSelected" {
                             on_select.signal(());
                         }
                         Ok(JObject::null())

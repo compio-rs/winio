@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use compio::{buf::buf_try, fs::File, io::AsyncReadAtExt, runtime::spawn};
+use compio::{buf::buf_try, io::AsyncReadAtExt, runtime::spawn};
 use winio::prelude::*;
 
 use crate::{Error, Result};
@@ -132,7 +132,11 @@ impl Component for FsPage {
                 .halign(HAlign::Left)
                 .valign(VAlign::Top)
                 .family("Courier New")
-                .size(12.0)
+                .size(if cfg!(target_os = "android") {
+                    30.0
+                } else {
+                    12.0
+                })
                 .build(),
             Point::zero(),
             match &self.text {
@@ -153,10 +157,10 @@ impl Deref for FsPage {
     }
 }
 
-async fn read_file(path: impl AsRef<Path>) -> std::io::Result<String> {
-    let file = File::open(path).await?;
+async fn read_file(path: impl AsRef<Path>) -> Result<String> {
+    let file = UriFile::open(path.as_ref()).await?;
     let (_, buffer) = buf_try!(@try file.read_to_end_at(vec![], 0).await);
-    String::from_utf8(buffer).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+    Ok(String::from_utf8(buffer).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?)
 }
 
 async fn fetch(path: impl AsRef<Path>, sender: ComponentSender<FsPage>) {

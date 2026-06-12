@@ -1,10 +1,15 @@
 use std::{
     collections::BTreeMap,
+    ffi::OsString,
     ops::Deref,
     path::{Path, PathBuf},
 };
 
-use compio::runtime::spawn_blocking;
+use compio::{
+    BufResult,
+    io::AsyncReadAtExt,
+    runtime::{ResumeUnwind, spawn, spawn_blocking},
+};
 use compio_log::error;
 use image::{DynamicImage, ImageReader};
 use itertools::Itertools;
@@ -16,7 +21,8 @@ pub struct GalleryPage {
     window: Child<TabViewItem>,
     canvas: Child<Canvas>,
     scrollbar: Child<ScrollBar>,
-    button: Child<Button>,
+    start_button: Child<Button>,
+    browse_button: Child<Button>,
     entry: Child<Edit>,
     list: Child<ObservableVec<String>>,
     listbox: Child<ListBox>,
@@ -62,7 +68,6 @@ impl GalleryPage {
 
 #[derive(Debug)]
 pub enum GalleryPageEvent {
-    ShowMessage(MessageBox),
     ChooseFolder,
 }
 
@@ -71,10 +76,10 @@ pub enum GalleryPageMessage {
     Noop,
     Redraw,
     ChooseFolder,
+    Start,
     OpenFolder(PathBuf),
-    OpenError(String),
     Clear,
-    Append(PathBuf, DynamicImage),
+    Append(OsString, DynamicImage),
     List(ObservableVecEvent<String>),
     Select,
     Wheel(Vector),
@@ -87,7 +92,11 @@ impl Component for GalleryPage {
     type Message = GalleryPageMessage;
 
     async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
-        let path = dirs::picture_dir();
+        let path = if cfg!(target_os = "android") {
+            None
+        } else {
+            dirs::picture_dir()
+        };
         init! {
             window: TabViewItem = (()) => {
                 text: "Images",
@@ -97,8 +106,11 @@ impl Component for GalleryPage {
                 orient: Orient::Vertical,
                 minimum: 0,
             },
-            button: Button = (&window) => {
-                text: "...",
+            start_button: Button = (&window) => {
+                text: "Read",
+            },
+            browse_button: Button = (&window) => {
+                text: "Browse...",
             },
             entry: Edit = (&window) => {
                 text: path.as_ref()
@@ -113,14 +125,15 @@ impl Component for GalleryPage {
 
         if let Some(path) = path {
             let sender = sender.clone();
-            spawn_blocking(move || fetch(path, sender)).detach();
+            spawn(fetch(path, sender)).detach();
         }
 
         Ok(Self {
             window,
             canvas,
             scrollbar,
-            button,
+            start_button,
+            browse_button,
             entry,
             list,
             listbox,
@@ -135,7 +148,10 @@ impl Component for GalleryPage {
             self.canvas => {
                 CanvasEvent::MouseWheel(w) => GalleryPageMessage::Wheel(w),
             },
-            self.button => {
+            self.start_button => {
+                ButtonEvent::Click => GalleryPageMessage::Start,
+            },
+            self.browse_button => {
                 ButtonEvent::Click => GalleryPageMessage::ChooseFolder,
             },
             self.list => {
@@ -155,7 +171,8 @@ impl Component for GalleryPage {
             self.window,
             self.canvas,
             self.scrollbar,
-            self.button,
+            self.start_button,
+            self.browse_button,
             self.entry,
             self.list,
             self.listbox
@@ -175,20 +192,17 @@ impl Component for GalleryPage {
                 sender.output(GalleryPageEvent::ChooseFolder);
                 Ok(false)
             }
+            GalleryPageMessage::Start => {
+                let p = PathBuf::from(self.entry.text()?);
+                let sender = sender.clone();
+                spawn(fetch(p, sender)).detach();
+                Ok(true)
+            }
             GalleryPageMessage::OpenFolder(p) => {
                 self.entry.set_text(p.to_str().unwrap_or_default())?;
                 let sender = sender.clone();
-                spawn_blocking(move || fetch(p, sender)).detach();
+                spawn(fetch(p, sender)).detach();
                 Ok(true)
-            }
-            GalleryPageMessage::OpenError(e) => {
-                sender.output(GalleryPageEvent::ShowMessage(
-                    MessageBox::new()
-                        .message(&e)
-                        .style(MessageBoxStyle::Error)
-                        .buttons(MessageBoxButton::Ok),
-                ));
-                Ok(false)
             }
             GalleryPageMessage::Clear => {
                 self.list.clear();
@@ -196,14 +210,10 @@ impl Component for GalleryPage {
                 self.sel_images.clear();
                 Ok(true)
             }
-            GalleryPageMessage::Append(path, image) => {
-                if let Some(filename) = path.file_name() {
-                    self.list.push(filename.to_string_lossy().into_owned());
-                    self.images.push(image);
-                    Ok(true)
-                } else {
-                    Ok(false)
-                }
+            GalleryPageMessage::Append(filename, image) => {
+                self.list.push(filename.to_string_lossy().into_owned());
+                self.images.push(image);
+                Ok(true)
             }
             GalleryPageMessage::List(e) => Ok(self
                 .listbox
@@ -233,10 +243,10 @@ impl Component for GalleryPage {
         let csize = self.window.size()?;
 
         {
-            let mut header_panel = layout! {
-                StackPanel::new(Orient::Horizontal),
-                self.entry => { grow: true },
-                self.button
+            let mut button_panel = layout! {
+                Grid::from_str("1*,1*","1*").unwrap(),
+                self.start_button => { column: 0 },
+                self.browse_button => { column: 1 },
             };
             let mut content_panel = layout! {
                 StackPanel::new(Orient::Horizontal),
@@ -246,7 +256,8 @@ impl Component for GalleryPage {
             };
             let mut root_panel = layout! {
                 StackPanel::new(Orient::Vertical),
-                header_panel,
+                self.entry,
+                button_panel,
                 content_panel => { grow: true },
             };
             root_panel.set_size(csize)?;
@@ -328,27 +339,56 @@ impl Deref for GalleryPage {
     }
 }
 
-fn fetch(path: impl AsRef<Path>, sender: ComponentSender<GalleryPage>) {
+async fn fetch(path: impl AsRef<Path>, sender: ComponentSender<GalleryPage>) {
     sender.post(GalleryPageMessage::Clear);
-    let dir = match path.as_ref().read_dir() {
+    let dir = match read_uri_dir(path) {
         Ok(dir) => dir,
         Err(e) => {
-            sender.post(GalleryPageMessage::OpenError(e.to_string()));
+            error!("Failed to read directory: {e:?}");
             return;
         }
     };
     for p in dir {
-        let p = match p {
-            Ok(e) => e.path(),
-            Err(_e) => {
-                error!("Failed to read directory entry: {_e:?}");
+        let entry = match p {
+            Ok(e) => e,
+            Err(e) => {
+                error!("Failed to read directory entry: {e:?}");
                 continue;
             }
         };
-        if let Ok(reader) = ImageReader::open(&p)
-            && let Ok(image) = reader.decode()
-        {
-            sender.post(GalleryPageMessage::Append(p, image));
+        let Ok(ty) = entry.file_type() else {
+            continue;
+        };
+        if !ty.is_file() {
+            continue;
+        }
+        let p = entry.path();
+        let file = match UriFile::open(&p).await {
+            Ok(f) => f,
+            Err(e) => {
+                error!("Failed to open file: {e:?}");
+                continue;
+            }
+        };
+        let data = match file.read_to_end_at(vec![], 0).await {
+            BufResult(Ok(_), data) => data,
+            BufResult(Err(e), _) => {
+                error!("Failed to read file: {e:?}");
+                continue;
+            }
+        };
+        let image = spawn_blocking(move || {
+            let reader = ImageReader::new(std::io::Cursor::new(data))
+                .with_guessed_format()
+                .ok()?;
+            let image = reader.decode().ok()?;
+            Some(image)
+        })
+        .await
+        .resume_unwind()
+        .flatten();
+        if let Some(image) = image {
+            sender.post(GalleryPageMessage::Append(entry.file_name(), image));
         }
     }
 }

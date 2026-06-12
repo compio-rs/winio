@@ -13,8 +13,8 @@ use winio_handle::{AsWindow, BorrowedContainer, BorrowedWindow};
 use winio_primitive::{Margin, Point, Size};
 
 use crate::{
-    AView, Activity, BaseWidget, Context, DESTROY_CALLBACK, FrameLayoutLayoutParams,
-    OnLayoutChangeListener, Result, current_activity, vm_exec,
+    AView, Activity, BaseWidget, Context, FrameLayoutLayoutParams, OnLayoutChangeListener, Result,
+    current_activity, vm_exec,
 };
 
 jni::bind_java_type! {
@@ -82,7 +82,6 @@ pub struct Window {
     on_resize: Arc<SyncCallback>,
     #[allow(unused)]
     on_resize_proxy: DynamicProxy,
-    on_destroy: Arc<SyncCallback>,
     size_update: Arc<Mutex<Size>>,
 }
 
@@ -110,8 +109,6 @@ impl Window {
                 .unwrap()
                 .replace(on_resize.clone());
             let size_update = Arc::new(Mutex::new(Size::zero()));
-            let on_destroy = Arc::new(SyncCallback::new());
-            DESTROY_CALLBACK.lock().unwrap().replace(on_destroy.clone());
             let on_resize_proxy = DynamicProxy::build(
                 env,
                 &LoaderContext::None,
@@ -160,7 +157,6 @@ impl Window {
                 activity: act,
                 on_resize,
                 on_resize_proxy,
-                on_destroy,
                 size_update,
             })
         })
@@ -230,7 +226,7 @@ impl Window {
     }
 
     pub async fn wait_close(&self) {
-        self.on_destroy.wait().await;
+        std::future::pending().await
     }
 
     pub async fn wait_move(&self) {
@@ -257,7 +253,6 @@ winio_handle::impl_as_container!(Window, inner_view);
 impl Drop for Window {
     fn drop(&mut self) {
         WINDOW_RESIZE_CALLBACK.lock().unwrap().take();
-        DESTROY_CALLBACK.lock().unwrap().take();
     }
 }
 

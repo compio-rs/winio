@@ -8,7 +8,7 @@ use std::{
 };
 
 use axum::{http::Uri, response::IntoResponse};
-use compio::{buf::buf_try, fs::File, io::AsyncReadAtExt, net::TcpListener, runtime::spawn};
+use compio::{buf::buf_try, io::AsyncReadAtExt, net::TcpListener, runtime::spawn};
 use futures_util::FutureExt;
 use local_sync::oneshot;
 use send_wrapper::SendWrapper;
@@ -35,7 +35,6 @@ pub enum MarkdownFetchStatus {
 #[derive(Debug)]
 pub enum MarkdownPageEvent {
     ChooseFile,
-    MessageBox(MessageBox),
 }
 
 #[derive(Debug)]
@@ -205,14 +204,21 @@ impl Component for MarkdownPage {
                         self.webview.navigate_to_string(html)?;
                     }
                     MarkdownFetchStatus::Error(err) => {
-                        sender.output(MarkdownPageEvent::MessageBox(
-                            MessageBox::new()
-                                .title("Error")
-                                .message("Failed to load markdown file.")
-                                .instruction(&err)
-                                .style(MessageBoxStyle::Error)
-                                .buttons(MessageBoxButton::Ok),
-                        ));
+                        let html = format!(
+                            r#"<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markdown Preview</title>
+</head>
+<body>
+    {err:?}
+</body>
+</html>
+"#
+                        );
+                        self.webview.navigate_to_string(html)?;
                     }
                 }
                 Ok(true)
@@ -251,15 +257,15 @@ impl Drop for MarkdownPage {
     }
 }
 
-async fn read_file(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
-    let file = File::open(path).await?;
+async fn read_file(path: impl AsRef<Path>) -> Result<Vec<u8>> {
+    let file = UriFile::open(path.as_ref()).await?;
     let (_, buffer) = buf_try!(@try file.read_to_end_at(vec![], 0).await);
     Ok(buffer)
 }
 
-async fn read_file_content(path: impl AsRef<Path>) -> io::Result<String> {
+async fn read_file_content(path: impl AsRef<Path>) -> Result<String> {
     let bytes = read_file(path).await?;
-    String::from_utf8(bytes).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+    Ok(String::from_utf8(bytes).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?)
 }
 
 async fn fetch(path: impl AsRef<Path>, sender: ComponentSender<MarkdownPage>) {

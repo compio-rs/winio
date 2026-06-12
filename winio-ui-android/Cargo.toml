@@ -45,4 +45,4 @@ thiserror = { workspace = true }
 media = []
 webview = []
 
-compio-compat = ["compio/compat", "dep:rustix"]
+compio-compat = ["compio/compat", "dep:rustix", "compio/fs"]

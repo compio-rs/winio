@@ -73,7 +73,7 @@ def abiList = localProperties.getProperty('ndk.abis', 'arm64-v8a,armeabi-v7a,x86
         cmdArgs.addAll([
                 'rustc',
                 '--crate-type', 'cdylib', '--lib',
-                '-F', 'plotters,compio-compat',
+                '-F', 'all,nightly',
         ])
         if (profileMode != null) {
             cmdArgs.add(profileMode)

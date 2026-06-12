@@ -230,8 +230,13 @@ impl Component for MediaPage {
                 Ok(false)
             }
             MediaPageMessage::OpenFile(p) => {
-                let url =
-                    Url::from_file_path(&p).map_err(|_| std::io::ErrorKind::InvalidFilename)?;
+                let url = if let Ok(url) = Url::parse(&p.to_string_lossy())
+                    && !url.scheme().is_empty()
+                {
+                    url
+                } else {
+                    Url::from_file_path(&p).map_err(|_| std::io::ErrorKind::InvalidFilename)?
+                };
                 match self.media.load(url.as_str()).await {
                     Ok(()) => {
                         self.volume_slider.enable()?;

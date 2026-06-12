@@ -12,9 +12,19 @@ use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Point, Size};
 
 use crate::{
-    AView, ArrayAdapter, ArrayList, BaseWidget, Context, Layout, OnItemSelectedListener, Result,
-    current_activity, vm_exec,
+    AView, ArrayAdapter, ArrayList, BaseWidget, Context, Result, current_activity, impl_listener,
+    vm_exec,
 };
+
+jni::bind_java_type! {
+    Layout => "android.R$layout",
+    fields {
+        static simple_list_item_activated_1 {
+            sig = jint,
+            name = "simple_list_item_activated_1",
+        },
+    }
+}
 
 jni::bind_java_type! {
     AListView => android.widget.ListView,
@@ -23,7 +33,7 @@ jni::bind_java_type! {
         Context => android.content.Context,
         ListAdapter => android.widget.ListAdapter,
         SparseBooleanArray => android.util.SparseBooleanArray,
-        OnItemSelectedListener => "android.widget.AdapterView$OnItemSelectedListener",
+        OnItemClickListener => "android.widget.AdapterView$OnItemClickListener",
     },
     constructors {
         fn new(&Context),
@@ -34,7 +44,7 @@ jni::bind_java_type! {
         fn set_adapter(adapter: &ListAdapter),
         fn set_item_checked(position: jint, value: jboolean),
         fn get_checked_item_positions() -> SparseBooleanArray,
-        fn set_on_item_selected_listener(listener: &OnItemSelectedListener),
+        fn set_on_item_click_listener(listener: &OnItemClickListener),
     },
     is_instance_of = {
         view = AView,
@@ -57,6 +67,12 @@ jni::bind_java_type! {
     }
 }
 
+jni::bind_java_type! {
+    OnItemClickListener => "android.widget.AdapterView$OnItemClickListener",
+}
+
+impl_listener!(OnItemClickListener);
+
 #[derive(Debug)]
 pub struct ListBox {
     inner: BaseWidget<AListView<'static>>,
@@ -77,22 +93,21 @@ impl ListBox {
             let select_proxy = DynamicProxy::build(
                 env,
                 &jni::refs::LoaderContext::None,
-                [OnItemSelectedListener::class_name()],
+                [OnItemClickListener::class_name()],
                 {
                     let on_select = on_select.clone();
-                    move |env, method, _args| {
-                        if method.get_name(env)?.to_string() == "onItemSelected" {
-                            on_select.signal(());
-                        }
+                    move |_env, _method, _args| {
+                        on_select.signal(());
                         Ok(JObject::null())
                     }
                 },
             )?;
-            widget.set_on_item_selected_listener(env, &select_proxy)?;
+            widget.set_on_item_click_listener(env, &select_proxy)?;
             let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
             let list = JList::from(ArrayList::new(env)?);
             let list = env.new_global_ref(list)?;
-            let adapter = ArrayAdapter::new(env, &act, Layout::simple_list_item_1(env)?, &list)?;
+            let adapter =
+                ArrayAdapter::new(env, &act, Layout::simple_list_item_activated_1(env)?, &list)?;
             inner.set_adapter(env, &adapter)?;
             let adapter = env.new_global_ref(adapter)?;
             Ok(Self {
