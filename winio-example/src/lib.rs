@@ -205,8 +205,6 @@ impl Component for MainModel {
             self.gallery => {
                 #[cfg(feature = "compio-compat")]
                 GalleryPageEvent::ChooseFolder => MainMessage::ChooseFolder,
-                #[cfg(feature = "compio-compat")]
-                GalleryPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
             },
             self.scroll => {
                 ScrollViewPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
@@ -221,8 +219,6 @@ impl Component for MainModel {
             self.markdown => {
                 #[cfg(all(feature = "webview", feature = "compio-compat"))]
                 MarkdownPageEvent::ChooseFile => MainMessage::ChooseMarkdown,
-                #[cfg(all(feature = "webview", feature = "compio-compat"))]
-                MarkdownPageEvent::MessageBox(mb) => MainMessage::ShowMessage(mb),
             },
         }
     }

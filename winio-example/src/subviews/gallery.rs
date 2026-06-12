@@ -67,7 +67,6 @@ impl GalleryPage {
 
 #[derive(Debug)]
 pub enum GalleryPageEvent {
-    ShowMessage(MessageBox),
     ChooseFolder,
 }
 
@@ -77,7 +76,6 @@ pub enum GalleryPageMessage {
     Redraw,
     ChooseFolder,
     OpenFolder(PathBuf),
-    OpenError(String),
     Clear,
     Append(OsString, DynamicImage),
     List(ObservableVecEvent<String>),
@@ -185,15 +183,6 @@ impl Component for GalleryPage {
                 let sender = sender.clone();
                 spawn(fetch(p, sender)).detach();
                 Ok(true)
-            }
-            GalleryPageMessage::OpenError(e) => {
-                sender.output(GalleryPageEvent::ShowMessage(
-                    MessageBox::new()
-                        .message(&e)
-                        .style(MessageBoxStyle::Error)
-                        .buttons(MessageBoxButton::Ok),
-                ));
-                Ok(false)
             }
             GalleryPageMessage::Clear => {
                 self.list.clear();
@@ -334,7 +323,7 @@ async fn fetch(path: impl AsRef<Path>, sender: ComponentSender<GalleryPage>) {
     let dir = match read_uri_dir(path) {
         Ok(dir) => dir,
         Err(e) => {
-            sender.post(GalleryPageMessage::OpenError(e.to_string()));
+            error!("Failed to read directory: {e:?}");
             return;
         }
     };

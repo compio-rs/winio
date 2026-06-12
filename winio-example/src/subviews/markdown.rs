@@ -35,7 +35,6 @@ pub enum MarkdownFetchStatus {
 #[derive(Debug)]
 pub enum MarkdownPageEvent {
     ChooseFile,
-    MessageBox(MessageBox),
 }
 
 #[derive(Debug)]
@@ -205,14 +204,21 @@ impl Component for MarkdownPage {
                         self.webview.navigate_to_string(html)?;
                     }
                     MarkdownFetchStatus::Error(err) => {
-                        sender.output(MarkdownPageEvent::MessageBox(
-                            MessageBox::new()
-                                .title("Error")
-                                .message("Failed to load markdown file.")
-                                .instruction(&err)
-                                .style(MessageBoxStyle::Error)
-                                .buttons(MessageBoxButton::Ok),
-                        ));
+                        let html = format!(
+                            r#"<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markdown Preview</title>
+</head>
+<body>
+    {err:?}
+</body>
+</html>
+"#
+                        );
+                        self.webview.navigate_to_string(html)?;
                     }
                 }
                 Ok(true)
