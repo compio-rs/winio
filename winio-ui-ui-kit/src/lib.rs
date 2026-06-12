@@ -16,3 +16,8 @@ pub use runtime::*;
 
 mod ui;
 pub use ui::*;
+
+#[cfg(feature = "compio-compat")]
+mod file;
+#[cfg(feature = "compio-compat")]
+pub use file::*;

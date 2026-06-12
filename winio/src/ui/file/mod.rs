@@ -22,6 +22,7 @@ cfg_if::cfg_if! {
 
 /// A file opened from a URI. The URI is obtained from
 /// [`FileBox`](crate::ui::FileBox).
+#[derive(Debug)]
 pub struct UriFile {
     inner: internal::UriFile,
 }
@@ -60,6 +61,12 @@ impl AsyncReadAt for UriFile {
 impl AsyncWriteAt for UriFile {
     async fn write_at<T: IoBuf>(&mut self, buf: T, pos: u64) -> BufResult<usize, T> {
         self.inner.write_at(buf, pos).await
+    }
+}
+
+impl AsyncWriteAt for &UriFile {
+    async fn write_at<T: IoBuf>(&mut self, buf: T, pos: u64) -> BufResult<usize, T> {
+        (&self.inner).write_at(buf, pos).await
     }
 }
 

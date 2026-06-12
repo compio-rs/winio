@@ -136,7 +136,11 @@ async fn filebox(
     let urls = delegate.ivars().on_pick.wait().await;
     Ok(urls
         .into_iter()
-        .filter_map(|url| url.path().map(|s| from_nsstring(&s)).map(PathBuf::from))
+        .filter_map(|url| {
+            url.absoluteString()
+                .map(|s| from_nsstring(&s))
+                .map(PathBuf::from)
+        })
         .collect())
 }
 
