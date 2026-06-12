@@ -194,7 +194,12 @@ impl Slider {
     }
 
     pub fn set_pos(&mut self, v: usize) -> Result<()> {
-        vm_exec(|env| self.inner.set_value(env, v as _))?;
+        vm_exec(|env| {
+            let value_from = self.inner.get_value_from(env)?;
+            let value_to = self.inner.get_value_to(env)?;
+            let v = (v as f32).clamp(value_from, value_to);
+            self.inner.set_value(env, v)
+        })?;
         Ok(())
     }
 
