@@ -7,7 +7,7 @@ use objc2::{
 };
 use objc2_foundation::{NSArray, NSObject, NSObjectProtocol, NSString, NSURL};
 use objc2_ui_kit::{UIDocumentPickerDelegate, UIDocumentPickerViewController};
-use objc2_uniform_type_identifiers::{UTType, UTTypeData, UTTypeDirectory};
+use objc2_uniform_type_identifiers::{UTType, UTTypeData, UTTypeFolder};
 use winio_callback::Callback;
 use winio_handle::AsWindow;
 
@@ -92,7 +92,7 @@ async fn filebox(
     let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
     let delegate = catch(|| {
         let ns_filters = if folder {
-            vec![unsafe { UTTypeDirectory.retain() }]
+            vec![unsafe { UTTypeFolder.retain() }]
         } else {
             let mut ns_filters = filters
                 .into_iter()

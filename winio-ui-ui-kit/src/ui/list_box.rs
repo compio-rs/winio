@@ -208,8 +208,17 @@ define_class! {
         #[unsafe(method(tableView:didSelectRowAtIndexPath:))]
         unsafe fn tableView_didSelectRowAtIndexPath(
             &self,
-            _table_view: &UITableView,
-            _index_path: &NSIndexPath,
+            table_view: &UITableView,
+            index_path: &NSIndexPath,
+        ) {
+            self.ivars().select.signal::<GlobalRuntime>(());
+        }
+
+        #[unsafe(method(tableView:didDeselectRowAtIndexPath:))]
+        fn tableView_didDeselectRowAtIndexPath(
+            &self,
+            table_view: &UITableView,
+            index_path: &NSIndexPath,
         ) {
             self.ivars().select.signal::<GlobalRuntime>(());
         }

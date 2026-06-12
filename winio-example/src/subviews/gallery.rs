@@ -21,7 +21,8 @@ pub struct GalleryPage {
     window: Child<TabViewItem>,
     canvas: Child<Canvas>,
     scrollbar: Child<ScrollBar>,
-    button: Child<Button>,
+    start_button: Child<Button>,
+    browse_button: Child<Button>,
     entry: Child<Edit>,
     list: Child<ObservableVec<String>>,
     listbox: Child<ListBox>,
@@ -75,6 +76,7 @@ pub enum GalleryPageMessage {
     Noop,
     Redraw,
     ChooseFolder,
+    Start,
     OpenFolder(PathBuf),
     Clear,
     Append(OsString, DynamicImage),
@@ -90,7 +92,11 @@ impl Component for GalleryPage {
     type Message = GalleryPageMessage;
 
     async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
-        let path = dirs::picture_dir();
+        let path = if cfg!(target_os = "android") {
+            None
+        } else {
+            dirs::picture_dir()
+        };
         init! {
             window: TabViewItem = (()) => {
                 text: "Images",
@@ -100,8 +106,11 @@ impl Component for GalleryPage {
                 orient: Orient::Vertical,
                 minimum: 0,
             },
-            button: Button = (&window) => {
-                text: "...",
+            start_button: Button = (&window) => {
+                text: "Read",
+            },
+            browse_button: Button = (&window) => {
+                text: "Browse...",
             },
             entry: Edit = (&window) => {
                 text: path.as_ref()
@@ -123,7 +132,8 @@ impl Component for GalleryPage {
             window,
             canvas,
             scrollbar,
-            button,
+            start_button,
+            browse_button,
             entry,
             list,
             listbox,
@@ -138,7 +148,10 @@ impl Component for GalleryPage {
             self.canvas => {
                 CanvasEvent::MouseWheel(w) => GalleryPageMessage::Wheel(w),
             },
-            self.button => {
+            self.start_button => {
+                ButtonEvent::Click => GalleryPageMessage::Start,
+            },
+            self.browse_button => {
                 ButtonEvent::Click => GalleryPageMessage::ChooseFolder,
             },
             self.list => {
@@ -158,7 +171,8 @@ impl Component for GalleryPage {
             self.window,
             self.canvas,
             self.scrollbar,
-            self.button,
+            self.start_button,
+            self.browse_button,
             self.entry,
             self.list,
             self.listbox
@@ -177,6 +191,12 @@ impl Component for GalleryPage {
             GalleryPageMessage::ChooseFolder => {
                 sender.output(GalleryPageEvent::ChooseFolder);
                 Ok(false)
+            }
+            GalleryPageMessage::Start => {
+                let p = PathBuf::from(self.entry.text()?);
+                let sender = sender.clone();
+                spawn(fetch(p, sender)).detach();
+                Ok(true)
             }
             GalleryPageMessage::OpenFolder(p) => {
                 self.entry.set_text(p.to_str().unwrap_or_default())?;
@@ -223,10 +243,10 @@ impl Component for GalleryPage {
         let csize = self.window.size()?;
 
         {
-            let mut header_panel = layout! {
-                StackPanel::new(Orient::Horizontal),
-                self.entry => { grow: true },
-                self.button
+            let mut button_panel = layout! {
+                Grid::from_str("1*,1*","1*").unwrap(),
+                self.start_button => { column: 0 },
+                self.browse_button => { column: 1 },
             };
             let mut content_panel = layout! {
                 StackPanel::new(Orient::Horizontal),
@@ -236,7 +256,8 @@ impl Component for GalleryPage {
             };
             let mut root_panel = layout! {
                 StackPanel::new(Orient::Vertical),
-                header_panel,
+                self.entry,
+                button_panel,
                 content_panel => { grow: true },
             };
             root_panel.set_size(csize)?;
