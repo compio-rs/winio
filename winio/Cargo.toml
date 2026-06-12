@@ -96,7 +96,7 @@ compio-compat = [
     "winio-ui-qt?/compio-compat",
     "winio-ui-android/compio-compat",
 ]
-wgpu = ["dep:wgpu", "winio-ui-win32?/wgpu"]
+wgpu = ["dep:wgpu", "winio-ui-win32?/wgpu", "winio-ui-winui?/wgpu"]
 all = ["media", "webview", "wgpu", "plotters", "compio-compat"]
 
 raw-window-handle = ["winio-handle/raw-window-handle"]
