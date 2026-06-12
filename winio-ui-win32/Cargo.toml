@@ -33,6 +33,9 @@ scoped-tls = { workspace = true }
 slab = { workspace = true }
 widestring = { workspace = true }
 
+raw-window-handle = { workspace = true, optional = true }
+wgpu = { workspace = true, optional = true, features = ["dx12"] }
+
 windows-sys = { workspace = true, features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
@@ -68,6 +71,7 @@ webview = [
     "dep:local-sync",
 ]
 compio-compat = ["compio/runtime", "compio/compat"]
+wgpu = ["dep:wgpu", "dep:raw-window-handle"]
 
 dark-mode = ["winio-ui-windows-common/dark-mode"]
 

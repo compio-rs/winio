@@ -61,7 +61,16 @@ cfg_if::cfg_if! {
 }
 
 cfg_if::cfg_if! {
-    if #[cfg(any(not(feature = "media"), not(feature = "webview"), not(feature = "plotters"), not(feature = "compio-compat")))] {
+    if #[cfg(feature = "wgpu")] {
+        mod wgpu;
+        pub use wgpu::*;
+    } else {
+        pub use DummyPage as WgpuPage;
+    }
+}
+
+cfg_if::cfg_if! {
+    if #[cfg(any(not(feature = "media"), not(feature = "webview"), not(feature = "plotters"), not(feature = "wgpu"), not(feature = "compio-compat")))] {
         mod dummy;
         pub use dummy::*;
     }

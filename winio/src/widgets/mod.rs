@@ -74,3 +74,8 @@ pub use webview::*;
 
 mod tab_view;
 pub use tab_view::*;
+
+#[cfg(feature = "wgpu")]
+mod wgpu;
+#[cfg(feature = "wgpu")]
+pub use wgpu::*;

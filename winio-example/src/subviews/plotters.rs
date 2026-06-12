@@ -1,7 +1,6 @@
 use std::ops::Deref;
 
 use plotters::prelude::{Color as _, *};
-use plotters_backend::DrawingErrorKind;
 use winio::prelude::*;
 
 use crate::{Error, Result};
@@ -85,17 +84,5 @@ impl Deref for PlottersPage {
 
     fn deref(&self) -> &Self::Target {
         &self.window
-    }
-}
-
-impl From<DrawingAreaErrorKind<winio::Error>> for Error {
-    fn from(value: DrawingAreaErrorKind<winio::Error>) -> Self {
-        match value {
-            DrawingAreaErrorKind::BackendError(DrawingErrorKind::DrawingError(e)) => e.into(),
-            DrawingAreaErrorKind::BackendError(DrawingErrorKind::FontError(e)) => {
-                Error::Io(std::io::Error::other(e))
-            }
-            _ => Error::Io(std::io::Error::other(value)),
-        }
     }
 }
