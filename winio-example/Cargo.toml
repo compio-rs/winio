@@ -40,7 +40,7 @@ pulldown-cmark = "0.13"
 send_wrapper = { workspace = true, features = ["futures"] }
 tracing-subscriber = "0.3"
 url = "2"
-wgpu = { workspace = true, optional = true }
+wgpu = { workspace = true, optional = true, features = ["wgsl"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 android-activity = { workspace = true }
@@ -57,7 +57,7 @@ media = ["winio/media"]
 webview = ["winio/webview"]
 plotters = ["winio/plotters", "dep:plotters-backend"]
 compio-compat = ["winio/compio-compat"]
-wgpu = ["winio/wgpu", "dep:wgpu", "dep:bytemuck", "dep:cgmath", "wgpu/wgsl"]
+wgpu = ["winio/wgpu", "dep:wgpu", "dep:bytemuck", "dep:cgmath"]
 all = ["media", "webview", "plotters", "wgpu", "compio-compat"]
 
 nightly = [

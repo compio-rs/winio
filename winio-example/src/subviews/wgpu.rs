@@ -87,7 +87,7 @@ impl SurfaceData {
                 module: &shader,
                 entry_point: Some("fs_main"),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: surface_format, // 你的表面格式
+                    format: surface_format,
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -95,10 +95,10 @@ impl SurfaceData {
             }),
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
-                cull_mode: Some(wgpu::Face::Back), // 背面剔除
+                cull_mode: Some(wgpu::Face::Back),
                 ..Default::default()
             },
-            depth_stencil: None, // 如果需要深度测试可以加上
+            depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             multiview_mask: None,
             cache: None,
@@ -358,12 +358,12 @@ impl Vertex {
                 wgpu::VertexAttribute {
                     format: wgpu::VertexFormat::Float32x3,
                     offset: 0,
-                    shader_location: 0, // 位置
+                    shader_location: 0, // location
                 },
                 wgpu::VertexAttribute {
                     format: wgpu::VertexFormat::Float32x3,
                     offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                    shader_location: 1, // 颜色
+                    shader_location: 1, // color
                 },
             ],
         }

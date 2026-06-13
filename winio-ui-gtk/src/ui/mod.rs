@@ -79,3 +79,8 @@ pub use accent::*;
 
 mod tab_view;
 pub use tab_view::*;
+
+#[cfg(feature = "wgpu")]
+mod wgpu;
+#[cfg(feature = "wgpu")]
+pub use wgpu::*;

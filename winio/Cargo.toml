@@ -102,6 +102,7 @@ wgpu = [
     "winio-ui-ui-kit/wgpu",
     "winio-ui-win32?/wgpu",
     "winio-ui-winui?/wgpu",
+    "winio-ui-gtk?/wgpu",
     "winio-ui-qt?/wgpu",
     "winio-ui-android/wgpu",
 ]
