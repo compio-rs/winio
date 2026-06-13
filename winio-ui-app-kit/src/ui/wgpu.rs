@@ -1,11 +1,12 @@
-use std::num::NonZero;
+use std::ptr::NonNull;
 
 use inherit_methods_macro::inherit_methods;
+use objc2::rc::Retained;
 use wgpu::{
     CreateSurfaceError, Instance, Surface, SurfaceTarget,
     rwh::{
-        DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawWindowHandle,
-        Win32WindowHandle, WindowHandle,
+        AppKitWindowHandle, DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle,
+        RawWindowHandle, WindowHandle,
     },
 };
 use winio_handle::{AsContainer, AsWidget};
@@ -65,8 +66,13 @@ impl WgpuCanvas {
         &self,
         instance: &Instance,
     ) -> std::result::Result<Surface<'static>, CreateSurfaceError> {
-        let handle = RawWindowHandle::Win32(Win32WindowHandle::new(
-            NonZero::new(self.handle.as_widget().as_win32() as _).unwrap(),
+        let handle = RawWindowHandle::AppKit(AppKitWindowHandle::new(
+            NonNull::new(
+                Retained::as_ptr(self.handle.as_widget().as_app_kit())
+                    .cast_mut()
+                    .cast(),
+            )
+            .unwrap(),
         ));
 
         struct WindowHandleWrapper(RawWindowHandle);
@@ -82,7 +88,7 @@ impl WgpuCanvas {
 
         impl HasDisplayHandle for WindowHandleWrapper {
             fn display_handle(&self) -> std::result::Result<DisplayHandle<'_>, HandleError> {
-                Ok(DisplayHandle::windows())
+                Ok(DisplayHandle::appkit())
             }
         }
 
