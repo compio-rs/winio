@@ -134,17 +134,26 @@ impl SurfaceData {
     }
 
     fn configure(&self, device: &wgpu::Device, size: Size) -> Result<()> {
-        let surface_config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: self.surface_format,
-            view_formats: vec![self.surface_format.add_srgb_suffix()],
-            alpha_mode: wgpu::CompositeAlphaMode::Auto,
-            width: size.width as _,
-            height: size.height as _,
-            desired_maximum_frame_latency: 2,
-            present_mode: wgpu::PresentMode::AutoVsync,
-        };
-        self.surface.configure(device, &surface_config);
+        let width = size.width as u32;
+        let height = size.height as u32;
+        let needs_update = self
+            .surface
+            .get_configuration()
+            .map(|c| c.width != width || c.height != height)
+            .unwrap_or(true);
+        if needs_update {
+            let surface_config = wgpu::SurfaceConfiguration {
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                format: self.surface_format,
+                view_formats: vec![self.surface_format.add_srgb_suffix()],
+                alpha_mode: wgpu::CompositeAlphaMode::Auto,
+                width: size.width as _,
+                height: size.height as _,
+                desired_maximum_frame_latency: 2,
+                present_mode: wgpu::PresentMode::AutoVsync,
+            };
+            self.surface.configure(device, &surface_config);
+        }
         Ok(())
     }
 }
