@@ -371,7 +371,7 @@ impl DrawingImage {
 }
 
 jni::bind_java_type! {
-    ARect => android.graphics.Rect,
+    pub(crate) ARect => android.graphics.Rect,
     constructors {
         fn new(left: jint, top: jint, right: jint, bottom: jint),
     },
@@ -1019,6 +1019,77 @@ pub struct Canvas {
     latest_size: Size,
 }
 
+pub(crate) fn view_touch_proxy(
+    env: &mut Env,
+    view: &AView,
+    on_down: Arc<SyncCallback<MouseButton>>,
+    on_up: Arc<SyncCallback<MouseButton>>,
+    on_move: Arc<SyncCallback<Point>>,
+    on_scroll: Arc<SyncCallback<Vector>>,
+) -> Result<DynamicProxy> {
+    let touch_proxy = DynamicProxy::build(
+        env,
+        &LoaderContext::None,
+        [OnTouchListener::class_name()],
+        move |env, _method, args| {
+            const ACTION_DOWN: i32 = 0x0;
+            const ACTION_UP: i32 = 0x1;
+            const ACTION_MOVE: i32 = 0x2;
+            const ACTION_HOVER_MOVE: i32 = 0x7;
+            const ACTION_SCROLL: i32 = 0x8;
+
+            const AXIS_VSCROLL: i32 = 0x9;
+            const AXIS_HSCROLL: i32 = 0xA;
+
+            const BUTTON_PRIMARY: i32 = 0x1;
+            const BUTTON_SECONDARY: i32 = 0x2;
+            const BUTTON_TERTIARY: i32 = 0x4;
+
+            const fn button(btn: i32) -> MouseButton {
+                if btn & BUTTON_PRIMARY != 0 {
+                    MouseButton::Left
+                } else if btn & BUTTON_SECONDARY != 0 {
+                    MouseButton::Right
+                } else if btn & BUTTON_TERTIARY != 0 {
+                    MouseButton::Middle
+                } else {
+                    MouseButton::Other
+                }
+            }
+
+            let event = args.get_element(env, 1)?;
+            let event = unsafe { MotionEvent::from_raw(env, event.into_raw()) };
+            let action = event.get_action(env)?;
+            match action & 0xFF {
+                ACTION_DOWN => {
+                    let btn = event.get_action_button(env)?;
+                    on_down.signal(button(btn));
+                }
+                ACTION_UP => {
+                    let btn = event.get_action_button(env)?;
+                    on_up.signal(button(btn));
+                }
+                ACTION_MOVE | ACTION_HOVER_MOVE => {
+                    let x = event.get_x(env)?;
+                    let y = event.get_y(env)?;
+                    let point = Point::new(x as f64, y as f64);
+                    on_move.signal(point);
+                }
+                ACTION_SCROLL => {
+                    let h = event.get_axis_value(env, AXIS_HSCROLL)?;
+                    let v = event.get_axis_value(env, AXIS_VSCROLL)?;
+                    let vector = Vector::new(h as f64, v as f64);
+                    on_scroll.signal(vector);
+                }
+                _ => {}
+            }
+            Ok(JBoolean::new(env, true)?.into())
+        },
+    )?;
+    view.set_on_touch_listener(env, &touch_proxy)?;
+    Ok(touch_proxy)
+}
+
 #[inherit_methods(from = "self.inner")]
 impl Canvas {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
@@ -1030,72 +1101,14 @@ impl Canvas {
             let on_up = Arc::new(SyncCallback::new());
             let on_move = Arc::new(SyncCallback::new());
             let on_scroll = Arc::new(SyncCallback::new());
-            let touch_proxy = DynamicProxy::build(
+            let touch_proxy = view_touch_proxy(
                 env,
-                &LoaderContext::None,
-                [OnTouchListener::class_name()],
-                {
-                    let on_down = on_down.clone();
-                    let on_up = on_up.clone();
-                    let on_move = on_move.clone();
-                    let on_scroll = on_scroll.clone();
-                    move |env, _method, args| {
-                        const ACTION_DOWN: i32 = 0x0;
-                        const ACTION_UP: i32 = 0x1;
-                        const ACTION_MOVE: i32 = 0x2;
-                        const ACTION_HOVER_MOVE: i32 = 0x7;
-                        const ACTION_SCROLL: i32 = 0x8;
-
-                        const AXIS_VSCROLL: i32 = 0x9;
-                        const AXIS_HSCROLL: i32 = 0xA;
-
-                        const BUTTON_PRIMARY: i32 = 0x1;
-                        const BUTTON_SECONDARY: i32 = 0x2;
-                        const BUTTON_TERTIARY: i32 = 0x4;
-
-                        const fn button(btn: i32) -> MouseButton {
-                            if btn & BUTTON_PRIMARY != 0 {
-                                MouseButton::Left
-                            } else if btn & BUTTON_SECONDARY != 0 {
-                                MouseButton::Right
-                            } else if btn & BUTTON_TERTIARY != 0 {
-                                MouseButton::Middle
-                            } else {
-                                MouseButton::Other
-                            }
-                        }
-
-                        let event = args.get_element(env, 1)?;
-                        let event = unsafe { MotionEvent::from_raw(env, event.into_raw()) };
-                        let action = event.get_action(env)?;
-                        match action & 0xFF {
-                            ACTION_DOWN => {
-                                let btn = event.get_action_button(env)?;
-                                on_down.signal(button(btn));
-                            }
-                            ACTION_UP => {
-                                let btn = event.get_action_button(env)?;
-                                on_up.signal(button(btn));
-                            }
-                            ACTION_MOVE | ACTION_HOVER_MOVE => {
-                                let x = event.get_x(env)?;
-                                let y = event.get_y(env)?;
-                                let point = Point::new(x as f64, y as f64);
-                                on_move.signal(point);
-                            }
-                            ACTION_SCROLL => {
-                                let h = event.get_axis_value(env, AXIS_HSCROLL)?;
-                                let v = event.get_axis_value(env, AXIS_VSCROLL)?;
-                                let vector = Vector::new(h as f64, v as f64);
-                                on_scroll.signal(vector);
-                            }
-                            _ => {}
-                        }
-                        Ok(JBoolean::new(env, true)?.into())
-                    }
-                },
+                inner.as_view(),
+                on_down.clone(),
+                on_up.clone(),
+                on_move.clone(),
+                on_scroll.clone(),
             )?;
-            inner.as_view().set_on_touch_listener(env, &touch_proxy)?;
             Ok(Self {
                 inner,
                 on_down,
