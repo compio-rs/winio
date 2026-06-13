@@ -61,6 +61,11 @@ pub use accent::*;
 mod tab_view;
 pub use tab_view::*;
 
+#[cfg(feature = "wgpu")]
+mod wgpu;
+#[cfg(feature = "wgpu")]
+pub use wgpu::*;
+
 // OK to use `keyWindow` because it is for application wide theme detection.
 pub fn color_theme() -> crate::Result<ColorTheme> {
     let theme = first_ui_window_scene()?

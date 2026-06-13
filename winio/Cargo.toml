@@ -99,6 +99,7 @@ compio-compat = [
 wgpu = [
     "dep:wgpu",
     "winio-ui-app-kit/wgpu",
+    "winio-ui-ui-kit/wgpu",
     "winio-ui-win32?/wgpu",
     "winio-ui-winui?/wgpu",
 ]

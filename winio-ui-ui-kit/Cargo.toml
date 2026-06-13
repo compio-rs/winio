@@ -28,6 +28,7 @@ inherit-methods-macro = { workspace = true }
 local-sync = { workspace = true }
 slab = { workspace = true }
 thiserror = { workspace = true }
+wgpu = { workspace = true, optional = true, features = ["metal"] }
 
 block2 = { workspace = true }
 dispatch2 = "0.3"
@@ -49,7 +50,7 @@ objc2-web-kit = { workspace = true, optional = true }
 [features]
 media = ["dep:objc2-av-foundation", "dep:objc2-core-media"]
 webview = ["dep:objc2-web-kit"]
-
+wgpu = ["dep:wgpu"]
 compio-compat = ["compio/compat-futures"]
 
 objc-static = ["winio-ui-apple-common/objc-static"]
