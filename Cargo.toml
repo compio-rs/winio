@@ -35,13 +35,13 @@ winio-handle = { path = "winio-handle", version = "0.7.0-rc.2" }
 winio-elm = { path = "winio-elm", version = "0.6.0-rc.1" }
 winio-pollable = { path = "winio-pollable", version = "0.5.0-rc.3" }
 winio-ui-windows-common = { path = "winio-ui-windows-common", version = "0.7.0-rc.2" }
-winio-ui-win32 = { path = "winio-ui-win32", version = "0.6.0-rc.3" }
-winio-ui-winui = { path = "winio-ui-winui", version = "0.6.0-rc.2" }
-winio-ui-gtk = { path = "winio-ui-gtk", version = "0.6.0-rc.2" }
-winio-ui-qt = { path = "winio-ui-qt", version = "0.6.0-rc.2" }
-winio-ui-app-kit = { path = "winio-ui-app-kit", version = "0.6.0-rc.2" }
-winio-ui-android = { path = "winio-ui-android", version = "0.1.0-rc.1" }
-winio-ui-ui-kit = { path = "winio-ui-ui-kit", version = "0.1.0-rc.1" }
+winio-ui-win32 = { path = "winio-ui-win32", version = "0.6.0-rc.4" }
+winio-ui-winui = { path = "winio-ui-winui", version = "0.6.0-rc.3" }
+winio-ui-gtk = { path = "winio-ui-gtk", version = "0.6.0-rc.3" }
+winio-ui-qt = { path = "winio-ui-qt", version = "0.6.0-rc.3" }
+winio-ui-app-kit = { path = "winio-ui-app-kit", version = "0.6.0-rc.3" }
+winio-ui-android = { path = "winio-ui-android", version = "0.1.0-rc.2" }
+winio-ui-ui-kit = { path = "winio-ui-ui-kit", version = "0.1.0-rc.2" }
 winio-ui-apple-common = { path = "winio-ui-apple-common", version = "0.1.0-rc.1" }
 winio = { path = "winio", version = "0.12.0-rc.3", default-features = false }
 

@@ -1,6 +1,6 @@
 [package]
 name = "winio-ui-android"
-version = "0.1.0-rc.1"
+version = "0.1.0-rc.2"
 description = "Android backend for winio."
 edition = { workspace = true }
 readme = { workspace = true }
