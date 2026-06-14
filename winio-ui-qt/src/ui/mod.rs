@@ -57,6 +57,11 @@ pub use webview::*;
 mod tab_view;
 pub use tab_view::*;
 
+#[cfg(feature = "wgpu")]
+mod wgpu;
+#[cfg(feature = "wgpu")]
+pub use wgpu::*;
+
 #[doc(hidden)]
 pub trait StaticCastTo<T> {
     fn static_cast(&self) -> &T;

@@ -34,6 +34,7 @@ futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true }
 plotters-backend = { workspace = true, optional = true }
+wgpu = { workspace = true, optional = true }
 
 [target.'cfg(windows)'.dependencies]
 winio-ui-windows-common = { workspace = true }
@@ -95,7 +96,17 @@ compio-compat = [
     "winio-ui-qt?/compio-compat",
     "winio-ui-android/compio-compat",
 ]
-all = ["media", "webview", "plotters", "compio-compat"]
+wgpu = [
+    "dep:wgpu",
+    "winio-ui-app-kit/wgpu",
+    "winio-ui-ui-kit/wgpu",
+    "winio-ui-win32?/wgpu",
+    "winio-ui-winui?/wgpu",
+    "winio-ui-gtk?/wgpu",
+    "winio-ui-qt?/wgpu",
+    "winio-ui-android/wgpu",
+]
+all = ["media", "webview", "wgpu", "plotters", "compio-compat"]
 
 raw-window-handle = ["winio-handle/raw-window-handle"]
 

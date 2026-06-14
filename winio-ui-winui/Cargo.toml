@@ -29,6 +29,8 @@ percent-encoding = { workspace = true, optional = true }
 send_wrapper = { workspace = true }
 widestring = { workspace = true }
 
+wgpu = { workspace = true, optional = true, features = ["dx12"] }
+
 winui3 = { workspace = true, features = [
     "native",
     "UI_Composition",
@@ -64,6 +66,7 @@ sync-unsafe-cell = { workspace = true }
 media = ["windows/Media_Core", "dep:percent-encoding"]
 webview = ["winui3/Web_WebView2_Core"]
 compio-compat = ["compio/compat-futures"]
+wgpu = ["dep:wgpu", "windows/Win32_Graphics_Direct3D12"]
 
 # Use CBS WinUI3 shipped with Windows
 enable-cbs = []

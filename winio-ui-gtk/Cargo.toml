@@ -26,16 +26,21 @@ inherit-methods-macro = { workspace = true }
 image = { workspace = true }
 local-sync = { workspace = true, optional = true }
 thiserror = { workspace = true }
+wgpu = { workspace = true, optional = true, features = ["vulkan"] }
 
 gtk4 = { workspace = true, features = ["v4_14"] }
 glib-unix = { workspace = true, optional = true }
 pangocairo = { workspace = true }
 webkit6 = { workspace = true, optional = true }
+gdk4-wayland = { workspace = true, optional = true, features = [
+    "wayland_crate",
+] }
+gdk4-x11 = { workspace = true, optional = true, features = ["xlib"] }
 
 [features]
 media = []
 webview = ["dep:webkit6"]
-
+wgpu = ["dep:wgpu", "dep:gdk4-wayland", "dep:gdk4-x11"]
 compio-compat = [
     "compio/runtime",
     "compio/compat",

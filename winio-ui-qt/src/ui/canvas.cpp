@@ -15,7 +15,7 @@ WinioCanvas::WinioCanvas(QWidget *parent)
 #endif
       m_paint_callback(std::nullopt), m_move_callback(std::nullopt),
       m_press_callback(std::nullopt), m_release_callback(std::nullopt),
-      m_buffer() {
+      m_wheel_callback(std::nullopt), m_buffer() {
     setMouseTracking(true);
 }
 

@@ -62,6 +62,11 @@ pub use webview::*;
 mod tab_view;
 pub use tab_view::*;
 
+#[cfg(feature = "wgpu")]
+mod wgpu;
+#[cfg(feature = "wgpu")]
+pub use wgpu::*;
+
 pub fn color_theme() -> crate::Result<ColorTheme> {
     if winio_ui_windows_common::is_dark_mode_allowed_for_app() {
         Ok(ColorTheme::Dark)

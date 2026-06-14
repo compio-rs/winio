@@ -1,52 +1,9 @@
 #[cfg(feature = "compio-compat")]
 use std::path::PathBuf;
-use std::{convert::Infallible, future::Future, pin::Pin};
+use std::{future::Future, pin::Pin};
 
-use thiserror::Error;
+pub use anyhow::{Error, Result};
 use winio::prelude::*;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    /// An error from the UI backend.
-    #[error("UI error: {0}")]
-    Ui(#[from] winio::Error),
-    /// An error from [`winio_layout`].
-    #[error("Layout error: {0}")]
-    Layout(#[from] TaffyError),
-    /// An IO error.
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
-    /// Image error.
-    #[error("Image error: {0}")]
-    Image(#[from] image::ImageError),
-    /// Cyper error.
-    #[error("Cyper error: {0}")]
-    Cyper(#[from] cyper::Error),
-}
-
-impl<E: Into<Error> + std::fmt::Display> From<LayoutError<E>> for Error {
-    fn from(e: LayoutError<E>) -> Self {
-        match e {
-            LayoutError::Taffy(te) => Error::Layout(te),
-            LayoutError::Child(ce) => ce.into(),
-            _ => Error::Io(std::io::Error::other(e.to_string())),
-        }
-    }
-}
-
-impl From<std::io::ErrorKind> for Error {
-    fn from(e: std::io::ErrorKind) -> Self {
-        Error::Io(e.into())
-    }
-}
-
-impl From<Infallible> for Error {
-    fn from(e: Infallible) -> Self {
-        match e {}
-    }
-}
-
-pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[cfg(target_os = "android")]
 mod android;
@@ -63,6 +20,7 @@ pub struct MainModel {
     gallery: Child<GalleryPage>,
     scroll: Child<ScrollViewPage>,
     plotters: Child<PlottersPage>,
+    wgpu: Child<WgpuPage>,
     media: Child<MediaPage>,
     webview: Child<WebViewPage>,
     markdown: Child<MarkdownPage>,
@@ -140,6 +98,10 @@ impl Component for MainModel {
             plotters: PlottersPage = (()),
             #[cfg(not(feature = "plotters"))]
             plotters: DummyPage = (("Plotters", "plotters")),
+            #[cfg(feature = "wgpu")]
+            wgpu: WgpuPage = (()),
+            #[cfg(not(feature = "wgpu"))]
+            wgpu: DummyPage = (("WGPU", "wgpu")),
             #[cfg(all(feature = "media", feature = "compio-compat"))]
             media: MediaPage = (()),
             #[cfg(not(all(feature = "media", feature = "compio-compat")))]
@@ -160,6 +122,7 @@ impl Component for MainModel {
         tabview.push(&gallery)?;
         tabview.push(&scroll)?;
         tabview.push(&plotters)?;
+        tabview.push(&wgpu)?;
         tabview.push(&media)?;
         tabview.push(&webview)?;
         tabview.push(&markdown)?;
@@ -178,6 +141,7 @@ impl Component for MainModel {
             gallery,
             scroll,
             plotters,
+            wgpu,
             media,
             webview,
             markdown,
@@ -215,6 +179,7 @@ impl Component for MainModel {
             self.scroll => {
                 ScrollViewPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
             },
+            self.wgpu => {},
             self.media => {
                 #[cfg(all(feature = "media", feature = "compio-compat"))]
                 MediaPageEvent::ChooseFile => MainMessage::ChooseMedia,
@@ -237,6 +202,7 @@ impl Component for MainModel {
             Box::pin(self.gallery.update()),
             Box::pin(self.scroll.update()),
             Box::pin(self.plotters.update()),
+            Box::pin(self.wgpu.update()),
             Box::pin(self.media.update()),
             Box::pin(self.webview.update()),
             Box::pin(self.markdown.update()),
@@ -415,9 +381,10 @@ impl Component for MainModel {
                 3 => self.gallery.render()?,
                 4 => self.scroll.render()?,
                 5 => self.plotters.render()?,
-                6 => self.media.render()?,
-                7 => self.webview.render()?,
-                8 => self.markdown.render()?,
+                6 => self.wgpu.render()?,
+                7 => self.media.render()?,
+                8 => self.webview.render()?,
+                9 => self.markdown.render()?,
                 _ => {}
             }
         }

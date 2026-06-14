@@ -39,37 +39,13 @@ use crate::{
     ui::{Widget, font::dwrite_factory},
 };
 
-fn create_target(handle: HWND) -> Result<ID2D1HwndRenderTarget> {
-    unsafe {
-        d2d1_factory()?.CreateHwndRenderTarget(
-            &D2D1_RENDER_TARGET_PROPERTIES {
-                r#type: D2D1_RENDER_TARGET_TYPE_HARDWARE,
-                pixelFormat: D2D1_PIXEL_FORMAT {
-                    format: DXGI_FORMAT_B8G8R8A8_UNORM,
-                    alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
-                },
-                dpiX: 0.0,
-                dpiY: 0.0,
-                usage: D2D1_RENDER_TARGET_USAGE_NONE,
-                minLevel: D2D1_FEATURE_LEVEL_DEFAULT,
-            },
-            &D2D1_HWND_RENDER_TARGET_PROPERTIES {
-                hwnd: windows::Win32::Foundation::HWND(handle),
-                pixelSize: D2D_SIZE_U::default(),
-                presentOptions: D2D1_PRESENT_OPTIONS_NONE,
-            },
-        )
-    }
-}
-
 #[derive(Debug)]
-pub struct Canvas {
+pub(crate) struct CanvasImpl {
     handle: Widget,
-    target: ID2D1HwndRenderTarget,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl Canvas {
+impl CanvasImpl {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let handle = Widget::new(
             WC_STATICW,
@@ -77,8 +53,7 @@ impl Canvas {
             0,
             parent.as_container().as_win32(),
         )?;
-        let target = create_target(handle.as_widget().as_win32())?;
-        Ok(Self { handle, target })
+        Ok(Self { handle })
     }
 
     pub fn is_visible(&self) -> Result<bool>;
@@ -100,50 +75,6 @@ impl Canvas {
     pub fn tooltip(&self) -> Result<String>;
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
-
-    pub fn context(&mut self) -> Result<DrawingContext<'_>> {
-        unsafe {
-            let size = self.handle.size_l2d(self.handle.size()?);
-            loop {
-                match self.target.Resize(&D2D_SIZE_U {
-                    width: size.0 as u32,
-                    height: size.1 as u32,
-                }) {
-                    Ok(()) => break,
-                    Err(e) if e.code() == D2DERR_RECREATE_TARGET => self.handle_lost()?,
-                    Err(e) => return Err(e),
-                }
-            }
-            self.target.BeginDraw();
-            let parent_backdrop =
-                get_backdrop(GetAncestor(self.handle.as_widget().as_win32(), GA_ROOT))?;
-            let clear_color = if !matches!(parent_backdrop, Backdrop::None) {
-                None
-            } else if is_dark_mode_allowed_for_app() {
-                Some(D2D1_COLOR_F {
-                    r: 0.0,
-                    g: 0.0,
-                    b: 0.0,
-                    a: 1.0,
-                })
-            } else {
-                Some(D2D1_COLOR_F {
-                    r: 1.0,
-                    g: 1.0,
-                    b: 1.0,
-                    a: 1.0,
-                })
-            };
-            self.target
-                .Clear(clear_color.as_ref().map(|c| c as *const _));
-        }
-        DrawingContext::new(self)
-    }
-
-    fn handle_lost(&mut self) -> Result<()> {
-        self.target = create_target(self.handle.as_widget().as_win32())?;
-        Ok(())
-    }
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
         loop {
@@ -222,6 +153,126 @@ impl Canvas {
         } else {
             None
         }
+    }
+}
+
+winio_handle::impl_as_widget!(CanvasImpl, handle);
+
+fn create_target(handle: HWND) -> Result<ID2D1HwndRenderTarget> {
+    unsafe {
+        d2d1_factory()?.CreateHwndRenderTarget(
+            &D2D1_RENDER_TARGET_PROPERTIES {
+                r#type: D2D1_RENDER_TARGET_TYPE_HARDWARE,
+                pixelFormat: D2D1_PIXEL_FORMAT {
+                    format: DXGI_FORMAT_B8G8R8A8_UNORM,
+                    alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
+                },
+                dpiX: 0.0,
+                dpiY: 0.0,
+                usage: D2D1_RENDER_TARGET_USAGE_NONE,
+                minLevel: D2D1_FEATURE_LEVEL_DEFAULT,
+            },
+            &D2D1_HWND_RENDER_TARGET_PROPERTIES {
+                hwnd: windows::Win32::Foundation::HWND(handle),
+                pixelSize: D2D_SIZE_U::default(),
+                presentOptions: D2D1_PRESENT_OPTIONS_NONE,
+            },
+        )
+    }
+}
+
+#[derive(Debug)]
+pub struct Canvas {
+    handle: CanvasImpl,
+    target: ID2D1HwndRenderTarget,
+}
+
+#[inherit_methods(from = "self.handle")]
+impl Canvas {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let handle = CanvasImpl::new(parent)?;
+        let target = create_target(handle.as_widget().as_win32())?;
+        Ok(Self { handle, target })
+    }
+
+    pub fn is_visible(&self) -> Result<bool>;
+
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
+
+    pub fn is_enabled(&self) -> Result<bool>;
+
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
+
+    pub fn loc(&self) -> Result<Point>;
+
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
+
+    pub fn size(&self) -> Result<Size>;
+
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
+
+    pub fn tooltip(&self) -> Result<String>;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn context(&mut self) -> Result<DrawingContext<'_>> {
+        unsafe {
+            let size = self.handle.handle.size_l2d(self.handle.size()?);
+            loop {
+                match self.target.Resize(&D2D_SIZE_U {
+                    width: size.0 as u32,
+                    height: size.1 as u32,
+                }) {
+                    Ok(()) => break,
+                    Err(e) if e.code() == D2DERR_RECREATE_TARGET => self.handle_lost()?,
+                    Err(e) => return Err(e),
+                }
+            }
+            self.target.BeginDraw();
+            let parent_backdrop =
+                get_backdrop(GetAncestor(self.handle.as_widget().as_win32(), GA_ROOT))?;
+            let clear_color = if !matches!(parent_backdrop, Backdrop::None) {
+                None
+            } else if is_dark_mode_allowed_for_app() {
+                Some(D2D1_COLOR_F {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 1.0,
+                })
+            } else {
+                Some(D2D1_COLOR_F {
+                    r: 1.0,
+                    g: 1.0,
+                    b: 1.0,
+                    a: 1.0,
+                })
+            };
+            self.target
+                .Clear(clear_color.as_ref().map(|c| c as *const _));
+        }
+        DrawingContext::new(self)
+    }
+
+    fn handle_lost(&mut self) -> Result<()> {
+        self.target = create_target(self.handle.as_widget().as_win32())?;
+        Ok(())
+    }
+
+    pub async fn wait_mouse_down(&self) -> MouseButton {
+        self.handle.wait_mouse_down().await
+    }
+
+    pub async fn wait_mouse_up(&self) -> MouseButton {
+        self.handle.wait_mouse_up().await
+    }
+
+    pub async fn wait_mouse_move(&self) -> Point {
+        self.handle.wait_mouse_move().await
+    }
+
+    pub async fn wait_mouse_wheel(&self) -> Vector {
+        self.handle.wait_mouse_wheel().await
     }
 }
 

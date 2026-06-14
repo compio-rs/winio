@@ -40,9 +40,10 @@ inherit-methods-macro = { workspace = true }
 oneshot = { workspace = true, features = ["std", "async"] }
 rustix = { version = "1", optional = true, features = ["time"] }
 thiserror = { workspace = true }
+wgpu = { workspace = true, optional = true, features = ["vulkan"] }
 
 [features]
 media = []
 webview = []
-
+wgpu = ["dep:wgpu"]
 compio-compat = ["compio/compat", "dep:rustix", "compio/fs"]

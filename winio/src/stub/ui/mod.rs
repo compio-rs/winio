@@ -67,3 +67,8 @@ pub use media::*;
 mod webview;
 #[cfg(feature = "webview")]
 pub use webview::*;
+
+#[cfg(feature = "wgpu")]
+mod wgpu;
+#[cfg(feature = "wgpu")]
+pub use wgpu::*;

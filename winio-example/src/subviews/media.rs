@@ -235,7 +235,8 @@ impl Component for MediaPage {
                 {
                     url
                 } else {
-                    Url::from_file_path(&p).map_err(|_| std::io::ErrorKind::InvalidFilename)?
+                    Url::from_file_path(&p)
+                        .map_err(|_| anyhow::anyhow!("Failed to create URL from file path"))?
                 };
                 match self.media.load(url.as_str()).await {
                     Ok(()) => {

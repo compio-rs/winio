@@ -62,6 +62,11 @@ pub use accent::*;
 mod tab_view;
 pub use tab_view::*;
 
+#[cfg(feature = "wgpu")]
+mod wgpu;
+#[cfg(feature = "wgpu")]
+pub use wgpu::*;
+
 pub fn color_theme() -> crate::Result<ColorTheme> {
     crate::catch(|| {
         let osx_mode =

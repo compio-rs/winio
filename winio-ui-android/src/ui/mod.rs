@@ -63,3 +63,8 @@ pub(crate) use widget::*;
 
 mod window;
 pub use window::*;
+
+#[cfg(feature = "wgpu")]
+mod wgpu;
+#[cfg(feature = "wgpu")]
+pub use wgpu::*;

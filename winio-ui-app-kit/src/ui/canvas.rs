@@ -27,13 +27,12 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct Canvas {
+pub(crate) struct CanvasImpl {
     view: Retained<CanvasView>,
     handle: Widget,
 }
-
 #[inherit_methods(from = "self.handle")]
-impl Canvas {
+impl CanvasImpl {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let parent = parent.as_container();
         let view = catch(|| CanvasView::new(parent.as_app_kit().mtm()))?;
@@ -61,16 +60,6 @@ impl Canvas {
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn context(&mut self) -> Result<DrawingContext<'_>> {
-        Ok(DrawingContext {
-            size: self.size()?,
-            actions: self.view.ivars().take_buffer(),
-            canvas: self,
-            transform: Transform::identity(),
-            ended: false,
-        })
-    }
-
     pub async fn wait_mouse_down(&self) -> MouseButton {
         self.view.ivars().mouse_down.wait().await
     }
@@ -92,6 +81,67 @@ impl Canvas {
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
         self.view.ivars().mouse_scroll.wait().await
+    }
+}
+
+winio_handle::impl_as_widget!(CanvasImpl, handle);
+
+#[derive(Debug)]
+pub struct Canvas {
+    handle: CanvasImpl,
+}
+
+#[inherit_methods(from = "self.handle")]
+impl Canvas {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let handle = CanvasImpl::new(parent)?;
+        Ok(Self { handle })
+    }
+
+    pub fn is_visible(&self) -> Result<bool>;
+
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
+
+    pub fn is_enabled(&self) -> Result<bool>;
+
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
+
+    pub fn loc(&self) -> Result<Point>;
+
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
+
+    pub fn size(&self) -> Result<Size>;
+
+    pub fn set_size(&mut self, v: Size) -> Result<()>;
+
+    pub fn tooltip(&self) -> Result<String>;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn context(&mut self) -> Result<DrawingContext<'_>> {
+        Ok(DrawingContext {
+            size: self.size()?,
+            actions: self.handle.view.ivars().take_buffer(),
+            canvas: self,
+            transform: Transform::identity(),
+            ended: false,
+        })
+    }
+
+    pub async fn wait_mouse_down(&self) -> MouseButton {
+        self.handle.wait_mouse_down().await
+    }
+
+    pub async fn wait_mouse_up(&self) -> MouseButton {
+        self.handle.wait_mouse_up().await
+    }
+
+    pub async fn wait_mouse_move(&self) -> Point {
+        self.handle.wait_mouse_move().await
+    }
+
+    pub async fn wait_mouse_wheel(&self) -> Vector {
+        self.handle.wait_mouse_wheel().await
     }
 }
 
@@ -227,16 +277,17 @@ impl Drop for DrawingContext<'_> {
 impl DrawingContext<'_> {
     fn end(&mut self) -> Result<()> {
         if !self.ended {
-            let ivars = self.canvas.view.ivars();
+            let ivars = self.canvas.handle.view.ivars();
             ivars.swap_buffer(&mut self.actions);
             ivars.factor.set(
                 self.canvas
+                    .handle
                     .view
                     .window()
                     .map(|w| w.backingScaleFactor())
                     .unwrap_or(1.0),
             );
-            catch(|| self.canvas.view.setNeedsDisplay(true))?;
+            catch(|| self.canvas.handle.view.setNeedsDisplay(true))?;
             self.ended = true;
         }
         Ok(())
