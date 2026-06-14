@@ -92,6 +92,8 @@ objc2-uniform-type-identifiers = "0.3"
 objc2-web-kit = "0.3"
 
 gtk4 = "0.11"
+gdk4-wayland = "0.11"
+gdk4-x11 = "0.11"
 glib-unix = "0.22"
 pangocairo = "0.22"
 webkit6 = "0.6"

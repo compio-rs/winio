@@ -147,8 +147,8 @@ impl SurfaceData {
                 format: self.surface_format,
                 view_formats: vec![self.surface_format.add_srgb_suffix()],
                 alpha_mode: wgpu::CompositeAlphaMode::Auto,
-                width: size.width as _,
-                height: size.height as _,
+                width: (size.width as u32).max(1),
+                height: (size.height as u32).max(1),
                 desired_maximum_frame_latency: 2,
                 present_mode: wgpu::PresentMode::AutoVsync,
             };
@@ -270,65 +270,68 @@ impl Component for WgpuPage {
             self.configure(size)?;
         }
 
+        if size == Size::zero() {
+            return Ok(());
+        }
+
         self.rotate(self.angle, size.width as f32 / size.height as f32);
 
-        if let Some(data) = &self.surface {
-            let surface_texture = match data.surface.get_current_texture() {
-                wgpu::CurrentSurfaceTexture::Success(texture) => texture,
-                wgpu::CurrentSurfaceTexture::Occluded | wgpu::CurrentSurfaceTexture::Timeout => {
-                    return Ok(());
-                }
-                wgpu::CurrentSurfaceTexture::Outdated
-                | wgpu::CurrentSurfaceTexture::Suboptimal(_) => {
-                    self.configure(size)?;
-                    return Ok(());
-                }
-                wgpu::CurrentSurfaceTexture::Validation => {
-                    unreachable!("No error scope registered, so validation errors will panic")
-                }
-                wgpu::CurrentSurfaceTexture::Lost => {
-                    self.surface.take();
-                    self.configure(size)?;
-                    return Ok(());
-                }
-            };
-            let texture_view = surface_texture
-                .texture
-                .create_view(&wgpu::TextureViewDescriptor {
-                    format: Some(data.surface_format.add_srgb_suffix()),
-                    ..Default::default()
-                });
-
-            let mut encoder = self.device.create_command_encoder(&Default::default());
-            {
-                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: None,
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &texture_view,
-                        depth_slice: None,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                            store: wgpu::StoreOp::Store,
-                        },
-                    })],
-                    depth_stencil_attachment: None,
-                    timestamp_writes: None,
-                    occlusion_query_set: None,
-                    multiview_mask: None,
-                });
-
-                render_pass.set_pipeline(&data.render_pipeline);
-                render_pass.set_bind_group(0, &data.bind_group, &[]);
-                render_pass.set_vertex_buffer(0, data.vertex_buffer.slice(..));
-                render_pass
-                    .set_index_buffer(data.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-                render_pass.draw_indexed(0..INDICES.len() as u32, 0, 0..1);
+        let Some(data) = &self.surface else {
+            return Ok(());
+        };
+        let surface_texture = match data.surface.get_current_texture() {
+            wgpu::CurrentSurfaceTexture::Success(texture) => texture,
+            wgpu::CurrentSurfaceTexture::Occluded | wgpu::CurrentSurfaceTexture::Timeout => {
+                return Ok(());
             }
+            wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Suboptimal(_) => {
+                self.configure(size)?;
+                return Ok(());
+            }
+            wgpu::CurrentSurfaceTexture::Validation => {
+                unreachable!("No error scope registered, so validation errors will panic")
+            }
+            wgpu::CurrentSurfaceTexture::Lost => {
+                self.surface.take();
+                self.configure(size)?;
+                return Ok(());
+            }
+        };
+        let texture_view = surface_texture
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor {
+                format: Some(data.surface_format.add_srgb_suffix()),
+                ..Default::default()
+            });
 
-            self.queue.submit([encoder.finish()]);
-            surface_texture.present();
+        let mut encoder = self.device.create_command_encoder(&Default::default());
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: None,
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &texture_view,
+                    depth_slice: None,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+
+            render_pass.set_pipeline(&data.render_pipeline);
+            render_pass.set_bind_group(0, &data.bind_group, &[]);
+            render_pass.set_vertex_buffer(0, data.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(data.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..INDICES.len() as u32, 0, 0..1);
         }
+
+        self.queue.submit([encoder.finish()]);
+        surface_texture.present();
 
         Ok(())
     }
