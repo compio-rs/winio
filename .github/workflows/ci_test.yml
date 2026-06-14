@@ -20,48 +20,48 @@ jobs:
         toolchain: ['nightly']
         setup:
           - os: 'ubuntu-24.04'
-            deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev libgtk-4-dev libwebkitgtk-6.0-dev'
+            # all + qt-opengl + qt5
+            deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev qt5-qmake libgtk-4-dev libwebkitgtk-6.0-dev'
             features: 'all,qt-opengl'
           - os: 'ubuntu-24.04'
+            # no features + qt6
             deps: 'qt6-base-dev libgtk-4-dev'
           - os: 'ubuntu-24.04'
-            deps: 'qt6-base-dev libgtk-4-dev'
-            features: 'qt-opengl'
-          - os: 'ubuntu-24.04'
-            deps: 'qt6-base-dev qt6-multimedia-dev libgtk-4-dev'
-            features: 'media'
-          - os: 'ubuntu-24.04'
-            features: 'gtk,webview'
+            # all + qt-opengl + qt6
+            features: 'all,qt-opengl'
             no_default_features: true
-            deps: 'qt6-base-dev qt6-webengine-dev libgtk-4-dev libwebkitgtk-6.0-dev'
+            deps: 'qt6-base-dev qt6-webengine-dev qmake6 libgtk-4-dev libwebkitgtk-6.0-dev'
           - os: 'ubuntu-24.04'
-            deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev libgtk-4-dev libwebkitgtk-6.0-dev'
+            # gtk4
+            deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev qt5-qmake libgtk-4-dev libwebkitgtk-6.0-dev'
+            features: 'all,gtk'
+            no_default_features: true
+          - os: 'ubuntu-24.04'
+            # stub
+            deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev qt5-qmake libgtk-4-dev libwebkitgtk-6.0-dev'
             features: 'all'
             no_default_features: true
           - os: 'windows-latest'
+            # no features
             target: 'x86_64-pc-windows-msvc'
-          - os: 'windows-latest'
-            target: 'x86_64-pc-windows-msvc'
-            features: 'webview'
           - os: 'windows-latest'
             target: 'i686-pc-windows-msvc'
+            # all + x86 + win32 + additional features
             features: 'all,win32-dark-mode,winui-enable-cbs,winui-webview-system'
           - os: 'windows-latest'
-            target: 'x86_64-pc-windows-gnullvm'
-            features: 'win32,all'
-            no_default_features: true
-          - os: 'windows-latest'
             target: 'x86_64-pc-windows-msvc'
-            features: 'winui,win32-dark-mode,media'
+            # all + winui + additional features
+            features: 'all,winui,win32-dark-mode,winui-enable-cbs,winui-webview-system'
             no_default_features: true
           - os: 'windows-latest'
+            target: 'x86_64-pc-windows-gnullvm'
+            # all + gnullvm
+            features: 'all'
+          - os: 'windows-latest'
+            # stub
             features: 'all'
             no_default_features: true
           - os: 'macos-14'
-          - os: 'macos-14'
-            features: 'media'
-          - os: 'macos-14'
-            features: 'webview'
           - os: 'macos-14'
             features: 'all'
           - os: 'macos-14'

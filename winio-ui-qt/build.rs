@@ -72,7 +72,7 @@ fn main() {
 
         let mut inc = qbuild.include_paths();
         if cfg!(feature = "wgpu") {
-            let qmake_program = if major == 5 { "qmake-qt5" } else { "qmake6" };
+            let qmake_program = if major == 5 { "qmake" } else { "qmake6" };
 
             let output = std::process::Command::new(qmake_program)
                 .args(["-query", "QT_INSTALL_HEADERS"])
