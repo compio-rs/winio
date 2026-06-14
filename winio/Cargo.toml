@@ -88,6 +88,7 @@ plotters = ["dep:plotters-backend"]
 compio-compat = [
     "compio/runtime",
     "compio/compat",
+    "compio/fs",
     "winio-ui-app-kit/compio-compat",
     "winio-ui-ui-kit/compio-compat",
     "winio-ui-win32?/compio-compat",
