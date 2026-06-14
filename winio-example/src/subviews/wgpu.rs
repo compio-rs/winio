@@ -134,8 +134,8 @@ impl SurfaceData {
     }
 
     fn configure(&self, device: &wgpu::Device, size: Size) -> Result<()> {
-        let width = size.width as u32;
-        let height = size.height as u32;
+        let width = (size.width as u32).max(1);
+        let height = (size.height as u32).max(1);
         let needs_update = self
             .surface
             .get_configuration()
@@ -147,8 +147,8 @@ impl SurfaceData {
                 format: self.surface_format,
                 view_formats: vec![self.surface_format.add_srgb_suffix()],
                 alpha_mode: wgpu::CompositeAlphaMode::Auto,
-                width: (size.width as u32).max(1),
-                height: (size.height as u32).max(1),
+                width,
+                height,
                 desired_maximum_frame_latency: 2,
                 present_mode: wgpu::PresentMode::AutoVsync,
             };
