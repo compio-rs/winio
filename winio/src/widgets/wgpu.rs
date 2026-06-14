@@ -12,6 +12,16 @@ use crate::{
 };
 
 /// A canvas for [`wgpu`].
+///
+/// ## Recommended backends
+/// * Windows: DirectX 12
+/// * macOS & iOS: Metal
+/// * Android: Vulkan
+///
+/// ## Platform specific
+/// * iOS: Mac Catalyst and iOS Simulator do not support [`wgpu`].
+/// * Android: Simulator might not work correctly; real devices work fine.
+/// * Qt & GTK: Might not work correctly.
 #[derive(Debug)]
 pub struct WgpuCanvas {
     widget: sys::WgpuCanvas,
@@ -20,6 +30,9 @@ pub struct WgpuCanvas {
 #[inherit_methods(from = "self.widget")]
 impl WgpuCanvas {
     /// Create [`Surface`] to render on this canvas.
+    ///
+    /// This method returns an error if the canvas is not yet ready to create a
+    /// surface, e.g. it is not yet visible.
     pub fn create_surface(
         &self,
         instance: &Instance,
