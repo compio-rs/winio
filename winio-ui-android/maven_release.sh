@@ -25,6 +25,7 @@ artifact_path="android/winio/build/outputs/aar/$artifact_name"
 mkdir -p maven
 # Ensure no prior artifacts are present
 git clean -dfX "./maven/"
+mkdir -p maven
 
 cp ./pom-template.xml ./maven/pom.xml
 
