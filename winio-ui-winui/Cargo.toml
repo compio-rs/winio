@@ -66,7 +66,7 @@ sync-unsafe-cell = { workspace = true }
 media = ["windows/Media_Core", "dep:percent-encoding"]
 webview = ["winui3/Web_WebView2_Core"]
 compio-compat = ["compio/compat-futures"]
-wgpu = ["dep:wgpu", "windows/Win32_Graphics_Direct3D12"]
+wgpu = ["dep:wgpu"]
 
 # Use CBS WinUI3 shipped with Windows
 enable-cbs = []
