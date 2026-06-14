@@ -21,7 +21,7 @@ jobs:
         setup:
           - os: 'ubuntu-24.04'
             # all + qt-opengl + qt5
-            deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev qt5-qmake libgtk-4-dev libwebkitgtk-6.0-dev'
+            deps: 'qtbase5-dev qtbase5-private-dev qtmultimedia5-dev qtwebengine5-dev qt5-qmake libgtk-4-dev libwebkitgtk-6.0-dev'
             features: 'all,qt-opengl'
           - os: 'ubuntu-24.04'
             # no features + qt6
@@ -29,16 +29,15 @@ jobs:
           - os: 'ubuntu-24.04'
             # all + qt-opengl + qt6
             features: 'all,qt-opengl'
-            no_default_features: true
-            deps: 'qt6-base-dev qt6-webengine-dev qmake6 libgtk-4-dev libwebkitgtk-6.0-dev'
+            deps: 'qt6-base-dev qt6-base-private-dev qt6-webengine-dev qmake6 libgtk-4-dev libwebkitgtk-6.0-dev'
           - os: 'ubuntu-24.04'
             # gtk4
-            deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev qt5-qmake libgtk-4-dev libwebkitgtk-6.0-dev'
+            deps: 'qtbase5-dev qtbase5-private-dev qtmultimedia5-dev qtwebengine5-dev qt5-qmake libgtk-4-dev libwebkitgtk-6.0-dev'
             features: 'all,gtk'
             no_default_features: true
           - os: 'ubuntu-24.04'
             # stub
-            deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev qt5-qmake libgtk-4-dev libwebkitgtk-6.0-dev'
+            deps: 'qtbase5-dev qtbase5-private-dev qtmultimedia5-dev qtwebengine5-dev qt5-qmake libgtk-4-dev libwebkitgtk-6.0-dev'
             features: 'all'
             no_default_features: true
           - os: 'windows-latest'
