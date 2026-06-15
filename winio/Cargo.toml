@@ -1,6 +1,6 @@
 [package]
 name = "winio"
-version = "0.12.0-rc.4"
+version = "0.12.0-rc.5"
 description = "Single-threaded async GUI runtime based on compio."
 categories = ["asynchronous", "gui"]
 keywords = ["async", "gui"]
@@ -10,7 +10,9 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [package.metadata.docs.rs]
-all-features = true
+# Qt require many packages to build and docs.rs build environment doesn't have them.
+features = ["gtk", "win32", "all"]
+no-default-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 targets = [
     "x86_64-unknown-linux-gnu",

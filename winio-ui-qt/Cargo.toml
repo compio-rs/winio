@@ -1,6 +1,6 @@
 [package]
 name = "winio-ui-qt"
-version = "0.6.0-rc.3"
+version = "0.6.0-rc.4"
 description = "Qt backend for winio."
 edition = { workspace = true }
 readme = { workspace = true }
@@ -8,7 +8,6 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [package.metadata.docs.rs]
-all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 targets = ["x86_64-unknown-linux-gnu"]
 

@@ -1,6 +1,6 @@
 [package]
 name = "winio-ui-ui-kit"
-version = "0.1.0-rc.2"
+version = "0.1.0-rc.3"
 description = "UI Kit backend for winio."
 edition = { workspace = true }
 readme = { workspace = true }
@@ -51,6 +51,6 @@ objc2-web-kit = { workspace = true, optional = true }
 media = ["dep:objc2-av-foundation", "dep:objc2-core-media"]
 webview = ["dep:objc2-web-kit"]
 wgpu = ["dep:wgpu"]
-compio-compat = ["compio/compat-futures"]
+compio-compat = ["compio/compat-futures", "compio/fs"]
 
 objc-static = ["winio-ui-apple-common/objc-static"]
