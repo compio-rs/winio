@@ -70,7 +70,7 @@ impl Adapter for CompioAdapter {
             timerfd_settime(&self.timer, TimerfdTimerFlags::empty(), &new_value)?;
             let tx = tx.clone();
             self.looper
-                .add_fd_with_callback(self.timer.as_fd(), FdEvent::INPUT, |_, _| {
+                .add_fd_with_callback(self.timer.as_fd(), FdEvent::INPUT, move |_, _| {
                     if let Some(tx) = tx.lock().unwrap().take() {
                         tx.send(false).ok();
                     }
@@ -79,7 +79,7 @@ impl Adapter for CompioAdapter {
                 .map_err(io::Error::other)?;
         }
         self.looper
-            .add_fd_with_callback(self.as_fd(), FdEvent::INPUT, |_, _| {
+            .add_fd_with_callback(self.as_fd(), FdEvent::INPUT, move |_, _| {
                 if let Some(tx) = tx.lock().unwrap().take() {
                     tx.send(true).ok();
                 }
