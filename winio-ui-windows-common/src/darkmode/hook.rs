@@ -1,7 +1,7 @@
 use std::{
     collections::BTreeMap,
     mem::MaybeUninit,
-    ptr::{null, null_mut},
+    ptr::null,
     sync::{LazyLock, Mutex, Once},
 };
 
@@ -50,12 +50,7 @@ use windows_sys::{
 };
 
 use super::{PreferredAppMode, WHITE, WinBrush, u16_string_eq_ignore_case};
-use crate::{Error, Result, darkmode::u16_string_starts_with_ignore_case};
-
-#[link(name = "ntdll")]
-unsafe extern "system" {
-    fn RtlGetNtVersionNumbers(major: *mut u32, minor: *mut u32, build: *mut u32);
-}
+use crate::{Error, Result, darkmode::u16_string_starts_with_ignore_case, get_nt_build};
 
 #[link(name = "uxtheme", kind = "raw-dylib")]
 unsafe extern "system" {
@@ -71,14 +66,6 @@ unsafe extern "system" {
     fn SetPreferredAppMode(m: PreferredAppMode) -> PreferredAppMode;
     #[link_ordinal(136)]
     fn FlushMenuThemes();
-}
-
-#[inline]
-fn get_nt_build() -> u32 {
-    let mut build = 0;
-    unsafe { RtlGetNtVersionNumbers(null_mut(), null_mut(), &mut build) };
-    build &= !0xF0000000;
-    build
 }
 
 pub fn set_preferred_app_mode(m: PreferredAppMode) -> PreferredAppMode {

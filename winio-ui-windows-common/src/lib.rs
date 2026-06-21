@@ -7,6 +7,9 @@
 
 pub use windows::core::{Error, Result};
 
+mod version;
+pub(crate) use version::*;
+
 mod accent;
 pub use accent::*;
 

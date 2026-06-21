@@ -9,7 +9,7 @@ use windows_sys::Win32::{
     },
 };
 
-use crate::Result;
+use crate::{Result, get_nt_build};
 
 /// Backdrop effects for windows.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
@@ -29,6 +29,9 @@ pub enum Backdrop {
 /// # Safety
 /// The caller must ensure that `handle` is a valid window handle.
 pub unsafe fn get_backdrop(handle: HWND) -> Result<Backdrop> {
+    if get_nt_build() < 22621 {
+        return Ok(Backdrop::None);
+    }
     let mut style = 0;
     let res = unsafe {
         DwmGetWindowAttribute(
@@ -54,6 +57,9 @@ pub unsafe fn get_backdrop(handle: HWND) -> Result<Backdrop> {
 /// # Safety
 /// The caller must ensure that `handle` is a valid window handle.
 pub unsafe fn set_backdrop(handle: HWND, backdrop: Backdrop) -> Result<bool> {
+    if get_nt_build() < 22621 {
+        return Ok(false);
+    }
     let style = match backdrop {
         Backdrop::Acrylic => DWMSBT_TRANSIENTWINDOW,
         Backdrop::Mica => DWMSBT_MAINWINDOW,
