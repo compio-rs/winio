@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use widestring::{U16CStr, U16CString};
+use widestring::U16CString;
 use windows::{
     Win32::{
         Foundation::{ERROR_CANCELLED, HWND},
@@ -212,8 +212,7 @@ impl FileBoxInner {
                 let item = dialog.GetResult()?;
                 let name_ptr = item.GetDisplayName(SIGDN_FILESYSPATH)?;
                 let name_ptr = CoTaskMemPtr(name_ptr.0);
-                let name = U16CStr::from_ptr_str(name_ptr.0).to_os_string();
-                Ok(Some(PathBuf::from(name)))
+                Ok(Some(PathBuf::from(name_ptr.to_string()?)))
             }
         } else {
             Ok(None)
@@ -231,7 +230,7 @@ impl FileBoxInner {
                     let item = results.GetItemAt(i)?;
                     let name_ptr = item.GetDisplayName(SIGDN_FILESYSPATH)?;
                     let name_ptr = CoTaskMemPtr(name_ptr.0);
-                    let name = U16CStr::from_ptr_str(name_ptr.0).to_os_string();
+                    let name = name_ptr.to_string()?;
                     names.push(PathBuf::from(name));
                 }
                 Ok(names)
@@ -258,6 +257,15 @@ impl<T> CoTaskMemPtr<T> {
 
     pub fn as_mut_ptr(&mut self) -> *mut T {
         self.0
+    }
+}
+
+impl CoTaskMemPtr<u16> {
+    /// # Safety
+    /// Caller should ensure that the pointer is valid and points to a
+    /// null-terminated string.
+    pub unsafe fn to_string(&self) -> Result<String> {
+        Ok(unsafe { PCWSTR(self.as_ptr()).to_string()? })
     }
 }
 

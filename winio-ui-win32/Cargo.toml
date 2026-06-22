@@ -23,6 +23,7 @@ compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
 
 arrayvec = { workspace = true }
+cookie = { workspace = true, optional = true }
 futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
 local-sync = { workspace = true, optional = true }
@@ -31,6 +32,7 @@ once_cell = { workspace = true }
 percent-encoding = { workspace = true, optional = true }
 scoped-tls = { workspace = true }
 slab = { workspace = true }
+time = { workspace = true, optional = true }
 widestring = { workspace = true }
 
 wgpu = { workspace = true, optional = true, features = ["dx12"] }
@@ -68,6 +70,8 @@ webview = [
     "dep:webview2",
     "dep:windows-core",
     "dep:local-sync",
+    "dep:cookie",
+    "dep:time",
 ]
 compio-compat = ["compio/runtime", "compio/compat"]
 wgpu = ["dep:wgpu"]

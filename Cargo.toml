@@ -65,6 +65,7 @@ percent-encoding = "2"
 scoped-tls = "1.0"
 slab = "0.4"
 thiserror = "2.0"
+time = "0.3"
 tuplex = "0.1"
 widestring = "1"
 
