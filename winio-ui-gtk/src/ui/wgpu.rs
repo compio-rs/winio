@@ -109,7 +109,6 @@ impl WgpuCanvas {
             .wayland()
             .or_else(|| self.xcb())
             .ok_or_else(|| wgpu::wgc::instance::CreateSurfaceError::MissingDisplayHandle)?;
-        println!("Creating surface with handle: {:?}", handle);
 
         let target = SurfaceTarget::from(handle);
 

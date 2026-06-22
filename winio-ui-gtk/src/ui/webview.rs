@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use cookie::Cookie;
 use gtk4::glib::object::Cast;
 use inherit_methods_macro::inherit_methods;
 use webkit6::prelude::WebViewExt;
@@ -108,6 +109,47 @@ impl WebView {
 
     pub async fn wait_navigated(&self) {
         self.on_loaded.wait().await
+    }
+
+    pub async fn cookies(&self) -> Result<Vec<Cookie<'static>>> {
+        if let Some(session) = self.widget.network_session()
+            && let Some(cookie_manager) = session.cookie_manager()
+        {
+            let cookies = cookie_manager.all_cookies_future().await?;
+            return Ok(cookies
+                .into_iter()
+                .filter_map(|mut c| Cookie::parse(c.to_set_cookie_header()?.to_string()).ok())
+                .collect());
+        }
+        Ok(vec![])
+    }
+
+    pub async fn set_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
+        if let Some(session) = self.widget.network_session()
+            && let Some(cookie_manager) = session.cookie_manager()
+            && let Some(c) = webkit6::soup::Cookie::parse(&c.to_string(), None)
+        {
+            cookie_manager.add_cookie_future(&c).await?;
+        }
+        Ok(())
+    }
+
+    pub async fn delete_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
+        if let Some(session) = self.widget.network_session()
+            && let Some(cookie_manager) = session.cookie_manager()
+            && let Some(c) = webkit6::soup::Cookie::parse(&c.to_string(), None)
+        {
+            cookie_manager.delete_cookie_future(&c).await?;
+        }
+        Ok(())
+    }
+
+    pub async fn run_javascript(&mut self, s: impl AsRef<str>) -> Result<String> {
+        Ok(self
+            .widget
+            .evaluate_javascript_future(s.as_ref(), None, None)
+            .await?
+            .to_string())
     }
 }
 
