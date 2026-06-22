@@ -2,10 +2,9 @@ use std::{cell::RefCell, rc::Rc};
 
 use cookie::Cookie;
 use webview2::{
-    COREWEBVIEW2_COOKIE_SAME_SITE_KIND, COREWEBVIEW2_COOKIE_SAME_SITE_KIND_LAX,
-    COREWEBVIEW2_COOKIE_SAME_SITE_KIND_NONE, COREWEBVIEW2_COOKIE_SAME_SITE_KIND_STRICT,
-    CreateCoreWebView2Environment, ICoreWebView2, ICoreWebView2_2, ICoreWebView2Controller,
-    ICoreWebView2Cookie, ICoreWebView2Cookie_Impl, ICoreWebView2CookieList,
+    COREWEBVIEW2_COOKIE_SAME_SITE_KIND_LAX, COREWEBVIEW2_COOKIE_SAME_SITE_KIND_NONE,
+    COREWEBVIEW2_COOKIE_SAME_SITE_KIND_STRICT, CreateCoreWebView2Environment, ICoreWebView2,
+    ICoreWebView2_2, ICoreWebView2Controller, ICoreWebView2Cookie, ICoreWebView2CookieList,
     ICoreWebView2CookieManager, ICoreWebView2CreateCoreWebView2ControllerCompletedHandler,
     ICoreWebView2CreateCoreWebView2ControllerCompletedHandler_Impl,
     ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,
@@ -17,11 +16,8 @@ use webview2::{
     ICoreWebView2NavigationStartingEventHandler, ICoreWebView2NavigationStartingEventHandler_Impl,
 };
 use windows::{
-    Win32::{
-        Foundation::{E_FAIL, E_INVALIDARG, HWND, RECT},
-        System::Com::CoTaskMemAlloc,
-    },
-    core::{BOOL, HRESULT, Interface, PCWSTR, PWSTR, Ref, implement},
+    Win32::Foundation::{E_FAIL, E_INVALIDARG, HWND, RECT},
+    core::{HRESULT, HSTRING, Interface, PCWSTR, Ref, implement},
 };
 use windows_sys::Win32::{Foundation::ERROR_CANCELLED, UI::HiDpi::GetDpiForWindow};
 use winio_callback::Callback;
@@ -250,16 +246,16 @@ impl WebView {
 
     pub async fn set_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
         unsafe {
-            self.cookie_manager()?
-                .AddOrUpdateCookie(&cookie_to_webview_cookie(c))?;
+            let manager = self.cookie_manager()?;
+            manager.AddOrUpdateCookie(&cookie_to_webview_cookie(c, &manager)?)?;
         }
         Ok(())
     }
 
     pub async fn delete_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
         unsafe {
-            self.cookie_manager()?
-                .DeleteCookie(&cookie_to_webview_cookie(c))?;
+            let manager = self.cookie_manager()?;
+            manager.DeleteCookie(&cookie_to_webview_cookie(c, &manager)?)?;
         }
         Ok(())
     }
@@ -290,8 +286,45 @@ impl AsWidget for WebView {
     }
 }
 
-fn cookie_to_webview_cookie(c: &Cookie<'_>) -> ICoreWebView2Cookie {
-    CookieWrap::create(c.clone().into_owned())
+fn cookie_to_webview_cookie(
+    c: &Cookie<'_>,
+    manager: &ICoreWebView2CookieManager,
+) -> Result<ICoreWebView2Cookie> {
+    unsafe {
+        let name = HSTRING::from(c.name());
+        let value = HSTRING::from(c.value());
+        let domain = HSTRING::from(c.domain().unwrap_or_default());
+        let path = HSTRING::from(c.path().unwrap_or_default());
+        let cookie = manager.CreateCookie(
+            PCWSTR(name.as_ptr()),
+            PCWSTR(value.as_ptr()),
+            PCWSTR(domain.as_ptr()),
+            PCWSTR(path.as_ptr()),
+        )?;
+        if let Some(expires) = c.expires() {
+            match expires {
+                cookie::Expiration::Session => cookie.SetExpires(-1.0)?,
+                cookie::Expiration::DateTime(dt) => {
+                    let timestamp = dt.unix_timestamp() as f64;
+                    cookie.SetExpires(timestamp)?;
+                }
+            }
+        }
+        if let Some(is_secure) = c.secure() {
+            cookie.SetIsSecure(is_secure)?;
+        }
+        if let Some(is_http_only) = c.http_only() {
+            cookie.SetIsHttpOnly(is_http_only)?;
+        }
+        if let Some(same_site) = c.same_site() {
+            cookie.SetSameSite(match same_site {
+                cookie::SameSite::Lax => COREWEBVIEW2_COOKIE_SAME_SITE_KIND_LAX,
+                cookie::SameSite::Strict => COREWEBVIEW2_COOKIE_SAME_SITE_KIND_STRICT,
+                cookie::SameSite::None => COREWEBVIEW2_COOKIE_SAME_SITE_KIND_NONE,
+            })?;
+        }
+        Ok(cookie)
+    }
 }
 
 fn webview_cookie_to_cookie(c: &ICoreWebView2Cookie) -> Result<Cookie<'static>> {
@@ -507,114 +540,6 @@ where
         } else {
             Ok(())
         }
-    }
-}
-
-#[implement(ICoreWebView2Cookie, Agile = false)]
-struct CookieWrap(RefCell<Cookie<'static>>);
-
-impl CookieWrap {
-    pub fn create(c: Cookie<'static>) -> ICoreWebView2Cookie {
-        Self(RefCell::new(c)).into()
-    }
-}
-
-fn create_pwstr(s: &str) -> PWSTR {
-    let v: Vec<u16> = s.encode_utf16().collect();
-    unsafe {
-        let ptr = CoTaskMemAlloc(v.len() * 2 + 2).cast::<u16>();
-        std::ptr::copy_nonoverlapping(v.as_ptr(), ptr, v.len());
-        *ptr.add(v.len()) = 0;
-        PWSTR(ptr)
-    }
-}
-
-impl ICoreWebView2Cookie_Impl for CookieWrap_Impl {
-    fn Name(&self) -> Result<PWSTR> {
-        Ok(create_pwstr(self.0.borrow().name()))
-    }
-
-    fn Value(&self) -> Result<PWSTR> {
-        Ok(create_pwstr(self.0.borrow().value()))
-    }
-
-    fn SetValue(&self, value: &PCWSTR) -> Result<()> {
-        self.0.borrow_mut().set_value(unsafe { value.to_string()? });
-        Ok(())
-    }
-
-    fn Domain(&self) -> Result<PWSTR> {
-        Ok(create_pwstr(self.0.borrow().domain().unwrap_or_default()))
-    }
-
-    fn Path(&self) -> Result<PWSTR> {
-        Ok(create_pwstr(self.0.borrow().path().unwrap_or_default()))
-    }
-
-    fn Expires(&self) -> Result<f64> {
-        let expires = self.0.borrow().expires();
-        Ok(match expires {
-            Some(cookie::Expiration::DateTime(dt)) => dt.unix_timestamp() as f64,
-            _ => -1.0,
-        })
-    }
-
-    fn SetExpires(&self, expires: f64) -> Result<()> {
-        let expires = if expires < 0.0 {
-            cookie::Expiration::Session
-        } else {
-            cookie::Expiration::DateTime(
-                time::OffsetDateTime::from_unix_timestamp(expires as _)
-                    .map_err(|_| Error::from_hresult(E_INVALIDARG))?,
-            )
-        };
-        self.0.borrow_mut().set_expires(expires);
-        Ok(())
-    }
-
-    fn IsHttpOnly(&self) -> Result<BOOL> {
-        Ok(self.0.borrow().http_only().unwrap_or_default().into())
-    }
-
-    fn SetIsHttpOnly(&self, ishttponly: BOOL) -> Result<()> {
-        self.0.borrow_mut().set_http_only(ishttponly.as_bool());
-        Ok(())
-    }
-
-    fn SameSite(&self) -> Result<COREWEBVIEW2_COOKIE_SAME_SITE_KIND> {
-        Ok(match self.0.borrow().same_site() {
-            Some(cookie::SameSite::Strict) => COREWEBVIEW2_COOKIE_SAME_SITE_KIND_STRICT,
-            Some(cookie::SameSite::None) => COREWEBVIEW2_COOKIE_SAME_SITE_KIND_NONE,
-            _ => COREWEBVIEW2_COOKIE_SAME_SITE_KIND_LAX,
-        })
-    }
-
-    fn SetSameSite(&self, samesite: COREWEBVIEW2_COOKIE_SAME_SITE_KIND) -> Result<()> {
-        let same_site = match samesite {
-            COREWEBVIEW2_COOKIE_SAME_SITE_KIND_STRICT => cookie::SameSite::Strict,
-            COREWEBVIEW2_COOKIE_SAME_SITE_KIND_NONE => cookie::SameSite::None,
-            _ => cookie::SameSite::Lax,
-        };
-        self.0.borrow_mut().set_same_site(Some(same_site));
-        Ok(())
-    }
-
-    fn IsSecure(&self) -> Result<BOOL> {
-        Ok(self.0.borrow().secure().unwrap_or_default().into())
-    }
-
-    fn SetIsSecure(&self, issecure: BOOL) -> Result<()> {
-        self.0.borrow_mut().set_secure(issecure.as_bool());
-        Ok(())
-    }
-
-    fn IsSession(&self) -> Result<BOOL> {
-        Ok(self
-            .0
-            .borrow()
-            .expires()
-            .is_some_and(|e| matches!(e, cookie::Expiration::Session))
-            .into())
     }
 }
 
