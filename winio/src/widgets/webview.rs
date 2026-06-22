@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use cookie::Cookie;
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
@@ -58,6 +59,26 @@ impl WebView {
 
     /// Stop loading the current page.
     pub fn stop(&mut self) -> Result<()>;
+
+    /// Get the cookies.
+    pub async fn cookies(&self) -> Result<Vec<Cookie<'static>>> {
+        self.widget.cookies().await
+    }
+
+    /// Set a cookie.
+    pub async fn set_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
+        self.widget.set_cookie(c).await
+    }
+
+    /// Delete a cookie.
+    pub async fn delete_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
+        self.widget.delete_cookie(c).await
+    }
+
+    /// Run JavaScript and get the result as a string.
+    pub async fn run_javascript(&mut self, js: impl AsRef<str>) -> Result<String> {
+        self.widget.run_javascript(js).await
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
