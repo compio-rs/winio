@@ -14,10 +14,11 @@ WinioWgpuCanvas::WinioWgpuCanvas(QWidget *parent)
     setAttribute(Qt::WA_DontCreateNativeAncestors);
     setAttribute(Qt::WA_NativeWindow);
     setAttribute(Qt::WA_PaintOnScreen);
-    setAttribute(Qt::WA_NoSystemBackground);
 }
 
 WinioWgpuCanvas::~WinioWgpuCanvas() {}
+
+QPaintEngine *WinioWgpuCanvas::paintEngine() const { return nullptr; }
 
 void WinioWgpuCanvas::mouseMoveEvent(QMouseEvent *event) {
     if (m_move_callback) {

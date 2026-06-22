@@ -21,6 +21,8 @@ struct WinioWgpuCanvas : public QWidget {
     WinioWgpuCanvas(QWidget *parent);
     ~WinioWgpuCanvas() override;
 
+    QPaintEngine *paintEngine() const override;
+
 protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
