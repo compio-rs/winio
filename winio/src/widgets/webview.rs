@@ -61,21 +61,35 @@ impl WebView {
     pub fn stop(&mut self) -> Result<()>;
 
     /// Get the cookies.
+    ///
+    /// ## Platform specific
+    /// * Android: returns cookies for the current URL.
     pub async fn cookies(&self) -> Result<Vec<Cookie<'static>>> {
         self.widget.cookies().await
     }
 
     /// Set a cookie.
+    ///
+    /// ## Platform specific
+    /// * Qt: the method doesn't wait for the cookie to be set.
+    /// * Android: sets a cookie for the current URL.
     pub async fn set_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
         self.widget.set_cookie(c).await
     }
 
     /// Delete a cookie.
+    ///
+    /// ## Platform specific
+    /// * Qt: the method doesn't wait for the cookie to be deleted.
+    /// * Android: deletes a cookie for the current URL.
     pub async fn delete_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
         self.widget.delete_cookie(c).await
     }
 
     /// Run JavaScript and get the result as a string.
+    ///
+    /// Be careful when using the returned string, as it may contain different
+    /// data on different platforms.
     pub async fn run_javascript(&mut self, js: impl AsRef<str>) -> Result<String> {
         self.widget.run_javascript(js).await
     }
