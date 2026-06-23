@@ -33,6 +33,7 @@ jni = { workspace = true }
 jni-min-helper = "0.4"
 ndk-sys = "0.6"
 
+cookie = { workspace = true, optional = true }
 futures-channel = { workspace = true }
 futures-util = { workspace = true }
 image = { workspace = true, default-features = false }
@@ -40,10 +41,11 @@ inherit-methods-macro = { workspace = true }
 oneshot = { workspace = true, features = ["std", "async"] }
 rustix = { version = "1", optional = true, features = ["time"] }
 thiserror = { workspace = true }
+time = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true, features = ["vulkan"] }
 
 [features]
 media = []
-webview = []
+webview = ["dep:cookie", "dep:time"]
 wgpu = ["dep:wgpu"]
 compio-compat = ["compio/compat", "dep:rustix", "compio/fs"]

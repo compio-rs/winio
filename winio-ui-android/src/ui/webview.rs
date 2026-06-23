@@ -1,8 +1,9 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
+use cookie::Cookie;
 use inherit_methods_macro::inherit_methods;
 use jni::{
-    objects::JObject,
+    objects::{JObject, JString},
     refs::{LoaderContext, Reference},
 };
 use jni_min_helper::DynamicProxy;
@@ -10,14 +11,19 @@ use winio_callback::SyncCallback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{AView, BaseWidget, Context, JRunnable, Result, current_activity, vm_exec};
+use crate::{
+    AView, BaseWidget, Context, JRunnable, Result, current_activity, impl_listener, vm_exec,
+};
 
 jni::bind_java_type! {
     AWebView => android.webkit.WebView,
     type_map {
         AView => android.view.View,
         AWebViewClient => android.webkit.WebViewClient,
+        AWebSettings => android.webkit.WebSettings,
+        AWebChromeClient => android.webkit.WebChromeClient,
         Context => android.content.Context,
+        ValueCallback => android.webkit.ValueCallback,
     },
     constructors {
         fn new(context: &Context),
@@ -33,10 +39,33 @@ jni::bind_java_type! {
         fn reload(),
         fn stop_loading(),
         fn set_web_view_client(client: &AWebViewClient),
+        fn get_settings() -> AWebSettings,
+        fn set_web_chrome_client(client: &AWebChromeClient),
+        fn evaluate_javascript(script: &JString, callback: &ValueCallback),
     },
     is_instance_of = {
         view = AView,
     }
+}
+
+jni::bind_java_type! {
+    AWebSettings => android.webkit.WebSettings,
+    methods {
+        fn set_java_script_enabled(enabled: bool),
+    }
+}
+
+jni::bind_java_type! {
+    ValueCallback => android.webkit.ValueCallback,
+}
+
+impl_listener!(ValueCallback);
+
+jni::bind_java_type! {
+    AWebChromeClient => android.webkit.WebChromeClient,
+    constructors {
+        fn new(),
+    },
 }
 
 jni::bind_java_type! {
@@ -78,6 +107,11 @@ impl WebView {
         vm_exec(|env| {
             let act = current_activity(env)?;
             let widget = AWebView::new(env, act)?;
+            widget
+                .get_settings(env)?
+                .set_java_script_enabled(env, true)?;
+            let chrome_client = AWebChromeClient::new(env)?;
+            widget.set_web_chrome_client(env, &chrome_client)?;
             let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
 
             let client = WinioWebViewClient::new(env)?;
@@ -196,6 +230,48 @@ impl WebView {
 
     pub async fn wait_navigated(&self) {
         self.on_finished.wait().await;
+    }
+
+    pub async fn cookies(&self) -> Result<Vec<Cookie<'static>>> {
+        todo!()
+    }
+
+    pub async fn set_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
+        todo!()
+    }
+
+    pub async fn delete_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
+        todo!()
+    }
+
+    pub async fn run_javascript(&mut self, script: impl AsRef<str>) -> Result<String> {
+        let (tx, rx) = oneshot::channel();
+        let _proxy = vm_exec(|env| {
+            let script = env.new_string(script.as_ref())?;
+            let tx = Arc::new(Mutex::new(Some(tx)));
+            let callback =
+                DynamicProxy::build(env, &LoaderContext::None, [ValueCallback::class_name()], {
+                    move |env, method, args| {
+                        let name = method.get_name(env)?.try_to_string(env)?;
+                        if name == "onReceiveValue" {
+                            let value = args.get_element(env, 0)?;
+                            let value = env.cast_local::<JString>(value)?;
+                            let result = if value.is_null() {
+                                None
+                            } else {
+                                Some(value.try_to_string(env)?)
+                            };
+                            if let Some(tx) = tx.lock().unwrap().take() {
+                                tx.send(result).ok();
+                            }
+                        }
+                        Ok(JObject::null())
+                    }
+                })?;
+            self.inner.evaluate_javascript(env, &script, &callback)?;
+            Result::Ok(callback)
+        })?;
+        Ok(rx.await.map_err(std::io::Error::other)?.unwrap_or_default())
     }
 }
 
