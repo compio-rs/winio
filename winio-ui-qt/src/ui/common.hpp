@@ -23,12 +23,13 @@ template <> struct IsRelocatable<QString> : std::true_type {};
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 static_assert(sizeof(QString) == 3 * sizeof(std::size_t));
+static_assert(sizeof(QByteArray) == 3 * sizeof(std::size_t));
 #else
 static_assert(sizeof(QString) == sizeof(std::size_t));
+static_assert(sizeof(QByteArray) == sizeof(std::size_t));
 #endif
 
 static_assert(sizeof(QUrl) == sizeof(std::size_t));
-static_assert(sizeof(QByteArray) == 3 * sizeof(std::size_t));
 
 #define STATIC_CAST_ASSERT(t, base)                                            \
     static_assert(std::is_base_of<base, t>::value &&                           \

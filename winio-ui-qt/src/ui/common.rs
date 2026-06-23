@@ -136,7 +136,10 @@ impl TryFrom<QUrl> for String {
 #[repr(C)]
 #[allow(unused)]
 pub struct QByteArray {
-    _space: MaybeUninit<[usize; 3]>,
+    #[cfg(qtver = "6")]
+    _data: MaybeUninit<[usize; 3]>,
+    #[cfg(qtver = "5")]
+    _data: MaybeUninit<[usize; 1]>,
 }
 
 unsafe impl ExternType for QByteArray {
