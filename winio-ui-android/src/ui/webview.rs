@@ -1,8 +1,9 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
+use cookie::Cookie;
 use inherit_methods_macro::inherit_methods;
 use jni::{
-    objects::JObject,
+    objects::{JObject, JString},
     refs::{LoaderContext, Reference},
 };
 use jni_min_helper::DynamicProxy;
@@ -10,14 +11,19 @@ use winio_callback::SyncCallback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{AView, BaseWidget, Context, JRunnable, Result, current_activity, vm_exec};
+use crate::{
+    AView, BaseWidget, Context, JRunnable, Result, current_activity, impl_listener, vm_exec,
+};
 
 jni::bind_java_type! {
     AWebView => android.webkit.WebView,
     type_map {
         AView => android.view.View,
         AWebViewClient => android.webkit.WebViewClient,
+        AWebSettings => android.webkit.WebSettings,
+        AWebChromeClient => android.webkit.WebChromeClient,
         Context => android.content.Context,
+        ValueCallback => android.webkit.ValueCallback,
     },
     constructors {
         fn new(context: &Context),
@@ -33,10 +39,33 @@ jni::bind_java_type! {
         fn reload(),
         fn stop_loading(),
         fn set_web_view_client(client: &AWebViewClient),
+        fn get_settings() -> AWebSettings,
+        fn set_web_chrome_client(client: &AWebChromeClient),
+        fn evaluate_javascript(script: &JString, callback: &ValueCallback),
     },
     is_instance_of = {
         view = AView,
     }
+}
+
+jni::bind_java_type! {
+    AWebSettings => android.webkit.WebSettings,
+    methods {
+        fn set_java_script_enabled(enabled: bool),
+    }
+}
+
+jni::bind_java_type! {
+    ValueCallback => android.webkit.ValueCallback,
+}
+
+impl_listener!(ValueCallback);
+
+jni::bind_java_type! {
+    AWebChromeClient => android.webkit.WebChromeClient,
+    constructors {
+        fn new(),
+    },
 }
 
 jni::bind_java_type! {
@@ -61,6 +90,20 @@ jni::bind_java_type! {
     }
 }
 
+jni::bind_java_type! {
+    CookieManager => android.webkit.CookieManager,
+    type_map {
+        ValueCallback => android.webkit.ValueCallback,
+    },
+    methods {
+        static fn get_instance() -> CookieManager,
+
+        fn set_accept_cookie(accept: bool),
+        fn set_cookie(url: &JString, value: &JString, callback: &ValueCallback),
+        fn get_cookie(url: &JString) -> JString,
+    }
+}
+
 #[derive(Debug)]
 pub struct WebView {
     inner: BaseWidget<AWebView<'static>>,
@@ -76,8 +119,15 @@ pub struct WebView {
 impl WebView {
     pub async fn new(parent: impl AsContainer) -> Result<Self> {
         vm_exec(|env| {
+            CookieManager::get_instance(env)?.set_accept_cookie(env, true)?;
+
             let act = current_activity(env)?;
             let widget = AWebView::new(env, act)?;
+            widget
+                .get_settings(env)?
+                .set_java_script_enabled(env, true)?;
+            let chrome_client = AWebChromeClient::new(env)?;
+            widget.set_web_chrome_client(env, &chrome_client)?;
             let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
 
             let client = WinioWebViewClient::new(env)?;
@@ -196,6 +246,89 @@ impl WebView {
 
     pub async fn wait_navigated(&self) {
         self.on_finished.wait().await;
+    }
+
+    pub async fn cookies(&self) -> Result<Vec<Cookie<'static>>> {
+        let source = self.source()?;
+        if source.is_empty() {
+            return Ok(vec![]);
+        }
+        vm_exec(|env| {
+            let url = env.new_string(&source)?;
+            let cookies = CookieManager::get_instance(env)?.get_cookie(env, &url)?;
+            let cookies = cookies.try_to_string(env)?;
+            if let Ok(cookie) = Cookie::parse(cookies) {
+                Ok(vec![cookie])
+            } else {
+                Ok(vec![])
+            }
+        })
+    }
+
+    async fn set_cookie_impl(&mut self, cookie: &str) -> Result<()> {
+        let source = self.source()?;
+        if source.is_empty() {
+            return Ok(());
+        }
+        let (rx, _proxy) = vm_exec(|env| {
+            let url = env.new_string(&source)?;
+            let value = env.new_string(cookie)?;
+            let (tx, rx) = oneshot::channel();
+            let tx = Arc::new(Mutex::new(Some(tx)));
+            let proxy =
+                DynamicProxy::build(env, &LoaderContext::None, [ValueCallback::class_name()], {
+                    move |_env, _method, _args| {
+                        if let Some(tx) = tx.lock().unwrap().take() {
+                            tx.send(()).ok();
+                        }
+                        Ok(JObject::null())
+                    }
+                })?;
+            CookieManager::get_instance(env)?.set_cookie(env, &url, &value, &proxy)?;
+            Result::Ok((rx, proxy))
+        })?;
+        rx.await.map_err(std::io::Error::other)?;
+        Ok(())
+    }
+
+    pub async fn set_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
+        self.set_cookie_impl(&c.to_string()).await
+    }
+
+    pub async fn delete_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
+        let mut cookie = c.clone();
+        cookie.set_max_age(time::Duration::seconds(0));
+        self.set_cookie_impl(&cookie.to_string()).await
+    }
+
+    pub async fn run_javascript(&mut self, script: impl AsRef<str>) -> Result<String> {
+        let (tx, rx) = oneshot::channel();
+        let _proxy = vm_exec(|env| {
+            let script = env.new_string(script.as_ref())?;
+            let tx = Arc::new(Mutex::new(Some(tx)));
+            let callback =
+                DynamicProxy::build(env, &LoaderContext::None, [ValueCallback::class_name()], {
+                    move |env, method, args| {
+                        let name = method.get_name(env)?.try_to_string(env)?;
+                        if name == "onReceiveValue" {
+                            let value = args.get_element(env, 0)?;
+                            let value = env.cast_local::<JString>(value)?;
+                            let result = if value.is_null() {
+                                None
+                            } else {
+                                Some(value.try_to_string(env)?)
+                            };
+                            if let Some(tx) = tx.lock().unwrap().take() {
+                                tx.send(result).ok();
+                            }
+                        }
+                        Ok(JObject::null())
+                    }
+                })?;
+            self.inner.evaluate_javascript(env, &script, &callback)?;
+            Result::Ok(callback)
+        })?;
+        Ok(rx.await.map_err(std::io::Error::other)?.unwrap_or_default())
     }
 }
 

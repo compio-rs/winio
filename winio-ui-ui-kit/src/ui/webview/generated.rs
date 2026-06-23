@@ -50,6 +50,18 @@ impl WKWebView {
             navigation_delegate: Option<&ProtocolObject<dyn WKNavigationDelegate>>,
         );
 
+        /// The web view's user interface delegate.
+        #[unsafe(method(UIDelegate))]
+        #[unsafe(method_family = none)]
+        pub unsafe fn UIDelegate(&self) -> Option<Retained<ProtocolObject<dyn WKUIDelegate>>>;
+
+        /// Setter for [`UIDelegate`][Self::UIDelegate].
+        ///
+        /// This is a [weak property][objc2::topics::weak_property].
+        #[unsafe(method(setUIDelegate:))]
+        #[unsafe(method_family = none)]
+        pub unsafe fn setUIDelegate(&self, ui_delegate: Option<&ProtocolObject<dyn WKUIDelegate>>);
+
         /// Returns a web view initialized with a specified frame and
         /// configuration.
         ///
@@ -214,5 +226,13 @@ impl WKWebView {
         #[unsafe(method(stopLoading))]
         #[unsafe(method_family = none)]
         pub unsafe fn stopLoading(&self);
+
+        #[unsafe(method(evaluateJavaScript:completionHandler:))]
+        #[unsafe(method_family = none)]
+        pub unsafe fn evaluateJavaScript_completionHandler(
+            &self,
+            java_script_string: &NSString,
+            completion_handler: Option<&block2::DynBlock<dyn Fn(*mut AnyObject, *mut NSError)>>,
+        );
     );
 }

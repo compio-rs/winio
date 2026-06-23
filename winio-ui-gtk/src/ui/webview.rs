@@ -1,8 +1,9 @@
 use std::rc::Rc;
 
+use cookie::{Cookie, Expiration};
 use gtk4::glib::object::Cast;
 use inherit_methods_macro::inherit_methods;
-use webkit6::prelude::WebViewExt;
+use webkit6::{prelude::WebViewExt, soup::SameSitePolicy};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
@@ -109,6 +110,100 @@ impl WebView {
     pub async fn wait_navigated(&self) {
         self.on_loaded.wait().await
     }
+
+    pub async fn cookies(&self) -> Result<Vec<Cookie<'static>>> {
+        if let Some(session) = self.widget.network_session()
+            && let Some(cookie_manager) = session.cookie_manager()
+        {
+            let cookies = cookie_manager.all_cookies_future().await?;
+            return Ok(cookies
+                .into_iter()
+                .filter_map(|mut c| cookie_from_soup(&mut c))
+                .collect());
+        }
+        Ok(vec![])
+    }
+
+    pub async fn set_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
+        if let Some(session) = self.widget.network_session()
+            && let Some(cookie_manager) = session.cookie_manager()
+            && let Some(c) = cookie_to_soup(c)
+        {
+            cookie_manager.add_cookie_future(&c).await?;
+        }
+        Ok(())
+    }
+
+    pub async fn delete_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
+        if let Some(session) = self.widget.network_session()
+            && let Some(cookie_manager) = session.cookie_manager()
+            && let Some(c) = cookie_to_soup(c)
+        {
+            cookie_manager.delete_cookie_future(&c).await?;
+        }
+        Ok(())
+    }
+
+    pub async fn run_javascript(&mut self, s: impl AsRef<str>) -> Result<String> {
+        Ok(self
+            .widget
+            .evaluate_javascript_future(s.as_ref(), None, None)
+            .await?
+            .to_string())
+    }
 }
 
 winio_handle::impl_as_widget!(WebView, handle);
+
+fn cookie_from_soup(c: &mut webkit6::soup::Cookie) -> Option<Cookie<'static>> {
+    let name = c.name().unwrap_or_default();
+    let value = c.value().unwrap_or_default();
+    let mut builder = Cookie::build((name.to_string(), value.to_string()))
+        .secure(c.is_secure())
+        .http_only(c.is_http_only())
+        .same_site(match c.same_site_policy() {
+            SameSitePolicy::Lax => cookie::SameSite::Lax,
+            SameSitePolicy::Strict => cookie::SameSite::Strict,
+            SameSitePolicy::None => cookie::SameSite::None,
+            _ => return None,
+        });
+    if let Some(s) = c.domain() {
+        builder = builder.domain(s.to_string());
+    }
+    if let Some(s) = c.path() {
+        builder = builder.path(s.to_string());
+    }
+    if let Some(dt) = c.expires() {
+        builder = builder.expires(cookie::Expiration::DateTime(
+            time::OffsetDateTime::from_unix_timestamp(dt.to_unix()).ok()?,
+        ));
+    }
+    Some(builder.build())
+}
+
+fn cookie_to_soup(c: &Cookie<'_>) -> Option<webkit6::soup::Cookie> {
+    let mut cookie = webkit6::soup::Cookie::new(
+        c.name(),
+        c.value(),
+        c.domain().unwrap_or_default(),
+        c.path().unwrap_or_default(),
+        -1,
+    );
+    if let Some(b) = c.secure() {
+        cookie.set_secure(b);
+    }
+    if let Some(b) = c.http_only() {
+        cookie.set_http_only(b);
+    }
+    if let Some(s) = c.same_site() {
+        cookie.set_same_site_policy(match s {
+            cookie::SameSite::Lax => SameSitePolicy::Lax,
+            cookie::SameSite::Strict => SameSitePolicy::Strict,
+            cookie::SameSite::None => SameSitePolicy::None,
+        });
+    }
+    if let Some(Expiration::DateTime(dt)) = c.expires() {
+        cookie.set_expires(&gtk4::glib::DateTime::from_unix_utc(dt.unix_timestamp()).ok()?);
+    }
+    Some(cookie)
+}

@@ -22,12 +22,14 @@ winio-ui-apple-common = { workspace = true }
 compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
 
+cookie = { workspace = true, optional = true }
 futures-util = { workspace = true }
 image = { workspace = true }
 inherit-methods-macro = { workspace = true }
 local-sync = { workspace = true }
 slab = { workspace = true }
 thiserror = { workspace = true }
+time = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true, features = ["metal"] }
 
 block2 = { workspace = true }
@@ -49,7 +51,12 @@ objc2-web-kit = { workspace = true, optional = true }
 
 [features]
 media = ["dep:objc2-av-foundation", "dep:objc2-core-media"]
-webview = ["dep:objc2-web-kit"]
+webview = [
+    "dep:objc2-web-kit",
+    "dep:cookie",
+    "dep:time",
+    "winio-ui-apple-common/webview",
+]
 wgpu = ["dep:wgpu"]
 compio-compat = ["compio/compat-futures", "compio/fs"]
 

@@ -1,20 +1,25 @@
 use std::{cell::RefCell, rc::Rc};
 
+use cookie::Cookie;
 use webview2::{
-    CreateCoreWebView2Environment, ICoreWebView2, ICoreWebView2Controller,
-    ICoreWebView2CreateCoreWebView2ControllerCompletedHandler,
+    COREWEBVIEW2_COOKIE_SAME_SITE_KIND_LAX, COREWEBVIEW2_COOKIE_SAME_SITE_KIND_NONE,
+    COREWEBVIEW2_COOKIE_SAME_SITE_KIND_STRICT, CreateCoreWebView2Environment, ICoreWebView2,
+    ICoreWebView2_2, ICoreWebView2Controller, ICoreWebView2Cookie, ICoreWebView2CookieList,
+    ICoreWebView2CookieManager, ICoreWebView2CreateCoreWebView2ControllerCompletedHandler,
     ICoreWebView2CreateCoreWebView2ControllerCompletedHandler_Impl,
     ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,
     ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler_Impl, ICoreWebView2Environment,
+    ICoreWebView2ExecuteScriptCompletedHandler, ICoreWebView2ExecuteScriptCompletedHandler_Impl,
+    ICoreWebView2GetCookiesCompletedHandler, ICoreWebView2GetCookiesCompletedHandler_Impl,
     ICoreWebView2NavigationCompletedEventArgs, ICoreWebView2NavigationCompletedEventHandler,
     ICoreWebView2NavigationCompletedEventHandler_Impl, ICoreWebView2NavigationStartingEventArgs,
     ICoreWebView2NavigationStartingEventHandler, ICoreWebView2NavigationStartingEventHandler_Impl,
 };
 use windows::{
-    Win32::Foundation::{E_FAIL, HWND, RECT},
-    core::{HRESULT, PCWSTR, Ref, implement},
+    Win32::Foundation::{E_FAIL, E_INVALIDARG, HWND, RECT},
+    core::{HRESULT, HSTRING, Interface, PCWSTR, Ref, implement},
 };
-use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
+use windows_sys::Win32::{Foundation::ERROR_CANCELLED, UI::HiDpi::GetDpiForWindow};
 use winio_callback::Callback;
 use winio_handle::{AsContainer, AsWidget, BorrowedWidget};
 use winio_primitive::{Point, Rect, Size};
@@ -149,7 +154,7 @@ impl WebView {
     pub fn source(&self) -> Result<String> {
         unsafe {
             let source = CoTaskMemPtr::new(self.view.Source()?.0);
-            Ok(PCWSTR(source.as_ptr()).to_string()?)
+            source.to_string()
         }
     }
 
@@ -214,12 +219,145 @@ impl WebView {
     pub async fn wait_navigated(&self) {
         self.navigated.wait().await;
     }
+
+    fn cookie_manager(&self) -> Result<ICoreWebView2CookieManager> {
+        unsafe { self.view.cast::<ICoreWebView2_2>()?.CookieManager() }
+    }
+
+    pub async fn cookies(&self) -> Result<Vec<Cookie<'static>>> {
+        let (tx, rx) = local_sync::oneshot::channel();
+        let handler = GetCookiesHandler::create(move |result| {
+            fn conv_cookies(cookies: Ref<ICoreWebView2CookieList>) -> Result<Vec<Cookie<'static>>> {
+                let list = cookies.ok()?;
+                let mut cookies = vec![];
+                for i in 0..unsafe { list.Count()? } {
+                    let cookie = unsafe { list.GetValueAtIndex(i)? };
+                    cookies.push(webview_cookie_to_cookie(&cookie)?);
+                }
+                Ok(cookies)
+            }
+            tx.send(result.map(conv_cookies)).ok();
+            Ok(())
+        });
+        unsafe { self.cookie_manager()?.GetCookies(None, &handler)? };
+        rx.await
+            .map_err(|_| Error::from_hresult(HRESULT::from_win32(ERROR_CANCELLED)))??
+    }
+
+    pub async fn set_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
+        unsafe {
+            let manager = self.cookie_manager()?;
+            manager.AddOrUpdateCookie(&cookie_to_webview_cookie(c, &manager)?)?;
+        }
+        Ok(())
+    }
+
+    pub async fn delete_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
+        unsafe {
+            let manager = self.cookie_manager()?;
+            manager.DeleteCookie(&cookie_to_webview_cookie(c, &manager)?)?;
+        }
+        Ok(())
+    }
+
+    pub async fn run_javascript(&mut self, s: impl AsRef<str>) -> Result<String> {
+        let s = s.as_ref();
+        let (tx, rx) = local_sync::oneshot::channel();
+        with_u16c(s, |s| unsafe {
+            self.view.ExecuteScript(
+                PCWSTR(s.as_ptr()),
+                &ExecuteScriptHandler::create(move |result| {
+                    tx.send(result.map(|s| s.to_hstring())).ok();
+                    Ok(())
+                }),
+            )?;
+            Ok(())
+        })?;
+        let result = rx
+            .await
+            .map_err(|_| Error::from_hresult(HRESULT::from_win32(ERROR_CANCELLED)))??;
+        Ok(result.to_string_lossy())
+    }
 }
 
 impl AsWidget for WebView {
     fn as_widget(&self) -> BorrowedWidget<'_> {
         unimplemented!("cannot get HWND from WebView2")
     }
+}
+
+fn cookie_to_webview_cookie(
+    c: &Cookie<'_>,
+    manager: &ICoreWebView2CookieManager,
+) -> Result<ICoreWebView2Cookie> {
+    unsafe {
+        let name = HSTRING::from(c.name());
+        let value = HSTRING::from(c.value());
+        let domain = HSTRING::from(c.domain().unwrap_or_default());
+        let path = HSTRING::from(c.path().unwrap_or_default());
+        let cookie = manager.CreateCookie(
+            PCWSTR(name.as_ptr()),
+            PCWSTR(value.as_ptr()),
+            PCWSTR(domain.as_ptr()),
+            PCWSTR(path.as_ptr()),
+        )?;
+        if let Some(expires) = c.expires() {
+            match expires {
+                cookie::Expiration::Session => cookie.SetExpires(-1.0)?,
+                cookie::Expiration::DateTime(dt) => {
+                    let timestamp = dt.unix_timestamp() as f64;
+                    cookie.SetExpires(timestamp)?;
+                }
+            }
+        }
+        if let Some(is_secure) = c.secure() {
+            cookie.SetIsSecure(is_secure)?;
+        }
+        if let Some(is_http_only) = c.http_only() {
+            cookie.SetIsHttpOnly(is_http_only)?;
+        }
+        if let Some(same_site) = c.same_site() {
+            cookie.SetSameSite(match same_site {
+                cookie::SameSite::Lax => COREWEBVIEW2_COOKIE_SAME_SITE_KIND_LAX,
+                cookie::SameSite::Strict => COREWEBVIEW2_COOKIE_SAME_SITE_KIND_STRICT,
+                cookie::SameSite::None => COREWEBVIEW2_COOKIE_SAME_SITE_KIND_NONE,
+            })?;
+        }
+        Ok(cookie)
+    }
+}
+
+fn webview_cookie_to_cookie(c: &ICoreWebView2Cookie) -> Result<Cookie<'static>> {
+    let name = unsafe { CoTaskMemPtr::new(c.Name()?.0) };
+    let value = unsafe { CoTaskMemPtr::new(c.Value()?.0) };
+    let domain = unsafe { CoTaskMemPtr::new(c.Domain()?.0) };
+    let path = unsafe { CoTaskMemPtr::new(c.Path()?.0) };
+    let expires = unsafe { c.Expires() }?;
+    let is_secure = unsafe { c.IsSecure()?.as_bool() };
+    let is_http_only = unsafe { c.IsHttpOnly()?.as_bool() };
+    let same_site = unsafe { c.SameSite()? };
+    let is_session = unsafe { c.IsSession()?.as_bool() };
+    let cookie = Cookie::build((unsafe { name.to_string()? }, unsafe { value.to_string()? }))
+        .domain(unsafe { domain.to_string()? })
+        .path(unsafe { path.to_string()? })
+        .expires(if is_session {
+            cookie::Expiration::Session
+        } else {
+            cookie::Expiration::DateTime(
+                time::OffsetDateTime::from_unix_timestamp(expires as _)
+                    .map_err(|_| Error::from_hresult(E_INVALIDARG))?,
+            )
+        })
+        .secure(is_secure)
+        .http_only(is_http_only)
+        .same_site(match same_site {
+            COREWEBVIEW2_COOKIE_SAME_SITE_KIND_LAX => cookie::SameSite::Lax,
+            COREWEBVIEW2_COOKIE_SAME_SITE_KIND_STRICT => cookie::SameSite::Strict,
+            COREWEBVIEW2_COOKIE_SAME_SITE_KIND_NONE => cookie::SameSite::None,
+            _ => return Err(Error::from_hresult(E_INVALIDARG)),
+        })
+        .build();
+    Ok(cookie)
 }
 
 #[implement(
@@ -368,5 +506,73 @@ where
         args: Ref<ICoreWebView2NavigationCompletedEventArgs>,
     ) -> Result<()> {
         (self.f)(sender, args)
+    }
+}
+
+#[implement(ICoreWebView2GetCookiesCompletedHandler, Agile = false)]
+struct GetCookiesHandler<F>
+where
+    F: FnOnce(Result<Ref<ICoreWebView2CookieList>>) -> Result<()> + 'static,
+{
+    f: RefCell<Option<F>>,
+}
+
+impl<F> GetCookiesHandler<F>
+where
+    F: FnOnce(Result<Ref<ICoreWebView2CookieList>>) -> Result<()> + 'static,
+{
+    pub fn create(f: F) -> ICoreWebView2GetCookiesCompletedHandler {
+        Self {
+            f: RefCell::new(Some(f)),
+        }
+        .into()
+    }
+}
+
+impl<F> ICoreWebView2GetCookiesCompletedHandler_Impl for GetCookiesHandler_Impl<F>
+where
+    F: FnOnce(Result<Ref<ICoreWebView2CookieList>>) -> Result<()> + 'static,
+{
+    fn Invoke(&self, errorcode: HRESULT, cookie_list: Ref<ICoreWebView2CookieList>) -> Result<()> {
+        let f = self.f.borrow_mut().take();
+        if let Some(f) = f {
+            f(errorcode.map(|| cookie_list))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+#[implement(ICoreWebView2ExecuteScriptCompletedHandler, Agile = false)]
+struct ExecuteScriptHandler<F>
+where
+    F: FnOnce(Result<PCWSTR>) -> Result<()> + 'static,
+{
+    f: RefCell<Option<F>>,
+}
+
+impl<F> ExecuteScriptHandler<F>
+where
+    F: FnOnce(Result<PCWSTR>) -> Result<()> + 'static,
+{
+    pub fn create(f: F) -> ICoreWebView2ExecuteScriptCompletedHandler {
+        Self {
+            f: RefCell::new(Some(f)),
+        }
+        .into()
+    }
+}
+
+impl<F> ICoreWebView2ExecuteScriptCompletedHandler_Impl for ExecuteScriptHandler_Impl<F>
+where
+    F: FnOnce(Result<PCWSTR>) -> Result<()> + 'static,
+{
+    fn Invoke(&self, errorcode: HRESULT, resultobjectasjson: &PCWSTR) -> Result<()> {
+        let f = self.f.borrow_mut().take();
+        if let Some(f) = f {
+            f(errorcode.map(|| *resultobjectasjson))
+        } else {
+            Ok(())
+        }
     }
 }

@@ -32,6 +32,7 @@ compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
 
 cfg-if = { workspace = true }
+cookie = { workspace = true, optional = true }
 futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true }
@@ -78,6 +79,7 @@ media = [
     "winio-ui-android/media",
 ]
 webview = [
+    "dep:cookie",
     "winio-ui-app-kit/webview",
     "winio-ui-ui-kit/webview",
     "winio-ui-win32?/webview",

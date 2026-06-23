@@ -81,6 +81,13 @@ impl FailableWebView {
             FailableWebView::ErrLabel(_) => Ok(()),
         }
     }
+
+    pub async fn run_javascript(&mut self, script: impl AsRef<str>) -> Result<String> {
+        match self {
+            FailableWebView::Widget(wv) => wv.run_javascript(script).await,
+            FailableWebView::ErrLabel(_) => Ok(String::new()),
+        }
+    }
 }
 
 impl Visible for FailableWebView {

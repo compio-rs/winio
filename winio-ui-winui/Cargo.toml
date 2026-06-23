@@ -22,11 +22,13 @@ winio-ui-windows-common = { workspace = true, features = ["winui"] }
 compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
 
+cookie = { workspace = true, optional = true }
 futures-util = { workspace = true }
 image = { workspace = true }
 inherit-methods-macro = { workspace = true }
 percent-encoding = { workspace = true, optional = true }
 send_wrapper = { workspace = true }
+time = { workspace = true, optional = true }
 widestring = { workspace = true }
 
 wgpu = { workspace = true, optional = true, features = ["dx12"] }
@@ -64,7 +66,7 @@ sync-unsafe-cell = { workspace = true }
 
 [features]
 media = ["windows/Media_Core", "dep:percent-encoding"]
-webview = ["winui3/Web_WebView2_Core"]
+webview = ["winui3/Web_WebView2_Core", "dep:cookie", "dep:time"]
 compio-compat = ["compio/compat-futures"]
 wgpu = ["dep:wgpu"]
 

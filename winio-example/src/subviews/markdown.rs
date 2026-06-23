@@ -9,6 +9,7 @@ use std::{
 
 use axum::{http::Uri, response::IntoResponse};
 use compio::{buf::buf_try, io::AsyncReadAtExt, net::TcpListener, runtime::spawn};
+use compio_log::info;
 use futures_util::FutureExt;
 use local_sync::oneshot;
 use send_wrapper::SendWrapper;
@@ -191,6 +192,14 @@ impl Component for MarkdownPage {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+@media (prefers-color-scheme: dark) {{
+  body {{
+    color: #ffffff;
+    background-color: #000000;
+  }}
+}}
+</style>
 <title>Markdown Preview</title>
 </head>
 <body>
@@ -210,7 +219,15 @@ impl Component for MarkdownPage {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Markdown Preview</title>
+<style>
+@media (prefers-color-scheme: dark) {{
+  body {{
+    color: #ffffff;
+    background-color: #000000;
+  }}
+}}
+</style>
+<title>Error</title>
 </head>
 <body>
     {err:?}
@@ -219,6 +236,11 @@ impl Component for MarkdownPage {
 "#
                         );
                         self.webview.navigate_to_string(html)?;
+                        let result = self
+                            .webview
+                            .run_javascript(format!("alert({:?})", format!("{:?}", err)))
+                            .await?;
+                        info!("run_javascript result: {:?}", result);
                     }
                 }
                 Ok(true)
