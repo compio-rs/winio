@@ -20,6 +20,7 @@ objc2-core-text = { workspace = true }
 objc2-foundation = { workspace = true }
 
 compio-log = { workspace = true }
+cookie = { workspace = true, optional = true }
 image = { workspace = true }
 local-sync = { workspace = true }
 thiserror = { workspace = true }
@@ -27,7 +28,7 @@ time = { workspace = true, optional = true }
 winio-primitive = { workspace = true }
 
 [features]
-webview = ["dep:time"]
+webview = ["dep:cookie", "dep:time"]
 objc-static = [
     "objc2/unstable-static-class-inlined",
     "objc2/unstable-static-sel-inlined",
