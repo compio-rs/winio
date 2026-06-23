@@ -2,7 +2,13 @@
 
 std::unique_ptr<QWebEngineView> new_webview(QWebEngineProfile *profile,
                                             QWidget *parent) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 4, 0)
     return std::make_unique<QWebEngineView>(profile, parent);
+#else
+    auto webview = std::make_unique<QWebEngineView>(parent);
+    webview->setPage(new QWebEnginePage(profile, webview.get()));
+    return webview;
+#endif
 }
 
 void webview_connect_load_started(QWebEngineView &w,
