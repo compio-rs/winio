@@ -90,6 +90,20 @@ jni::bind_java_type! {
     }
 }
 
+jni::bind_java_type! {
+    CookieManager => android.webkit.CookieManager,
+    type_map {
+        ValueCallback => android.webkit.ValueCallback,
+    },
+    methods {
+        static fn get_instance() -> CookieManager,
+
+        fn set_accept_cookie(accept: bool),
+        fn set_cookie(url: &JString, value: &JString, callback: &ValueCallback),
+        fn get_cookie(url: &JString) -> JString,
+    }
+}
+
 #[derive(Debug)]
 pub struct WebView {
     inner: BaseWidget<AWebView<'static>>,
@@ -105,6 +119,8 @@ pub struct WebView {
 impl WebView {
     pub async fn new(parent: impl AsContainer) -> Result<Self> {
         vm_exec(|env| {
+            CookieManager::get_instance(env)?.set_accept_cookie(env, true)?;
+
             let act = current_activity(env)?;
             let widget = AWebView::new(env, act)?;
             widget
@@ -233,15 +249,56 @@ impl WebView {
     }
 
     pub async fn cookies(&self) -> Result<Vec<Cookie<'static>>> {
-        todo!()
+        let source = self.source()?;
+        if source.is_empty() {
+            return Ok(vec![]);
+        }
+        vm_exec(|env| {
+            let url = env.new_string(&source)?;
+            let cookies = CookieManager::get_instance(env)?.get_cookie(env, &url)?;
+            let cookies = cookies.try_to_string(env)?;
+            if let Ok(cookie) = Cookie::parse(cookies) {
+                Ok(vec![cookie])
+            } else {
+                Ok(vec![])
+            }
+        })
+    }
+
+    async fn set_cookie_impl(&mut self, cookie: &str) -> Result<()> {
+        let source = self.source()?;
+        if source.is_empty() {
+            return Ok(());
+        }
+        let (rx, _proxy) = vm_exec(|env| {
+            let url = env.new_string(&source)?;
+            let value = env.new_string(cookie)?;
+            let (tx, rx) = oneshot::channel();
+            let tx = Arc::new(Mutex::new(Some(tx)));
+            let proxy =
+                DynamicProxy::build(env, &LoaderContext::None, [ValueCallback::class_name()], {
+                    move |_env, _method, _args| {
+                        if let Some(tx) = tx.lock().unwrap().take() {
+                            tx.send(()).ok();
+                        }
+                        Ok(JObject::null())
+                    }
+                })?;
+            CookieManager::get_instance(env)?.set_cookie(env, &url, &value, &proxy)?;
+            Result::Ok((rx, proxy))
+        })?;
+        rx.await.map_err(std::io::Error::other)?;
+        Ok(())
     }
 
     pub async fn set_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
-        todo!()
+        self.set_cookie_impl(&c.to_string()).await
     }
 
     pub async fn delete_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
-        todo!()
+        let mut cookie = c.clone();
+        cookie.set_max_age(time::Duration::seconds(0));
+        self.set_cookie_impl(&cookie.to_string()).await
     }
 
     pub async fn run_javascript(&mut self, script: impl AsRef<str>) -> Result<String> {
