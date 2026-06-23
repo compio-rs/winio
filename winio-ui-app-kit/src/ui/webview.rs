@@ -1,5 +1,6 @@
 use std::{
     cell::{Cell, RefCell},
+    ptr::NonNull,
     rc::Rc,
 };
 
@@ -12,9 +13,11 @@ use objc2::{
 };
 use objc2_app_kit::{NSAlert, NSAlertFirstButtonReturn, NSTextField, NSWindow};
 use objc2_foundation::{
-    MainThreadMarker, NSError, NSJSONSerialization, NSJSONWritingOptions, NSObject,
-    NSObjectProtocol, NSPoint, NSRect, NSSize, NSString, NSURL, NSURLRequest, NSUTF8StringEncoding,
-    ns_string,
+    MainThreadMarker, NSArray, NSDate, NSError, NSHTTPCookie, NSHTTPCookieDomain,
+    NSHTTPCookieExpires, NSHTTPCookieName, NSHTTPCookiePath, NSHTTPCookieSameSiteLax,
+    NSHTTPCookieSameSiteStrict, NSHTTPCookieSecure, NSHTTPCookieValue, NSJSONSerialization,
+    NSJSONWritingOptions, NSMutableDictionary, NSNumber, NSObject, NSObjectProtocol, NSPoint,
+    NSRect, NSSize, NSString, NSURL, NSURLRequest, NSUTF8StringEncoding, ns_string,
 };
 use objc2_web_kit::{
     WKFrameInfo, WKNavigation, WKNavigationDelegate, WKUIDelegate, WKWebView,
@@ -30,6 +33,7 @@ use crate::{Error, GlobalRuntime, Result, Widget, catch, from_nsstring};
 pub struct WebView {
     handle: Widget,
     view: Retained<WKWebView>,
+    config: Retained<WKWebViewConfiguration>,
     delegate: Retained<WebViewDelegate>,
 }
 
@@ -58,6 +62,7 @@ impl WebView {
             Ok(Self {
                 handle,
                 view,
+                config,
                 delegate,
             })
         })
@@ -157,15 +162,80 @@ impl WebView {
     }
 
     pub async fn cookies(&self) -> Result<Vec<Cookie<'static>>> {
-        todo!()
+        let rx = catch(|| {
+            let (tx, rx) = local_sync::oneshot::channel();
+            let tx = Rc::new(Cell::new(Some(tx)));
+            let handler = move |cookies: NonNull<NSArray<NSHTTPCookie>>| {
+                if let Some(tx) = tx.take() {
+                    tx.send(unsafe { cookies.as_ref() }.retain()).ok();
+                }
+            };
+            let block = block2::StackBlock::new(handler);
+            unsafe {
+                self.config
+                    .websiteDataStore()
+                    .httpCookieStore()
+                    .getAllCookies(&block);
+            }
+            rx
+        })?;
+        let array = rx.await?;
+        catch(|| {
+            let mut cookies = vec![];
+            for cookie in array {
+                cookies.push(cookie_from_ns(&cookie)?);
+            }
+            Ok(cookies)
+        })
+        .flatten()
     }
 
     pub async fn set_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
-        todo!()
+        let rx = catch(|| {
+            let (tx, rx) = local_sync::oneshot::channel();
+            let tx = Rc::new(Cell::new(Some(tx)));
+            let handler = move || {
+                if let Some(tx) = tx.take() {
+                    tx.send(()).ok();
+                }
+            };
+            let block = block2::StackBlock::new(handler);
+            let ns_cookie = cookie_to_ns(c)?;
+            unsafe {
+                self.config
+                    .websiteDataStore()
+                    .httpCookieStore()
+                    .setCookie_completionHandler(&ns_cookie, Some(&block));
+            }
+            Ok(rx)
+        })
+        .flatten()?;
+        rx.await?;
+        Ok(())
     }
 
     pub async fn delete_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
-        todo!()
+        let rx = catch(|| {
+            let (tx, rx) = local_sync::oneshot::channel();
+            let tx = Rc::new(Cell::new(Some(tx)));
+            let handler = move || {
+                if let Some(tx) = tx.take() {
+                    tx.send(()).ok();
+                }
+            };
+            let block = block2::StackBlock::new(handler);
+            let ns_cookie = cookie_to_ns(c)?;
+            unsafe {
+                self.config
+                    .websiteDataStore()
+                    .httpCookieStore()
+                    .deleteCookie_completionHandler(&ns_cookie, Some(&block));
+            }
+            Ok(rx)
+        })
+        .flatten()?;
+        rx.await?;
+        Ok(())
     }
 
     pub async fn run_javascript(&self, js: impl AsRef<str>) -> Result<String> {
@@ -213,6 +283,89 @@ impl WebView {
 }
 
 winio_handle::impl_as_widget!(WebView, handle);
+
+fn cookie_from_ns(c: &NSHTTPCookie) -> Result<Cookie<'static>> {
+    let name = c.name();
+    let value = c.value();
+    let domain = c.domain();
+    let path = c.path();
+    let secure = c.isSecure();
+    let http_only = c.isHTTPOnly();
+    let expires_date = c.expiresDate();
+    let mut builder = Cookie::build((from_nsstring(&name), from_nsstring(&value)))
+        .domain(from_nsstring(&domain))
+        .path(from_nsstring(&path))
+        .secure(secure)
+        .http_only(http_only);
+    if let Some(expires_date) = expires_date {
+        let expires = expires_date.timeIntervalSince1970();
+        builder = builder.expires(time::OffsetDateTime::from_unix_timestamp(expires as i64)?);
+    }
+    if c.isSessionOnly() {
+        builder = builder.expires(cookie::Expiration::Session);
+    }
+    if let Some(s) = c.sameSitePolicy() {
+        if s.isEqualToString(unsafe { NSHTTPCookieSameSiteLax }) {
+            builder = builder.same_site(cookie::SameSite::Lax);
+        } else if s.isEqualToString(unsafe { NSHTTPCookieSameSiteStrict }) {
+            builder = builder.same_site(cookie::SameSite::Strict);
+        }
+    }
+    Ok(builder.build())
+}
+
+fn cookie_to_ns(c: &Cookie<'_>) -> Result<Retained<NSHTTPCookie>> {
+    unsafe {
+        let properties = NSMutableDictionary::<NSString>::new();
+        properties.setObject_forKey(
+            &NSString::from_str(c.name()),
+            ProtocolObject::from_ref(NSHTTPCookieName),
+        );
+        properties.setObject_forKey(
+            &NSString::from_str(c.value()),
+            ProtocolObject::from_ref(NSHTTPCookieValue),
+        );
+        if let Some(domain) = c.domain() {
+            properties.setObject_forKey(
+                &NSString::from_str(domain),
+                ProtocolObject::from_ref(NSHTTPCookieDomain),
+            );
+        }
+        if let Some(path) = c.path() {
+            properties.setObject_forKey(
+                &NSString::from_str(path),
+                ProtocolObject::from_ref(NSHTTPCookiePath),
+            );
+        }
+        if let Some(cookie::Expiration::DateTime(expires)) = c.expires() {
+            let expires_date =
+                NSDate::dateWithTimeIntervalSince1970(expires.unix_timestamp() as f64);
+            properties
+                .setObject_forKey(&expires_date, ProtocolObject::from_ref(NSHTTPCookieExpires));
+        }
+        if let Some(secure) = c.secure() {
+            properties.setObject_forKey(
+                &NSNumber::numberWithBool(secure),
+                ProtocolObject::from_ref(NSHTTPCookieSecure),
+            );
+        }
+        if let Some(same_site) = c.same_site()
+            && !matches!(same_site, cookie::SameSite::None)
+        {
+            let same_site_str = match same_site {
+                cookie::SameSite::Lax => NSHTTPCookieSameSiteLax,
+                cookie::SameSite::Strict => NSHTTPCookieSameSiteStrict,
+                _ => unreachable!(),
+            };
+            properties.setObject_forKey(
+                same_site_str,
+                ProtocolObject::from_ref(NSHTTPCookieSameSiteLax),
+            );
+        }
+        let cookie = NSHTTPCookie::cookieWithProperties(&properties);
+        cookie.ok_or(Error::NullPointer)
+    }
+}
 
 #[derive(Debug, Default)]
 struct WebViewDelegateIvars {

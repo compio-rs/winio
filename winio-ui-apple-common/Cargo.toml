@@ -23,9 +23,11 @@ compio-log = { workspace = true }
 image = { workspace = true }
 local-sync = { workspace = true }
 thiserror = { workspace = true }
+time = { workspace = true, optional = true }
 winio-primitive = { workspace = true }
 
 [features]
+webview = ["dep:time"]
 objc-static = [
     "objc2/unstable-static-class-inlined",
     "objc2/unstable-static-sel-inlined",

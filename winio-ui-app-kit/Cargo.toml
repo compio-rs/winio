@@ -50,7 +50,12 @@ objc2-web-kit = { workspace = true, optional = true }
 
 [features]
 media = ["dep:objc2-av-kit", "dep:objc2-av-foundation", "dep:objc2-core-media"]
-webview = ["dep:objc2-web-kit", "dep:cookie", "dep:time"]
+webview = [
+    "dep:objc2-web-kit",
+    "dep:cookie",
+    "dep:time",
+    "winio-ui-apple-common/webview",
+]
 wgpu = ["dep:wgpu"]
 compio-compat = ["compio/runtime", "compio/compat"]
 

@@ -18,6 +18,9 @@ pub enum Error {
     NS(Option<Retained<NSError>>),
     #[error("Channel recv error: {0}")]
     ChannelRecv(#[from] local_sync::oneshot::error::RecvError),
+    #[cfg(feature = "webview")]
+    #[error("Time component range error: {0}")]
+    TimeRange(#[from] time::error::ComponentRange),
     #[error("Null pointer returned")]
     NullPointer,
     #[error("Called from non-main thread")]
