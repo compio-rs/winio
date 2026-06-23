@@ -196,6 +196,7 @@ impl Component for MarkdownPage {
 @media (prefers-color-scheme: dark) {{
   body {{
     color: #ffffff;
+    background-color: #000000;
   }}
 }}
 </style>
@@ -222,6 +223,7 @@ impl Component for MarkdownPage {
 @media (prefers-color-scheme: dark) {{
   body {{
     color: #ffffff;
+    background-color: #000000;
   }}
 }}
 </style>

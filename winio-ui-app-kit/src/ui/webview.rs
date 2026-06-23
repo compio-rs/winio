@@ -1,13 +1,25 @@
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+};
+
+use cookie::Cookie;
 use inherit_methods_macro::inherit_methods;
 use objc2::{
-    DeclaredClass, MainThreadOnly, define_class, msg_send,
+    AnyThread, DeclaredClass, MainThreadOnly, Message, define_class, msg_send,
     rc::{Allocated, Retained},
-    runtime::ProtocolObject,
+    runtime::{AnyObject, Bool, ProtocolObject},
 };
+use objc2_app_kit::{NSAlert, NSAlertFirstButtonReturn, NSTextField, NSWindow};
 use objc2_foundation::{
-    MainThreadMarker, NSObject, NSObjectProtocol, NSString, NSURL, NSURLRequest,
+    MainThreadMarker, NSError, NSJSONSerialization, NSJSONWritingOptions, NSObject,
+    NSObjectProtocol, NSPoint, NSRect, NSSize, NSString, NSURL, NSURLRequest, NSUTF8StringEncoding,
+    ns_string,
 };
-use objc2_web_kit::{WKNavigation, WKNavigationDelegate, WKWebView, WKWebViewConfiguration};
+use objc2_web_kit::{
+    WKFrameInfo, WKNavigation, WKNavigationDelegate, WKUIDelegate, WKWebView,
+    WKWebViewConfiguration,
+};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
@@ -36,8 +48,12 @@ impl WebView {
             let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()))?;
 
             let delegate = WebViewDelegate::new(mtm);
+            delegate.ivars().parent_window.replace(view.window());
+
             let del_obj = ProtocolObject::from_ref(&*delegate);
             view.setNavigationDelegate(Some(del_obj));
+            let del_obj = ProtocolObject::from_ref(&*delegate);
+            view.setUIDelegate(Some(del_obj));
 
             Ok(Self {
                 handle,
@@ -139,6 +155,61 @@ impl WebView {
     pub async fn wait_navigated(&self) {
         self.delegate.ivars().navigated.wait().await
     }
+
+    pub async fn cookies(&self) -> Result<Vec<Cookie<'static>>> {
+        todo!()
+    }
+
+    pub async fn set_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
+        todo!()
+    }
+
+    pub async fn delete_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
+        todo!()
+    }
+
+    pub async fn run_javascript(&self, js: impl AsRef<str>) -> Result<String> {
+        let rx = catch(|| unsafe {
+            let (tx, rx) = local_sync::oneshot::channel();
+            let tx = Rc::new(Cell::new(Some(tx)));
+            let handler = move |result: *mut AnyObject, error: *mut NSError| {
+                let res = if error.is_null() {
+                    Ok(if result.is_null() {
+                        None
+                    } else {
+                        Some((&*result).retain())
+                    })
+                } else {
+                    Err(Error::NS(Some((&*error).retain())))
+                };
+                if let Some(tx) = tx.take() {
+                    tx.send(res).ok();
+                }
+            };
+            let block = block2::StackBlock::new(handler);
+            self.view.evaluateJavaScript_completionHandler(
+                &NSString::from_str(js.as_ref()),
+                Some(&block),
+            );
+            Ok(rx)
+        })
+        .flatten()?;
+        let Some(result) = rx.await?? else {
+            return Ok(String::new());
+        };
+        catch(|| {
+            let data = unsafe {
+                NSJSONSerialization::dataWithJSONObject_options_error(
+                    &result,
+                    NSJSONWritingOptions(0),
+                )?
+            };
+            let data =
+                NSString::initWithData_encoding(NSString::alloc(), &data, NSUTF8StringEncoding);
+            data.map(|s| from_nsstring(&s)).ok_or(Error::NullPointer)
+        })
+        .flatten()
+    }
 }
 
 winio_handle::impl_as_widget!(WebView, handle);
@@ -147,6 +218,7 @@ winio_handle::impl_as_widget!(WebView, handle);
 struct WebViewDelegateIvars {
     navigating: Callback,
     navigated: Callback,
+    parent_window: RefCell<Option<Retained<NSWindow>>>,
 }
 
 define_class! {
@@ -186,6 +258,98 @@ define_class! {
             _navigation: Option<&WKNavigation>,
         ) {
             self.ivars().navigated.signal::<GlobalRuntime>(());
+        }
+    }
+
+    #[allow(non_snake_case)]
+    unsafe impl WKUIDelegate for WebViewDelegate {
+        #[unsafe(method(webView:runJavaScriptAlertPanelWithMessage:initiatedByFrame:completionHandler:))]
+        unsafe fn webView_runJavaScriptAlertPanelWithMessage_initiatedByFrame_completionHandler(
+            &self,
+            web_view: &WKWebView,
+            message: &NSString,
+            frame: &WKFrameInfo,
+            completion_handler: &block2::DynBlock<dyn Fn()>,
+        ) {
+            let alert = NSAlert::new(self.mtm());
+            alert.setMessageText(message);
+            alert.addButtonWithTitle(ns_string!("OK"));
+            if let Some(window) = self.ivars().parent_window.borrow().as_ref() {
+                let handler = completion_handler.copy();
+                let block = block2::RcBlock::new(move |_| {
+                    handler.call(());
+                });
+                alert.beginSheetModalForWindow_completionHandler(window, Some(&block));
+            } else {
+                alert.runModal();
+                completion_handler.call(());
+            }
+        }
+
+        #[unsafe(method(webView:runJavaScriptConfirmPanelWithMessage:initiatedByFrame:completionHandler:))]
+        unsafe fn webView_runJavaScriptConfirmPanelWithMessage_initiatedByFrame_completionHandler(
+            &self,
+            web_view: &WKWebView,
+            message: &NSString,
+            frame: &WKFrameInfo,
+            completion_handler: &block2::DynBlock<dyn Fn(Bool)>,
+        ) {
+            let alert = NSAlert::new(self.mtm());
+            alert.setMessageText(message);
+            alert.addButtonWithTitle(ns_string!("OK"));
+            alert.addButtonWithTitle(ns_string!("Cancel"));
+            if let Some(window) = self.ivars().parent_window.borrow().as_ref() {
+                let handler = completion_handler.copy();
+                let block = block2::RcBlock::new(move |return_code| {
+                    handler.call((Bool::new(return_code == NSAlertFirstButtonReturn),));
+                });
+                alert.beginSheetModalForWindow_completionHandler(window, Some(&block));
+            } else {
+                let return_code = alert.runModal();
+                completion_handler.call((Bool::new(return_code == NSAlertFirstButtonReturn),));
+            }
+        }
+
+        #[unsafe(method(webView:runJavaScriptTextInputPanelWithPrompt:defaultText:initiatedByFrame:completionHandler:))]
+        unsafe fn webView_runJavaScriptTextInputPanelWithPrompt_defaultText_initiatedByFrame_completionHandler(
+            &self,
+            web_view: &WKWebView,
+            prompt: &NSString,
+            default_text: Option<&NSString>,
+            frame: &WKFrameInfo,
+            completion_handler: &block2::DynBlock<dyn Fn(*mut NSString)>,
+        ) {
+            let alert = NSAlert::new(self.mtm());
+            alert.setMessageText(prompt);
+            alert.addButtonWithTitle(ns_string!("OK"));
+            alert.addButtonWithTitle(ns_string!("Cancel"));
+
+            let input = NSTextField::initWithFrame(NSTextField::alloc(self.mtm()), NSRect::new(NSPoint::ZERO, NSSize::new(200.0, 24.0)));
+            if let Some(default_text) = default_text {
+                input.setStringValue(default_text);
+            }
+            alert.setAccessoryView(Some(&input));
+
+            if let Some(window) = self.ivars().parent_window.borrow().as_ref() {
+                let handler = completion_handler.copy();
+                let block = block2::RcBlock::new(move |return_code| {
+                    let result = if return_code == NSAlertFirstButtonReturn {
+                        Retained::into_raw(input.stringValue())
+                    } else {
+                        std::ptr::null_mut()
+                    };
+                    handler.call((result,));
+                });
+                alert.beginSheetModalForWindow_completionHandler(window, Some(&block));
+            } else {
+                let return_code = alert.runModal();
+                let result = if return_code == NSAlertFirstButtonReturn {
+                    Retained::into_raw(input.stringValue())
+                } else {
+                    std::ptr::null_mut()
+                };
+                completion_handler.call((result,));
+            }
         }
     }
 }
