@@ -35,21 +35,9 @@ std::unique_ptr<QWebEngineProfile> new_webview_profile() {
     return std::make_unique<QWebEngineProfile>();
 }
 
-void webview_cookie_store_add(QWebEngineCookieStore &store, rust::Str cookies) {
-    auto arr = QByteArray::fromRawData(cookies.data(), cookies.size());
-    auto list = QNetworkCookie::parseCookies(arr);
-    for (const auto &cookie : list) {
-        store.setCookie(cookie);
-    }
-}
-
-void webview_cookie_store_delete(QWebEngineCookieStore &store,
-                                 rust::Str cookies) {
-    auto arr = QByteArray::fromRawData(cookies.data(), cookies.size());
-    auto list = QNetworkCookie::parseCookies(arr);
-    for (const auto &cookie : list) {
-        store.deleteCookie(cookie);
-    }
+std::unique_ptr<QNetworkCookie> new_cookie(QByteArray const &name,
+                                           QByteArray const &value) {
+    return std::make_unique<QNetworkCookie>(name, value);
 }
 
 void webview_cookie_store_connect_add(
@@ -72,6 +60,24 @@ void webview_cookie_store_connect_delete(
                      });
 }
 
-QString cookie_to_raw(QNetworkCookie const &cookie) {
-    return cookie.toRawForm(QNetworkCookie::Full);
+QNetworkCookieSameSite cookie_same_site(QNetworkCookie const &c) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 1, 0)
+    return c.sameSitePolicy();
+#else
+    return Default;
+#endif
+}
+
+void cookie_set_same_site(QNetworkCookie &c, QNetworkCookieSameSite s) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 1, 0)
+    c.setSameSitePolicy(s);
+#endif
+}
+
+std::int64_t cookie_expiration(QNetworkCookie const &c) {
+    return c.expirationDate().toSecsSinceEpoch();
+}
+
+void cookie_set_expiration(QNetworkCookie &c, std::int64_t expiration) {
+    c.setExpirationDate(QDateTime::fromSecsSinceEpoch(expiration));
 }

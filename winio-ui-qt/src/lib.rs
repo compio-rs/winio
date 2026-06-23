@@ -23,6 +23,9 @@ pub enum Error {
     /// Index error.
     #[error("Index error: {0}")]
     Index(usize),
+    /// UTF8 error.
+    #[error("Invalid UTF-8 string")]
+    InvalidUtf8(#[from] std::str::Utf8Error),
     /// Channel recv error.
     #[error("Channel recv error: {0}")]
     ChannelRecv(#[from] local_sync::oneshot::error::RecvError),
@@ -30,6 +33,10 @@ pub enum Error {
     #[cfg(feature = "media")]
     #[error("Media player error: {0:?}")]
     Media(#[from] ui::QMediaPlayerError),
+    /// Time component range error.
+    #[cfg(feature = "webview")]
+    #[error("Time component range error: {0}")]
+    TimeRange(#[from] time::error::ComponentRange),
     /// Feature not supported.
     #[error("Feature not supported")]
     NotSupported,

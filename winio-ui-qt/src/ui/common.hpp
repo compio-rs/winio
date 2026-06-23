@@ -27,6 +27,9 @@ static_assert(sizeof(QString) == 3 * sizeof(std::size_t));
 static_assert(sizeof(QString) == sizeof(std::size_t));
 #endif
 
+static_assert(sizeof(QUrl) == sizeof(std::size_t));
+static_assert(sizeof(QByteArray) == 3 * sizeof(std::size_t));
+
 #define STATIC_CAST_ASSERT(t, base)                                            \
     static_assert(std::is_base_of<base, t>::value &&                           \
                   std::is_convertible<t *, base *>::value &&                   \
@@ -48,3 +51,19 @@ template <> struct IsRelocatable<QUrl> : std::true_type {};
 inline QUrl new_url(const QString &s) { return QUrl{s}; }
 
 inline QString url_to_qstring(const QUrl &url) { return url.toString(); }
+
+namespace rust {
+template <> struct IsRelocatable<QByteArray> : std::true_type {};
+} // namespace rust
+
+inline QByteArray new_byte_array(const std::uint8_t *p, std::size_t len) {
+    return QByteArray((const char *)p, (qsizetype)len);
+}
+
+inline std::uint8_t const *byte_array_data(const QByteArray &arr) noexcept {
+    return (const std::uint8_t *)arr.constData();
+}
+
+inline std::size_t byte_array_len(const QByteArray &arr) noexcept {
+    return arr.size();
+}

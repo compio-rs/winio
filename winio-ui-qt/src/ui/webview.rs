@@ -5,7 +5,7 @@ use std::{
 };
 
 use cookie::Cookie;
-use cxx::UniquePtr;
+use cxx::{ExternType, UniquePtr, type_id};
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
@@ -177,7 +177,7 @@ impl WebView {
     fn on_store_add(c: *const u8, cookie: &ffi::QNetworkCookie) {
         let c = c as *const RefCell<Vec<Cookie<'static>>>;
         if let Some(c) = unsafe { c.as_ref() }
-            && let Some(cookie) = to_cookie(cookie)
+            && let Ok(cookie) = cookie_from_qt(cookie)
         {
             c.borrow_mut().push(cookie);
         }
@@ -186,7 +186,7 @@ impl WebView {
     fn on_store_delete(c: *const u8, cookie: &ffi::QNetworkCookie) {
         let c = c as *const RefCell<Vec<Cookie<'static>>>;
         if let Some(c) = unsafe { c.as_ref() }
-            && let Some(cookie) = to_cookie(cookie)
+            && let Ok(cookie) = cookie_from_qt(cookie)
         {
             c.borrow_mut().retain(|c| c != &cookie);
         }
@@ -209,13 +209,13 @@ impl WebView {
     }
 
     pub async fn set_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
-        let c = c.to_string();
+        let c = cookie_to_qt(c)?;
         ffi::webview_cookie_store_add(self.cookie_store()?, &c)?;
         Ok(())
     }
 
     pub async fn delete_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
-        let c = c.to_string();
+        let c = cookie_to_qt(c)?;
         ffi::webview_cookie_store_delete(self.cookie_store()?, &c)?;
         Ok(())
     }
@@ -271,8 +271,96 @@ impl Debug for WebView {
 
 impl_static_cast!(ffi::QWebEngineView, ffi::QWidget);
 
-fn to_cookie(cookie: &ffi::QNetworkCookie) -> Option<Cookie<'static>> {
-    Cookie::parse::<String>(ffi::cookie_to_raw(cookie).ok()?.try_into().ok()?).ok()
+fn cookie_from_qt(cookie: &ffi::QNetworkCookie) -> Result<Cookie<'static>> {
+    let name: String = cookie.name()?.try_into()?;
+    let value: String = cookie.value()?.try_into()?;
+    let mut builder = Cookie::build((name, value))
+        .domain(String::try_from(cookie.domain()?)?)
+        .path(String::try_from(cookie.path()?)?)
+        .secure(cookie.isSecure()?)
+        .http_only(cookie.isHttpOnly()?);
+    if let Some(s) = Option::<cookie::SameSite>::from(ffi::cookie_same_site(cookie)?) {
+        builder = builder.same_site(s);
+    }
+    if cookie.isSessionCookie()? {
+        builder = builder.expires(cookie::Expiration::Session);
+    } else {
+        let expire = ffi::cookie_expiration(cookie)?;
+        if expire > 0 {
+            builder = builder.expires(cookie::Expiration::DateTime(
+                time::OffsetDateTime::from_unix_timestamp(expire)?,
+            ));
+        }
+    }
+    Ok(builder.build())
+}
+
+fn cookie_to_qt(cookie: &Cookie<'_>) -> Result<UniquePtr<ffi::QNetworkCookie>> {
+    let mut c = ffi::new_cookie(
+        &cookie.name().as_bytes().try_into()?,
+        &cookie.value().as_bytes().try_into()?,
+    )?;
+    if let Some(s) = cookie.domain() {
+        c.pin_mut().setDomain(&s.try_into()?)?;
+    }
+    if let Some(s) = cookie.path() {
+        c.pin_mut().setPath(&s.try_into()?)?;
+    }
+    if let Some(b) = cookie.secure() {
+        c.pin_mut().setSecure(b)?;
+    }
+    if let Some(b) = cookie.http_only() {
+        c.pin_mut().setHttpOnly(b)?;
+    }
+    ffi::cookie_set_same_site(c.pin_mut(), cookie.same_site().into())?;
+    if let Some(cookie::Expiration::DateTime(dt)) = cookie.expires() {
+        ffi::cookie_set_expiration(c.pin_mut(), dt.unix_timestamp())?;
+    }
+    Ok(c)
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+#[repr(i32)]
+pub enum QNetworkCookieSameSite {
+    Default,
+    None,
+    Lax,
+    Strict,
+}
+
+unsafe impl ExternType for QNetworkCookieSameSite {
+    type Id = type_id!("QNetworkCookieSameSite");
+    type Kind = cxx::kind::Trivial;
+}
+
+impl From<QNetworkCookieSameSite> for Option<cookie::SameSite> {
+    fn from(s: QNetworkCookieSameSite) -> Self {
+        match s {
+            QNetworkCookieSameSite::Default => None,
+            QNetworkCookieSameSite::None => Some(cookie::SameSite::None),
+            QNetworkCookieSameSite::Lax => Some(cookie::SameSite::Lax),
+            QNetworkCookieSameSite::Strict => Some(cookie::SameSite::Strict),
+        }
+    }
+}
+
+impl From<cookie::SameSite> for QNetworkCookieSameSite {
+    fn from(s: cookie::SameSite) -> Self {
+        match s {
+            cookie::SameSite::None => QNetworkCookieSameSite::None,
+            cookie::SameSite::Lax => QNetworkCookieSameSite::Lax,
+            cookie::SameSite::Strict => QNetworkCookieSameSite::Strict,
+        }
+    }
+}
+
+impl From<Option<cookie::SameSite>> for QNetworkCookieSameSite {
+    fn from(s: Option<cookie::SameSite>) -> Self {
+        match s {
+            None => QNetworkCookieSameSite::Default,
+            Some(v) => v.into(),
+        }
+    }
 }
 
 #[cxx::bridge]
@@ -283,12 +371,14 @@ mod ffi {
         type QWidget = crate::ui::QWidget;
         type QUrl = crate::ui::QUrl;
         type QString = crate::ui::QString;
+        type QByteArray = crate::ui::QByteArray;
         type QWebEngineView;
         type QWebEngineHistory;
         type QWebEnginePage;
         type QWebEngineProfile;
         type QWebEngineCookieStore;
         type QNetworkCookie;
+        type QNetworkCookieSameSite = super::QNetworkCookieSameSite;
 
         unsafe fn new_webview(
             profile: *mut QWebEngineProfile,
@@ -333,11 +423,11 @@ mod ffi {
 
         fn webview_cookie_store_add(
             store: Pin<&mut QWebEngineCookieStore>,
-            cookies: &str,
+            cookie: &QNetworkCookie,
         ) -> Result<()>;
         fn webview_cookie_store_delete(
             store: Pin<&mut QWebEngineCookieStore>,
-            cookies: &str,
+            cookie: &QNetworkCookie,
         ) -> Result<()>;
 
         unsafe fn webview_cookie_store_connect_add(
@@ -352,6 +442,26 @@ mod ffi {
             data: *const u8,
         ) -> Result<()>;
 
-        fn cookie_to_raw(c: &QNetworkCookie) -> Result<QString>;
+        fn new_cookie(name: &QByteArray, value: &QByteArray) -> Result<UniquePtr<QNetworkCookie>>;
+
+        fn name(self: &QNetworkCookie) -> Result<QByteArray>;
+        fn value(self: &QNetworkCookie) -> Result<QByteArray>;
+        fn domain(self: &QNetworkCookie) -> Result<QString>;
+        fn setDomain(self: Pin<&mut QNetworkCookie>, domain: &QString) -> Result<()>;
+        fn path(self: &QNetworkCookie) -> Result<QString>;
+        fn setPath(self: Pin<&mut QNetworkCookie>, path: &QString) -> Result<()>;
+        fn isSecure(self: &QNetworkCookie) -> Result<bool>;
+        fn setSecure(self: Pin<&mut QNetworkCookie>, secure: bool) -> Result<()>;
+        fn isHttpOnly(self: &QNetworkCookie) -> Result<bool>;
+        fn setHttpOnly(self: Pin<&mut QNetworkCookie>, http_only: bool) -> Result<()>;
+        fn isSessionCookie(self: &QNetworkCookie) -> Result<bool>;
+
+        fn cookie_same_site(c: &QNetworkCookie) -> Result<QNetworkCookieSameSite>;
+        fn cookie_set_same_site(
+            c: Pin<&mut QNetworkCookie>,
+            s: QNetworkCookieSameSite,
+        ) -> Result<()>;
+        fn cookie_expiration(c: &QNetworkCookie) -> Result<i64>;
+        fn cookie_set_expiration(c: Pin<&mut QNetworkCookie>, expiration: i64) -> Result<()>;
     }
 }
