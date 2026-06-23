@@ -1,3 +1,4 @@
+use cookie::Cookie;
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
@@ -72,6 +73,22 @@ impl WebView {
     }
 
     pub async fn wait_navigated(&self) {
+        not_impl()
+    }
+
+    pub async fn cookies(&self) -> Result<Vec<Cookie<'static>>> {
+        not_impl()
+    }
+
+    pub async fn set_cookie(&mut self, _c: &Cookie<'_>) -> Result<()> {
+        not_impl()
+    }
+
+    pub async fn delete_cookie(&mut self, _c: &Cookie<'_>) -> Result<()> {
+        not_impl()
+    }
+
+    pub async fn run_javascript(&mut self, _js: impl AsRef<str>) -> Result<String> {
         not_impl()
     }
 }
