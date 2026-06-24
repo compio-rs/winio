@@ -54,7 +54,11 @@ impl Component for MarkdownPage {
     type Message = MarkdownPageMessage;
 
     async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
-        let path = "README.md";
+        let path = if cfg!(any(target_os = "android", target_os = "ios")) {
+            ""
+        } else {
+            "README.md"
+        };
         init! {
             window: TabViewItem = (()) => {
                 text: "Markdown",
@@ -286,6 +290,10 @@ async fn read_file(path: impl AsRef<Path>) -> Result<Vec<u8>> {
 }
 
 async fn read_file_content(path: impl AsRef<Path>) -> Result<String> {
+    let path = path.as_ref();
+    if path.as_os_str().is_empty() {
+        return Ok(String::new());
+    }
     let bytes = read_file(path).await?;
     Ok(String::from_utf8(bytes).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?)
 }
