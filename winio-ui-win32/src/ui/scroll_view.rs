@@ -203,6 +203,11 @@ impl ScrollView {
 
     fn scroll(&self, dir: i32, wparam: WPARAM, wheel: bool) -> Result<()> {
         let parent = self.handle.as_widget().as_win32();
+        let another_dir = match dir {
+            SB_HORZ => SB_VERT,
+            SB_VERT => SB_HORZ,
+            _ => unreachable!(),
+        };
         unsafe {
             let mut si = SCROLLINFO {
                 cbSize: size_of::<SCROLLINFO>() as u32,
@@ -214,6 +219,16 @@ impl ScrollView {
                 nTrackPos: 0,
             };
             syscall!(BOOL, GetScrollInfo(parent, dir, &mut si))?;
+            let mut si2 = SCROLLINFO {
+                cbSize: size_of::<SCROLLINFO>() as u32,
+                fMask: SIF_POS,
+                nMin: 0,
+                nMax: 0,
+                nPage: 0,
+                nPos: 0,
+                nTrackPos: 0,
+            };
+            syscall!(BOOL, GetScrollInfo(parent, another_dir, &mut si2))?;
 
             if wheel {
                 let delta = ((wparam >> 16) & 0xFFFF) as i16 as isize;
@@ -235,9 +250,9 @@ impl ScrollView {
             syscall!(BOOL, GetScrollInfo(parent, dir, &mut si))?;
 
             let (x, y) = if dir == SB_HORZ {
-                (-si.nPos, 0)
+                (-si.nPos, -si2.nPos)
             } else {
-                (0, -si.nPos)
+                (-si2.nPos, -si.nPos)
             };
             self.scroll_view(x, y)
         }
