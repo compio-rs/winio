@@ -415,8 +415,6 @@ jni::bind_java_type! {
         #[allow(clippy::too_many_arguments)]
         fn draw_round_rect(left: jfloat, top: jfloat, right: jfloat, bottom: jfloat, rx: jfloat, ry: jfloat, paint: &Paint),
         fn get_matrix() -> AMatrix,
-        fn restore(),
-        fn save() -> jint,
         fn set_matrix(matrix: &AMatrix),
         fn translate(dx: jfloat, dy: jfloat),
     }
@@ -835,20 +833,15 @@ impl<'a> DrawingContext<'a> {
         clip: Option<Rect>,
     ) -> Result<()> {
         vm_exec(|env| {
-            if let Some(clip) = clip {
-                self.canvas.save(env)?;
-                let clip = clip.to_box2d();
-                self.canvas.clip_rect(
-                    env,
-                    clip.min.x as f32,
-                    clip.min.y as f32,
-                    clip.max.x as f32,
-                    clip.max.y as f32,
-                )?;
-            }
-
             let size = image.size()?;
-            let src = ARect::new(env, 0, 0, size.width as _, size.height as _)?;
+            let clip = clip.unwrap_or_else(|| size.into()).to_box2d();
+            let src = ARect::new(
+                env,
+                clip.min.x as _,
+                clip.min.y as _,
+                clip.max.x as _,
+                clip.max.y as _,
+            )?;
             let rect = rect.to_box2d();
             let dest = ARect::new(
                 env,
@@ -862,10 +855,6 @@ impl<'a> DrawingContext<'a> {
             paint.set_style(env, style)?;
             self.canvas
                 .draw_bitmap(env, &image.bitmap, src, dest, paint)?;
-
-            if clip.is_some() {
-                self.canvas.restore(env)?;
-            }
             Ok(())
         })
     }

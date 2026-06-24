@@ -416,7 +416,8 @@ impl DrawingContext<'_> {
         clip: Option<Rect>,
     ) -> Result<()> {
         let rect = transform_rect(self.size, rect);
-        let clip = clip.map(|clip| transform_rect(self.size, clip));
+        let image_size = image_rep.size()?;
+        let clip = clip.map(|clip| transform_rect(image_size, clip));
         self.actions
             .push(DrawAction::Image(image_rep.clone(), rect, clip));
         Ok(())

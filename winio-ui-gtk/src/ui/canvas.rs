@@ -444,22 +444,25 @@ impl DrawingContext<'_> {
         clip: Option<Rect>,
     ) -> Result<()> {
         self.ctx.save()?;
-        let clip = match clip {
-            Some(clip) => clip,
-            None => Rect::new(Point::zero(), image.size()?),
+
+        let clip = if let Some(clip) = clip {
+            self.ctx.rectangle(
+                rect.origin.x,
+                rect.origin.y,
+                rect.size.width,
+                rect.size.height,
+            );
+            self.ctx.clip();
+            clip
+        } else {
+            image.size()?.into()
         };
-        self.ctx.rectangle(
-            clip.origin.x,
-            clip.origin.y,
-            clip.size.width,
-            clip.size.height,
-        );
-        self.ctx.clip();
+
         self.ctx.new_path();
-        let size = image.size()?;
+        let scalex = rect.width() / clip.width();
+        let scaley = rect.height() / clip.height();
         self.ctx.translate(rect.origin.x, rect.origin.y);
-        self.ctx
-            .scale(rect.width() / size.width, rect.height() / size.height);
+        self.ctx.scale(scalex, scaley);
         self.ctx
             .set_source_surface(&image.0, -clip.origin.x, -clip.origin.y)?;
         self.ctx.paint()?;

@@ -220,10 +220,22 @@ impl DrawAction {
                 },
                 DrawAction::Image(image, rect, clip) => {
                     let cg_image = image.cgimage();
-                    if let Some(clip) = clip {
-                        CGContext::clip_to_rect(Some(context), *clip);
-                    }
-                    CGContext::draw_image(Some(context), *rect, Some(cg_image));
+                    let clip = if let Some(clip) = clip {
+                        CGContext::clip_to_rect(Some(context), *rect);
+                        *clip
+                    } else {
+                        to_cgrect(image.size.into())
+                    };
+                    let scalex = rect.size.width / clip.size.width;
+                    let scaley = rect.size.height / clip.size.height;
+                    let real_rect = NSRect::new(
+                        NSPoint::new(
+                            rect.origin.x - clip.origin.x * scalex,
+                            rect.origin.y - clip.origin.y * scaley,
+                        ),
+                        NSSize::new(image.size.width * scalex, image.size.height * scaley),
+                    );
+                    CGContext::draw_image(Some(context), real_rect, Some(cg_image));
                 }
                 DrawAction::Transform(transform) => {
                     if CGAffineTransformIsIdentity(*transform) {
