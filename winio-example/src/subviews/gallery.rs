@@ -28,6 +28,8 @@ pub struct GalleryPage {
     listbox: Child<ListBox>,
     images: Vec<DynamicImage>,
     sel_images: BTreeMap<usize, Option<DrawingImage>>,
+    clip: bool,
+    clip_box: Child<CheckBox>,
 }
 
 const MAX_COLUMN: usize = 3;
@@ -83,6 +85,7 @@ pub enum GalleryPageMessage {
     List(ObservableVecEvent<String>),
     Select,
     Wheel(Vector),
+    ClipClick,
 }
 
 impl Component for GalleryPage {
@@ -121,6 +124,10 @@ impl Component for GalleryPage {
             listbox: ListBox = (&window) => {
                 multiple: true,
             },
+            clip_box: CheckBox = (&window) => {
+                text: "Clip",
+                checked: false,
+            }
         }
 
         if let Some(path) = path {
@@ -139,6 +146,8 @@ impl Component for GalleryPage {
             listbox,
             images: vec![],
             sel_images: BTreeMap::new(),
+            clip: false,
+            clip_box,
         })
     }
 
@@ -162,6 +171,9 @@ impl Component for GalleryPage {
             },
             self.scrollbar => {
                 ScrollBarEvent::Change => GalleryPageMessage::Redraw,
+            },
+            self.clip_box => {
+                CheckBoxEvent::Click => GalleryPageMessage::ClipClick,
             }
         }
     }
@@ -236,6 +248,10 @@ impl Component for GalleryPage {
                     .set_pos((pos as f64 - delta).max(0.0) as usize)?;
                 Ok(true)
             }
+            GalleryPageMessage::ClipClick => {
+                self.clip = self.clip_box.is_checked()?;
+                Ok(true)
+            }
         }
     }
 
@@ -244,9 +260,10 @@ impl Component for GalleryPage {
 
         {
             let mut button_panel = layout! {
-                Grid::from_str("1*,1*","1*").unwrap(),
+                Grid::from_str("1*,1*,auto","1*").unwrap(),
                 self.start_button => { column: 0 },
                 self.browse_button => { column: 1 },
+                self.clip_box => { column: 2 },
             };
             let mut content_panel = layout! {
                 StackPanel::new(Orient::Horizontal),
@@ -323,7 +340,15 @@ impl Component for GalleryPage {
                     Point::new(x + real_x, y + real_y),
                     Size::new(real_width, real_height),
                 );
-                ctx.draw_image(image, real_rect, None)?;
+                let clip = if self.clip {
+                    Some(Rect::new(
+                        Point::new(image_size.width / 4.0, image_size.height / 4.0),
+                        image_size / 2.0,
+                    ))
+                } else {
+                    None
+                };
+                ctx.draw_image(image, real_rect, clip)?;
                 ctx.draw_rect(&pen, rect)?;
             }
         }
