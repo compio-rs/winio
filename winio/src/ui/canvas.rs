@@ -149,7 +149,12 @@ impl<'a> DrawingContext<'a> {
         Ok(DrawingImage(self.0.create_image(image)?))
     }
 
-    /// Draw a image with RGBA format.
+    /// Draw an image in RGBA format.
+    ///
+    /// - `rect`: Destination region on the canvas where the image will be
+    ///   drawn.
+    /// - `clip`: If specified, only the selected portion of the image is
+    ///   rendered.
     pub fn draw_image(
         &mut self,
         image: &DrawingImage,

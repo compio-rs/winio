@@ -71,6 +71,8 @@ impl Window {
     pub fn backdrop(&self) -> Result<Backdrop>;
 
     /// Set the backdrop effect of the window.
+    ///
+    /// On the `win32` backend, backdrop effects may cause rendering artifacts.
     #[cfg(windows)]
     pub fn set_backdrop(&mut self, backdrop: Backdrop) -> Result<()>;
 
