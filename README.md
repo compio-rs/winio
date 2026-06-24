@@ -1,7 +1,7 @@
 # Winio
 
 Winio is a single-threaded asynchronous GUI runtime.
-It is based on [`compio`](https://github.com/compio-rs/compio), and the GUI part is powered by native backends.
+The GUI part is powered by native backends, and it is compatible with [`compio`](https://github.com/compio-rs/compio).
 All IO requests could be issued in the same thread as GUI, without blocking the user interface!
 
 ## Example
@@ -26,10 +26,6 @@ The application starts with a root `Component`:
 
 ```rust
 use winio::prelude::*;
-
-fn main() -> Result<()> {
-    App::new("rs.compio.winio.example")?.run::<MainModel>(())
-}
 
 struct MainModel {
     window: Child<Window>,
@@ -94,6 +90,145 @@ impl Component for MainModel {
 
     fn render_children(&mut self) -> Result<()> {
         self.window.render()
+    }
+}
+```
+
+It is recommended to set the lib name to "main" for convenience.
+```toml
+[lib]
+name = "main"
+```
+
+All platforms except Android start with `main`. You should add the code below to `main.rs`:
+```rust
+#[cfg(not(target_os = "android"))]
+fn main() -> winio::Result<()> {
+    use main::MainModel;
+    use winio::prelude::*;
+
+    App::builder()
+        .name("rs.compio.winio.example")
+        .build()?
+        .block_on(MainModel::run_until_event(()))
+}
+
+#[cfg(target_os = "android")]
+fn main() {
+    unreachable!("Android entry point is `android_main` in `android.rs`")
+}
+```
+> [!NOTE] iOS notes
+> `WindowEvent::Close` will never be emitted, and the application will exit if the window (Mac Catalyst) or the app (iOS) closes. `block_on` doesn't return in that case.
+
+The Android entry point is the `android_main` method:
+```rust
+#[unsafe(no_mangle)]
+fn android_main(app: AndroidApp) {
+    let app = App::builder()
+        .android_app(app)
+        .build()
+        .expect("cannot create app");
+    app.spawn(|| async {
+        if let Err(e) = MainModel::run_until_event(()).await {
+            compio_log::error!("App error: {e:?}");
+        }
+    })
+}
+```
+> [!NOTE] Android notes
+> * `android_main` might be called multiple times, but the lifetime of each calling don't overlap.
+> * `android_main` runs on a dedicate thread, while all code of `winio` execute on the main thread.
+> * You have to do the following to create a complete Android project with `winio`.
+
+## Integrate into an Android app
+To integrate the `winio` app into an Android app with id "rs.compio.winio.example", the main activity should inherit `rs.compio.winio.Activity`:
+```java
+package rs.compio.winio.example;
+
+import rs.compio.winio.Activity;
+
+public class MainActivity extends Activity {
+    static {
+        System.loadLibrary("main");
+    }
+}
+```
+Add the following to the `<activity>` section of `AndroidManifest.xml`:
+```xml
+<meta-data android:name="android.app.lib_name" android:value="main" />
+```
+Put the project folder "android" beside the "src" folder of the rust project, and modify the "dependencyResolutionManagement" part of `android/settings.gradle`
+```gradle
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        maven {
+            url = findWinioUiAndroidProject()
+            metadataSources.artifact()
+        }
+    }
+}
+// ...
+import groovy.json.JsonSlurper
+
+String findWinioUiAndroidProject() {
+    def dependencyText = providers.exec {
+        it.workingDir = new File("../")
+        commandLine("cargo", "metadata", "--format-version", "1", "--manifest-path", "Cargo.toml")
+    }.standardOutput.asText.get()
+
+    def dependencyJson = new JsonSlurper().parseText(dependencyText)
+    def manifestPath = file(dependencyJson.packages.find { it.name == "winio-ui-android" }.manifest_path)
+    return new File(manifestPath.parentFile, "maven").path
+}
+```
+and `gradle/libs.versions.toml`
+```toml
+[libraries]
+# ...
+winio = { module = "compio:winio", version = "latest.release" }
+```
+and `android/app/build.gradle`
+```gradle
+dependencies {
+    // ...
+
+    implementation libs.winio
+}
+
+[
+        Debug  : null,
+        Profile: '--release',
+        Release: '--release'
+].each {
+    def taskPostfix = it.key
+    def profileMode = it.value
+    tasks.configureEach { task ->
+        if (task.name == "assemble$taskPostfix") {
+            task.dependsOn "cargoBuild$taskPostfix"
+        }
+    }
+    tasks.register("cargoBuild$taskPostfix", Exec) {
+        workingDir "../.."
+        environment 'CARGO_TERM_COLOR', 'always'
+
+        def cmdArgs = [
+                'cargo', 'ndk',
+                '-o', 'android/app/src/main/jniLibs',
+                '-t', 'arm64-v8a',
+                '-t', 'armeabi-v7a',
+                '-t', 'x86_64',
+                'rustc',
+                '--crate-type', 'cdylib', '--lib',
+        ]
+        if (profileMode != null) {
+            cmdArgs.add(profileMode)
+        }
+
+        commandLine cmdArgs
     }
 }
 ```
