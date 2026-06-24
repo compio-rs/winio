@@ -195,11 +195,14 @@ impl WebView {
     }
 
     pub fn set_html(&mut self, s: impl AsRef<str>) -> Result<()> {
+        use base64::prelude::*;
+
+        let s = BASE64_STANDARD.encode(s.as_ref());
         vm_exec(|env| {
-            let data = env.new_string(s.as_ref())?;
-            let mime = env.new_string("text/html")?;
-            let encoding = env.new_string("utf-8")?;
-            self.inner.load_data(env, &data, &mime, &encoding)?;
+            let data = env.new_string(s)?;
+            let encoding = env.new_string("base64")?;
+            self.inner
+                .load_data(env, &data, JString::null(), &encoding)?;
             Ok(())
         })
     }
