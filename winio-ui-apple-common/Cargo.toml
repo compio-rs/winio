@@ -1,6 +1,6 @@
 [package]
 name = "winio-ui-apple-common"
-version = "0.1.0-rc.1"
+version = "0.1.0-rc.2"
 description = "Common code shared between AppKit and UIKit backends for winio."
 edition = { workspace = true }
 readme = { workspace = true }
