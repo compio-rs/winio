@@ -108,14 +108,10 @@ impl App {
     /// The inner runtime might exits the inner application loop after the
     /// execution of the future.
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        self.block_on_with_runtime(Runtime::new().unwrap(), future)
+        self.block_on_with_runtime_impl(Runtime::new().unwrap(), future)
     }
 
-    /// Block on the future with a custom runtime.
-    ///
-    /// The inner runtime might exits the inner application loop after the
-    /// execution of the future.
-    pub fn block_on_with_runtime<F: Future>(&self, runtime: Runtime, future: F) -> F::Output {
+    fn block_on_with_runtime_impl<F: Future>(&self, runtime: Runtime, future: F) -> F::Output {
         let compat = WinioRuntimeCompat::new(runtime).unwrap();
         let future = compat.execute(future);
         if std::mem::size_of_val(&future) >= 2048 {
@@ -123,6 +119,15 @@ impl App {
         } else {
             self.app.block_on(future)
         }
+    }
+
+    /// Block on the future with a custom runtime.
+    ///
+    /// The inner runtime might exits the inner application loop after the
+    /// execution of the future.
+    #[cfg(feature = "compio-compat")]
+    pub fn block_on_with_runtime<F: Future>(&self, runtime: Runtime, future: F) -> F::Output {
+        self.block_on_with_runtime_impl(runtime, future)
     }
 }
 
@@ -136,11 +141,10 @@ impl App {
         &self,
         future: impl (FnOnce() -> F) + Sync + Send + 'static,
     ) {
-        self.spawn_with_runtime(|| Runtime::new().unwrap(), future);
+        self.spawn_with_runtime_impl(|| Runtime::new().unwrap(), future);
     }
 
-    /// Spawn the future on the main thread with a custom runtime.
-    pub fn spawn_with_runtime<F: Future<Output = ()>>(
+    fn spawn_with_runtime_impl<F: Future<Output = ()>>(
         &self,
         runtime: impl (FnOnce() -> Runtime) + Sync + Send + 'static,
         future: impl (FnOnce() -> F) + Sync + Send + 'static,
@@ -150,6 +154,16 @@ impl App {
             let compat = WinioRuntimeCompat::new(runtime).unwrap();
             async move { compat.execute(future()).await }
         })
+    }
+
+    #[cfg(feature = "compio-compat")]
+    /// Spawn the future on the main thread with a custom runtime.
+    pub fn spawn_with_runtime<F: Future<Output = ()>>(
+        &self,
+        runtime: impl (FnOnce() -> Runtime) + Sync + Send + 'static,
+        future: impl (FnOnce() -> F) + Sync + Send + 'static,
+    ) {
+        self.spawn_with_runtime_impl(runtime, future);
     }
 }
 
