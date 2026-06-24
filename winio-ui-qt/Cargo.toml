@@ -34,8 +34,8 @@ wgpu = { workspace = true, optional = true, features = ["vulkan"] }
 cxx = { version = "1.0.160", features = ["c++17"] }
 
 [build-dependencies]
-cxx-build = { version = "1.0.160" }
-qt-build-utils = { version = "0.9" }
+cxx-build = "1.0.160"
+qt-build-utils = "0.8"
 
 [features]
 media = []
