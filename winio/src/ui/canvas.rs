@@ -149,7 +149,7 @@ impl<'a> DrawingContext<'a> {
         Ok(DrawingImage(self.0.create_image(image)?))
     }
 
-    /// Draw an image in RGBA format.
+    /// Draw a [`DrawingImage`].
     ///
     /// - `rect`: Destination region on the canvas where the image will be
     ///   drawn.
