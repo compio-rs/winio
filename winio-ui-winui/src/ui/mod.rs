@@ -5,8 +5,16 @@ use windows::{
 };
 use winio_primitive::{ColorTheme, HAlign, Orient, Point, Size};
 pub use winio_ui_windows_common::{
-    Backdrop, CustomButton, FileBox, FileFilter, MessageBox, accent_color, monitor_get_all,
+    Backdrop, CustomButton, FileBox, FileFilter, accent_color, monitor_get_all,
 };
+
+#[cfg(feature = "content-dialog")]
+mod msgbox;
+#[cfg(feature = "content-dialog")]
+pub use msgbox::MessageBox;
+#[cfg(not(feature = "content-dialog"))]
+pub use winio_ui_windows_common::MessageBox;
+
 use winui3::Microsoft::UI::Xaml::{Application, Controls::Orientation, TextAlignment};
 
 trait Convertible<T> {
