@@ -1,15 +1,13 @@
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
-        use std::marker::PhantomData;
-
         #[derive(Clone, Copy)]
         enum BorrowedContainerInner<'a> {
             #[cfg(feature = "win32")]
-            Win32(windows_sys::Win32::Foundation::HWND, PhantomData<&'a ()>),
+            Win32(windows_sys::Win32::Foundation::HWND, std::marker::PhantomData<&'a ()>),
             #[cfg(feature = "winui")]
             WinUI(&'a winui3::Microsoft::UI::Xaml::Controls::Canvas),
             #[cfg(not(any(feature = "win32", feature = "winui")))]
-            Dummy(std::convert::Infallible, PhantomData<&'a ()>),
+            Dummy(std::convert::Infallible, std::marker::PhantomData<&'a ()>),
         }
     } else if #[cfg(target_os = "macos")] {
         use objc2::rc::Retained;
@@ -26,16 +24,14 @@ cfg_if::cfg_if! {
 
         type BorrowedContainerInner<'a> = &'a JObject<'static>;
     } else {
-        use std::marker::PhantomData;
-
         #[derive(Clone, Copy)]
         enum BorrowedContainerInner<'a> {
             #[cfg(feature = "qt")]
-            Qt(*mut core::ffi::c_void, PhantomData<&'a ()>),
+            Qt(*mut core::ffi::c_void, std::marker::PhantomData<&'a ()>),
             #[cfg(feature = "gtk")]
             Gtk(&'a gtk4::Fixed),
             #[cfg(not(any(feature = "qt", feature = "gtk")))]
-            Dummy(std::convert::Infallible, PhantomData<&'a ()>),
+            Dummy(std::convert::Infallible, std::marker::PhantomData<&'a ()>),
         }
     }
 }
@@ -56,7 +52,10 @@ impl<'a> BorrowedContainer<'a> {
     /// * `hwnd` must not be null.
     #[cfg(feature = "win32")]
     pub unsafe fn win32(hwnd: windows_sys::Win32::Foundation::HWND) -> Self {
-        Self(BorrowedContainerInner::Win32(hwnd, PhantomData))
+        Self(BorrowedContainerInner::Win32(
+            hwnd,
+            std::marker::PhantomData,
+        ))
     }
 
     /// Create from WinUI `Canvas`.
@@ -120,7 +119,10 @@ impl<'a> BorrowedContainer<'a> {
     /// `'a`.
     #[cfg(feature = "qt")]
     pub unsafe fn qt<T>(widget: *mut T) -> Self {
-        Self(BorrowedContainerInner::Qt(widget.cast(), PhantomData))
+        Self(BorrowedContainerInner::Qt(
+            widget.cast(),
+            std::marker::PhantomData,
+        ))
     }
 
     /// Create from Gtk `Fixed`.

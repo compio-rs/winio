@@ -1,15 +1,13 @@
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
-        use std::marker::PhantomData;
-
         #[derive(Clone, Copy)]
         enum BorrowedWidgetInner<'a> {
             #[cfg(feature = "win32")]
-            Win32(windows_sys::Win32::Foundation::HWND, PhantomData<&'a ()>),
+            Win32(windows_sys::Win32::Foundation::HWND, std::marker::PhantomData<&'a ()>),
             #[cfg(feature = "winui")]
             WinUI(&'a winui3::Microsoft::UI::Xaml::FrameworkElement),
             #[cfg(not(any(feature = "win32", feature = "winui")))]
-            Dummy(std::convert::Infallible, PhantomData<&'a ()>),
+            Dummy(std::convert::Infallible, std::marker::PhantomData<&'a ()>),
         }
     } else if #[cfg(target_os = "macos")] {
         use objc2::rc::Retained;
@@ -26,16 +24,14 @@ cfg_if::cfg_if! {
     } else if #[cfg(target_vendor = "apple")] {
         compile_error!("Other Apple platforms (like watchOS and tvOS) are not supported yet.");
     } else {
-        use std::marker::PhantomData;
-
         #[derive(Clone, Copy)]
         enum BorrowedWidgetInner<'a> {
             #[cfg(feature = "qt")]
-            Qt(*mut core::ffi::c_void, PhantomData<&'a ()>),
+            Qt(*mut core::ffi::c_void, std::marker::PhantomData<&'a ()>),
             #[cfg(feature = "gtk")]
             Gtk(&'a gtk4::Widget),
             #[cfg(not(any(feature = "qt", feature = "gtk")))]
-            Dummy(std::convert::Infallible, PhantomData<&'a ()>),
+            Dummy(std::convert::Infallible, std::marker::PhantomData<&'a ()>),
         }
     }
 }
@@ -56,7 +52,7 @@ impl<'a> BorrowedWidget<'a> {
     /// * `hwnd` must not be null.
     #[cfg(feature = "win32")]
     pub unsafe fn win32(hwnd: windows_sys::Win32::Foundation::HWND) -> Self {
-        Self(BorrowedWidgetInner::Win32(hwnd, PhantomData))
+        Self(BorrowedWidgetInner::Win32(hwnd, std::marker::PhantomData))
     }
 
     /// Create from WinUI `FrameworkElement`.
@@ -120,7 +116,10 @@ impl<'a> BorrowedWidget<'a> {
     /// `'a`.
     #[cfg(feature = "qt")]
     pub unsafe fn qt<T>(widget: *mut T) -> Self {
-        Self(BorrowedWidgetInner::Qt(widget.cast(), PhantomData))
+        Self(BorrowedWidgetInner::Qt(
+            widget.cast(),
+            std::marker::PhantomData,
+        ))
     }
 
     /// Create from Gtk `Widget`.
