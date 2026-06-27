@@ -4,6 +4,29 @@ Winio is a single-threaded asynchronous GUI runtime.
 The GUI part is powered by native backends, and it is compatible with [`compio`](https://github.com/compio-rs/compio).
 All IO requests could be issued in the same thread as GUI, without blocking the user interface!
 
+## Platform support
+
+| Backend | Platform                                                           |
+| ------- | ------------------------------------------------------------------ |
+| Win32   | Windows 10 1607+ <br> Windows 10 1809+ (`win32-dark-mode`)         |
+| WinUI   | Windows 11 21H2+ <br> WinUI (3) 1.0+ <br> WinUI (3) 1.2+ (`media`) |
+| Qt      | Qt 5.15+ <br> Qt 6.0+                                              |
+| GTK     | GTK 4.14+ <br> WebkitGtk 6 2.42+ (`webview`)                       |
+| AppKit  | macOS 11.0+                                                        |
+| UIKit   | iOS 13.0+ <br> Mac Catalyst 13.1+                                  |
+| Android | Android SDK 36+ <br> Android NDK 27+                               |
+
+> [!WARNING] Selecting backends
+> On systems other than macOS, iOS, and Android, you have to select only one backend by enabling features. The default one is `win32` for Windows and `qt` for others.
+
+> [!WARNING] WGPU support
+> Some platforms doesn't work well:
+> * iOS simulator
+> * Mac Catalyst
+> * Android simulator
+> * Qt
+> * GTK
+
 ## Example
 
 Read the [example](winio-example) and learn more!
