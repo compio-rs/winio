@@ -134,5 +134,6 @@ win32-dark-mode = [
 ]
 winui-enable-cbs = ["winio-ui-winui?/enable-cbs"]
 winui-webview-system = ["winio-ui-winui?/webview-system"]
+winui-content-dialog = ["winio-ui-winui?/content-dialog"]
 objc-static = ["winio-ui-app-kit/objc-static"]
 qt-opengl = ["winio-ui-qt?/opengl"]

@@ -39,6 +39,7 @@ winui3 = { workspace = true, features = [
     "UI_Composition_SystemBackdrops",
     "UI_Dispatching",
     "UI_Windowing",
+    "UI_Xaml_Controls",
     "UI_Xaml_Controls_Primitives",
     "UI_Xaml_Input",
     "UI_Xaml_Interop",
@@ -74,5 +75,7 @@ wgpu = ["dep:wgpu"]
 enable-cbs = []
 # Use WebView2 Core shipped with Windows
 webview-system = []
+# Use ContentDialog for MessageBox
+content-dialog = []
 
 win32-dark-mode = ["winio-ui-windows-common/dark-mode"]

@@ -4,10 +4,15 @@ use windows::{
     core::{HSTRING, Interface, Result, RuntimeType},
 };
 use winio_primitive::{ColorTheme, HAlign, Orient, Point, Size};
-pub use winio_ui_windows_common::{
-    Backdrop, CustomButton, FileBox, FileFilter, MessageBox, accent_color, monitor_get_all,
-};
+pub use winio_ui_windows_common::{Backdrop, FileBox, FileFilter, accent_color, monitor_get_all};
 use winui3::Microsoft::UI::Xaml::{Application, Controls::Orientation, TextAlignment};
+
+#[cfg(feature = "content-dialog")]
+mod msgbox;
+#[cfg(feature = "content-dialog")]
+pub use msgbox::*;
+#[cfg(not(feature = "content-dialog"))]
+pub use winio_ui_windows_common::{CustomButton, MessageBox};
 
 trait Convertible<T> {
     fn from_native(native: T) -> Self;

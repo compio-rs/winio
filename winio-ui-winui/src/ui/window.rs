@@ -80,10 +80,10 @@ impl Window {
             let on_close = on_close.clone();
             app_window.Closing(&TypedEventHandler::new(
                 move |_, args: Ref<AppWindowClosingEventArgs>| {
-                    if let Some(args) = args.as_ref() {
-                        let handled = !on_close.signal::<GlobalRuntime>(());
-                        args.SetCancel(handled)?;
-                    }
+                    let args = args.ok()?;
+                    on_close.signal::<GlobalRuntime>(());
+                    // Prevent the window from closing
+                    args.SetCancel(true)?;
                     Ok(())
                 },
             ))?;
@@ -95,13 +95,12 @@ impl Window {
             let on_move = on_move.clone();
             app_window.Changed(&TypedEventHandler::new(
                 move |_, args: Ref<AppWindowChangedEventArgs>| {
-                    if let Some(args) = args.as_ref() {
-                        if args.DidPositionChange()? {
-                            on_move.signal::<GlobalRuntime>(());
-                        }
-                        if args.DidSizeChange()? {
-                            on_size.signal::<GlobalRuntime>(());
-                        }
+                    let args = args.ok()?;
+                    if args.DidPositionChange()? {
+                        on_move.signal::<GlobalRuntime>(());
+                    }
+                    if args.DidSizeChange()? {
+                        on_size.signal::<GlobalRuntime>(());
                     }
                     Ok(())
                 },
