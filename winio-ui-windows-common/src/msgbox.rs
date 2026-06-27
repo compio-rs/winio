@@ -27,12 +27,14 @@ async fn msgbox(
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
 ) -> Result<MessageBoxResponse> {
+    const CUSTOM_RESULT_OFFSET: usize = 15;
+
     let parent_handle = parent.map(|p| p as isize).unwrap_or_default();
     let (res, result) = crate::spawn_blocking(move || {
         let cbtn_ptrs = cbtns
             .iter()
             .map(|b| TASKDIALOG_BUTTON {
-                nButtonID: b.result as _,
+                nButtonID: ((b.result as i32) << CUSTOM_RESULT_OFFSET),
                 pszButtonText: b.text.as_ptr(),
             })
             .collect::<Vec<_>>();
@@ -90,7 +92,7 @@ async fn msgbox(
             IDRETRY => MessageBoxResponse::Retry,
             IDYES => MessageBoxResponse::Yes,
             IDCLOSE => MessageBoxResponse::Close,
-            _ => MessageBoxResponse::Custom(result as _),
+            _ => MessageBoxResponse::Custom((result >> CUSTOM_RESULT_OFFSET) as _),
         };
         Ok(res)
     } else {
