@@ -166,11 +166,11 @@ fn build_button_grid(
     let cols = grid.ColumnDefinitions()?;
     let children = grid.Children()?;
     let n = buttons.len();
-    let accent_style = (!buttons.is_empty())
+    let mut accent_style = (!buttons.is_empty())
         .then(|| lookup::<Style>(h!("AccentButtonStyle")).ok())
         .flatten();
 
-    for _ in 0..if n == 1 { 2 } else { n } {
+    for _ in 0..n.max(2) {
         let btn_col = ColumnDefinition::new()?;
         btn_col.SetWidth(GridLength {
             Value: 1.0,
@@ -189,9 +189,9 @@ fn build_button_grid(
         Grid::SetColumn(&btn, col)?;
 
         if matches!(response, MessageBoxResponse::Ok | MessageBoxResponse::Yes)
-            && let Some(ref style) = accent_style
+            && let Some(style) = accent_style.take()
         {
-            btn.SetStyle(style)?;
+            btn.SetStyle(&style)?;
         }
 
         let result = result.clone();
