@@ -119,17 +119,12 @@ fn app_start(waker: Arc<DispatcherWaker>) -> Result<()> {
     let app = XamlApp::compose()?;
     app.UnhandledException(Some(&UnhandledExceptionEventHandler::new(
         |_sender, args| {
-            #[allow(clippy::single_match)]
-            match args.as_ref() {
-                #[allow(unused)]
-                Some(args) => {
-                    error!("Unhandled exception: {}", args.Exception()?);
-                    error!("{}", args.Message()?);
-                }
-                None => {
-                    error!("Unhandled exception occurred");
-                }
-            }
+            let args = args.ok()?;
+            error!(
+                "Unhandled exception: {}\n{}",
+                args.Exception()?,
+                args.Message()?
+            );
             Ok(())
         },
     )))?;
