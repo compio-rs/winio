@@ -16,11 +16,11 @@ All IO requests could be issued in the same thread as GUI, without blocking the 
 | UIKit   | iOS 13.0+ <br> Mac Catalyst 13.1+                                  |
 | Android | Android SDK 36+ <br> Android NDK 27+                               |
 
-> [!WARNING] Selecting backends
+> [!WARNING]
 > On systems other than macOS, iOS, and Android, you have to select only one backend by enabling features. The default one is `win32` for Windows and `qt` for others.
 
-> [!WARNING] WGPU support
-> Some platforms doesn't work well:
+> [!WARNING]
+> WGPU canvas doesn't work well on some platforms:
 > * iOS simulator
 > * Mac Catalyst
 > * Android simulator
@@ -141,8 +141,8 @@ fn main() {
     unreachable!("Android entry point is `android_main` in `android.rs`")
 }
 ```
-> [!NOTE] iOS notes
-> `WindowEvent::Close` will never be emitted, and the application will exit if the window (Mac Catalyst) or the app (iOS) closes. `block_on` doesn't return in that case.
+> [!NOTE]
+> `WindowEvent::Close` will never be emitted on iOS, and the application will exit if the window (Mac Catalyst) or the app (iOS) closes. `block_on` doesn't return in that case.
 
 The Android entry point is the `android_main` method:
 ```rust
@@ -159,7 +159,7 @@ fn android_main(app: AndroidApp) {
     })
 }
 ```
-> [!NOTE] Android notes
+> [!NOTE]
 > * `android_main` might be called multiple times, but the lifetime of each calling don't overlap.
 > * `android_main` runs on a dedicate thread, while all code of `winio` execute on the main thread.
 > * You have to do the following to create a complete Android project with `winio`.
