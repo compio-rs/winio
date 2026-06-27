@@ -1,68 +1,70 @@
 use std::sync::{Arc, Mutex};
 
-use windows::Foundation::PropertyValue;
-use windows::core::{HSTRING, Interface};
+use windows::{
+    Foundation::PropertyValue,
+    UI::Text::FontWeight,
+    Win32::Foundation::E_INVALIDARG,
+    core::{HSTRING, Interface, h},
+};
 use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
-use winio_ui_windows_common::CustomButton;
-use winui3::Microsoft::UI::Xaml::Style;
 use winui3::Microsoft::UI::Xaml::{
     Application,
     Controls::{
-        BackgroundSizing, Button as WinUIButton, ColumnDefinition, ContentDialog,
-        ContentDialogButton, Grid, RowDefinition, StackPanel, TextBlock,
+        BackgroundSizing, Button, ColumnDefinition, ContentDialog, ContentDialogButton, Grid,
+        RowDefinition, StackPanel, TextBlock,
     },
     GridLength, GridUnitType, HorizontalAlignment,
     Media::Brush,
-    RoutedEventHandler, Thickness, XamlRoot,
+    RoutedEventHandler, Style, TextWrapping, Thickness, XamlRoot,
 };
 
 use crate::{Error, Result};
 
 struct ButtonMeta {
     flag: MessageBoxButton,
-    label: &'static str,
+    label: &'static HSTRING,
     response: MessageBoxResponse,
 }
 
 const BUTTON_META: [ButtonMeta; 6] = [
     ButtonMeta {
         flag: MessageBoxButton::Ok,
-        label: "OK",
+        label: h!("OK"),
         response: MessageBoxResponse::Ok,
     },
     ButtonMeta {
         flag: MessageBoxButton::Yes,
-        label: "Yes",
+        label: h!("Yes"),
         response: MessageBoxResponse::Yes,
     },
     ButtonMeta {
         flag: MessageBoxButton::No,
-        label: "No",
+        label: h!("No"),
         response: MessageBoxResponse::No,
     },
     ButtonMeta {
         flag: MessageBoxButton::Cancel,
-        label: "Cancel",
+        label: h!("Cancel"),
         response: MessageBoxResponse::Cancel,
     },
     ButtonMeta {
         flag: MessageBoxButton::Retry,
-        label: "Retry",
+        label: h!("Retry"),
         response: MessageBoxResponse::Retry,
     },
     ButtonMeta {
         flag: MessageBoxButton::Close,
-        label: "Close",
+        label: h!("Close"),
         response: MessageBoxResponse::Close,
     },
 ];
 
 #[derive(Debug, Clone, Default)]
 pub struct MessageBox {
-    msg: String,
-    title: String,
-    instr: String,
+    msg: HSTRING,
+    title: HSTRING,
+    instr: HSTRING,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
 }
@@ -74,7 +76,7 @@ impl MessageBox {
 
     pub async fn show(self, parent: Option<impl AsWindow>) -> Result<MessageBoxResponse> {
         let xaml_root = parent
-            .ok_or_else(|| Error::from_hresult(windows::Win32::Foundation::E_INVALIDARG))?
+            .ok_or_else(|| Error::from_hresult(E_INVALIDARG))?
             .as_window()
             .as_winui()
             .Content()?
@@ -92,15 +94,15 @@ impl MessageBox {
     }
 
     pub fn message(&mut self, msg: &str) {
-        self.msg = msg.to_owned();
+        self.msg = HSTRING::from(msg);
     }
 
     pub fn title(&mut self, title: &str) {
-        self.title = title.to_owned();
+        self.title = HSTRING::from(title);
     }
 
     pub fn instruction(&mut self, instr: &str) {
-        self.instr = instr.to_owned();
+        self.instr = HSTRING::from(instr);
     }
 
     pub fn style(&mut self, _style: MessageBoxStyle) {}
@@ -121,38 +123,37 @@ impl MessageBox {
 fn collect_buttons(
     btns: MessageBoxButton,
     cbtns: &[CustomButton],
-) -> Vec<(HSTRING, MessageBoxResponse)> {
+) -> Vec<(&HSTRING, MessageBoxResponse)> {
     let n = BUTTON_META.iter().filter(|m| btns.contains(m.flag)).count();
     let mut out = Vec::with_capacity(n + cbtns.len());
-    out.extend(cbtns.iter().map(|btn| {
-        (
-            HSTRING::from_wide(btn.text.as_slice_with_nul()),
-            MessageBoxResponse::Custom(btn.result),
-        )
-    }));
+    out.extend(
+        cbtns
+            .iter()
+            .map(|btn| (&btn.text, MessageBoxResponse::Custom(btn.result))),
+    );
 
     out.extend(
         BUTTON_META
             .iter()
             .filter(|m| btns.contains(m.flag))
-            .map(|m| (HSTRING::from(m.label), m.response)),
+            .map(|m| (m.label, m.response)),
     );
 
     if out.is_empty() {
-        out.push((HSTRING::from("OK"), MessageBoxResponse::Ok));
+        out.push((h!("OK"), MessageBoxResponse::Ok));
     }
 
     out
 }
 
-fn lookup<T: Interface>(key: &str) -> Result<T> {
+fn lookup<T: Interface>(key: &HSTRING) -> Result<T> {
     let resources = Application::Current()?.Resources()?;
-    let key_obj = PropertyValue::CreateString(&HSTRING::from(key))?;
+    let key_obj = PropertyValue::CreateString(key)?;
     Ok(resources.Lookup(&key_obj)?.cast()?)
 }
 
 fn build_button_grid(
-    buttons: &[(HSTRING, MessageBoxResponse)],
+    buttons: &[(&HSTRING, MessageBoxResponse)],
     dialog: &ContentDialog,
     result: &Arc<Mutex<Option<MessageBoxResponse>>>,
 ) -> Result<Grid> {
@@ -162,7 +163,7 @@ fn build_button_grid(
     let children = grid.Children()?;
     let n = buttons.len();
     let accent_style = (!buttons.is_empty())
-        .then(|| lookup::<Style>("AccentButtonStyle").ok())
+        .then(|| lookup::<Style>(h!("AccentButtonStyle")).ok())
         .flatten();
 
     for _ in 0..if n == 1 { 2 } else { n } {
@@ -176,7 +177,7 @@ fn build_button_grid(
 
     for (i, (label, response)) in buttons.iter().enumerate() {
         let col = if n == 1 { 1 } else { i as i32 };
-        let btn = WinUIButton::new()?;
+        let btn = Button::new()?;
         let tb = TextBlock::new()?;
         tb.SetText(label)?;
         btn.SetContent(&tb)?;
@@ -195,9 +196,7 @@ fn build_button_grid(
         let dialog = dialog.clone();
         let resp = *response;
         btn.Click(&RoutedEventHandler::new(move |_, _| {
-            if let Ok(mut r) = result.lock() {
-                *r = Some(resp);
-            }
+            *result.lock().unwrap() = Some(resp);
             dialog.Hide()?;
             Ok(())
         }))?;
@@ -209,9 +208,9 @@ fn build_button_grid(
 }
 
 fn build_content(
-    instr: &str,
-    msg: &str,
-    buttons: &[(HSTRING, MessageBoxResponse)],
+    instr: &HSTRING,
+    msg: &HSTRING,
+    buttons: &[(&HSTRING, MessageBoxResponse)],
     dialog: &ContentDialog,
     result: &Arc<Mutex<Option<MessageBoxResponse>>>,
 ) -> Result<Grid> {
@@ -237,16 +236,16 @@ fn build_content(
 
     if !instr.is_empty() {
         let block = TextBlock::new()?;
-        block.SetText(&HSTRING::from(instr))?;
+        block.SetText(&instr)?;
         block.SetFontSize(14.0)?;
-        block.SetFontWeight(windows::UI::Text::FontWeight { Weight: 600 })?;
+        block.SetFontWeight(FontWeight { Weight: 600 })?;
         text_children.Append(&block)?;
     }
 
     if !msg.is_empty() {
         let block = TextBlock::new()?;
-        block.SetText(&HSTRING::from(msg))?;
-        block.SetTextWrapping(winui3::Microsoft::UI::Xaml::TextWrapping::Wrap)?;
+        block.SetText(&msg)?;
+        block.SetTextWrapping(TextWrapping::Wrap)?;
         text_children.Append(&block)?;
     }
 
@@ -270,9 +269,9 @@ fn build_content(
         })?;
         bar.SetBackgroundSizing(BackgroundSizing::OuterBorderEdge)?;
 
-        bar.SetBackground(&lookup::<Brush>("SolidBackgroundFillColorBaseBrush")?)?;
+        bar.SetBackground(&lookup::<Brush>(h!("SolidBackgroundFillColorBaseBrush"))?)?;
 
-        bar.SetBorderBrush(&lookup::<Brush>("CardStrokeColorDefaultBrush")?)?;
+        bar.SetBorderBrush(&lookup::<Brush>(h!("CardStrokeColorDefaultBrush"))?)?;
         bar.SetBorderThickness(Thickness {
             Left: 0.0,
             Top: 1.0,
@@ -298,9 +297,9 @@ fn build_content(
 
 async fn msgbox(
     xaml_root: &XamlRoot,
-    msg: &str,
-    title: &str,
-    instr: &str,
+    msg: &HSTRING,
+    title: &HSTRING,
+    instr: &HSTRING,
     btns: MessageBoxButton,
     cbtns: &[CustomButton],
 ) -> Result<MessageBoxResponse> {
@@ -308,7 +307,7 @@ async fn msgbox(
 
     let dialog = ContentDialog::new()?;
     dialog.SetXamlRoot(xaml_root)?;
-    dialog.SetTitle(&PropertyValue::CreateString(&HSTRING::from(title))?)?;
+    dialog.SetTitle(&PropertyValue::CreateString(&title)?)?;
     dialog.SetDefaultButton(ContentDialogButton::None)?;
 
     let result = Arc::new(Mutex::new(None::<MessageBoxResponse>));
@@ -319,7 +318,22 @@ async fn msgbox(
 
     Ok(result
         .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .unwrap()
         .take()
         .unwrap_or(MessageBoxResponse::Cancel))
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct CustomButton {
+    pub result: u16,
+    pub text: HSTRING,
+}
+
+impl CustomButton {
+    pub fn new(result: u16, text: &str) -> Self {
+        Self {
+            result,
+            text: HSTRING::from(text),
+        }
+    }
 }
