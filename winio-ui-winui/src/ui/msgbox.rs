@@ -125,9 +125,13 @@ impl MessageBox {
 }
 
 fn collect_buttons(
-    btns: MessageBoxButton,
+    mut btns: MessageBoxButton,
     cbtns: &[CustomButton],
 ) -> Vec<(&HSTRING, MessageBoxResponse)> {
+    if cbtns.is_empty() && btns.is_empty() {
+        btns = MessageBoxButton::Ok;
+    }
+
     let n = BUTTON_META.iter().filter(|m| btns.contains(m.flag)).count();
     let mut out = Vec::with_capacity(n + cbtns.len());
     out.extend(
@@ -142,10 +146,6 @@ fn collect_buttons(
             .filter(|m| btns.contains(m.flag))
             .map(|m| (m.label, m.response)),
     );
-
-    if out.is_empty() {
-        out.push((h!("OK"), MessageBoxResponse::Ok));
-    }
 
     out
 }
@@ -188,9 +188,7 @@ fn build_button_grid(
         btn.SetHorizontalAlignment(HorizontalAlignment::Stretch)?;
         Grid::SetColumn(&btn, col)?;
 
-        if i == 0
-            && response != &MessageBoxResponse::Cancel
-            && response != &MessageBoxResponse::Close
+        if matches!(response, MessageBoxResponse::Ok | MessageBoxResponse::Yes)
             && let Some(ref style) = accent_style
         {
             btn.SetStyle(style)?;
