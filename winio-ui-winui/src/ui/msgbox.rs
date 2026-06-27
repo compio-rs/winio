@@ -7,17 +7,22 @@ use windows::{
     Win32::Foundation::E_POINTER,
     core::{HSTRING, Interface, h},
 };
+use windows_sys::Win32::Foundation::HWND;
 use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
-use winui3::Microsoft::UI::Xaml::{
-    Application,
-    Controls::{
-        BackgroundSizing, Button, ColumnDefinition, ContentDialog, ContentDialogButton, Grid,
-        RowDefinition, StackPanel, TextBlock,
+use winui3::Microsoft::UI::{
+    WindowId,
+    Windowing::{AppWindow, OverlappedPresenter},
+    Xaml::{
+        Application,
+        Controls::{
+            BackgroundSizing, Button, ColumnDefinition, ContentDialog, ContentDialogButton, Grid,
+            RowDefinition, StackPanel, TextBlock,
+        },
+        GridLength, GridUnitType, HorizontalAlignment,
+        Media::Brush,
+        RoutedEventHandler, Style, TextWrapping, Thickness, XamlRoot,
     },
-    GridLength, GridUnitType, HorizontalAlignment,
-    Media::Brush,
-    RoutedEventHandler, Style, TextWrapping, Thickness, XamlRoot,
 };
 
 use crate::{Error, ROOT_WINDOWS, Result};
@@ -76,17 +81,21 @@ impl MessageBox {
     }
 
     pub async fn show(self, parent: Option<impl AsWindow>) -> Result<MessageBoxResponse> {
-        let xaml_root = if let Some(parent) = parent {
-            parent.as_window().as_winui().Content()?.XamlRoot()?
+        let (hwnd, xaml_root) = if let Some(parent) = parent {
+            let window = parent.as_window();
+            let hwnd = window.handle()?;
+            (hwnd, window.as_winui().Content()?.XamlRoot()?)
         } else {
-            ROOT_WINDOWS
+            let xaml_root = ROOT_WINDOWS
                 .with_borrow(|windows| windows.first().cloned())
                 .ok_or_else(|| Error::from_hresult(E_POINTER))?
                 .Content()?
-                .XamlRoot()?
+                .XamlRoot()?;
+            (std::ptr::null_mut(), xaml_root)
         };
 
         msgbox(
+            hwnd,
             &xaml_root,
             &self.msg,
             &self.title,
@@ -298,6 +307,7 @@ fn build_content(
 }
 
 async fn msgbox(
+    hwnd: HWND,
     xaml_root: &XamlRoot,
     msg: &HSTRING,
     title: &HSTRING,
@@ -316,7 +326,54 @@ async fn msgbox(
     let content = build_content(instr, msg, &all_buttons, &dialog, &result)?;
     dialog.SetContent(&content)?;
 
+    struct EnableGuard {
+        presenter: OverlappedPresenter,
+        restored: bool,
+    }
+
+    impl EnableGuard {
+        fn new(presenter: OverlappedPresenter) -> Self {
+            Self {
+                presenter,
+                restored: false,
+            }
+        }
+
+        fn restore_impl(&mut self) -> Result<()> {
+            self.presenter.SetIsMaximizable(true)?;
+            self.presenter.SetIsResizable(true)?;
+            self.restored = true;
+            Ok(())
+        }
+
+        fn restore(mut self) -> Result<()> {
+            self.restore_impl()
+        }
+    }
+
+    impl Drop for EnableGuard {
+        fn drop(&mut self) {
+            if !self.restored {
+                self.restore_impl().ok();
+            }
+        }
+    }
+
+    let guard = if !hwnd.is_null() {
+        let window = AppWindow::GetFromWindowId(WindowId { Value: hwnd as _ })?;
+        let presenter = window.Presenter()?.cast::<OverlappedPresenter>()?;
+        presenter.SetIsMaximizable(false)?;
+        presenter.SetIsResizable(false)?;
+        Some(EnableGuard::new(presenter))
+    } else {
+        None
+    };
+
     dialog.ShowAsync()?.await?;
+
+    if let Some(guard) = guard {
+        guard.restore()?;
+    }
 
     Ok(result
         .borrow_mut()
