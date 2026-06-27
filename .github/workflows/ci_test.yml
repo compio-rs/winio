@@ -46,11 +46,11 @@ jobs:
           - os: 'windows-latest'
             target: 'i686-pc-windows-msvc'
             # all + x86 + win32 + additional features
-            features: 'all,win32-dark-mode,winui-enable-cbs,winui-webview-system'
+            features: 'all,windows-dark-mode,winui-enable-cbs,winui-webview-system'
           - os: 'windows-latest'
             target: 'x86_64-pc-windows-msvc'
             # all + winui + additional features
-            features: 'all,winui,win32-dark-mode,winui-enable-cbs,winui-webview-system,winui-content-dialog'
+            features: 'all,winui,windows-dark-mode,winui-enable-cbs,winui-webview-system,winui-content-dialog'
             no_default_features: true
           - os: 'windows-latest'
             target: 'x86_64-pc-windows-gnullvm'

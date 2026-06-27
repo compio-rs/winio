@@ -8,7 +8,7 @@ All IO requests could be issued in the same thread as GUI, without blocking the 
 
 | Backend | Platform                                                           |
 | ------- | ------------------------------------------------------------------ |
-| Win32   | Windows 10 1607+ <br> Windows 10 1809+ (`win32-dark-mode`)         |
+| Win32   | Windows 10 1607+ <br> Windows 10 1809+ (`windows-dark-mode`)       |
 | WinUI   | Windows 11 21H2+ <br> WinUI (3) 1.0+ <br> WinUI (3) 1.2+ (`media`) |
 | Qt      | Qt 5.15+ <br> Qt 6.0+                                              |
 | GTK     | GTK 4.14+ <br> WebkitGtk 6 2.42+ (`webview`)                       |
