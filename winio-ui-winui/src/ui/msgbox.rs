@@ -4,7 +4,7 @@ use send_wrapper::SendWrapper;
 use windows::{
     Foundation::PropertyValue,
     UI::Text::FontWeight,
-    Win32::Foundation::E_INVALIDARG,
+    Win32::Foundation::E_POINTER,
     core::{HSTRING, Interface, h},
 };
 use winio_handle::AsWindow;
@@ -20,7 +20,7 @@ use winui3::Microsoft::UI::Xaml::{
     RoutedEventHandler, Style, TextWrapping, Thickness, XamlRoot,
 };
 
-use crate::{Error, Result};
+use crate::{Error, ROOT_WINDOWS, Result};
 
 struct ButtonMeta {
     flag: MessageBoxButton,
@@ -76,12 +76,15 @@ impl MessageBox {
     }
 
     pub async fn show(self, parent: Option<impl AsWindow>) -> Result<MessageBoxResponse> {
-        let xaml_root = parent
-            .ok_or_else(|| Error::from_hresult(E_INVALIDARG))?
-            .as_window()
-            .as_winui()
-            .Content()?
-            .XamlRoot()?;
+        let xaml_root = if let Some(parent) = parent {
+            parent.as_window().as_winui().Content()?.XamlRoot()?
+        } else {
+            ROOT_WINDOWS
+                .with_borrow(|windows| windows.first().cloned())
+                .ok_or_else(|| Error::from_hresult(E_POINTER))?
+                .Content()?
+                .XamlRoot()?
+        };
 
         msgbox(
             &xaml_root,
@@ -150,7 +153,7 @@ fn collect_buttons(
 fn lookup<T: Interface>(key: &HSTRING) -> Result<T> {
     let resources = Application::Current()?.Resources()?;
     let key_obj = PropertyValue::CreateString(key)?;
-    Ok(resources.Lookup(&key_obj)?.cast()?)
+    resources.Lookup(&key_obj)?.cast()
 }
 
 fn build_button_grid(
@@ -237,7 +240,7 @@ fn build_content(
 
     if !instr.is_empty() {
         let block = TextBlock::new()?;
-        block.SetText(&instr)?;
+        block.SetText(instr)?;
         block.SetFontSize(14.0)?;
         block.SetFontWeight(FontWeight { Weight: 600 })?;
         text_children.Append(&block)?;
@@ -245,7 +248,7 @@ fn build_content(
 
     if !msg.is_empty() {
         let block = TextBlock::new()?;
-        block.SetText(&msg)?;
+        block.SetText(msg)?;
         block.SetTextWrapping(TextWrapping::Wrap)?;
         text_children.Append(&block)?;
     }
@@ -308,7 +311,7 @@ async fn msgbox(
 
     let dialog = ContentDialog::new()?;
     dialog.SetXamlRoot(xaml_root)?;
-    dialog.SetTitle(&PropertyValue::CreateString(&title)?)?;
+    dialog.SetTitle(&PropertyValue::CreateString(title)?)?;
     dialog.SetDefaultButton(ContentDialogButton::None)?;
 
     let result = SendWrapper::new(Rc::new(RefCell::new(None)));

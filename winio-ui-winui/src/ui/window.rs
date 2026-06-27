@@ -296,7 +296,7 @@ impl Drop for Window {
 }
 
 thread_local! {
-    static ROOT_WINDOWS: RefCell<Vec<MUX::Window>> = const { RefCell::new(vec![]) };
+    pub(crate) static ROOT_WINDOWS: RefCell<Vec<MUX::Window>> = const { RefCell::new(vec![]) };
 }
 
 pub(crate) fn get_root_window(e: &MUX::FrameworkElement) -> Option<MUX::Window> {
