@@ -1,5 +1,6 @@
-use std::sync::{Arc, Mutex};
+use std::{cell::RefCell, rc::Rc};
 
+use send_wrapper::SendWrapper;
 use windows::{
     Foundation::PropertyValue,
     UI::Text::FontWeight,
@@ -155,7 +156,7 @@ fn lookup<T: Interface>(key: &HSTRING) -> Result<T> {
 fn build_button_grid(
     buttons: &[(&HSTRING, MessageBoxResponse)],
     dialog: &ContentDialog,
-    result: &Arc<Mutex<Option<MessageBoxResponse>>>,
+    result: &SendWrapper<Rc<RefCell<Option<MessageBoxResponse>>>>,
 ) -> Result<Grid> {
     let grid = Grid::new()?;
     grid.SetColumnSpacing(8.0)?;
@@ -192,11 +193,11 @@ fn build_button_grid(
             btn.SetStyle(style)?;
         }
 
-        let result = Arc::clone(result);
+        let result = result.clone();
         let dialog = dialog.clone();
         let resp = *response;
         btn.Click(&RoutedEventHandler::new(move |_, _| {
-            *result.lock().unwrap() = Some(resp);
+            *result.borrow_mut() = Some(resp);
             dialog.Hide()?;
             Ok(())
         }))?;
@@ -212,7 +213,7 @@ fn build_content(
     msg: &HSTRING,
     buttons: &[(&HSTRING, MessageBoxResponse)],
     dialog: &ContentDialog,
-    result: &Arc<Mutex<Option<MessageBoxResponse>>>,
+    result: &SendWrapper<Rc<RefCell<Option<MessageBoxResponse>>>>,
 ) -> Result<Grid> {
     let content = Grid::new()?;
     let content_rows = content.RowDefinitions()?;
@@ -310,15 +311,14 @@ async fn msgbox(
     dialog.SetTitle(&PropertyValue::CreateString(&title)?)?;
     dialog.SetDefaultButton(ContentDialogButton::None)?;
 
-    let result = Arc::new(Mutex::new(None::<MessageBoxResponse>));
+    let result = SendWrapper::new(Rc::new(RefCell::new(None)));
     let content = build_content(instr, msg, &all_buttons, &dialog, &result)?;
     dialog.SetContent(&content)?;
 
     dialog.ShowAsync()?.await?;
 
     Ok(result
-        .lock()
-        .unwrap()
+        .borrow_mut()
         .take()
         .unwrap_or(MessageBoxResponse::Cancel))
 }
