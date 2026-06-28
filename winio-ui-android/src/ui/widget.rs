@@ -9,7 +9,10 @@ use jni::{
 use winio_handle::{AsContainer, AsWidget, BorrowedContainer, BorrowedWidget};
 use winio_primitive::{Point, Size};
 
-use crate::{AViewGroup, Context, FrameLayout, Result, WindowInsets, impl_listener, vm_exec};
+use crate::{
+    AViewGroup, Context, FrameLayout, Result, WindowInsets, impl_listener, logical_point,
+    logical_size, physical_point, physical_size, vm_exec,
+};
 
 jni::bind_java_type! {
     pub(crate) AView => "android.view.View",
@@ -165,21 +168,23 @@ where
     }
 
     pub fn loc(&self) -> Result<Point> {
-        vm_exec(move |env| {
+        let (x, y) = vm_exec(move |env| {
             let x = self.as_view().get_x(env)?;
             let y = self.as_view().get_y(env)?;
-            Ok(Point::new(x as _, y as _))
-        })
+            Result::Ok((x, y))
+        })?;
+        logical_point(x, y)
     }
 
     pub fn set_loc(&self, p: Point) -> Result<()> {
+        let (x, y) = physical_point(p)?;
         vm_exec(move |env| {
             let params = self.as_view().get_layout_params(env)?;
             let width = params.width(env)?;
             let height = params.height(env)?;
             let params = FrameLayoutLayoutParams::new(env, width, height)?;
-            params.as_margin().set_left_margin(env, p.x as i32)?;
-            params.as_margin().set_top_margin(env, p.y as i32)?;
+            params.as_margin().set_left_margin(env, x as i32)?;
+            params.as_margin().set_top_margin(env, y as i32)?;
             params.set_gravity(env, gravity::LEFT | gravity::TOP)?;
             self.as_view().set_layout_params(env, params)?;
             Ok(())
@@ -187,23 +192,25 @@ where
     }
 
     pub fn size(&self) -> Result<Size> {
-        vm_exec(|env| {
+        let (width, height) = vm_exec(|env| {
             let width = self.as_view().get_width(env)?;
             let height = self.as_view().get_height(env)?;
-            Ok(Size::new(width as _, height as _))
-        })
+            Result::Ok((width as _, height as _))
+        })?;
+        logical_size(width, height)
     }
 
     pub fn set_size(&self, size: Size) -> Result<()> {
+        let (width, height) = physical_size(size)?;
         vm_exec(move |env| {
             let params = self.as_view().get_layout_params(env)?;
             let params = if env.is_instance_of(&params, FrameLayoutLayoutParams::class_name())? {
                 let params = unsafe { FrameLayoutLayoutParams::from_raw(env, params.into_raw()) };
-                params.as_base().set_width(env, size.width as i32)?;
-                params.as_base().set_height(env, size.height as i32)?;
+                params.as_base().set_width(env, width as i32)?;
+                params.as_base().set_height(env, height as i32)?;
                 params
             } else {
-                FrameLayoutLayoutParams::new(env, size.width as i32, size.height as i32)?
+                FrameLayoutLayoutParams::new(env, width as i32, height as i32)?
             };
             self.as_view().set_layout_params(env, params)?;
             Ok(())
@@ -219,20 +226,24 @@ where
     }
 
     pub fn preferred_size(&self) -> Result<Size> {
-        vm_exec(move |env| {
+        let (width, height) = vm_exec(move |env| {
             self.as_view().measure(env, 0, 0)?;
             let width = self.as_view().get_measured_width(env)?;
             let height = self.as_view().get_measured_height(env)?;
-            Ok(Size::new(width as _, height as _))
-        })
+            Result::Ok((width as f32, height as f32))
+        })?;
+        // A little hack to make the preferred size a little bigger than the measured
+        // size, so that the widget is not too small.
+        logical_size(width + 4.0, height)
     }
 
     pub fn min_size(&self) -> Result<Size> {
-        vm_exec(move |env| {
+        let (width, height) = vm_exec(move |env| {
             let width = self.as_view().get_minimum_width(env)?;
             let height = self.as_view().get_minimum_height(env)?;
-            Ok(Size::new(width as _, height as _))
-        })
+            Result::Ok((width as _, height as _))
+        })?;
+        logical_size(width, height)
     }
 
     pub fn is_visible(&self) -> Result<bool> {

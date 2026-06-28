@@ -165,11 +165,7 @@ impl Component for FsPage {
                 .halign(HAlign::Left)
                 .valign(VAlign::Top)
                 .family("Courier New")
-                .size(if cfg!(target_os = "android") {
-                    30.0
-                } else {
-                    12.0
-                })
+                .size(12.0)
                 .build(),
             Point::zero(),
             match &self.text {

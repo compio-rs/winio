@@ -12,6 +12,9 @@ pub use color_theme::*;
 mod combo_box;
 pub use combo_box::*;
 
+mod dpi;
+pub(crate) use dpi::*;
+
 mod edit;
 pub use edit::*;
 

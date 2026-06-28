@@ -1,15 +1,17 @@
 use winio_primitive::{Color, ColorTheme};
 
-use crate::{Result, current_activity, vm_exec};
+use crate::{DisplayMetrics, Result, current_activity, vm_exec};
 
 jni::bind_java_type! {
     pub(crate) Resources => android.content.res.Resources,
     type_map {
         Configuration => android.content.res.Configuration,
+        DisplayMetrics => android.util.DisplayMetrics,
         ResourcesTheme => "android.content.res.Resources$Theme",
     },
     methods {
         fn get_configuration() -> Configuration,
+        fn get_display_metrics() -> DisplayMetrics,
         fn get_color(id: jint, theme: &ResourcesTheme) -> jint,
     },
 }

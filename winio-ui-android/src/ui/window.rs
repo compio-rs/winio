@@ -10,11 +10,11 @@ use jni::{
 use jni_min_helper::{DynamicProxy, JInteger};
 use winio_callback::SyncCallback;
 use winio_handle::{AsWindow, BorrowedContainer, BorrowedWindow};
-use winio_primitive::{Margin, Point, Size};
+use winio_primitive::{Point, Size};
 
 use crate::{
     AView, Activity, BaseWidget, Context, FrameLayoutLayoutParams, OnLayoutChangeListener, Result,
-    current_activity, vm_exec,
+    current_activity, logical_margin, logical_size, vm_exec,
 };
 
 jni::bind_java_type! {
@@ -82,7 +82,7 @@ pub struct Window {
     on_resize: Arc<SyncCallback>,
     #[allow(unused)]
     on_resize_proxy: DynamicProxy,
-    size_update: Arc<Mutex<Size>>,
+    size_update: Arc<Mutex<(i32, i32)>>,
 }
 
 #[inherit_methods(from = "self.inner")]
@@ -108,7 +108,7 @@ impl Window {
                 .lock()
                 .unwrap()
                 .replace(on_resize.clone());
-            let size_update = Arc::new(Mutex::new(Size::zero()));
+            let size_update = Arc::new(Mutex::new((0, 0)));
             let on_resize_proxy = DynamicProxy::build(
                 env,
                 &LoaderContext::None,
@@ -139,8 +139,7 @@ impl Window {
                                 || right != old_right
                                 || bottom != old_bottom
                             {
-                                let size = Size::new((right - left) as _, (bottom - top) as _);
-                                *size_update.lock().unwrap() = size;
+                                *size_update.lock().unwrap() = (right - left, bottom - top);
                                 on_resize.signal(());
                             }
                         }
@@ -164,7 +163,7 @@ impl Window {
 
     pub fn client_size(&self) -> Result<Size> {
         let size = self.size()?;
-        let margin = vm_exec(|env| {
+        let (top, right, bottom, left) = vm_exec(|env| {
             let insets = self.inner.as_view().get_root_window_insets(env)?;
             if !insets.is_null() {
                 let system_bars = WindowInsetsType::system_bars(env)?;
@@ -173,11 +172,12 @@ impl Window {
                 let top = insets.top(env)?;
                 let right = insets.right(env)?;
                 let bottom = insets.bottom(env)?;
-                Result::Ok(Margin::new(top as _, right as _, bottom as _, left as _))
+                Result::Ok((top as _, right as _, bottom as _, left as _))
             } else {
-                Ok(Margin::zero())
+                Ok((0, 0, 0, 0))
             }
         })?;
+        let margin = logical_margin(top, right, bottom, left)?;
         let size = Size::new(
             size.width - margin.horizontal(),
             size.height - margin.vertical(),
@@ -192,8 +192,9 @@ impl Window {
 
     pub fn set_visible(&mut self, visible: bool) -> Result<()>;
 
-    fn size_update(&self) -> Size {
-        *self.size_update.lock().unwrap()
+    fn size_update(&self) -> Result<Size> {
+        let (width, height) = *self.size_update.lock().unwrap();
+        logical_size(width as _, height as _)
     }
 
     pub fn loc(&self) -> Result<Point> {
@@ -205,7 +206,7 @@ impl Window {
     }
 
     pub fn size(&self) -> Result<Size> {
-        let size = self.size_update();
+        let size = self.size_update()?;
         if size == Size::zero() {
             self.inner.preferred_size()
         } else {
