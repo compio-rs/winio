@@ -43,7 +43,6 @@ url = "2"
 wgpu = { workspace = true, optional = true, features = ["wgsl"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
-android-activity = { workspace = true }
 tracing_android_trace = "0.1.0"
 
 jni = { workspace = true }

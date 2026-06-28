@@ -5,7 +5,9 @@ use std::{
     task::{RawWaker, RawWakerVTable, Waker},
 };
 
-use android_activity::{AndroidApp, MainEvent, PollEvent};
+#[doc(no_inline)]
+pub use android_activity::AndroidApp;
+use android_activity::{MainEvent, PollEvent};
 use compio_log::debug;
 use jni::{Env, objects::JObject, refs::Global, vm::JavaVM};
 use ndk_sys::{ALooper, ALooper_acquire, ALooper_forThread, ALooper_release, ALooper_wake};

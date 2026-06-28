@@ -41,6 +41,9 @@ mod compat_stub {
 
 #[cfg(not(feature = "compio-compat"))]
 use compat_stub::*;
+#[cfg(target_os = "android")]
+#[doc(no_inline)]
+pub use sys::AndroidApp;
 
 /// Root application, manages the async runtime.
 pub struct App {

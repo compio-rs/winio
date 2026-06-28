@@ -146,6 +146,10 @@ fn main() {
 
 The Android entry point is the `android_main` method:
 ```rust
+use winio::prelude::*;
+
+use crate::MainModel;
+
 #[unsafe(no_mangle)]
 fn android_main(app: AndroidApp) {
     let app = App::builder()

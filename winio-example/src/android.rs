@@ -1,4 +1,3 @@
-use android_activity::AndroidApp;
 use compio_log::metadata::LevelFilter;
 use tracing_subscriber::prelude::*;
 use winio::prelude::*;
