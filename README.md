@@ -44,8 +44,6 @@ Read the [example](winio-example) and learn more!
 
 ## Quick start
 
-> Alternatively, a fully configured [template](https://github.com/mokurin000/winio-template) is available as a starting point.
-
 Winio follows ELM-like design, inspired by [`yew`](https://yew.rs/) and [`relm4`](https://relm4.org/).
 The application starts with a root `Component`:
 
@@ -261,3 +259,5 @@ dependencies {
     }
 }
 ```
+
+Alternatively, a fully configured [template](https://github.com/mokurin000/winio-template) is available as a starting point.
