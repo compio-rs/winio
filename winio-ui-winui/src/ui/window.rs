@@ -48,6 +48,7 @@ pub struct Window {
     handle: MUX::Window,
     app_window: AppWindow,
     canvas: MUXC::Canvas,
+    closing_token: i64,
 }
 
 impl Window {
@@ -76,7 +77,7 @@ impl Window {
         handle.SetContent(&canvas)?;
 
         let on_close = SendWrapper::new(Rc::new(Callback::new()));
-        {
+        let closing_token = {
             let on_close = on_close.clone();
             app_window.Closing(&TypedEventHandler::new(
                 move |_, args: Ref<AppWindowClosingEventArgs>| {
@@ -86,8 +87,8 @@ impl Window {
                     args.SetCancel(true)?;
                     Ok(())
                 },
-            ))?;
-        }
+            ))?
+        };
         let on_size = SendWrapper::new(Rc::new(Callback::new()));
         let on_move = SendWrapper::new(Rc::new(Callback::new()));
         {
@@ -123,6 +124,7 @@ impl Window {
             handle,
             app_window,
             canvas,
+            closing_token,
         })
     }
 
@@ -292,6 +294,8 @@ impl Drop for Window {
         ROOT_WINDOWS.with_borrow_mut(|map| {
             map.retain(|w| w != &self.handle);
         });
+        self.app_window.RemoveClosing(self.closing_token).ok();
+        self.handle.Close().ok();
     }
 }
 
