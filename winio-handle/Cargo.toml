@@ -1,6 +1,6 @@
 [package]
 name = "winio-handle"
-version = "0.7.0-rc.2"
+version = "0.7.0-rc.3"
 description = "Window handle for winio."
 edition = { workspace = true }
 readme = { workspace = true }
