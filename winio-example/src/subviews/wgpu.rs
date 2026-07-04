@@ -80,7 +80,7 @@ impl SurfaceData {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[Vertex::desc()],
+                buffers: &[Some(Vertex::desc())],
                 compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -145,6 +145,7 @@ impl SurfaceData {
             let surface_config = wgpu::SurfaceConfiguration {
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                 format: self.surface_format,
+                color_space: wgpu::SurfaceColorSpace::Auto,
                 view_formats: vec![self.surface_format.add_srgb_suffix()],
                 alpha_mode: wgpu::CompositeAlphaMode::Auto,
                 width,
@@ -331,7 +332,7 @@ impl Component for WgpuPage {
         }
 
         self.queue.submit([encoder.finish()]);
-        surface_texture.present();
+        self.queue.present(surface_texture);
 
         Ok(())
     }
