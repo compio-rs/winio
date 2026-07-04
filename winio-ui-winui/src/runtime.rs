@@ -9,8 +9,12 @@ use compio_log::*;
 use futures_util::FutureExt;
 use windows::{
     Foundation::Uri,
-    core::{Array, HSTRING, IInspectable_Vtbl, Interface, Ref, h, imp::WeakRefCount, implement},
+    core::{
+        Array, Error, HRESULT, HSTRING, IInspectable_Vtbl, Interface, Ref, h, imp::WeakRefCount,
+        implement,
+    },
 };
+use windows_sys::Win32::Foundation::ERROR_MOD_NOT_FOUND;
 use winio_ui_windows_common::{PreferredAppMode, init_dark, set_preferred_app_mode};
 use winui3::{
     ApartmentType, ChildClass, ChildClassImpl, Compose, CreateInstanceFn,
@@ -48,7 +52,9 @@ fn init_appsdk_with(
             return Ok(p);
         }
     }
-    PackageDependency::initialize()
+    Err(Error::from_hresult(HRESULT::from_win32(
+        ERROR_MOD_NOT_FOUND,
+    )))
 }
 
 impl App {
