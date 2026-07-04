@@ -35,7 +35,7 @@ cxx = { version = "1.0.160", features = ["c++17"] }
 
 [build-dependencies]
 cxx-build = "1.0.160"
-qt-build-utils = "0.8"
+qt-build-utils = "0.9.1"
 
 [features]
 media = []
