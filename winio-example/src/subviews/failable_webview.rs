@@ -1,3 +1,4 @@
+use futures_util::future::Either;
 use winio::prelude::*;
 
 #[derive(Debug)]
@@ -82,10 +83,15 @@ impl FailableWebView {
         }
     }
 
-    pub async fn run_javascript(&mut self, script: impl AsRef<str>) -> Result<String> {
+    pub fn run_javascript(
+        &mut self,
+        script: impl AsRef<str>,
+    ) -> Result<impl Future<Output = Result<String>> + 'static> {
         match self {
-            FailableWebView::Widget(wv) => wv.run_javascript(script).await,
-            FailableWebView::ErrLabel(_) => Ok(String::new()),
+            FailableWebView::Widget(wv) => Ok(Either::Left(wv.run_javascript(script)?)),
+            FailableWebView::ErrLabel(_) => {
+                Ok(Either::Right(std::future::ready(Ok(String::new()))))
+            }
         }
     }
 }

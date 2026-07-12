@@ -240,11 +240,13 @@ impl Component for MarkdownPage {
 "#
                         );
                         self.webview.navigate_to_string(html)?;
-                        let result = self
+                        let fut = self
                             .webview
-                            .run_javascript(format!("alert({:?})", format!("{:?}", err)))
-                            .await?;
-                        info!("run_javascript result: {:?}", result);
+                            .run_javascript(format!("alert({:?})", format!("{:?}", err)))?;
+                        spawn(fut.map(|result| {
+                            info!("run_javascript result: {:?}", result);
+                        }))
+                        .detach();
                     }
                 }
                 Ok(true)
