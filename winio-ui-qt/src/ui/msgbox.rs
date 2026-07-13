@@ -1,6 +1,7 @@
-use std::{collections::HashMap, mem::ManuallyDrop, ptr::null_mut};
+use std::{collections::HashMap, ptr::null_mut};
 
 use cxx::{ExternType, type_id};
+use futures_util::FutureExt;
 use local_sync::oneshot;
 use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
@@ -15,7 +16,7 @@ fn msgbox_finished(data: *const u8, res: i32) {
     }
 }
 
-async fn msgbox_custom(
+fn msgbox_custom(
     parent: Option<impl AsWindow>,
     msg: String,
     title: String,
@@ -23,7 +24,7 @@ async fn msgbox_custom(
     style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
-) -> Result<MessageBoxResponse> {
+) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
     let parent = parent.map(|p| p.as_window().as_qt()).unwrap_or(null_mut());
     let mut b = unsafe { ffi::new_message_box(parent) }?;
 
@@ -74,19 +75,22 @@ async fn msgbox_custom(
     b.pin_mut().setIcon(icon)?;
 
     let (tx, rx) = oneshot::channel::<i32>();
-    let tx = ManuallyDrop::new(Some(tx));
+    let tx = Box::new(Some(tx));
     unsafe {
         ffi::message_box_connect_finished(
             b.pin_mut(),
             msgbox_finished,
-            std::ptr::addr_of!(tx).cast(),
+            tx.as_ref() as *const _ as _,
         )?;
     }
     b.pin_mut().open()?;
-    rx.await?;
 
-    let key = b.clickedButton()? as usize;
-    Ok(results[&key])
+    Ok(rx.map(move |res| {
+        let _tx = tx;
+        res?;
+        let key = b.clickedButton()? as usize;
+        Ok(results[&key])
+    }))
 }
 
 #[derive(Debug, Clone)]
@@ -117,11 +121,13 @@ impl MessageBox {
         }
     }
 
-    pub async fn show(self, parent: Option<impl AsWindow>) -> Result<MessageBoxResponse> {
+    pub fn show(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
         msgbox_custom(
             parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )
-        .await
     }
 
     pub fn message(&mut self, msg: &str) {

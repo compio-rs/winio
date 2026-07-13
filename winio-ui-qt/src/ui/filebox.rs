@@ -1,6 +1,7 @@
-use std::{mem::ManuallyDrop, path::PathBuf, ptr::null_mut};
+use std::{path::PathBuf, ptr::null_mut};
 
 use cxx::{ExternType, type_id};
+use futures_util::{FutureExt, TryFutureExt};
 use local_sync::oneshot;
 use winio_handle::AsWindow;
 
@@ -49,41 +50,44 @@ impl FileBox {
         self.filters.push(filter);
     }
 
-    pub async fn open(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
-        Ok(self
-            .filebox(parent, true, false, false)
-            .await?
-            .into_iter()
-            .next())
+    pub fn open(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+        self.filebox(parent, true, false, false)
+            .map(|fut| fut.map_ok(|res| res.into_iter().next()))
     }
 
-    pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Result<Vec<PathBuf>> {
-        self.filebox(parent, true, true, false).await
+    pub fn open_multiple(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
+        self.filebox(parent, true, true, false)
     }
 
-    pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
-        Ok(self
-            .filebox(parent, true, false, true)
-            .await?
-            .into_iter()
-            .next())
+    pub fn open_folder(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+        self.filebox(parent, true, false, true)
+            .map(|fut| fut.map_ok(|res| res.into_iter().next()))
     }
 
-    pub async fn save(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
-        Ok(self
-            .filebox(parent, false, false, false)
-            .await?
-            .into_iter()
-            .next())
+    pub fn save(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+        self.filebox(parent, false, false, false)
+            .map(|fut| fut.map_ok(|res| res.into_iter().next()))
     }
 
-    async fn filebox(
+    fn filebox(
         self,
         parent: Option<impl AsWindow>,
         open: bool,
         multiple: bool,
         folder: bool,
-    ) -> Result<Vec<PathBuf>> {
+    ) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
         let parent = parent.map(|p| p.as_window().as_qt()).unwrap_or(null_mut());
         let mut b = unsafe { ffi::new_file_dialog(parent) }?;
 
@@ -117,24 +121,28 @@ impl FileBox {
         }
 
         let (tx, rx) = oneshot::channel::<i32>();
-        let tx = ManuallyDrop::new(Some(tx));
+        let tx = Box::new(Some(tx));
         unsafe {
             ffi::file_dialog_connect_finished(
                 b.pin_mut(),
                 dialog_finished,
-                std::ptr::addr_of!(tx).cast(),
+                tx.as_ref() as *const _ as _,
             )?;
         }
         b.pin_mut().open()?;
-        let res = rx.await?;
-        if res == 0 {
-            return Ok(vec![]);
-        }
 
-        Ok(ffi::file_dialog_files(&b)?
-            .into_iter()
-            .map(PathBuf::from)
-            .collect())
+        Ok(rx.map(move |res| {
+            let _tx = tx;
+            let res = res?;
+            if res == 0 {
+                return Ok(vec![]);
+            }
+
+            Ok(ffi::file_dialog_files(&b)?
+                .into_iter()
+                .map(PathBuf::from)
+                .collect())
+        }))
     }
 }
 
