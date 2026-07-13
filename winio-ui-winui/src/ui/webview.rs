@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use cookie::Cookie;
+use futures_util::FutureExt;
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows::{
@@ -197,12 +198,16 @@ impl WebView {
         Ok(())
     }
 
-    pub async fn run_javascript(&mut self, s: impl AsRef<str>) -> Result<String> {
-        let result = self
-            .view
-            .ExecuteScriptAsync(&HSTRING::from(s.as_ref()))?
-            .await?;
-        Ok(result.to_string_lossy())
+    pub fn run_javascript(
+        &mut self,
+        s: impl AsRef<str>,
+    ) -> Result<impl Future<Output = Result<String>> + 'static> {
+        self.view
+            .ExecuteScriptAsync(&HSTRING::from(s.as_ref()))
+            .map(|fut| {
+                fut.into_future()
+                    .map(|result| result.map(|result| result.to_string_lossy()))
+            })
     }
 }
 

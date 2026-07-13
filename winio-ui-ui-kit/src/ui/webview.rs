@@ -1,6 +1,7 @@
 use std::{cell::Cell, ptr::NonNull, rc::Rc};
 
 use cookie::Cookie;
+use futures_util::FutureExt;
 use inherit_methods_macro::inherit_methods;
 use objc2::{
     AnyThread, DeclaredClass, MainThreadOnly, Message, define_class, msg_send,
@@ -235,7 +236,10 @@ impl WebView {
         Ok(())
     }
 
-    pub async fn run_javascript(&self, js: impl AsRef<str>) -> Result<String> {
+    pub fn run_javascript(
+        &mut self,
+        js: impl AsRef<str>,
+    ) -> Result<impl Future<Output = Result<String>> + 'static> {
         let rx = catch(|| unsafe {
             let (tx, rx) = local_sync::oneshot::channel();
             let tx = Rc::new(Cell::new(Some(tx)));
@@ -261,21 +265,23 @@ impl WebView {
             Ok(rx)
         })
         .flatten()?;
-        let Some(result) = rx.await?? else {
-            return Ok(String::new());
-        };
-        catch(|| {
-            let data = unsafe {
-                NSJSONSerialization::dataWithJSONObject_options_error(
-                    &result,
-                    NSJSONWritingOptions(0),
-                )?
+        Ok(rx.map(|res| {
+            let Some(result) = res?? else {
+                return Ok(String::new());
             };
-            let data =
-                NSString::initWithData_encoding(NSString::alloc(), &data, NSUTF8StringEncoding);
-            data.map(|s| from_nsstring(&s)).ok_or(Error::NullPointer)
-        })
-        .flatten()
+            catch(|| {
+                let data = unsafe {
+                    NSJSONSerialization::dataWithJSONObject_options_error(
+                        &result,
+                        NSJSONWritingOptions(0),
+                    )?
+                };
+                let data =
+                    NSString::initWithData_encoding(NSString::alloc(), &data, NSUTF8StringEncoding);
+                data.map(|s| from_nsstring(&s)).ok_or(Error::NullPointer)
+            })
+            .flatten()
+        }))
     }
 }
 

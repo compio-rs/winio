@@ -6,6 +6,7 @@ use std::{
 
 use cookie::Cookie;
 use cxx::{ExternType, UniquePtr, type_id};
+use futures_util::TryFutureExt;
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
@@ -232,7 +233,10 @@ impl WebView {
         }
     }
 
-    pub async fn run_javascript(&mut self, js: impl AsRef<str>) -> Result<String> {
+    pub fn run_javascript(
+        &mut self,
+        js: impl AsRef<str>,
+    ) -> Result<impl Future<Output = Result<String>> + 'static> {
         let js = js.as_ref().try_into()?;
         let (tx, rx) = local_sync::oneshot::channel();
         let tx = UnsafeCell::new(Some(tx));
@@ -253,7 +257,7 @@ impl WebView {
                 std::ptr::addr_of!(tx).cast(),
             )?;
         }
-        Ok(rx.await?)
+        Ok(rx.map_err(|e| e.into()))
     }
 }
 

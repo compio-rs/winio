@@ -1,6 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use cookie::Cookie;
+use futures_util::FutureExt;
 use webview2::{
     COREWEBVIEW2_COOKIE_SAME_SITE_KIND_LAX, COREWEBVIEW2_COOKIE_SAME_SITE_KIND_NONE,
     COREWEBVIEW2_COOKIE_SAME_SITE_KIND_STRICT, CreateCoreWebView2Environment, ICoreWebView2,
@@ -260,7 +261,10 @@ impl WebView {
         Ok(())
     }
 
-    pub async fn run_javascript(&mut self, s: impl AsRef<str>) -> Result<String> {
+    pub fn run_javascript(
+        &mut self,
+        s: impl AsRef<str>,
+    ) -> Result<impl Future<Output = Result<String>> + 'static> {
         let s = s.as_ref();
         let (tx, rx) = local_sync::oneshot::channel();
         with_u16c(s, |s| unsafe {
@@ -273,10 +277,12 @@ impl WebView {
             )?;
             Ok(())
         })?;
-        let result = rx
-            .await
-            .map_err(|_| Error::from_hresult(HRESULT::from_win32(ERROR_CANCELLED)))??;
-        Ok(result.to_string_lossy())
+        Ok(rx.into_future().map(|result| {
+            result
+                .map_err(|_| Error::from_hresult(HRESULT::from_win32(ERROR_CANCELLED)))
+                .flatten()
+                .map(|s| s.to_string_lossy())
+        }))
     }
 }
 

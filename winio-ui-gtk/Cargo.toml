@@ -41,7 +41,7 @@ gdk4-x11 = { workspace = true, optional = true, features = ["xlib"] }
 
 [features]
 media = []
-webview = ["dep:webkit6", "dep:cookie", "dep:time"]
+webview = ["dep:webkit6", "dep:cookie", "dep:time", "dep:futures-util"]
 wgpu = ["dep:wgpu", "dep:gdk4-wayland", "dep:gdk4-x11"]
 compio-compat = [
     "compio/runtime",

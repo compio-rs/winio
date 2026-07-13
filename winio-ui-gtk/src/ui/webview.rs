@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use cookie::{Cookie, Expiration};
+use futures_util::{FutureExt, TryFutureExt};
 use gtk4::glib::object::Cast;
 use inherit_methods_macro::inherit_methods;
 use webkit6::{prelude::WebViewExt, soup::SameSitePolicy};
@@ -144,12 +145,16 @@ impl WebView {
         Ok(())
     }
 
-    pub async fn run_javascript(&mut self, s: impl AsRef<str>) -> Result<String> {
-        Ok(self
+    pub fn run_javascript(
+        &mut self,
+        js: impl AsRef<str>,
+    ) -> Result<impl Future<Output = Result<String>> + 'static> {
+        let fut = self
             .widget
-            .evaluate_javascript_future(s.as_ref(), None, None)
-            .await?
-            .to_string())
+            .evaluate_javascript_future(js.as_ref(), None, None);
+        Ok(fut
+            .map(|res| res.map(|s| s.to_string()))
+            .map_err(|err| err.into()))
     }
 }
 

@@ -88,8 +88,11 @@ impl WebView {
         not_impl()
     }
 
-    pub async fn run_javascript(&mut self, _js: impl AsRef<str>) -> Result<String> {
-        not_impl()
+    pub fn run_javascript(
+        &mut self,
+        _js: impl AsRef<str>,
+    ) -> Result<impl Future<Output = Result<String>> + 'static> {
+        Ok(std::future::ready(not_impl()))
     }
 }
 

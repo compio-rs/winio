@@ -24,6 +24,7 @@ compio-log = { workspace = true }
 
 arrayvec = { workspace = true }
 cookie = { workspace = true, optional = true }
+futures-util = { workspace = true, optional = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true }
 local-sync = { workspace = true }
@@ -54,6 +55,7 @@ webview = [
     "dep:objc2-web-kit",
     "dep:cookie",
     "dep:time",
+    "dep:futures-util",
     "winio-ui-apple-common/webview",
 ]
 wgpu = ["dep:wgpu"]

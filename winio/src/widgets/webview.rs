@@ -90,8 +90,15 @@ impl WebView {
     ///
     /// Be careful when using the returned string, as it may contain different
     /// data on different platforms.
-    pub async fn run_javascript(&mut self, js: impl AsRef<str>) -> Result<String> {
-        self.widget.run_javascript(js).await
+    ///
+    /// This method is not a usual `async fn`. It runs the JavaScript code
+    /// immediately, and returns a future that waits for the result. This design
+    /// allows you to spawn the returned future.
+    pub fn run_javascript(
+        &mut self,
+        js: impl AsRef<str>,
+    ) -> Result<impl Future<Output = Result<String>> + 'static> {
+        self.widget.run_javascript(js)
     }
 }
 
