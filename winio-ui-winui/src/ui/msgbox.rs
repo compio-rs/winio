@@ -97,9 +97,9 @@ impl MessageBox {
             (std::ptr::null_mut(), xaml_root)
         };
 
-        Ok(msgbox(
+        msgbox(
             hwnd, xaml_root, self.msg, self.title, self.instr, self.btns, self.cbtns,
-        ))
+        )
     }
 
     pub fn message(&mut self, msg: &str) {
@@ -302,7 +302,7 @@ fn build_content(
     Ok(content)
 }
 
-async fn msgbox(
+fn msgbox(
     hwnd: HWND,
     xaml_root: XamlRoot,
     msg: HSTRING,
@@ -310,7 +310,7 @@ async fn msgbox(
     instr: HSTRING,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
-) -> Result<MessageBoxResponse> {
+) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
     let all_buttons = collect_buttons(btns, &cbtns);
 
     let dialog = ContentDialog::new()?;
@@ -365,16 +365,20 @@ async fn msgbox(
         None
     };
 
-    dialog.ShowAsync()?.await?;
+    let action = dialog.ShowAsync()?;
 
-    if let Some(guard) = guard {
-        guard.restore()?;
-    }
+    Ok(async move {
+        action.await?;
 
-    Ok(result
-        .borrow_mut()
-        .take()
-        .unwrap_or(MessageBoxResponse::Cancel))
+        if let Some(guard) = guard {
+            guard.restore()?;
+        }
+
+        Ok(result
+            .borrow_mut()
+            .take()
+            .unwrap_or(MessageBoxResponse::Cancel))
+    })
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use cookie::Cookie;
-use futures_util::FutureExt;
+use futures_util::TryFutureExt;
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows::{
@@ -204,10 +204,7 @@ impl WebView {
     ) -> Result<impl Future<Output = Result<String>> + 'static> {
         self.view
             .ExecuteScriptAsync(&HSTRING::from(s.as_ref()))
-            .map(|fut| {
-                fut.into_future()
-                    .map(|result| result.map(|result| result.to_string_lossy()))
-            })
+            .map(|fut| fut.into_future().map_ok(|result| result.to_string_lossy()))
     }
 }
 
