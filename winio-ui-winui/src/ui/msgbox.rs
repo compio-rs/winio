@@ -1,5 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
+use futures_util::FutureExt;
 use send_wrapper::SendWrapper;
 use windows::{
     Foundation::PropertyValue,
@@ -367,8 +368,8 @@ fn msgbox(
 
     let action = dialog.ShowAsync()?;
 
-    Ok(async move {
-        action.await?;
+    Ok(action.into_future().map(move |res| {
+        res?;
 
         if let Some(guard) = guard {
             guard.restore()?;
@@ -378,7 +379,7 @@ fn msgbox(
             .borrow_mut()
             .take()
             .unwrap_or(MessageBoxResponse::Cancel))
-    })
+    }))
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
