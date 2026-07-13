@@ -28,32 +28,32 @@ impl FileBox {
         not_impl()
     }
 
-    pub async fn open(
+    pub fn open(
         self,
-        _parent: impl Into<MaybeBorrowedWindow<'_>>,
-    ) -> Result<Option<PathBuf>> {
-        not_impl()
+        _parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+        Ok(std::future::ready(not_impl()))
     }
 
-    pub async fn open_multiple(
+    pub fn open_multiple(
         self,
-        _parent: impl Into<MaybeBorrowedWindow<'_>>,
-    ) -> Result<Vec<PathBuf>> {
-        not_impl()
+        _parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
+        Ok(std::future::ready(not_impl()))
     }
 
-    pub async fn open_folder(
+    pub fn open_folder(
         self,
-        _parent: impl Into<MaybeBorrowedWindow<'_>>,
-    ) -> Result<Option<PathBuf>> {
-        not_impl()
+        _parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+        Ok(std::future::ready(not_impl()))
     }
 
-    pub async fn save(
+    pub fn save(
         self,
-        _parent: impl Into<MaybeBorrowedWindow<'_>>,
-    ) -> Result<Option<PathBuf>> {
-        not_impl()
+        _parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+        Ok(std::future::ready(not_impl()))
     }
 }
 
