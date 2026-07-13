@@ -128,12 +128,14 @@ impl MessageBox {
         }
     }
 
-    pub async fn show(self, parent: Option<impl AsWindow>) -> Result<MessageBoxResponse> {
+    pub fn show(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
         let parent = parent.and_then(|p| p.as_window().handle().ok());
-        msgbox(
+        Ok(msgbox(
             parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
-        )
-        .await
+        ))
     }
 
     pub fn message(&mut self, msg: &str) {

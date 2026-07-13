@@ -14,11 +14,11 @@ impl MessageBox {
     }
 
     /// Show message box.
-    pub async fn show(
+    pub fn show<'a>(
         self,
-        parent: impl Into<MaybeBorrowedWindow<'_>>,
-    ) -> Result<MessageBoxResponse> {
-        self.0.show(parent.into().0).await
+        parent: impl Into<MaybeBorrowedWindow<'a>>,
+    ) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
+        self.0.show(parent.into().0)
     }
 
     /// Main message.

@@ -80,7 +80,10 @@ impl MessageBox {
         Self::default()
     }
 
-    pub async fn show(self, parent: Option<impl AsWindow>) -> Result<MessageBoxResponse> {
+    pub fn show(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
         let (hwnd, xaml_root) = if let Some(parent) = parent {
             let window = parent.as_window();
             let hwnd = window.handle()?;
@@ -94,16 +97,9 @@ impl MessageBox {
             (std::ptr::null_mut(), xaml_root)
         };
 
-        msgbox(
-            hwnd,
-            &xaml_root,
-            &self.msg,
-            &self.title,
-            &self.instr,
-            self.btns,
-            &self.cbtns,
-        )
-        .await
+        Ok(msgbox(
+            hwnd, xaml_root, self.msg, self.title, self.instr, self.btns, self.cbtns,
+        ))
     }
 
     pub fn message(&mut self, msg: &str) {
@@ -308,22 +304,22 @@ fn build_content(
 
 async fn msgbox(
     hwnd: HWND,
-    xaml_root: &XamlRoot,
-    msg: &HSTRING,
-    title: &HSTRING,
-    instr: &HSTRING,
+    xaml_root: XamlRoot,
+    msg: HSTRING,
+    title: HSTRING,
+    instr: HSTRING,
     btns: MessageBoxButton,
-    cbtns: &[CustomButton],
+    cbtns: Vec<CustomButton>,
 ) -> Result<MessageBoxResponse> {
-    let all_buttons = collect_buttons(btns, cbtns);
+    let all_buttons = collect_buttons(btns, &cbtns);
 
     let dialog = ContentDialog::new()?;
-    dialog.SetXamlRoot(xaml_root)?;
-    dialog.SetTitle(&PropertyValue::CreateString(title)?)?;
+    dialog.SetXamlRoot(&xaml_root)?;
+    dialog.SetTitle(&PropertyValue::CreateString(&title)?)?;
     dialog.SetDefaultButton(ContentDialogButton::None)?;
 
     let result = SendWrapper::new(Rc::new(RefCell::new(None)));
-    let content = build_content(instr, msg, &all_buttons, &dialog, &result)?;
+    let content = build_content(&instr, &msg, &all_buttons, &dialog, &result)?;
     dialog.SetContent(&content)?;
 
     struct EnableGuard {

@@ -39,29 +39,35 @@ impl FileBox {
     }
 
     /// Show open file dialog.
-    pub async fn open(self, parent: impl Into<MaybeBorrowedWindow<'_>>) -> Result<Option<PathBuf>> {
-        self.0.open(parent.into().0).await
+    pub fn open<'a>(
+        self,
+        parent: impl Into<MaybeBorrowedWindow<'a>>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+        self.0.open(parent.into().0)
     }
 
     /// Show open file dialog, allowing multiple selection.
-    pub async fn open_multiple(
+    pub fn open_multiple<'a>(
         self,
-        parent: impl Into<MaybeBorrowedWindow<'_>>,
-    ) -> Result<Vec<PathBuf>> {
-        self.0.open_multiple(parent.into().0).await
+        parent: impl Into<MaybeBorrowedWindow<'a>>,
+    ) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
+        self.0.open_multiple(parent.into().0)
     }
 
     /// Show open file dialog, select folder only.
-    pub async fn open_folder(
+    pub fn open_folder<'a>(
         self,
-        parent: impl Into<MaybeBorrowedWindow<'_>>,
-    ) -> Result<Option<PathBuf>> {
-        self.0.open_folder(parent.into().0).await
+        parent: impl Into<MaybeBorrowedWindow<'a>>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+        self.0.open_folder(parent.into().0)
     }
 
     /// Show save file dialog.
-    pub async fn save(self, parent: impl Into<MaybeBorrowedWindow<'_>>) -> Result<Option<PathBuf>> {
-        self.0.save(parent.into().0).await
+    pub fn save<'a>(
+        self,
+        parent: impl Into<MaybeBorrowedWindow<'a>>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+        self.0.save(parent.into().0)
     }
 }
 
