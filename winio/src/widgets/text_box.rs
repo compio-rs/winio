@@ -29,8 +29,10 @@ impl ToolTip for TextBox {
 
 #[inherit_methods(from = "self.widget")]
 impl TextWidget for TextBox {
+    /// The multi-line text, using LF as line separator.
     fn text(&self) -> Result<String>;
 
+    /// Set the entire text content.
     fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
