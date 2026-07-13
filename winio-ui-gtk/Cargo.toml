@@ -22,7 +22,7 @@ compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
 
 cookie = { workspace = true, optional = true }
-futures-util = { workspace = true, optional = true }
+futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true }
 local-sync = { workspace = true, optional = true }
@@ -41,12 +41,11 @@ gdk4-x11 = { workspace = true, optional = true, features = ["xlib"] }
 
 [features]
 media = []
-webview = ["dep:webkit6", "dep:cookie", "dep:time", "dep:futures-util"]
+webview = ["dep:webkit6", "dep:cookie", "dep:time"]
 wgpu = ["dep:wgpu", "dep:gdk4-wayland", "dep:gdk4-x11"]
 compio-compat = [
     "compio/runtime",
     "compio/compat",
-    "dep:futures-util",
     "dep:glib-unix",
     "dep:local-sync",
 ]

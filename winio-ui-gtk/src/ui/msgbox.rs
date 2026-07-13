@@ -1,5 +1,6 @@
 use std::sync::LazyLock;
 
+use futures_util::FutureExt;
 use gtk4::glib::{GString, dgettext};
 use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
@@ -31,7 +32,7 @@ impl PredefButtons {
 
 static PREDEF_BUTTONS: LazyLock<PredefButtons> = LazyLock::new(PredefButtons::new);
 
-async fn msgbox_custom(
+fn msgbox_custom(
     parent: Option<impl AsWindow>,
     msg: String,
     _title: String,
@@ -39,7 +40,7 @@ async fn msgbox_custom(
     _style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
-) -> Result<MessageBoxResponse> {
+) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
     let predef = &*PREDEF_BUTTONS;
     let mut buttons = Vec::<&str>::new();
     let mut results = vec![];
@@ -80,14 +81,14 @@ async fn msgbox_custom(
     }
     let dialog = builder.build();
 
-    let res = dialog
+    Ok(dialog
         .choose_future(parent.as_ref().map(|w| w.as_window().to_gtk()))
-        .await
-        .ok();
-
-    Ok(res
-        .map(|res| results[res as usize])
-        .unwrap_or(MessageBoxResponse::Cancel))
+        .map(move |res| {
+            Ok(res
+                .ok()
+                .map(|res| results[res as usize])
+                .unwrap_or(MessageBoxResponse::Cancel))
+        }))
 }
 
 #[derive(Debug, Clone)]
@@ -118,11 +119,13 @@ impl MessageBox {
         }
     }
 
-    pub async fn show(self, parent: Option<impl AsWindow>) -> Result<MessageBoxResponse> {
+    pub fn show(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
         msgbox_custom(
             parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )
-        .await
     }
 
     pub fn message(&mut self, msg: &str) {

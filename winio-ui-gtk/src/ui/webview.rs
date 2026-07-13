@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use cookie::{Cookie, Expiration};
-use futures_util::{FutureExt, TryFutureExt};
+use futures_util::TryFutureExt;
 use gtk4::glib::object::Cast;
 use inherit_methods_macro::inherit_methods;
 use webkit6::{prelude::WebViewExt, soup::SameSitePolicy};
@@ -152,9 +152,7 @@ impl WebView {
         let fut = self
             .widget
             .evaluate_javascript_future(js.as_ref(), None, None);
-        Ok(fut
-            .map(|res| res.map(|s| s.to_string()))
-            .map_err(|err| err.into()))
+        Ok(fut.map_ok(|s| s.to_string()).map_err(|err| err.into()))
     }
 }
 
