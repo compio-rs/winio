@@ -242,7 +242,7 @@ impl TextBox {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub fn text(&self) -> Result<String> {
-        Ok(self.text_box.Text()?.to_string_lossy())
+        Ok(self.text_box.Text()?.to_string_lossy().replace("\r", "\n"))
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
