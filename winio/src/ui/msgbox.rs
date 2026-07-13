@@ -14,6 +14,10 @@ impl MessageBox {
     }
 
     /// Show message box.
+    ///
+    /// This method is not a usual `async fn`. It shows the dialog immediately,
+    /// and returns a future that waits for the result. This design allows you
+    /// to spawn the returned future.
     pub fn show<'a>(
         self,
         parent: impl Into<MaybeBorrowedWindow<'a>>,

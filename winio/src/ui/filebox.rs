@@ -39,6 +39,10 @@ impl FileBox {
     }
 
     /// Show open file dialog.
+    ///
+    /// This method is not a usual `async fn`. It shows the dialog immediately,
+    /// and returns a future that waits for the result. This design allows you
+    /// to spawn the returned future.
     pub fn open<'a>(
         self,
         parent: impl Into<MaybeBorrowedWindow<'a>>,
@@ -47,6 +51,10 @@ impl FileBox {
     }
 
     /// Show open file dialog, allowing multiple selection.
+    ///
+    /// This method is not a usual `async fn`. It shows the dialog immediately,
+    /// and returns a future that waits for the result. This design allows you
+    /// to spawn the returned future.
     pub fn open_multiple<'a>(
         self,
         parent: impl Into<MaybeBorrowedWindow<'a>>,
@@ -55,6 +63,10 @@ impl FileBox {
     }
 
     /// Show open file dialog, select folder only.
+    ///
+    /// This method is not a usual `async fn`. It shows the dialog immediately,
+    /// and returns a future that waits for the result. This design allows you
+    /// to spawn the returned future.
     pub fn open_folder<'a>(
         self,
         parent: impl Into<MaybeBorrowedWindow<'a>>,
@@ -63,6 +75,10 @@ impl FileBox {
     }
 
     /// Show save file dialog.
+    ///
+    /// This method is not a usual `async fn`. It shows the dialog immediately,
+    /// and returns a future that waits for the result. This design allows you
+    /// to spawn the returned future.
     pub fn save<'a>(
         self,
         parent: impl Into<MaybeBorrowedWindow<'a>>,
