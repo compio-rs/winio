@@ -92,7 +92,7 @@ impl WebView {
         &mut self,
         _js: impl AsRef<str>,
     ) -> Result<impl Future<Output = Result<String>> + 'static> {
-        not_impl()
+        Ok(std::future::ready(not_impl()))
     }
 }
 
