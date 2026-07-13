@@ -2,6 +2,7 @@ use std::{cell::Cell, rc::Rc};
 
 use arrayvec::ArrayVec;
 use block2::StackBlock;
+use futures_util::{FutureExt, future::Either};
 use objc2::{MainThreadOnly, rc::Retained};
 use objc2_app_kit::{
     NSAlert, NSAlertFirstButtonReturn, NSAlertStyle, NSImage, NSImageNameCaution, NSImageNameInfo,
@@ -12,7 +13,7 @@ use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
 use crate::{Error, Result, catch};
 
-async fn msgbox_custom(
+fn msgbox_custom(
     parent: Option<impl AsWindow>,
     msg: Retained<NSString>,
     title: Retained<NSString>,
@@ -20,7 +21,7 @@ async fn msgbox_custom(
     style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
-) -> Result<MessageBoxResponse> {
+) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
     let parent = parent.as_ref().map(|p| p.as_window().as_app_kit());
     let mtm = parent
         .as_ref()
@@ -94,7 +95,7 @@ async fn msgbox_custom(
     })
     .flatten()?;
 
-    let res = if let Some(parent) = &parent {
+    if let Some(parent) = &parent {
         let (tx, rx) = local_sync::oneshot::channel();
         let tx = Rc::new(Cell::new(Some(tx)));
         let block = StackBlock::new(move |res| {
@@ -104,14 +105,18 @@ async fn msgbox_custom(
                 .ok();
         });
         catch(|| alert.beginSheetModalForWindow_completionHandler(parent, Some(&block)))?;
-        let res = rx.await?;
-        catch(|| parent.makeKeyWindow())?;
-        res
+        let parent = (**parent).clone();
+        Ok(Either::Left(rx.map(move |res| {
+            let res = res?;
+            catch(|| parent.makeKeyWindow())?;
+            Ok(res)
+        })))
     } else {
         let res = catch(|| alert.runModal())?;
-        responses[res as usize - NSAlertFirstButtonReturn as usize]
-    };
-    Ok(res)
+        Ok(Either::Right(std::future::ready(Ok(
+            responses[res as usize - NSAlertFirstButtonReturn as usize]
+        ))))
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -133,11 +138,13 @@ impl MessageBox {
         Self::default()
     }
 
-    pub async fn show(self, parent: Option<impl AsWindow>) -> Result<MessageBoxResponse> {
+    pub fn show(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
         msgbox_custom(
             parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )
-        .await
     }
 
     pub fn message(&mut self, msg: &str) {

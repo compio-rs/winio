@@ -43,6 +43,9 @@ impl FileBox {
     /// This method is not a usual `async fn`. It shows the dialog immediately,
     /// and returns a future that waits for the result. This design allows you
     /// to spawn the returned future.
+    ///
+    /// ## Platform specific
+    /// * AppKit: This method is blocking without parent window.
     pub fn open<'a>(
         self,
         parent: impl Into<MaybeBorrowedWindow<'a>>,
@@ -55,6 +58,9 @@ impl FileBox {
     /// This method is not a usual `async fn`. It shows the dialog immediately,
     /// and returns a future that waits for the result. This design allows you
     /// to spawn the returned future.
+    ///
+    /// ## Platform specific
+    /// * AppKit: This method is blocking without parent window.
     pub fn open_multiple<'a>(
         self,
         parent: impl Into<MaybeBorrowedWindow<'a>>,
@@ -67,6 +73,9 @@ impl FileBox {
     /// This method is not a usual `async fn`. It shows the dialog immediately,
     /// and returns a future that waits for the result. This design allows you
     /// to spawn the returned future.
+    ///
+    /// ## Platform specific
+    /// * AppKit: This method is blocking without parent window.
     pub fn open_folder<'a>(
         self,
         parent: impl Into<MaybeBorrowedWindow<'a>>,
@@ -79,6 +88,9 @@ impl FileBox {
     /// This method is not a usual `async fn`. It shows the dialog immediately,
     /// and returns a future that waits for the result. This design allows you
     /// to spawn the returned future.
+    ///
+    /// ## Platform specific
+    /// * AppKit: This method is blocking without parent window.
     pub fn save<'a>(
         self,
         parent: impl Into<MaybeBorrowedWindow<'a>>,

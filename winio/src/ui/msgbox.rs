@@ -18,6 +18,9 @@ impl MessageBox {
     /// This method is not a usual `async fn`. It shows the dialog immediately,
     /// and returns a future that waits for the result. This design allows you
     /// to spawn the returned future.
+    ///
+    /// ## Platform specific
+    /// * AppKit: This method is blocking without parent window.
     pub fn show<'a>(
         self,
         parent: impl Into<MaybeBorrowedWindow<'a>>,
