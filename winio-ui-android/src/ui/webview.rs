@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use cookie::Cookie;
+use futures_util::{FutureExt, TryFutureExt};
 use inherit_methods_macro::inherit_methods;
 use jni::{
     objects::{JObject, JString},
@@ -304,7 +305,10 @@ impl WebView {
         self.set_cookie_impl(&cookie.to_string()).await
     }
 
-    pub async fn run_javascript(&mut self, script: impl AsRef<str>) -> Result<String> {
+    pub fn run_javascript(
+        &mut self,
+        script: impl AsRef<str>,
+    ) -> Result<impl Future<Output = Result<String>> + 'static> {
         let (tx, rx) = oneshot::channel();
         let _proxy = vm_exec(|env| {
             let script = env.new_string(script.as_ref())?;
@@ -331,7 +335,10 @@ impl WebView {
             self.inner.evaluate_javascript(env, &script, &callback)?;
             Result::Ok(callback)
         })?;
-        Ok(rx.await.map_err(std::io::Error::other)?.unwrap_or_default())
+        Ok(rx
+            .into_future()
+            .map_err(|e| std::io::Error::other(e).into())
+            .map(|res| res.map(|res| res.unwrap_or_default())))
     }
 }
 
