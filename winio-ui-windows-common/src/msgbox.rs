@@ -1,5 +1,6 @@
 use std::ptr::{null, null_mut};
 
+use futures_util::FutureExt;
 use widestring::U16CString;
 use windows::core::HRESULT;
 use windows_sys::Win32::{
@@ -18,7 +19,7 @@ use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
 use crate::{Error, Result, darkmode::TASK_DIALOG_CALLBACK};
 
-async fn msgbox(
+fn msgbox(
     parent: Option<HWND>,
     msg: U16CString,
     title: U16CString,
@@ -26,11 +27,11 @@ async fn msgbox(
     style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
-) -> Result<MessageBoxResponse> {
+) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
     const CUSTOM_RESULT_OFFSET: usize = 15;
 
     let parent_handle = parent.map(|p| p as isize).unwrap_or_default();
-    let (res, result) = crate::spawn_blocking(move || {
+    let task = crate::spawn_blocking(move || {
         let cbtn_ptrs = cbtns
             .iter()
             .map(|b| TASKDIALOG_BUTTON {
@@ -81,23 +82,24 @@ async fn msgbox(
         let mut result = 0;
         let res = unsafe { TaskDialogIndirect(&config, &mut result, null_mut(), null_mut()) };
         (res, result)
-    })
-    .await;
+    });
 
-    if res >= 0 {
-        let res = match result {
-            IDCANCEL => MessageBoxResponse::Cancel,
-            IDNO => MessageBoxResponse::No,
-            IDOK => MessageBoxResponse::Ok,
-            IDRETRY => MessageBoxResponse::Retry,
-            IDYES => MessageBoxResponse::Yes,
-            IDCLOSE => MessageBoxResponse::Close,
-            _ => MessageBoxResponse::Custom((result >> CUSTOM_RESULT_OFFSET) as _),
-        };
-        Ok(res)
-    } else {
-        Err(Error::from_hresult(HRESULT(res)))
-    }
+    Ok(task.map(|(res, result)| {
+        if res >= 0 {
+            let res = match result {
+                IDCANCEL => MessageBoxResponse::Cancel,
+                IDNO => MessageBoxResponse::No,
+                IDOK => MessageBoxResponse::Ok,
+                IDRETRY => MessageBoxResponse::Retry,
+                IDYES => MessageBoxResponse::Yes,
+                IDCLOSE => MessageBoxResponse::Close,
+                _ => MessageBoxResponse::Custom((result >> CUSTOM_RESULT_OFFSET) as _),
+            };
+            Ok(res)
+        } else {
+            Err(Error::from_hresult(HRESULT(res)))
+        }
+    }))
 }
 
 #[derive(Debug, Clone)]
@@ -128,12 +130,14 @@ impl MessageBox {
         }
     }
 
-    pub async fn show(self, parent: Option<impl AsWindow>) -> Result<MessageBoxResponse> {
+    pub fn show(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
         let parent = parent.and_then(|p| p.as_window().handle().ok());
         msgbox(
             parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )
-        .await
     }
 
     pub fn message(&mut self, msg: &str) {

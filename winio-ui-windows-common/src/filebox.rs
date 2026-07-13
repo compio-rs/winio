@@ -47,11 +47,14 @@ impl FileBox {
         self.filters.push(filter);
     }
 
-    pub async fn open(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
+    pub fn open(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
         let parent = parent
             .and_then(|p| p.as_window().handle().ok())
             .map(|h| h as isize);
-        crate::spawn_blocking(move || {
+        Ok(crate::spawn_blocking(move || {
             let parent = parent.map(|w| HWND(w as _));
             filebox(
                 parent,
@@ -63,15 +66,17 @@ impl FileBox {
                 false,
             )?
             .result()
-        })
-        .await
+        }))
     }
 
-    pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Result<Vec<PathBuf>> {
+    pub fn open_multiple(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
         let parent = parent
             .and_then(|p| p.as_window().handle().ok())
             .map(|h| h as isize);
-        crate::spawn_blocking(move || {
+        Ok(crate::spawn_blocking(move || {
             let parent = parent.map(|w| HWND(w as _));
             filebox(
                 parent,
@@ -83,15 +88,17 @@ impl FileBox {
                 false,
             )?
             .results()
-        })
-        .await
+        }))
     }
 
-    pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
+    pub fn open_folder(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
         let parent = parent
             .and_then(|p| p.as_window().handle().ok())
             .map(|h| h as isize);
-        crate::spawn_blocking(move || {
+        Ok(crate::spawn_blocking(move || {
             let parent = parent.map(|w| HWND(w as _));
             filebox(
                 parent,
@@ -103,15 +110,17 @@ impl FileBox {
                 true,
             )?
             .result()
-        })
-        .await
+        }))
     }
 
-    pub async fn save(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
+    pub fn save(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
         let parent = parent
             .and_then(|p| p.as_window().handle().ok())
             .map(|h| h as isize);
-        crate::spawn_blocking(move || {
+        Ok(crate::spawn_blocking(move || {
             let parent = parent.map(|w| HWND(w as _));
             filebox(
                 parent,
@@ -123,8 +132,7 @@ impl FileBox {
                 false,
             )?
             .result()
-        })
-        .await
+        }))
     }
 }
 

@@ -1,4 +1,4 @@
-use winio_handle::MaybeBorrowedWindow;
+use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
 use crate::stub::{Result, not_impl};
@@ -11,11 +11,11 @@ impl MessageBox {
         not_impl()
     }
 
-    pub async fn show(
+    pub fn show(
         self,
-        _parent: impl Into<MaybeBorrowedWindow<'_>>,
-    ) -> Result<MessageBoxResponse> {
-        not_impl()
+        _parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
+        Ok(std::future::ready(not_impl()))
     }
 
     pub fn message(&mut self, _msg: impl AsRef<str>) {

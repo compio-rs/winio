@@ -4,7 +4,7 @@ use std::{
 };
 
 use futures_channel::mpsc::UnboundedReceiver;
-use futures_util::lock::Mutex as AsyncMutex;
+use futures_util::{TryFutureExt, lock::Mutex as AsyncMutex};
 use jni::{
     Env,
     objects::{JList, JObject, JString},
@@ -231,7 +231,10 @@ impl FileBox {
         self.filters.push(filter);
     }
 
-    pub async fn open(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
+    pub fn open(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
         filebox(
             parent,
             self.title,
@@ -241,11 +244,13 @@ impl FileBox {
             false,
             false,
         )
-        .await
-        .map(|paths| paths.into_iter().next())
+        .map(|fut| fut.map_ok(|paths| paths.into_iter().next()))
     }
 
-    pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Result<Vec<PathBuf>> {
+    pub fn open_multiple(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
         filebox(
             parent,
             self.title,
@@ -255,10 +260,12 @@ impl FileBox {
             true,
             false,
         )
-        .await
     }
 
-    pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
+    pub fn open_folder(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
         filebox(
             parent,
             self.title,
@@ -268,11 +275,13 @@ impl FileBox {
             false,
             true,
         )
-        .await
-        .map(|paths| paths.into_iter().next())
+        .map(|fut| fut.map_ok(|paths| paths.into_iter().next()))
     }
 
-    pub async fn save(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
+    pub fn save(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
         filebox(
             parent,
             self.title,
@@ -282,12 +291,11 @@ impl FileBox {
             false,
             false,
         )
-        .await
-        .map(|paths| paths.into_iter().next())
+        .map(|fut| fut.map_ok(|paths| paths.into_iter().next()))
     }
 }
 
-async fn filebox(
+fn filebox(
     _parent: Option<impl AsWindow>,
     _title: String,
     filename: String,
@@ -295,7 +303,7 @@ async fn filebox(
     open: bool,
     multiple: bool,
     folder: bool,
-) -> Result<Vec<PathBuf>> {
+) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
     vm_exec(|env| {
         let (launcher, input) = if open && multiple {
             (LAUNCHER_GET_MULTIPLE_CONTENTS.lock().unwrap(), Some("*/*"))
@@ -318,11 +326,13 @@ async fn filebox(
         Result::Ok(())
     })?;
     let rx = PROXY_CALLBACK.lock().unwrap().as_ref().unwrap().receiver();
-    rx.lock()
-        .await
-        .recv()
-        .await
-        .map_err(|e| Error::Io(std::io::Error::other(e)))
+    Ok(async move {
+        rx.lock()
+            .await
+            .recv()
+            .await
+            .map_err(|e| Error::Io(std::io::Error::other(e)))
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

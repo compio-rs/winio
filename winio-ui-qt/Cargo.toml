@@ -22,7 +22,7 @@ compio-log = { workspace = true }
 
 bitflags = { workspace = true }
 cookie = { workspace = true, optional = true }
-futures-util = { workspace = true, optional = true }
+futures-util = { workspace = true }
 html-escape = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true }
@@ -40,7 +40,7 @@ qt-build-utils = "0.9.1"
 
 [features]
 media = []
-webview = ["dep:cookie", "dep:time", "dep:futures-util"]
+webview = ["dep:cookie", "dep:time"]
 wgpu = ["dep:wgpu"]
 compio-compat = ["compio/runtime", "compio/compat"]
 

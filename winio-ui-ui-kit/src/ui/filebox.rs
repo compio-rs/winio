@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use futures_util::TryFutureExt;
 use objc2::{
     DefinedClass, MainThreadMarker, MainThreadOnly, Message, define_class, msg_send,
     rc::{Allocated, Retained},
@@ -62,39 +63,45 @@ impl FileBox {
         self.filters.push(filter);
     }
 
-    pub async fn open(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
-        Ok(filebox(parent, self.filters, false, false, false)
-            .await?
-            .into_iter()
-            .next())
+    pub fn open(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+        filebox(parent, self.filters, false, false, false)
+            .map(|fut| fut.map_ok(|res| res.into_iter().next()))
     }
 
-    pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Result<Vec<PathBuf>> {
-        filebox(parent, self.filters, true, false, false).await
+    pub fn open_multiple(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
+        filebox(parent, self.filters, true, false, false)
     }
 
-    pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
-        Ok(filebox(parent, self.filters, false, true, false)
-            .await?
-            .into_iter()
-            .next())
+    pub fn open_folder(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+        filebox(parent, self.filters, false, true, false)
+            .map(|fut| fut.map_ok(|res| res.into_iter().next()))
     }
 
-    pub async fn save(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
-        Ok(filebox(parent, self.filters, false, false, true)
-            .await?
-            .into_iter()
-            .next())
+    pub fn save(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+        filebox(parent, self.filters, false, false, true)
+            .map(|fut| fut.map_ok(|res| res.into_iter().next()))
     }
 }
 
-async fn filebox(
+fn filebox(
     parent: Option<impl AsWindow>,
     filters: Vec<FileFilter>,
     multiple: bool,
     folder: bool,
     save: bool,
-) -> Result<Vec<PathBuf>> {
+) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
     let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
     let delegate = catch(|| {
         let ns_filters = if folder {
@@ -150,15 +157,17 @@ async fn filebox(
         Ok(delegate)
     })
     .flatten()?;
-    let urls = delegate.ivars().on_pick.wait().await;
-    Ok(urls
-        .into_iter()
-        .filter_map(|url| {
-            url.absoluteString()
-                .map(|s| from_nsstring(&s))
-                .map(PathBuf::from)
-        })
-        .collect())
+    Ok(async move {
+        let urls = delegate.ivars().on_pick.wait().await;
+        Ok(urls
+            .into_iter()
+            .filter_map(|url| {
+                url.absoluteString()
+                    .map(|s| from_nsstring(&s))
+                    .map(PathBuf::from)
+            })
+            .collect())
+    })
 }
 
 #[derive(Debug, Default)]

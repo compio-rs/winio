@@ -1,6 +1,7 @@
 use std::{cell::Cell, rc::Rc};
 
 use block2::StackBlock;
+use futures_util::TryFutureExt;
 use objc2::rc::Retained;
 use objc2_foundation::{MainThreadMarker, NSString, ns_string};
 use objc2_ui_kit::{UIAlertAction, UIAlertActionStyle, UIAlertController, UIAlertControllerStyle};
@@ -9,7 +10,7 @@ use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
 use crate::{Error, Result, catch, first_ui_window_scene};
 
-async fn msgbox_custom(
+fn msgbox_custom(
     parent: Option<impl AsWindow>,
     msg: String,
     title: String,
@@ -17,7 +18,7 @@ async fn msgbox_custom(
     _style: MessageBoxStyle,
     btns: MessageBoxButton,
     cbtns: Vec<CustomButton>,
-) -> Result<MessageBoxResponse> {
+) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
     let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
 
     let (tx, rx) = local_sync::oneshot::channel();
@@ -119,7 +120,7 @@ async fn msgbox_custom(
     })
     .flatten()?;
 
-    rx.await.map_err(Into::into)
+    Ok(rx.map_err(Into::into))
 }
 
 #[derive(Debug, Default, Clone)]
@@ -141,11 +142,13 @@ impl MessageBox {
         Self::default()
     }
 
-    pub async fn show(self, parent: Option<impl AsWindow>) -> Result<MessageBoxResponse> {
+    pub fn show(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
         msgbox_custom(
             parent, self.msg, self.title, self.instr, self.style, self.btns, self.cbtns,
         )
-        .await
     }
 
     pub fn message(&mut self, msg: &str) {

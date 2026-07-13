@@ -1,5 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
+use futures_util::FutureExt;
 use send_wrapper::SendWrapper;
 use windows::{
     Foundation::PropertyValue,
@@ -80,7 +81,10 @@ impl MessageBox {
         Self::default()
     }
 
-    pub async fn show(self, parent: Option<impl AsWindow>) -> Result<MessageBoxResponse> {
+    pub fn show(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
         let (hwnd, xaml_root) = if let Some(parent) = parent {
             let window = parent.as_window();
             let hwnd = window.handle()?;
@@ -95,15 +99,8 @@ impl MessageBox {
         };
 
         msgbox(
-            hwnd,
-            &xaml_root,
-            &self.msg,
-            &self.title,
-            &self.instr,
-            self.btns,
-            &self.cbtns,
+            hwnd, xaml_root, self.msg, self.title, self.instr, self.btns, self.cbtns,
         )
-        .await
     }
 
     pub fn message(&mut self, msg: &str) {
@@ -306,24 +303,24 @@ fn build_content(
     Ok(content)
 }
 
-async fn msgbox(
+fn msgbox(
     hwnd: HWND,
-    xaml_root: &XamlRoot,
-    msg: &HSTRING,
-    title: &HSTRING,
-    instr: &HSTRING,
+    xaml_root: XamlRoot,
+    msg: HSTRING,
+    title: HSTRING,
+    instr: HSTRING,
     btns: MessageBoxButton,
-    cbtns: &[CustomButton],
-) -> Result<MessageBoxResponse> {
-    let all_buttons = collect_buttons(btns, cbtns);
+    cbtns: Vec<CustomButton>,
+) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
+    let all_buttons = collect_buttons(btns, &cbtns);
 
     let dialog = ContentDialog::new()?;
-    dialog.SetXamlRoot(xaml_root)?;
-    dialog.SetTitle(&PropertyValue::CreateString(title)?)?;
+    dialog.SetXamlRoot(&xaml_root)?;
+    dialog.SetTitle(&PropertyValue::CreateString(&title)?)?;
     dialog.SetDefaultButton(ContentDialogButton::None)?;
 
     let result = SendWrapper::new(Rc::new(RefCell::new(None)));
-    let content = build_content(instr, msg, &all_buttons, &dialog, &result)?;
+    let content = build_content(&instr, &msg, &all_buttons, &dialog, &result)?;
     dialog.SetContent(&content)?;
 
     struct EnableGuard {
@@ -369,16 +366,20 @@ async fn msgbox(
         None
     };
 
-    dialog.ShowAsync()?.await?;
+    let action = dialog.ShowAsync()?;
 
-    if let Some(guard) = guard {
-        guard.restore()?;
-    }
+    Ok(action.into_future().map(move |res| {
+        res?;
 
-    Ok(result
-        .borrow_mut()
-        .take()
-        .unwrap_or(MessageBoxResponse::Cancel))
+        if let Some(guard) = guard {
+            guard.restore()?;
+        }
+
+        Ok(result
+            .borrow_mut()
+            .take()
+            .unwrap_or(MessageBoxResponse::Cancel))
+    }))
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

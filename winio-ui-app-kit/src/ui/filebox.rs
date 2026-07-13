@@ -1,6 +1,7 @@
 use std::{cell::Cell, path::PathBuf, rc::Rc};
 
 use block2::StackBlock;
+use futures_util::{FutureExt, TryFutureExt, future::Either};
 use objc2::{MainThreadOnly, rc::Retained};
 use objc2_app_kit::{NSModalResponseOK, NSOpenPanel, NSSavePanel};
 use objc2_foundation::{MainThreadMarker, NSArray, NSString};
@@ -56,7 +57,10 @@ impl FileBox {
         self.filters.push(filter);
     }
 
-    pub async fn open(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
+    pub fn open(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
         filebox(
             parent,
             self.title,
@@ -66,11 +70,13 @@ impl FileBox {
             false,
             false,
         )
-        .await?
-        .result()
+        .map(|fut| fut.map(|res| res?.result()))
     }
 
-    pub async fn open_multiple(self, parent: Option<impl AsWindow>) -> Result<Vec<PathBuf>> {
+    pub fn open_multiple(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
         filebox(
             parent,
             self.title,
@@ -80,11 +86,13 @@ impl FileBox {
             true,
             false,
         )
-        .await?
-        .results()
+        .map(|fut| fut.map(|res| res?.results()))
     }
 
-    pub async fn open_folder(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
+    pub fn open_folder(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
         filebox(
             parent,
             self.title,
@@ -94,11 +102,13 @@ impl FileBox {
             false,
             true,
         )
-        .await?
-        .result()
+        .map(|fut| fut.map(|res| res?.result()))
     }
 
-    pub async fn save(self, parent: Option<impl AsWindow>) -> Result<Option<PathBuf>> {
+    pub fn save(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
         filebox(
             parent,
             self.title,
@@ -108,12 +118,11 @@ impl FileBox {
             false,
             false,
         )
-        .await?
-        .result()
+        .map(|fut| fut.map(|res| res?.result()))
     }
 }
 
-async fn filebox(
+fn filebox(
     parent: Option<impl AsWindow>,
     title: Retained<NSString>,
     filename: Retained<NSString>,
@@ -121,7 +130,7 @@ async fn filebox(
     open: bool,
     multiple: bool,
     folder: bool,
-) -> Result<FileBoxInner> {
+) -> Result<impl Future<Output = Result<FileBoxInner>> + 'static> {
     let parent = parent.as_ref().map(|p| p.as_window().as_app_kit());
     let mtm = parent
         .as_ref()
@@ -188,7 +197,7 @@ async fn filebox(
         handle
     })?;
 
-    let res = if let Some(parent) = &parent {
+    let fut = if let Some(parent) = &parent {
         let (tx, rx) = local_sync::oneshot::channel();
         let tx = Rc::new(Cell::new(Some(tx)));
         let block = StackBlock::new(move |res| {
@@ -198,15 +207,17 @@ async fn filebox(
                 .ok();
         });
         catch(|| handle.beginSheetModalForWindow_completionHandler(parent, &block))?;
-        rx.await?
+        Either::Left(rx.map_err(|e| e.into()))
     } else {
-        catch(|| handle.runModal())?
+        Either::Right(std::future::ready(catch(|| handle.runModal())))
     };
-    handle.close();
-    Ok(FileBoxInner(if res == NSModalResponseOK {
-        Some(handle)
-    } else {
-        None
+    Ok(fut.map_ok(move |res| {
+        handle.close();
+        FileBoxInner(if res == NSModalResponseOK {
+            Some(handle)
+        } else {
+            None
+        })
     }))
 }
 

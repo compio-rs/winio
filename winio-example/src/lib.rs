@@ -243,7 +243,7 @@ impl Component for MainModel {
                         .style(MessageBoxStyle::Info)
                         .buttons(MessageBoxButton::Yes | MessageBoxButton::No)
                         .custom_button(CustomButton::new(114, "114"))
-                        .show(&self.window)
+                        .show(&self.window)?
                         .await?
                     {
                         MessageBoxResponse::Yes | MessageBoxResponse::Custom(114) => {
@@ -269,7 +269,7 @@ impl Component for MainModel {
                 if let Some(p) = FileBox::new()
                     .title("Open file")
                     .add_filter(("All files", "*.*"))
-                    .open(&self.window)
+                    .open(&self.window)?
                     .await?
                 {
                     sender.post(MainMessage::OpenFile(p));
@@ -281,7 +281,7 @@ impl Component for MainModel {
                 if let Some(p) = FileBox::new()
                     .title("Save file")
                     .add_filter(("All files", "*.*"))
-                    .save(&self.window)
+                    .save(&self.window)?
                     .await?
                 {
                     sender.post(MainMessage::SaveFile(p));
@@ -296,7 +296,7 @@ impl Component for MainModel {
             MainMessage::ChooseFolder => {
                 if let Some(p) = FileBox::new()
                     .title("Open folder")
-                    .open_folder(&self.window)
+                    .open_folder(&self.window)?
                     .await?
                 {
                     sender.post(MainMessage::OpenFolder(p));
@@ -308,7 +308,7 @@ impl Component for MainModel {
                 self.gallery.emit(GalleryPageMessage::OpenFolder(p)).await
             }
             MainMessage::ShowMessage(mb) => {
-                mb.show(&self.window).await?;
+                mb.show(&self.window)?.await?;
                 Ok(false)
             }
             #[cfg(all(feature = "media", feature = "compio-compat"))]
@@ -317,7 +317,7 @@ impl Component for MainModel {
                     .title("Open media file")
                     .add_filter(("MP4 video", "*.mp4"))
                     .add_filter(("All files", "*.*"))
-                    .open(&self.window)
+                    .open(&self.window)?
                     .await?
                 {
                     sender.post(MainMessage::OpenMedia(p));
@@ -332,7 +332,7 @@ impl Component for MainModel {
                     .title("Open markdown file")
                     .add_filter(("Markdown files", "*.md"))
                     .add_filter(("All files", "*.*"))
-                    .open(&self.window)
+                    .open(&self.window)?
                     .await?
                 {
                     sender.post(MainMessage::OpenMarkdown(p));

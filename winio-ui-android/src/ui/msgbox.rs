@@ -157,7 +157,10 @@ impl MessageBox {
         Ok((responses, texts))
     }
 
-    pub async fn show(self, parent: Option<impl AsWindow>) -> Result<MessageBoxResponse> {
+    pub fn show(
+        self,
+        parent: Option<impl AsWindow>,
+    ) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
         let (mut rx, _proxy) = vm_exec(|env| {
             let activity = if let Some(parent) = parent {
                 let act = env.new_local_ref(parent.as_window().to_android())?;
@@ -225,9 +228,11 @@ impl MessageBox {
             dialog.show(env)?;
             Result::Ok((rx, proxy))
         })?;
-        rx.recv()
-            .await
-            .map_err(|e| Error::Io(std::io::Error::other(e)))
+        Ok(async move {
+            rx.recv()
+                .await
+                .map_err(|e| Error::Io(std::io::Error::other(e)))
+        })
     }
 }
 
