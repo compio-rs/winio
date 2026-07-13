@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use winio_handle::MaybeBorrowedWindow;
+use winio_handle::AsWindow;
 
 use crate::stub::{Result, not_impl};
 
