@@ -12,10 +12,13 @@ repository = { workspace = true }
 [dependencies]
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true }
-inherit-methods-macro = { workspace = true }
-image = { workspace = true }
 
 compio = { workspace = true, default-features = false, optional = true }
+
+cookie = { workspace = true, optional = true }
+inherit-methods-macro = { workspace = true }
+image = { workspace = true }
+wgpu = { workspace = true, optional = true }
 
 [target.'cfg(windows)'.dependencies]
 winio-ui-windows-common = { workspace = true }
@@ -23,6 +26,6 @@ winio-ui-windows-common = { workspace = true }
 [features]
 default = []
 media = []
-webview = []
-wgpu = []
+webview = ["dep:cookie"]
+wgpu = ["dep:wgpu"]
 compio-compat = ["dep:compio"]

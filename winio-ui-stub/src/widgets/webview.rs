@@ -3,7 +3,7 @@ use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{Result, Widget, not_impl};
+use crate::{Result, Widget, not_impl, not_impl_fut};
 
 #[derive(Debug)]
 pub struct WebView {
@@ -92,7 +92,7 @@ impl WebView {
         &mut self,
         _js: impl AsRef<str>,
     ) -> Result<impl Future<Output = Result<String>> + 'static> {
-        Ok(std::future::ready(not_impl()))
+        Ok(not_impl_fut())
     }
 }
 
