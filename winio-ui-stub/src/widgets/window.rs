@@ -4,7 +4,7 @@ use winio_primitive::{Point, Size};
 #[cfg(windows)]
 pub use winio_ui_windows_common::Backdrop;
 
-use crate::stub::{Result, Widget, not_impl};
+use crate::{Result, Widget, not_impl};
 
 #[derive(Debug)]
 pub struct Window {

@@ -2,15 +2,15 @@ use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::stub::{Result, Widget, not_impl};
+use crate::{Result, Widget, not_impl};
 
 #[derive(Debug)]
-pub struct ListBox {
+pub struct ComboBox {
     handle: Widget,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl ListBox {
+impl ComboBox {
     pub fn new(_parent: impl AsContainer) -> Result<Self> {
         not_impl()
     }
@@ -25,8 +25,6 @@ impl ListBox {
 
     pub fn preferred_size(&self) -> Result<Size>;
 
-    pub fn min_size(&self) -> Result<Size>;
-
     pub fn loc(&self) -> Result<Point>;
 
     pub fn set_loc(&mut self, p: Point) -> Result<()>;
@@ -39,19 +37,23 @@ impl ListBox {
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn is_multiple(&self) -> Result<bool> {
+    pub fn text(&self) -> Result<String>;
+
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn selection(&self) -> Result<Option<usize>> {
         not_impl()
     }
 
-    pub fn set_multiple(&mut self, _v: bool) -> Result<()> {
+    pub fn set_selection(&mut self, _i: usize) -> Result<()> {
         not_impl()
     }
 
-    pub fn is_selected(&self, _i: usize) -> Result<bool> {
+    pub fn is_editable(&self) -> Result<bool> {
         not_impl()
     }
 
-    pub fn set_selected(&mut self, _i: usize, _v: bool) -> Result<()> {
+    pub fn set_editable(&mut self, _v: bool) -> Result<()> {
         not_impl()
     }
 
@@ -83,9 +85,13 @@ impl ListBox {
         not_impl()
     }
 
+    pub async fn wait_change(&self) {
+        not_impl()
+    }
+
     pub async fn wait_select(&self) {
         not_impl()
     }
 }
 
-winio_handle::impl_as_widget!(ListBox, handle);
+winio_handle::impl_as_widget!(ComboBox, handle);

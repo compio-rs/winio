@@ -1,6 +1,6 @@
 use winio_primitive::{Color, ColorTheme, Monitor};
 
-use crate::stub::{Result, not_impl};
+use crate::{Result, not_impl};
 
 pub fn monitor_get_all() -> Result<Vec<Monitor>> {
     not_impl()

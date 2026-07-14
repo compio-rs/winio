@@ -58,6 +58,9 @@ winio-ui-ui-kit = { workspace = true }
 winio-ui-gtk = { workspace = true, optional = true }
 winio-ui-qt = { workspace = true, optional = true }
 
+[target.'cfg(not(any(target_vendor = "apple", target_os = "android")))'.dependencies]
+winio-ui-stub = { workspace = true }
+
 [build-dependencies]
 cfg_aliases = "0.2"
 
@@ -93,6 +96,7 @@ compio-compat = [
     "compio/runtime",
     "compio/compat",
     "compio/fs",
+    "winio-ui-stub/compio-compat",
     "winio-ui-app-kit/compio-compat",
     "winio-ui-ui-kit/compio-compat",
     "winio-ui-win32?/compio-compat",

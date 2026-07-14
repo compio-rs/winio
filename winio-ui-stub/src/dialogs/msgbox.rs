@@ -1,7 +1,7 @@
 use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
-use crate::stub::{Result, not_impl};
+use crate::{Result, not_impl};
 
 #[derive(Debug, Default, Clone)]
 pub struct MessageBox;

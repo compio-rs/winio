@@ -2,15 +2,15 @@ use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::stub::{Result, Widget, not_impl};
+use crate::{Result, Widget, not_impl};
 
 #[derive(Debug)]
-pub struct Progress {
+pub struct ListBox {
     handle: Widget,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl Progress {
+impl ListBox {
     pub fn new(_parent: impl AsContainer) -> Result<Self> {
         not_impl()
     }
@@ -25,6 +25,8 @@ impl Progress {
 
     pub fn preferred_size(&self) -> Result<Size>;
 
+    pub fn min_size(&self) -> Result<Size>;
+
     pub fn loc(&self) -> Result<Point>;
 
     pub fn set_loc(&mut self, p: Point) -> Result<()>;
@@ -37,37 +39,53 @@ impl Progress {
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn minimum(&self) -> Result<usize> {
+    pub fn is_multiple(&self) -> Result<bool> {
         not_impl()
     }
 
-    pub fn set_minimum(&mut self, _v: usize) -> Result<()> {
+    pub fn set_multiple(&mut self, _v: bool) -> Result<()> {
         not_impl()
     }
 
-    pub fn maximum(&self) -> Result<usize> {
+    pub fn is_selected(&self, _i: usize) -> Result<bool> {
         not_impl()
     }
 
-    pub fn set_maximum(&mut self, _v: usize) -> Result<()> {
+    pub fn set_selected(&mut self, _i: usize, _v: bool) -> Result<()> {
         not_impl()
     }
 
-    pub fn pos(&self) -> Result<usize> {
+    pub fn len(&self) -> Result<usize> {
         not_impl()
     }
 
-    pub fn set_pos(&mut self, _pos: usize) -> Result<()> {
+    pub fn is_empty(&self) -> Result<bool> {
         not_impl()
     }
 
-    pub fn is_indeterminate(&self) -> Result<bool> {
+    pub fn clear(&mut self) -> Result<()> {
         not_impl()
     }
 
-    pub fn set_indeterminate(&mut self, _v: bool) -> Result<()> {
+    pub fn get(&self, _i: usize) -> Result<String> {
+        not_impl()
+    }
+
+    pub fn set(&mut self, _i: usize, _s: impl AsRef<str>) -> Result<()> {
+        not_impl()
+    }
+
+    pub fn insert(&mut self, _i: usize, _s: impl AsRef<str>) -> Result<()> {
+        not_impl()
+    }
+
+    pub fn remove(&mut self, _i: usize) -> Result<()> {
+        not_impl()
+    }
+
+    pub async fn wait_select(&self) {
         not_impl()
     }
 }
 
-winio_handle::impl_as_widget!(Progress, handle);
+winio_handle::impl_as_widget!(ListBox, handle);

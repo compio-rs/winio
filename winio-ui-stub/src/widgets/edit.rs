@@ -1,16 +1,16 @@
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{HAlign, Point, Size};
 
-use crate::stub::{Result, Widget, not_impl};
+use crate::{Result, Widget, not_impl};
 
 #[derive(Debug)]
-pub struct RadioButton {
+pub struct Edit {
     handle: Widget,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl RadioButton {
+impl Edit {
     pub fn new(_parent: impl AsContainer) -> Result<Self> {
         not_impl()
     }
@@ -41,17 +41,33 @@ impl RadioButton {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn is_checked(&self) -> Result<bool> {
+    pub fn is_password(&self) -> Result<bool> {
         not_impl()
     }
 
-    pub fn set_checked(&mut self, _v: bool) -> Result<()> {
+    pub fn set_password(&mut self, _v: bool) -> Result<()> {
         not_impl()
     }
 
-    pub async fn wait_click(&self) {
+    pub fn halign(&self) -> Result<HAlign> {
+        not_impl()
+    }
+
+    pub fn set_halign(&mut self, _align: HAlign) -> Result<()> {
+        not_impl()
+    }
+
+    pub fn is_readonly(&self) -> Result<bool> {
+        not_impl()
+    }
+
+    pub fn set_readonly(&mut self, _v: bool) -> Result<()> {
+        not_impl()
+    }
+
+    pub async fn wait_change(&self) {
         not_impl()
     }
 }
 
-winio_handle::impl_as_widget!(RadioButton, handle);
+winio_handle::impl_as_widget!(Edit, handle);

@@ -2,15 +2,15 @@ use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::stub::{Result, Widget, not_impl};
+use crate::{Result, Widget, not_impl};
 
 #[derive(Debug)]
-pub struct LinkLabel {
+pub struct Progress {
     handle: Widget,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl LinkLabel {
+impl Progress {
     pub fn new(_parent: impl AsContainer) -> Result<Self> {
         not_impl()
     }
@@ -37,21 +37,37 @@ impl LinkLabel {
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn text(&self) -> Result<String>;
-
-    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
-
-    pub fn uri(&self) -> Result<String> {
+    pub fn minimum(&self) -> Result<usize> {
         not_impl()
     }
 
-    pub fn set_uri(&mut self, _s: impl AsRef<str>) -> Result<()> {
+    pub fn set_minimum(&mut self, _v: usize) -> Result<()> {
         not_impl()
     }
 
-    pub async fn wait_click(&self) {
+    pub fn maximum(&self) -> Result<usize> {
+        not_impl()
+    }
+
+    pub fn set_maximum(&mut self, _v: usize) -> Result<()> {
+        not_impl()
+    }
+
+    pub fn pos(&self) -> Result<usize> {
+        not_impl()
+    }
+
+    pub fn set_pos(&mut self, _pos: usize) -> Result<()> {
+        not_impl()
+    }
+
+    pub fn is_indeterminate(&self) -> Result<bool> {
+        not_impl()
+    }
+
+    pub fn set_indeterminate(&mut self, _v: bool) -> Result<()> {
         not_impl()
     }
 }
 
-winio_handle::impl_as_widget!(LinkLabel, handle);
+winio_handle::impl_as_widget!(Progress, handle);

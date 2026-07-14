@@ -1,16 +1,16 @@
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
-use winio_primitive::{Orient, Point, Size, TickPosition};
+use winio_primitive::{Orient, Point, Size};
 
-use crate::stub::{Result, Widget, not_impl};
+use crate::{Result, Widget, not_impl};
 
 #[derive(Debug)]
-pub struct Slider {
+pub struct ScrollBar {
     handle: Widget,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl Slider {
+impl ScrollBar {
     pub fn new(_parent: impl AsContainer) -> Result<Self> {
         not_impl()
     }
@@ -37,14 +37,6 @@ impl Slider {
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn tick_pos(&self) -> Result<TickPosition> {
-        not_impl()
-    }
-
-    pub fn set_tick_pos(&mut self, _v: TickPosition) -> Result<()> {
-        not_impl()
-    }
-
     pub fn orient(&self) -> Result<Orient> {
         not_impl()
     }
@@ -69,11 +61,11 @@ impl Slider {
         not_impl()
     }
 
-    pub fn freq(&self) -> Result<usize> {
+    pub fn page(&self) -> Result<usize> {
         not_impl()
     }
 
-    pub fn set_freq(&mut self, _v: usize) -> Result<()> {
+    pub fn set_page(&mut self, _v: usize) -> Result<()> {
         not_impl()
     }
 
@@ -90,4 +82,4 @@ impl Slider {
     }
 }
 
-winio_handle::impl_as_widget!(Slider, handle);
+winio_handle::impl_as_widget!(ScrollBar, handle);

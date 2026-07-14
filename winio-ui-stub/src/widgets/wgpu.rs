@@ -1,16 +1,16 @@
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
-use winio_primitive::{HAlign, Point, Size};
+use winio_primitive::{MouseButton, Point, Size, Vector};
 
-use crate::stub::{Result, Widget, not_impl};
+use crate::{Result, Widget, not_impl};
 
 #[derive(Debug)]
-pub struct Edit {
+pub struct WgpuCanvas {
     handle: Widget,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl Edit {
+impl WgpuCanvas {
     pub fn new(_parent: impl AsContainer) -> Result<Self> {
         not_impl()
     }
@@ -25,6 +25,8 @@ impl Edit {
 
     pub fn preferred_size(&self) -> Result<Size>;
 
+    pub fn min_size(&self) -> Result<Size>;
+
     pub fn loc(&self) -> Result<Point>;
 
     pub fn set_loc(&mut self, p: Point) -> Result<()>;
@@ -37,37 +39,28 @@ impl Edit {
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn text(&self) -> Result<String>;
-
-    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
-
-    pub fn is_password(&self) -> Result<bool> {
+    pub async fn wait_mouse_move(&self) -> Point {
         not_impl()
     }
 
-    pub fn set_password(&mut self, _v: bool) -> Result<()> {
+    pub async fn wait_mouse_down(&self) -> MouseButton {
         not_impl()
     }
 
-    pub fn halign(&self) -> Result<HAlign> {
+    pub async fn wait_mouse_up(&self) -> MouseButton {
         not_impl()
     }
 
-    pub fn set_halign(&mut self, _align: HAlign) -> Result<()> {
+    pub async fn wait_mouse_wheel(&self) -> Vector {
         not_impl()
     }
 
-    pub fn is_readonly(&self) -> Result<bool> {
-        not_impl()
-    }
-
-    pub fn set_readonly(&mut self, _v: bool) -> Result<()> {
-        not_impl()
-    }
-
-    pub async fn wait_change(&self) {
+    pub fn create_surface(
+        &self,
+        _instance: &wgpu::Instance,
+    ) -> std::result::Result<wgpu::Surface<'static>, wgpu::CreateSurfaceError> {
         not_impl()
     }
 }
 
-winio_handle::impl_as_widget!(Edit, handle);
+winio_handle::impl_as_widget!(WgpuCanvas, handle);

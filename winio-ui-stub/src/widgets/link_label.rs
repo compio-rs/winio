@@ -2,15 +2,15 @@ use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::stub::{Result, Widget, not_impl};
+use crate::{Result, Widget, not_impl};
 
 #[derive(Debug)]
-pub struct Button {
+pub struct LinkLabel {
     handle: Widget,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl Button {
+impl LinkLabel {
     pub fn new(_parent: impl AsContainer) -> Result<Self> {
         not_impl()
     }
@@ -41,9 +41,17 @@ impl Button {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
+    pub fn uri(&self) -> Result<String> {
+        not_impl()
+    }
+
+    pub fn set_uri(&mut self, _s: impl AsRef<str>) -> Result<()> {
+        not_impl()
+    }
+
     pub async fn wait_click(&self) {
         not_impl()
     }
 }
 
-winio_handle::impl_as_widget!(Button, handle);
+winio_handle::impl_as_widget!(LinkLabel, handle);

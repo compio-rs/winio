@@ -1,18 +1,16 @@
-use std::time::Duration;
-
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Orient, Point, Size, TickPosition};
 
-use crate::stub::{Result, Widget, not_impl};
+use crate::{Result, Widget, not_impl};
 
 #[derive(Debug)]
-pub struct Media {
+pub struct Slider {
     handle: Widget,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl Media {
+impl Slider {
     pub fn new(_parent: impl AsContainer) -> Result<Self> {
         not_impl()
     }
@@ -39,65 +37,57 @@ impl Media {
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn url(&self) -> Result<String> {
+    pub fn tick_pos(&self) -> Result<TickPosition> {
         not_impl()
     }
 
-    pub async fn load(&mut self, _url: impl AsRef<str>) -> Result<()> {
+    pub fn set_tick_pos(&mut self, _v: TickPosition) -> Result<()> {
         not_impl()
     }
 
-    pub fn play(&mut self) -> Result<()> {
+    pub fn orient(&self) -> Result<Orient> {
         not_impl()
     }
 
-    pub fn pause(&mut self) -> Result<()> {
+    pub fn set_orient(&mut self, _v: Orient) -> Result<()> {
         not_impl()
     }
 
-    pub fn full_time(&self) -> Result<Option<Duration>> {
+    pub fn minimum(&self) -> Result<usize> {
         not_impl()
     }
 
-    pub fn current_time(&self) -> Result<Duration> {
+    pub fn set_minimum(&mut self, _v: usize) -> Result<()> {
         not_impl()
     }
 
-    pub fn set_current_time(&mut self, _time: Duration) -> Result<()> {
+    pub fn maximum(&self) -> Result<usize> {
         not_impl()
     }
 
-    pub fn volume(&self) -> Result<f64> {
+    pub fn set_maximum(&mut self, _v: usize) -> Result<()> {
         not_impl()
     }
 
-    pub fn set_volume(&mut self, _v: f64) -> Result<()> {
+    pub fn freq(&self) -> Result<usize> {
         not_impl()
     }
 
-    pub fn is_muted(&self) -> Result<bool> {
+    pub fn set_freq(&mut self, _v: usize) -> Result<()> {
         not_impl()
     }
 
-    pub fn set_muted(&mut self, _v: bool) -> Result<()> {
+    pub fn pos(&self) -> Result<usize> {
         not_impl()
     }
 
-    pub fn is_looped(&self) -> Result<bool> {
+    pub fn set_pos(&mut self, _pos: usize) -> Result<()> {
         not_impl()
     }
 
-    pub fn set_looped(&mut self, _v: bool) -> Result<()> {
-        not_impl()
-    }
-
-    pub fn playback_rate(&self) -> Result<f64> {
-        not_impl()
-    }
-
-    pub fn set_playback_rate(&mut self, _v: f64) -> Result<()> {
+    pub async fn wait_change(&self) {
         not_impl()
     }
 }
 
-winio_handle::impl_as_widget!(Media, handle);
+winio_handle::impl_as_widget!(Slider, handle);

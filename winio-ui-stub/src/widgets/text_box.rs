@@ -1,16 +1,16 @@
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{HAlign, Point, Size};
 
-use crate::stub::{Result, Widget, not_impl};
+use crate::{Result, Widget, not_impl};
 
 #[derive(Debug)]
-pub struct ComboBox {
+pub struct TextBox {
     handle: Widget,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl ComboBox {
+impl TextBox {
     pub fn new(_parent: impl AsContainer) -> Result<Self> {
         not_impl()
     }
@@ -24,6 +24,8 @@ impl ComboBox {
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
     pub fn preferred_size(&self) -> Result<Size>;
+
+    pub fn min_size(&self) -> Result<Size>;
 
     pub fn loc(&self) -> Result<Point>;
 
@@ -41,57 +43,25 @@ impl ComboBox {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn selection(&self) -> Result<Option<usize>> {
+    pub fn halign(&self) -> Result<HAlign> {
         not_impl()
     }
 
-    pub fn set_selection(&mut self, _i: usize) -> Result<()> {
+    pub fn set_halign(&mut self, _align: HAlign) -> Result<()> {
         not_impl()
     }
 
-    pub fn is_editable(&self) -> Result<bool> {
+    pub fn is_readonly(&self) -> Result<bool> {
         not_impl()
     }
 
-    pub fn set_editable(&mut self, _v: bool) -> Result<()> {
-        not_impl()
-    }
-
-    pub fn len(&self) -> Result<usize> {
-        not_impl()
-    }
-
-    pub fn is_empty(&self) -> Result<bool> {
-        not_impl()
-    }
-
-    pub fn clear(&mut self) -> Result<()> {
-        not_impl()
-    }
-
-    pub fn get(&self, _i: usize) -> Result<String> {
-        not_impl()
-    }
-
-    pub fn set(&mut self, _i: usize, _s: impl AsRef<str>) -> Result<()> {
-        not_impl()
-    }
-
-    pub fn insert(&mut self, _i: usize, _s: impl AsRef<str>) -> Result<()> {
-        not_impl()
-    }
-
-    pub fn remove(&mut self, _i: usize) -> Result<()> {
+    pub fn set_readonly(&mut self, _v: bool) -> Result<()> {
         not_impl()
     }
 
     pub async fn wait_change(&self) {
         not_impl()
     }
-
-    pub async fn wait_select(&self) {
-        not_impl()
-    }
 }
 
-winio_handle::impl_as_widget!(ComboBox, handle);
+winio_handle::impl_as_widget!(TextBox, handle);

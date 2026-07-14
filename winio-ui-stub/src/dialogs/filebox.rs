@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use winio_handle::AsWindow;
 
-use crate::stub::{Result, not_impl};
+use crate::{Result, not_impl};
 
 #[derive(Debug, Default, Clone)]
 pub struct FileBox;

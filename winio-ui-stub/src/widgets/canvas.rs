@@ -6,7 +6,7 @@ use winio_primitive::{
     Size, SolidColorBrush, Transform, Vector,
 };
 
-use crate::stub::{Result, Widget, not_impl};
+use crate::{Result, Widget, not_impl};
 
 #[derive(Debug)]
 pub struct Canvas {

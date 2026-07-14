@@ -1,16 +1,16 @@
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
-use winio_primitive::{MouseButton, Point, Size, Vector};
+use winio_primitive::{Point, Size};
 
-use crate::stub::{Result, Widget, not_impl};
+use crate::{Result, Widget, not_impl};
 
 #[derive(Debug)]
-pub struct WgpuCanvas {
+pub struct ScrollView {
     handle: Widget,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl WgpuCanvas {
+impl ScrollView {
     pub fn new(_parent: impl AsContainer) -> Result<Self> {
         not_impl()
     }
@@ -23,10 +23,6 @@ impl WgpuCanvas {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
-
     pub fn loc(&self) -> Result<Point>;
 
     pub fn set_loc(&mut self, p: Point) -> Result<()>;
@@ -35,32 +31,26 @@ impl WgpuCanvas {
 
     pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn tooltip(&self) -> Result<String>;
-
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
-
-    pub async fn wait_mouse_move(&self) -> Point {
+    pub fn hscroll(&self) -> Result<bool> {
         not_impl()
     }
 
-    pub async fn wait_mouse_down(&self) -> MouseButton {
+    pub fn set_hscroll(&mut self, _v: bool) -> Result<()> {
         not_impl()
     }
 
-    pub async fn wait_mouse_up(&self) -> MouseButton {
+    pub fn vscroll(&self) -> Result<bool> {
         not_impl()
     }
 
-    pub async fn wait_mouse_wheel(&self) -> Vector {
+    pub fn set_vscroll(&mut self, _v: bool) -> Result<()> {
         not_impl()
     }
 
-    pub fn create_surface(
-        &self,
-        _instance: &wgpu::Instance,
-    ) -> std::result::Result<wgpu::Surface<'static>, wgpu::CreateSurfaceError> {
+    pub async fn start(&self) -> ! {
         not_impl()
     }
 }
 
-winio_handle::impl_as_widget!(WgpuCanvas, handle);
+winio_handle::impl_as_widget!(ScrollView, handle);
+winio_handle::impl_as_container!(ScrollView, handle);

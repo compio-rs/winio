@@ -3,7 +3,7 @@ use winio_handle::{
 };
 use winio_primitive::{Point, Size};
 
-use crate::stub::{Result, not_impl};
+use crate::{Result, not_impl};
 
 #[derive(Debug)]
 pub(crate) struct Widget;
