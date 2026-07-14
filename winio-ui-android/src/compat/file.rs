@@ -13,7 +13,7 @@ use jni::{
 use crate::{
     Result, current_activity,
     java::android::{
-        content::Context2,
+        content::Context,
         database::Cursor,
         net::Uri,
         provider::{DocumentsContract, DocumentsContractDocument},
@@ -24,7 +24,7 @@ use crate::{
 fn open_uri_with_mode(uri: &Path, mode: &str) -> Result<File> {
     vm_exec(|env| {
         let act = current_activity(env)?;
-        let context = env.cast_local::<Context2>(act)?;
+        let context = env.cast_local::<Context>(act)?;
         let resolver = context.get_content_resolver(env)?;
         let uri = env.new_string(uri.to_string_lossy())?;
         let uri = Uri::parse(env, uri)?;
@@ -102,7 +102,7 @@ pub struct UriReadDir {
 pub fn read_dir(uri: &Path) -> Result<UriReadDir> {
     vm_exec(|env| {
         let act = current_activity(env)?;
-        let context = env.cast_local::<Context2>(act)?;
+        let context = env.cast_local::<Context>(act)?;
         let resolver = context.get_content_resolver(env)?;
         let uri = env.new_string(uri.to_string_lossy())?;
         let uri = Uri::parse(env, uri)?;

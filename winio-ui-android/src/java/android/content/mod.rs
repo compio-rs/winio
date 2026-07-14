@@ -13,19 +13,11 @@ jni::bind_java_type! {
     type_map {
         Resources => android.content.res.Resources,
         ResourcesTheme => "android.content.res.Resources$Theme",
+        ContentResolver => android.content.ContentResolver,
     },
     methods {
         fn get_resources() -> Resources,
         fn get_theme() -> ResourcesTheme,
-    }
-}
-
-jni::bind_java_type! {
-    pub Context2 => android.content.Context,
-    type_map {
-        ContentResolver => android.content.ContentResolver,
-    },
-    methods {
         fn get_content_resolver() -> ContentResolver,
     }
 }
