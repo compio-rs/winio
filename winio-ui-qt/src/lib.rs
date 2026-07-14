@@ -8,8 +8,16 @@ pub(crate) use winio_pollable::GlobalRuntime;
 mod runtime;
 pub use runtime::*;
 
-mod ui;
-pub use ui::*;
+mod common;
+
+mod widgets;
+pub use widgets::*;
+
+mod dialogs;
+pub use dialogs::*;
+
+mod platform;
+pub use platform::*;
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -32,7 +40,7 @@ pub enum Error {
     /// Media player error.
     #[cfg(feature = "media")]
     #[error("Media player error: {0:?}")]
-    Media(#[from] ui::QMediaPlayerError),
+    Media(#[from] widgets::QMediaPlayerError),
     /// Time component range error.
     #[cfg(feature = "webview")]
     #[error("Time component range error: {0}")]

@@ -55,7 +55,7 @@ use winio_ui_windows_common::{
 use crate::get_handle;
 use crate::{
     Error, Result, link_label_wnd_proc,
-    ui::{dpi::get_dpi_for_window, font::default_font},
+    platform::{dpi::get_dpi_for_window, font::default_font},
 };
 
 #[cfg(not(feature = "compio-compat"))]

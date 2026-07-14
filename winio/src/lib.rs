@@ -24,8 +24,7 @@ cfg_if::cfg_if! {
             } else if #[cfg(feature = "win32")] {
                 use winio_ui_win32 as sys;
             } else {
-                mod stub;
-                use stub as sys;
+                use winio_ui_stub as sys;
             }
         }
     } else if #[cfg(target_os = "macos")] {
@@ -46,8 +45,7 @@ cfg_if::cfg_if! {
             } else if #[cfg(feature = "gtk")] {
                 use winio_ui_gtk as sys;
             } else {
-                mod stub;
-                use stub as sys;
+                use winio_ui_stub as sys;
             }
         }
     }

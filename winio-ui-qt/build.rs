@@ -38,28 +38,28 @@ fn main() {
 
         let sources = [
             "src/runtime/qt",
-            "src/ui/common",
-            "src/ui/widget",
-            "src/ui/monitor",
-            "src/ui/msgbox",
-            "src/ui/filebox",
-            "src/ui/window",
-            "src/ui/button",
-            "src/ui/canvas",
-            "src/ui/edit",
-            "src/ui/label",
-            "src/ui/progress",
-            "src/ui/combo_box",
-            "src/ui/list_box",
-            "src/ui/scroll_bar",
-            "src/ui/scroll_view",
-            "src/ui/tab_view",
+            "src/common",
+            "src/widgets/widget",
+            "src/platform/monitor",
+            "src/dialogs/msgbox",
+            "src/dialogs/filebox",
+            "src/widgets/window",
+            "src/widgets/button",
+            "src/widgets/canvas",
+            "src/widgets/edit",
+            "src/widgets/label",
+            "src/widgets/progress",
+            "src/widgets/combo_box",
+            "src/widgets/list_box",
+            "src/widgets/scroll_bar",
+            "src/widgets/scroll_view",
+            "src/widgets/tab_view",
             #[cfg(feature = "media")]
-            "src/ui/media",
+            "src/widgets/media",
             #[cfg(feature = "webview")]
-            "src/ui/webview",
+            "src/widgets/webview",
             #[cfg(feature = "wgpu")]
-            "src/ui/wgpu",
+            "src/widgets/wgpu",
         ];
 
         for s in sources {

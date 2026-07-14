@@ -58,6 +58,9 @@ winio-ui-ui-kit = { workspace = true }
 winio-ui-gtk = { workspace = true, optional = true }
 winio-ui-qt = { workspace = true, optional = true }
 
+[target.'cfg(not(any(target_vendor = "apple", target_os = "android")))'.dependencies]
+winio-ui-stub = { workspace = true }
+
 [build-dependencies]
 cfg_aliases = "0.2"
 
@@ -70,6 +73,7 @@ qt = ["dep:winio-ui-qt"]
 enable_log = ["compio/enable_log", "compio-log/enable_log"]
 
 media = [
+    "winio-ui-stub/media",
     "winio-ui-app-kit/media",
     "winio-ui-ui-kit/media",
     "winio-ui-win32?/media",
@@ -80,6 +84,7 @@ media = [
 ]
 webview = [
     "dep:cookie",
+    "winio-ui-stub/webview",
     "winio-ui-app-kit/webview",
     "winio-ui-ui-kit/webview",
     "winio-ui-win32?/webview",
@@ -93,6 +98,7 @@ compio-compat = [
     "compio/runtime",
     "compio/compat",
     "compio/fs",
+    "winio-ui-stub/compio-compat",
     "winio-ui-app-kit/compio-compat",
     "winio-ui-ui-kit/compio-compat",
     "winio-ui-win32?/compio-compat",
@@ -103,6 +109,7 @@ compio-compat = [
 ]
 wgpu = [
     "dep:wgpu",
+    "winio-ui-stub/wgpu",
     "winio-ui-app-kit/wgpu",
     "winio-ui-ui-kit/wgpu",
     "winio-ui-win32?/wgpu",

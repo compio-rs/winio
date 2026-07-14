@@ -1,0 +1,31 @@
+[package]
+name = "winio-ui-stub"
+version = "0.1.0-rc.1"
+description = "Stub backend for winio — used when no real backend is selected."
+categories = ["asynchronous", "gui"]
+keywords = ["async", "gui", "stub"]
+edition = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+winio-primitive = { workspace = true }
+winio-handle = { workspace = true }
+
+compio = { workspace = true, default-features = false, optional = true }
+
+cookie = { workspace = true, optional = true }
+inherit-methods-macro = { workspace = true }
+image = { workspace = true }
+wgpu = { workspace = true, optional = true }
+
+[target.'cfg(windows)'.dependencies]
+winio-ui-windows-common = { workspace = true }
+
+[features]
+default = []
+media = []
+webview = ["dep:cookie"]
+wgpu = ["dep:wgpu"]
+compio-compat = ["dep:compio"]

@@ -13,8 +13,14 @@ mod compat;
 #[cfg(feature = "compio-compat")]
 pub use compat::*;
 
-mod ui;
-pub use ui::*;
+mod widgets;
+pub use widgets::*;
+
+mod dialogs;
+pub use dialogs::*;
+
+mod platform;
+pub use platform::*;
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]

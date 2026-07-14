@@ -10,8 +10,10 @@ pub use winio_ui_windows_common::{Error, Result};
 mod runtime;
 pub use runtime::*;
 
-mod ui;
-pub use ui::*;
+mod widgets;
+pub use widgets::*;
+
+mod platform;
 
 #[cfg(feature = "compio-compat")]
 mod compat;

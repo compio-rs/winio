@@ -1,11 +1,6 @@
 use jni::{Env, errors::Result, objects::JCharSequence};
 
-jni::bind_java_type! {
-    JCharSequence2 => java.lang.CharSequence,
-    methods {
-        fn to_string() -> JString,
-    }
-}
+use crate::java::lang::JCharSequence2;
 
 pub(crate) trait JCharSequenceExt {
     fn try_to_string(self, env: &mut Env<'_>) -> Result<String>;
@@ -33,12 +28,3 @@ macro_rules! impl_listener {
 }
 
 pub(crate) use impl_listener;
-
-jni::bind_java_type! {
-    pub(crate) JRunnable => java.lang.Runnable,
-    methods {
-        fn run(),
-    }
-}
-
-impl_listener!(JRunnable);
