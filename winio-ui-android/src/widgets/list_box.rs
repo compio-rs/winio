@@ -16,15 +16,15 @@ use crate::{
     java::{
         android::{
             r::Layout,
-            widget::{AdapterViewOnItemClickListener, ArrayAdapter, ListView as AListView},
+            widget::{
+                AdapterViewOnItemClickListener, ArrayAdapter, ListView as AListView,
+                abs_list_view::{CHOICE_MODE_MULTIPLE, CHOICE_MODE_SINGLE},
+            },
         },
         util::ArrayList,
     },
     vm_exec,
 };
-
-const CHOICE_MODE_MULTIPLE: i32 = 2;
-const CHOICE_MODE_SINGLE: i32 = 1;
 
 #[derive(Debug)]
 pub struct ListBox {

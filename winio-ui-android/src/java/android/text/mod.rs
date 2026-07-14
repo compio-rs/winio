@@ -77,3 +77,13 @@ jni::bind_java_type! {
         char_sequence = JCharSequence,
     }
 }
+
+pub mod input_type {
+    pub const TYPE_CLASS_TEXT: i32 = 0x1;
+    pub const TYPE_TEXT_VARIATION_PASSWORD: i32 = 0x80;
+    pub const TYPE_TEXT_FLAG_MULTI_LINE: i32 = 0x20000;
+}
+
+pub mod spanned {
+    pub const SPAN_INCLUSIVE_EXCLUSIVE: i32 = 0x11;
+}

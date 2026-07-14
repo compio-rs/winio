@@ -206,3 +206,9 @@ jni::bind_java_type! {
         bottom: jint,
     }
 }
+
+pub mod typeface {
+    pub const NORMAL: i32 = 0x0;
+    pub const BOLD: i32 = 0x1;
+    pub const ITALIC: i32 = 0x2;
+}

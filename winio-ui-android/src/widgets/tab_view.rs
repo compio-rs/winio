@@ -15,7 +15,7 @@ use crate::{
     java::{
         android::{
             view::{View as AView, ViewOnLayoutChangeListener},
-            widget::{LinearLayout, LinearLayoutLayoutParams},
+            widget::{LinearLayout, LinearLayoutLayoutParams, linear_layout::VERTICAL},
         },
         androidx::viewpager2::ViewPager2,
         custom::WinioTabViewAdapter,
@@ -26,8 +26,6 @@ use crate::{
     },
     vm_exec,
 };
-
-const VERTICAL: i32 = 1;
 
 #[derive(Debug)]
 #[allow(dead_code)]

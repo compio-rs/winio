@@ -3,8 +3,9 @@ use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
-    BaseWidget, JCharSequenceExt, Result, current_activity, gravity,
-    java::android::widget::TextView as ATextView, vm_exec,
+    BaseWidget, JCharSequenceExt, Result, current_activity,
+    java::android::{view::gravity, widget::TextView as ATextView},
+    vm_exec,
 };
 
 #[derive(Debug)]

@@ -11,9 +11,10 @@ use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
-    BaseWidget, Result, gravity,
+    BaseWidget, Result,
     java::android::{
-        text::TextWatcher,
+        text::{TextWatcher, input_type},
+        view::gravity,
         widget::{EditText as AEditText, TextView as ATextView},
     },
     vm_exec,
@@ -25,12 +26,6 @@ pub struct Edit {
     on_change: Arc<SyncCallback>,
     #[allow(dead_code)]
     change_proxy: DynamicProxy,
-}
-
-mod input_type {
-    pub const TYPE_CLASS_TEXT: i32 = 0x1;
-    pub const TYPE_TEXT_VARIATION_PASSWORD: i32 = 0x80;
-    pub const TYPE_TEXT_FLAG_MULTI_LINE: i32 = 0x20000;
 }
 
 #[inherit_methods(from = "self.inner")]

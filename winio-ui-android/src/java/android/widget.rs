@@ -291,4 +291,13 @@ jni::bind_java_type! {
     pub AdapterViewOnItemSelectedListener => "android.widget.AdapterView$OnItemSelectedListener",
 }
 
+pub mod abs_list_view {
+    pub const CHOICE_MODE_MULTIPLE: i32 = 2;
+    pub const CHOICE_MODE_SINGLE: i32 = 1;
+}
+
+pub mod linear_layout {
+    pub const VERTICAL: i32 = 1;
+}
+
 impl_listener!(AdapterViewOnItemSelectedListener);

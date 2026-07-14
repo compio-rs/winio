@@ -22,20 +22,14 @@ use crate::{
         graphics::{
             Bitmap, BitmapConfig, Canvas as ACanvas, LinearGradient, Matrix as AMatrix, Paint,
             PaintStyle, Path, Picture, RadialGradient, Rect as ARect, ShaderTileMode, Typeface,
-            drawable::PictureDrawable,
+            drawable::PictureDrawable, typeface,
         },
         text::{StaticLayout, StaticLayoutBuilder, TextPaint},
-        view::{MotionEvent, View as AView, ViewOnTouchListener},
+        view::{MotionEvent, View as AView, ViewOnTouchListener, motion_event},
         widget::ImageView,
     },
     vm_exec,
 };
-
-mod typeface {
-    pub const NORMAL: i32 = 0x0;
-    pub const BOLD: i32 = 0x1;
-    pub const ITALIC: i32 = 0x2;
-}
 
 /// Drawing brush.
 pub trait Brush {
@@ -747,18 +741,7 @@ pub(crate) fn view_touch_proxy(
         &LoaderContext::None,
         [ViewOnTouchListener::class_name()],
         move |env, _method, args| {
-            const ACTION_DOWN: i32 = 0x0;
-            const ACTION_UP: i32 = 0x1;
-            const ACTION_MOVE: i32 = 0x2;
-            const ACTION_HOVER_MOVE: i32 = 0x7;
-            const ACTION_SCROLL: i32 = 0x8;
-
-            const AXIS_VSCROLL: i32 = 0x9;
-            const AXIS_HSCROLL: i32 = 0xA;
-
-            const BUTTON_PRIMARY: i32 = 0x1;
-            const BUTTON_SECONDARY: i32 = 0x2;
-            const BUTTON_TERTIARY: i32 = 0x4;
+            use motion_event::*;
 
             const fn button(btn: i32) -> MouseButton {
                 if btn & BUTTON_PRIMARY != 0 {

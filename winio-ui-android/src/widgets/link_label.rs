@@ -15,7 +15,10 @@ use crate::{
     BaseWidget, Result, current_activity,
     java::{
         android::{
-            text::{SpannableString, method::LinkMovementMethod, style::URLSpan},
+            text::{
+                SpannableString, method::LinkMovementMethod, spanned::SPAN_INCLUSIVE_EXCLUSIVE,
+                style::URLSpan,
+            },
             widget::TextView as ATextView,
         },
         custom::WinioClickableSpan,
@@ -33,8 +36,6 @@ pub struct LinkLabel {
     url_span: Global<URLSpan<'static>>,
     click_span: Global<WinioClickableSpan<'static>>,
 }
-
-const SPAN_INCLUSIVE_EXCLUSIVE: i32 = 0x11;
 
 #[inherit_methods(from = "self.inner")]
 impl LinkLabel {

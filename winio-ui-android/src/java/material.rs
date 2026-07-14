@@ -195,3 +195,11 @@ jni::bind_java_type! {
 }
 
 impl_listener!(TabLayoutOnTabSelectedListener);
+
+pub mod slider {
+    pub const TICK_VISIBILITY_AUTO_LIMIT: i32 = 0;
+    pub const TICK_VISIBILITY_HIDDEN: i32 = 2;
+
+    pub const HORIZONTAL: i32 = 0;
+    pub const VERTICAL: i32 = 1;
+}

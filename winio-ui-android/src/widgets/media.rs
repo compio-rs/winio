@@ -7,12 +7,12 @@ use winio_primitive::{Point, Size};
 
 use crate::{
     BaseWidget, Result, current_activity,
-    java::androidx::media3::{ExoPlayer, ExoPlayerBuilder, MediaItem, PlayerView},
+    java::androidx::media3::{
+        ExoPlayer, ExoPlayerBuilder, MediaItem, PlayerView,
+        player::{REPEAT_MODE_OFF, REPEAT_MODE_ONE},
+    },
     vm_exec,
 };
-
-const REPEAT_MODE_OFF: i32 = 0;
-const REPEAT_MODE_ONE: i32 = 1;
 
 #[derive(Debug)]
 pub struct Media {

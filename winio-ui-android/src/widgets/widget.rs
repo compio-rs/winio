@@ -12,7 +12,7 @@ use winio_primitive::{Point, Size};
 use crate::{
     Result,
     java::android::{
-        view::{View as AView, ViewGroup as AViewGroup},
+        view::{View as AView, ViewGroup as AViewGroup, gravity},
         widget::{FrameLayout, FrameLayoutLayoutParams},
     },
     platform::dpi::{logical_point, logical_size, physical_point, physical_size},
@@ -32,15 +32,6 @@ where
         + 'static,
 {
     inner: Global<T>,
-}
-
-pub(crate) mod gravity {
-    pub const CENTER_HORIZONTAL: i32 = 0x1;
-    pub const CENTER_VERTICAL: i32 = 0x10;
-    pub const FILL_HORIZONTAL: i32 = 0x7;
-    pub const LEFT: i32 = 0x3;
-    pub const RIGHT: i32 = 0x5;
-    pub const TOP: i32 = 0x30;
 }
 
 impl<T> BaseWidget<T>

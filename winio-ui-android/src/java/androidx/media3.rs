@@ -84,3 +84,8 @@ jni::bind_java_type! {
         speed: jfloat,
     }
 }
+
+pub mod player {
+    pub const REPEAT_MODE_OFF: i32 = 0;
+    pub const REPEAT_MODE_ONE: i32 = 1;
+}

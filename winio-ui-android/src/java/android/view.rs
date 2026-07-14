@@ -166,3 +166,27 @@ jni::bind_java_type! {
 jni::bind_java_type! {
     pub Surface => android.view.Surface,
 }
+
+pub mod gravity {
+    pub const CENTER_HORIZONTAL: i32 = 0x1;
+    pub const CENTER_VERTICAL: i32 = 0x10;
+    pub const FILL_HORIZONTAL: i32 = 0x7;
+    pub const LEFT: i32 = 0x3;
+    pub const RIGHT: i32 = 0x5;
+    pub const TOP: i32 = 0x30;
+}
+
+pub mod motion_event {
+    pub const ACTION_DOWN: i32 = 0x0;
+    pub const ACTION_UP: i32 = 0x1;
+    pub const ACTION_MOVE: i32 = 0x2;
+    pub const ACTION_HOVER_MOVE: i32 = 0x7;
+    pub const ACTION_SCROLL: i32 = 0x8;
+
+    pub const AXIS_VSCROLL: i32 = 0x9;
+    pub const AXIS_HSCROLL: i32 = 0xA;
+
+    pub const BUTTON_PRIMARY: i32 = 0x1;
+    pub const BUTTON_SECONDARY: i32 = 0x2;
+    pub const BUTTON_TERTIARY: i32 = 0x4;
+}

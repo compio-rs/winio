@@ -1,9 +1,13 @@
 use winio_primitive::{Color, ColorTheme};
 
-use crate::{Result, current_activity, java::android::r::RColor, vm_exec};
-
-const UI_MODE_NIGHT_MASK: i32 = 0x30;
-const UI_MODE_NIGHT_YES: i32 = 0x20;
+use crate::{
+    Result, current_activity,
+    java::android::{
+        content::res::configuration::{UI_MODE_NIGHT_MASK, UI_MODE_NIGHT_YES},
+        r::RColor,
+    },
+    vm_exec,
+};
 
 pub fn color_theme() -> Result<ColorTheme> {
     vm_exec(|env| {

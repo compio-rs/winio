@@ -12,15 +12,12 @@ use winio_primitive::{Orient, Point, Size, TickPosition};
 
 use crate::{
     BaseWidget, Result, current_activity,
-    java::material::{Slider as ASlider, SliderOnChangeListener},
+    java::material::{
+        Slider as ASlider, SliderOnChangeListener,
+        slider::{HORIZONTAL, TICK_VISIBILITY_AUTO_LIMIT, TICK_VISIBILITY_HIDDEN, VERTICAL},
+    },
     vm_exec,
 };
-
-const TICK_VISIBILITY_AUTO_LIMIT: i32 = 0;
-const TICK_VISIBILITY_HIDDEN: i32 = 2;
-
-const HORIZONTAL: i32 = 0;
-const VERTICAL: i32 = 1;
 
 #[derive(Debug)]
 pub struct Slider {
