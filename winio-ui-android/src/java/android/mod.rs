@@ -1,4 +1,3 @@
-pub mod r;
 pub mod app;
 pub mod content;
 pub mod database;
@@ -6,6 +5,7 @@ pub mod graphics;
 pub mod net;
 pub mod os;
 pub mod provider;
+pub mod r;
 pub mod text;
 pub mod util;
 pub mod view;

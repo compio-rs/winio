@@ -2,10 +2,7 @@ use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{
-    BaseWidget, Result, current_activity, vm_exec,
-    java::android::widget::FrameLayout,
-};
+use crate::{BaseWidget, Result, current_activity, java::android::widget::FrameLayout, vm_exec};
 
 #[derive(Debug)]
 pub struct View {
