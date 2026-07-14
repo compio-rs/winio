@@ -19,8 +19,12 @@ impl From<std::io::Error> for Error {
     }
 }
 
-pub fn not_impl() -> ! {
+pub(crate) fn not_impl() -> ! {
     unimplemented!("stub implementation")
+}
+
+pub(crate) fn not_impl_fut<T>() -> std::future::Ready<T> {
+    not_impl()
 }
 
 mod runtime;

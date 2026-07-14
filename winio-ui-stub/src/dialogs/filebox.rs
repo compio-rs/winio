@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use winio_handle::AsWindow;
 
-use crate::{Result, not_impl};
+use crate::{Result, not_impl, not_impl_fut};
 
 #[derive(Debug, Default, Clone)]
 pub struct FileBox;
@@ -32,28 +32,28 @@ impl FileBox {
         self,
         _parent: Option<impl AsWindow>,
     ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
-        Ok(std::future::ready(not_impl()))
+        Ok(not_impl_fut())
     }
 
     pub fn open_multiple(
         self,
         _parent: Option<impl AsWindow>,
     ) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
-        Ok(std::future::ready(not_impl()))
+        Ok(not_impl_fut())
     }
 
     pub fn open_folder(
         self,
         _parent: Option<impl AsWindow>,
     ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
-        Ok(std::future::ready(not_impl()))
+        Ok(not_impl_fut())
     }
 
     pub fn save(
         self,
         _parent: Option<impl AsWindow>,
     ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
-        Ok(std::future::ready(not_impl()))
+        Ok(not_impl_fut())
     }
 }
 

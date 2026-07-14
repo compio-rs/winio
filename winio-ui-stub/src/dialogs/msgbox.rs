@@ -1,7 +1,7 @@
 use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
-use crate::{Result, not_impl};
+use crate::{Result, not_impl, not_impl_fut};
 
 #[derive(Debug, Default, Clone)]
 pub struct MessageBox;
@@ -15,7 +15,7 @@ impl MessageBox {
         self,
         _parent: Option<impl AsWindow>,
     ) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
-        Ok(std::future::ready(not_impl()))
+        Ok(not_impl_fut())
     }
 
     pub fn message(&mut self, _msg: impl AsRef<str>) {

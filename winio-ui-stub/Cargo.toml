@@ -22,4 +22,7 @@ winio-ui-windows-common = { workspace = true }
 
 [features]
 default = []
+media = []
+webview = []
+wgpu = []
 compio-compat = ["dep:compio"]
