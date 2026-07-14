@@ -4,6 +4,7 @@
 #include <QPointer>
 #include <QString>
 #include <QWidget>
+#include <memory>
 #include <rust/cxx.h>
 
 bool is_dark();

@@ -2,6 +2,7 @@
 
 #include "common.hpp"
 #include <QTabWidget>
+#include <memory>
 
 STATIC_CAST_ASSERT(QTabWidget, QWidget);
 
