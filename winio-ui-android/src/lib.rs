@@ -14,8 +14,14 @@ pub(crate) use convert::*;
 mod runtime;
 pub use runtime::*;
 
-mod ui;
-pub use ui::*;
+mod widgets;
+pub use widgets::*;
+
+mod dialogs;
+pub use dialogs::*;
+
+mod platform;
+pub use platform::*;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

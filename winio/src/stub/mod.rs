@@ -26,8 +26,11 @@ pub fn not_impl() -> ! {
 mod runtime;
 pub use runtime::*;
 
-mod ui;
-pub use ui::*;
+mod widgets;
+pub use widgets::*;
+
+mod dialogs;
+pub use dialogs::*;
 
 #[cfg(feature = "compio-compat")]
 mod compat;
