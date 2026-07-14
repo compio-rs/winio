@@ -38,7 +38,8 @@ use winui3::{
 };
 
 use crate::{
-    CustomDesktopAcrylicBackdrop, Error, GlobalRuntime, Result, Widget, widgets::Convertible,
+    Error, GlobalRuntime, Result, Widget, platform::backdrop::CustomDesktopAcrylicBackdrop,
+    widgets::Convertible,
 };
 
 #[derive(Debug)]
