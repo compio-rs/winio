@@ -17,7 +17,7 @@ use crate::{
             view::{View as AView, ViewOnLayoutChangeListener},
             widget::{LinearLayout, LinearLayoutLayoutParams},
         },
-        androidx::ViewPager2,
+        androidx::viewpager2::ViewPager2,
         custom::WinioTabViewAdapter,
         material::{
             TabLayout, TabLayoutMediator, TabLayoutMediatorTabConfigurationStrategy,

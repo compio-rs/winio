@@ -6,7 +6,7 @@ use crate::{
             view::View,
             widget::{Button, CompoundButton, TextView},
         },
-        androidx::ViewPager2,
+        androidx::viewpager2::ViewPager2,
     },
 };
 

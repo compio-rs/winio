@@ -1,6 +1,6 @@
 use crate::java::{
     android::{content::Context, text::style::ClickableSpan, view::View, webkit::WebViewClient},
-    androidx::RecyclerViewAdapter,
+    androidx::recyclerview::RecyclerViewAdapter,
     lang::JRunnable,
 };
 
@@ -58,6 +58,7 @@ jni::bind_java_type! {
     }
 }
 
+#[cfg(feature = "webview")]
 jni::bind_java_type! {
     pub WinioWebViewClient => rs.compio.winio.WebViewClient,
     type_map {

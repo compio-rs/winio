@@ -17,7 +17,7 @@ use crate::{
     Error, Result,
     java::{
         android::net::Uri,
-        androidx::{
+        androidx::activity::{
             ActivityResultCallback, ActivityResultCaller, ActivityResultLauncher, CreateDocument,
             GetContent, GetMultipleContents, OpenDocumentTree,
         },

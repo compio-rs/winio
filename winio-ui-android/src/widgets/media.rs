@@ -7,7 +7,7 @@ use winio_primitive::{Point, Size};
 
 use crate::{
     BaseWidget, Result, current_activity,
-    java::androidx::{ExoPlayer, ExoPlayerBuilder, MediaItem, PlayerView},
+    java::androidx::media3::{ExoPlayer, ExoPlayerBuilder, MediaItem, PlayerView},
     vm_exec,
 };
 
