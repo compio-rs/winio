@@ -1,3 +1,5 @@
+pub mod drawable;
+
 jni::bind_java_type! {
     pub PaintStyle => "android.graphics.Paint$Style",
     fields {
@@ -176,24 +178,6 @@ jni::bind_java_type! {
     methods {
         fn begin_recording(width: jint, height: jint) -> Canvas,
         fn end_recording(),
-    }
-}
-
-jni::bind_java_type! {
-    pub Drawable => android.graphics.drawable.Drawable,
-}
-
-jni::bind_java_type! {
-    pub PictureDrawable => android.graphics.drawable.PictureDrawable,
-    type_map {
-        Drawable => android.graphics.drawable.Drawable,
-        Picture => android.graphics.Picture,
-    },
-    constructors {
-        fn new(picture: &Picture),
-    },
-    is_instance_of = {
-        base = Drawable,
     }
 }
 

@@ -1,6 +1,6 @@
 use super::{
     content::Context,
-    graphics::Drawable,
+    graphics::drawable::Drawable,
     text::{Editable, TextWatcher, method::MovementMethod},
     util::SparseBooleanArray,
     view::{

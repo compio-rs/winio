@@ -21,8 +21,8 @@ use crate::{
     java::android::{
         graphics::{
             Bitmap, BitmapConfig, Canvas as ACanvas, LinearGradient, Matrix as AMatrix, Paint,
-            PaintStyle, Path, Picture, PictureDrawable, RadialGradient, Rect as ARect,
-            ShaderTileMode, Typeface,
+            PaintStyle, Path, Picture, RadialGradient, Rect as ARect, ShaderTileMode, Typeface,
+            drawable::PictureDrawable,
         },
         text::{StaticLayout, StaticLayoutBuilder, TextPaint},
         view::{MotionEvent, View as AView, ViewOnTouchListener},
