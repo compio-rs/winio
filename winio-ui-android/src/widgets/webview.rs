@@ -13,7 +13,7 @@ use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{
-    BaseWidget, Result, current_activity, impl_listener,
+    BaseWidget, Result, current_activity,
     java::{
         android::webkit::{
             CookieManager, ValueCallback, WebChromeClient as AWebChromeClient, WebView as AWebView,
@@ -23,8 +23,6 @@ use crate::{
     },
     vm_exec,
 };
-
-impl_listener!(ValueCallback);
 
 #[derive(Debug)]
 pub struct WebView {

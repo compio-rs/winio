@@ -12,7 +12,7 @@ use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Point, Size};
 
 use crate::{
-    BaseWidget, Result, current_activity, impl_listener,
+    BaseWidget, Result, current_activity,
     java::{
         android::{
             r::Layout,
@@ -22,8 +22,6 @@ use crate::{
     },
     vm_exec,
 };
-
-impl_listener!(AdapterViewOnItemSelectedListener);
 
 #[derive(Debug)]
 pub struct ComboBox {

@@ -10,20 +10,14 @@ use winio_handle::{AsContainer, AsWidget, BorrowedContainer, BorrowedWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{
-    Result, impl_listener,
+    Result,
     java::android::{
-        view::{
-            View as AView, ViewGroup as AViewGroup, ViewOnLayoutChangeListener, ViewOnTouchListener,
-        },
+        view::{View as AView, ViewGroup as AViewGroup},
         widget::{FrameLayout, FrameLayoutLayoutParams},
     },
     platform::dpi::{logical_point, logical_size, physical_point, physical_size},
     vm_exec,
 };
-
-impl_listener!(ViewOnLayoutChangeListener);
-
-impl_listener!(ViewOnTouchListener);
 
 #[derive(Debug)]
 pub(crate) struct BaseWidget<T>

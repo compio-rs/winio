@@ -11,7 +11,7 @@ use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{
-    BaseWidget, Result, View, WINDOW_RESIZE_CALLBACK, current_activity, impl_listener,
+    BaseWidget, Result, View, WINDOW_RESIZE_CALLBACK, current_activity,
     java::{
         android::{
             view::{View as AView, ViewOnLayoutChangeListener},
@@ -28,10 +28,6 @@ use crate::{
 };
 
 const VERTICAL: i32 = 1;
-
-impl_listener!(TabLayoutMediatorTabConfigurationStrategy);
-
-impl_listener!(TabLayoutOnTabSelectedListener);
 
 #[derive(Debug)]
 #[allow(dead_code)]

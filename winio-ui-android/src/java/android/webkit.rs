@@ -1,4 +1,5 @@
 use super::{content::Context, view::View};
+use crate::impl_listener;
 
 jni::bind_java_type! {
     pub WebView => android.webkit.WebView,
@@ -43,6 +44,8 @@ jni::bind_java_type! {
 jni::bind_java_type! {
     pub ValueCallback => android.webkit.ValueCallback,
 }
+
+impl_listener!(ValueCallback);
 
 jni::bind_java_type! {
     pub WebChromeClient => android.webkit.WebChromeClient,

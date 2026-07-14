@@ -11,15 +11,13 @@ use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
-    BaseWidget, Result, gravity, impl_listener,
+    BaseWidget, Result, gravity,
     java::android::{
         text::TextWatcher,
         widget::{EditText as AEditText, TextView as ATextView},
     },
     vm_exec,
 };
-
-impl_listener!(TextWatcher);
 
 #[derive(Debug)]
 pub struct Edit {

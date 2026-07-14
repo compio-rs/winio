@@ -1,10 +1,13 @@
-use crate::java::{
-    android::{
-        content::Context,
-        view::View,
-        widget::{Button, CompoundButton, TextView},
+use crate::{
+    impl_listener,
+    java::{
+        android::{
+            content::Context,
+            view::View,
+            widget::{Button, CompoundButton, TextView},
+        },
+        androidx::ViewPager2,
     },
-    androidx::ViewPager2,
 };
 
 jni::bind_java_type! {
@@ -123,6 +126,8 @@ jni::bind_java_type! {
     pub BaseOnChangeListener => com.google.android.material.slider.BaseOnChangeListener,
 }
 
+impl_listener!(BaseOnChangeListener);
+
 jni::bind_java_type! {
     pub SliderOnChangeListener => "com.google.android.material.slider.Slider$OnChangeListener",
     type_map {
@@ -132,6 +137,8 @@ jni::bind_java_type! {
         base = BaseOnChangeListener,
     }
 }
+
+impl_listener!(SliderOnChangeListener);
 
 jni::bind_java_type! {
     pub TabLayout => com.google.android.material.tabs.TabLayout,
@@ -181,6 +188,10 @@ jni::bind_java_type! {
     pub TabLayoutMediatorTabConfigurationStrategy => "com.google.android.material.tabs.TabLayoutMediator$TabConfigurationStrategy",
 }
 
+impl_listener!(TabLayoutMediatorTabConfigurationStrategy);
+
 jni::bind_java_type! {
     pub TabLayoutOnTabSelectedListener => "com.google.android.material.tabs.TabLayout$OnTabSelectedListener",
 }
+
+impl_listener!(TabLayoutOnTabSelectedListener);

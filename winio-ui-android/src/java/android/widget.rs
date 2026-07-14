@@ -7,6 +7,7 @@ use super::{
         View, ViewGroup, ViewGroupLayoutParams, ViewGroupMarginLayoutParams, ViewOnClickListener,
     },
 };
+use crate::impl_listener;
 
 jni::bind_java_type! {
     pub ImageView => android.widget.ImageView,
@@ -284,6 +285,10 @@ jni::bind_java_type! {
     pub AdapterViewOnItemClickListener => "android.widget.AdapterView$OnItemClickListener",
 }
 
+impl_listener!(AdapterViewOnItemClickListener);
+
 jni::bind_java_type! {
     pub AdapterViewOnItemSelectedListener => "android.widget.AdapterView$OnItemSelectedListener",
 }
+
+impl_listener!(AdapterViewOnItemSelectedListener);

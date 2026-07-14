@@ -2,6 +2,7 @@ pub mod method;
 pub mod style;
 
 use super::graphics::{Canvas, Paint};
+use crate::impl_listener;
 
 jni::bind_java_type! {
     pub TextPaint => android.text.TextPaint,
@@ -60,6 +61,8 @@ jni::bind_java_type! {
 jni::bind_java_type! {
     pub TextWatcher => android.text.TextWatcher,
 }
+
+impl_listener!(TextWatcher);
 
 jni::bind_java_type! {
     pub SpannableString => android.text.SpannableString,

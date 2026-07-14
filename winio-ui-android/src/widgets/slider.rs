@@ -11,8 +11,8 @@ use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Orient, Point, Size, TickPosition};
 
 use crate::{
-    BaseWidget, Result, current_activity, impl_listener,
-    java::material::{BaseOnChangeListener, Slider as ASlider, SliderOnChangeListener},
+    BaseWidget, Result, current_activity,
+    java::material::{Slider as ASlider, SliderOnChangeListener},
     vm_exec,
 };
 
@@ -21,10 +21,6 @@ const TICK_VISIBILITY_HIDDEN: i32 = 2;
 
 const HORIZONTAL: i32 = 0;
 const VERTICAL: i32 = 1;
-
-impl_listener!(BaseOnChangeListener);
-
-impl_listener!(SliderOnChangeListener);
 
 #[derive(Debug)]
 pub struct Slider {

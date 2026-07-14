@@ -2,6 +2,7 @@ use super::{
     content::Context,
     graphics::{Insets, Rect},
 };
+use crate::impl_listener;
 
 jni::bind_java_type! {
     pub MotionEvent => android.view.MotionEvent,
@@ -87,13 +88,19 @@ jni::bind_java_type! {
     pub ViewOnLayoutChangeListener => "android.view.View$OnLayoutChangeListener",
 }
 
+impl_listener!(ViewOnLayoutChangeListener);
+
 jni::bind_java_type! {
     pub ViewOnTouchListener => "android.view.View$OnTouchListener",
 }
 
+impl_listener!(ViewOnTouchListener);
+
 jni::bind_java_type! {
     pub ViewOnClickListener => "android.view.View$OnClickListener",
 }
+
+impl_listener!(ViewOnClickListener);
 
 jni::bind_java_type! {
     pub ViewGroup => android.view.ViewGroup,

@@ -12,7 +12,7 @@ use winio_handle::{AsContainer, AsWidget, BorrowedWidget, impl_as_widget};
 use winio_primitive::{Point, Size};
 
 use crate::{
-    BaseWidget, JCharSequenceExt, Result, current_activity, impl_listener,
+    BaseWidget, JCharSequenceExt, Result, current_activity,
     java::{
         android::{
             view::{View as AView, ViewOnClickListener},
@@ -22,8 +22,6 @@ use crate::{
     },
     vm_exec,
 };
-
-impl_listener!(ViewOnClickListener);
 
 #[derive(Debug)]
 struct ButtonImpl<T>
