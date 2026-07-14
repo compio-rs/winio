@@ -86,7 +86,10 @@ pub(crate) fn fix_crlf(s: &str) -> String {
 }
 
 #[inline]
-pub(crate) fn with_u16c<T>(s: &str, f: impl FnOnce(&U16CStr) -> crate::Result<T>) -> crate::Result<T> {
+pub(crate) fn with_u16c<T>(
+    s: &str,
+    f: impl FnOnce(&U16CStr) -> crate::Result<T>,
+) -> crate::Result<T> {
     if s.len() < 32 {
         // A UTF-8 string with length < 32 is guaranteed to fit in a
         // `ArrayVec<u16, 32>`.

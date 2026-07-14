@@ -37,7 +37,9 @@ use winui3::{
     },
 };
 
-use crate::{CustomDesktopAcrylicBackdrop, Error, GlobalRuntime, Result, Widget, widgets::Convertible};
+use crate::{
+    CustomDesktopAcrylicBackdrop, Error, GlobalRuntime, Result, Widget, widgets::Convertible,
+};
 
 #[derive(Debug)]
 pub struct Window {

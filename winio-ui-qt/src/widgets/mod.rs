@@ -92,7 +92,8 @@ macro_rules! impl_static_cast_propogate {
             }
 
             fn static_cast_mut(self: ::std::pin::Pin<&mut Self>) -> ::std::pin::Pin<&mut $t3> {
-                <Self as $crate::widgets::StaticCastTo<$t2>>::static_cast_mut(self).static_cast_mut()
+                <Self as $crate::widgets::StaticCastTo<$t2>>::static_cast_mut(self)
+                    .static_cast_mut()
             }
         }
     };

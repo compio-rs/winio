@@ -53,7 +53,9 @@ use winui3::{
     },
 };
 
-use crate::{Error, GlobalRuntime, Result, Widget, color_theme, get_root_window, widgets::Convertible};
+use crate::{
+    Error, GlobalRuntime, Result, Widget, color_theme, get_root_window, widgets::Convertible,
+};
 
 #[derive(Debug)]
 pub(crate) struct CanvasImpl {

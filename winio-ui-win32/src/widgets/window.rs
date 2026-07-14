@@ -36,11 +36,13 @@ use winio_ui_windows_common::{
 
 use crate::{
     Error, Result,
-    platform::font::measure_string,
+    platform::{
+        dpi::{DpiAware, get_dpi_for_window},
+        font::measure_string,
+        tooltip::{get_tooltip, remove_tooltip, set_tooltip},
+    },
     refresh_background,
     runtime::{WindowMessage, get_backdrop, set_backdrop, wait, window_proc},
-    platform::tooltip::{get_tooltip, remove_tooltip, set_tooltip},
-    platform::dpi::{DpiAware, get_dpi_for_window},
     widgets::{get_u16c, with_u16c},
 };
 

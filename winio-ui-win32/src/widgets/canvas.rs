@@ -34,11 +34,7 @@ use winio_primitive::{DrawingFont, MouseButton, Orient, Point, Rect, Size, Trans
 use winio_ui_windows_common::{Backdrop, d2d1_factory, is_dark_mode_allowed_for_app, syscall};
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 
-use crate::{
-    Result, get_backdrop,
-    widgets::Widget,
-    platform::font::dwrite_factory,
-};
+use crate::{Result, get_backdrop, platform::font::dwrite_factory, widgets::Widget};
 
 #[derive(Debug)]
 pub(crate) struct CanvasImpl {
