@@ -23,6 +23,8 @@ pub use dialogs::*;
 mod platform;
 pub use platform::*;
 
+mod java;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// JNI error.

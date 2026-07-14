@@ -11,75 +11,18 @@ use winio_callback::SyncCallback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{ATextView, BaseWidget, JRunnable, Result, current_activity, vm_exec};
-
-jni::bind_java_type! {
-    pub(crate) MovementMethod => android.text.method.MovementMethod,
-}
-
-jni::bind_java_type! {
-    LinkMovementMethod => android.text.method.LinkMovementMethod,
-    type_map {
-        MovementMethod => android.text.method.MovementMethod,
+use crate::{
+    BaseWidget, Result, current_activity,
+    java::{
+        android::{
+            text::{SpannableString, method::LinkMovementMethod, style::URLSpan},
+            widget::TextView as ATextView,
+        },
+        custom::WinioClickableSpan,
+        lang::JRunnable,
     },
-    methods {
-        static fn get_instance() -> MovementMethod,
-    },
-    is_instance_of = {
-        base = MovementMethod,
-    }
-}
-
-jni::bind_java_type! {
-    ClickableSpan => android.text.style.ClickableSpan,
-}
-
-jni::bind_java_type! {
-    URLSpan => android.text.style.URLSpan,
-    type_map {
-        ClickableSpan => android.text.style.ClickableSpan,
-    },
-    constructors {
-        fn new(url: &JString),
-    },
-    methods {
-        fn get_u_r_l() -> JString,
-    },
-    is_instance_of = {
-        base = ClickableSpan,
-    }
-}
-
-jni::bind_java_type! {
-    WinioClickableSpan => rs.compio.winio.ClickableSpan,
-    type_map {
-        ClickableSpan => android.text.style.ClickableSpan,
-        JRunnable => java.lang.Runnable,
-    },
-    constructors {
-        fn new(),
-    },
-    methods {
-        fn set_on_click(listener: &JRunnable),
-    },
-    is_instance_of = {
-        base = ClickableSpan,
-    }
-}
-
-jni::bind_java_type! {
-    SpannableString => android.text.SpannableString,
-    constructors {
-        fn new(text: &JCharSequence),
-    },
-    methods {
-        fn set_span(what: &JObject, start: i32, end: i32, flags: i32),
-        fn to_string() -> JString,
-    },
-    is_instance_of = {
-        char_sequence = JCharSequence,
-    }
-}
+    vm_exec,
+};
 
 #[derive(Debug)]
 pub struct LinkLabel {

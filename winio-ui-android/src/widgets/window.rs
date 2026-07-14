@@ -13,66 +13,17 @@ use winio_handle::{AsWindow, BorrowedContainer, BorrowedWindow};
 use winio_primitive::{Point, Size};
 
 use crate::{
-    AView, Activity, BaseWidget, Context, FrameLayoutLayoutParams, OnLayoutChangeListener, Result,
-    current_activity, logical_margin, logical_size, vm_exec,
+    BaseWidget, Result, current_activity,
+    java::{
+        android::{
+            view::{ViewOnLayoutChangeListener, WindowInsetsType},
+            widget::{FrameLayout, FrameLayoutLayoutParams},
+        },
+        custom::Activity,
+    },
+    platform::dpi::{logical_margin, logical_size},
+    vm_exec,
 };
-
-jni::bind_java_type! {
-    pub(crate) AViewGroup => android.view.ViewGroup,
-    type_map {
-        AView => android.view.View,
-    },
-    methods {
-        fn add_view(view: &AView),
-        fn remove_view(view: &AView),
-    },
-    is_instance_of = {
-        view = AView,
-    }
-}
-
-jni::bind_java_type! {
-    pub(crate) FrameLayout => android.widget.FrameLayout,
-    type_map {
-        AView => android.view.View,
-        AViewGroup => android.view.ViewGroup,
-        Context => android.content.Context,
-    },
-    constructors {
-        fn new(context: &Context),
-    },
-    is_instance_of = {
-        view = AView,
-        view_group = AViewGroup,
-    }
-}
-
-jni::bind_java_type! {
-    pub(crate) WindowInsets => android.view.WindowInsets,
-    type_map {
-        Insets => android.graphics.Insets,
-    },
-    methods {
-        fn get_insets_ignoring_visibility(type_mask: jint) -> Insets,
-    }
-}
-
-jni::bind_java_type! {
-    WindowInsetsType => "android.view.WindowInsets$Type",
-    methods {
-        static fn system_bars() -> jint,
-    }
-}
-
-jni::bind_java_type! {
-    Insets => android.graphics.Insets,
-    fields {
-        left: jint,
-        top: jint,
-        right: jint,
-        bottom: jint,
-    }
-}
 
 #[derive(Debug)]
 pub struct Window {
@@ -112,7 +63,7 @@ impl Window {
             let on_resize_proxy = DynamicProxy::build(
                 env,
                 &LoaderContext::None,
-                [OnLayoutChangeListener::class_name()],
+                [ViewOnLayoutChangeListener::class_name()],
                 {
                     let on_resize = on_resize.clone();
                     let size_update = size_update.clone();

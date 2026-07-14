@@ -10,108 +10,20 @@ use winio_handle::{AsContainer, AsWidget, BorrowedContainer, BorrowedWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{
-    AViewGroup, Context, FrameLayout, Result, WindowInsets, impl_listener, logical_point,
-    logical_size, physical_point, physical_size, vm_exec,
+    Result, impl_listener,
+    java::android::{
+        view::{
+            View as AView, ViewGroup as AViewGroup, ViewOnLayoutChangeListener, ViewOnTouchListener,
+        },
+        widget::{FrameLayout, FrameLayoutLayoutParams},
+    },
+    platform::dpi::{logical_point, logical_size, physical_point, physical_size},
+    vm_exec,
 };
 
-jni::bind_java_type! {
-    pub(crate) AView => "android.view.View",
-    type_map {
-        Context => android.content.Context,
-        AViewParent => android.view.ViewParent,
-        ViewGroupLayoutParams => "android.view.ViewGroup$LayoutParams",
-        OnLayoutChangeListener => "android.view.View$OnLayoutChangeListener",
-        OnTouchListener => "android.view.View$OnTouchListener",
-        WindowInsets => android.view.WindowInsets,
-    },
-    constructors {
-        fn new(context: &Context),
-    },
-    methods {
-        fn get_x() -> jfloat,
-        fn get_y() -> jfloat,
-        fn set_x(x: jfloat),
-        fn set_y(y: jfloat),
-        fn get_width() -> jint,
-        fn get_height() -> jint,
-        fn get_layout_params() -> ViewGroupLayoutParams,
-        fn set_layout_params(params: &ViewGroupLayoutParams),
-        fn measure(width_spec: jint, height_spec: jint),
-        fn get_measured_width() -> jint,
-        fn get_measured_height() -> jint,
-        fn get_minimum_width() -> jint,
-        fn get_minimum_height() -> jint,
-        fn get_visibility() -> jint,
-        fn set_visibility(visibility: jint),
-        fn is_enabled() -> jboolean,
-        fn set_enabled(enabled: jboolean),
-        fn get_parent() -> AViewParent,
-        fn add_on_layout_change_listener(listener: &OnLayoutChangeListener),
-        fn set_on_touch_listener(listener: &OnTouchListener),
-        fn get_root_window_insets() -> WindowInsets,
-    }
-}
+impl_listener!(ViewOnLayoutChangeListener);
 
-jni::bind_java_type! {
-    AViewParent => android.view.ViewParent,
-}
-
-jni::bind_java_type! {
-    pub(crate) ViewGroupLayoutParams => "android.view.ViewGroup$LayoutParams",
-    fields {
-        width: jint,
-        height: jint,
-    }
-}
-
-jni::bind_java_type! {
-    pub(crate) ViewGroupMarginLayoutParams => "android.view.ViewGroup$MarginLayoutParams",
-    type_map {
-        ViewGroupLayoutParams => "android.view.ViewGroup$LayoutParams",
-    },
-    constructors {
-        fn new(width: jint, height: jint),
-    },
-    fields {
-        left_margin: jint,
-        top_margin: jint,
-        right_margin: jint,
-        bottom_margin: jint,
-    },
-    is_instance_of = {
-        base = ViewGroupLayoutParams,
-    }
-}
-
-jni::bind_java_type! {
-    pub(crate) FrameLayoutLayoutParams => "android.widget.FrameLayout$LayoutParams",
-    type_map {
-        ViewGroupLayoutParams => "android.view.ViewGroup$LayoutParams",
-        ViewGroupMarginLayoutParams => "android.view.ViewGroup$MarginLayoutParams",
-    },
-    constructors {
-        fn new(width: jint, height: jint),
-    },
-    fields {
-        gravity: jint,
-    },
-    is_instance_of = {
-        base = ViewGroupLayoutParams,
-        margin = ViewGroupMarginLayoutParams,
-    }
-}
-
-jni::bind_java_type! {
-    pub(crate) OnLayoutChangeListener => "android.view.View$OnLayoutChangeListener",
-}
-
-impl_listener!(OnLayoutChangeListener);
-
-jni::bind_java_type! {
-    pub(crate) OnTouchListener => "android.view.View$OnTouchListener",
-}
-
-impl_listener!(OnTouchListener);
+impl_listener!(ViewOnTouchListener);
 
 #[derive(Debug)]
 pub(crate) struct BaseWidget<T>

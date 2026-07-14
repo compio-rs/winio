@@ -10,42 +10,14 @@ use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{HAlign, Point, Size};
 
-use crate::{ATextView, AView, BaseWidget, Context, Result, gravity, impl_listener, vm_exec};
-
-jni::bind_java_type! {
-    AEditText => android.widget.EditText,
-    type_map {
-        AView => android.view.View,
-        ATextView => android.widget.TextView,
-        Context => android.content.Context,
-        Editable => android.text.Editable,
-        TextWatcher => android.text.TextWatcher,
+use crate::{
+    BaseWidget, Result, gravity, impl_listener,
+    java::android::{
+        text::TextWatcher,
+        widget::{EditText as AEditText, TextView as ATextView},
     },
-    constructors {
-        fn new(&Context),
-    },
-    methods {
-        fn get_text() -> Editable,
-        fn get_input_type() -> jint,
-        fn set_input_type(ty: jint),
-        fn add_text_changed_listener(listener: &TextWatcher),
-    },
-    is_instance_of = {
-        view = AView,
-        text_view = ATextView,
-    }
-}
-
-jni::bind_java_type! {
-    Editable => android.text.Editable,
-    methods {
-        fn to_string() -> JString,
-    }
-}
-
-jni::bind_java_type! {
-    TextWatcher => android.text.TextWatcher,
-}
+    vm_exec,
+};
 
 impl_listener!(TextWatcher);
 

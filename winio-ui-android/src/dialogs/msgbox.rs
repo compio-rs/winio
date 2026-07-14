@@ -7,58 +7,20 @@ use jni_min_helper::{DynamicProxy, JInteger};
 use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
-use crate::{Activity, Context, Error, Result, impl_listener, vm_exec};
-
-jni::bind_java_type! {
-    AlertDialog => android.app.AlertDialog,
-    type_map {
-        OnCancelListener => "android.content.DialogInterface$OnCancelListener",
-        OnDismissListener => "android.content.DialogInterface$OnDismissListener",
+use crate::{
+    Error, Result,
+    java::{
+        android::{
+            app::AlertDialogBuilder,
+            content::{
+                DialogInterfaceOnCancelListener, DialogInterfaceOnClickListener,
+                DialogInterfaceOnDismissListener,
+            },
+        },
+        custom::Activity,
     },
-    methods {
-        fn show(),
-        fn set_on_cancel_listener(listener: &OnCancelListener),
-        fn set_on_dismiss_listener(listener: &OnDismissListener),
-    }
-}
-
-jni::bind_java_type! {
-    AlertDialogBuilder => "android.app.AlertDialog$Builder",
-    type_map {
-        AlertDialog => android.app.AlertDialog,
-        Context => android.content.Context,
-        OnClickListener => "android.content.DialogInterface$OnClickListener",
-    },
-    constructors {
-        fn new(context: &Context),
-    },
-    methods {
-        fn create() -> AlertDialog,
-        fn set_message(message: &JCharSequence) -> AlertDialogBuilder,
-        fn set_title(title: &JCharSequence) -> AlertDialogBuilder,
-        fn set_positive_button(text: &JCharSequence, listener: &OnClickListener) -> AlertDialogBuilder,
-        fn set_negative_button(text: &JCharSequence, listener: &OnClickListener) -> AlertDialogBuilder,
-        fn set_neutral_button(text: &JCharSequence, listener: &OnClickListener) -> AlertDialogBuilder,
-    }
-}
-
-jni::bind_java_type! {
-    OnClickListener => "android.content.DialogInterface$OnClickListener",
-}
-
-impl_listener!(OnClickListener);
-
-jni::bind_java_type! {
-    OnCancelListener => "android.content.DialogInterface$OnCancelListener",
-}
-
-impl_listener!(OnCancelListener);
-
-jni::bind_java_type! {
-    OnDismissListener => "android.content.DialogInterface$OnDismissListener",
-}
-
-impl_listener!(OnDismissListener);
+    vm_exec,
+};
 
 #[derive(Debug, Default, Clone)]
 pub struct MessageBox {
@@ -186,9 +148,9 @@ impl MessageBox {
                 env,
                 &LoaderContext::None,
                 [
-                    OnClickListener::class_name(),
-                    OnCancelListener::class_name(),
-                    OnDismissListener::class_name(),
+                    DialogInterfaceOnClickListener::class_name(),
+                    DialogInterfaceOnCancelListener::class_name(),
+                    DialogInterfaceOnDismissListener::class_name(),
                 ],
                 move |env, method, args| {
                     let name = method.get_name(env)?.try_to_string(env)?;

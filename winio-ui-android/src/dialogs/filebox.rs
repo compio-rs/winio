@@ -13,95 +13,18 @@ use jni::{
 use jni_min_helper::DynamicProxy;
 use winio_handle::AsWindow;
 
-use crate::{Activity, Error, Result, impl_listener, vm_exec};
-
-jni::bind_java_type! {
-    ActivityResultCaller => androidx.activity.result.ActivityResultCaller,
-    type_map {
-        ActivityResultContract => androidx.activity.result.contract.ActivityResultContract,
-        ActivityResultLauncher => androidx.activity.result.ActivityResultLauncher,
-        ActivityResultCallback => androidx.activity.result.ActivityResultCallback,
+use crate::{
+    Error, Result,
+    java::{
+        android::net::Uri,
+        androidx::{
+            ActivityResultCallback, ActivityResultCaller, ActivityResultLauncher, CreateDocument,
+            GetContent, GetMultipleContents, OpenDocumentTree,
+        },
+        custom::Activity,
     },
-    methods {
-        fn register_for_activity_result(contract: &ActivityResultContract, callback: &ActivityResultCallback) -> ActivityResultLauncher,
-    },
-}
-
-jni::bind_java_type! {
-    ActivityResultContract => androidx.activity.result.contract.ActivityResultContract,
-}
-
-jni::bind_java_type! {
-    GetContent => "androidx.activity.result.contract.ActivityResultContracts$GetContent",
-    type_map {
-        ActivityResultContract => androidx.activity.result.contract.ActivityResultContract
-    },
-    constructors {
-        fn new(),
-    },
-    is_instance_of = {
-        base = ActivityResultContract,
-    }
-}
-
-jni::bind_java_type! {
-    GetMultipleContents => "androidx.activity.result.contract.ActivityResultContracts$GetMultipleContents",
-    type_map {
-        ActivityResultContract => androidx.activity.result.contract.ActivityResultContract
-    },
-    constructors {
-        fn new(),
-    },
-    is_instance_of = {
-        base = ActivityResultContract,
-    }
-}
-
-jni::bind_java_type! {
-    OpenDocumentTree => "androidx.activity.result.contract.ActivityResultContracts$OpenDocumentTree",
-    type_map {
-        ActivityResultContract => androidx.activity.result.contract.ActivityResultContract
-    },
-    constructors {
-        fn new(),
-    },
-    is_instance_of = {
-        base = ActivityResultContract,
-    }
-}
-
-jni::bind_java_type! {
-    CreateDocument => "androidx.activity.result.contract.ActivityResultContracts$CreateDocument",
-    type_map {
-        ActivityResultContract => androidx.activity.result.contract.ActivityResultContract
-    },
-    constructors {
-        fn new(),
-    },
-    is_instance_of = {
-        base = ActivityResultContract,
-    }
-}
-
-jni::bind_java_type! {
-    ActivityResultLauncher => androidx.activity.result.ActivityResultLauncher,
-    methods {
-        fn launch(input: &JObject),
-    },
-}
-
-jni::bind_java_type! {
-    ActivityResultCallback => androidx.activity.result.ActivityResultCallback,
-}
-
-impl_listener!(ActivityResultCallback);
-
-jni::bind_java_type! {
-    Uri => android.net.Uri,
-    methods {
-        fn to_string() -> JString,
-    },
-}
+    vm_exec,
+};
 
 struct ProxyCallback {
     proxy: DynamicProxy,

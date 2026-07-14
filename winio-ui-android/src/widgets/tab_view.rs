@@ -11,142 +11,27 @@ use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{
-    AView, AViewGroup, BaseWidget, Context, OnLayoutChangeListener, Result, View,
-    ViewGroupLayoutParams, WINDOW_RESIZE_CALLBACK, current_activity, impl_listener, vm_exec,
+    BaseWidget, Result, View, WINDOW_RESIZE_CALLBACK, current_activity, impl_listener,
+    java::{
+        android::{
+            view::{View as AView, ViewOnLayoutChangeListener},
+            widget::{LinearLayout, LinearLayoutLayoutParams},
+        },
+        androidx::ViewPager2,
+        custom::WinioTabViewAdapter,
+        material::{
+            TabLayout, TabLayoutMediator, TabLayoutMediatorTabConfigurationStrategy,
+            TabLayoutOnTabSelectedListener, TabLayoutTab,
+        },
+    },
+    vm_exec,
 };
-
-jni::bind_java_type! {
-    LinearLayout => android.widget.LinearLayout,
-    type_map {
-        AView => android.view.View,
-        AViewGroup => android.view.ViewGroup,
-        Context => android.content.Context,
-    },
-    constructors {
-        fn new(&Context),
-    },
-    methods {
-        fn set_orientation(orient: jint),
-    },
-    is_instance_of = {
-        view = AView,
-        view_group = AViewGroup,
-    }
-}
 
 const VERTICAL: i32 = 1;
 
-jni::bind_java_type! {
-    LinearLayoutLayoutParams => "android.widget.LinearLayout$LayoutParams",
-    type_map {
-        ViewGroupLayoutParams => "android.view.ViewGroup$LayoutParams",
-    },
-    constructors {
-        fn new(width: jint, height: jint),
-        fn with_weight(width: jint, height: jint, weight: jfloat),
-    },
-    is_instance_of = {
-        base = ViewGroupLayoutParams,
-    }
-}
-
-jni::bind_java_type! {
-    TabLayout => com.google.android.material.tabs.TabLayout,
-    type_map {
-        AView => android.view.View,
-        Context => android.content.Context,
-        TabLayoutTab => "com.google.android.material.tabs.TabLayout$Tab",
-        OnTabSelectedListener => "com.google.android.material.tabs.TabLayout$OnTabSelectedListener",
-    },
-    constructors {
-        fn new(&Context),
-    },
-    methods {
-        fn get_selected_tab_position() -> jint,
-        fn get_tab_at(index: jint) -> TabLayoutTab,
-        fn select_tab(tab: &TabLayoutTab),
-        fn add_on_tab_selected_listener(listener: &OnTabSelectedListener),
-    },
-    is_instance_of = {
-        view = AView,
-    }
-}
-
-jni::bind_java_type! {
-    TabLayoutTab => "com.google.android.material.tabs.TabLayout$Tab",
-    methods {
-        fn set_text(text: &JCharSequence) -> TabLayoutTab,
-    },
-}
-
-jni::bind_java_type! {
-    TabLayoutMediator => com.google.android.material.tabs.TabLayoutMediator,
-    type_map {
-        TabLayout => com.google.android.material.tabs.TabLayout,
-        ViewPager2 => androidx.viewpager2.widget.ViewPager2,
-        TabLayoutMediatorTabConfigurationStrategy => "com.google.android.material.tabs.TabLayoutMediator$TabConfigurationStrategy",
-    },
-    constructors {
-        fn new(&TabLayout, &ViewPager2, &TabLayoutMediatorTabConfigurationStrategy),
-    },
-    methods {
-        fn attach(),
-    }
-}
-
-jni::bind_java_type! {
-    TabLayoutMediatorTabConfigurationStrategy => "com.google.android.material.tabs.TabLayoutMediator$TabConfigurationStrategy",
-}
-
 impl_listener!(TabLayoutMediatorTabConfigurationStrategy);
 
-jni::bind_java_type! {
-    ViewPager2 => androidx.viewpager2.widget.ViewPager2,
-    type_map {
-        AView => android.view.View,
-        Context => android.content.Context,
-        RecyclerViewAdapter => "androidx.recyclerview.widget.RecyclerView$Adapter",
-    },
-    constructors {
-        fn new(&Context),
-    },
-    methods {
-        fn set_adapter(adapter: &RecyclerViewAdapter),
-    },
-    is_instance_of = {
-        view = AView,
-    }
-}
-
-jni::bind_java_type! {
-    RecyclerViewAdapter => "androidx.recyclerview.widget.RecyclerView$Adapter",
-}
-
-jni::bind_java_type! {
-    WinioTabViewAdapter => rs.compio.winio.TabViewAdapter,
-    type_map {
-        RecyclerViewAdapter => "androidx.recyclerview.widget.RecyclerView$Adapter",
-    },
-    constructors {
-        fn new(),
-    },
-    methods {
-        fn get_pages() -> JList,
-
-        fn notify_item_inserted(position: jint),
-        fn notify_item_removed(position: jint),
-        fn notify_item_range_removed(start: jint, count: jint),
-    },
-    is_instance_of = {
-        base = RecyclerViewAdapter,
-    }
-}
-
-jni::bind_java_type! {
-    OnTabSelectedListener => "com.google.android.material.tabs.TabLayout$OnTabSelectedListener",
-}
-
-impl_listener!(OnTabSelectedListener);
+impl_listener!(TabLayoutOnTabSelectedListener);
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -181,7 +66,7 @@ impl TabView {
             let select_proxy = DynamicProxy::build(
                 env,
                 &LoaderContext::FromObject(&act),
-                [OnTabSelectedListener::class_name()],
+                [TabLayoutOnTabSelectedListener::class_name()],
                 {
                     let on_select = on_select.clone();
                     move |_env, _method, _args| {
@@ -344,7 +229,7 @@ impl TabViewItem {
             let on_resize_proxy = DynamicProxy::build(
                 env,
                 &LoaderContext::None,
-                [OnLayoutChangeListener::class_name()],
+                [ViewOnLayoutChangeListener::class_name()],
                 {
                     move |env, method, args| {
                         let name = method.get_name(env)?;

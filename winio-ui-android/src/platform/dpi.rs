@@ -2,13 +2,6 @@ use winio_primitive::{Margin, Point, Size};
 
 use crate::{Result, current_activity, vm_exec};
 
-jni::bind_java_type! {
-    pub(crate) DisplayMetrics => android.util.DisplayMetrics,
-    fields {
-        density: float,
-    }
-}
-
 pub(crate) fn display_density() -> Result<f32> {
     vm_exec(|env| {
         let act = current_activity(env)?;

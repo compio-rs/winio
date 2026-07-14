@@ -10,78 +10,16 @@ use jni::{
     refs::Global,
 };
 
-use crate::{Result, current_activity, vm_exec};
-
-jni::bind_java_type! {
-    Context2 => android.content.Context,
-    type_map {
-        ContentResolver => android.content.ContentResolver,
+use crate::{
+    Result, current_activity,
+    java::android::{
+        content::Context2,
+        database::Cursor,
+        net::Uri,
+        provider::{DocumentsContract, DocumentsContractDocument},
     },
-    methods {
-        fn get_content_resolver() -> ContentResolver,
-    }
-}
-
-jni::bind_java_type! {
-    Uri => android.net.Uri,
-    methods {
-        static fn parse(uri: JString) -> Uri,
-        fn to_string() -> JString,
-    }
-}
-
-jni::bind_java_type! {
-    ContentResolver => android.content.ContentResolver,
-    type_map {
-        ParcelFileDescriptor => android.os.ParcelFileDescriptor,
-        Uri => android.net.Uri,
-        Cursor => android.database.Cursor,
-    },
-    methods {
-        fn open_file_descriptor(uri: Uri, mode: JString) -> ParcelFileDescriptor,
-        fn query(uri: Uri, projection: JString[], selection: JString, selection_args: JString[], sort_order: JString) -> Cursor,
-    }
-}
-
-jni::bind_java_type! {
-    ParcelFileDescriptor => android.os.ParcelFileDescriptor,
-    methods {
-        fn get_fd() -> jint,
-    }
-}
-
-jni::bind_java_type! {
-    DocumentsContract => android.provider.DocumentsContract,
-    type_map {
-        Uri => android.net.Uri,
-    },
-    methods {
-        static fn get_tree_document_id(uri: Uri) -> JString,
-        static fn build_child_documents_uri_using_tree(tree_uri: Uri, document_id: JString) -> Uri,
-        static fn build_document_uri_using_tree(tree_uri: Uri, document_id: JString) -> Uri,
-    }
-}
-
-jni::bind_java_type! {
-    DocumentsContractDocument => "android.provider.DocumentsContract$Document",
-    fields {
-        #[allow(non_snake_case)]
-        static COLUMN_DOCUMENT_ID: JString,
-        #[allow(non_snake_case)]
-        static COLUMN_DISPLAY_NAME: JString,
-        #[allow(non_snake_case)]
-        static COLUMN_MIME_TYPE: JString,
-    }
-}
-
-jni::bind_java_type! {
-    Cursor => android.database.Cursor,
-    methods {
-        fn move_to_next() -> bool,
-        fn get_string(column_index: jint) -> JString,
-        fn get_column_index(column_name: JString) -> jint,
-    }
-}
+    vm_exec,
+};
 
 fn open_uri_with_mode(uri: &Path, mode: &str) -> Result<File> {
     vm_exec(|env| {

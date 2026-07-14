@@ -16,152 +16,25 @@ use winio_primitive::{
     RadialGradientBrush, Rect, RelativeToLogical, Size, SolidColorBrush, Transform, VAlign, Vector,
 };
 
-use crate::{AView, BaseWidget, Context, OnTouchListener, Result, current_activity, vm_exec};
-
-jni::bind_java_type! {
-    PaintStyle => "android.graphics.Paint$Style",
-    fields {
-        #[allow(non_snake_case)]
-        static FILL: PaintStyle,
-        #[allow(non_snake_case)]
-        static STROKE: PaintStyle,
+use crate::{
+    BaseWidget, Result, current_activity,
+    java::android::{
+        graphics::{
+            Bitmap, BitmapConfig, Canvas as ACanvas, LinearGradient, Matrix as AMatrix, Paint,
+            PaintStyle, Path, Picture, PictureDrawable, RadialGradient, Rect as ARect,
+            ShaderTileMode, Typeface,
+        },
+        text::{StaticLayout, StaticLayoutBuilder, TextPaint},
+        view::{MotionEvent, View as AView, ViewOnTouchListener},
+        widget::ImageView,
     },
-}
-
-jni::bind_java_type! {
-    Shader => android.graphics.Shader,
-}
-
-jni::bind_java_type! {
-    TileMode => "android.graphics.Shader$TileMode",
-    fields {
-        #[allow(non_snake_case)]
-        static CLAMP: TileMode,
-    }
-}
-
-jni::bind_java_type! {
-    LinearGradient => android.graphics.LinearGradient,
-    is_instance_of = {
-        base: Shader,
-    },
-    type_map {
-        Shader => android.graphics.Shader,
-        TileMode => "android.graphics.Shader$TileMode",
-    },
-    constructors {
-        #[allow(clippy::too_many_arguments)]
-        fn new(
-            x0: jfloat,
-            y0: jfloat,
-            x1: jfloat,
-            y1: jfloat,
-            colors: &[jint],
-            positions: &[jfloat],
-            mode: &TileMode,
-        ),
-    },
-}
-
-jni::bind_java_type! {
-    RadialGradient => android.graphics.RadialGradient,
-    is_instance_of = {
-        base: Shader,
-    },
-    type_map {
-        Shader => android.graphics.Shader,
-        TileMode => "android.graphics.Shader$TileMode",
-    },
-    constructors {
-        fn new(
-            cx: jfloat,
-            cy: jfloat,
-            radius: jfloat,
-            colors: &[jint],
-            positions: &[jfloat],
-            mode: &TileMode,
-        ),
-    },
-}
-
-jni::bind_java_type! {
-    pub Paint => android.graphics.Paint,
-    type_map {
-        PaintStyle => "android.graphics.Paint$Style",
-        Shader => android.graphics.Shader,
-        Typeface => android.graphics.Typeface,
-    },
-    constructors {
-        fn new(),
-    },
-    methods {
-        fn set_a_r_g_b(a: jint, r: jint, g: jint, b: jint),
-        fn set_style(style: &PaintStyle),
-        fn set_shader(shader: &Shader) -> Shader,
-        fn set_stroke_width(width: jfloat),
-        fn set_text_size(size: jfloat),
-        fn set_typeface(typeface: &Typeface) -> Typeface,
-    },
-}
+    vm_exec,
+};
 
 mod typeface {
     pub const NORMAL: i32 = 0x0;
     pub const BOLD: i32 = 0x1;
     pub const ITALIC: i32 = 0x2;
-}
-
-jni::bind_java_type! {
-    Typeface => android.graphics.Typeface,
-    methods {
-        static fn create(family: JString, style: jint) -> Typeface,
-    }
-}
-
-jni::bind_java_type! {
-    TextPaint => android.text.TextPaint,
-    type_map {
-        Paint => android.graphics.Paint,
-    },
-    constructors {
-        fn new(),
-        fn with_paint(paint: &Paint),
-    },
-    is_instance_of = {
-        base: Paint,
-    },
-}
-
-jni::bind_java_type! {
-    StaticLayout => android.text.StaticLayout,
-    type_map {
-        ACanvas => android.graphics.Canvas,
-    },
-    methods {
-        // fn get_width() -> jint,
-        fn get_height() -> jint,
-        fn get_line_count() -> jint,
-        fn get_line_right(line: jint) -> jfloat,
-
-        fn draw(canvas: &ACanvas),
-    },
-}
-
-jni::bind_java_type! {
-    StaticLayoutBuilder => "android.text.StaticLayout$Builder",
-    type_map {
-        StaticLayout => android.text.StaticLayout,
-        TextPaint => android.text.TextPaint,
-    },
-    methods {
-        static fn obtain(
-            source: JCharSequence,
-            start: jint,
-            end: jint,
-            paint: &TextPaint,
-            width: jint,
-        ) -> StaticLayoutBuilder,
-        fn build() -> StaticLayout,
-    },
 }
 
 /// Drawing brush.
@@ -235,7 +108,7 @@ impl Brush for LinearGradientBrush {
         let style = PaintStyle::FILL(env)?;
         paint.set_style(env, &style)?;
         let (jcolors, jpositions) = colors_stops(env, &self.stops)?;
-        let mode = TileMode::CLAMP(env)?;
+        let mode = ShaderTileMode::CLAMP(env)?;
         let start = rect.transform_point(self.start);
         let end = rect.transform_point(self.end);
         let gradient = LinearGradient::new(
@@ -263,7 +136,7 @@ impl Brush for RadialGradientBrush {
         let style = PaintStyle::FILL(env)?;
         paint.set_style(env, &style)?;
         let (jcolors, jpositions) = colors_stops(env, &self.stops)?;
-        let mode = TileMode::CLAMP(env)?;
+        let mode = ShaderTileMode::CLAMP(env)?;
         let center = rect.transform_point(self.center);
         let radius = rect.transform_vector(self.radius.to_vector());
         let gradient = RadialGradient::new(
@@ -313,26 +186,6 @@ impl<B: Brush> Pen for BrushPen<B> {
     }
 }
 
-jni::bind_java_type! {
-    BitmapConfig => "android.graphics.Bitmap$Config",
-    fields {
-        #[allow(non_snake_case)]
-        static ARGB_8888: BitmapConfig,
-    }
-}
-
-jni::bind_java_type! {
-    Bitmap => android.graphics.Bitmap,
-    type_map {
-        BitmapConfig => "android.graphics.Bitmap$Config",
-    },
-    methods {
-        fn get_width() -> jint,
-        fn get_height() -> jint,
-        static fn create_bitmap(colors: &[jint], width: jint, height: jint, config: &BitmapConfig) -> Bitmap,
-    },
-}
-
 #[derive(Debug)]
 pub struct DrawingImage {
     bitmap: Global<Bitmap<'static>>,
@@ -368,88 +221,6 @@ impl DrawingImage {
             Ok(Size::new(width, height))
         })
     }
-}
-
-jni::bind_java_type! {
-    pub(crate) ARect => android.graphics.Rect,
-    constructors {
-        fn new(left: jint, top: jint, right: jint, bottom: jint),
-    },
-    fields {
-        left: jint,
-        top: jint,
-        right: jint,
-        bottom: jint,
-    },
-}
-
-jni::bind_java_type! {
-    AMatrix => android.graphics.Matrix,
-    constructors {
-        fn new(),
-    },
-    methods {
-        fn set_values(values: jfloat[]),
-        fn get_values(values: jfloat[]),
-    }
-}
-
-jni::bind_java_type! {
-    ACanvas => android.graphics.Canvas,
-    type_map {
-        AMatrix => android.graphics.Matrix,
-        ARect => android.graphics.Rect,
-        Bitmap => android.graphics.Bitmap,
-        Paint => android.graphics.Paint,
-        Path => android.graphics.Path,
-    },
-    methods {
-        fn clip_rect(left: jfloat, top: jfloat, right: jfloat, bottom: jfloat) -> bool,
-        #[allow(clippy::too_many_arguments)]
-        fn draw_arc(left: jfloat, top: jfloat, right: jfloat, bottom: jfloat, start_angle: jfloat, sweep_angle: jfloat, use_center: bool, paint: &Paint),
-        fn draw_bitmap(bitmap: &Bitmap, src: &ARect, dest: &ARect, paint: &Paint),
-        fn draw_line(start_x: jfloat, start_y: jfloat, end_x: jfloat, end_y: jfloat, paint: &Paint),
-        fn draw_oval(left: jfloat, top: jfloat, right: jfloat, bottom: jfloat, paint: &Paint),
-        fn draw_path(path: &Path, paint: &Paint),
-        fn draw_rect(left: jfloat, top: jfloat, right: jfloat, bottom: jfloat, paint: &Paint),
-        #[allow(clippy::too_many_arguments)]
-        fn draw_round_rect(left: jfloat, top: jfloat, right: jfloat, bottom: jfloat, rx: jfloat, ry: jfloat, paint: &Paint),
-        fn get_matrix() -> AMatrix,
-        fn set_matrix(matrix: &AMatrix),
-        fn translate(dx: jfloat, dy: jfloat),
-    }
-}
-
-jni::bind_java_type! {
-    Picture => android.graphics.Picture,
-    type_map {
-        ACanvas => android.graphics.Canvas,
-    },
-    constructors {
-        fn new(),
-    },
-    methods {
-        fn begin_recording(width: jint, height: jint) -> ACanvas,
-        fn end_recording(),
-    },
-}
-
-jni::bind_java_type! {
-    Drawable => android.graphics.drawable.Drawable,
-}
-
-jni::bind_java_type! {
-    PictureDrawable => android.graphics.drawable.PictureDrawable,
-    type_map {
-        Drawable => android.graphics.drawable.Drawable,
-        Picture => android.graphics.Picture,
-    },
-    constructors {
-        fn new(picture: &Picture),
-    },
-    is_instance_of = {
-        base: Drawable,
-    },
 }
 
 pub struct DrawingContext<'a> {
@@ -864,22 +635,6 @@ impl<'a> DrawingContext<'a> {
     }
 }
 
-jni::bind_java_type! {
-    Path => android.graphics.Path,
-    constructors {
-        fn new(),
-    },
-    methods {
-        #[allow(clippy::too_many_arguments)]
-        fn arc_to(left: jfloat, top: jfloat, right: jfloat, bottom: jfloat, start_angle: jfloat, sweep_angle: jfloat, force_move_to: bool),
-        fn close(),
-        #[allow(clippy::too_many_arguments)]
-        fn cubic_to(x1: jfloat, y1: jfloat, x2: jfloat, y2: jfloat, x3: jfloat, y3: jfloat),
-        fn line_to(x: jfloat, y: jfloat),
-        fn move_to(x: jfloat, y: jfloat),
-    }
-}
-
 const fn to_degree(radian: f32) -> f32 {
     radian * 180.0 / std::f32::consts::PI
 }
@@ -967,35 +722,6 @@ impl DrawingPathBuilder {
     }
 }
 
-jni::bind_java_type! {
-    ImageView => android.widget.ImageView,
-    type_map {
-        AView => android.view.View,
-        Context => android.content.Context,
-        Drawable => android.graphics.drawable.Drawable,
-    },
-    constructors {
-        fn new(context: &Context),
-    },
-    methods {
-        fn set_image_drawable(drawable: &Drawable),
-    },
-    is_instance_of = {
-        base: AView,
-    },
-}
-
-jni::bind_java_type! {
-    MotionEvent => android.view.MotionEvent,
-    methods {
-        fn get_action() -> jint,
-        fn get_action_button() -> jint,
-        fn get_x() -> jfloat,
-        fn get_y() -> jfloat,
-        fn get_axis_value(axis: jint) -> jfloat,
-    },
-}
-
 #[derive(Debug)]
 pub struct Canvas {
     inner: BaseWidget<ImageView<'static>>,
@@ -1019,7 +745,7 @@ pub(crate) fn view_touch_proxy(
     let touch_proxy = DynamicProxy::build(
         env,
         &LoaderContext::None,
-        [OnTouchListener::class_name()],
+        [ViewOnTouchListener::class_name()],
         move |env, _method, args| {
             const ACTION_DOWN: i32 = 0x0;
             const ACTION_UP: i32 = 0x1;

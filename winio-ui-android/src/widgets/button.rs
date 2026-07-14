@@ -12,107 +12,18 @@ use winio_handle::{AsContainer, AsWidget, BorrowedWidget, impl_as_widget};
 use winio_primitive::{Point, Size};
 
 use crate::{
-    ATextView, AView, BaseWidget, Context, JCharSequenceExt, Result, current_activity,
-    impl_listener, vm_exec,
+    BaseWidget, JCharSequenceExt, Result, current_activity, impl_listener,
+    java::{
+        android::{
+            view::{View as AView, ViewOnClickListener},
+            widget::{Button as AButton, CompoundButton as ACompoundButton, TextView as ATextView},
+        },
+        material::{CheckBox as ACheckBox, MaterialButton, RadioButton as ARadioButton},
+    },
+    vm_exec,
 };
 
-jni::bind_java_type! {
-    AButton => android.widget.Button,
-    type_map {
-        AView => android.view.View,
-        ATextView => android.widget.TextView,
-        Context => android.content.Context,
-        OnClickListener => "android.view.View$OnClickListener"
-    },
-    constructors {
-        fn new(context: &Context),
-    },
-    methods {
-        fn set_on_click_listener(listener: &OnClickListener),
-    },
-    is_instance_of = {
-        view = AView,
-        text_view = ATextView,
-    }
-}
-
-jni::bind_java_type! {
-    MaterialButton => com.google.android.material.button.MaterialButton,
-    type_map {
-        AButton => android.widget.Button,
-        AView => android.view.View,
-        ATextView => android.widget.TextView,
-        Context => android.content.Context,
-    },
-    constructors {
-        fn new(context: &Context),
-    },
-    is_instance_of = {
-        button = AButton,
-        view = AView,
-        text_view = ATextView,
-    }
-}
-
-jni::bind_java_type! {
-    ACompoundButton => android.widget.CompoundButton,
-    type_map {
-        AButton => android.widget.Button,
-    },
-    methods {
-        fn is_checked() -> jboolean,
-        fn set_checked(checked: jboolean),
-    },
-    is_instance_of = {
-        button = AButton,
-    }
-}
-
-jni::bind_java_type! {
-    ACheckBox => com.google.android.material.checkbox.MaterialCheckBox,
-    type_map {
-        AButton => android.widget.Button,
-        ACompoundButton => android.widget.CompoundButton,
-        AView => android.view.View,
-        ATextView => android.widget.TextView,
-        Context => android.content.Context,
-    },
-    constructors {
-        fn new(context: &Context),
-    },
-    is_instance_of = {
-        button = AButton,
-        compound_button = ACompoundButton,
-        view = AView,
-        text_view = ATextView,
-    }
-}
-
-jni::bind_java_type! {
-    ARadioButton => com.google.android.material.radiobutton.MaterialRadioButton,
-    type_map {
-        AButton => android.widget.Button,
-        ACompoundButton => android.widget.CompoundButton,
-        AView => android.view.View,
-        ATextView => android.widget.TextView,
-        Context => android.content.Context,
-    },
-    constructors {
-        fn new(context: &Context),
-    },
-    is_instance_of = {
-        button = AButton,
-        compound_button = ACompoundButton,
-        view = AView,
-        text_view = ATextView,
-    }
-}
-
-jni::bind_java_type! {
-    OnClickListener => "android.view.View$OnClickListener",
-}
-
-impl_listener!(OnClickListener);
+impl_listener!(ViewOnClickListener);
 
 #[derive(Debug)]
 struct ButtonImpl<T>
@@ -152,7 +63,7 @@ where
         let click_proxy = DynamicProxy::build(
             env,
             &LoaderContext::None,
-            [OnClickListener::class_name()],
+            [ViewOnClickListener::class_name()],
             {
                 let on_click = on_click.clone();
                 move |_env, _method, _args| {

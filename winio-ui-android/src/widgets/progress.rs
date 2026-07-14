@@ -2,31 +2,9 @@ use inherit_methods_macro::inherit_methods;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Point, Size};
 
-use crate::{AView, BaseWidget, Context, Result, current_activity, vm_exec};
-
-jni::bind_java_type! {
-    AProgressBar => com.google.android.material.progressindicator.LinearProgressIndicator,
-    type_map {
-        AView => android.view.View,
-        Context => android.content.Context,
-    },
-    constructors {
-        fn new(&Context),
-    },
-    methods {
-        fn get_min() -> jint,
-        fn set_min(min: jint),
-        fn get_max() -> jint,
-        fn set_max(max: jint),
-        fn get_progress() -> jint,
-        fn set_progress(progress: jint),
-        fn is_indeterminate() -> jboolean,
-        fn set_indeterminate(indeterminate: jboolean),
-    },
-    is_instance_of = {
-        view = AView,
-    }
-}
+use crate::{
+    BaseWidget, Result, current_activity, java::material::ProgressBar as AProgressBar, vm_exec,
+};
 
 #[derive(Debug)]
 pub struct Progress {

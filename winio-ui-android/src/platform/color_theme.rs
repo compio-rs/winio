@@ -1,44 +1,9 @@
 use winio_primitive::{Color, ColorTheme};
 
-use crate::{DisplayMetrics, Result, current_activity, vm_exec};
-
-jni::bind_java_type! {
-    pub(crate) Resources => android.content.res.Resources,
-    type_map {
-        Configuration => android.content.res.Configuration,
-        DisplayMetrics => android.util.DisplayMetrics,
-        ResourcesTheme => "android.content.res.Resources$Theme",
-    },
-    methods {
-        fn get_configuration() -> Configuration,
-        fn get_display_metrics() -> DisplayMetrics,
-        fn get_color(id: jint, theme: &ResourcesTheme) -> jint,
-    },
-}
-
-jni::bind_java_type! {
-    Configuration => android.content.res.Configuration,
-    fields {
-        pub ui_mode: jint,
-    },
-}
-
-jni::bind_java_type! {
-    pub(crate) ResourcesTheme => "android.content.res.Resources$Theme",
-}
+use crate::{Result, current_activity, java::android::r::RColor, vm_exec};
 
 const UI_MODE_NIGHT_MASK: i32 = 0x30;
 const UI_MODE_NIGHT_YES: i32 = 0x20;
-
-jni::bind_java_type! {
-    RColor => "android.R$color",
-    fields {
-        static system_accent1_500 {
-            sig = jint,
-            name = "system_accent1_500",
-        },
-    }
-}
 
 pub fn color_theme() -> Result<ColorTheme> {
     vm_exec(|env| {

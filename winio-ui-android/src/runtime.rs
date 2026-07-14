@@ -13,7 +13,10 @@ use jni::{Env, objects::JObject, refs::Global, vm::JavaVM};
 use ndk_sys::{ALooper, ALooper_acquire, ALooper_forThread, ALooper_release, ALooper_wake};
 use winio_pollable::MainTask;
 
-use crate::{AView, Error, Resources, ResourcesTheme, Result};
+use crate::{
+    Error, Result,
+    java::custom::{Activity, ActivityAPI, ActivityNativeInterface},
+};
 
 pub struct App {
     app: AndroidApp,
@@ -128,35 +131,6 @@ where
 {
     let vm = JavaVM::singleton()?;
     vm.attach_current_thread::<_, R, E>(f)
-}
-
-jni::bind_java_type! {
-    pub(crate) Context => android.content.Context,
-    type_map {
-        Resources => android.content.res.Resources,
-        ResourcesTheme => "android.content.res.Resources$Theme",
-    },
-    methods {
-        fn get_resources() -> Resources,
-        fn get_theme() -> ResourcesTheme,
-    }
-}
-
-jni::bind_java_type! {
-    pub(crate) Activity => rs.compio.winio.Activity,
-    type_map {
-        AView => android.view.View,
-        Context => android.content.Context,
-    },
-    methods {
-        fn set_content_view(view: &AView),
-    },
-    native_methods {
-        extern fn on_create_native(),
-    },
-    is_instance_of = {
-        context = Context,
-    }
 }
 
 pub(crate) fn current_activity<'local>(env: &mut Env<'local>) -> Result<Activity<'local>> {

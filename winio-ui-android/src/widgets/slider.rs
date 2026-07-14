@@ -10,37 +10,11 @@ use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Orient, Point, Size, TickPosition};
 
-use crate::{AView, BaseWidget, Context, Result, current_activity, impl_listener, vm_exec};
-
-jni::bind_java_type! {
-    ASlider => com.google.android.material.slider.Slider,
-    type_map {
-        AView => android.view.View,
-        Context => android.content.Context,
-        BaseOnChangeListener => com.google.android.material.slider.BaseOnChangeListener
-    },
-    constructors {
-        fn new(&Context),
-    },
-    methods {
-        fn get_value_from() -> jfloat,
-        fn set_value_from(from: jfloat),
-        fn get_value_to() -> jfloat,
-        fn set_value_to(to: jfloat),
-        fn get_value() -> jfloat,
-        fn set_value(value: jfloat),
-
-        fn get_tick_visibility_mode() -> jint,
-        fn set_tick_visibility_mode(mode: jint),
-        fn set_orientation(orient: jint),
-        fn is_vertical() -> jboolean,
-
-        fn add_on_change_listener(listener: &BaseOnChangeListener),
-    },
-    is_instance_of = {
-        view = AView,
-    }
-}
+use crate::{
+    BaseWidget, Result, current_activity, impl_listener,
+    java::material::{BaseOnChangeListener, Slider as ASlider, SliderOnChangeListener},
+    vm_exec,
+};
 
 const TICK_VISIBILITY_AUTO_LIMIT: i32 = 0;
 const TICK_VISIBILITY_HIDDEN: i32 = 2;
@@ -48,23 +22,9 @@ const TICK_VISIBILITY_HIDDEN: i32 = 2;
 const HORIZONTAL: i32 = 0;
 const VERTICAL: i32 = 1;
 
-jni::bind_java_type! {
-    BaseOnChangeListener => com.google.android.material.slider.BaseOnChangeListener,
-}
-
 impl_listener!(BaseOnChangeListener);
 
-jni::bind_java_type! {
-    OnChangeListener => "com.google.android.material.slider.Slider$OnChangeListener",
-    type_map {
-        BaseOnChangeListener => com.google.android.material.slider.BaseOnChangeListener
-    },
-    is_instance_of = {
-        base = BaseOnChangeListener,
-    }
-}
-
-impl_listener!(OnChangeListener);
+impl_listener!(SliderOnChangeListener);
 
 #[derive(Debug)]
 pub struct Slider {
@@ -85,7 +45,7 @@ impl Slider {
             let change_proxy = DynamicProxy::build(
                 env,
                 &LoaderContext::FromObject(&act),
-                [OnChangeListener::class_name()],
+                [SliderOnChangeListener::class_name()],
                 {
                     let on_change = on_change.clone();
                     move |_env, _this, _args| {

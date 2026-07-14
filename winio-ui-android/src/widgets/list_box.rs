@@ -12,66 +12,21 @@ use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Point, Size};
 
 use crate::{
-    AView, ArrayAdapter, ArrayList, BaseWidget, Context, Result, current_activity, impl_listener,
+    BaseWidget, Result, current_activity, impl_listener,
+    java::{
+        android::{
+            r::Layout,
+            widget::{AdapterViewOnItemClickListener, ArrayAdapter, ListView as AListView},
+        },
+        util::ArrayList,
+    },
     vm_exec,
 };
-
-jni::bind_java_type! {
-    Layout => "android.R$layout",
-    fields {
-        static simple_list_item_activated_1 {
-            sig = jint,
-            name = "simple_list_item_activated_1",
-        },
-    }
-}
-
-jni::bind_java_type! {
-    AListView => android.widget.ListView,
-    type_map {
-        AView => android.view.View,
-        Context => android.content.Context,
-        ListAdapter => android.widget.ListAdapter,
-        SparseBooleanArray => android.util.SparseBooleanArray,
-        OnItemClickListener => "android.widget.AdapterView$OnItemClickListener",
-    },
-    constructors {
-        fn new(&Context),
-    },
-    methods {
-        fn get_choice_mode() -> jint,
-        fn set_choice_mode(mode: jint),
-        fn set_adapter(adapter: &ListAdapter),
-        fn set_item_checked(position: jint, value: jboolean),
-        fn get_checked_item_positions() -> SparseBooleanArray,
-        fn set_on_item_click_listener(listener: &OnItemClickListener),
-    },
-    is_instance_of = {
-        view = AView,
-    }
-}
 
 const CHOICE_MODE_MULTIPLE: i32 = 2;
 const CHOICE_MODE_SINGLE: i32 = 1;
 
-jni::bind_java_type! {
-    pub(crate) ListAdapter => android.widget.ListAdapter,
-}
-
-jni::bind_java_type! {
-    SparseBooleanArray => android.util.SparseBooleanArray,
-    methods {
-        fn size() -> jint,
-        fn key_at(index: jint) -> jint,
-        fn value_at(index: jint) -> bool,
-    }
-}
-
-jni::bind_java_type! {
-    OnItemClickListener => "android.widget.AdapterView$OnItemClickListener",
-}
-
-impl_listener!(OnItemClickListener);
+impl_listener!(AdapterViewOnItemClickListener);
 
 #[derive(Debug)]
 pub struct ListBox {
@@ -93,7 +48,7 @@ impl ListBox {
             let select_proxy = DynamicProxy::build(
                 env,
                 &jni::refs::LoaderContext::None,
-                [OnItemClickListener::class_name()],
+                [AdapterViewOnItemClickListener::class_name()],
                 {
                     let on_select = on_select.clone();
                     move |_env, _method, _args| {

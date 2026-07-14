@@ -3,40 +3,12 @@ use winio_handle::{AsContainer, AsWidget, BorrowedWidget};
 use winio_primitive::{Point, Size};
 
 use crate::{
-    AView, AViewGroup, BaseWidget, Context, FrameLayout, Result, current_activity, vm_exec,
+    BaseWidget, Result, current_activity,
+    java::android::widget::{
+        FrameLayout, HorizontalScrollView as AHorizontalScrollView, ScrollView as AScrollView,
+    },
+    vm_exec,
 };
-
-jni::bind_java_type! {
-    AScrollView => android.widget.ScrollView,
-    type_map {
-        AView => android.view.View,
-        Context => android.content.Context,
-        AViewGroup => android.view.ViewGroup,
-    },
-    constructors {
-        fn new(&Context),
-    },
-    is_instance_of = {
-        view = AView,
-        view_group = AViewGroup,
-    }
-}
-
-jni::bind_java_type! {
-    AHorizontalScrollView => android.widget.HorizontalScrollView,
-    type_map {
-        AView => android.view.View,
-        Context => android.content.Context,
-        AViewGroup => android.view.ViewGroup,
-    },
-    constructors {
-        fn new(&Context),
-    },
-    is_instance_of = {
-        view = AView,
-        view_group = AViewGroup,
-    }
-}
 
 #[derive(Debug)]
 pub struct ScrollView {

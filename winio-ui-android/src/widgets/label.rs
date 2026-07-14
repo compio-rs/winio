@@ -3,31 +3,9 @@ use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
-    AView, BaseWidget, Context, JCharSequenceExt, MovementMethod, Result, current_activity,
-    gravity, vm_exec,
+    BaseWidget, JCharSequenceExt, Result, current_activity, gravity,
+    java::android::widget::TextView as ATextView, vm_exec,
 };
-
-jni::bind_java_type! {
-    pub(crate) ATextView => android.widget.TextView,
-    type_map {
-        AView => android.view.View,
-        Context => android.content.Context,
-        MovementMethod => android.text.method.MovementMethod,
-    },
-    constructors {
-        fn new(&Context),
-    },
-    methods {
-        fn get_text() -> JCharSequence,
-        fn set_text(text: &JCharSequence),
-        fn get_gravity() -> jint,
-        fn set_gravity(gravity: jint),
-        fn set_movement_method(method: &MovementMethod),
-    },
-    is_instance_of = {
-        view = AView,
-    }
-}
 
 #[derive(Debug)]
 pub struct Label {

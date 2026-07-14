@@ -5,95 +5,14 @@ use jni::refs::Global;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{AView, BaseWidget, Context, FrameLayout, Result, current_activity, vm_exec};
-
-jni::bind_java_type! {
-    PlayerView => androidx.media3.ui.PlayerView,
-    type_map {
-        AView => android.view.View,
-        Context => android.content.Context,
-        FrameLayout => android.widget.FrameLayout,
-        Player => androidx.media3.common.Player,
-    },
-    constructors {
-        fn new(context: &Context),
-    },
-    methods {
-        fn set_use_controller(v: bool),
-        fn set_player(player: &Player),
-    },
-    is_instance_of = {
-        view = AView,
-        frame_layout = FrameLayout,
-    }
-}
-
-jni::bind_java_type! {
-    Player => androidx.media3.common.Player,
-    type_map {
-        MediaItem => androidx.media3.common.MediaItem,
-        PlaybackParameters => androidx.media3.common.PlaybackParameters,
-    },
-    methods {
-        fn play(),
-        fn pause(),
-        fn get_duration() -> jlong,
-        fn get_current_position() -> jlong,
-        fn seek_to(pos: jlong),
-        fn get_volume() -> jfloat,
-        fn set_volume(v: jfloat),
-        fn is_playing() -> jboolean,
-        fn set_playback_speed(v: jfloat),
-        fn get_playback_parameters() -> PlaybackParameters,
-        fn mute(),
-        fn unmute(),
-        fn prepare(),
-        fn set_media_item(item: &MediaItem),
-        fn set_repeat_mode(mode: jint),
-        fn get_repeat_mode() -> jint,
-    },
-}
+use crate::{
+    BaseWidget, Result, current_activity,
+    java::androidx::{ExoPlayer, ExoPlayerBuilder, MediaItem, PlayerView},
+    vm_exec,
+};
 
 const REPEAT_MODE_OFF: i32 = 0;
 const REPEAT_MODE_ONE: i32 = 1;
-
-jni::bind_java_type! {
-    ExoPlayer => androidx.media3.exoplayer.ExoPlayer,
-    type_map {
-        Player => androidx.media3.common.Player,
-    },
-    is_instance_of = {
-        player = Player,
-    }
-}
-
-jni::bind_java_type! {
-    ExoPlayerBuilder => "androidx.media3.exoplayer.ExoPlayer$Builder",
-    type_map {
-        Context => android.content.Context,
-        ExoPlayer => androidx.media3.exoplayer.ExoPlayer,
-    },
-    constructors {
-        fn new(context: &Context),
-    },
-    methods {
-        fn build() -> ExoPlayer,
-    },
-}
-
-jni::bind_java_type! {
-    MediaItem => androidx.media3.common.MediaItem,
-    methods {
-        static fn from_uri(uri: &JString) -> MediaItem,
-    }
-}
-
-jni::bind_java_type! {
-    PlaybackParameters => androidx.media3.common.PlaybackParameters,
-    fields {
-        speed: jfloat,
-    }
-}
 
 #[derive(Debug)]
 pub struct Media {

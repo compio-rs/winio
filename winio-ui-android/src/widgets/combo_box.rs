@@ -12,84 +12,18 @@ use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{Point, Size};
 
 use crate::{
-    AView, BaseWidget, Context, ListAdapter, Result, current_activity, impl_listener, vm_exec,
+    BaseWidget, Result, current_activity, impl_listener,
+    java::{
+        android::{
+            r::Layout,
+            widget::{AdapterViewOnItemSelectedListener, ArrayAdapter, Spinner as ASpinner},
+        },
+        util::ArrayList,
+    },
+    vm_exec,
 };
 
-jni::bind_java_type! {
-    Layout => "android.R$layout",
-    fields {
-        static simple_spinner_item {
-            sig = jint,
-            name = "simple_spinner_item",
-        },
-        static simple_spinner_dropdown_item {
-            sig = jint,
-            name = "simple_spinner_dropdown_item",
-        },
-    }
-}
-
-jni::bind_java_type! {
-    ASpinner => android.widget.Spinner,
-    type_map {
-        AView => android.view.View,
-        Context => android.content.Context,
-        SpinnerAdapter => android.widget.SpinnerAdapter,
-        OnItemSelectedListener => "android.widget.AdapterView$OnItemSelectedListener",
-    },
-    constructors {
-        fn new(&Context),
-    },
-    methods {
-        fn get_selected_item_position() -> jint,
-        fn set_selection(position: jint),
-        fn set_adapter(adapter: &SpinnerAdapter),
-        fn set_on_item_selected_listener(listener: &OnItemSelectedListener),
-    },
-    is_instance_of = {
-        view = AView,
-    }
-}
-
-jni::bind_java_type! {
-    pub(crate) ArrayList => java.util.ArrayList,
-    constructors {
-        fn new(),
-    },
-    is_instance_of = {
-        list = JList,
-    },
-}
-
-jni::bind_java_type! {
-    pub(crate) ArrayAdapter => android.widget.ArrayAdapter,
-    type_map {
-        Context => android.content.Context,
-        SpinnerAdapter => android.widget.SpinnerAdapter,
-        ListAdapter => android.widget.ListAdapter,
-    },
-    constructors {
-        fn new(context: &Context, resource: jint, objects: &JList),
-    },
-    methods {
-        fn set_drop_down_view_resource(resource: jint),
-        fn notify_data_set_changed(),
-    },
-    is_instance_of = {
-        spinner_adapter = SpinnerAdapter,
-        list_adapter = ListAdapter,
-    }
-}
-
-jni::bind_java_type! {
-    pub(crate) SpinnerAdapter => android.widget.SpinnerAdapter,
-}
-
-jni::bind_java_type! {
-    OnItemSelectedListener => "android.widget.AdapterView$OnItemSelectedListener",
-}
-
-impl_listener!(OnItemSelectedListener);
+impl_listener!(AdapterViewOnItemSelectedListener);
 
 #[derive(Debug)]
 pub struct ComboBox {
@@ -111,7 +45,7 @@ impl ComboBox {
             let select_proxy = DynamicProxy::build(
                 env,
                 &jni::refs::LoaderContext::None,
-                [OnItemSelectedListener::class_name()],
+                [AdapterViewOnItemSelectedListener::class_name()],
                 {
                     let on_select = on_select.clone();
                     move |env, method, _args| {

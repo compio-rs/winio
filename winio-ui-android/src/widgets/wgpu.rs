@@ -15,42 +15,9 @@ use winio_handle::AsContainer;
 use winio_primitive::{MouseButton, Point, Size, Vector};
 
 use crate::{
-    ARect, AView, BaseWidget, Context, Result, current_activity, view_touch_proxy, vm_exec,
+    BaseWidget, Result, current_activity, java::android::view::SurfaceView, view_touch_proxy,
+    vm_exec,
 };
-
-jni::bind_java_type! {
-    SurfaceView => android.view.SurfaceView,
-    type_map {
-        AView => android.view.View,
-        Context => android.content.Context,
-        SurfaceHolder => android.view.SurfaceHolder,
-    },
-    constructors {
-        fn new(context: &Context),
-    },
-    methods {
-        fn get_holder() -> SurfaceHolder,
-    },
-    is_instance_of = {
-        view = AView,
-    }
-}
-
-jni::bind_java_type! {
-    SurfaceHolder => android.view.SurfaceHolder,
-    type_map {
-        ASurface => android.view.Surface,
-        ARect => android.graphics.Rect,
-    },
-    methods {
-        fn get_surface() -> ASurface,
-        fn get_surface_frame() -> ARect,
-    }
-}
-
-jni::bind_java_type! {
-    ASurface => android.view.Surface,
-}
 
 #[derive(Debug)]
 pub struct WgpuCanvas {

@@ -13,97 +13,18 @@ use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{
-    AView, BaseWidget, Context, JRunnable, Result, current_activity, impl_listener, vm_exec,
+    BaseWidget, Result, current_activity, impl_listener,
+    java::{
+        android::webkit::{
+            CookieManager, ValueCallback, WebChromeClient as AWebChromeClient, WebView as AWebView,
+        },
+        custom::WinioWebViewClient,
+        lang::JRunnable,
+    },
+    vm_exec,
 };
 
-jni::bind_java_type! {
-    AWebView => android.webkit.WebView,
-    type_map {
-        AView => android.view.View,
-        AWebViewClient => android.webkit.WebViewClient,
-        AWebSettings => android.webkit.WebSettings,
-        AWebChromeClient => android.webkit.WebChromeClient,
-        Context => android.content.Context,
-        ValueCallback => android.webkit.ValueCallback,
-    },
-    constructors {
-        fn new(context: &Context),
-    },
-    methods {
-        fn get_url() -> JString,
-        fn load_url(url: &JString),
-        fn load_data(data: &JString, mime: &JString, encoding: &JString),
-        fn can_go_forward() -> jboolean,
-        fn go_forward(),
-        fn can_go_back() -> jboolean,
-        fn go_back(),
-        fn reload(),
-        fn stop_loading(),
-        fn set_web_view_client(client: &AWebViewClient),
-        fn get_settings() -> AWebSettings,
-        fn set_web_chrome_client(client: &AWebChromeClient),
-        fn evaluate_javascript(script: &JString, callback: &ValueCallback),
-    },
-    is_instance_of = {
-        view = AView,
-    }
-}
-
-jni::bind_java_type! {
-    AWebSettings => android.webkit.WebSettings,
-    methods {
-        fn set_java_script_enabled(enabled: bool),
-    }
-}
-
-jni::bind_java_type! {
-    ValueCallback => android.webkit.ValueCallback,
-}
-
 impl_listener!(ValueCallback);
-
-jni::bind_java_type! {
-    AWebChromeClient => android.webkit.WebChromeClient,
-    constructors {
-        fn new(),
-    },
-}
-
-jni::bind_java_type! {
-    AWebViewClient => android.webkit.WebViewClient,
-}
-
-jni::bind_java_type! {
-    WinioWebViewClient => rs.compio.winio.WebViewClient,
-    type_map {
-        AWebViewClient => android.webkit.WebViewClient,
-        JRunnable => java.lang.Runnable,
-    },
-    constructors {
-        fn new(),
-    },
-    methods {
-        fn set_on_page_started(listener: &JRunnable),
-        fn set_on_page_finished(listener: &JRunnable),
-    },
-    is_instance_of = {
-        base = AWebViewClient,
-    }
-}
-
-jni::bind_java_type! {
-    CookieManager => android.webkit.CookieManager,
-    type_map {
-        ValueCallback => android.webkit.ValueCallback,
-    },
-    methods {
-        static fn get_instance() -> CookieManager,
-
-        fn set_accept_cookie(accept: bool),
-        fn set_cookie(url: &JString, value: &JString, callback: &ValueCallback),
-        fn get_cookie(url: &JString) -> JString,
-    }
-}
 
 #[derive(Debug)]
 pub struct WebView {
