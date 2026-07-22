@@ -9,9 +9,10 @@ use compio_log::*;
 use futures_util::FutureExt;
 use windows::{
     Foundation::Uri,
+    Win32::System::LibraryLoader::LoadLibraryW,
     core::{
         Array, Error, HRESULT, HSTRING, IInspectable_Vtbl, Interface, Ref, h, imp::WeakRefCount,
-        implement,
+        implement, w,
     },
 };
 use windows_sys::Win32::Foundation::ERROR_MOD_NOT_FOUND;
@@ -41,17 +42,24 @@ use crate::Result;
 
 pub struct App {
     #[allow(dead_code)]
-    winui_dependency: PackageDependency,
+    winui_dependency: Option<PackageDependency>,
+}
+
+fn detect_valid_winui3() -> bool {
+    unsafe { LoadLibraryW(w!("Microsoft.UI.Xaml.dll")).is_ok() }
 }
 
 fn init_appsdk_with(
     vers: impl IntoIterator<Item = WindowsAppSDKVersion>,
 ) -> Result<PackageDependency> {
     for ver in vers {
-        if let Ok(p) = PackageDependency::initialize_version(ver) {
+        if let Ok(p) = PackageDependency::initialize_version(ver)
+            && detect_valid_winui3()
+        {
             return Ok(p);
         }
     }
+    error!("Failed to initialize Windows App SDK with any known version");
     Err(Error::from_hresult(HRESULT::from_win32(
         ERROR_MOD_NOT_FOUND,
     )))
@@ -61,9 +69,12 @@ impl App {
     pub fn new() -> Result<Self> {
         init_apartment(ApartmentType::SingleThreaded)?;
 
-        let winui_dependency = init_appsdk_with({
+        let winui_dependency = if detect_valid_winui3() {
+            None
+        } else {
             use WindowsAppSDKVersion::*;
-            [
+
+            Some(init_appsdk_with([
                 V2,
                 V1_8,
                 #[cfg(feature = "enable-cbs")]
@@ -82,10 +93,12 @@ impl App {
                 V1_1,
                 #[cfg(not(feature = "media"))]
                 V1_0,
-            ]
-        })?;
+            ])?)
+        };
 
-        debug!("WinUI initialized: {winui_dependency:?}");
+        if let Some(dep) = &winui_dependency {
+            debug!("WinUI initialized: {dep:?}");
+        }
 
         init_dark();
         set_preferred_app_mode(PreferredAppMode::AllowDark);
