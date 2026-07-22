@@ -76,6 +76,8 @@ impl App {
 
             Some(init_appsdk_with([
                 V2,
+                #[cfg(feature = "enable-cbs")]
+                Cbs2,
                 V1_8,
                 #[cfg(feature = "enable-cbs")]
                 Cbs1_8,
