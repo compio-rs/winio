@@ -1,6 +1,6 @@
 [package]
 name = "winio-ui-android"
-version = "0.1.0-rc.5"
+version = "0.1.0"
 description = "Android backend for winio."
 edition = { workspace = true }
 readme = { workspace = true }
@@ -33,7 +33,7 @@ jni = { workspace = true }
 jni-min-helper = "0.4"
 ndk-sys = "0.6"
 
-base64 = { version = "0.22", optional = true }
+base64 = { version = "0.23", optional = true }
 cookie = { workspace = true, optional = true }
 futures-channel = { workspace = true }
 futures-util = { workspace = true }

@@ -1,6 +1,6 @@
 [package]
 name = "winio-ui-stub"
-version = "0.1.0-rc.1"
+version = "0.1.0"
 description = "Stub backend for winio — used when no real backend is selected."
 categories = ["asynchronous", "gui"]
 keywords = ["async", "gui", "stub"]
