@@ -1,4 +1,4 @@
-#[cfg(feature = "compio-compat")]
+#[cfg(any(feature = "compio-compat", feature = "media"))]
 use std::path::PathBuf;
 use std::{future::Future, pin::Pin};
 
