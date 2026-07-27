@@ -19,7 +19,7 @@ use crate::{
 /// * Android: Vulkan
 ///
 /// ## Platform specific
-/// * iOS: Mac Catalyst and iOS Simulator do not support [`wgpu`].
+/// * iOS: Simulator do not support [`wgpu`].
 /// * Android: Simulator might not work correctly; real devices work fine.
 /// * Qt & GTK: Might not work correctly.
 #[derive(Debug)]
