@@ -40,7 +40,7 @@ futures-util = { workspace = true }
 image = { workspace = true, default-features = false }
 inherit-methods-macro = { workspace = true }
 oneshot = { workspace = true, features = ["std", "async"] }
-rustix = { version = "1", optional = true, features = ["time"] }
+rustix = { version = "1", features = ["time"] }
 thiserror = { workspace = true }
 time = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true, features = ["vulkan"] }
@@ -49,4 +49,4 @@ wgpu = { workspace = true, optional = true, features = ["vulkan"] }
 media = []
 webview = ["dep:cookie", "dep:time", "dep:base64"]
 wgpu = ["dep:wgpu"]
-compio-compat = ["compio/compat", "dep:rustix", "compio/fs"]
+compio-compat = ["compio/compat", "compio/fs"]
