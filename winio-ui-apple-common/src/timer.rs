@@ -31,7 +31,11 @@ impl Timer {
             let block = RcBlock::new(move |_| {
                 callback.signal::<GlobalRuntime>(());
             });
-            NSTimer::timerWithTimeInterval_repeats_block(self.interval.as_secs_f64(), true, &block)
+            NSTimer::scheduledTimerWithTimeInterval_repeats_block(
+                self.interval.as_secs_f64(),
+                true,
+                &block,
+            )
         })?;
         self.inner = Some(timer);
         Ok(())
