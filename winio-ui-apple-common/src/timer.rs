@@ -1,50 +1,51 @@
 use std::{rc::Rc, time::Duration};
 
-use gtk4::glib::JoinHandle;
+use block2::RcBlock;
+use objc2::rc::Retained;
+use objc2_foundation::NSTimer;
 use winio_callback::Callback;
 use winio_pollable::GlobalRuntime;
 
-use crate::Result;
+use crate::{Result, catch};
 
 #[derive(Debug)]
 pub struct Timer {
+    inner: Option<Retained<NSTimer>>,
     interval: Duration,
     callback: Rc<Callback>,
-    handle: Option<JoinHandle<()>>,
 }
 
 impl Timer {
     pub fn new(interval: Duration) -> Result<Self> {
         Ok(Self {
+            inner: None,
             interval,
             callback: Rc::new(Callback::new()),
-            handle: None,
         })
     }
 
     pub fn start(&mut self) -> Result<()> {
         self.stop()?;
         let callback = self.callback.clone();
-        let interval = self.interval;
-        let handle = gtk4::glib::spawn_future_local(async move {
-            loop {
+        let timer = catch(|| unsafe {
+            let block = RcBlock::new(move |_| {
                 callback.signal::<GlobalRuntime>(());
-                gtk4::glib::timeout_future(interval).await;
-            }
-        });
-        self.handle = Some(handle);
+            });
+            NSTimer::timerWithTimeInterval_repeats_block(self.interval.as_secs_f64(), true, &block)
+        })?;
+        self.inner = Some(timer);
         Ok(())
     }
 
     pub fn stop(&mut self) -> Result<()> {
-        if let Some(handle) = self.handle.take() {
-            handle.abort();
+        if let Some(timer) = self.inner.take() {
+            catch(|| timer.invalidate())?;
         }
         Ok(())
     }
 
     pub fn is_enabled(&self) -> Result<bool> {
-        Ok(self.handle.is_some())
+        Ok(self.inner.is_some())
     }
 
     pub async fn wait(&self) {

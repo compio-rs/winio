@@ -13,11 +13,16 @@ rustdoc-args = ["--cfg", "docsrs"]
 targets = ["aarch64-apple-darwin", "aarch64-apple-ios"]
 
 [target.'cfg(target_vendor = "apple")'.dependencies]
+winio-primitive = { workspace = true }
+winio-pollable = { workspace = true }
+winio-callback = { workspace = true }
+
+block2 = { workspace = true }
 objc2 = { workspace = true, features = ["exception"] }
 objc2-core-foundation = { workspace = true }
 objc2-core-graphics = { workspace = true }
 objc2-core-text = { workspace = true }
-objc2-foundation = { workspace = true }
+objc2-foundation = { workspace = true, features = ["block2"] }
 
 compio-log = { workspace = true }
 cookie = { workspace = true, optional = true }
@@ -25,7 +30,6 @@ image = { workspace = true }
 local-sync = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true, optional = true }
-winio-primitive = { workspace = true }
 
 [features]
 webview = ["dep:cookie", "dep:time"]

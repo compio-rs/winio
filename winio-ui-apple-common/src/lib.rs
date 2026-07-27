@@ -81,3 +81,6 @@ pub use string::*;
 mod webview;
 #[cfg(feature = "webview")]
 pub use webview::*;
+
+mod timer;
+pub use timer::*;
