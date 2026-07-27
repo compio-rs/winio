@@ -31,7 +31,7 @@ cfg_if::cfg_if! {
 }
 
 cfg_if::cfg_if! {
-    if #[cfg(all(feature = "media", feature = "compio-compat"))] {
+    if #[cfg(feature = "media")] {
         mod media;
         pub use media::*;
     } else {

@@ -1,7 +1,6 @@
 use std::{ops::Deref, time::Duration};
 
 use cgmath::One;
-use compio::runtime::spawn;
 use wgpu::util::DeviceExt;
 use winio::prelude::*;
 
@@ -161,6 +160,7 @@ impl SurfaceData {
 
 pub struct WgpuPage {
     window: Child<TabViewItem>,
+    timer: Child<Timer>,
     canvas: Child<WgpuCanvas>,
     angle: f32,
     instance: wgpu::Instance,
@@ -197,6 +197,7 @@ pub enum WgpuPageEvent {}
 
 #[derive(Debug)]
 pub enum WgpuPageMessage {
+    Noop,
     Tick,
 }
 
@@ -206,25 +207,16 @@ impl Component for WgpuPage {
     type Init<'a> = ();
     type Message = WgpuPageMessage;
 
-    async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             window: TabViewItem = (()) => {
                 text: "WGPU",
             },
             canvas: WgpuCanvas = (&window),
-        }
-
-        spawn({
-            let sender = sender.clone();
-            async move {
-                let mut interval = compio::time::interval(Duration::from_millis(10));
-                loop {
-                    interval.tick().await;
-                    sender.post(WgpuPageMessage::Tick);
-                }
+            timer: Timer = (Duration::from_millis(10)) => {
+                enabled: true,
             }
-        })
-        .detach();
+        }
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
@@ -240,6 +232,7 @@ impl Component for WgpuPage {
         Ok(Self {
             window,
             canvas,
+            timer,
             angle: 0.0,
             instance,
             device,
@@ -249,12 +242,22 @@ impl Component for WgpuPage {
         })
     }
 
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
+        start! {
+            sender, default: WgpuPageMessage::Noop,
+            self.timer => {
+                TimerEvent::Tick => WgpuPageMessage::Tick,
+            }
+        }
+    }
+
     async fn update(
         &mut self,
         message: Self::Message,
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
+            WgpuPageMessage::Noop => Ok(false),
             WgpuPageMessage::Tick => {
                 self.angle += 0.01;
                 self.angle %= std::f32::consts::TAU;

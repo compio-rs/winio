@@ -1,6 +1,5 @@
 use std::{ops::Deref, path::PathBuf, time::Duration};
 
-use compio::{runtime::spawn, time::interval};
 use url::Url;
 use winio::prelude::*;
 
@@ -9,6 +8,7 @@ use crate::{Error, Result};
 pub struct MediaPage {
     window: Child<TabViewItem>,
     media: Child<Media>,
+    timer: Child<Timer>,
     playing: bool,
     play_button: Child<Button>,
     browse_button: Child<Button>,
@@ -60,6 +60,9 @@ impl Component for MediaPage {
                 text: "Media",
             },
             media: Media = (&window),
+            timer: Timer = (Duration::from_millis(1000)) => {
+                enabled: true,
+            },
             play_button: Button = (&window) => {
                 enabled: false,
                 text: "▶️"
@@ -96,19 +99,10 @@ impl Component for MediaPage {
         }
         sender.post(MediaPageMessage::Volume);
 
-        let sender = sender.clone();
-        spawn(async move {
-            let mut interval = interval(Duration::from_millis(100));
-            loop {
-                interval.tick().await;
-                sender.post(MediaPageMessage::Tick);
-            }
-        })
-        .detach();
-
         Ok(Self {
             window,
             media,
+            timer,
             playing: false,
             play_button,
             browse_button,
@@ -124,6 +118,9 @@ impl Component for MediaPage {
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: MediaPageMessage::Noop,
+            self.timer => {
+                TimerEvent::Tick => MediaPageMessage::Tick,
+            },
             self.volume_slider => {
                 SliderEvent::Change => MediaPageMessage::Volume,
             },
