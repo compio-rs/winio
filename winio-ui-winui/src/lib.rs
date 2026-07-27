@@ -4,7 +4,7 @@
 #![cfg(windows)]
 
 pub(crate) use winio_pollable::GlobalRuntime;
-pub use winio_ui_windows_common::{Error, Result};
+pub use winio_ui_windows_common::{Error, Result, Timer};
 
 mod runtime;
 pub use runtime::*;

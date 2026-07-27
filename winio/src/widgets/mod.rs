@@ -79,3 +79,6 @@ pub use tab_view::*;
 mod wgpu;
 #[cfg(feature = "wgpu")]
 pub use wgpu::*;
+
+mod timer;
+pub use timer::*;

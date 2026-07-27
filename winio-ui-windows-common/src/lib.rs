@@ -37,6 +37,9 @@ pub use backdrop::*;
 mod runtime;
 pub use runtime::*;
 
+mod timer;
+pub use timer::*;
+
 pub(crate) async fn spawn_blocking<F, R>(f: F) -> R
 where
     F: FnOnce() -> R + Send + 'static,
