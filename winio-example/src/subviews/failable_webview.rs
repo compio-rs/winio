@@ -11,6 +11,7 @@ impl Failable for FailableWebView {
     type Error = Error;
 }
 
+#[allow(dead_code)]
 impl FailableWebView {
     pub fn source(&self) -> Result<String> {
         match self {

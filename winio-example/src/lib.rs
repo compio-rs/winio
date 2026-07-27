@@ -1,4 +1,4 @@
-#[cfg(feature = "compio-compat")]
+#[cfg(any(feature = "compio-compat", feature = "media"))]
 use std::path::PathBuf;
 use std::{future::Future, pin::Pin};
 
@@ -44,9 +44,9 @@ pub enum MainMessage {
     #[cfg(feature = "compio-compat")]
     OpenFolder(PathBuf),
     ShowMessage(MessageBox),
-    #[cfg(all(feature = "media", feature = "compio-compat"))]
+    #[cfg(feature = "media")]
     ChooseMedia,
-    #[cfg(all(feature = "media", feature = "compio-compat"))]
+    #[cfg(feature = "media")]
     OpenMedia(PathBuf),
     #[cfg(all(feature = "webview", feature = "compio-compat"))]
     ChooseMarkdown,
@@ -102,10 +102,10 @@ impl Component for MainModel {
             wgpu: WgpuPage = (()),
             #[cfg(not(feature = "wgpu"))]
             wgpu: DummyPage = (("WGPU", "wgpu")),
-            #[cfg(all(feature = "media", feature = "compio-compat"))]
+            #[cfg(feature = "media")]
             media: MediaPage = (()),
-            #[cfg(not(all(feature = "media", feature = "compio-compat")))]
-            media: DummyPage = (("Media", "media,compio-compat")),
+            #[cfg(not(feature = "media"))]
+            media: DummyPage = (("Media", "media")),
             #[cfg(feature = "webview")]
             webview: WebViewPage = (()),
             #[cfg(not(feature = "webview"))]
@@ -181,9 +181,9 @@ impl Component for MainModel {
             },
             self.wgpu => {},
             self.media => {
-                #[cfg(all(feature = "media", feature = "compio-compat"))]
+                #[cfg(feature = "media")]
                 MediaPageEvent::ChooseFile => MainMessage::ChooseMedia,
-                #[cfg(all(feature = "media", feature = "compio-compat"))]
+                #[cfg(feature = "media")]
                 MediaPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
             },
             self.webview => {},
@@ -311,7 +311,7 @@ impl Component for MainModel {
                 mb.show(&self.window)?.await?;
                 Ok(false)
             }
-            #[cfg(all(feature = "media", feature = "compio-compat"))]
+            #[cfg(feature = "media")]
             MainMessage::ChooseMedia => {
                 if let Some(p) = FileBox::new()
                     .title("Open media file")
@@ -324,7 +324,7 @@ impl Component for MainModel {
                 }
                 Ok(false)
             }
-            #[cfg(all(feature = "media", feature = "compio-compat"))]
+            #[cfg(feature = "media")]
             MainMessage::OpenMedia(p) => self.media.emit(MediaPageMessage::OpenFile(p)).await,
             #[cfg(all(feature = "webview", feature = "compio-compat"))]
             MainMessage::ChooseMarkdown => {

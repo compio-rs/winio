@@ -16,6 +16,7 @@ targets = ["x86_64-pc-windows-msvc"]
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true }
 winio-pollable = { workspace = true }
+winio-callback = { workspace = true }
 
 compio-log = { workspace = true }
 
@@ -24,6 +25,7 @@ futures-util = { workspace = true }
 image = { workspace = true }
 once_cell = { workspace = true }
 oneshot = { workspace = true, default-features = false, features = ["async"] }
+slab = { workspace = true }
 widestring = { workspace = true }
 
 windows = { workspace = true, features = [

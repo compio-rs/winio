@@ -36,6 +36,9 @@ pub use widgets::*;
 mod dialogs;
 pub use dialogs::*;
 
+mod platform;
+pub use platform::*;
+
 #[cfg(feature = "compio-compat")]
 mod compat;
 #[cfg(feature = "compio-compat")]

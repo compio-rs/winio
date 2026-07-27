@@ -41,6 +41,7 @@ fn main() {
             "src/common",
             "src/widgets/widget",
             "src/platform/monitor",
+            "src/platform/timer",
             "src/dialogs/msgbox",
             "src/dialogs/filebox",
             "src/widgets/window",
