@@ -93,10 +93,7 @@ impl Layoutable for Edit {
 /// Events of [`Edit`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum EditEvent {
-    /// The text has been changed.
-    Change,
-}
+pub enum EditEvent {}
 
 /// Messages of [`Edit`].
 #[derive(Debug)]
@@ -126,7 +123,6 @@ impl Component for Edit {
         let fut_listen = async {
             loop {
                 self.widget.wait_change().await;
-                sender.output(EditEvent::Change);
                 sender.post(EditMessage::ChangeInput);
             }
         };
