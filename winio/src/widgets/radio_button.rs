@@ -120,6 +120,8 @@ pub enum RadioButtonMessage {
     ChangeInputChecked,
     /// The checked prop has been changed.
     ChangePropChecked,
+    /// The checked state is set externally (e.g. from [`RadioButtonGroup`]).
+    SetChecked(bool),
     /// The text has been changed.
     ChangeText,
     /// The enabled state has been changed.
@@ -202,6 +204,11 @@ impl Component for RadioButton {
                     self.widget.set_checked(*prop_val)?;
                 }
                 Ok(true)
+            }
+            RadioButtonMessage::SetChecked(v) => {
+                self.widget.set_checked(v)?;
+                self.checked_prop.post(PropSinkMessage::Set(v));
+                Ok(false)
             }
             RadioButtonMessage::ChangeText => {
                 self.widget.set_text(self.text_prop.get())?;
@@ -292,7 +299,7 @@ impl Component for RadioButtonGroup {
             RadioButtonGroupMessage::Noop => Ok(false),
             RadioButtonGroupMessage::Click(i) => {
                 for (idx, r) in self.radios.iter_mut().enumerate() {
-                    r.set_checked(idx == i)?;
+                    r.post(RadioButtonMessage::SetChecked(idx == i));
                 }
                 sender.output(RadioButtonGroupEvent::Click(i));
                 Ok(false)

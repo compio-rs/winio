@@ -22,6 +22,14 @@ pub struct Window {
     widget: sys::Window,
     text_prop: Child<PropSink<String>>,
     visible_prop: Child<PropSink<bool>>,
+    #[cfg(win32)]
+    style_prop: Child<PropSink<u32>>,
+    #[cfg(win32)]
+    ex_style_prop: Child<PropSink<u32>>,
+    #[cfg(windows)]
+    backdrop_prop: Child<PropSink<Backdrop>>,
+    #[cfg(target_os = "macos")]
+    vibrancy_prop: Child<PropSink<Option<Vibrancy>>>,
 }
 
 impl Failable for Window {
@@ -96,6 +104,30 @@ impl Window {
     pub fn visible_prop(&self) -> &PropSink<bool> {
         &self.visible_prop
     }
+
+    /// Property for [`Window::style`].
+    #[cfg(win32)]
+    pub fn style_prop(&self) -> &PropSink<u32> {
+        &self.style_prop
+    }
+
+    /// Property for [`Window::ex_style`].
+    #[cfg(win32)]
+    pub fn ex_style_prop(&self) -> &PropSink<u32> {
+        &self.ex_style_prop
+    }
+
+    /// Property for [`Window::backdrop`].
+    #[cfg(windows)]
+    pub fn backdrop_prop(&self) -> &PropSink<Backdrop> {
+        &self.backdrop_prop
+    }
+
+    /// Property for [`Window::vibrancy`].
+    #[cfg(target_os = "macos")]
+    pub fn vibrancy_prop(&self) -> &PropSink<Option<Vibrancy>> {
+        &self.vibrancy_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -141,6 +173,18 @@ pub enum WindowMessage {
     ChangeText,
     /// The visible state has been changed.
     ChangeVisible,
+    #[cfg(win32)]
+    /// The style has been changed.
+    ChangeStyle,
+    #[cfg(win32)]
+    /// The ex style has been changed.
+    ChangeExStyle,
+    #[cfg(windows)]
+    /// The backdrop has been changed.
+    ChangeBackdrop,
+    #[cfg(target_os = "macos")]
+    /// The vibrancy has been changed.
+    ChangeVibrancy,
 }
 
 impl Component for Window {
@@ -153,10 +197,26 @@ impl Component for Window {
         let widget = sys::Window::new()?;
         let Ok(text_prop) = Child::<PropSink<String>>::init(String::new()).await;
         let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
+        #[cfg(win32)]
+        let Ok(style_prop) = Child::<PropSink<u32>>::init(0u32).await;
+        #[cfg(win32)]
+        let Ok(ex_style_prop) = Child::<PropSink<u32>>::init(0u32).await;
+        #[cfg(windows)]
+        let Ok(backdrop_prop) = Child::<PropSink<Backdrop>>::init(Backdrop::None).await;
+        #[cfg(target_os = "macos")]
+        let Ok(vibrancy_prop) = Child::<PropSink<Option<Vibrancy>>>::init(None).await;
         Ok(Self {
             widget,
             text_prop,
             visible_prop,
+            #[cfg(win32)]
+            style_prop,
+            #[cfg(win32)]
+            ex_style_prop,
+            #[cfg(windows)]
+            backdrop_prop,
+            #[cfg(target_os = "macos")]
+            vibrancy_prop,
         })
     }
 
@@ -192,15 +252,68 @@ impl Component for Window {
                 self.visible_prop => { PropSinkEvent::Changed => WindowMessage::ChangeVisible },
             }
         };
-        futures_util::future::join5(fut_close, fut_move, fut_resize, fut_theme, fut_props)
-            .await
-            .0
+        #[cfg(win32)]
+        let fut_style = async {
+            start! {
+                sender, default: WindowMessage::Noop,
+                self.style_prop => { PropSinkEvent::Changed => WindowMessage::ChangeStyle },
+                self.ex_style_prop => { PropSinkEvent::Changed => WindowMessage::ChangeExStyle },
+            }
+        };
+        #[cfg(not(win32))]
+        let fut_style = std::future::pending::<()>();
+        #[cfg(windows)]
+        let fut_backdrop = async {
+            start! {
+                sender, default: WindowMessage::Noop,
+                self.backdrop_prop => { PropSinkEvent::Changed => WindowMessage::ChangeBackdrop },
+            }
+        };
+        #[cfg(not(windows))]
+        let fut_backdrop = std::future::pending::<()>();
+        #[cfg(target_os = "macos")]
+        let fut_vibrancy = async {
+            start! {
+                sender, default: WindowMessage::Noop,
+                self.vibrancy_prop => { PropSinkEvent::Changed => WindowMessage::ChangeVibrancy },
+            }
+        };
+        #[cfg(not(target_os = "macos"))]
+        let fut_vibrancy = std::future::pending::<()>();
+
+        futures_util::join!(
+            fut_close,
+            fut_move,
+            fut_resize,
+            fut_theme,
+            fut_props,
+            fut_style,
+            fut_backdrop,
+            fut_vibrancy,
+        )
+        .0
     }
 
     async fn update_children(&mut self) -> Result<bool> {
         let Ok(r0) = self.text_prop.update().await;
         let Ok(r1) = self.visible_prop.update().await;
-        Ok(r0 || r1)
+        #[cfg(win32)]
+        let Ok(r2) = self.style_prop.update().await;
+        #[cfg(not(win32))]
+        let r2 = false;
+        #[cfg(win32)]
+        let Ok(r3) = self.ex_style_prop.update().await;
+        #[cfg(not(win32))]
+        let r3 = false;
+        #[cfg(windows)]
+        let Ok(r4) = self.backdrop_prop.update().await;
+        #[cfg(not(windows))]
+        let r4 = false;
+        #[cfg(target_os = "macos")]
+        let Ok(r5) = self.vibrancy_prop.update().await;
+        #[cfg(not(target_os = "macos"))]
+        let r5 = false;
+        Ok(r0 || r1 || r2 || r3 || r4 || r5)
     }
 
     async fn update(
@@ -216,6 +329,26 @@ impl Component for Window {
             }
             WindowMessage::ChangeVisible => {
                 self.widget.set_visible(**self.visible_prop)?;
+                Ok(true)
+            }
+            #[cfg(win32)]
+            WindowMessage::ChangeStyle => {
+                self.widget.set_style(**self.style_prop)?;
+                Ok(true)
+            }
+            #[cfg(win32)]
+            WindowMessage::ChangeExStyle => {
+                self.widget.set_ex_style(**self.ex_style_prop)?;
+                Ok(true)
+            }
+            #[cfg(windows)]
+            WindowMessage::ChangeBackdrop => {
+                self.widget.set_backdrop(*self.backdrop_prop.get())?;
+                Ok(true)
+            }
+            #[cfg(target_os = "macos")]
+            WindowMessage::ChangeVibrancy => {
+                self.widget.set_vibrancy(self.vibrancy_prop.get().clone())?;
                 Ok(true)
             }
         }

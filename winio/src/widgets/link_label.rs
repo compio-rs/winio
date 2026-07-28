@@ -185,8 +185,7 @@ impl Component for LinkLabel {
             }
         };
         let fut_props = async {
-            #[cfg(win32)]
-            {
+            let fut_base = async {
                 start! {
                     sender, default: LinkLabelMessage::Noop,
                     self.text_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeText },
@@ -194,20 +193,18 @@ impl Component for LinkLabel {
                     self.enabled_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeEnabled },
                     self.visible_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeVisible },
                     self.tooltip_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeTooltip },
+                }
+            };
+            #[cfg(win32)]
+            let fut_transparent = async {
+                start! {
+                    sender, default: LinkLabelMessage::Noop,
                     self.transparent_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeTransparent },
                 }
-            }
+            };
             #[cfg(not(win32))]
-            {
-                start! {
-                    sender, default: LinkLabelMessage::Noop,
-                    self.text_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeText },
-                    self.uri_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeUri },
-                    self.enabled_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeEnabled },
-                    self.visible_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeVisible },
-                    self.tooltip_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeTooltip },
-                }
-            }
+            let fut_transparent = std::future::pending::<()>();
+            futures_util::future::join(fut_base, fut_transparent).await;
         };
         futures_util::future::join(fut_click, fut_props).await.0
     }

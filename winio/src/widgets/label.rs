@@ -171,8 +171,7 @@ impl Component for Label {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        #[cfg(win32)]
-        {
+        let fut_base = async {
             start! {
                 sender, default: LabelMessage::Noop,
                 self.text_prop => {
@@ -182,22 +181,18 @@ impl Component for Label {
                 self.enabled_prop => { PropSinkEvent::Changed => LabelMessage::ChangeEnabled },
                 self.visible_prop => { PropSinkEvent::Changed => LabelMessage::ChangeVisible },
                 self.tooltip_prop => { PropSinkEvent::Changed => LabelMessage::ChangeTooltip },
+            }
+        };
+        #[cfg(win32)]
+        let fut_transparent = async {
+            start! {
+                sender, default: LabelMessage::Noop,
                 self.transparent_prop => { PropSinkEvent::Changed => LabelMessage::ChangeTransparent },
             }
-        }
+        };
         #[cfg(not(win32))]
-        {
-            start! {
-                sender, default: LabelMessage::Noop,
-                self.text_prop => {
-                    PropSinkEvent::Changed => LabelMessage::Change,
-                },
-                self.halign_prop => { PropSinkEvent::Changed => LabelMessage::ChangeHalign },
-                self.enabled_prop => { PropSinkEvent::Changed => LabelMessage::ChangeEnabled },
-                self.visible_prop => { PropSinkEvent::Changed => LabelMessage::ChangeVisible },
-                self.tooltip_prop => { PropSinkEvent::Changed => LabelMessage::ChangeTooltip },
-            }
-        }
+        let fut_transparent = std::future::pending::<()>();
+        futures_util::future::join(fut_base, fut_transparent).await.0
     }
 
     async fn update_children(&mut self) -> Result<bool> {
