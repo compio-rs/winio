@@ -2,6 +2,7 @@ use futures_util::future::Either;
 use winio::prelude::*;
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum FailableWebView {
     Widget(WebView),
     ErrLabel(Child<TextBox>),
