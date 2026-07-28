@@ -178,10 +178,10 @@ impl Component for TabView {
             TabViewMessage::ChangePropSelection => {
                 let current = self.widget.selection()?;
                 let prop_val = self.selection_prop.get();
-                if &current != prop_val {
-                    if let Some(i) = prop_val {
-                        self.widget.set_selection(*i)?;
-                    }
+                if &current != prop_val
+                    && let Some(i) = prop_val
+                {
+                    self.widget.set_selection(*i)?;
                 }
                 Ok(true)
             }
