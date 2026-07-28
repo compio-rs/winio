@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender};
+use winio_elm::{Child, Component, ComponentSender, Prop, PropSinkEvent, PropSinkMessage, start};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
     Enable, Failable, HAlign, Layoutable, Point, Size, TextWidget, ToolTip, Visible,
@@ -14,6 +14,7 @@ use crate::{
 #[derive(Debug)]
 pub struct Edit {
     widget: sys::Edit,
+    text_prop: Child<Prop<String>>,
 }
 
 impl Failable for Edit {
@@ -55,6 +56,11 @@ impl Edit {
     /// Set if the text input is read-only.
     /// A password edit cannot be read-only.
     pub fn set_readonly(&mut self, v: bool) -> Result<()>;
+
+    /// Property for [`Edit::text`].
+    pub fn text_prop(&self) -> &Prop<String> {
+        &self.text_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -95,7 +101,14 @@ pub enum EditEvent {
 /// Messages of [`Edit`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum EditMessage {}
+pub enum EditMessage {
+    /// No operation.
+    Noop,
+    /// The text has been changed.
+    ChangeInput,
+    /// The text has been changed, and the new text is provided.
+    ChangeProp(String),
+}
 
 impl Component for Edit {
     type Error = Error;
@@ -105,13 +118,54 @@ impl Component for Edit {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Edit::new(init)?;
-        Ok(Self { widget })
+        let Ok(text_prop) = Child::<Prop<String>>::init(()).await;
+        Ok(Self { widget, text_prop })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        loop {
-            self.widget.wait_change().await;
-            sender.output(EditEvent::Change);
+        let fut_listen = async {
+            loop {
+                self.widget.wait_change().await;
+                sender.output(EditEvent::Change);
+                sender.post(EditMessage::ChangeInput);
+            }
+        };
+        let fut_start = async {
+            start! {
+                sender, default: EditMessage::Noop,
+                self.text_prop => {
+                    PropSinkEvent::Changed(text) => EditMessage::ChangeProp(text),
+                }
+            }
+        };
+        futures_util::future::join(fut_listen, fut_start).await.0
+    }
+
+    async fn update_children(&mut self) -> Result<bool> {
+        let Ok(res) = self.text_prop.update().await;
+        Ok(res)
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            EditMessage::Noop => Ok(false),
+            EditMessage::ChangeInput => {
+                let text = self.widget.text()?;
+                self.text_prop.post(PropSinkMessage::Set(text));
+                Ok(false)
+            }
+            EditMessage::ChangeProp(text) => {
+                let old_text = self.widget.text()?;
+                if old_text != text {
+                    self.widget.set_text(&text)?;
+                    self.text_prop.post(PropSinkMessage::Set(text));
+                }
+                Ok(false)
+            }
         }
     }
 }

@@ -15,6 +15,7 @@ async-stream = "0.3"
 futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true, optional = true }
 paste = { workspace = true }
+slab = { workspace = true }
 smallvec = "1"
 tuplex = { workspace = true }
 

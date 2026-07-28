@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender};
+use winio_elm::{Child, Component, ComponentSender, PropSink, PropSinkEvent, start};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
     Enable, Failable, HAlign, Layoutable, Point, Size, TextWidget, ToolTip, Visible,
@@ -14,6 +14,7 @@ use crate::{
 #[derive(Debug)]
 pub struct Label {
     widget: sys::Label,
+    text_prop: Child<PropSink<String>>,
 }
 
 impl Failable for Label {
@@ -49,6 +50,11 @@ impl Label {
     /// Set if the label background is transparent.
     #[cfg(win32)]
     pub fn set_transparent(&mut self, v: bool) -> Result<()>;
+
+    /// Property for [`Label::text`].
+    pub fn text_prop(&self) -> &PropSink<String> {
+        &self.text_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -86,7 +92,12 @@ pub enum LabelEvent {}
 /// Messages of [`Label`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum LabelMessage {}
+pub enum LabelMessage {
+    /// No operation.
+    Noop,
+    /// The text has been changed.
+    Change(String),
+}
 
 impl Component for Label {
     type Error = Error;
@@ -96,7 +107,36 @@ impl Component for Label {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Label::new(init)?;
-        Ok(Self { widget })
+        let Ok(text_prop) = Child::<PropSink<String>>::init(()).await;
+        Ok(Self { widget, text_prop })
+    }
+
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
+        start! {
+            sender, default: LabelMessage::Noop,
+            self.text_prop => {
+                PropSinkEvent::Changed(text) => LabelMessage::Change(text),
+            }
+        }
+    }
+
+    async fn update_children(&mut self) -> Result<bool> {
+        let Ok(res) = self.text_prop.update().await;
+        Ok(res)
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            LabelMessage::Noop => Ok(false),
+            LabelMessage::Change(text) => {
+                self.widget.set_text(text)?;
+                Ok(false)
+            }
+        }
     }
 }
 
