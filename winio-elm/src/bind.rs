@@ -32,9 +32,11 @@ impl<T> PropSource<T> {
 
     pub fn bind<C: Component + 'static>(
         &mut self,
+        current: T,
         sender: &ComponentSender<C>,
         f: impl Fn(T) -> C::Message + 'static,
     ) -> usize {
+        sender.post(f(current));
         let sender = sender.clone();
         self.listeners.insert(Box::new(move |value| {
             let msg = f(value);
@@ -48,8 +50,8 @@ impl<T> PropSource<T> {
 }
 
 impl<T: PartialEq + 'static> PropSource<T> {
-    pub fn bind_sink(&mut self, sink: &PropSink<T>) -> usize {
-        self.bind(&sink.sender, PropSinkMessage::Set)
+    pub fn bind_sink(&mut self, current: T, sink: &PropSink<T>) -> usize {
+        self.bind(current, &sink.sender, PropSinkMessage::Set)
     }
 }
 
@@ -140,6 +142,13 @@ pub struct Prop<T: PartialEq> {
 }
 
 impl<T: PartialEq> Prop<T> {
+    /// Unbind a listener by its ID.
+    pub fn unbind(&mut self, id: usize) {
+        self.source.unbind(id);
+    }
+}
+
+impl<T: Clone + PartialEq + 'static> Prop<T> {
     /// Bind to a component sender, so that when the property is notified, a
     /// message is sent to the component.
     ///
@@ -149,20 +158,13 @@ impl<T: PartialEq> Prop<T> {
         sender: &ComponentSender<C>,
         f: impl Fn(T) -> C::Message + 'static,
     ) -> usize {
-        self.source.bind(sender, f)
+        self.source.bind(self.sink.get().clone(), sender, f)
     }
 
-    /// Unbind a listener by its ID.
-    pub fn unbind(&mut self, id: usize) {
-        self.source.unbind(id);
-    }
-}
-
-impl<T: PartialEq + 'static> Prop<T> {
     /// Bind to a [`PropSink`], so that when the property is notified, a message
     /// [`PropSinkMessage::Set`] is sent to the sink.
     pub fn bind_sink(&mut self, sink: &PropSink<T>) -> usize {
-        self.source.bind_sink(sink)
+        self.source.bind_sink(self.sink.get().clone(), sink)
     }
 }
 
