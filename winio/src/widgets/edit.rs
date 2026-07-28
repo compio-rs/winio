@@ -58,8 +58,8 @@ impl Edit {
     pub fn set_readonly(&mut self, v: bool) -> Result<()>;
 
     /// Property for [`Edit::text`].
-    pub fn text_prop(&self) -> &Prop<String> {
-        &self.text_prop
+    pub fn text_prop(&mut self) -> &mut Prop<String> {
+        &mut self.text_prop
     }
 }
 
