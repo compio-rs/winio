@@ -96,7 +96,7 @@ pub enum LabelMessage {
     /// No operation.
     Noop,
     /// The text has been changed.
-    Change(String),
+    Change,
 }
 
 impl Component for Label {
@@ -107,7 +107,7 @@ impl Component for Label {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Label::new(init)?;
-        let Ok(text_prop) = Child::<PropSink<String>>::init(()).await;
+        let Ok(text_prop) = Child::<PropSink<String>>::init(String::new()).await;
         Ok(Self { widget, text_prop })
     }
 
@@ -115,7 +115,7 @@ impl Component for Label {
         start! {
             sender, default: LabelMessage::Noop,
             self.text_prop => {
-                PropSinkEvent::Changed(text) => LabelMessage::Change(text),
+                PropSinkEvent::Changed => LabelMessage::Change,
             }
         }
     }
@@ -132,8 +132,8 @@ impl Component for Label {
     ) -> Result<bool> {
         match message {
             LabelMessage::Noop => Ok(false),
-            LabelMessage::Change(text) => {
-                self.widget.set_text(text)?;
+            LabelMessage::Change => {
+                self.widget.set_text(self.text_prop.get())?;
                 Ok(false)
             }
         }

@@ -104,10 +104,10 @@ pub enum EditEvent {
 pub enum EditMessage {
     /// No operation.
     Noop,
-    /// The text has been changed.
+    /// The input has been changed.
     ChangeInput,
-    /// The text has been changed, and the new text is provided.
-    ChangeProp(String),
+    /// The text property has been changed.
+    ChangeProp,
 }
 
 impl Component for Edit {
@@ -118,7 +118,7 @@ impl Component for Edit {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Edit::new(init)?;
-        let Ok(text_prop) = Child::<Prop<String>>::init(()).await;
+        let Ok(text_prop) = Child::<Prop<String>>::init(String::new()).await;
         Ok(Self { widget, text_prop })
     }
 
@@ -134,7 +134,7 @@ impl Component for Edit {
             start! {
                 sender, default: EditMessage::Noop,
                 self.text_prop => {
-                    PropSinkEvent::Changed(text) => EditMessage::ChangeProp(text),
+                    PropSinkEvent::Changed => EditMessage::ChangeProp,
                 }
             }
         };
@@ -158,13 +158,12 @@ impl Component for Edit {
                 self.text_prop.post(PropSinkMessage::Set(text));
                 Ok(false)
             }
-            EditMessage::ChangeProp(text) => {
-                let old_text = self.widget.text()?;
-                if old_text != text {
-                    self.widget.set_text(&text)?;
-                    self.text_prop.post(PropSinkMessage::Set(text));
+            EditMessage::ChangeProp => {
+                let text = self.widget.text()?;
+                if &text != self.text_prop.get() {
+                    self.widget.set_text(self.text_prop.get())?;
                 }
-                Ok(false)
+                Ok(true)
             }
         }
     }
