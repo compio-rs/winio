@@ -1,10 +1,9 @@
-use std::{
-    hint::unreachable_unchecked,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Child, Component, ComponentSender, Prop, PropSink, PropSinkEvent, PropSinkMessage, start};
+use winio_elm::{
+    Child, Component, ComponentSender, Prop, PropSink, PropSinkEvent, PropSinkMessage, start,
+};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{Enable, Failable, Layoutable, Point, Size, TextWidget, ToolTip, Visible};
 
@@ -243,6 +242,8 @@ pub enum RadioButtonGroupEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum RadioButtonGroupMessage {
+    /// No operation.
+    Noop,
     /// A radio button has been selected, with its index.
     Click(usize),
 }
@@ -268,13 +269,18 @@ impl Component for RadioButtonGroup {
                     move |e| match e {
                         RadioButtonEvent::Click => Some(RadioButtonGroupMessage::Click(i)),
                     },
-                    // `RadioButton` never passes messages.
-                    || unsafe { unreachable_unchecked() },
+                    || RadioButtonGroupMessage::Noop,
                 )
             })
             .collect::<Vec<_>>();
         futures_util::future::join_all(futures).await;
         std::future::pending().await
+    }
+
+    async fn update_children(&mut self) -> Result<bool> {
+        futures_util::future::try_join_all(self.radios.iter_mut().map(|c| c.update()))
+            .await
+            .map(|v| v.into_iter().any(|b| b))
     }
 
     async fn update(
@@ -283,10 +289,10 @@ impl Component for RadioButtonGroup {
         sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
+            RadioButtonGroupMessage::Noop => Ok(false),
             RadioButtonGroupMessage::Click(i) => {
                 for (idx, r) in self.radios.iter_mut().enumerate() {
-                    let checked = idx == i;
-                    r.set_checked(checked)?;
+                    r.set_checked(idx == i)?;
                 }
                 sender.output(RadioButtonGroupEvent::Click(i));
                 Ok(false)
