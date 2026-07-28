@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender};
+use winio_elm::{Child, Component, ComponentSender, PropSink, PropSinkEvent, start};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{Enable, Failable, Layoutable, Point, Size, TextWidget, ToolTip, Visible};
 
@@ -12,6 +12,13 @@ use crate::{
 #[derive(Debug)]
 pub struct LinkLabel {
     widget: sys::LinkLabel,
+    text_prop: Child<PropSink<String>>,
+    uri_prop: Child<PropSink<String>>,
+    enabled_prop: Child<PropSink<bool>>,
+    visible_prop: Child<PropSink<bool>>,
+    tooltip_prop: Child<PropSink<String>>,
+    #[cfg(win32)]
+    transparent_prop: Child<PropSink<bool>>,
 }
 
 impl Failable for LinkLabel {
@@ -38,6 +45,38 @@ impl LinkLabel {
     /// Set if the label background is transparent.
     #[cfg(win32)]
     pub fn set_transparent(&mut self, v: bool) -> Result<()>;
+
+    /// Property for [`TextWidget::text`].
+    pub fn text_prop(&self) -> &PropSink<String> {
+        &self.text_prop
+    }
+
+    /// Property for [`LinkLabel::uri`].
+    pub fn uri_prop(&self) -> &PropSink<String> {
+        &self.uri_prop
+    }
+
+    /// Property for [`Enable::set_enabled`].
+    pub fn enabled_prop(&self) -> &PropSink<bool> {
+        &self.enabled_prop
+    }
+
+    /// Property for [`Visible::set_visible`].
+    pub fn visible_prop(&self) -> &PropSink<bool> {
+        &self.visible_prop
+    }
+
+    /// Property for [`ToolTip::set_tooltip`].
+    pub fn tooltip_prop(&self) -> &PropSink<String> {
+        &self.tooltip_prop
+    }
+
+    #[cfg(win32)]
+    #[allow(dead_code)]
+    /// Property for [`LinkLabel::is_transparent`].
+    pub fn transparent_prop(&self) -> &PropSink<bool> {
+        &self.transparent_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -93,7 +132,23 @@ pub enum LinkLabelEvent {
 /// Messages of [`LinkLabel`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum LinkLabelMessage {}
+pub enum LinkLabelMessage {
+    /// No operation.
+    Noop,
+    /// The text has been changed.
+    ChangeText,
+    /// The uri has been changed.
+    ChangeUri,
+    /// The enabled state has been changed.
+    ChangeEnabled,
+    /// The visible state has been changed.
+    ChangeVisible,
+    /// The tooltip has been changed.
+    ChangeTooltip,
+    #[cfg(win32)]
+    /// The transparent state has been changed.
+    ChangeTransparent,
+}
 
 impl Component for LinkLabel {
     type Error = Error;
@@ -103,13 +158,105 @@ impl Component for LinkLabel {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::LinkLabel::new(init)?;
-        Ok(Self { widget })
+        let Ok(text_prop) = Child::<PropSink<String>>::init(String::new()).await;
+        let Ok(uri_prop) = Child::<PropSink<String>>::init(String::new()).await;
+        let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
+        let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
+        let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
+        #[cfg(win32)]
+        let Ok(transparent_prop) = Child::<PropSink<bool>>::init(false).await;
+        Ok(Self {
+            widget,
+            text_prop,
+            uri_prop,
+            enabled_prop,
+            visible_prop,
+            tooltip_prop,
+            #[cfg(win32)]
+            transparent_prop,
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        loop {
-            self.widget.wait_click().await;
-            sender.output(LinkLabelEvent::Click);
+        let fut_click = async {
+            loop {
+                self.widget.wait_click().await;
+                sender.output(LinkLabelEvent::Click);
+            }
+        };
+        let fut_props = async {
+            #[cfg(win32)]
+            {
+                start! {
+                    sender, default: LinkLabelMessage::Noop,
+                    self.text_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeText },
+                    self.uri_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeUri },
+                    self.enabled_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeEnabled },
+                    self.visible_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeVisible },
+                    self.tooltip_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeTooltip },
+                    self.transparent_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeTransparent },
+                }
+            }
+            #[cfg(not(win32))]
+            {
+                start! {
+                    sender, default: LinkLabelMessage::Noop,
+                    self.text_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeText },
+                    self.uri_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeUri },
+                    self.enabled_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeEnabled },
+                    self.visible_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeVisible },
+                    self.tooltip_prop => { PropSinkEvent::Changed => LinkLabelMessage::ChangeTooltip },
+                }
+            }
+        };
+        futures_util::future::join(fut_click, fut_props).await.0
+    }
+
+    async fn update_children(&mut self) -> Result<bool> {
+        let Ok(r0) = self.text_prop.update().await;
+        let Ok(r1) = self.uri_prop.update().await;
+        let Ok(r2) = self.enabled_prop.update().await;
+        let Ok(r3) = self.visible_prop.update().await;
+        let Ok(r4) = self.tooltip_prop.update().await;
+        #[cfg(win32)]
+        let Ok(r5) = self.transparent_prop.update().await;
+        #[cfg(not(win32))]
+        let r5 = false;
+        Ok(r0 || r1 || r2 || r3 || r4 || r5)
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            LinkLabelMessage::Noop => Ok(false),
+            LinkLabelMessage::ChangeText => {
+                self.widget.set_text(self.text_prop.get())?;
+                Ok(true)
+            }
+            LinkLabelMessage::ChangeUri => {
+                self.widget.set_uri(self.uri_prop.get())?;
+                Ok(true)
+            }
+            LinkLabelMessage::ChangeEnabled => {
+                self.widget.set_enabled(**self.enabled_prop)?;
+                Ok(true)
+            }
+            LinkLabelMessage::ChangeVisible => {
+                self.widget.set_visible(**self.visible_prop)?;
+                Ok(true)
+            }
+            LinkLabelMessage::ChangeTooltip => {
+                self.widget.set_tooltip(self.tooltip_prop.get())?;
+                Ok(true)
+            }
+            #[cfg(win32)]
+            LinkLabelMessage::ChangeTransparent => {
+                self.widget.set_transparent(**self.transparent_prop)?;
+                Ok(true)
+            }
         }
     }
 }

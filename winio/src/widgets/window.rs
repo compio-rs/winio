@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender};
+use winio_elm::{Child, Component, ComponentSender, PropSink, PropSinkEvent, start};
 use winio_layout::Layoutable;
 use winio_primitive::{Failable, Point, Size, TextWidget, Visible};
 
@@ -20,6 +20,8 @@ use crate::{
 #[derive(Debug)]
 pub struct Window {
     widget: sys::Window,
+    text_prop: Child<PropSink<String>>,
+    visible_prop: Child<PropSink<bool>>,
 }
 
 impl Failable for Window {
@@ -84,6 +86,16 @@ impl Window {
     /// Set the visual effect of the window.
     #[cfg(target_os = "macos")]
     pub fn set_vibrancy(&mut self, v: Option<Vibrancy>) -> Result<()>;
+
+    /// Property for [`TextWidget::text`].
+    pub fn text_prop(&self) -> &PropSink<String> {
+        &self.text_prop
+    }
+
+    /// Property for [`Visible::set_visible`].
+    pub fn visible_prop(&self) -> &PropSink<bool> {
+        &self.visible_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -122,7 +134,14 @@ pub enum WindowEvent {
 /// Messages of [`Window`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum WindowMessage {}
+pub enum WindowMessage {
+    /// No operation.
+    Noop,
+    /// The text has been changed.
+    ChangeText,
+    /// The visible state has been changed.
+    ChangeVisible,
+}
 
 impl Component for Window {
     type Error = Error;
@@ -132,7 +151,13 @@ impl Component for Window {
 
     async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Window::new()?;
-        Ok(Self { widget })
+        let Ok(text_prop) = Child::<PropSink<String>>::init(String::new()).await;
+        let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
+        Ok(Self {
+            widget,
+            text_prop,
+            visible_prop,
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -160,9 +185,40 @@ impl Component for Window {
                 sender.output(WindowEvent::ThemeChanged);
             }
         };
-        futures_util::future::join4(fut_close, fut_move, fut_resize, fut_theme)
+        let fut_props = async {
+            start! {
+                sender, default: WindowMessage::Noop,
+                self.text_prop => { PropSinkEvent::Changed => WindowMessage::ChangeText },
+                self.visible_prop => { PropSinkEvent::Changed => WindowMessage::ChangeVisible },
+            }
+        };
+        futures_util::future::join5(fut_close, fut_move, fut_resize, fut_theme, fut_props)
             .await
             .0
+    }
+
+    async fn update_children(&mut self) -> Result<bool> {
+        let Ok(r0) = self.text_prop.update().await;
+        let Ok(r1) = self.visible_prop.update().await;
+        Ok(r0 || r1)
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            WindowMessage::Noop => Ok(false),
+            WindowMessage::ChangeText => {
+                self.widget.set_text(self.text_prop.get())?;
+                Ok(true)
+            }
+            WindowMessage::ChangeVisible => {
+                self.widget.set_visible(**self.visible_prop)?;
+                Ok(true)
+            }
+        }
     }
 }
 

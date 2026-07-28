@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender};
+use winio_elm::{Child, Component, ComponentSender, PropSink, PropSinkEvent, start};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
     Enable, Failable, Layoutable, MouseButton, Point, Size, ToolTip, Vector, Visible,
@@ -15,6 +15,9 @@ use crate::{
 #[derive(Debug)]
 pub struct Canvas {
     widget: sys::Canvas,
+    enabled_prop: Child<PropSink<bool>>,
+    visible_prop: Child<PropSink<bool>>,
+    tooltip_prop: Child<PropSink<String>>,
 }
 
 impl Canvas {
@@ -33,6 +36,23 @@ impl ToolTip for Canvas {
     fn tooltip(&self) -> Result<String>;
 
     fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+}
+
+impl Canvas {
+    /// Property for [`Enable::set_enabled`].
+    pub fn enabled_prop(&self) -> &PropSink<bool> {
+        &self.enabled_prop
+    }
+
+    /// Property for [`Visible::set_visible`].
+    pub fn visible_prop(&self) -> &PropSink<bool> {
+        &self.visible_prop
+    }
+
+    /// Property for [`ToolTip::set_tooltip`].
+    pub fn tooltip_prop(&self) -> &PropSink<String> {
+        &self.tooltip_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -79,7 +99,16 @@ pub enum CanvasEvent {
 /// Messages of [`Canvas`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum CanvasMessage {}
+pub enum CanvasMessage {
+    /// No operation.
+    Noop,
+    /// The enabled state has been changed.
+    ChangeEnabled,
+    /// The visible state has been changed.
+    ChangeVisible,
+    /// The tooltip has been changed.
+    ChangeTooltip,
+}
 
 impl Component for Canvas {
     type Error = Error;
@@ -89,7 +118,15 @@ impl Component for Canvas {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Canvas::new(init)?;
-        Ok(Self { widget })
+        let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
+        let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
+        let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
+        Ok(Self {
+            widget,
+            enabled_prop,
+            visible_prop,
+            tooltip_prop,
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -117,9 +154,46 @@ impl Component for Canvas {
                 sender.output(CanvasEvent::MouseWheel(w));
             }
         };
-        futures_util::future::join4(fut_move, fut_down, fut_up, fut_wheel)
+        let fut_props = async {
+            start! {
+                sender, default: CanvasMessage::Noop,
+                self.enabled_prop => { PropSinkEvent::Changed => CanvasMessage::ChangeEnabled },
+                self.visible_prop => { PropSinkEvent::Changed => CanvasMessage::ChangeVisible },
+                self.tooltip_prop => { PropSinkEvent::Changed => CanvasMessage::ChangeTooltip },
+            }
+        };
+        futures_util::future::join5(fut_move, fut_down, fut_up, fut_wheel, fut_props)
             .await
             .0
+    }
+
+    async fn update_children(&mut self) -> Result<bool> {
+        let Ok(r0) = self.enabled_prop.update().await;
+        let Ok(r1) = self.visible_prop.update().await;
+        let Ok(r2) = self.tooltip_prop.update().await;
+        Ok(r0 || r1 || r2)
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            CanvasMessage::Noop => Ok(false),
+            CanvasMessage::ChangeEnabled => {
+                self.widget.set_enabled(**self.enabled_prop)?;
+                Ok(true)
+            }
+            CanvasMessage::ChangeVisible => {
+                self.widget.set_visible(**self.visible_prop)?;
+                Ok(true)
+            }
+            CanvasMessage::ChangeTooltip => {
+                self.widget.set_tooltip(self.tooltip_prop.get())?;
+                Ok(true)
+            }
+        }
     }
 }
 

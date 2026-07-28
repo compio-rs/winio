@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender, ObservableVecEvent};
+use winio_elm::{Child, Component, ComponentSender, ObservableVecEvent, Prop, PropSink, PropSinkEvent, PropSinkMessage, start};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{Enable, Failable, Layoutable, Point, Size, TextWidget, ToolTip, Visible};
 
@@ -12,6 +12,12 @@ use crate::{
 #[derive(Debug)]
 pub struct ComboBox {
     widget: sys::ComboBox,
+    text_prop: Child<Prop<String>>,
+    selection_prop: Child<Prop<Option<usize>>>,
+    editable_prop: Child<PropSink<bool>>,
+    enabled_prop: Child<PropSink<bool>>,
+    visible_prop: Child<PropSink<bool>>,
+    tooltip_prop: Child<PropSink<String>>,
 }
 
 impl Failable for ComboBox {
@@ -81,6 +87,36 @@ impl ComboBox {
         }
         Ok(())
     }
+
+    /// Property for [`TextWidget::text`].
+    pub fn text_prop(&mut self) -> &mut Prop<String> {
+        &mut self.text_prop
+    }
+
+    /// Property for [`ComboBox::selection`].
+    pub fn selection_prop(&mut self) -> &mut Prop<Option<usize>> {
+        &mut self.selection_prop
+    }
+
+    /// Property for [`ComboBox::is_editable`].
+    pub fn editable_prop(&self) -> &PropSink<bool> {
+        &self.editable_prop
+    }
+
+    /// Property for [`Enable::set_enabled`].
+    pub fn enabled_prop(&self) -> &PropSink<bool> {
+        &self.enabled_prop
+    }
+
+    /// Property for [`Visible::set_visible`].
+    pub fn visible_prop(&self) -> &PropSink<bool> {
+        &self.visible_prop
+    }
+
+    /// Property for [`ToolTip::set_tooltip`].
+    pub fn tooltip_prop(&self) -> &PropSink<String> {
+        &self.tooltip_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -134,6 +170,8 @@ pub enum ComboBoxEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ComboBoxMessage {
+    /// No operation.
+    Noop,
     /// An element inserted.
     Insert {
         /// The insert position.
@@ -155,6 +193,22 @@ pub enum ComboBoxMessage {
     },
     /// The vector has been cleared.
     Clear,
+    /// The selection has been changed by user.
+    ChangeInputSelection,
+    /// The selection prop has been changed.
+    ChangePropSelection,
+    /// The text has been changed by user input.
+    ChangeInputText,
+    /// The text prop has been changed.
+    ChangePropText,
+    /// The editable state has been changed.
+    ChangeEditable,
+    /// The enabled state has been changed.
+    ChangeEnabled,
+    /// The visible state has been changed.
+    ChangeVisible,
+    /// The tooltip has been changed.
+    ChangeTooltip,
 }
 
 impl ComboBoxMessage {
@@ -189,37 +243,129 @@ impl Component for ComboBox {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::ComboBox::new(init)?;
-        Ok(Self { widget })
+        let Ok(text_prop) = Child::<Prop<String>>::init(String::new()).await;
+        let Ok(selection_prop) = Child::<Prop<Option<usize>>>::init(None).await;
+        let Ok(editable_prop) = Child::<PropSink<bool>>::init(false).await;
+        let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
+        let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
+        let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
+        Ok(Self {
+            widget,
+            text_prop,
+            selection_prop,
+            editable_prop,
+            enabled_prop,
+            visible_prop,
+            tooltip_prop,
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         let fut_select = async {
             loop {
                 self.widget.wait_select().await;
-                sender.output(ComboBoxEvent::Select);
+                sender.post(ComboBoxMessage::ChangeInputSelection);
             }
         };
         let fut_change = async {
             loop {
                 self.widget.wait_change().await;
-                sender.output(ComboBoxEvent::Change);
+                sender.post(ComboBoxMessage::ChangeInputText);
             }
         };
-        futures_util::future::join(fut_select, fut_change).await.0
+        let fut_props = async {
+            start! {
+                sender, default: ComboBoxMessage::Noop,
+                self.selection_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangePropSelection },
+                self.text_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangePropText },
+                self.editable_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangeEditable },
+                self.enabled_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangeEnabled },
+                self.visible_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangeVisible },
+                self.tooltip_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangeTooltip },
+            }
+        };
+        futures_util::future::join3(fut_select, fut_change, fut_props).await.0
+    }
+
+    async fn update_children(&mut self) -> Result<bool> {
+        let Ok(r0) = self.text_prop.update().await;
+        let Ok(r1) = self.selection_prop.update().await;
+        let Ok(r2) = self.editable_prop.update().await;
+        let Ok(r3) = self.enabled_prop.update().await;
+        let Ok(r4) = self.visible_prop.update().await;
+        let Ok(r5) = self.tooltip_prop.update().await;
+        Ok(r0 || r1 || r2 || r3 || r4 || r5)
     }
 
     async fn update(
         &mut self,
         message: Self::Message,
-        _sender: &ComponentSender<Self>,
+        sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            ComboBoxMessage::Insert { at, value } => self.insert(at, value)?,
-            ComboBoxMessage::Remove { at } => self.remove(at)?,
-            ComboBoxMessage::Replace { at, value } => self.set(at, value)?,
-            ComboBoxMessage::Clear => self.clear()?,
+            ComboBoxMessage::Noop => Ok(false),
+            ComboBoxMessage::Insert { at, value } => {
+                self.insert(at, value)?;
+                Ok(true)
+            }
+            ComboBoxMessage::Remove { at } => {
+                self.remove(at)?;
+                Ok(true)
+            }
+            ComboBoxMessage::Replace { at, value } => {
+                self.set(at, value)?;
+                Ok(true)
+            }
+            ComboBoxMessage::Clear => {
+                self.clear()?;
+                Ok(true)
+            }
+            ComboBoxMessage::ChangeInputSelection => {
+                let selection = self.widget.selection()?;
+                self.selection_prop.post(PropSinkMessage::Set(selection));
+                sender.output(ComboBoxEvent::Select);
+                Ok(false)
+            }
+            ComboBoxMessage::ChangePropSelection => {
+                let current = self.widget.selection()?;
+                let prop_val = self.selection_prop.get();
+                if &current != prop_val {
+                    if let Some(i) = prop_val {
+                        self.widget.set_selection(*i)?;
+                    }
+                }
+                Ok(true)
+            }
+            ComboBoxMessage::ChangeInputText => {
+                let text = self.widget.text()?;
+                self.text_prop.post(PropSinkMessage::Set(text));
+                sender.output(ComboBoxEvent::Change);
+                Ok(false)
+            }
+            ComboBoxMessage::ChangePropText => {
+                let text = self.widget.text()?;
+                if &text != self.text_prop.get() {
+                    self.widget.set_text(self.text_prop.get())?;
+                }
+                Ok(true)
+            }
+            ComboBoxMessage::ChangeEditable => {
+                self.widget.set_editable(**self.editable_prop)?;
+                Ok(true)
+            }
+            ComboBoxMessage::ChangeEnabled => {
+                self.widget.set_enabled(**self.enabled_prop)?;
+                Ok(true)
+            }
+            ComboBoxMessage::ChangeVisible => {
+                self.widget.set_visible(**self.visible_prop)?;
+                Ok(true)
+            }
+            ComboBoxMessage::ChangeTooltip => {
+                self.widget.set_tooltip(self.tooltip_prop.get())?;
+                Ok(true)
+            }
         }
-        Ok(true)
     }
 }
 

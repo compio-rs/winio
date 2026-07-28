@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use cookie::Cookie;
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender};
+use winio_elm::{Child, Component, ComponentSender, PropSink, PropSinkEvent, start};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{Enable, Failable, Layoutable, Point, Size, Visible};
 
@@ -15,6 +15,9 @@ use crate::{
 #[derive(Debug)]
 pub struct WebView {
     widget: sys::WebView,
+    source_prop: Child<PropSink<String>>,
+    visible_prop: Child<PropSink<bool>>,
+    enabled_prop: Child<PropSink<bool>>,
 }
 
 impl Failable for WebView {
@@ -100,6 +103,21 @@ impl WebView {
     ) -> Result<impl Future<Output = Result<String>> + 'static> {
         self.widget.run_javascript(js)
     }
+
+    /// Property for [`WebView::source`].
+    pub fn source_prop(&self) -> &PropSink<String> {
+        &self.source_prop
+    }
+
+    /// Property for [`Visible::set_visible`].
+    pub fn visible_prop(&self) -> &PropSink<bool> {
+        &self.visible_prop
+    }
+
+    /// Property for [`Enable::set_enabled`].
+    pub fn enabled_prop(&self) -> &PropSink<bool> {
+        &self.enabled_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -140,7 +158,16 @@ pub enum WebViewEvent {
 /// Messages of [`WebView`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum WebViewMessage {}
+pub enum WebViewMessage {
+    /// No operation.
+    Noop,
+    /// The source has been changed.
+    ChangeSource,
+    /// The visible state has been changed.
+    ChangeVisible,
+    /// The enabled state has been changed.
+    ChangeEnabled,
+}
 
 impl Component for WebView {
     type Error = Error;
@@ -150,7 +177,15 @@ impl Component for WebView {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::WebView::new(init).await?;
-        Ok(Self { widget })
+        let Ok(source_prop) = Child::<PropSink<String>>::init(String::new()).await;
+        let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
+        let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
+        Ok(Self {
+            widget,
+            source_prop,
+            visible_prop,
+            enabled_prop,
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -166,9 +201,44 @@ impl Component for WebView {
                 sender.output(WebViewEvent::Navigating);
             }
         };
-        futures_util::future::join(fut_navigated, fut_navigating)
-            .await
-            .0
+        let fut_props = async {
+            start! {
+                sender, default: WebViewMessage::Noop,
+                self.source_prop => { PropSinkEvent::Changed => WebViewMessage::ChangeSource },
+                self.visible_prop => { PropSinkEvent::Changed => WebViewMessage::ChangeVisible },
+                self.enabled_prop => { PropSinkEvent::Changed => WebViewMessage::ChangeEnabled },
+            }
+        };
+        futures_util::future::join3(fut_navigated, fut_navigating, fut_props).await.0
+    }
+
+    async fn update_children(&mut self) -> Result<bool> {
+        let Ok(r0) = self.source_prop.update().await;
+        let Ok(r1) = self.visible_prop.update().await;
+        let Ok(r2) = self.enabled_prop.update().await;
+        Ok(r0 || r1 || r2)
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            WebViewMessage::Noop => Ok(false),
+            WebViewMessage::ChangeSource => {
+                self.widget.set_source(self.source_prop.get())?;
+                Ok(true)
+            }
+            WebViewMessage::ChangeVisible => {
+                self.widget.set_visible(**self.visible_prop)?;
+                Ok(true)
+            }
+            WebViewMessage::ChangeEnabled => {
+                self.widget.set_enabled(**self.enabled_prop)?;
+                Ok(true)
+            }
+        }
     }
 }
 

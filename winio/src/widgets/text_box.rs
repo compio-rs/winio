@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender};
+use winio_elm::{Child, Component, ComponentSender, Prop, PropSink, PropSinkEvent, PropSinkMessage, start};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
     Enable, Failable, HAlign, Layoutable, Point, Size, TextWidget, ToolTip, Visible,
@@ -14,6 +14,12 @@ use crate::{
 #[derive(Debug)]
 pub struct TextBox {
     widget: sys::TextBox,
+    text_prop: Child<Prop<String>>,
+    halign_prop: Child<PropSink<HAlign>>,
+    readonly_prop: Child<PropSink<bool>>,
+    enabled_prop: Child<PropSink<bool>>,
+    visible_prop: Child<PropSink<bool>>,
+    tooltip_prop: Child<PropSink<String>>,
 }
 
 impl Failable for TextBox {
@@ -49,6 +55,36 @@ impl TextBox {
 
     /// Set if the text input is read-only.
     pub fn set_readonly(&mut self, v: bool) -> Result<()>;
+
+    /// Property for [`TextWidget::text`].
+    pub fn text_prop(&mut self) -> &mut Prop<String> {
+        &mut self.text_prop
+    }
+
+    /// Property for [`TextBox::halign`].
+    pub fn halign_prop(&self) -> &PropSink<HAlign> {
+        &self.halign_prop
+    }
+
+    /// Property for [`TextBox::is_readonly`].
+    pub fn readonly_prop(&self) -> &PropSink<bool> {
+        &self.readonly_prop
+    }
+
+    /// Property for [`Enable::set_enabled`].
+    pub fn enabled_prop(&self) -> &PropSink<bool> {
+        &self.enabled_prop
+    }
+
+    /// Property for [`Visible::set_visible`].
+    pub fn visible_prop(&self) -> &PropSink<bool> {
+        &self.visible_prop
+    }
+
+    /// Property for [`ToolTip::set_tooltip`].
+    pub fn tooltip_prop(&self) -> &PropSink<String> {
+        &self.tooltip_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -83,15 +119,29 @@ impl Layoutable for TextBox {
 /// Events of [`TextBox`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum TextBoxEvent {
-    /// The text has been changed.
-    Change,
-}
+pub enum TextBoxEvent {}
 
 /// Messages of [`TextBox`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum TextBoxMessage {}
+pub enum TextBoxMessage {
+    /// No operation.
+    Noop,
+    /// The text has been changed by user input.
+    ChangeInput,
+    /// The text prop has been changed.
+    ChangeProp,
+    /// The halign has been changed.
+    ChangeHalign,
+    /// The readonly state has been changed.
+    ChangeReadonly,
+    /// The enabled state has been changed.
+    ChangeEnabled,
+    /// The visible state has been changed.
+    ChangeVisible,
+    /// The tooltip has been changed.
+    ChangeTooltip,
+}
 
 impl Component for TextBox {
     type Error = Error;
@@ -101,13 +151,93 @@ impl Component for TextBox {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::TextBox::new(init)?;
-        Ok(Self { widget })
+        let Ok(text_prop) = Child::<Prop<String>>::init(String::new()).await;
+        let Ok(halign_prop) = Child::<PropSink<HAlign>>::init(HAlign::Left).await;
+        let Ok(readonly_prop) = Child::<PropSink<bool>>::init(false).await;
+        let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
+        let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
+        let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
+        Ok(Self {
+            widget,
+            text_prop,
+            halign_prop,
+            readonly_prop,
+            enabled_prop,
+            visible_prop,
+            tooltip_prop,
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        loop {
-            self.widget.wait_change().await;
-            sender.output(TextBoxEvent::Change);
+        let fut_listen = async {
+            loop {
+                self.widget.wait_change().await;
+                sender.post(TextBoxMessage::ChangeInput);
+            }
+        };
+        let fut_props = async {
+            start! {
+                sender, default: TextBoxMessage::Noop,
+                self.text_prop => { PropSinkEvent::Changed => TextBoxMessage::ChangeProp },
+                self.halign_prop => { PropSinkEvent::Changed => TextBoxMessage::ChangeHalign },
+                self.readonly_prop => { PropSinkEvent::Changed => TextBoxMessage::ChangeReadonly },
+                self.enabled_prop => { PropSinkEvent::Changed => TextBoxMessage::ChangeEnabled },
+                self.visible_prop => { PropSinkEvent::Changed => TextBoxMessage::ChangeVisible },
+                self.tooltip_prop => { PropSinkEvent::Changed => TextBoxMessage::ChangeTooltip },
+            }
+        };
+        futures_util::future::join(fut_listen, fut_props).await.0
+    }
+
+    async fn update_children(&mut self) -> Result<bool> {
+        let Ok(r0) = self.text_prop.update().await;
+        let Ok(r1) = self.halign_prop.update().await;
+        let Ok(r2) = self.readonly_prop.update().await;
+        let Ok(r3) = self.enabled_prop.update().await;
+        let Ok(r4) = self.visible_prop.update().await;
+        let Ok(r5) = self.tooltip_prop.update().await;
+        Ok(r0 || r1 || r2 || r3 || r4 || r5)
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            TextBoxMessage::Noop => Ok(false),
+            TextBoxMessage::ChangeInput => {
+                let text = self.widget.text()?;
+                self.text_prop.post(PropSinkMessage::Set(text));
+                Ok(false)
+            }
+            TextBoxMessage::ChangeProp => {
+                let text = self.widget.text()?;
+                if &text != self.text_prop.get() {
+                    self.widget.set_text(self.text_prop.get())?;
+                }
+                Ok(true)
+            }
+            TextBoxMessage::ChangeHalign => {
+                self.widget.set_halign(*self.halign_prop.get())?;
+                Ok(true)
+            }
+            TextBoxMessage::ChangeReadonly => {
+                self.widget.set_readonly(**self.readonly_prop)?;
+                Ok(true)
+            }
+            TextBoxMessage::ChangeEnabled => {
+                self.widget.set_enabled(**self.enabled_prop)?;
+                Ok(true)
+            }
+            TextBoxMessage::ChangeVisible => {
+                self.widget.set_visible(**self.visible_prop)?;
+                Ok(true)
+            }
+            TextBoxMessage::ChangeTooltip => {
+                self.widget.set_tooltip(self.tooltip_prop.get())?;
+                Ok(true)
+            }
         }
     }
 }

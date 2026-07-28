@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender};
+use winio_elm::{Child, Component, ComponentSender, Prop, PropSink, PropSinkEvent, PropSinkMessage, start};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{Enable, Failable, Layoutable, Point, Size, TextWidget, Visible};
 
@@ -12,6 +12,9 @@ use crate::{
 #[derive(Debug)]
 pub struct TabView {
     widget: sys::TabView,
+    selection_prop: Child<Prop<Option<usize>>>,
+    enabled_prop: Child<PropSink<bool>>,
+    visible_prop: Child<PropSink<bool>>,
 }
 
 impl Failable for TabView {
@@ -47,6 +50,21 @@ impl TabView {
 
     /// Clear the tabs.
     pub fn clear(&mut self) -> Result<()>;
+
+    /// Property for [`TabView::selection`].
+    pub fn selection_prop(&mut self) -> &mut Prop<Option<usize>> {
+        &mut self.selection_prop
+    }
+
+    /// Property for [`Enable::set_enabled`].
+    pub fn enabled_prop(&self) -> &PropSink<bool> {
+        &self.enabled_prop
+    }
+
+    /// Property for [`Visible::set_visible`].
+    pub fn visible_prop(&self) -> &PropSink<bool> {
+        &self.visible_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -85,7 +103,18 @@ pub enum TabViewEvent {
 /// Messages of [`TabView`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum TabViewMessage {}
+pub enum TabViewMessage {
+    /// No operation.
+    Noop,
+    /// The selection has been changed by user.
+    ChangeInputSelection,
+    /// The selection prop has been changed.
+    ChangePropSelection,
+    /// The enabled state has been changed.
+    ChangeEnabled,
+    /// The visible state has been changed.
+    ChangeVisible,
+}
 
 impl Component for TabView {
     type Error = Error;
@@ -95,13 +124,73 @@ impl Component for TabView {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::TabView::new(init)?;
-        Ok(Self { widget })
+        let Ok(selection_prop) = Child::<Prop<Option<usize>>>::init(None).await;
+        let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
+        let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
+        Ok(Self {
+            widget,
+            selection_prop,
+            enabled_prop,
+            visible_prop,
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        loop {
-            self.widget.wait_select().await;
-            sender.output(TabViewEvent::Select);
+        let fut_select = async {
+            loop {
+                self.widget.wait_select().await;
+                sender.post(TabViewMessage::ChangeInputSelection);
+            }
+        };
+        let fut_props = async {
+            start! {
+                sender, default: TabViewMessage::Noop,
+                self.selection_prop => { PropSinkEvent::Changed => TabViewMessage::ChangePropSelection },
+                self.enabled_prop => { PropSinkEvent::Changed => TabViewMessage::ChangeEnabled },
+                self.visible_prop => { PropSinkEvent::Changed => TabViewMessage::ChangeVisible },
+            }
+        };
+        futures_util::future::join(fut_select, fut_props).await.0
+    }
+
+    async fn update_children(&mut self) -> Result<bool> {
+        let Ok(r0) = self.selection_prop.update().await;
+        let Ok(r1) = self.enabled_prop.update().await;
+        let Ok(r2) = self.visible_prop.update().await;
+        Ok(r0 || r1 || r2)
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            TabViewMessage::Noop => Ok(false),
+            TabViewMessage::ChangeInputSelection => {
+                let selection = self.widget.selection()?;
+                self.selection_prop.post(PropSinkMessage::Set(selection));
+                sender.output(TabViewEvent::Select);
+                Ok(false)
+            }
+            TabViewMessage::ChangePropSelection => {
+                let current = self.widget.selection()?;
+                let prop_val = self.selection_prop.get();
+                if &current != prop_val {
+                    if let Some(i) = prop_val {
+                        self.widget.set_selection(*i)?;
+                    }
+                }
+                Ok(true)
+            }
+            TabViewMessage::ChangeEnabled => {
+                self.widget.set_enabled(**self.enabled_prop)?;
+                Ok(true)
+            }
+            TabViewMessage::ChangeVisible => {
+                self.widget.set_visible(**self.visible_prop)?;
+                Ok(true)
+            }
         }
     }
 }
@@ -112,6 +201,7 @@ winio_handle::impl_as_widget!(TabView, widget);
 #[derive(Debug)]
 pub struct TabViewItem {
     widget: sys::TabViewItem,
+    text_prop: Child<PropSink<String>>,
 }
 
 impl Failable for TabViewItem {
@@ -129,6 +219,11 @@ impl TextWidget for TabViewItem {
 impl TabViewItem {
     /// Get the available size of the tab.
     pub fn size(&self) -> Result<Size>;
+
+    /// Property for [`TextWidget::text`].
+    pub fn text_prop(&self) -> &PropSink<String> {
+        &self.text_prop
+    }
 }
 
 /// Events of [`TabViewItem`].
@@ -139,7 +234,12 @@ pub enum TabViewItemEvent {}
 /// Messages of [`TabViewItem`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum TabViewItemMessage {}
+pub enum TabViewItemMessage {
+    /// No operation.
+    Noop,
+    /// The text has been changed.
+    Change,
+}
 
 impl Component for TabViewItem {
     type Error = Error;
@@ -149,7 +249,34 @@ impl Component for TabViewItem {
 
     async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::TabViewItem::new()?;
-        Ok(Self { widget })
+        let Ok(text_prop) = Child::<PropSink<String>>::init(String::new()).await;
+        Ok(Self { widget, text_prop })
+    }
+
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
+        start! {
+            sender, default: TabViewItemMessage::Noop,
+            self.text_prop => { PropSinkEvent::Changed => TabViewItemMessage::Change },
+        }
+    }
+
+    async fn update_children(&mut self) -> Result<bool> {
+        let Ok(res) = self.text_prop.update().await;
+        Ok(res)
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            TabViewItemMessage::Noop => Ok(false),
+            TabViewItemMessage::Change => {
+                self.widget.set_text(self.text_prop.get())?;
+                Ok(true)
+            }
+        }
     }
 }
 

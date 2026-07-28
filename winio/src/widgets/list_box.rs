@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender, ObservableVecEvent};
+use winio_elm::{Child, Component, ComponentSender, ObservableVecEvent, PropSink, PropSinkEvent, start};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{Enable, Failable, Layoutable, Point, Size, ToolTip, Visible};
 
@@ -12,6 +12,10 @@ use crate::{
 #[derive(Debug)]
 pub struct ListBox {
     widget: sys::ListBox,
+    multiple_prop: Child<PropSink<bool>>,
+    enabled_prop: Child<PropSink<bool>>,
+    visible_prop: Child<PropSink<bool>>,
+    tooltip_prop: Child<PropSink<String>>,
 }
 
 impl Failable for ListBox {
@@ -74,6 +78,26 @@ impl ListBox {
         }
         Ok(())
     }
+
+    /// Property for [`ListBox::is_multiple`].
+    pub fn multiple_prop(&self) -> &PropSink<bool> {
+        &self.multiple_prop
+    }
+
+    /// Property for [`Enable::set_enabled`].
+    pub fn enabled_prop(&self) -> &PropSink<bool> {
+        &self.enabled_prop
+    }
+
+    /// Property for [`Visible::set_visible`].
+    pub fn visible_prop(&self) -> &PropSink<bool> {
+        &self.visible_prop
+    }
+
+    /// Property for [`ToolTip::set_tooltip`].
+    pub fn tooltip_prop(&self) -> &PropSink<String> {
+        &self.tooltip_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -117,6 +141,8 @@ pub enum ListBoxEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ListBoxMessage {
+    /// No operation.
+    Noop,
     /// An element inserted.
     Insert {
         /// The insert position.
@@ -138,6 +164,14 @@ pub enum ListBoxMessage {
     },
     /// The vector has been cleared.
     Clear,
+    /// The multiple selection state has been changed.
+    ChangeMultiple,
+    /// The enabled state has been changed.
+    ChangeEnabled,
+    /// The visible state has been changed.
+    ChangeVisible,
+    /// The tooltip has been changed.
+    ChangeTooltip,
 }
 
 impl ListBoxMessage {
@@ -172,14 +206,44 @@ impl Component for ListBox {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::ListBox::new(init)?;
-        Ok(Self { widget })
+        let Ok(multiple_prop) = Child::<PropSink<bool>>::init(false).await;
+        let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
+        let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
+        let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
+        Ok(Self {
+            widget,
+            multiple_prop,
+            enabled_prop,
+            visible_prop,
+            tooltip_prop,
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        loop {
-            self.widget.wait_select().await;
-            sender.output(ListBoxEvent::Select);
-        }
+        let fut_select = async {
+            loop {
+                self.widget.wait_select().await;
+                sender.output(ListBoxEvent::Select);
+            }
+        };
+        let fut_props = async {
+            start! {
+                sender, default: ListBoxMessage::Noop,
+                self.multiple_prop => { PropSinkEvent::Changed => ListBoxMessage::ChangeMultiple },
+                self.enabled_prop => { PropSinkEvent::Changed => ListBoxMessage::ChangeEnabled },
+                self.visible_prop => { PropSinkEvent::Changed => ListBoxMessage::ChangeVisible },
+                self.tooltip_prop => { PropSinkEvent::Changed => ListBoxMessage::ChangeTooltip },
+            }
+        };
+        futures_util::future::join(fut_select, fut_props).await.0
+    }
+
+    async fn update_children(&mut self) -> Result<bool> {
+        let Ok(r0) = self.multiple_prop.update().await;
+        let Ok(r1) = self.enabled_prop.update().await;
+        let Ok(r2) = self.visible_prop.update().await;
+        let Ok(r3) = self.tooltip_prop.update().await;
+        Ok(r0 || r1 || r2 || r3)
     }
 
     async fn update(
@@ -188,12 +252,40 @@ impl Component for ListBox {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            ListBoxMessage::Insert { at, value } => self.insert(at, value)?,
-            ListBoxMessage::Remove { at } => self.remove(at)?,
-            ListBoxMessage::Replace { at, value } => self.set(at, value)?,
-            ListBoxMessage::Clear => self.clear()?,
+            ListBoxMessage::Noop => Ok(false),
+            ListBoxMessage::Insert { at, value } => {
+                self.insert(at, value)?;
+                Ok(true)
+            }
+            ListBoxMessage::Remove { at } => {
+                self.remove(at)?;
+                Ok(true)
+            }
+            ListBoxMessage::Replace { at, value } => {
+                self.set(at, value)?;
+                Ok(true)
+            }
+            ListBoxMessage::Clear => {
+                self.clear()?;
+                Ok(true)
+            }
+            ListBoxMessage::ChangeMultiple => {
+                self.widget.set_multiple(**self.multiple_prop)?;
+                Ok(true)
+            }
+            ListBoxMessage::ChangeEnabled => {
+                self.widget.set_enabled(**self.enabled_prop)?;
+                Ok(true)
+            }
+            ListBoxMessage::ChangeVisible => {
+                self.widget.set_visible(**self.visible_prop)?;
+                Ok(true)
+            }
+            ListBoxMessage::ChangeTooltip => {
+                self.widget.set_tooltip(self.tooltip_prop.get())?;
+                Ok(true)
+            }
         }
-        Ok(true)
     }
 }
 
