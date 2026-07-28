@@ -156,9 +156,9 @@ impl Component for Progress {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Progress::new(init)?;
-        let Ok(pos_prop) = Child::<PropSink<usize>>::init(0usize).await;
-        let Ok(minimum_prop) = Child::<PropSink<usize>>::init(0usize).await;
-        let Ok(maximum_prop) = Child::<PropSink<usize>>::init(100usize).await;
+        let Ok(pos_prop) = Child::<PropSink<usize>>::init(widget.pos()?).await;
+        let Ok(minimum_prop) = Child::<PropSink<usize>>::init(widget.minimum()?).await;
+        let Ok(maximum_prop) = Child::<PropSink<usize>>::init(widget.maximum()?).await;
         let Ok(indeterminate_prop) = Child::<PropSink<bool>>::init(false).await;
         let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
         let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;

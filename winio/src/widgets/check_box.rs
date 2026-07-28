@@ -1,5 +1,7 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Child, Component, ComponentSender, Prop, PropSink, PropSinkEvent, PropSinkMessage, start};
+use winio_elm::{
+    Child, Component, ComponentSender, Prop, PropSink, PropSinkEvent, PropSinkMessage, start,
+};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{Enable, Failable, Layoutable, Point, Size, TextWidget, ToolTip, Visible};
 

@@ -192,7 +192,9 @@ impl Component for Label {
         };
         #[cfg(not(win32))]
         let fut_transparent = std::future::pending::<()>();
-        futures_util::future::join(fut_base, fut_transparent).await.0
+        futures_util::future::join(fut_base, fut_transparent)
+            .await
+            .0
     }
 
     async fn update_children(&mut self) -> Result<bool> {

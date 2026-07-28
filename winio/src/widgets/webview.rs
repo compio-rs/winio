@@ -209,7 +209,9 @@ impl Component for WebView {
                 self.enabled_prop => { PropSinkEvent::Changed => WebViewMessage::ChangeEnabled },
             }
         };
-        futures_util::future::join3(fut_navigated, fut_navigating, fut_props).await.0
+        futures_util::future::join3(fut_navigated, fut_navigating, fut_props)
+            .await
+            .0
     }
 
     async fn update_children(&mut self) -> Result<bool> {

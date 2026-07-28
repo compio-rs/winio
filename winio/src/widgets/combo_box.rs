@@ -1,5 +1,8 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Child, Component, ComponentSender, ObservableVecEvent, Prop, PropSink, PropSinkEvent, PropSinkMessage, start};
+use winio_elm::{
+    Child, Component, ComponentSender, ObservableVecEvent, Prop, PropSink, PropSinkEvent,
+    PropSinkMessage, start,
+};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{Enable, Failable, Layoutable, Point, Size, TextWidget, ToolTip, Visible};
 
@@ -284,7 +287,9 @@ impl Component for ComboBox {
                 self.tooltip_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangeTooltip },
             }
         };
-        futures_util::future::join3(fut_select, fut_change, fut_props).await.0
+        futures_util::future::join3(fut_select, fut_change, fut_props)
+            .await
+            .0
     }
 
     async fn update_children(&mut self) -> Result<bool> {

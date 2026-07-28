@@ -198,9 +198,9 @@ impl Component for Window {
         let Ok(text_prop) = Child::<PropSink<String>>::init(String::new()).await;
         let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
         #[cfg(win32)]
-        let Ok(style_prop) = Child::<PropSink<u32>>::init(0u32).await;
+        let Ok(style_prop) = Child::<PropSink<u32>>::init(widget.style()?).await;
         #[cfg(win32)]
-        let Ok(ex_style_prop) = Child::<PropSink<u32>>::init(0u32).await;
+        let Ok(ex_style_prop) = Child::<PropSink<u32>>::init(widget.ex_style()?).await;
         #[cfg(windows)]
         let Ok(backdrop_prop) = Child::<PropSink<Backdrop>>::init(Backdrop::None).await;
         #[cfg(target_os = "macos")]
@@ -348,7 +348,7 @@ impl Component for Window {
             }
             #[cfg(target_os = "macos")]
             WindowMessage::ChangeVibrancy => {
-                self.widget.set_vibrancy(self.vibrancy_prop.get().clone())?;
+                self.widget.set_vibrancy(*self.vibrancy_prop.get())?;
                 Ok(true)
             }
         }

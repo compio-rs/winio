@@ -112,8 +112,8 @@ impl Component for ScrollView {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::ScrollView::new(init)?;
-        let Ok(hscroll_prop) = Child::<PropSink<bool>>::init(true).await;
-        let Ok(vscroll_prop) = Child::<PropSink<bool>>::init(true).await;
+        let Ok(hscroll_prop) = Child::<PropSink<bool>>::init(widget.hscroll()?).await;
+        let Ok(vscroll_prop) = Child::<PropSink<bool>>::init(widget.vscroll()?).await;
         let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
         let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
         Ok(Self {

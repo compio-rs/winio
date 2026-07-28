@@ -1,5 +1,7 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Child, Component, ComponentSender, Prop, PropSink, PropSinkEvent, PropSinkMessage, start};
+use winio_elm::{
+    Child, Component, ComponentSender, Prop, PropSink, PropSinkEvent, PropSinkMessage, start,
+};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
     Enable, Failable, Layoutable, Orient, Point, Size, TickPosition, ToolTip, Visible,
@@ -191,12 +193,12 @@ impl Component for Slider {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Slider::new(init)?;
-        let Ok(pos_prop) = Child::<Prop<usize>>::init(0usize).await;
-        let Ok(minimum_prop) = Child::<PropSink<usize>>::init(0usize).await;
-        let Ok(maximum_prop) = Child::<PropSink<usize>>::init(100usize).await;
-        let Ok(freq_prop) = Child::<PropSink<usize>>::init(1usize).await;
+        let Ok(pos_prop) = Child::<Prop<usize>>::init(widget.pos()?).await;
+        let Ok(minimum_prop) = Child::<PropSink<usize>>::init(widget.minimum()?).await;
+        let Ok(maximum_prop) = Child::<PropSink<usize>>::init(widget.maximum()?).await;
+        let Ok(freq_prop) = Child::<PropSink<usize>>::init(widget.freq()?).await;
         let Ok(tick_pos_prop) = Child::<PropSink<TickPosition>>::init(TickPosition::None).await;
-        let Ok(orient_prop) = Child::<PropSink<Orient>>::init(Orient::Horizontal).await;
+        let Ok(orient_prop) = Child::<PropSink<Orient>>::init(widget.orient()?).await;
         let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
         let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
         let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
