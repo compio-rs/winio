@@ -134,7 +134,7 @@ impl Component for Label {
             LabelMessage::Noop => Ok(false),
             LabelMessage::Change => {
                 self.widget.set_text(self.text_prop.get())?;
-                Ok(false)
+                Ok(true)
             }
         }
     }
