@@ -49,12 +49,6 @@ impl<T> PropSource<T> {
     }
 }
 
-impl<T: PartialEq + 'static> PropSource<T> {
-    pub fn bind_sink(&mut self, current: T, sink: &PropSink<T>) -> usize {
-        self.bind(current, &sink.sender, PropSinkMessage::Set)
-    }
-}
-
 impl<T: Clone> PropSource<T> {
     pub fn notify(&mut self, value: &T) {
         for (_, listener) in &self.listeners {
@@ -164,7 +158,18 @@ impl<T: Clone + PartialEq + 'static> Prop<T> {
     /// Bind to a [`PropSink`], so that when the property is notified, a message
     /// [`PropSinkMessage::Set`] is sent to the sink.
     pub fn bind_sink(&mut self, sink: &PropSink<T>) -> usize {
-        self.source.bind_sink(self.sink.get().clone(), sink)
+        self.bind(&sink.sender, PropSinkMessage::Set)
+    }
+
+    /// Bind to a [`PropSink`] with a mapping function, so that when the
+    /// property is notified, a message [`PropSinkMessage::Set`] is sent to the
+    /// sink with the mapped value.
+    pub fn bind_sink_map<U: PartialEq + 'static>(
+        &mut self,
+        sink: &PropSink<U>,
+        f: impl Fn(T) -> U + 'static,
+    ) -> usize {
+        self.bind(&sink.sender, move |value| PropSinkMessage::Set(f(value)))
     }
 }
 

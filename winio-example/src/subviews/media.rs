@@ -39,13 +39,9 @@ pub enum MediaPageEvent {
 pub enum MediaPageMessage {
     Noop,
     Tick,
-    Volume,
-    Time,
     Play,
     ChooseFile,
     OpenFile(PathBuf),
-    Rate,
-    Loop,
 }
 
 impl Component for MediaPage {
@@ -54,7 +50,7 @@ impl Component for MediaPage {
     type Init<'a> = ();
     type Message = MediaPageMessage;
 
-    async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             window: TabViewItem = (()) => {
                 text: "Media",
@@ -97,7 +93,27 @@ impl Component for MediaPage {
                 enabled: false,
             },
         }
-        sender.post(MediaPageMessage::Volume);
+        loop_check.checked_prop().bind_sink(media.looped_prop());
+        volume_slider
+            .pos_prop()
+            .bind_sink_map(media.volume_prop(), |pos| pos as f64 / 100.0);
+        volume_slider
+            .pos_prop()
+            .bind_sink_map(volume_label.text_prop(), |pos| pos.to_string());
+        time_slider
+            .pos_prop()
+            .bind_sink_map(media.current_time_prop(), |pos| {
+                Duration::from_secs_f64(pos as f64 / 100.0)
+            });
+        rate_chooser
+            .selection_prop()
+            .bind_sink_map(media.playback_rate_prop(), |sel| match sel {
+                Some(0) => 0.5,
+                Some(2) => 1.5,
+                Some(3) => 2.0,
+                Some(4) => 10.0,
+                _ => 1.0,
+            });
 
         Ok(Self {
             window,
@@ -118,27 +134,20 @@ impl Component for MediaPage {
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: MediaPageMessage::Noop,
+            self.media => {},
             self.timer => {
                 TimerEvent::Tick => MediaPageMessage::Tick,
             },
-            self.volume_slider => {
-                SliderEvent::Change => MediaPageMessage::Volume,
-            },
-            self.time_slider => {
-                SliderEvent::Change => MediaPageMessage::Time,
-            },
+            self.volume_slider => {},
+            self.time_slider => {},
             self.play_button => {
                 ButtonEvent::Click => MediaPageMessage::Play,
             },
             self.browse_button => {
                 ButtonEvent::Click => MediaPageMessage::ChooseFile,
             },
-            self.rate_chooser => {
-                ComboBoxEvent::Select => MediaPageMessage::Rate,
-            },
-            self.loop_check => {
-                CheckBoxEvent::Click => MediaPageMessage::Loop,
-            },
+            self.rate_chooser => {},
+            self.loop_check => {},
         }
     }
 
@@ -197,21 +206,6 @@ impl Component for MediaPage {
                 }
                 Ok(true)
             }
-            MediaPageMessage::Volume => {
-                let pos = self.volume_slider.pos()?;
-                self.volume_label.set_text(pos.to_string())?;
-                self.media.set_volume(pos as f64 / 100.0)?;
-                Ok(true)
-            }
-            MediaPageMessage::Time => {
-                let pos = self.time_slider.pos()?;
-                let ft = self.media.full_time()?;
-                if ft.is_some() {
-                    self.media
-                        .set_current_time(Duration::from_secs_f64(pos as f64 / 100.0))?;
-                }
-                Ok(true)
-            }
             MediaPageMessage::Play => {
                 if self.playing {
                     self.media.pause()?;
@@ -262,22 +256,6 @@ impl Component for MediaPage {
                         ));
                     }
                 }
-                Ok(true)
-            }
-            MediaPageMessage::Rate => {
-                let selection = self.rate_chooser.selection()?;
-                let rate = match selection {
-                    Some(0) => 0.5,
-                    Some(2) => 1.5,
-                    Some(3) => 2.0,
-                    Some(4) => 10.0,
-                    _ => 1.0,
-                };
-                self.media.set_playback_rate(rate)?;
-                Ok(true)
-            }
-            MediaPageMessage::Loop => {
-                self.media.set_looped(self.loop_check.is_checked()?)?;
                 Ok(true)
             }
         }

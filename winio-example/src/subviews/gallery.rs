@@ -135,6 +135,10 @@ impl Component for GalleryPage {
             spawn(fetch(path, sender)).detach();
         }
 
+        scrollbar
+            .pos_prop()
+            .bind(sender, |_| GalleryPageMessage::Redraw);
+
         Ok(Self {
             window,
             canvas,
@@ -169,9 +173,7 @@ impl Component for GalleryPage {
             self.listbox => {
                 ListBoxEvent::Select => GalleryPageMessage::Select,
             },
-            self.scrollbar => {
-                ScrollBarEvent::Change => GalleryPageMessage::Redraw,
-            },
+            self.scrollbar => {},
             self.clip_box => {
                 CheckBoxEvent::Click => GalleryPageMessage::ClipClick,
             }

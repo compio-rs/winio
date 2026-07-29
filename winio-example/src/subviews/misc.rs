@@ -58,7 +58,6 @@ pub enum MiscPageMessage {
     Pop,
     Show,
     RSelect(usize),
-    PasswordCheck,
     #[cfg(windows)]
     ChooseBackdrop(Backdrop),
     #[cfg(target_os = "macos")]
@@ -144,6 +143,10 @@ impl Component for MiscPage {
 
         sender.post(MiscPageMessage::RSelect(0));
 
+        pcheck
+            .checked_prop()
+            .bind_sink_map(pentry.password_prop(), |v| !v);
+
         Ok(Self {
             window,
             link,
@@ -170,9 +173,8 @@ impl Component for MiscPage {
         start! {
             sender, default: MiscPageMessage::Noop,
             self.link => {},
-            self.pcheck => {
-                CheckBoxEvent::Click => MiscPageMessage::PasswordCheck,
-            },
+            self.pcheck => {},
+            self.pentry => {},
             self.combo => {
                 ComboBoxEvent::Select => MiscPageMessage::Select,
             },
@@ -229,10 +231,6 @@ impl Component for MiscPage {
     ) -> Result<bool> {
         match message {
             MiscPageMessage::Noop => Ok(false),
-            MiscPageMessage::PasswordCheck => {
-                self.pentry.set_password(!self.pcheck.is_checked()?)?;
-                Ok(true)
-            }
             MiscPageMessage::List(e) => {
                 self.pop_button.set_enabled(!self.list.is_empty())?;
                 Ok(self
