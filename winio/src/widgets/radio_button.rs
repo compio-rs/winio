@@ -31,14 +31,20 @@ impl Failable for RadioButton {
 impl ToolTip for RadioButton {
     fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.tooltip_prop.set(s.as_ref().to_owned());
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl TextWidget for RadioButton {
     fn text(&self) -> Result<String>;
 
-    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.text_prop.set(s.as_ref().to_owned());
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -47,7 +53,10 @@ impl RadioButton {
     pub fn is_checked(&self) -> Result<bool>;
 
     /// Set the checked state.
-    pub fn set_checked(&mut self, v: bool) -> Result<()>;
+    pub fn set_checked(&mut self, v: bool) -> Result<()> {
+        self.checked_prop.set(v);
+        Ok(())
+    }
 
     /// Property for [`RadioButton::is_checked`].
     pub fn checked_prop(&mut self) -> &mut Prop<bool> {
@@ -79,14 +88,20 @@ impl RadioButton {
 impl Visible for RadioButton {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()>;
+    fn set_visible(&mut self, v: bool) -> Result<()> {
+        self.visible_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for RadioButton {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()>;
+    fn set_enabled(&mut self, v: bool) -> Result<()> {
+        self.enabled_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]

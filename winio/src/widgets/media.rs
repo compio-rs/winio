@@ -32,7 +32,10 @@ impl Failable for Media {
 impl ToolTip for Media {
     fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.tooltip_prop.set(s.as_ref().to_owned());
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -60,7 +63,10 @@ impl Media {
     pub fn current_time(&self) -> Result<Duration>;
 
     /// Set the current time.
-    pub fn set_current_time(&mut self, t: Duration) -> Result<()>;
+    pub fn set_current_time(&mut self, t: Duration) -> Result<()> {
+        self.current_time_prop.set(t);
+        Ok(())
+    }
 
     /// Seek to a new time.
     pub fn seek(&mut self, t: Duration) -> Result<()> {
@@ -71,25 +77,37 @@ impl Media {
     pub fn volume(&self) -> Result<f64>;
 
     /// Set the volume. The value should between 0.0 to 1.0.
-    pub fn set_volume(&mut self, v: f64) -> Result<()>;
+    pub fn set_volume(&mut self, v: f64) -> Result<()> {
+        self.volume_prop.set(v);
+        Ok(())
+    }
 
     /// If the player is muted.
     pub fn is_muted(&self) -> Result<bool>;
 
     /// Set if the player is muted.
-    pub fn set_muted(&mut self, v: bool) -> Result<()>;
+    pub fn set_muted(&mut self, v: bool) -> Result<()> {
+        self.muted_prop.set(v);
+        Ok(())
+    }
 
     /// If the player is looped.
     pub fn is_looped(&self) -> Result<bool>;
 
     /// Set if the player is looped.
-    pub fn set_looped(&mut self, v: bool) -> Result<()>;
+    pub fn set_looped(&mut self, v: bool) -> Result<()> {
+        self.looped_prop.set(v);
+        Ok(())
+    }
 
     /// Playback rate.
     pub fn playback_rate(&self) -> Result<f64>;
 
     /// Set playback rate.
-    pub fn set_playback_rate(&mut self, v: f64) -> Result<()>;
+    pub fn set_playback_rate(&mut self, v: f64) -> Result<()> {
+        self.playback_rate_prop.set(v);
+        Ok(())
+    }
 
     /// Property for [`Media::volume`].
     pub fn volume_prop(&self) -> &PropSink<f64> {
@@ -136,14 +154,20 @@ impl Media {
 impl Visible for Media {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()>;
+    fn set_visible(&mut self, v: bool) -> Result<()> {
+        self.visible_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for Media {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()>;
+    fn set_enabled(&mut self, v: bool) -> Result<()> {
+        self.enabled_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]

@@ -14,7 +14,10 @@ pub struct PlottersPage {
 pub enum PlottersPageEvent {}
 
 #[derive(Debug)]
-pub enum PlottersPageMessage {}
+pub enum PlottersPageMessage {
+    /// No operation.
+    Noop,
+}
 
 impl Component for PlottersPage {
     type Error = Error;
@@ -31,6 +34,18 @@ impl Component for PlottersPage {
         }
 
         Ok(Self { window, canvas })
+    }
+
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
+        start! {
+            sender, default: PlottersPageMessage::Noop,
+            self.window => {},
+            self.canvas => {},
+        }
+    }
+
+    async fn update_children(&mut self) -> Result<bool> {
+        update_children!(self.window, self.canvas)
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {

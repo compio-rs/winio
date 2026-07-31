@@ -184,6 +184,7 @@ impl Component for MainModel {
             self.scroll => {
                 ScrollViewPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
             },
+            self.plotters => {},
             self.wgpu => {},
             self.media => {
                 #[cfg(feature = "media")]

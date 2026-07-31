@@ -28,7 +28,10 @@ impl Failable for ListBox {
 impl ToolTip for ListBox {
     fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.tooltip_prop.set(s.as_ref().to_owned());
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -37,7 +40,10 @@ impl ListBox {
     pub fn is_multiple(&self) -> Result<bool>;
 
     /// Set if the list box allows multiple selection.
-    pub fn set_multiple(&mut self, v: bool) -> Result<()>;
+    pub fn set_multiple(&mut self, v: bool) -> Result<()> {
+        self.multiple_prop.set(v);
+        Ok(())
+    }
 
     /// Get the selected state by index.
     pub fn is_selected(&self, i: usize) -> Result<bool>;
@@ -106,14 +112,20 @@ impl ListBox {
 impl Visible for ListBox {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()>;
+    fn set_visible(&mut self, v: bool) -> Result<()> {
+        self.visible_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for ListBox {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()>;
+    fn set_enabled(&mut self, v: bool) -> Result<()> {
+        self.enabled_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]

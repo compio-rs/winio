@@ -29,13 +29,19 @@ impl ScrollView {
     pub fn hscroll(&self) -> Result<bool>;
 
     /// Set if the horizontal scroll bar is visible.
-    pub fn set_hscroll(&mut self, v: bool) -> Result<()>;
+    pub fn set_hscroll(&mut self, v: bool) -> Result<()> {
+        self.hscroll_prop.set(v);
+        Ok(())
+    }
 
     /// Get if the vertical scroll bar is visible.
     pub fn vscroll(&self) -> Result<bool>;
 
     /// Set if the vertical scroll bar is visible.
-    pub fn set_vscroll(&mut self, v: bool) -> Result<()>;
+    pub fn set_vscroll(&mut self, v: bool) -> Result<()> {
+        self.vscroll_prop.set(v);
+        Ok(())
+    }
 
     /// Property for [`ScrollView::hscroll`].
     pub fn hscroll_prop(&self) -> &PropSink<bool> {
@@ -62,14 +68,20 @@ impl ScrollView {
 impl Visible for ScrollView {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()>;
+    fn set_visible(&mut self, v: bool) -> Result<()> {
+        self.visible_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for ScrollView {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()>;
+    fn set_enabled(&mut self, v: bool) -> Result<()> {
+        self.enabled_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]

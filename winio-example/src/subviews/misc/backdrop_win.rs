@@ -49,6 +49,7 @@ impl Component for BackdropChooser {
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: BackdropChooserMessage::Noop,
+            self.view => {},
             self.radios => {
                 RadioButtonGroupEvent::Click(i) => BackdropChooserMessage::RSelect(i)
             }

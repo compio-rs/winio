@@ -29,7 +29,10 @@ impl TabView {
     pub fn selection(&self) -> Result<Option<usize>>;
 
     /// Set the selection.
-    pub fn set_selection(&mut self, i: usize) -> Result<()>;
+    pub fn set_selection(&mut self, i: usize) -> Result<()> {
+        self.selection_prop.set(Some(i));
+        Ok(())
+    }
 
     /// Insert a new tab item.
     pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
@@ -73,14 +76,20 @@ impl TabView {
 impl Visible for TabView {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()>;
+    fn set_visible(&mut self, v: bool) -> Result<()> {
+        self.visible_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for TabView {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()>;
+    fn set_enabled(&mut self, v: bool) -> Result<()> {
+        self.enabled_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]

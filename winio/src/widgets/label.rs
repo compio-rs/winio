@@ -31,14 +31,20 @@ impl Failable for Label {
 impl ToolTip for Label {
     fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.tooltip_prop.set(s.as_ref().to_owned());
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl TextWidget for Label {
     fn text(&self) -> Result<String>;
 
-    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.text_prop.set(s.as_ref().to_owned());
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -47,7 +53,10 @@ impl Label {
     pub fn halign(&self) -> Result<HAlign>;
 
     /// Set the horizontal alignment.
-    pub fn set_halign(&mut self, align: HAlign) -> Result<()>;
+    pub fn set_halign(&mut self, align: HAlign) -> Result<()> {
+        self.halign_prop.set(align);
+        Ok(())
+    }
 
     /// If the label background is transparent.
     #[cfg(win32)]
@@ -55,7 +64,10 @@ impl Label {
 
     /// Set if the label background is transparent.
     #[cfg(win32)]
-    pub fn set_transparent(&mut self, v: bool) -> Result<()>;
+    pub fn set_transparent(&mut self, v: bool) -> Result<()> {
+        self.transparent_prop.set(v);
+        Ok(())
+    }
 
     /// Property for [`TextWidget::text`].
     pub fn text_prop(&self) -> &PropSink<String> {
@@ -94,14 +106,20 @@ impl Label {
 impl Visible for Label {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()>;
+    fn set_visible(&mut self, v: bool) -> Result<()> {
+        self.visible_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for Label {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()>;
+    fn set_enabled(&mut self, v: bool) -> Result<()> {
+        self.enabled_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]

@@ -134,10 +134,12 @@ impl Component for MediaPage {
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: MediaPageMessage::Noop,
+            self.window => {},
             self.media => {},
             self.timer => {
                 TimerEvent::Tick => MediaPageMessage::Tick,
             },
+            self.time_label => {},
             self.volume_slider => {},
             self.time_slider => {},
             self.play_button => {
@@ -155,11 +157,15 @@ impl Component for MediaPage {
         update_children!(
             self.window,
             self.media,
+            self.timer,
             self.play_button,
             self.browse_button,
             self.time_slider,
+            self.time_label,
             self.volume_slider,
-            self.volume_label
+            self.volume_label,
+            self.rate_chooser,
+            self.loop_check,
         )
     }
 

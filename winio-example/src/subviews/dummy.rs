@@ -43,6 +43,8 @@ impl Component for DummyPage {
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: DummyPageMessage::Noop,
+            self.window => {},
+            self.label => {},
         }
     }
 

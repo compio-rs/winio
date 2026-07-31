@@ -69,6 +69,7 @@ impl Component for BindPage {
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: BindPageMessage::Noop,
+            self.window => {},
             self.edit1 => {},
             self.edit2 => {},
             self.label => {},
@@ -86,6 +87,7 @@ impl Component for BindPage {
 
     async fn update_children(&mut self) -> Result<bool> {
         update_children!(
+            self.window,
             self.edit1,
             self.edit2,
             self.label,

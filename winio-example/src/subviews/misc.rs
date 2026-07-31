@@ -172,9 +172,14 @@ impl Component for MiscPage {
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: MiscPageMessage::Noop,
+            self.window => {},
             self.link => {},
+            self.ulabel => {},
+            self.plabel => {},
+            self.uentry => {},
             self.pcheck => {},
             self.pentry => {},
+            self.canvas => {},
             self.combo => {
                 ComboBoxEvent::Select => MiscPageMessage::Select,
             },
@@ -187,6 +192,8 @@ impl Component for MiscPage {
             self.show_button => {
                 ButtonEvent::Click => MiscPageMessage::Show,
             },
+            self.progress => {},
+            self.mltext => {},
             self.list => {
                 e => MiscPageMessage::List(e),
             },

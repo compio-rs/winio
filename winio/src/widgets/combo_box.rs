@@ -31,14 +31,20 @@ impl Failable for ComboBox {
 impl ToolTip for ComboBox {
     fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.tooltip_prop.set(s.as_ref().to_owned());
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl TextWidget for ComboBox {
     fn text(&self) -> Result<String>;
 
-    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.text_prop.set(s.as_ref().to_owned());
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -47,13 +53,19 @@ impl ComboBox {
     pub fn selection(&self) -> Result<Option<usize>>;
 
     /// Set the selection.
-    pub fn set_selection(&mut self, i: usize) -> Result<()>;
+    pub fn set_selection(&mut self, i: usize) -> Result<()> {
+        self.selection_prop.set(Some(i));
+        Ok(())
+    }
 
     /// If the combo box is editable.
     pub fn is_editable(&self) -> Result<bool>;
 
     /// Set if the combo box is editable.
-    pub fn set_editable(&mut self, v: bool) -> Result<()>;
+    pub fn set_editable(&mut self, v: bool) -> Result<()> {
+        self.editable_prop.set(v);
+        Ok(())
+    }
 
     /// The length of list.
     pub fn len(&self) -> Result<usize>;
@@ -126,14 +138,20 @@ impl ComboBox {
 impl Visible for ComboBox {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()>;
+    fn set_visible(&mut self, v: bool) -> Result<()> {
+        self.visible_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for ComboBox {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()>;
+    fn set_enabled(&mut self, v: bool) -> Result<()> {
+        self.enabled_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]

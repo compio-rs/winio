@@ -69,6 +69,7 @@ impl Component for ScrollViewPage {
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: ScrollViewPageMessage::Noop,
+            self.window => {},
             self.add_btn => {
                 ButtonEvent::Click => ScrollViewPageMessage::Add,
             },

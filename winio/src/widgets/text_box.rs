@@ -32,7 +32,10 @@ impl Failable for TextBox {
 impl ToolTip for TextBox {
     fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.tooltip_prop.set(s.as_ref().to_owned());
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -41,7 +44,10 @@ impl TextWidget for TextBox {
     fn text(&self) -> Result<String>;
 
     /// Set the entire text content.
-    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.text_prop.set(s.as_ref().to_owned());
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -50,13 +56,19 @@ impl TextBox {
     pub fn halign(&self) -> Result<HAlign>;
 
     /// Set the horizontal alignment.
-    pub fn set_halign(&mut self, align: HAlign) -> Result<()>;
+    pub fn set_halign(&mut self, align: HAlign) -> Result<()> {
+        self.halign_prop.set(align);
+        Ok(())
+    }
 
     /// If the text input is read-only.
     pub fn is_readonly(&self) -> Result<bool>;
 
     /// Set if the text input is read-only.
-    pub fn set_readonly(&mut self, v: bool) -> Result<()>;
+    pub fn set_readonly(&mut self, v: bool) -> Result<()> {
+        self.readonly_prop.set(v);
+        Ok(())
+    }
 
     /// Property for [`TextWidget::text`].
     pub fn text_prop(&mut self) -> &mut Prop<String> {
@@ -93,14 +105,20 @@ impl TextBox {
 impl Visible for TextBox {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()>;
+    fn set_visible(&mut self, v: bool) -> Result<()> {
+        self.visible_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for TextBox {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()>;
+    fn set_enabled(&mut self, v: bool) -> Result<()> {
+        self.enabled_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]

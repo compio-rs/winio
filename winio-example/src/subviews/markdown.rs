@@ -126,9 +126,12 @@ impl Component for MarkdownPage {
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: MarkdownPageMessage::Noop,
+            self.window => {},
+            self.webview => {},
             self.button => {
                 ButtonEvent::Click => MarkdownPageMessage::ChooseFile,
             },
+            self.label => {},
         }
     }
 

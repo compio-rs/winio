@@ -33,14 +33,20 @@ impl Failable for Edit {
 impl ToolTip for Edit {
     fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.tooltip_prop.set(s.as_ref().to_owned());
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl TextWidget for Edit {
     fn text(&self) -> Result<String>;
 
-    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.text_prop.set(s.as_ref().to_owned());
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -49,13 +55,19 @@ impl Edit {
     pub fn is_password(&self) -> Result<bool>;
 
     /// Set if the text input is password.
-    pub fn set_password(&mut self, v: bool) -> Result<()>;
+    pub fn set_password(&mut self, v: bool) -> Result<()> {
+        self.password_prop.set(v);
+        Ok(())
+    }
 
     /// The horizontal alignment.
     pub fn halign(&self) -> Result<HAlign>;
 
     /// Set the horizontal alignment.
-    pub fn set_halign(&mut self, align: HAlign) -> Result<()>;
+    pub fn set_halign(&mut self, align: HAlign) -> Result<()> {
+        self.halign_prop.set(align);
+        Ok(())
+    }
 
     /// If the text input is read-only.
     /// A password edit cannot be read-only.
@@ -63,7 +75,10 @@ impl Edit {
 
     /// Set if the text input is read-only.
     /// A password edit cannot be read-only.
-    pub fn set_readonly(&mut self, v: bool) -> Result<()>;
+    pub fn set_readonly(&mut self, v: bool) -> Result<()> {
+        self.readonly_prop.set(v);
+        Ok(())
+    }
 
     /// Property for [`TextWidget::text`].
     pub fn text_prop(&mut self) -> &mut Prop<String> {
@@ -105,14 +120,20 @@ impl Edit {
 impl Visible for Edit {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()>;
+    fn set_visible(&mut self, v: bool) -> Result<()> {
+        self.visible_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for Edit {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()>;
+    fn set_enabled(&mut self, v: bool) -> Result<()> {
+        self.enabled_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]

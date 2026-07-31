@@ -40,7 +40,10 @@ impl Failable for Window {
 impl TextWidget for Window {
     fn text(&self) -> Result<String>;
 
-    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.text_prop.set(s.as_ref().to_owned());
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -58,7 +61,10 @@ impl Window {
 
     /// Set window style.
     #[cfg(win32)]
-    pub fn set_style(&mut self, s: u32) -> Result<()>;
+    pub fn set_style(&mut self, s: u32) -> Result<()> {
+        self.style_prop.set(s);
+        Ok(())
+    }
 
     /// Get window extended style.
     #[cfg(win32)]
@@ -66,7 +72,10 @@ impl Window {
 
     /// Set window extended style.
     #[cfg(win32)]
-    pub fn set_ex_style(&mut self, s: u32) -> Result<()>;
+    pub fn set_ex_style(&mut self, s: u32) -> Result<()> {
+        self.ex_style_prop.set(s);
+        Ok(())
+    }
 
     /// Get the backdrop effect of the window.
     ///
@@ -85,7 +94,10 @@ impl Window {
     /// ## Platform specific
     /// * Win32: backdrop effects may cause rendering artifacts.
     #[cfg(windows)]
-    pub fn set_backdrop(&mut self, backdrop: Backdrop) -> Result<()>;
+    pub fn set_backdrop(&mut self, backdrop: Backdrop) -> Result<()> {
+        self.backdrop_prop.set(backdrop);
+        Ok(())
+    }
 
     /// Get the visual effect of the window.
     #[cfg(target_os = "macos")]
@@ -93,7 +105,10 @@ impl Window {
 
     /// Set the visual effect of the window.
     #[cfg(target_os = "macos")]
-    pub fn set_vibrancy(&mut self, v: Option<Vibrancy>) -> Result<()>;
+    pub fn set_vibrancy(&mut self, v: Option<Vibrancy>) -> Result<()> {
+        self.vibrancy_prop.set(v);
+        Ok(())
+    }
 
     /// Property for [`TextWidget::text`].
     pub fn text_prop(&self) -> &PropSink<String> {
@@ -134,7 +149,10 @@ impl Window {
 impl Visible for Window {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()>;
+    fn set_visible(&mut self, v: bool) -> Result<()> {
+        self.visible_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -196,7 +214,7 @@ impl Component for Window {
     async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Window::new()?;
         let Ok(text_prop) = Child::<PropSink<String>>::init(String::new()).await;
-        let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
+        let Ok(visible_prop) = Child::<PropSink<bool>>::init(false).await;
         #[cfg(win32)]
         let Ok(style_prop) = Child::<PropSink<u32>>::init(widget.style()?).await;
         #[cfg(win32)]

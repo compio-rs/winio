@@ -69,6 +69,14 @@ impl<T: PartialEq> PropSink<T> {
     pub fn get(&self) -> &T {
         &self.value
     }
+
+    /// Set the value of the property.
+    pub fn set(&mut self, value: T) {
+        if value != self.value {
+            self.value = value;
+            self.sender.output(PropSinkEvent::Changed);
+        }
+    }
 }
 
 /// Messages of [`PropSink`].
@@ -114,14 +122,11 @@ impl<T: PartialEq> Component for PropSink<T> {
     async fn update(
         &mut self,
         message: Self::Message,
-        sender: &ComponentSender<Self>,
+        _sender: &ComponentSender<Self>,
     ) -> Result<bool, Self::Error> {
         match message {
             PropSinkMessage::Set(value) => {
-                if value != self.value {
-                    self.value = value;
-                    sender.output(PropSinkEvent::Changed);
-                }
+                self.set(value);
             }
         }
         Ok(false)

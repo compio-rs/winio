@@ -35,7 +35,10 @@ impl Failable for Slider {
 impl ToolTip for Slider {
     fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.tooltip_prop.set(s.as_ref().to_owned());
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -44,37 +47,55 @@ impl Slider {
     pub fn tick_pos(&self) -> Result<TickPosition>;
 
     /// Set the tick position.
-    pub fn set_tick_pos(&mut self, v: TickPosition) -> Result<()>;
+    pub fn set_tick_pos(&mut self, v: TickPosition) -> Result<()> {
+        self.tick_pos_prop.set(v);
+        Ok(())
+    }
 
     /// The orientation.
     pub fn orient(&self) -> Result<Orient>;
 
     /// Set the orientation.
-    pub fn set_orient(&mut self, v: Orient) -> Result<()>;
+    pub fn set_orient(&mut self, v: Orient) -> Result<()> {
+        self.orient_prop.set(v);
+        Ok(())
+    }
 
     /// Value minimum.
     pub fn minimum(&self) -> Result<usize>;
 
     /// Set value minimum.
-    pub fn set_minimum(&mut self, v: usize) -> Result<()>;
+    pub fn set_minimum(&mut self, v: usize) -> Result<()> {
+        self.minimum_prop.set(v);
+        Ok(())
+    }
 
     /// Value maximum.
     pub fn maximum(&self) -> Result<usize>;
 
     /// Set value maximum.
-    pub fn set_maximum(&mut self, v: usize) -> Result<()>;
+    pub fn set_maximum(&mut self, v: usize) -> Result<()> {
+        self.maximum_prop.set(v);
+        Ok(())
+    }
 
     /// The tick frequency.
     pub fn freq(&self) -> Result<usize>;
 
     /// Set the tick frequency.
-    pub fn set_freq(&mut self, v: usize) -> Result<()>;
+    pub fn set_freq(&mut self, v: usize) -> Result<()> {
+        self.freq_prop.set(v);
+        Ok(())
+    }
 
     /// The position.
     pub fn pos(&self) -> Result<usize>;
 
     /// Set the position.
-    pub fn set_pos(&mut self, v: usize) -> Result<()>;
+    pub fn set_pos(&mut self, v: usize) -> Result<()> {
+        self.pos_prop.set(v);
+        Ok(())
+    }
 
     /// Property for [`Slider::pos`].
     pub fn pos_prop(&mut self) -> &mut Prop<usize> {
@@ -126,14 +147,20 @@ impl Slider {
 impl Visible for Slider {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()>;
+    fn set_visible(&mut self, v: bool) -> Result<()> {
+        self.visible_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for Slider {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()>;
+    fn set_enabled(&mut self, v: bool) -> Result<()> {
+        self.enabled_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]

@@ -63,6 +63,10 @@ impl Component for BackdropChooser {
         }
     }
 
+    async fn update_children(&mut self) -> Result<bool> {
+        Ok(self.combo.update().await?)
+    }
+
     #[allow(deprecated)]
     async fn update(
         &mut self,

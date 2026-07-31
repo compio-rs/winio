@@ -198,4 +198,11 @@ impl Component for FailableWebView {
             FailableWebView::ErrLabel(_) => std::future::pending().await,
         }
     }
+
+    async fn update_children(&mut self) -> Result<bool> {
+        match self {
+            FailableWebView::Widget(wv) => wv.update_children().await,
+            FailableWebView::ErrLabel(lbl) => lbl.update().await,
+        }
+    }
 }

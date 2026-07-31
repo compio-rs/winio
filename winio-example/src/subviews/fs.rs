@@ -86,12 +86,15 @@ impl Component for FsPage {
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: FsPageMessage::Noop,
+            self.window => {},
+            self.canvas => {},
             self.open_button => {
                 ButtonEvent::Click => FsPageMessage::ChooseFile,
             },
             self.save_button => {
                 ButtonEvent::Click => FsPageMessage::ChooseSaveFile,
             },
+            self.label => {},
         }
     }
 

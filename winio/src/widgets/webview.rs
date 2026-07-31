@@ -30,7 +30,10 @@ impl WebView {
     pub fn source(&self) -> Result<String>;
 
     /// Set the source URL to a new one.
-    pub fn set_source(&mut self, s: impl AsRef<str>) -> Result<()>;
+    pub fn set_source(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.source_prop.set(s.as_ref().to_owned());
+        Ok(())
+    }
 
     /// Navigate to a new URL.
     pub fn navigate(&mut self, s: impl AsRef<str>) -> Result<()> {
@@ -124,14 +127,20 @@ impl WebView {
 impl Visible for WebView {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()>;
+    fn set_visible(&mut self, v: bool) -> Result<()> {
+        self.visible_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for WebView {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()>;
+    fn set_enabled(&mut self, v: bool) -> Result<()> {
+        self.enabled_prop.set(v);
+        Ok(())
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
