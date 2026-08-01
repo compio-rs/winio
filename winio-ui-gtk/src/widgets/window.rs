@@ -58,10 +58,8 @@ impl Window {
         window.connect_close_request({
             let on_close = on_close.clone();
             move |_| {
-                if !on_close.signal::<GlobalRuntime>(()) {
-                    return Propagation::Stop;
-                }
-                Propagation::Proceed
+                on_close.signal::<GlobalRuntime>(());
+                Propagation::Stop
             }
         });
         let settings = gtk4::Settings::for_display(&WidgetExt::display(&window));

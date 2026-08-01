@@ -279,7 +279,8 @@ define_class! {
 
         #[unsafe(method(windowShouldClose:))]
         unsafe fn windowShouldClose(&self, _sender: &NSWindow) -> bool {
-            self.ivars().should_close.signal::<GlobalRuntime>(())
+            self.ivars().should_close.signal::<GlobalRuntime>(());
+            false
         }
     }
 }
