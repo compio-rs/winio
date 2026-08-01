@@ -152,7 +152,10 @@ impl Layoutable for Edit {
 /// Events of [`Edit`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum EditEvent {}
+pub enum EditEvent {
+    /// The text has been changed.
+    Change,
+}
 
 /// Messages of [`Edit`].
 #[derive(Debug)]
@@ -215,9 +218,7 @@ impl Component for Edit {
         let fut_start = async {
             start! {
                 sender, default: EditMessage::Noop,
-                self.text_prop => {
-                    PropSinkEvent::Changed => EditMessage::ChangeProp,
-                },
+                self.text_prop => { PropSinkEvent::Changed => EditMessage::ChangeProp },
                 self.password_prop => { PropSinkEvent::Changed => EditMessage::ChangePassword },
                 self.halign_prop => { PropSinkEvent::Changed => EditMessage::ChangeHalign },
                 self.readonly_prop => { PropSinkEvent::Changed => EditMessage::ChangeReadonly },
@@ -243,13 +244,14 @@ impl Component for Edit {
     async fn update(
         &mut self,
         message: Self::Message,
-        _sender: &ComponentSender<Self>,
+        sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
             EditMessage::Noop => Ok(false),
             EditMessage::ChangeInput => {
                 let text = self.widget.text()?;
                 self.text_prop.post(PropSinkMessage::Set(text));
+                sender.output(EditEvent::Change);
                 Ok(false)
             }
             EditMessage::ChangeProp => {
