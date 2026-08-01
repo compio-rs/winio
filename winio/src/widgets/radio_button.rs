@@ -426,6 +426,7 @@ impl Component for RadioButtonGroup {
             RadioButtonGroupMessage::Noop => Ok(false),
             RadioButtonGroupMessage::Click(i) => {
                 self.selection_prop.set(Some(i));
+                self.radios[i].set_checked(true)?;
                 Ok(false)
             }
             RadioButtonGroupMessage::ChangePropSelection => {
