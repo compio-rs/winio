@@ -119,7 +119,7 @@ impl Component for ScrollViewPage {
             ScrollViewPageMessage::Show => {
                 let selected = self.radios.selection()?;
                 let selected = match selected {
-                    Some(i) => self.radios[i].text()?,
+                    Some(i) => self.radios.get(i).unwrap().text()?,
                     None => "No selection".to_string(),
                 };
                 sender.output(ScrollViewPageEvent::ShowMessage(
@@ -137,7 +137,7 @@ impl Component for ScrollViewPage {
         let csize = self.window.size()?;
 
         let mut radios_panel = StackPanel::new(Orient::Vertical);
-        for radio in self.radios.iter_mut() {
+        for radio in self.radios.items_mut() {
             radios_panel
                 .push(radio)
                 .margin(Margin::new_all_same(4.0))
