@@ -33,7 +33,7 @@ impl Component for BindPage {
     type Init<'a> = ();
     type Message = BindPageMessage;
 
-    async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             window: TabViewItem = (()) => {
                 text: "Bind",
@@ -51,6 +51,16 @@ impl Component for BindPage {
                 text: "Bind"
             },
         }
+
+        chk_1_2
+            .checked_prop()
+            .bind(sender, |_| BindPageMessage::Bind1To2);
+        chk_2_1
+            .checked_prop()
+            .bind(sender, |_| BindPageMessage::Bind2To1);
+        chk_1_label
+            .checked_prop()
+            .bind(sender, |_| BindPageMessage::Bind1ToLabel);
 
         Ok(Self {
             window,
@@ -73,15 +83,9 @@ impl Component for BindPage {
             self.edit1 => {},
             self.edit2 => {},
             self.label => {},
-            self.chk_1_2 => {
-                CheckBoxEvent::Click => BindPageMessage::Bind1To2,
-            },
-            self.chk_2_1 => {
-                CheckBoxEvent::Click => BindPageMessage::Bind2To1,
-            },
-            self.chk_1_label => {
-                CheckBoxEvent::Click => BindPageMessage::Bind1ToLabel,
-            }
+            self.chk_1_2 => {},
+            self.chk_2_1 => {},
+            self.chk_1_label => {},
         }
     }
 

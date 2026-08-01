@@ -250,15 +250,13 @@ winio_handle::impl_as_widget!(RadioButton, widget);
 /// A group of [`RadioButton`]. Only one of them could be checked.
 pub struct RadioButtonGroup {
     radios: Vec<Child<RadioButton>>,
+    selection_prop: Child<Prop<Option<usize>>>,
 }
 
 /// Events of [`RadioButtonGroup`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum RadioButtonGroupEvent {
-    /// A radio button has been selected, with its index.
-    Click(usize),
-}
+pub enum RadioButtonGroupEvent {}
 
 /// Messages of [`RadioButtonGroup`].
 #[derive(Debug)]
@@ -268,6 +266,27 @@ pub enum RadioButtonGroupMessage {
     Noop,
     /// A radio button has been selected, with its index.
     Click(usize),
+    /// The selection prop has been changed.
+    ChangePropSelection,
+}
+
+impl RadioButtonGroup {
+    /// Get the index of the selected radio button, or `None` if none is
+    /// selected.
+    pub fn selection(&self) -> Result<Option<usize>> {
+        Ok(*self.selection_prop.get())
+    }
+
+    /// Set the index of the selected radio button.
+    pub fn set_selection(&mut self, i: usize) -> Result<()> {
+        self.selection_prop.set(Some(i));
+        Ok(())
+    }
+
+    /// Property for the selected radio button index.
+    pub fn selection_prop(&mut self) -> &mut Prop<Option<usize>> {
+        &mut self.selection_prop
+    }
 }
 
 impl Component for RadioButtonGroup {
@@ -276,47 +295,70 @@ impl Component for RadioButtonGroup {
     type Init<'a> = Vec<Child<RadioButton>>;
     type Message = RadioButtonGroupMessage;
 
-    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
-        Ok(Self { radios: init })
+    async fn init(radios: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        let Ok(selection_prop) = Child::<Prop<Option<usize>>>::init(None).await;
+        Ok(Self {
+            radios,
+            selection_prop,
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        let futures = self
-            .radios
-            .iter_mut()
-            .enumerate()
-            .map(|(i, c)| {
-                c.start(
-                    sender,
-                    move |e| match e {
-                        RadioButtonEvent::Click => Some(RadioButtonGroupMessage::Click(i)),
-                    },
-                    || RadioButtonGroupMessage::Noop,
-                )
-            })
-            .collect::<Vec<_>>();
-        futures_util::future::join_all(futures).await;
-        std::future::pending().await
+        let fut_props = async {
+            start! {
+                sender, default: RadioButtonGroupMessage::Noop,
+                self.selection_prop => {
+                    PropSinkEvent::Changed => RadioButtonGroupMessage::ChangePropSelection,
+                }
+            }
+        };
+        let fut_radios = async {
+            let futures = self
+                .radios
+                .iter_mut()
+                .enumerate()
+                .map(|(i, c)| {
+                    c.start(
+                        sender,
+                        move |e| match e {
+                            RadioButtonEvent::Click => Some(RadioButtonGroupMessage::Click(i)),
+                        },
+                        || RadioButtonGroupMessage::Noop,
+                    )
+                })
+                .collect::<Vec<_>>();
+            futures_util::future::join_all(futures).await;
+            std::future::pending::<()>().await
+        };
+        futures_util::future::join(fut_props, fut_radios).await.0
     }
 
     async fn update_children(&mut self) -> Result<bool> {
-        futures_util::future::try_join_all(self.radios.iter_mut().map(|c| c.update()))
+        let Ok(r0) = self.selection_prop.update().await;
+        let r1 = futures_util::future::try_join_all(self.radios.iter_mut().map(|c| c.update()))
             .await
-            .map(|v| v.into_iter().any(|b| b))
+            .map(|v| v.into_iter().any(|b| b))?;
+        Ok(r0 || r1)
     }
 
     async fn update(
         &mut self,
         message: Self::Message,
-        sender: &ComponentSender<Self>,
+        _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
             RadioButtonGroupMessage::Noop => Ok(false),
             RadioButtonGroupMessage::Click(i) => {
-                for (idx, r) in self.radios.iter_mut().enumerate() {
-                    r.post(RadioButtonMessage::SetChecked(idx == i));
+                self.selection_prop.set(Some(i));
+                Ok(false)
+            }
+            RadioButtonGroupMessage::ChangePropSelection => {
+                let selection = *self.selection_prop.get();
+                if let Some(i) = selection {
+                    for (idx, r) in self.radios.iter_mut().enumerate() {
+                        r.set_checked(idx == i)?;
+                    }
                 }
-                sender.output(RadioButtonGroupEvent::Click(i));
                 Ok(false)
             }
         }

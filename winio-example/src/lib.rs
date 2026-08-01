@@ -65,7 +65,7 @@ impl Component for MainModel {
     type Init<'a> = ();
     type Message = MainMessage;
 
-    async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             window: Window = (()) => {
                 text: "Widgets example",
@@ -130,6 +130,10 @@ impl Component for MainModel {
         tabview.push(&webview)?;
         tabview.push(&markdown)?;
 
+        tabview
+            .selection_prop()
+            .bind(sender, |_| MainMessage::Redraw);
+
         #[cfg(target_os = "android")]
         android::init_rustls(&window)?;
 
@@ -159,9 +163,7 @@ impl Component for MainModel {
                 WindowEvent::Close => MainMessage::Close,
                 WindowEvent::Resize | WindowEvent::ThemeChanged => MainMessage::Redraw,
             },
-            self.tabview => {
-                TabViewEvent::Select => MainMessage::Redraw,
-            },
+            self.tabview => {},
             self.misc => {
                 MiscPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
                 #[cfg(windows)]

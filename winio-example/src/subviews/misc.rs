@@ -31,7 +31,6 @@ pub struct MiscPage {
     combo: Child<ComboBox>,
     list: Child<ObservableVec<String>>,
     radios: Child<RadioButtonGroup>,
-    rindex: usize,
     push_button: Child<Button>,
     pop_button: Child<Button>,
     show_button: Child<Button>,
@@ -120,7 +119,9 @@ impl Component for MiscPage {
             r3: RadioButton = (&window) => {
                 text: "╠╠╠"
             },
-            radios: RadioButtonGroup = ([r1, r2, r3]),
+            radios: RadioButtonGroup = ([r1, r2, r3]) => {
+                selection: 0,
+            },
             push_button: Button = (&window) => {
                 text: "Push",
             },
@@ -147,6 +148,18 @@ impl Component for MiscPage {
             .checked_prop()
             .bind_sink_map(pentry.password_prop(), |v| !v);
 
+        combo
+            .selection_prop()
+            .bind(sender, |_| MiscPageMessage::Select);
+
+        radios.selection_prop().bind(sender, |selection| {
+            if let Some(i) = selection {
+                MiscPageMessage::RSelect(i)
+            } else {
+                MiscPageMessage::Noop
+            }
+        });
+
         Ok(Self {
             window,
             link,
@@ -159,7 +172,6 @@ impl Component for MiscPage {
             combo,
             list,
             radios,
-            rindex: 0,
             push_button,
             pop_button,
             show_button,
@@ -180,9 +192,7 @@ impl Component for MiscPage {
             self.pcheck => {},
             self.pentry => {},
             self.canvas => {},
-            self.combo => {
-                ComboBoxEvent::Select => MiscPageMessage::Select,
-            },
+            self.combo => {},
             self.push_button => {
                 ButtonEvent::Click => MiscPageMessage::Push,
             },
@@ -197,9 +207,7 @@ impl Component for MiscPage {
             self.list => {
                 e => MiscPageMessage::List(e),
             },
-            self.radios => {
-                RadioButtonGroupEvent::Click(i) => MiscPageMessage::RSelect(i)
-            },
+            self.radios => {},
             self.backdrop => {
                 #[cfg(windows)]
                 BackdropChooserEvent::ChooseBackdrop(b) => MiscPageMessage::ChooseBackdrop(b),
@@ -247,7 +255,9 @@ impl Component for MiscPage {
             }
             MiscPageMessage::Select => Ok(true),
             MiscPageMessage::Push => {
-                self.list.push(self.radios[self.rindex].text()?);
+                if let Some(index) = self.radios.selection()? {
+                    self.list.push(self.radios[index].text()?);
+                }
                 Ok(false)
             }
             MiscPageMessage::Pop => {
@@ -255,8 +265,7 @@ impl Component for MiscPage {
                 Ok(false)
             }
             MiscPageMessage::RSelect(i) => {
-                self.rindex = i;
-                let text = self.radios[self.rindex].text()?;
+                let text = self.radios[i].text()?;
                 self.push_button
                     .set_tooltip(format!("Push \"{text}\" to the back of the combo box."))?;
                 Ok(false)
