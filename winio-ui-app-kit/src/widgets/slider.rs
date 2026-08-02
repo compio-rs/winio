@@ -116,7 +116,7 @@ impl Slider {
     }
 
     pub fn freq(&self) -> Result<usize> {
-        let nmarks = catch(|| self.view.numberOfTickMarks() as usize)?;
+        let nmarks = catch(|| self.view.numberOfTickMarks() as usize)?.max(1);
         let range = self.maximum()? - self.minimum()?;
         Ok(range / nmarks)
     }
