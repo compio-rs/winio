@@ -84,6 +84,10 @@ jni::bind_java_type! {
 }
 
 jni::bind_java_type! {
+    pub KeyListener => android.widget.method.KeyListener,
+}
+
+jni::bind_java_type! {
     pub EditText => android.widget.EditText,
     type_map {
         View => android.view.View,
@@ -91,6 +95,7 @@ jni::bind_java_type! {
         Context => android.content.Context,
         Editable => android.text.Editable,
         TextWatcher => android.text.TextWatcher,
+        KeyListener => android.text.method.KeyListener,
     },
     constructors {
         fn new(&Context),
@@ -100,6 +105,9 @@ jni::bind_java_type! {
         fn get_input_type() -> jint,
         fn set_input_type(ty: jint),
         fn add_text_changed_listener(listener: &TextWatcher),
+        fn get_key_listener() -> KeyListener,
+        fn set_key_listener(&KeyListener),
+        fn set_text_is_selectable(selectable: jboolean),
     },
     is_instance_of = {
         view = View,
