@@ -14,3 +14,7 @@ jni::bind_java_type! {
         base = MovementMethod,
     }
 }
+
+jni::bind_java_type! {
+    pub KeyListener => android.text.method.KeyListener,
+}

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use inherit_methods_macro::inherit_methods;
 use jni::{
-    objects::JObject,
+    objects::{Global, JObject},
     refs::{LoaderContext, Reference},
 };
 use jni_min_helper::DynamicProxy;
@@ -13,7 +13,7 @@ use winio_primitive::{HAlign, Point, Size};
 use crate::{
     BaseWidget, Result,
     java::android::{
-        text::{TextWatcher, input_type},
+        text::{TextWatcher, input_type, method::KeyListener as AKeyListener},
         view::gravity,
         widget::{EditText as AEditText, TextView as ATextView},
     },
@@ -26,6 +26,7 @@ pub struct Edit {
     on_change: Arc<SyncCallback>,
     #[allow(dead_code)]
     change_proxy: DynamicProxy,
+    key_listener: Global<AKeyListener<'static>>,
 }
 
 #[inherit_methods(from = "self.inner")]
@@ -46,11 +47,15 @@ impl Edit {
                     }
                 })?;
             widget.add_text_changed_listener(env, &change_proxy)?;
+            widget.set_text_is_selectable(env, true)?;
+            let key_listener = widget.get_key_listener(env)?;
+            let key_listener = env.new_global_ref(&key_listener)?;
             let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
             Ok(Self {
                 inner,
                 on_change,
                 change_proxy,
+                key_listener,
             })
         })
     }
@@ -141,6 +146,20 @@ impl Edit {
         })
     }
 
+    pub(crate) fn key_listener_is_null(&self) -> Result<bool> {
+        vm_exec(move |env| {
+            let key_listener = self.inner.get_key_listener(env)?;
+            Ok(key_listener.is_null())
+        })
+    }
+
+    pub(crate) fn set_key_listener(&self, key_listener: &AKeyListener<'static>) -> Result<()> {
+        vm_exec(move |env| {
+            self.inner.set_key_listener(env, key_listener)?;
+            Ok(())
+        })
+    }
+
     pub fn is_password(&self) -> Result<bool> {
         let ty = self.input_type()?;
         Ok((ty & input_type::TYPE_TEXT_VARIATION_PASSWORD) != 0)
@@ -157,18 +176,16 @@ impl Edit {
     }
 
     pub fn is_readonly(&self) -> Result<bool> {
-        let ty = self.input_type()?;
-        Ok((ty & input_type::TYPE_CLASS_TEXT) != 0)
+        let is_null = self.key_listener_is_null()?;
+        Ok(is_null)
     }
 
     pub fn set_readonly(&mut self, readonly: bool) -> Result<()> {
-        let mut ty = self.input_type()?;
         if readonly {
-            ty |= input_type::TYPE_CLASS_TEXT;
+            self.set_key_listener(&AKeyListener::null())
         } else {
-            ty &= !input_type::TYPE_CLASS_TEXT;
+            self.set_key_listener(&self.key_listener)
         }
-        self.set_input_type(ty)
     }
 
     pub async fn wait_change(&self) {
