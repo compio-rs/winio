@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Child, Component, ComponentSender, PropSink, PropSinkEvent, start};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Size, ToolTip, Visible};
+use winio_primitive::{Rect, Enable, Failable, Layoutable, Point, Size, ToolTip, Visible};
 
 use crate::{
     sys,
@@ -19,6 +19,7 @@ pub struct Progress {
     enabled_prop: Child<PropSink<bool>>,
     visible_prop: Child<PropSink<bool>>,
     tooltip_prop: Child<PropSink<String>>,
+    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for Progress {
@@ -107,6 +108,11 @@ impl Progress {
     pub fn tooltip_prop(&self) -> &PropSink<String> {
         &self.tooltip_prop
     }
+
+    /// Property for [`Layoutable::rect`].
+    pub fn rect_prop(&self) -> &PropSink<Rect> {
+        &self.rect_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -133,11 +139,19 @@ impl Enable for Progress {
 impl Layoutable for Progress {
     fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()>;
+    fn set_loc(&mut self, p: Point) -> Result<()> {
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(p, rect.size));
+        Ok(())
+    }
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()> {
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(rect.origin, s));
+        Ok(())
+    }
 
     fn preferred_size(&self) -> Result<Size>;
 }
@@ -167,6 +181,8 @@ pub enum ProgressMessage {
     ChangeVisible,
     /// The tooltip has been changed.
     ChangeTooltip,
+    /// The rect has been changed.
+    ChangeRect,
 }
 
 impl Component for Progress {
@@ -184,6 +200,10 @@ impl Component for Progress {
         let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
         let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
         let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
+        let loc = widget.loc()?;
+        let size = widget.size()?;
+        let rect = Rect::new(loc, size);
+        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
         Ok(Self {
             widget,
             pos_prop,
@@ -192,6 +212,7 @@ impl Component for Progress {
             indeterminate_prop,
             enabled_prop,
             visible_prop,
+        rect_prop,
             tooltip_prop,
         })
     }
@@ -206,6 +227,7 @@ impl Component for Progress {
             self.enabled_prop => { PropSinkEvent::Changed => ProgressMessage::ChangeEnabled },
             self.visible_prop => { PropSinkEvent::Changed => ProgressMessage::ChangeVisible },
             self.tooltip_prop => { PropSinkEvent::Changed => ProgressMessage::ChangeTooltip },
+            self.rect_prop => { PropSinkEvent::Changed => ProgressMessage::ChangeRect },
         }
     }
 
@@ -217,7 +239,8 @@ impl Component for Progress {
         let Ok(r4) = self.enabled_prop.update().await;
         let Ok(r5) = self.visible_prop.update().await;
         let Ok(r6) = self.tooltip_prop.update().await;
-        Ok(r0 || r1 || r2 || r3 || r4 || r5 || r6)
+        let Ok(r7) = self.rect_prop.update().await;
+        Ok(r0 || r1 || r2 || r3 || r4 || r5 || r6 || r7)
     }
 
     async fn update(
@@ -253,6 +276,12 @@ impl Component for Progress {
             }
             ProgressMessage::ChangeTooltip => {
                 self.widget.set_tooltip(self.tooltip_prop.get())?;
+                Ok(true)
+            }
+            ProgressMessage::ChangeRect => {
+                let rect = *self.rect_prop.get();
+                self.widget.set_loc(rect.origin)?;
+                self.widget.set_size(rect.size)?;
                 Ok(true)
             }
         }

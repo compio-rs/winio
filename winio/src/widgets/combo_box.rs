@@ -4,7 +4,7 @@ use winio_elm::{
     PropSinkMessage, start,
 };
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Size, TextWidget, ToolTip, Visible};
+use winio_primitive::{Rect, Enable, Failable, Layoutable, Point, Size, TextWidget, ToolTip, Visible};
 
 use crate::{
     sys,
@@ -21,6 +21,7 @@ pub struct ComboBox {
     enabled_prop: Child<PropSink<bool>>,
     visible_prop: Child<PropSink<bool>>,
     tooltip_prop: Child<PropSink<String>>,
+    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for ComboBox {
@@ -132,6 +133,11 @@ impl ComboBox {
     pub fn tooltip_prop(&self) -> &PropSink<String> {
         &self.tooltip_prop
     }
+
+    /// Property for [`Layoutable::rect`].
+    pub fn rect_prop(&self) -> &PropSink<Rect> {
+        &self.rect_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -159,18 +165,16 @@ impl Layoutable for ComboBox {
     fn loc(&self) -> Result<Point>;
 
     fn set_loc(&mut self, p: Point) -> Result<()> {
-        if !super::approx_eq_point(self.loc()?, p) {
-            self.widget.set_loc(p)?;
-        }
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(p, rect.size));
         Ok(())
     }
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()> {
-        if !super::approx_eq_size(self.size()?, v) {
-            self.widget.set_size(v)?;
-        }
+    fn set_size(&mut self, s: Size) -> Result<()> {
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(rect.origin, s));
         Ok(())
     }
 
@@ -230,6 +234,8 @@ pub enum ComboBoxMessage {
     ChangeVisible,
     /// The tooltip has been changed.
     ChangeTooltip,
+    /// The rect has been changed.
+    ChangeRect,
 }
 
 impl ComboBoxMessage {
@@ -270,6 +276,10 @@ impl Component for ComboBox {
         let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
         let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
         let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
+        let loc = widget.loc()?;
+        let size = widget.size()?;
+        let rect = Rect::new(loc, size);
+        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
         Ok(Self {
             widget,
             text_prop,
@@ -277,6 +287,7 @@ impl Component for ComboBox {
             editable_prop,
             enabled_prop,
             visible_prop,
+        rect_prop,
             tooltip_prop,
         })
     }
@@ -303,6 +314,7 @@ impl Component for ComboBox {
                 self.enabled_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangeEnabled },
                 self.visible_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangeVisible },
                 self.tooltip_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangeTooltip },
+                self.rect_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangeRect },
             }
         };
         futures_util::future::join3(fut_select, fut_change, fut_props)
@@ -317,7 +329,8 @@ impl Component for ComboBox {
         let Ok(r3) = self.enabled_prop.update().await;
         let Ok(r4) = self.visible_prop.update().await;
         let Ok(r5) = self.tooltip_prop.update().await;
-        Ok(r0 || r1 || r2 || r3 || r4 || r5)
+        let Ok(r6) = self.rect_prop.update().await;
+        Ok(r0 || r1 || r2 || r3 || r4 || r5 || r6)
     }
 
     async fn update(
@@ -386,6 +399,12 @@ impl Component for ComboBox {
             }
             ComboBoxMessage::ChangeTooltip => {
                 self.widget.set_tooltip(self.tooltip_prop.get())?;
+                Ok(true)
+            }
+            ComboBoxMessage::ChangeRect => {
+                let rect = *self.rect_prop.get();
+                self.widget.set_loc(rect.origin)?;
+                self.widget.set_size(rect.size)?;
                 Ok(true)
             }
         }

@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Child, Component, ComponentSender, PropSink, PropSinkEvent, start};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Size, TextWidget, ToolTip, Visible};
+use winio_primitive::{Rect, Enable, Failable, Layoutable, Point, Size, TextWidget, ToolTip, Visible};
 
 use crate::{
     sys,
@@ -16,6 +16,7 @@ pub struct Button {
     enabled_prop: Child<PropSink<bool>>,
     visible_prop: Child<PropSink<bool>>,
     tooltip_prop: Child<PropSink<String>>,
+    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for Button {
@@ -62,6 +63,11 @@ impl Button {
     pub fn tooltip_prop(&self) -> &PropSink<String> {
         &self.tooltip_prop
     }
+
+    /// Property for [`Layoutable::rect`].
+    pub fn rect_prop(&self) -> &PropSink<Rect> {
+        &self.rect_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -88,11 +94,19 @@ impl Enable for Button {
 impl Layoutable for Button {
     fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()>;
+    fn set_loc(&mut self, p: Point) -> Result<()> {
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(p, rect.size));
+        Ok(())
+    }
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()> {
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(rect.origin, s));
+        Ok(())
+    }
 
     fn preferred_size(&self) -> Result<Size>;
 }
@@ -119,6 +133,8 @@ pub enum ButtonMessage {
     ChangeVisible,
     /// The tooltip has been changed.
     ChangeTooltip,
+    /// The rect has been changed.
+    ChangeRect,
 }
 
 impl Component for Button {
@@ -133,11 +149,16 @@ impl Component for Button {
         let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
         let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
         let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
+        let loc = widget.loc()?;
+        let size = widget.size()?;
+        let rect = Rect::new(loc, size);
+        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
         Ok(Self {
             widget,
             text_prop,
             enabled_prop,
             visible_prop,
+        rect_prop,
             tooltip_prop,
         })
     }
@@ -156,6 +177,7 @@ impl Component for Button {
                 self.enabled_prop => { PropSinkEvent::Changed => ButtonMessage::ChangeEnabled },
                 self.visible_prop => { PropSinkEvent::Changed => ButtonMessage::ChangeVisible },
                 self.tooltip_prop => { PropSinkEvent::Changed => ButtonMessage::ChangeTooltip },
+                self.rect_prop => { PropSinkEvent::Changed => ButtonMessage::ChangeRect },
             }
         };
         futures_util::future::join(fut_click, fut_props).await.0
@@ -166,7 +188,8 @@ impl Component for Button {
         let Ok(r1) = self.enabled_prop.update().await;
         let Ok(r2) = self.visible_prop.update().await;
         let Ok(r3) = self.tooltip_prop.update().await;
-        Ok(r0 || r1 || r2 || r3)
+        let Ok(r4) = self.rect_prop.update().await;
+        Ok(r0 || r1 || r2 || r3 || r4)
     }
 
     async fn update(
@@ -190,6 +213,12 @@ impl Component for Button {
             }
             ButtonMessage::ChangeTooltip => {
                 self.widget.set_tooltip(self.tooltip_prop.get())?;
+                Ok(true)
+            }
+            ButtonMessage::ChangeRect => {
+                let rect = *self.rect_prop.get();
+                self.widget.set_loc(rect.origin)?;
+                self.widget.set_size(rect.size)?;
                 Ok(true)
             }
         }

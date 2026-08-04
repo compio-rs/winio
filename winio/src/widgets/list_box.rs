@@ -3,7 +3,7 @@ use winio_elm::{
     Child, Component, ComponentSender, ObservableVecEvent, PropSink, PropSinkEvent, start,
 };
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Size, ToolTip, Visible};
+use winio_primitive::{Rect, Enable, Failable, Layoutable, Point, Size, ToolTip, Visible};
 
 use crate::{
     sys,
@@ -18,6 +18,7 @@ pub struct ListBox {
     enabled_prop: Child<PropSink<bool>>,
     visible_prop: Child<PropSink<bool>>,
     tooltip_prop: Child<PropSink<String>>,
+    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for ListBox {
@@ -106,6 +107,11 @@ impl ListBox {
     pub fn tooltip_prop(&self) -> &PropSink<String> {
         &self.tooltip_prop
     }
+
+    /// Property for [`Layoutable::rect`].
+    pub fn rect_prop(&self) -> &PropSink<Rect> {
+        &self.rect_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -132,11 +138,19 @@ impl Enable for ListBox {
 impl Layoutable for ListBox {
     fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()>;
+    fn set_loc(&mut self, p: Point) -> Result<()> {
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(p, rect.size));
+        Ok(())
+    }
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()> {
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(rect.origin, s));
+        Ok(())
+    }
 
     fn preferred_size(&self) -> Result<Size>;
 
@@ -186,6 +200,8 @@ pub enum ListBoxMessage {
     ChangeVisible,
     /// The tooltip has been changed.
     ChangeTooltip,
+    /// The rect has been changed.
+    ChangeRect,
 }
 
 impl ListBoxMessage {
@@ -224,11 +240,16 @@ impl Component for ListBox {
         let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
         let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
         let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
+        let loc = widget.loc()?;
+        let size = widget.size()?;
+        let rect = Rect::new(loc, size);
+        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
         Ok(Self {
             widget,
             multiple_prop,
             enabled_prop,
             visible_prop,
+        rect_prop,
             tooltip_prop,
         })
     }
@@ -247,6 +268,7 @@ impl Component for ListBox {
                 self.enabled_prop => { PropSinkEvent::Changed => ListBoxMessage::ChangeEnabled },
                 self.visible_prop => { PropSinkEvent::Changed => ListBoxMessage::ChangeVisible },
                 self.tooltip_prop => { PropSinkEvent::Changed => ListBoxMessage::ChangeTooltip },
+                self.rect_prop => { PropSinkEvent::Changed => ListBoxMessage::ChangeRect },
             }
         };
         futures_util::future::join(fut_select, fut_props).await.0
@@ -257,7 +279,8 @@ impl Component for ListBox {
         let Ok(r1) = self.enabled_prop.update().await;
         let Ok(r2) = self.visible_prop.update().await;
         let Ok(r3) = self.tooltip_prop.update().await;
-        Ok(r0 || r1 || r2 || r3)
+        let Ok(r4) = self.rect_prop.update().await;
+        Ok(r0 || r1 || r2 || r3 || r4)
     }
 
     async fn update(
@@ -297,6 +320,12 @@ impl Component for ListBox {
             }
             ListBoxMessage::ChangeTooltip => {
                 self.widget.set_tooltip(self.tooltip_prop.get())?;
+                Ok(true)
+            }
+            ListBoxMessage::ChangeRect => {
+                let rect = *self.rect_prop.get();
+                self.widget.set_loc(rect.origin)?;
+                self.widget.set_size(rect.size)?;
                 Ok(true)
             }
         }

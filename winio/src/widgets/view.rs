@@ -1,18 +1,19 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Child, Component, ComponentSender, PropSink, PropSinkEvent, start};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Failable, Layoutable, Point, Size, Visible};
+use winio_primitive::{Failable, Layoutable, Point, Rect, Size, Visible};
 
 use crate::{
     sys,
     sys::{Error, Result},
 };
 
-/// A simple window.
+/// A simple view.
 #[derive(Debug)]
 pub struct View {
     widget: sys::View,
     visible_prop: Child<PropSink<bool>>,
+    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for View {
@@ -34,17 +35,30 @@ impl View {
     pub fn visible_prop(&self) -> &PropSink<bool> {
         &self.visible_prop
     }
+
+    /// Property for [`Layoutable::rect`].
+    pub fn rect_prop(&self) -> &PropSink<Rect> {
+        &self.rect_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for View {
     fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()>;
+    fn set_loc(&mut self, p: Point) -> Result<()> {
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(p, rect.size));
+        Ok(())
+    }
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()> {
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(rect.origin, s));
+        Ok(())
+    }
 }
 
 /// Events of [`View`].
@@ -60,6 +74,8 @@ pub enum ViewMessage {
     Noop,
     /// The visible state has been changed.
     ChangeVisible,
+    /// The rect has been changed.
+    ChangeRect,
 }
 
 impl Component for View {
@@ -71,9 +87,14 @@ impl Component for View {
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::View::new(init)?;
         let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
+        let loc = widget.loc()?;
+        let size = widget.size()?;
+        let rect = Rect::new(loc, size);
+        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
         Ok(Self {
             widget,
             visible_prop,
+            rect_prop,
         })
     }
 
@@ -81,12 +102,14 @@ impl Component for View {
         start! {
             sender, default: ViewMessage::Noop,
             self.visible_prop => { PropSinkEvent::Changed => ViewMessage::ChangeVisible },
+            self.rect_prop => { PropSinkEvent::Changed => ViewMessage::ChangeRect },
         }
     }
 
     async fn update_children(&mut self) -> Result<bool> {
-        let Ok(res) = self.visible_prop.update().await;
-        Ok(res)
+        let Ok(r0) = self.visible_prop.update().await;
+        let Ok(r1) = self.rect_prop.update().await;
+        Ok(r0 || r1)
     }
 
     async fn update(
@@ -98,6 +121,12 @@ impl Component for View {
             ViewMessage::Noop => Ok(false),
             ViewMessage::ChangeVisible => {
                 self.widget.set_visible(**self.visible_prop)?;
+                Ok(true)
+            }
+            ViewMessage::ChangeRect => {
+                let rect = *self.rect_prop.get();
+                self.widget.set_loc(rect.origin)?;
+                self.widget.set_size(rect.size)?;
                 Ok(true)
             }
         }

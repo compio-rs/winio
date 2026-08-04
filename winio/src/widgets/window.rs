@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Child, Component, ComponentSender, PropSink, PropSinkEvent, start};
 use winio_layout::Layoutable;
-use winio_primitive::{Failable, Point, Size, TextWidget, Visible};
+use winio_primitive::{Failable, Point, Rect, Size, TextWidget, Visible};
 
 #[cfg(windows)]
 pub use crate::sys::Backdrop;
@@ -30,6 +30,7 @@ pub struct Window {
     backdrop_prop: Child<PropSink<Backdrop>>,
     #[cfg(target_os = "macos")]
     vibrancy_prop: Child<PropSink<Option<Vibrancy>>>,
+    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for Window {
@@ -159,11 +160,19 @@ impl Visible for Window {
 impl Layoutable for Window {
     fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()>;
+    fn set_loc(&mut self, p: Point) -> Result<()> {
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(p, rect.size));
+        Ok(())
+    }
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()> {
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(rect.origin, s));
+        Ok(())
+    }
 }
 
 /// Events of [`Window`].
@@ -203,6 +212,10 @@ pub enum WindowMessage {
     #[cfg(target_os = "macos")]
     /// The vibrancy has been changed.
     ChangeVibrancy,
+    /// The rect has been changed.
+    ChangeRect,
+    /// The window has been moved or resized.
+    ChangeInputRect,
 }
 
 impl Component for Window {
@@ -223,6 +236,10 @@ impl Component for Window {
         let Ok(backdrop_prop) = Child::<PropSink<Backdrop>>::init(Backdrop::None).await;
         #[cfg(target_os = "macos")]
         let Ok(vibrancy_prop) = Child::<PropSink<Option<Vibrancy>>>::init(None).await;
+        let loc = widget.loc()?;
+        let size = widget.size()?;
+        let rect = Rect::new(loc, size);
+        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
         Ok(Self {
             widget,
             text_prop,
@@ -235,6 +252,7 @@ impl Component for Window {
             backdrop_prop,
             #[cfg(target_os = "macos")]
             vibrancy_prop,
+            rect_prop,
         })
     }
 
@@ -248,12 +266,14 @@ impl Component for Window {
         let fut_move = async {
             loop {
                 self.widget.wait_move().await;
+                sender.post(WindowMessage::ChangeInputRect);
                 sender.output(WindowEvent::Move);
             }
         };
         let fut_resize = async {
             loop {
                 self.widget.wait_size().await;
+                sender.post(WindowMessage::ChangeInputRect);
                 sender.output(WindowEvent::Resize);
             }
         };
@@ -268,6 +288,7 @@ impl Component for Window {
                 sender, default: WindowMessage::Noop,
                 self.text_prop => { PropSinkEvent::Changed => WindowMessage::ChangeText },
                 self.visible_prop => { PropSinkEvent::Changed => WindowMessage::ChangeVisible },
+                self.rect_prop => { PropSinkEvent::Changed => WindowMessage::ChangeRect },
             }
         };
         #[cfg(win32)]
@@ -331,7 +352,8 @@ impl Component for Window {
         let Ok(r5) = self.vibrancy_prop.update().await;
         #[cfg(not(target_os = "macos"))]
         let r5 = false;
-        Ok(r0 || r1 || r2 || r3 || r4 || r5)
+        let Ok(r6) = self.rect_prop.update().await;
+        Ok(r0 || r1 || r2 || r3 || r4 || r5 || r6)
     }
 
     async fn update(
@@ -368,6 +390,18 @@ impl Component for Window {
             WindowMessage::ChangeVibrancy => {
                 self.widget.set_vibrancy(*self.vibrancy_prop.get())?;
                 Ok(true)
+            }
+            WindowMessage::ChangeRect => {
+                let rect = *self.rect_prop.get();
+                self.widget.set_loc(rect.origin)?;
+                self.widget.set_size(rect.size)?;
+                Ok(true)
+            }
+            WindowMessage::ChangeInputRect => {
+                let loc = self.widget.loc()?;
+                let size = self.widget.size()?;
+                self.rect_prop.set(Rect::new(loc, size));
+                Ok(false)
             }
         }
     }

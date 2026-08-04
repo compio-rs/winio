@@ -3,7 +3,7 @@ use winio_elm::{
     Child, Component, ComponentSender, Prop, PropSink, PropSinkEvent, PropSinkMessage, start,
 };
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Size, TextWidget, ToolTip, Visible};
+use winio_primitive::{Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible};
 
 use crate::{
     sys,
@@ -19,6 +19,7 @@ pub struct RadioButton {
     enabled_prop: Child<PropSink<bool>>,
     visible_prop: Child<PropSink<bool>>,
     tooltip_prop: Child<PropSink<String>>,
+    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for RadioButton {
@@ -80,6 +81,11 @@ impl RadioButton {
     pub fn tooltip_prop(&self) -> &PropSink<String> {
         &self.tooltip_prop
     }
+
+    /// Property for [`Layoutable::rect`].
+    pub fn rect_prop(&self) -> &PropSink<Rect> {
+        &self.rect_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -106,11 +112,19 @@ impl Enable for RadioButton {
 impl Layoutable for RadioButton {
     fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()>;
+    fn set_loc(&mut self, p: Point) -> Result<()> {
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(p, rect.size));
+        Ok(())
+    }
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()> {
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(rect.origin, s));
+        Ok(())
+    }
 
     fn preferred_size(&self) -> Result<Size>;
 }
@@ -143,6 +157,8 @@ pub enum RadioButtonMessage {
     ChangeVisible,
     /// The tooltip has been changed.
     ChangeTooltip,
+    /// The rect has been changed.
+    ChangeRect,
 }
 
 impl Component for RadioButton {
@@ -158,6 +174,10 @@ impl Component for RadioButton {
         let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
         let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
         let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
+        let loc = widget.loc()?;
+        let size = widget.size()?;
+        let rect = Rect::new(loc, size);
+        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
         Ok(Self {
             widget,
             checked_prop,
@@ -165,6 +185,7 @@ impl Component for RadioButton {
             enabled_prop,
             visible_prop,
             tooltip_prop,
+            rect_prop,
         })
     }
 
@@ -183,6 +204,7 @@ impl Component for RadioButton {
                 self.enabled_prop => { PropSinkEvent::Changed => RadioButtonMessage::ChangeEnabled },
                 self.visible_prop => { PropSinkEvent::Changed => RadioButtonMessage::ChangeVisible },
                 self.tooltip_prop => { PropSinkEvent::Changed => RadioButtonMessage::ChangeTooltip },
+                self.rect_prop => { PropSinkEvent::Changed => RadioButtonMessage::ChangeRect },
             }
         };
         futures_util::future::join(fut_click, fut_props).await.0
@@ -194,7 +216,8 @@ impl Component for RadioButton {
         let Ok(r2) = self.enabled_prop.update().await;
         let Ok(r3) = self.visible_prop.update().await;
         let Ok(r4) = self.tooltip_prop.update().await;
-        Ok(r0 || r1 || r2 || r3 || r4)
+        let Ok(r5) = self.rect_prop.update().await;
+        Ok(r0 || r1 || r2 || r3 || r4 || r5)
     }
 
     async fn update(
@@ -237,6 +260,12 @@ impl Component for RadioButton {
             }
             RadioButtonMessage::ChangeTooltip => {
                 self.widget.set_tooltip(self.tooltip_prop.get())?;
+                Ok(true)
+            }
+            RadioButtonMessage::ChangeRect => {
+                let rect = *self.rect_prop.get();
+                self.widget.set_loc(rect.origin)?;
+                self.widget.set_size(rect.size)?;
                 Ok(true)
             }
         }

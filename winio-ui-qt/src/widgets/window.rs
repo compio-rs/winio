@@ -83,8 +83,8 @@ impl Window {
     pub fn size(&self) -> Result<Size> {
         let rect = self.as_ref_qwidget().rect()?;
         Ok(Size::new(
-            (rect.x2 - rect.x1) as _,
-            (rect.y2 - rect.y1) as _,
+            (rect.x2 - rect.x1 + 1) as _,
+            (rect.y2 - rect.y1 + 1) as _,
         ))
     }
 

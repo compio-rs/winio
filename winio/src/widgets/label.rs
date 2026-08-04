@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Child, Component, ComponentSender, PropSink, PropSinkEvent, start};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{
+use winio_primitive::{Rect, 
     Enable, Failable, HAlign, Layoutable, Point, Size, TextWidget, ToolTip, Visible,
 };
 
@@ -21,6 +21,7 @@ pub struct Label {
     tooltip_prop: Child<PropSink<String>>,
     #[cfg(win32)]
     transparent_prop: Child<PropSink<bool>>,
+    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for Label {
@@ -100,6 +101,11 @@ impl Label {
     pub fn transparent_prop(&self) -> &PropSink<bool> {
         &self.transparent_prop
     }
+
+    /// Property for [`Layoutable::rect`].
+    pub fn rect_prop(&self) -> &PropSink<Rect> {
+        &self.rect_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -126,11 +132,19 @@ impl Enable for Label {
 impl Layoutable for Label {
     fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()>;
+    fn set_loc(&mut self, p: Point) -> Result<()> {
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(p, rect.size));
+        Ok(())
+    }
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()> {
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(rect.origin, s));
+        Ok(())
+    }
 
     fn preferred_size(&self) -> Result<Size>;
 }
@@ -159,6 +173,8 @@ pub enum LabelMessage {
     #[cfg(win32)]
     /// The transparent state has been changed.
     ChangeTransparent,
+    /// The rect has been changed.
+    ChangeRect,
 }
 
 impl Component for Label {
@@ -176,6 +192,10 @@ impl Component for Label {
         let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
         #[cfg(win32)]
         let Ok(transparent_prop) = Child::<PropSink<bool>>::init(false).await;
+        let loc = widget.loc()?;
+        let size = widget.size()?;
+        let rect = Rect::new(loc, size);
+        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
         Ok(Self {
             widget,
             text_prop,
@@ -183,6 +203,7 @@ impl Component for Label {
             enabled_prop,
             visible_prop,
             tooltip_prop,
+        rect_prop,
             #[cfg(win32)]
             transparent_prop,
         })
@@ -199,6 +220,7 @@ impl Component for Label {
                 self.enabled_prop => { PropSinkEvent::Changed => LabelMessage::ChangeEnabled },
                 self.visible_prop => { PropSinkEvent::Changed => LabelMessage::ChangeVisible },
                 self.tooltip_prop => { PropSinkEvent::Changed => LabelMessage::ChangeTooltip },
+                self.rect_prop => { PropSinkEvent::Changed => LabelMessage::ChangeRect },
             }
         };
         #[cfg(win32)]
@@ -223,9 +245,10 @@ impl Component for Label {
         let Ok(r4) = self.tooltip_prop.update().await;
         #[cfg(win32)]
         let Ok(r5) = self.transparent_prop.update().await;
+        let Ok(r6) = self.rect_prop.update().await;
         #[cfg(not(win32))]
         let r5 = false;
-        Ok(r0 || r1 || r2 || r3 || r4 || r5)
+        Ok(r0 || r1 || r2 || r3 || r4 || r5 || r6)
     }
 
     async fn update(
@@ -258,6 +281,12 @@ impl Component for Label {
             #[cfg(win32)]
             LabelMessage::ChangeTransparent => {
                 self.widget.set_transparent(**self.transparent_prop)?;
+                Ok(true)
+            }
+            LabelMessage::ChangeRect => {
+                let rect = *self.rect_prop.get();
+                self.widget.set_loc(rect.origin)?;
+                self.widget.set_size(rect.size)?;
                 Ok(true)
             }
         }

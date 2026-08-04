@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Child, Component, ComponentSender, PropSink, PropSinkEvent, start};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Size, Visible};
+use winio_primitive::{Rect, Enable, Failable, Layoutable, Point, Size, Visible};
 
 use crate::{
     sys,
@@ -17,6 +17,7 @@ pub struct ScrollView {
     vscroll_prop: Child<PropSink<bool>>,
     visible_prop: Child<PropSink<bool>>,
     enabled_prop: Child<PropSink<bool>>,
+    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for ScrollView {
@@ -62,6 +63,11 @@ impl ScrollView {
     pub fn enabled_prop(&self) -> &PropSink<bool> {
         &self.enabled_prop
     }
+
+    /// Property for [`Layoutable::rect`].
+    pub fn rect_prop(&self) -> &PropSink<Rect> {
+        &self.rect_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -88,11 +94,19 @@ impl Enable for ScrollView {
 impl Layoutable for ScrollView {
     fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()>;
+    fn set_loc(&mut self, p: Point) -> Result<()> {
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(p, rect.size));
+        Ok(())
+    }
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()> {
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(rect.origin, s));
+        Ok(())
+    }
 }
 
 /// Events of [`ScrollView`].
@@ -114,6 +128,8 @@ pub enum ScrollViewMessage {
     ChangeVisible,
     /// The enabled state has been changed.
     ChangeEnabled,
+    /// The rect has been changed.
+    ChangeRect,
 }
 
 impl Component for ScrollView {
@@ -128,11 +144,16 @@ impl Component for ScrollView {
         let Ok(vscroll_prop) = Child::<PropSink<bool>>::init(widget.vscroll()?).await;
         let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
         let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
+        let loc = widget.loc()?;
+        let size = widget.size()?;
+        let rect = Rect::new(loc, size);
+        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
         Ok(Self {
             widget,
             hscroll_prop,
             vscroll_prop,
             visible_prop,
+        rect_prop,
             enabled_prop,
         })
     }
@@ -146,6 +167,7 @@ impl Component for ScrollView {
                 self.vscroll_prop => { PropSinkEvent::Changed => ScrollViewMessage::ChangeVscroll },
                 self.visible_prop => { PropSinkEvent::Changed => ScrollViewMessage::ChangeVisible },
                 self.enabled_prop => { PropSinkEvent::Changed => ScrollViewMessage::ChangeEnabled },
+                self.rect_prop => { PropSinkEvent::Changed => ScrollViewMessage::ChangeRect },
             }
         };
         futures_util::future::join(fut_native, fut_props).await.0
@@ -156,7 +178,8 @@ impl Component for ScrollView {
         let Ok(r1) = self.vscroll_prop.update().await;
         let Ok(r2) = self.visible_prop.update().await;
         let Ok(r3) = self.enabled_prop.update().await;
-        Ok(r0 || r1 || r2 || r3)
+        let Ok(r4) = self.rect_prop.update().await;
+        Ok(r0 || r1 || r2 || r3 || r4)
     }
 
     async fn update(
@@ -180,6 +203,12 @@ impl Component for ScrollView {
             }
             ScrollViewMessage::ChangeEnabled => {
                 self.widget.set_enabled(**self.enabled_prop)?;
+                Ok(true)
+            }
+            ScrollViewMessage::ChangeRect => {
+                let rect = *self.rect_prop.get();
+                self.widget.set_loc(rect.origin)?;
+                self.widget.set_size(rect.size)?;
                 Ok(true)
             }
         }

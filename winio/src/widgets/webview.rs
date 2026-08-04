@@ -4,7 +4,7 @@ use cookie::Cookie;
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Child, Component, ComponentSender, PropSink, PropSinkEvent, start};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Size, Visible};
+use winio_primitive::{Rect, Enable, Failable, Layoutable, Point, Size, Visible};
 
 use crate::{
     sys,
@@ -18,6 +18,7 @@ pub struct WebView {
     source_prop: Child<PropSink<String>>,
     visible_prop: Child<PropSink<bool>>,
     enabled_prop: Child<PropSink<bool>>,
+    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for WebView {
@@ -121,6 +122,11 @@ impl WebView {
     pub fn enabled_prop(&self) -> &PropSink<bool> {
         &self.enabled_prop
     }
+
+    /// Property for [`Layoutable::rect`].
+    pub fn rect_prop(&self) -> &PropSink<Rect> {
+        &self.rect_prop
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -147,11 +153,19 @@ impl Enable for WebView {
 impl Layoutable for WebView {
     fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()>;
+    fn set_loc(&mut self, p: Point) -> Result<()> {
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(p, rect.size));
+        Ok(())
+    }
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()> {
+        let rect = *self.rect_prop.get();
+        self.rect_prop.set(Rect::new(rect.origin, s));
+        Ok(())
+    }
 }
 
 /// Events of [`WebView`].
@@ -176,6 +190,8 @@ pub enum WebViewMessage {
     ChangeVisible,
     /// The enabled state has been changed.
     ChangeEnabled,
+    /// The rect has been changed.
+    ChangeRect,
 }
 
 impl Component for WebView {
@@ -189,10 +205,15 @@ impl Component for WebView {
         let Ok(source_prop) = Child::<PropSink<String>>::init(String::new()).await;
         let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
         let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
+        let loc = widget.loc()?;
+        let size = widget.size()?;
+        let rect = Rect::new(loc, size);
+        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
         Ok(Self {
             widget,
             source_prop,
             visible_prop,
+        rect_prop,
             enabled_prop,
         })
     }
@@ -216,6 +237,7 @@ impl Component for WebView {
                 self.source_prop => { PropSinkEvent::Changed => WebViewMessage::ChangeSource },
                 self.visible_prop => { PropSinkEvent::Changed => WebViewMessage::ChangeVisible },
                 self.enabled_prop => { PropSinkEvent::Changed => WebViewMessage::ChangeEnabled },
+                self.rect_prop => { PropSinkEvent::Changed => WebViewMessage::ChangeRect },
             }
         };
         futures_util::future::join3(fut_navigated, fut_navigating, fut_props)
@@ -227,7 +249,8 @@ impl Component for WebView {
         let Ok(r0) = self.source_prop.update().await;
         let Ok(r1) = self.visible_prop.update().await;
         let Ok(r2) = self.enabled_prop.update().await;
-        Ok(r0 || r1 || r2)
+        let Ok(r3) = self.rect_prop.update().await;
+        Ok(r0 || r1 || r2 || r3)
     }
 
     async fn update(
@@ -247,6 +270,12 @@ impl Component for WebView {
             }
             WebViewMessage::ChangeEnabled => {
                 self.widget.set_enabled(**self.enabled_prop)?;
+                Ok(true)
+            }
+            WebViewMessage::ChangeRect => {
+                let rect = *self.rect_prop.get();
+                self.widget.set_loc(rect.origin)?;
+                self.widget.set_size(rect.size)?;
                 Ok(true)
             }
         }

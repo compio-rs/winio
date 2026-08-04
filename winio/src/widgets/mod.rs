@@ -1,19 +1,5 @@
 //! ELM widgets.
 
-use winio_primitive::{Point, Size};
-
-fn approx_eq_point(p1: Point, p2: Point) -> bool {
-    approx_eq(p1.x, p2.x) && approx_eq(p1.y, p2.y)
-}
-
-fn approx_eq_size(s1: Size, s2: Size) -> bool {
-    approx_eq(s1.width, s2.width) && approx_eq(s1.height, s2.height)
-}
-
-fn approx_eq(f1: f64, f2: f64) -> bool {
-    (f1 - f2).abs() < 1.0
-}
-
 mod window;
 pub use window::*;
 
