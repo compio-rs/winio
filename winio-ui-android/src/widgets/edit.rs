@@ -13,9 +13,9 @@ use winio_primitive::{HAlign, Point, Size};
 use crate::{
     BaseWidget, Result,
     java::android::{
-        text::{TextWatcher, input_type},
+        text::{TextWatcher, input_type, method::KeyListener as AKeyListener},
         view::gravity,
-        widget::{EditText as AEditText, KeyListener as AKeyListener, TextView as ATextView},
+        widget::{EditText as AEditText, TextView as ATextView},
     },
     vm_exec,
 };

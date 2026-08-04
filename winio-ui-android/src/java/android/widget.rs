@@ -1,7 +1,10 @@
 use super::{
     content::Context,
     graphics::drawable::Drawable,
-    text::{Editable, TextWatcher, method::MovementMethod},
+    text::{
+        Editable, TextWatcher,
+        method::{KeyListener, MovementMethod},
+    },
     util::SparseBooleanArray,
     view::{
         View, ViewGroup, ViewGroupLayoutParams, ViewGroupMarginLayoutParams, ViewOnClickListener,
@@ -81,10 +84,6 @@ jni::bind_java_type! {
     is_instance_of = {
         button = Button,
     }
-}
-
-jni::bind_java_type! {
-    pub KeyListener => android.widget.method.KeyListener,
 }
 
 jni::bind_java_type! {
