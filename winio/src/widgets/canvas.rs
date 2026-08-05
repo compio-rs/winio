@@ -2,7 +2,7 @@ use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
-    Enable, Failable, Layoutable, MouseButton, Point, Size, ToolTip, Vector, Visible,
+    Enable, Failable, Layoutable, MouseButton, Point, Rect, Size, ToolTip, Vector, Visible,
 };
 
 use crate::{
@@ -57,7 +57,7 @@ impl Layoutable for Canvas {
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()>;
 }
 
 /// Events of [`Canvas`].
@@ -79,7 +79,18 @@ pub enum CanvasEvent {
 /// Messages of [`Canvas`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum CanvasMessage {}
+pub enum CanvasMessage {
+    /// No operation.
+    Noop,
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the tooltip.
+    SetTooltip(String),
+    /// Set the rect.
+    SetRect(Rect),
+}
 
 impl Component for Canvas {
     type Error = Error;
@@ -120,6 +131,32 @@ impl Component for Canvas {
         futures_util::future::join4(fut_move, fut_down, fut_up, fut_wheel)
             .await
             .0
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            CanvasMessage::Noop => Ok(false),
+            CanvasMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
+                Ok(true)
+            }
+            CanvasMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            CanvasMessage::SetTooltip(tooltip) => {
+                self.set_tooltip(tooltip)?;
+                Ok(false)
+            }
+            CanvasMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
+                Ok(true)
+            }
+        }
     }
 }
 

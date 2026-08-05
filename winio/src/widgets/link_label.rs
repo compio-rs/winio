@@ -1,7 +1,9 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Size, TextWidget, ToolTip, Visible};
+use winio_primitive::{
+    Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
+};
 
 use crate::{
     sys,
@@ -76,7 +78,7 @@ impl Layoutable for LinkLabel {
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()>;
 
     fn preferred_size(&self) -> Result<Size>;
 }
@@ -93,7 +95,25 @@ pub enum LinkLabelEvent {
 /// Messages of [`LinkLabel`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum LinkLabelMessage {}
+pub enum LinkLabelMessage {
+    /// No operation.
+    Noop,
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the tooltip.
+    SetTooltip(String),
+    /// Set the text.
+    SetText(String),
+    /// Set the URI.
+    SetUri(String),
+    /// Set the transparent state.
+    #[cfg(win32)]
+    SetTransparent(bool),
+}
 
 impl Component for LinkLabel {
     type Error = Error;
@@ -110,6 +130,45 @@ impl Component for LinkLabel {
         loop {
             self.widget.wait_click().await;
             sender.output(LinkLabelEvent::Click);
+        }
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            LinkLabelMessage::Noop => Ok(false),
+            LinkLabelMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
+                Ok(true)
+            }
+            LinkLabelMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            LinkLabelMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
+                Ok(true)
+            }
+            LinkLabelMessage::SetTooltip(tooltip) => {
+                self.set_tooltip(tooltip)?;
+                Ok(false)
+            }
+            LinkLabelMessage::SetText(text) => {
+                self.set_text(text)?;
+                Ok(true)
+            }
+            LinkLabelMessage::SetUri(uri) => {
+                self.set_uri(uri)?;
+                Ok(true)
+            }
+            #[cfg(win32)]
+            LinkLabelMessage::SetTransparent(transparent) => {
+                self.set_transparent(transparent)?;
+                Ok(true)
+            }
         }
     }
 }

@@ -1,14 +1,14 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Failable, Layoutable, Point, Size, Visible};
+use winio_primitive::{Failable, Layoutable, Point, Rect, Size, Visible};
 
 use crate::{
     sys,
     sys::{Error, Result},
 };
 
-/// A simple window.
+/// A simple view.
 #[derive(Debug)]
 pub struct View {
     widget: sys::View,
@@ -33,7 +33,7 @@ impl Layoutable for View {
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()>;
 }
 
 /// Events of [`View`].
@@ -44,7 +44,14 @@ pub enum ViewEvent {}
 /// Messages of [`View`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum ViewMessage {}
+pub enum ViewMessage {
+    /// No operation.
+    Noop,
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the visible state.
+    SetVisible(bool),
+}
 
 impl Component for View {
     type Error = Error;
@@ -55,6 +62,24 @@ impl Component for View {
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::View::new(init)?;
         Ok(Self { widget })
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            ViewMessage::Noop => Ok(false),
+            ViewMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
+                Ok(true)
+            }
+            ViewMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
+                Ok(true)
+            }
+        }
     }
 }
 

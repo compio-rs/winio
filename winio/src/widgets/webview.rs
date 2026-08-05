@@ -4,7 +4,7 @@ use cookie::Cookie;
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Size, Visible};
+use winio_primitive::{Enable, Failable, Layoutable, Point, Rect, Size, Visible};
 
 use crate::{
     sys,
@@ -124,7 +124,7 @@ impl Layoutable for WebView {
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()>;
 }
 
 /// Events of [`WebView`].
@@ -140,7 +140,18 @@ pub enum WebViewEvent {
 /// Messages of [`WebView`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum WebViewMessage {}
+pub enum WebViewMessage {
+    /// No operation.
+    Noop,
+    /// Set the source URL.
+    SetSource(String),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the rect.
+    SetRect(Rect),
+}
 
 impl Component for WebView {
     type Error = Error;
@@ -169,6 +180,32 @@ impl Component for WebView {
         futures_util::future::join(fut_navigated, fut_navigating)
             .await
             .0
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            WebViewMessage::Noop => Ok(false),
+            WebViewMessage::SetSource(source) => {
+                self.set_source(source)?;
+                Ok(true)
+            }
+            WebViewMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
+                Ok(true)
+            }
+            WebViewMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            WebViewMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
+                Ok(true)
+            }
+        }
     }
 }
 

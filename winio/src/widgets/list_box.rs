@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender, ObservableVecEvent};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Size, ToolTip, Visible};
+use winio_primitive::{Enable, Failable, Layoutable, Point, Rect, Size, ToolTip, Visible};
 
 use crate::{
     sys,
@@ -98,7 +98,7 @@ impl Layoutable for ListBox {
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()>;
 
     fn preferred_size(&self) -> Result<Size>;
 
@@ -117,6 +117,8 @@ pub enum ListBoxEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ListBoxMessage {
+    /// No operation.
+    Noop,
     /// An element inserted.
     Insert {
         /// The insert position.
@@ -138,6 +140,16 @@ pub enum ListBoxMessage {
     },
     /// The vector has been cleared.
     Clear,
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the tooltip.
+    SetTooltip(String),
+    /// Set the multiple selection state.
+    SetMultiple(bool),
 }
 
 impl ListBoxMessage {
@@ -188,12 +200,44 @@ impl Component for ListBox {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            ListBoxMessage::Insert { at, value } => self.insert(at, value)?,
-            ListBoxMessage::Remove { at } => self.remove(at)?,
-            ListBoxMessage::Replace { at, value } => self.set(at, value)?,
-            ListBoxMessage::Clear => self.clear()?,
+            ListBoxMessage::Noop => Ok(false),
+            ListBoxMessage::Insert { at, value } => {
+                self.insert(at, value)?;
+                Ok(true)
+            }
+            ListBoxMessage::Remove { at } => {
+                self.remove(at)?;
+                Ok(true)
+            }
+            ListBoxMessage::Replace { at, value } => {
+                self.set(at, value)?;
+                Ok(true)
+            }
+            ListBoxMessage::Clear => {
+                self.clear()?;
+                Ok(true)
+            }
+            ListBoxMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
+                Ok(true)
+            }
+            ListBoxMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            ListBoxMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
+                Ok(true)
+            }
+            ListBoxMessage::SetTooltip(tooltip) => {
+                self.set_tooltip(tooltip)?;
+                Ok(false)
+            }
+            ListBoxMessage::SetMultiple(multiple) => {
+                self.set_multiple(multiple)?;
+                Ok(true)
+            }
         }
-        Ok(true)
     }
 }
 

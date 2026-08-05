@@ -1,17 +1,18 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender};
+use winio_elm::{Component, ComponentSender, Prop, PropSource};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Orient, Point, Size, ToolTip, Visible};
+use winio_primitive::{Enable, Failable, Layoutable, Orient, Point, Rect, Size, ToolTip, Visible};
 
 use crate::{
     sys,
     sys::{Error, Result},
 };
 
-/// A simple button.
+/// A scroll bar.
 #[derive(Debug)]
 pub struct ScrollBar {
     widget: sys::ScrollBar,
+    pos_prop: PropSource<usize>,
 }
 
 impl Failable for ScrollBar {
@@ -55,7 +56,18 @@ impl ScrollBar {
     pub fn pos(&self) -> Result<usize>;
 
     /// Set the position.
-    pub fn set_pos(&mut self, v: usize) -> Result<()>;
+    pub fn set_pos(&mut self, v: usize) -> Result<()> {
+        if v != self.pos()? {
+            self.widget.set_pos(v)?;
+            self.pos_prop.notify(v);
+        }
+        Ok(())
+    }
+
+    /// Property for [`ScrollBar::pos`].
+    pub fn pos_prop(&mut self) -> Result<Prop<'_, usize>> {
+        Ok(self.pos_prop.as_prop(self.pos()?))
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -80,7 +92,7 @@ impl Layoutable for ScrollBar {
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()>;
 
     fn preferred_size(&self) -> Result<Size>;
 }
@@ -89,14 +101,37 @@ impl Layoutable for ScrollBar {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ScrollBarEvent {
-    /// The position of scroll bar has changed.
+    /// The position has been changed.
     Change,
 }
 
 /// Messages of [`ScrollBar`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum ScrollBarMessage {}
+pub enum ScrollBarMessage {
+    /// No operation.
+    Noop,
+    /// The position has been changed by user scroll.
+    ChangeInputPos,
+    /// Set the position.
+    SetPos(usize),
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the minimum.
+    SetMinimum(usize),
+    /// Set the maximum.
+    SetMaximum(usize),
+    /// Set the page.
+    SetPage(usize),
+    /// Set the orientation.
+    SetOrient(Orient),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the tooltip.
+    SetTooltip(String),
+}
 
 impl Component for ScrollBar {
     type Error = Error;
@@ -106,13 +141,66 @@ impl Component for ScrollBar {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::ScrollBar::new(init)?;
-        Ok(Self { widget })
+        let pos_prop = PropSource::new();
+        Ok(Self { widget, pos_prop })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         loop {
             self.widget.wait_change().await;
-            sender.output(ScrollBarEvent::Change);
+            sender.post(ScrollBarMessage::ChangeInputPos);
+        }
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            ScrollBarMessage::Noop => Ok(false),
+            ScrollBarMessage::ChangeInputPos => {
+                let pos = self.widget.pos()?;
+                self.pos_prop.notify(pos);
+                sender.output(ScrollBarEvent::Change);
+                Ok(false)
+            }
+            ScrollBarMessage::SetPos(pos) => {
+                self.set_pos(pos)?;
+                Ok(true)
+            }
+            ScrollBarMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
+                Ok(true)
+            }
+            ScrollBarMessage::SetMinimum(minimum) => {
+                self.set_minimum(minimum)?;
+                Ok(false)
+            }
+            ScrollBarMessage::SetMaximum(maximum) => {
+                self.set_maximum(maximum)?;
+                Ok(false)
+            }
+            ScrollBarMessage::SetPage(page) => {
+                self.set_page(page)?;
+                Ok(false)
+            }
+            ScrollBarMessage::SetOrient(orient) => {
+                self.set_orient(orient)?;
+                Ok(true)
+            }
+            ScrollBarMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            ScrollBarMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
+                Ok(true)
+            }
+            ScrollBarMessage::SetTooltip(tooltip) => {
+                self.set_tooltip(tooltip)?;
+                Ok(false)
+            }
         }
     }
 }

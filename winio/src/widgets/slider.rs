@@ -1,8 +1,8 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender};
+use winio_elm::{Component, ComponentSender, Prop, PropSource};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
-    Enable, Failable, Layoutable, Orient, Point, Size, TickPosition, ToolTip, Visible,
+    Enable, Failable, Layoutable, Orient, Point, Rect, Size, TickPosition, ToolTip, Visible,
 };
 
 use crate::{
@@ -10,10 +10,11 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A simple button.
+/// A slider.
 #[derive(Debug)]
 pub struct Slider {
     widget: sys::Slider,
+    pos_prop: PropSource<usize>,
 }
 
 impl Failable for Slider {
@@ -63,7 +64,18 @@ impl Slider {
     pub fn pos(&self) -> Result<usize>;
 
     /// Set the position.
-    pub fn set_pos(&mut self, v: usize) -> Result<()>;
+    pub fn set_pos(&mut self, v: usize) -> Result<()> {
+        if v != self.pos()? {
+            self.widget.set_pos(v)?;
+            self.pos_prop.notify(v);
+        }
+        Ok(())
+    }
+
+    /// Property for [`Slider::pos`].
+    pub fn pos_prop(&mut self) -> Result<Prop<'_, usize>> {
+        Ok(self.pos_prop.as_prop(self.pos()?))
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -88,7 +100,7 @@ impl Layoutable for Slider {
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()>;
 
     fn preferred_size(&self) -> Result<Size>;
 }
@@ -97,14 +109,39 @@ impl Layoutable for Slider {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum SliderEvent {
-    /// The position of slider has changed.
+    /// The position has been changed.
     Change,
 }
 
 /// Messages of [`Slider`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum SliderMessage {}
+pub enum SliderMessage {
+    /// No operation.
+    Noop,
+    /// The position has been changed by user input.
+    ChangeInputPos,
+    /// Set the position.
+    SetPos(usize),
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the minimum.
+    SetMinimum(usize),
+    /// Set the maximum.
+    SetMaximum(usize),
+    /// Set the tick frequency.
+    SetFreq(usize),
+    /// Set the tick position.
+    SetTickPos(TickPosition),
+    /// Set the orientation.
+    SetOrient(Orient),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the tooltip.
+    SetTooltip(String),
+}
 
 impl Component for Slider {
     type Error = Error;
@@ -114,13 +151,70 @@ impl Component for Slider {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Slider::new(init)?;
-        Ok(Self { widget })
+        let pos_prop = PropSource::new();
+        Ok(Self { widget, pos_prop })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         loop {
             self.widget.wait_change().await;
-            sender.output(SliderEvent::Change);
+            sender.post(SliderMessage::ChangeInputPos);
+        }
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            SliderMessage::Noop => Ok(false),
+            SliderMessage::ChangeInputPos => {
+                let pos = self.widget.pos()?;
+                self.pos_prop.notify(pos);
+                sender.output(SliderEvent::Change);
+                Ok(false)
+            }
+            SliderMessage::SetPos(pos) => {
+                self.set_pos(pos)?;
+                Ok(true)
+            }
+            SliderMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
+                Ok(true)
+            }
+            SliderMessage::SetMinimum(minimum) => {
+                self.set_minimum(minimum)?;
+                Ok(false)
+            }
+            SliderMessage::SetMaximum(maximum) => {
+                self.set_maximum(maximum)?;
+                Ok(false)
+            }
+            SliderMessage::SetFreq(freq) => {
+                self.set_freq(freq)?;
+                Ok(true)
+            }
+            SliderMessage::SetTickPos(tick_pos) => {
+                self.set_tick_pos(tick_pos)?;
+                Ok(true)
+            }
+            SliderMessage::SetOrient(orient) => {
+                self.set_orient(orient)?;
+                Ok(true)
+            }
+            SliderMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            SliderMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
+                Ok(true)
+            }
+            SliderMessage::SetTooltip(tooltip) => {
+                self.set_tooltip(tooltip)?;
+                Ok(false)
+            }
         }
     }
 }

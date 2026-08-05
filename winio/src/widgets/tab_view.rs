@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender};
+use winio_elm::{Component, ComponentSender, Prop, PropSource};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Size, TextWidget, Visible};
+use winio_primitive::{Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, Visible};
 
 use crate::{
     sys,
@@ -12,6 +12,7 @@ use crate::{
 #[derive(Debug)]
 pub struct TabView {
     widget: sys::TabView,
+    selection_prop: PropSource<Option<usize>>,
 }
 
 impl Failable for TabView {
@@ -24,7 +25,13 @@ impl TabView {
     pub fn selection(&self) -> Result<Option<usize>>;
 
     /// Set the selection.
-    pub fn set_selection(&mut self, i: usize) -> Result<()>;
+    pub fn set_selection(&mut self, i: usize) -> Result<()> {
+        if Some(i) != self.selection()? {
+            self.widget.set_selection(i)?;
+            self.selection_prop.notify(Some(i));
+        }
+        Ok(())
+    }
 
     /// Insert a new tab item.
     pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
@@ -47,6 +54,11 @@ impl TabView {
 
     /// Clear the tabs.
     pub fn clear(&mut self) -> Result<()>;
+
+    /// Property for [`TabView::selection`].
+    pub fn selection_prop(&mut self) -> Result<Prop<'_, Option<usize>>> {
+        Ok(self.selection_prop.as_prop(self.selection()?))
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -71,7 +83,7 @@ impl Layoutable for TabView {
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()>;
 }
 
 /// Events of [`TabView`].
@@ -85,7 +97,20 @@ pub enum TabViewEvent {
 /// Messages of [`TabView`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum TabViewMessage {}
+pub enum TabViewMessage {
+    /// No operation.
+    Noop,
+    /// The selection has been changed by user.
+    ChangeInputSelection,
+    /// Set the selection.
+    SetSelection(Option<usize>),
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+}
 
 impl Component for TabView {
     type Error = Error;
@@ -95,13 +120,51 @@ impl Component for TabView {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::TabView::new(init)?;
-        Ok(Self { widget })
+        let selection_prop = PropSource::new();
+        Ok(Self {
+            widget,
+            selection_prop,
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         loop {
             self.widget.wait_select().await;
-            sender.output(TabViewEvent::Select);
+            sender.post(TabViewMessage::ChangeInputSelection);
+        }
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            TabViewMessage::Noop => Ok(false),
+            TabViewMessage::ChangeInputSelection => {
+                let selection = self.widget.selection()?;
+                self.selection_prop.notify(selection);
+                sender.output(TabViewEvent::Select);
+                Ok(false)
+            }
+            TabViewMessage::SetSelection(selection) => {
+                if let Some(i) = selection {
+                    self.set_selection(i)?;
+                }
+                Ok(true)
+            }
+            TabViewMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
+                Ok(true)
+            }
+            TabViewMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            TabViewMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
+                Ok(true)
+            }
         }
     }
 }
@@ -139,7 +202,12 @@ pub enum TabViewItemEvent {}
 /// Messages of [`TabViewItem`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum TabViewItemMessage {}
+pub enum TabViewItemMessage {
+    /// No operation.
+    Noop,
+    /// Set the text.
+    SetText(String),
+}
 
 impl Component for TabViewItem {
     type Error = Error;
@@ -150,6 +218,20 @@ impl Component for TabViewItem {
     async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::TabViewItem::new()?;
         Ok(Self { widget })
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            TabViewItemMessage::Noop => Ok(false),
+            TabViewItemMessage::SetText(text) => {
+                self.set_text(text)?;
+                Ok(true)
+            }
+        }
     }
 }
 

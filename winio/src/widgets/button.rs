@@ -1,7 +1,9 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Size, TextWidget, ToolTip, Visible};
+use winio_primitive::{
+    Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
+};
 
 use crate::{
     sys,
@@ -54,7 +56,7 @@ impl Layoutable for Button {
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()>;
 
     fn preferred_size(&self) -> Result<Size>;
 }
@@ -70,7 +72,20 @@ pub enum ButtonEvent {
 /// Messages of [`Button`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum ButtonMessage {}
+pub enum ButtonMessage {
+    /// No operation.
+    Noop,
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the tooltip.
+    SetTooltip(String),
+    /// Set the text.
+    SetText(String),
+}
 
 impl Component for Button {
     type Error = Error;
@@ -87,6 +102,36 @@ impl Component for Button {
         loop {
             self.widget.wait_click().await;
             sender.output(ButtonEvent::Click);
+        }
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            ButtonMessage::Noop => Ok(false),
+            ButtonMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
+                Ok(true)
+            }
+            ButtonMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            ButtonMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
+                Ok(true)
+            }
+            ButtonMessage::SetTooltip(tooltip) => {
+                self.set_tooltip(tooltip)?;
+                Ok(false)
+            }
+            ButtonMessage::SetText(text) => {
+                self.set_text(text)?;
+                Ok(true)
+            }
         }
     }
 }

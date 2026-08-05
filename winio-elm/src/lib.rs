@@ -131,5 +131,8 @@ pub use run::*;
 mod boxed;
 pub use boxed::*;
 
+mod bind;
+pub use bind::*;
+
 #[cfg(feature = "gen_blocks")]
 mod stream;

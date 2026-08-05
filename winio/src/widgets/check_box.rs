@@ -1,7 +1,9 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender};
+use winio_elm::{Component, ComponentSender, Prop, PropSource};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Size, TextWidget, ToolTip, Visible};
+use winio_primitive::{
+    Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
+};
 
 use crate::{
     sys,
@@ -12,6 +14,7 @@ use crate::{
 #[derive(Debug)]
 pub struct CheckBox {
     widget: sys::CheckBox,
+    checked_prop: PropSource<bool>,
 }
 
 impl Failable for CheckBox {
@@ -38,7 +41,18 @@ impl CheckBox {
     pub fn is_checked(&self) -> Result<bool>;
 
     /// Set the checked state.
-    pub fn set_checked(&mut self, v: bool) -> Result<()>;
+    pub fn set_checked(&mut self, v: bool) -> Result<()> {
+        if v != self.is_checked()? {
+            self.widget.set_checked(v)?;
+            self.checked_prop.notify(v);
+        }
+        Ok(())
+    }
+
+    /// Property for [`CheckBox::is_checked`].
+    pub fn checked_prop(&mut self) -> Result<Prop<'_, bool>> {
+        Ok(self.checked_prop.as_prop(self.is_checked()?))
+    }
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -63,7 +77,7 @@ impl Layoutable for CheckBox {
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()>;
 
     fn preferred_size(&self) -> Result<Size>;
 }
@@ -79,7 +93,24 @@ pub enum CheckBoxEvent {
 /// Messages of [`CheckBox`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum CheckBoxMessage {}
+pub enum CheckBoxMessage {
+    /// No operation.
+    Noop,
+    /// The checked state has been changed by user click.
+    ChangeInputChecked,
+    /// Set the checked state.
+    SetChecked(bool),
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the text.
+    SetText(String),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the tooltip.
+    SetTooltip(String),
+}
 
 impl Component for CheckBox {
     type Error = Error;
@@ -89,13 +120,57 @@ impl Component for CheckBox {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::CheckBox::new(init)?;
-        Ok(Self { widget })
+        let checked_prop = PropSource::new();
+        Ok(Self {
+            widget,
+            checked_prop,
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         loop {
             self.widget.wait_click().await;
-            sender.output(CheckBoxEvent::Click);
+            sender.post(CheckBoxMessage::ChangeInputChecked);
+        }
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            CheckBoxMessage::Noop => Ok(false),
+            CheckBoxMessage::ChangeInputChecked => {
+                let checked = self.widget.is_checked()?;
+                self.checked_prop.notify(checked);
+                sender.output(CheckBoxEvent::Click);
+                Ok(false)
+            }
+            CheckBoxMessage::SetChecked(checked) => {
+                self.set_checked(checked)?;
+                Ok(true)
+            }
+            CheckBoxMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
+                Ok(true)
+            }
+            CheckBoxMessage::SetText(text) => {
+                self.set_text(text)?;
+                Ok(true)
+            }
+            CheckBoxMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            CheckBoxMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
+                Ok(true)
+            }
+            CheckBoxMessage::SetTooltip(tooltip) => {
+                self.set_tooltip(tooltip)?;
+                Ok(false)
+            }
         }
     }
 }

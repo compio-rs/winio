@@ -24,7 +24,7 @@ impl Component for BackdropChooser {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = BackdropChooserMessage;
 
-    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             combo: ComboBox = (&init) => {
                 items: [
@@ -51,16 +51,21 @@ impl Component for BackdropChooser {
                 ],
             }
         }
+        combo
+            .selection_prop()?
+            .bind(sender, |_| BackdropChooserMessage::Select);
         Ok(Self { combo })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: BackdropChooserMessage::Noop,
-            self.combo => {
-                ComboBoxEvent::Select => BackdropChooserMessage::Select,
-            }
+            self.combo => {},
         }
+    }
+
+    async fn update_children(&mut self) -> Result<bool> {
+        Ok(self.combo.update().await?)
     }
 
     #[allow(deprecated)]

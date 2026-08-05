@@ -47,11 +47,11 @@ impl<T> Callback<T> {
     }
 
     /// Signal the callback and try to run the runtime if there's a waker
-    /// waiting. Returns `true` if not handled.
-    pub fn signal<R: Runnable>(&self, v: T) -> bool {
+    /// waiting.
+    pub fn signal<R: Runnable>(&self, v: T) {
         let mut state = self.0.borrow_mut();
         match &*state {
-            WakerState::Inactive => return true,
+            WakerState::Inactive => {}
             WakerState::Signaled(_) => {
                 // If a state is signaled again, the runtime might be too busy
                 // to wake the waker. Just try to run it again.
@@ -63,7 +63,6 @@ impl<T> Callback<T> {
         *state = WakerState::Signaled(v);
         drop(state);
         R::run();
-        false
     }
 
     pub(crate) fn register(&self, waker: &Waker) -> Poll<T> {
@@ -104,8 +103,12 @@ impl<T> Future for WaitFut<'_, T> {
 
 impl<T> Drop for WaitFut<'_, T> {
     fn drop(&mut self) {
-        // Deregister the waker.
-        *self.0.0.borrow_mut() = WakerState::Inactive;
+        // Deregister the waker, but keep a pending signal so that it can be
+        // consumed by the next poll.
+        let mut state = self.0.0.borrow_mut();
+        if !matches!(*state, WakerState::Signaled(_)) {
+            *state = WakerState::Inactive;
+        }
     }
 }
 
@@ -126,11 +129,11 @@ impl<T> SyncCallback<T> {
     }
 
     /// Signal the callback and try to run the runtime if there's a waker
-    /// waiting. Returns `true` if not handled.
-    pub fn signal(&self, v: T) -> bool {
+    /// waiting.
+    pub fn signal(&self, v: T) {
         let mut state = self.0.lock().unwrap();
         match &*state {
-            WakerState::Inactive => return true,
+            WakerState::Inactive => {}
             WakerState::Signaled(_) => {
                 // If a state is signaled again, the runtime might be too busy
                 // to wake the waker. Just try to run it again.
@@ -140,7 +143,6 @@ impl<T> SyncCallback<T> {
             }
         }
         *state = WakerState::Signaled(v);
-        false
     }
 
     pub(crate) fn register(&self, waker: &Waker) -> Poll<T> {
@@ -181,7 +183,11 @@ impl<T> Future for SyncWaitFut<'_, T> {
 
 impl<T> Drop for SyncWaitFut<'_, T> {
     fn drop(&mut self) {
-        // Deregister the waker.
-        *self.0.0.lock().unwrap() = WakerState::Inactive;
+        // Deregister the waker, but keep a pending signal so that it can be
+        // consumed by the next poll.
+        let mut state = self.0.0.lock().unwrap();
+        if !matches!(*state, WakerState::Signaled(_)) {
+            *state = WakerState::Inactive;
+        }
     }
 }

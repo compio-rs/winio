@@ -3,7 +3,7 @@ use std::time::Duration;
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Size, ToolTip, Visible};
+use winio_primitive::{Enable, Failable, Layoutable, Point, Rect, Size, ToolTip, Visible};
 
 use crate::{
     sys,
@@ -106,7 +106,7 @@ impl Layoutable for Media {
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()>;
 }
 
 /// Events of [`Media`].
@@ -117,7 +117,28 @@ pub enum MediaEvent {}
 /// Messages of [`Media`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum MediaMessage {}
+pub enum MediaMessage {
+    /// No operation.
+    Noop,
+    /// Set the volume.
+    SetVolume(f64),
+    /// Set the muted state.
+    SetMuted(bool),
+    /// Set the looped state.
+    SetLooped(bool),
+    /// Set the current time.
+    SetCurrentTime(Duration),
+    /// Set the playback rate.
+    SetPlaybackRate(f64),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the tooltip.
+    SetTooltip(String),
+    /// Set the rect.
+    SetRect(Rect),
+}
 
 impl Component for Media {
     type Error = Error;
@@ -128,6 +149,52 @@ impl Component for Media {
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Media::new(init)?;
         Ok(Self { widget })
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            MediaMessage::Noop => Ok(false),
+            MediaMessage::SetVolume(volume) => {
+                self.set_volume(volume)?;
+                Ok(false)
+            }
+            MediaMessage::SetMuted(muted) => {
+                self.set_muted(muted)?;
+                Ok(false)
+            }
+            MediaMessage::SetLooped(looped) => {
+                self.set_looped(looped)?;
+                Ok(false)
+            }
+            MediaMessage::SetCurrentTime(current_time) => {
+                self.set_current_time(current_time)?;
+                Ok(false)
+            }
+            MediaMessage::SetPlaybackRate(playback_rate) => {
+                self.set_playback_rate(playback_rate)?;
+                Ok(false)
+            }
+            MediaMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            MediaMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
+                Ok(true)
+            }
+            MediaMessage::SetTooltip(tooltip) => {
+                self.set_tooltip(tooltip)?;
+                Ok(false)
+            }
+            MediaMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
+                Ok(true)
+            }
+        }
     }
 }
 

@@ -11,7 +11,6 @@ pub struct ScrollViewPage {
     add_btn: Child<Button>,
     del_btn: Child<Button>,
     show_btn: Child<Button>,
-    selected: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -25,7 +24,6 @@ pub enum ScrollViewPageMessage {
     Add,
     Del,
     Show,
-    Select(usize),
 }
 
 impl Component for ScrollViewPage {
@@ -62,13 +60,13 @@ impl Component for ScrollViewPage {
             add_btn,
             del_btn,
             show_btn,
-            selected: None,
         })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: ScrollViewPageMessage::Noop,
+            self.window => {},
             self.add_btn => {
                 ButtonEvent::Click => ScrollViewPageMessage::Add,
             },
@@ -79,9 +77,7 @@ impl Component for ScrollViewPage {
                 ButtonEvent::Click => ScrollViewPageMessage::Show,
             },
             self.scroll => {},
-            self.radios => {
-                RadioButtonGroupEvent::Click(i) => ScrollViewPageMessage::Select(i)
-            }
+            self.radios => {},
         }
     }
 
@@ -121,23 +117,17 @@ impl Component for ScrollViewPage {
                 Ok(true)
             }
             ScrollViewPageMessage::Show => {
-                let selected = self.radios.iter().find_map(|r| {
-                    if r.is_checked().unwrap_or_default() {
-                        Some(r.text().unwrap_or_default())
-                    } else {
-                        None
-                    }
-                });
+                let selected = self.radios.selection()?;
+                let selected = match selected {
+                    Some(i) => self.radios.get(i).unwrap().text()?,
+                    None => "No selection".to_string(),
+                };
                 sender.output(ScrollViewPageEvent::ShowMessage(
                     MessageBox::new()
                         .title("Selected Radio")
-                        .message(selected.unwrap_or("No selection".to_string()))
+                        .message(selected)
                         .buttons(MessageBoxButton::Ok),
                 ));
-                Ok(false)
-            }
-            ScrollViewPageMessage::Select(idx) => {
-                self.selected = Some(idx);
                 Ok(false)
             }
         }
@@ -147,7 +137,7 @@ impl Component for ScrollViewPage {
         let csize = self.window.size()?;
 
         let mut radios_panel = StackPanel::new(Orient::Vertical);
-        for radio in self.radios.iter_mut() {
+        for radio in &mut self.radios[..] {
             radios_panel
                 .push(radio)
                 .margin(Margin::new_all_same(4.0))

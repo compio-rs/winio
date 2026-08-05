@@ -4,6 +4,9 @@ pub use scroll_view::*;
 mod misc;
 pub use misc::*;
 
+mod bind;
+pub use bind::*;
+
 cfg_if::cfg_if! {
     if #[cfg(feature = "compio-compat")] {
         mod fs;

@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Size, ToolTip, Visible};
+use winio_primitive::{Enable, Failable, Layoutable, Point, Rect, Size, ToolTip, Visible};
 
 use crate::{
     sys,
@@ -74,7 +74,7 @@ impl Layoutable for Progress {
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()>;
 
     fn preferred_size(&self) -> Result<Size>;
 }
@@ -87,7 +87,26 @@ pub enum ProgressEvent {}
 /// Messages of [`Progress`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum ProgressMessage {}
+pub enum ProgressMessage {
+    /// No operation.
+    Noop,
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the tooltip.
+    SetTooltip(String),
+    /// Set the position.
+    SetPos(usize),
+    /// Set the minimum.
+    SetMinimum(usize),
+    /// Set the maximum.
+    SetMaximum(usize),
+    /// Set the indeterminate state.
+    SetIndeterminate(bool),
+}
 
 impl Component for Progress {
     type Error = Error;
@@ -98,6 +117,48 @@ impl Component for Progress {
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Progress::new(init)?;
         Ok(Self { widget })
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            ProgressMessage::Noop => Ok(false),
+            ProgressMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
+                Ok(true)
+            }
+            ProgressMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            ProgressMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
+                Ok(true)
+            }
+            ProgressMessage::SetTooltip(tooltip) => {
+                self.set_tooltip(tooltip)?;
+                Ok(false)
+            }
+            ProgressMessage::SetPos(pos) => {
+                self.set_pos(pos)?;
+                Ok(false)
+            }
+            ProgressMessage::SetMinimum(minimum) => {
+                self.set_minimum(minimum)?;
+                Ok(false)
+            }
+            ProgressMessage::SetMaximum(maximum) => {
+                self.set_maximum(maximum)?;
+                Ok(false)
+            }
+            ProgressMessage::SetIndeterminate(indeterminate) => {
+                self.set_indeterminate(indeterminate)?;
+                Ok(false)
+            }
+        }
     }
 }
 

@@ -2,6 +2,7 @@ use futures_util::future::Either;
 use winio::prelude::*;
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum FailableWebView {
     Widget(WebView),
     ErrLabel(Child<TextBox>),
@@ -195,6 +196,13 @@ impl Component for FailableWebView {
         match self {
             FailableWebView::Widget(wv) => wv.start(sender.cast()).await,
             FailableWebView::ErrLabel(_) => std::future::pending().await,
+        }
+    }
+
+    async fn update_children(&mut self) -> Result<bool> {
+        match self {
+            FailableWebView::Widget(wv) => wv.update_children().await,
+            FailableWebView::ErrLabel(lbl) => lbl.update().await,
         }
     }
 }

@@ -245,10 +245,16 @@ impl Component for WgpuPage {
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: WgpuPageMessage::Noop,
+            self.window => {},
+            self.canvas => {},
             self.timer => {
                 TimerEvent::Tick => WgpuPageMessage::Tick,
             }
         }
+    }
+
+    async fn update_children(&mut self) -> Result<bool> {
+        update_children!(self.window, self.canvas, self.timer)
     }
 
     async fn update(

@@ -15,6 +15,7 @@ pub struct MainModel {
     window: Child<Window>,
     tabview: Child<TabView>,
     misc: Child<MiscPage>,
+    bind: Child<BindPage>,
     fs: Child<FsPage>,
     net: Child<NetPage>,
     gallery: Child<GalleryPage>,
@@ -64,7 +65,7 @@ impl Component for MainModel {
     type Init<'a> = ();
     type Message = MainMessage;
 
-    async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             window: Window = (()) => {
                 text: "Widgets example",
@@ -81,6 +82,7 @@ impl Component for MainModel {
             },
             tabview: TabView = (&window),
             misc: MiscPage = (()),
+            bind: BindPage = (()),
             #[cfg(feature = "compio-compat")]
             fs: FsPage = (()),
             #[cfg(not(feature = "compio-compat"))]
@@ -117,6 +119,7 @@ impl Component for MainModel {
         }
 
         tabview.push(&misc)?;
+        tabview.push(&bind)?;
         tabview.push(&fs)?;
         tabview.push(&net)?;
         tabview.push(&gallery)?;
@@ -127,6 +130,10 @@ impl Component for MainModel {
         tabview.push(&webview)?;
         tabview.push(&markdown)?;
 
+        tabview
+            .selection_prop()?
+            .bind(sender, |_| MainMessage::Redraw);
+
         #[cfg(target_os = "android")]
         android::init_rustls(&window)?;
 
@@ -136,6 +143,7 @@ impl Component for MainModel {
             window,
             tabview,
             misc,
+            bind,
             fs,
             net,
             gallery,
@@ -155,9 +163,7 @@ impl Component for MainModel {
                 WindowEvent::Close => MainMessage::Close,
                 WindowEvent::Resize | WindowEvent::ThemeChanged => MainMessage::Redraw,
             },
-            self.tabview => {
-                TabViewEvent::Select => MainMessage::Redraw,
-            },
+            self.tabview => {},
             self.misc => {
                 MiscPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
                 #[cfg(windows)]
@@ -165,6 +171,7 @@ impl Component for MainModel {
                 #[cfg(target_os = "macos")]
                 MiscPageEvent::ChooseVibrancy(v) => MainMessage::ChooseVibrancy(v),
             },
+            self.bind => {},
             self.fs => {
                 #[cfg(feature = "compio-compat")]
                 FsPageEvent::ChooseFile => MainMessage::ChooseFile,
@@ -179,6 +186,7 @@ impl Component for MainModel {
             self.scroll => {
                 ScrollViewPageEvent::ShowMessage(mb) => MainMessage::ShowMessage(mb),
             },
+            self.plotters => {},
             self.wgpu => {},
             self.media => {
                 #[cfg(feature = "media")]
@@ -197,6 +205,7 @@ impl Component for MainModel {
     async fn update_children(&mut self) -> Result<bool> {
         let mut subviews: Vec<Pin<Box<dyn Future<Output = Result<bool>>>>> = vec![
             Box::pin(self.misc.update()),
+            Box::pin(self.bind.update()),
             Box::pin(self.fs.update()),
             Box::pin(self.net.update()),
             Box::pin(self.gallery.update()),
@@ -376,15 +385,16 @@ impl Component for MainModel {
         if let Some(index) = self.tabview.selection()? {
             match index {
                 0 => self.misc.render()?,
-                1 => self.fs.render()?,
-                2 => self.net.render()?,
-                3 => self.gallery.render()?,
-                4 => self.scroll.render()?,
-                5 => self.plotters.render()?,
-                6 => self.wgpu.render()?,
-                7 => self.media.render()?,
-                8 => self.webview.render()?,
-                9 => self.markdown.render()?,
+                1 => self.bind.render()?,
+                2 => self.fs.render()?,
+                3 => self.net.render()?,
+                4 => self.gallery.render()?,
+                5 => self.scroll.render()?,
+                6 => self.plotters.render()?,
+                7 => self.wgpu.render()?,
+                8 => self.media.render()?,
+                9 => self.webview.render()?,
+                10 => self.markdown.render()?,
                 _ => {}
             }
         }

@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_layout::Layoutable;
-use winio_primitive::{Failable, Point, Size, TextWidget, Visible};
+use winio_primitive::{Failable, Point, Rect, Size, TextWidget, Visible};
 
 #[cfg(windows)]
 pub use crate::sys::Backdrop;
@@ -101,7 +101,7 @@ impl Layoutable for Window {
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()>;
 }
 
 /// Events of [`Window`].
@@ -122,7 +122,28 @@ pub enum WindowEvent {
 /// Messages of [`Window`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum WindowMessage {}
+pub enum WindowMessage {
+    /// No operation.
+    Noop,
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the text.
+    SetText(String),
+    /// Set the visible state.
+    SetVisible(bool),
+    #[cfg(win32)]
+    /// Set the style.
+    SetStyle(u32),
+    #[cfg(win32)]
+    /// Set the ex style.
+    SetExStyle(u32),
+    #[cfg(windows)]
+    /// Set the backdrop.
+    SetBackdrop(Backdrop),
+    #[cfg(target_os = "macos")]
+    /// Set the vibrancy.
+    SetVibrancy(Option<Vibrancy>),
+}
 
 impl Component for Window {
     type Error = Error;
@@ -160,9 +181,50 @@ impl Component for Window {
                 sender.output(WindowEvent::ThemeChanged);
             }
         };
-        futures_util::future::join4(fut_close, fut_move, fut_resize, fut_theme)
-            .await
-            .0
+
+        futures_util::join!(fut_close, fut_move, fut_resize, fut_theme).0
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            WindowMessage::Noop => Ok(false),
+            WindowMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
+                Ok(true)
+            }
+            WindowMessage::SetText(text) => {
+                self.set_text(text)?;
+                Ok(true)
+            }
+            WindowMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
+                Ok(true)
+            }
+            #[cfg(win32)]
+            WindowMessage::SetStyle(style) => {
+                self.set_style(style)?;
+                Ok(true)
+            }
+            #[cfg(win32)]
+            WindowMessage::SetExStyle(ex_style) => {
+                self.set_ex_style(ex_style)?;
+                Ok(true)
+            }
+            #[cfg(windows)]
+            WindowMessage::SetBackdrop(backdrop) => {
+                self.set_backdrop(backdrop)?;
+                Ok(true)
+            }
+            #[cfg(target_os = "macos")]
+            WindowMessage::SetVibrancy(vibrancy) => {
+                self.set_vibrancy(vibrancy)?;
+                Ok(true)
+            }
+        }
     }
 }
 

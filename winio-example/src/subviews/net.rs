@@ -72,6 +72,8 @@ impl Component for NetPage {
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: NetPageMessage::Noop,
+            self.window => {},
+            self.canvas => {},
             self.button => {
                 ButtonEvent::Click => NetPageMessage::Go,
             },

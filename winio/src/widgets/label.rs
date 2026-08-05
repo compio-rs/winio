@@ -2,7 +2,7 @@ use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
-    Enable, Failable, HAlign, Layoutable, Point, Size, TextWidget, ToolTip, Visible,
+    Enable, Failable, HAlign, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
 };
 
 use crate::{
@@ -73,7 +73,7 @@ impl Layoutable for Label {
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()>;
 
     fn preferred_size(&self) -> Result<Size>;
 }
@@ -86,7 +86,25 @@ pub enum LabelEvent {}
 /// Messages of [`Label`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum LabelMessage {}
+pub enum LabelMessage {
+    /// No operation.
+    Noop,
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the tooltip.
+    SetTooltip(String),
+    /// Set the text.
+    SetText(String),
+    /// Set the halign.
+    SetHAlign(HAlign),
+    /// Set the transparent state.
+    #[cfg(win32)]
+    SetTransparent(bool),
+}
 
 impl Component for Label {
     type Error = Error;
@@ -97,6 +115,45 @@ impl Component for Label {
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Label::new(init)?;
         Ok(Self { widget })
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            LabelMessage::Noop => Ok(false),
+            LabelMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
+                Ok(true)
+            }
+            LabelMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            LabelMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
+                Ok(true)
+            }
+            LabelMessage::SetTooltip(tooltip) => {
+                self.set_tooltip(tooltip)?;
+                Ok(false)
+            }
+            LabelMessage::SetText(text) => {
+                self.set_text(text)?;
+                Ok(true)
+            }
+            LabelMessage::SetHAlign(halign) => {
+                self.set_halign(halign)?;
+                Ok(true)
+            }
+            #[cfg(win32)]
+            LabelMessage::SetTransparent(transparent) => {
+                self.set_transparent(transparent)?;
+                Ok(true)
+            }
+        }
     }
 }
 

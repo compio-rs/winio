@@ -83,8 +83,8 @@ impl Window {
     pub fn size(&self) -> Result<Size> {
         let rect = self.as_ref_qwidget().rect()?;
         Ok(Size::new(
-            (rect.x2 - rect.x1) as _,
-            (rect.y2 - rect.y1) as _,
+            (rect.x2 - rect.x1 + 1) as _,
+            (rect.y2 - rect.y1 + 1) as _,
         ))
     }
 
@@ -127,12 +127,10 @@ impl Window {
 
     fn on_close(c: *const u8) -> bool {
         let c = c as *const Callback<()>;
-        if let Some(c) = unsafe { c.as_ref() }
-            && !c.signal::<GlobalRuntime>(())
-        {
-            return true;
+        if let Some(c) = unsafe { c.as_ref() } {
+            c.signal::<GlobalRuntime>(());
         }
-        false
+        true
     }
 
     fn on_theme(c: *const u8) {

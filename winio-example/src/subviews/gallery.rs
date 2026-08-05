@@ -135,6 +135,14 @@ impl Component for GalleryPage {
             spawn(fetch(path, sender)).detach();
         }
 
+        scrollbar
+            .pos_prop()?
+            .bind(sender, |_| GalleryPageMessage::Redraw);
+
+        clip_box
+            .checked_prop()?
+            .bind(sender, |_| GalleryPageMessage::ClipClick);
+
         Ok(Self {
             window,
             canvas,
@@ -154,6 +162,7 @@ impl Component for GalleryPage {
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: GalleryPageMessage::Noop,
+            self.window => {},
             self.canvas => {
                 CanvasEvent::MouseWheel(w) => GalleryPageMessage::Wheel(w),
             },
@@ -163,18 +172,15 @@ impl Component for GalleryPage {
             self.browse_button => {
                 ButtonEvent::Click => GalleryPageMessage::ChooseFolder,
             },
+            self.entry => {},
             self.list => {
                 e => GalleryPageMessage::List(e),
             },
             self.listbox => {
                 ListBoxEvent::Select => GalleryPageMessage::Select,
             },
-            self.scrollbar => {
-                ScrollBarEvent::Change => GalleryPageMessage::Redraw,
-            },
-            self.clip_box => {
-                CheckBoxEvent::Click => GalleryPageMessage::ClipClick,
-            }
+            self.scrollbar => {},
+            self.clip_box => {},
         }
     }
 
@@ -187,7 +193,8 @@ impl Component for GalleryPage {
             self.browse_button,
             self.entry,
             self.list,
-            self.listbox
+            self.listbox,
+            self.clip_box
         )
     }
 

@@ -25,7 +25,7 @@ impl Component for BackdropChooser {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = BackdropChooserMessage;
 
-    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             view: View = (&init),
             r_none: RadioButton = (&view) => {
@@ -41,17 +41,25 @@ impl Component for BackdropChooser {
             r_mica_alt: RadioButton = (&view) => {
                 text: "Mica Alt"
             },
-            radios: RadioButtonGroup = ([r_none, r_acrylic, r_mica, r_mica_alt]),
+            radios: RadioButtonGroup = ([r_none, r_acrylic, r_mica, r_mica_alt]) => {
+                selection: 0,
+            },
         }
+        radios.selection_prop()?.bind(sender, |selection| {
+            if let Some(i) = selection {
+                BackdropChooserMessage::RSelect(i)
+            } else {
+                BackdropChooserMessage::Noop
+            }
+        });
         Ok(Self { view, radios })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender, default: BackdropChooserMessage::Noop,
-            self.radios => {
-                RadioButtonGroupEvent::Click(i) => BackdropChooserMessage::RSelect(i)
-            }
+            self.view => {},
+            self.radios => {},
         }
     }
 

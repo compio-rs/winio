@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Size, Visible};
+use winio_primitive::{Enable, Failable, Layoutable, Point, Rect, Size, Visible};
 
 use crate::{
     sys,
@@ -56,7 +56,7 @@ impl Layoutable for ScrollView {
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, v: Size) -> Result<()>;
+    fn set_size(&mut self, s: Size) -> Result<()>;
 }
 
 /// Events of [`ScrollView`].
@@ -67,7 +67,20 @@ pub enum ScrollViewEvent {}
 /// Messages of [`ScrollView`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum ScrollViewMessage {}
+pub enum ScrollViewMessage {
+    /// No operation.
+    Noop,
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the horizontal scroll bar visibility.
+    SetHScroll(bool),
+    /// Set the vertical scroll bar visibility.
+    SetVScroll(bool),
+}
 
 impl Component for ScrollView {
     type Error = Error;
@@ -82,6 +95,36 @@ impl Component for ScrollView {
 
     async fn start(&mut self, _sender: &ComponentSender<Self>) -> ! {
         self.widget.start().await
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            ScrollViewMessage::Noop => Ok(false),
+            ScrollViewMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
+                Ok(true)
+            }
+            ScrollViewMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            ScrollViewMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
+                Ok(true)
+            }
+            ScrollViewMessage::SetHScroll(hscroll) => {
+                self.set_hscroll(hscroll)?;
+                Ok(true)
+            }
+            ScrollViewMessage::SetVScroll(vscroll) => {
+                self.set_vscroll(vscroll)?;
+                Ok(true)
+            }
+        }
     }
 }
 
