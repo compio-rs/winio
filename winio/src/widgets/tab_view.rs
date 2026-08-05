@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Child, Component, ComponentSender, Prop, PropSinkEvent, PropSinkMessage, start};
+use winio_elm::{Component, ComponentSender, Prop};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, Visible};
 
@@ -12,7 +12,7 @@ use crate::{
 #[derive(Debug)]
 pub struct TabView {
     widget: sys::TabView,
-    selection_prop: Child<Prop<Option<usize>>>,
+    selection_prop: Prop<Option<usize>>,
 }
 
 impl Failable for TabView {
@@ -26,6 +26,7 @@ impl TabView {
 
     /// Set the selection.
     pub fn set_selection(&mut self, i: usize) -> Result<()> {
+        self.widget.set_selection(i)?;
         self.selection_prop.set(Some(i));
         Ok(())
     }
@@ -99,8 +100,6 @@ pub enum TabViewMessage {
     Noop,
     /// The selection has been changed by user.
     ChangeInputSelection,
-    /// The selection prop has been changed.
-    ChangePropSelection,
     /// Set the selection.
     SetSelection(Option<usize>),
     /// Set the rect.
@@ -117,9 +116,10 @@ impl Component for TabView {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = TabViewMessage;
 
-    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::TabView::new(init)?;
-        let Ok(selection_prop) = Child::<Prop<Option<usize>>>::init(None).await;
+        let mut selection_prop = Prop::new(None);
+        selection_prop.bind(sender, TabViewMessage::SetSelection);
         Ok(Self {
             widget,
             selection_prop,
@@ -127,24 +127,10 @@ impl Component for TabView {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        let fut_select = async {
-            loop {
-                self.widget.wait_select().await;
-                sender.post(TabViewMessage::ChangeInputSelection);
-            }
-        };
-        let fut_props = async {
-            start! {
-                sender, default: TabViewMessage::Noop,
-                self.selection_prop => { PropSinkEvent::Changed => TabViewMessage::ChangePropSelection },
-            }
-        };
-        futures_util::future::join(fut_select, fut_props).await.0
-    }
-
-    async fn update_children(&mut self) -> Result<bool> {
-        let Ok(r0) = self.selection_prop.update().await;
-        Ok(r0)
+        loop {
+            self.widget.wait_select().await;
+            sender.post(TabViewMessage::ChangeInputSelection);
+        }
     }
 
     async fn update(
@@ -156,21 +142,14 @@ impl Component for TabView {
             TabViewMessage::Noop => Ok(false),
             TabViewMessage::ChangeInputSelection => {
                 let selection = self.widget.selection()?;
-                self.selection_prop.post(PropSinkMessage::Set(selection));
+                self.selection_prop.set(selection);
                 sender.output(TabViewEvent::Select);
                 Ok(false)
             }
-            TabViewMessage::ChangePropSelection => {
-                let current = self.widget.selection()?;
-                let prop_val = self.selection_prop.get();
-                if &current != prop_val
-                    && let Some(i) = prop_val
-                {
-                    self.widget.set_selection(*i)?;
-                }
-                Ok(true)
-            }
             TabViewMessage::SetSelection(selection) => {
+                if let Some(i) = selection {
+                    self.widget.set_selection(i)?;
+                }
                 self.selection_prop.set(selection);
                 Ok(true)
             }

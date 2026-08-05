@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Child, Component, ComponentSender, Prop, PropSinkEvent, PropSinkMessage, start};
+use winio_elm::{Child, Component, ComponentSender, Prop};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
     Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
@@ -14,7 +14,7 @@ use crate::{
 #[derive(Debug)]
 pub struct RadioButton {
     widget: sys::RadioButton,
-    checked_prop: Child<Prop<bool>>,
+    checked_prop: Prop<bool>,
 }
 
 impl Failable for RadioButton {
@@ -42,6 +42,7 @@ impl RadioButton {
 
     /// Set the checked state.
     pub fn set_checked(&mut self, v: bool) -> Result<()> {
+        self.widget.set_checked(v)?;
         self.checked_prop.set(v);
         Ok(())
     }
@@ -95,8 +96,6 @@ pub enum RadioButtonMessage {
     Noop,
     /// The checked state has been changed by user click.
     ChangeInputChecked,
-    /// The checked prop has been changed.
-    ChangePropChecked,
     /// The checked state is set externally (e.g. from [`RadioButtonGroup`]).
     SetChecked(bool),
     /// Set the rect.
@@ -117,9 +116,10 @@ impl Component for RadioButton {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = RadioButtonMessage;
 
-    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::RadioButton::new(init)?;
-        let Ok(checked_prop) = Child::<Prop<bool>>::init(false).await;
+        let mut checked_prop = Prop::new(false);
+        checked_prop.bind(sender, RadioButtonMessage::SetChecked);
         Ok(Self {
             widget,
             checked_prop,
@@ -127,24 +127,10 @@ impl Component for RadioButton {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        let fut_click = async {
-            loop {
-                self.widget.wait_click().await;
-                sender.post(RadioButtonMessage::ChangeInputChecked);
-            }
-        };
-        let fut_props = async {
-            start! {
-                sender, default: RadioButtonMessage::Noop,
-                self.checked_prop => { PropSinkEvent::Changed => RadioButtonMessage::ChangePropChecked },
-            }
-        };
-        futures_util::future::join(fut_click, fut_props).await.0
-    }
-
-    async fn update_children(&mut self) -> Result<bool> {
-        let Ok(r0) = self.checked_prop.update().await;
-        Ok(r0)
+        loop {
+            self.widget.wait_click().await;
+            sender.post(RadioButtonMessage::ChangeInputChecked);
+        }
     }
 
     async fn update(
@@ -156,22 +142,13 @@ impl Component for RadioButton {
             RadioButtonMessage::Noop => Ok(false),
             RadioButtonMessage::ChangeInputChecked => {
                 let checked = self.widget.is_checked()?;
-                self.checked_prop.post(PropSinkMessage::Set(checked));
+                self.checked_prop.set(checked);
                 sender.output(RadioButtonEvent::Click);
                 Ok(false)
             }
-            RadioButtonMessage::ChangePropChecked => {
-                let current = self.widget.is_checked()?;
-                let prop_val = self.checked_prop.get();
-                if current != *prop_val {
-                    self.widget.set_checked(*prop_val)?;
-                }
-                Ok(true)
-            }
             RadioButtonMessage::SetChecked(v) => {
-                self.widget.set_checked(v)?;
-                self.checked_prop.post(PropSinkMessage::Set(v));
-                Ok(false)
+                self.set_checked(v)?;
+                Ok(true)
             }
             RadioButtonMessage::SetRect(rect) => {
                 self.set_rect(rect)?;
@@ -202,7 +179,7 @@ winio_handle::impl_as_widget!(RadioButton, widget);
 /// A group of [`RadioButton`]. Only one of them could be checked.
 pub struct RadioButtonGroup {
     radios: Vec<Child<RadioButton>>,
-    selection_prop: Child<Prop<Option<usize>>>,
+    selection_prop: Prop<Option<usize>>,
 }
 
 /// Events of [`RadioButtonGroup`].
@@ -220,8 +197,6 @@ pub enum RadioButtonGroupMessage {
     Click(usize),
     /// Set the selection.
     SetSelection(Option<usize>),
-    /// The selection prop has been changed.
-    ChangePropSelection,
 }
 
 impl RadioButtonGroup {
@@ -316,7 +291,7 @@ impl RadioButtonGroup {
         if let Some(i) = *self.selection_prop.get()
             && i >= len
         {
-            self.selection_prop.post(PropSinkMessage::Set(None));
+            self.selection_prop.set(None);
         }
     }
 }
@@ -327,8 +302,9 @@ impl Component for RadioButtonGroup {
     type Init<'a> = Vec<Child<RadioButton>>;
     type Message = RadioButtonGroupMessage;
 
-    async fn init(radios: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
-        let Ok(selection_prop) = Child::<Prop<Option<usize>>>::init(None).await;
+    async fn init(radios: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+        let mut selection_prop = Prop::new(None);
+        selection_prop.bind(sender, RadioButtonGroupMessage::SetSelection);
         Ok(Self {
             radios,
             selection_prop,
@@ -336,41 +312,29 @@ impl Component for RadioButtonGroup {
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        let fut_props = async {
-            start! {
-                sender, default: RadioButtonGroupMessage::Noop,
-                self.selection_prop => {
-                    PropSinkEvent::Changed => RadioButtonGroupMessage::ChangePropSelection,
-                }
-            }
-        };
-        let fut_radios = async {
-            let futures = self
-                .radios
-                .iter_mut()
-                .enumerate()
-                .map(|(i, c)| {
-                    c.start(
-                        sender,
-                        move |e| match e {
-                            RadioButtonEvent::Click => Some(RadioButtonGroupMessage::Click(i)),
-                        },
-                        || RadioButtonGroupMessage::Noop,
-                    )
-                })
-                .collect::<Vec<_>>();
-            futures_util::future::join_all(futures).await;
-            std::future::pending::<()>().await
-        };
-        futures_util::future::join(fut_props, fut_radios).await.0
+        let futures = self
+            .radios
+            .iter_mut()
+            .enumerate()
+            .map(|(i, c)| {
+                c.start(
+                    sender,
+                    move |e| match e {
+                        RadioButtonEvent::Click => Some(RadioButtonGroupMessage::Click(i)),
+                    },
+                    || RadioButtonGroupMessage::Noop,
+                )
+            })
+            .collect::<Vec<_>>();
+        futures_util::future::join_all(futures).await;
+        std::future::pending().await
     }
 
     async fn update_children(&mut self) -> Result<bool> {
-        let Ok(r0) = self.selection_prop.update().await;
-        let r1 = futures_util::future::try_join_all(self.radios.iter_mut().map(|c| c.update()))
+        let r0 = futures_util::future::try_join_all(self.radios.iter_mut().map(|c| c.update()))
             .await
             .map(|v| v.into_iter().any(|b| b))?;
-        Ok(r0 || r1)
+        Ok(r0)
     }
 
     async fn update(
@@ -382,15 +346,10 @@ impl Component for RadioButtonGroup {
             RadioButtonGroupMessage::Noop => Ok(false),
             RadioButtonGroupMessage::Click(i) => {
                 self.selection_prop.set(Some(i));
-                self.radios[i].set_checked(true)?;
                 Ok(false)
             }
             RadioButtonGroupMessage::SetSelection(selection) => {
                 self.selection_prop.set(selection);
-                Ok(false)
-            }
-            RadioButtonGroupMessage::ChangePropSelection => {
-                let selection = *self.selection_prop.get();
                 if let Some(i) = selection {
                     for (idx, r) in self.radios.iter_mut().enumerate() {
                         r.set_checked(idx == i)?;

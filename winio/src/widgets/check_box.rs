@@ -1,9 +1,7 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Child, Component, ComponentSender, Prop, PropSinkEvent, PropSinkMessage, start};
+use winio_elm::{Component, ComponentSender, Prop};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{
-    Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
-};
+use winio_primitive::{Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible};
 
 use crate::{
     sys,
@@ -14,7 +12,7 @@ use crate::{
 #[derive(Debug)]
 pub struct CheckBox {
     widget: sys::CheckBox,
-    checked_prop: Child<Prop<bool>>,
+    checked_prop: Prop<bool>,
 }
 
 impl Failable for CheckBox {
@@ -42,6 +40,7 @@ impl CheckBox {
 
     /// Set the checked state.
     pub fn set_checked(&mut self, v: bool) -> Result<()> {
+        self.widget.set_checked(v)?;
         self.checked_prop.set(v);
         Ok(())
     }
@@ -95,8 +94,6 @@ pub enum CheckBoxMessage {
     Noop,
     /// The checked state has been changed by user click.
     ChangeInputChecked,
-    /// The checked prop has been changed.
-    ChangePropChecked,
     /// Set the checked state.
     SetChecked(bool),
     /// Set the rect.
@@ -117,34 +114,18 @@ impl Component for CheckBox {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = CheckBoxMessage;
 
-    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::CheckBox::new(init)?;
-        let Ok(checked_prop) = Child::<Prop<bool>>::init(false).await;
-        Ok(Self {
-            widget,
-            checked_prop,
-        })
+        let mut checked_prop = Prop::new(false);
+        checked_prop.bind(sender, CheckBoxMessage::SetChecked);
+        Ok(Self { widget, checked_prop })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        let fut_click = async {
-            loop {
-                self.widget.wait_click().await;
-                sender.post(CheckBoxMessage::ChangeInputChecked);
-            }
-        };
-        let fut_props = async {
-            start! {
-                sender, default: CheckBoxMessage::Noop,
-                self.checked_prop => { PropSinkEvent::Changed => CheckBoxMessage::ChangePropChecked },
-            }
-        };
-        futures_util::future::join(fut_click, fut_props).await.0
-    }
-
-    async fn update_children(&mut self) -> Result<bool> {
-        let Ok(r0) = self.checked_prop.update().await;
-        Ok(r0)
+        loop {
+            self.widget.wait_click().await;
+            sender.post(CheckBoxMessage::ChangeInputChecked);
+        }
     }
 
     async fn update(
@@ -156,22 +137,13 @@ impl Component for CheckBox {
             CheckBoxMessage::Noop => Ok(false),
             CheckBoxMessage::ChangeInputChecked => {
                 let checked = self.widget.is_checked()?;
-                self.checked_prop.post(PropSinkMessage::Set(checked));
+                self.checked_prop.set(checked);
                 sender.output(CheckBoxEvent::Click);
                 Ok(false)
             }
-            CheckBoxMessage::ChangePropChecked => {
-                let current = self.widget.is_checked()?;
-                let prop_val = self.checked_prop.get();
-                if current != *prop_val {
-                    self.widget.set_checked(*prop_val)?;
-                }
-                Ok(true)
-            }
             CheckBoxMessage::SetChecked(checked) => {
-                self.widget.set_checked(checked)?;
-                self.checked_prop.post(PropSinkMessage::Set(checked));
-                Ok(false)
+                self.set_checked(checked)?;
+                Ok(true)
             }
             CheckBoxMessage::SetRect(rect) => {
                 self.set_rect(rect)?;

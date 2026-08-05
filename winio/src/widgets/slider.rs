@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Child, Component, ComponentSender, Prop, PropSinkEvent, PropSinkMessage, start};
+use winio_elm::{Component, ComponentSender, Prop};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
     Enable, Failable, Layoutable, Orient, Point, Rect, Size, TickPosition, ToolTip, Visible,
@@ -14,7 +14,7 @@ use crate::{
 #[derive(Debug)]
 pub struct Slider {
     widget: sys::Slider,
-    pos_prop: Child<Prop<usize>>,
+    pos_prop: Prop<usize>,
 }
 
 impl Failable for Slider {
@@ -65,6 +65,7 @@ impl Slider {
 
     /// Set the position.
     pub fn set_pos(&mut self, v: usize) -> Result<()> {
+        self.widget.set_pos(v)?;
         self.pos_prop.set(v);
         Ok(())
     }
@@ -118,8 +119,6 @@ pub enum SliderMessage {
     Noop,
     /// The position has been changed by user input.
     ChangeInputPos,
-    /// The position prop has been changed.
-    ChangePropPos,
     /// Set the position.
     SetPos(usize),
     /// Set the rect.
@@ -148,31 +147,18 @@ impl Component for Slider {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = SliderMessage;
 
-    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Slider::new(init)?;
-        let Ok(pos_prop) = Child::<Prop<usize>>::init(widget.pos()?).await;
+        let mut pos_prop = Prop::new(widget.pos()?);
+        pos_prop.bind(sender, SliderMessage::SetPos);
         Ok(Self { widget, pos_prop })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        let fut_change = async {
-            loop {
-                self.widget.wait_change().await;
-                sender.post(SliderMessage::ChangeInputPos);
-            }
-        };
-        let fut_props = async {
-            start! {
-                sender, default: SliderMessage::Noop,
-                self.pos_prop => { PropSinkEvent::Changed => SliderMessage::ChangePropPos },
-            }
-        };
-        futures_util::future::join(fut_change, fut_props).await.0
-    }
-
-    async fn update_children(&mut self) -> Result<bool> {
-        let Ok(r0) = self.pos_prop.update().await;
-        Ok(r0)
+        loop {
+            self.widget.wait_change().await;
+            sender.post(SliderMessage::ChangeInputPos);
+        }
     }
 
     async fn update(
@@ -184,20 +170,12 @@ impl Component for Slider {
             SliderMessage::Noop => Ok(false),
             SliderMessage::ChangeInputPos => {
                 let pos = self.widget.pos()?;
-                self.pos_prop.post(PropSinkMessage::Set(pos));
+                self.pos_prop.set(pos);
                 sender.output(SliderEvent::Change);
                 Ok(false)
             }
-            SliderMessage::ChangePropPos => {
-                let current = self.widget.pos()?;
-                let prop_val = self.pos_prop.get();
-                if current != *prop_val {
-                    self.widget.set_pos(*prop_val)?;
-                }
-                Ok(true)
-            }
             SliderMessage::SetPos(pos) => {
-                self.pos_prop.set(pos);
+                self.set_pos(pos)?;
                 Ok(true)
             }
             SliderMessage::SetRect(rect) => {

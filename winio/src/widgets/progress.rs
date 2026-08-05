@@ -119,12 +119,6 @@ impl Component for Progress {
         Ok(Self { widget })
     }
 
-    async fn start(&mut self, _sender: &ComponentSender<Self>) -> ! {
-        loop {
-            std::future::pending::<()>().await
-        }
-    }
-
     async fn update(
         &mut self,
         message: Self::Message,

@@ -1,7 +1,4 @@
-use std::{
-    fmt::Debug,
-    ops::{Deref, DerefMut},
-};
+use std::fmt::Debug;
 
 use slab::Slab;
 
@@ -57,97 +54,34 @@ impl<T: Clone> PropSource<T> {
     }
 }
 
-/// A property sink that can receive messages to set its value.
+/// A property that can be both a source and a sink.
 #[derive(Debug)]
-pub struct PropSink<T: PartialEq> {
-    sender: ComponentSender<Self>,
+pub struct Prop<T> {
+    source: PropSource<T>,
     value: T,
 }
 
-impl<T: PartialEq> PropSink<T> {
+impl<T> Prop<T> {
+    /// Create a new property with the given initial value.
+    pub fn new(value: T) -> Self {
+        Self {
+            source: PropSource::new(),
+            value,
+        }
+    }
+
     /// Get the current value of the property.
     pub fn get(&self) -> &T {
         &self.value
     }
 
-    /// Set the value of the property.
-    pub fn set(&mut self, value: T) {
-        if value != self.value {
-            self.value = value;
-            self.sender.output(PropSinkEvent::Changed);
-        }
-    }
-}
-
-/// Messages of [`PropSink`].
-#[derive(Debug)]
-#[non_exhaustive]
-pub enum PropSinkMessage<T> {
-    /// Set the value of the property.
-    Set(T),
-}
-
-/// Events of [`PropSink`].
-#[derive(Debug)]
-#[non_exhaustive]
-pub enum PropSinkEvent {
-    /// The value of the property has changed.
-    Changed,
-}
-
-impl<T: PartialEq> Deref for PropSink<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.value
-    }
-}
-
-impl<T: PartialEq> Component for PropSink<T> {
-    type Error = std::convert::Infallible;
-    type Event = PropSinkEvent;
-    type Init<'a> = T;
-    type Message = PropSinkMessage<T>;
-
-    async fn init(
-        init: Self::Init<'_>,
-        sender: &ComponentSender<Self>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            sender: sender.clone(),
-            value: init,
-        })
-    }
-
-    async fn update(
-        &mut self,
-        message: Self::Message,
-        _sender: &ComponentSender<Self>,
-    ) -> Result<bool, Self::Error> {
-        match message {
-            PropSinkMessage::Set(value) => {
-                self.set(value);
-            }
-        }
-        Ok(false)
-    }
-}
-
-/// A property that can be both a source and a sink.
-#[derive(Debug)]
-pub struct Prop<T: PartialEq> {
-    source: PropSource<T>,
-    sink: PropSink<T>,
-}
-
-impl<T: PartialEq> Prop<T> {
     /// Unbind a listener by its ID.
     pub fn unbind(&mut self, id: usize) {
         self.source.unbind(id);
     }
 }
 
-impl<T: Clone + PartialEq + 'static> Prop<T> {
+impl<T: Clone + 'static> Prop<T> {
     /// Bind to a component sender, so that when the property is notified, a
     /// message is sent to the component.
     ///
@@ -157,52 +91,16 @@ impl<T: Clone + PartialEq + 'static> Prop<T> {
         sender: &ComponentSender<C>,
         f: impl Fn(T) -> C::Message + 'static,
     ) -> usize {
-        self.source.bind(self.sink.get().clone(), sender, f)
+        self.source.bind(self.value.clone(), sender, f)
     }
 }
 
-impl<T: PartialEq> Deref for Prop<T> {
-    type Target = PropSink<T>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.sink
-    }
-}
-
-impl<T: PartialEq> DerefMut for Prop<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.sink
-    }
-}
-
-impl<T: Clone + PartialEq> Component for Prop<T> {
-    type Error = std::convert::Infallible;
-    type Event = PropSinkEvent;
-    type Init<'a> = T;
-    type Message = PropSinkMessage<T>;
-
-    async fn init(
-        init: Self::Init<'_>,
-        sender: &ComponentSender<Self>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            source: PropSource::new(),
-            sink: PropSink::init(init, sender.cast()).await?,
-        })
-    }
-
-    async fn update(
-        &mut self,
-        message: Self::Message,
-        sender: &ComponentSender<Self>,
-    ) -> Result<bool, Self::Error> {
-        match &message {
-            PropSinkMessage::Set(value) => {
-                if value != &self.sink.value {
-                    self.source.notify(value);
-                }
-            }
+impl<T: Clone + PartialEq> Prop<T> {
+    /// Set the value of the property.
+    pub fn set(&mut self, value: T) {
+        if value != self.value {
+            self.value = value;
+            self.source.notify(&self.value);
         }
-        self.sink.update(message, sender.cast()).await
     }
 }

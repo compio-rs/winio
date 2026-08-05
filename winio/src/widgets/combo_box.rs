@@ -1,8 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{
-    Child, Component, ComponentSender, ObservableVecEvent, Prop, PropSinkEvent, PropSinkMessage,
-    start,
-};
+use winio_elm::{Component, ComponentSender, ObservableVecEvent, Prop};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
     Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
@@ -17,8 +14,8 @@ use crate::{
 #[derive(Debug)]
 pub struct ComboBox {
     widget: sys::ComboBox,
-    text_prop: Child<Prop<String>>,
-    selection_prop: Child<Prop<Option<usize>>>,
+    text_prop: Prop<String>,
+    selection_prop: Prop<Option<usize>>,
 }
 
 impl Failable for ComboBox {
@@ -37,7 +34,9 @@ impl TextWidget for ComboBox {
     fn text(&self) -> Result<String>;
 
     fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.text_prop.set(s.as_ref().to_owned());
+        let s = s.as_ref();
+        self.widget.set_text(s)?;
+        self.text_prop.set(s.to_owned());
         Ok(())
     }
 }
@@ -49,6 +48,7 @@ impl ComboBox {
 
     /// Set the selection.
     pub fn set_selection(&mut self, i: usize) -> Result<()> {
+        self.widget.set_selection(i)?;
         self.selection_prop.set(Some(i));
         Ok(())
     }
@@ -172,12 +172,8 @@ pub enum ComboBoxMessage {
     Clear,
     /// The selection has been changed by user.
     ChangeInputSelection,
-    /// The selection prop has been changed.
-    ChangePropSelection,
     /// The text has been changed by user input.
     ChangeInputText,
-    /// The text prop has been changed.
-    ChangePropText,
     /// Set the text.
     SetText(String),
     /// Set the selection.
@@ -224,10 +220,12 @@ impl Component for ComboBox {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ComboBoxMessage;
 
-    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::ComboBox::new(init)?;
-        let Ok(text_prop) = Child::<Prop<String>>::init(String::new()).await;
-        let Ok(selection_prop) = Child::<Prop<Option<usize>>>::init(None).await;
+        let mut text_prop = Prop::new(String::new());
+        text_prop.bind(sender, ComboBoxMessage::SetText);
+        let mut selection_prop = Prop::new(None);
+        selection_prop.bind(sender, ComboBoxMessage::SetSelection);
         Ok(Self {
             widget,
             text_prop,
@@ -248,22 +246,7 @@ impl Component for ComboBox {
                 sender.post(ComboBoxMessage::ChangeInputText);
             }
         };
-        let fut_props = async {
-            start! {
-                sender, default: ComboBoxMessage::Noop,
-                self.selection_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangePropSelection },
-                self.text_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangePropText },
-            }
-        };
-        futures_util::future::join3(fut_select, fut_change, fut_props)
-            .await
-            .0
-    }
-
-    async fn update_children(&mut self) -> Result<bool> {
-        let Ok(r0) = self.text_prop.update().await;
-        let Ok(r1) = self.selection_prop.update().await;
-        Ok(r0 || r1)
+        futures_util::future::join(fut_select, fut_change).await.0
     }
 
     async fn update(
@@ -291,38 +274,24 @@ impl Component for ComboBox {
             }
             ComboBoxMessage::ChangeInputSelection => {
                 let selection = self.widget.selection()?;
-                self.selection_prop.post(PropSinkMessage::Set(selection));
+                self.selection_prop.set(selection);
                 sender.output(ComboBoxEvent::Select);
                 Ok(false)
             }
-            ComboBoxMessage::ChangePropSelection => {
-                let current = self.widget.selection()?;
-                let prop_val = self.selection_prop.get();
-                if &current != prop_val
-                    && let Some(i) = prop_val
-                {
-                    self.widget.set_selection(*i)?;
-                }
-                Ok(true)
-            }
             ComboBoxMessage::ChangeInputText => {
                 let text = self.widget.text()?;
-                self.text_prop.post(PropSinkMessage::Set(text));
+                self.text_prop.set(text);
                 sender.output(ComboBoxEvent::Change);
                 Ok(false)
-            }
-            ComboBoxMessage::ChangePropText => {
-                let text = self.widget.text()?;
-                if &text != self.text_prop.get() {
-                    self.widget.set_text(self.text_prop.get())?;
-                }
-                Ok(true)
             }
             ComboBoxMessage::SetText(text) => {
                 self.set_text(text)?;
                 Ok(true)
             }
             ComboBoxMessage::SetSelection(selection) => {
+                if let Some(i) = selection {
+                    self.widget.set_selection(i)?;
+                }
                 self.selection_prop.set(selection);
                 Ok(true)
             }

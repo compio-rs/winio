@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Child, Component, ComponentSender, Prop, PropSinkEvent, PropSinkMessage, start};
+use winio_elm::{Component, ComponentSender, Prop};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{Enable, Failable, Layoutable, Orient, Point, Rect, Size, ToolTip, Visible};
 
@@ -12,7 +12,7 @@ use crate::{
 #[derive(Debug)]
 pub struct ScrollBar {
     widget: sys::ScrollBar,
-    pos_prop: Child<Prop<usize>>,
+    pos_prop: Prop<usize>,
 }
 
 impl Failable for ScrollBar {
@@ -57,6 +57,7 @@ impl ScrollBar {
 
     /// Set the position.
     pub fn set_pos(&mut self, v: usize) -> Result<()> {
+        self.widget.set_pos(v)?;
         self.pos_prop.set(v);
         Ok(())
     }
@@ -110,8 +111,6 @@ pub enum ScrollBarMessage {
     Noop,
     /// The position has been changed by user scroll.
     ChangeInputPos,
-    /// The position prop has been changed.
-    ChangePropPos,
     /// Set the position.
     SetPos(usize),
     /// Set the rect.
@@ -138,31 +137,18 @@ impl Component for ScrollBar {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ScrollBarMessage;
 
-    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::ScrollBar::new(init)?;
-        let Ok(pos_prop) = Child::<Prop<usize>>::init(widget.pos()?).await;
+        let mut pos_prop = Prop::new(widget.pos()?);
+        pos_prop.bind(sender, ScrollBarMessage::SetPos);
         Ok(Self { widget, pos_prop })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        let fut_change = async {
-            loop {
-                self.widget.wait_change().await;
-                sender.post(ScrollBarMessage::ChangeInputPos);
-            }
-        };
-        let fut_props = async {
-            start! {
-                sender, default: ScrollBarMessage::Noop,
-                self.pos_prop => { PropSinkEvent::Changed => ScrollBarMessage::ChangePropPos },
-            }
-        };
-        futures_util::future::join(fut_change, fut_props).await.0
-    }
-
-    async fn update_children(&mut self) -> Result<bool> {
-        let Ok(r0) = self.pos_prop.update().await;
-        Ok(r0)
+        loop {
+            self.widget.wait_change().await;
+            sender.post(ScrollBarMessage::ChangeInputPos);
+        }
     }
 
     async fn update(
@@ -174,20 +160,12 @@ impl Component for ScrollBar {
             ScrollBarMessage::Noop => Ok(false),
             ScrollBarMessage::ChangeInputPos => {
                 let pos = self.widget.pos()?;
-                self.pos_prop.post(PropSinkMessage::Set(pos));
+                self.pos_prop.set(pos);
                 sender.output(ScrollBarEvent::Change);
                 Ok(false)
             }
-            ScrollBarMessage::ChangePropPos => {
-                let current = self.widget.pos()?;
-                let prop_val = self.pos_prop.get();
-                if current != *prop_val {
-                    self.widget.set_pos(*prop_val)?;
-                }
-                Ok(true)
-            }
             ScrollBarMessage::SetPos(pos) => {
-                self.pos_prop.set(pos);
+                self.set_pos(pos)?;
                 Ok(true)
             }
             ScrollBarMessage::SetRect(rect) => {

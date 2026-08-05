@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Child, Component, ComponentSender, Prop, PropSinkEvent, PropSinkMessage, start};
+use winio_elm::{Component, ComponentSender, Prop};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
     Enable, Failable, HAlign, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
@@ -14,7 +14,7 @@ use crate::{
 #[derive(Debug)]
 pub struct TextBox {
     widget: sys::TextBox,
-    text_prop: Child<Prop<String>>,
+    text_prop: Prop<String>,
 }
 
 impl Failable for TextBox {
@@ -33,7 +33,9 @@ impl TextWidget for TextBox {
     fn text(&self) -> Result<String>;
 
     fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.text_prop.set(s.as_ref().to_owned());
+        let s = s.as_ref();
+        self.widget.set_text(s)?;
+        self.text_prop.set(s.to_owned());
         Ok(())
     }
 }
@@ -100,8 +102,6 @@ pub enum TextBoxMessage {
     Noop,
     /// The text has been changed by user input.
     ChangeInput,
-    /// The text prop has been changed.
-    ChangeProp,
     /// Set the rect.
     SetRect(Rect),
     /// Set the halign.
@@ -124,31 +124,18 @@ impl Component for TextBox {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = TextBoxMessage;
 
-    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::TextBox::new(init)?;
-        let Ok(text_prop) = Child::<Prop<String>>::init(String::new()).await;
+        let mut text_prop = Prop::new(String::new());
+        text_prop.bind(sender, TextBoxMessage::SetText);
         Ok(Self { widget, text_prop })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        let fut_listen = async {
-            loop {
-                self.widget.wait_change().await;
-                sender.post(TextBoxMessage::ChangeInput);
-            }
-        };
-        let fut_start = async {
-            start! {
-                sender, default: TextBoxMessage::Noop,
-                self.text_prop => { PropSinkEvent::Changed => TextBoxMessage::ChangeProp },
-            }
-        };
-        futures_util::future::join(fut_listen, fut_start).await.0
-    }
-
-    async fn update_children(&mut self) -> Result<bool> {
-        let Ok(r0) = self.text_prop.update().await;
-        Ok(r0)
+        loop {
+            self.widget.wait_change().await;
+            sender.post(TextBoxMessage::ChangeInput);
+        }
     }
 
     async fn update(
@@ -160,15 +147,8 @@ impl Component for TextBox {
             TextBoxMessage::Noop => Ok(false),
             TextBoxMessage::ChangeInput => {
                 let text = self.widget.text()?;
-                self.text_prop.post(PropSinkMessage::Set(text));
+                self.text_prop.set(text);
                 Ok(false)
-            }
-            TextBoxMessage::ChangeProp => {
-                let text = self.widget.text()?;
-                if &text != self.text_prop.get() {
-                    self.widget.set_text(self.text_prop.get())?;
-                }
-                Ok(true)
             }
             TextBoxMessage::SetRect(rect) => {
                 self.set_rect(rect)?;
