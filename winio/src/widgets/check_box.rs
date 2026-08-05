@@ -1,7 +1,9 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender, Prop};
+use winio_elm::{Component, ComponentSender, Prop, PropSource};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible};
+use winio_primitive::{
+    Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
+};
 
 use crate::{
     sys,
@@ -12,7 +14,7 @@ use crate::{
 #[derive(Debug)]
 pub struct CheckBox {
     widget: sys::CheckBox,
-    checked_prop: Prop<bool>,
+    checked_prop: PropSource<bool>,
 }
 
 impl Failable for CheckBox {
@@ -40,14 +42,16 @@ impl CheckBox {
 
     /// Set the checked state.
     pub fn set_checked(&mut self, v: bool) -> Result<()> {
-        self.widget.set_checked(v)?;
-        self.checked_prop.set(v);
+        if v != self.is_checked()? {
+            self.widget.set_checked(v)?;
+            self.checked_prop.notify(v);
+        }
         Ok(())
     }
 
     /// Property for [`CheckBox::is_checked`].
-    pub fn checked_prop(&mut self) -> &mut Prop<bool> {
-        &mut self.checked_prop
+    pub fn checked_prop(&mut self) -> Result<Prop<'_, bool>> {
+        Ok(self.checked_prop.as_prop(self.is_checked()?))
     }
 }
 
@@ -114,11 +118,13 @@ impl Component for CheckBox {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = CheckBoxMessage;
 
-    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::CheckBox::new(init)?;
-        let mut checked_prop = Prop::new(false);
-        checked_prop.bind(sender, CheckBoxMessage::SetChecked);
-        Ok(Self { widget, checked_prop })
+        let checked_prop = PropSource::new();
+        Ok(Self {
+            widget,
+            checked_prop,
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -137,7 +143,7 @@ impl Component for CheckBox {
             CheckBoxMessage::Noop => Ok(false),
             CheckBoxMessage::ChangeInputChecked => {
                 let checked = self.widget.is_checked()?;
-                self.checked_prop.set(checked);
+                self.checked_prop.notify(checked);
                 sender.output(CheckBoxEvent::Click);
                 Ok(false)
             }

@@ -94,18 +94,18 @@ impl Component for MediaPage {
             },
         }
         loop_check
-            .checked_prop()
+            .checked_prop()?
             .bind(media.sender(), MediaMessage::SetLooped);
-        volume_slider.pos_prop().bind(media.sender(), |pos| {
+        volume_slider.pos_prop()?.bind(media.sender(), |pos| {
             MediaMessage::SetVolume(pos as f64 / 100.0)
         });
-        volume_slider.pos_prop().bind(volume_label.sender(), |pos| {
+        volume_slider.pos_prop()?.bind(volume_label.sender(), |pos| {
             LabelMessage::SetText(pos.to_string())
         });
-        time_slider.pos_prop().bind(media.sender(), |pos| {
+        time_slider.pos_prop()?.bind(media.sender(), |pos| {
             MediaMessage::SetCurrentTime(Duration::from_secs_f64(pos as f64 / 100.0))
         });
-        rate_chooser.selection_prop().bind(media.sender(), |sel| {
+        rate_chooser.selection_prop()?.bind(media.sender(), |sel| {
             MediaMessage::SetPlaybackRate(match sel {
                 Some(0) => 0.5,
                 Some(2) => 1.5,

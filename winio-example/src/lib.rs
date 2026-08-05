@@ -131,7 +131,7 @@ impl Component for MainModel {
         tabview.push(&markdown)?;
 
         tabview
-            .selection_prop()
+            .selection_prop()?
             .bind(sender, |_| MainMessage::Redraw);
 
         #[cfg(target_os = "android")]

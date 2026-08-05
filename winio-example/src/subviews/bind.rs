@@ -53,13 +53,13 @@ impl Component for BindPage {
         }
 
         chk_1_2
-            .checked_prop()
+            .checked_prop()?
             .bind(sender, |_| BindPageMessage::Bind1To2);
         chk_2_1
-            .checked_prop()
+            .checked_prop()?
             .bind(sender, |_| BindPageMessage::Bind2To1);
         chk_1_label
-            .checked_prop()
+            .checked_prop()?
             .bind(sender, |_| BindPageMessage::Bind1ToLabel);
 
         Ok(Self {
@@ -112,33 +112,33 @@ impl Component for BindPage {
                 if self.chk_1_2.is_checked()? && self.bind_1_2.is_none() {
                     let id = self
                         .edit1
-                        .text_prop()
+                        .text_prop()?
                         .bind(self.edit2.sender(), EditMessage::SetText);
                     self.bind_1_2 = Some(id);
                 } else if let Some(id) = self.bind_1_2.take() {
-                    self.edit1.text_prop().unbind(id);
+                    self.edit1.text_prop()?.unbind(id);
                 }
             }
             BindPageMessage::Bind2To1 => {
                 if self.chk_2_1.is_checked()? && self.bind_2_1.is_none() {
                     let id = self
                         .edit2
-                        .text_prop()
+                        .text_prop()?
                         .bind(self.edit1.sender(), EditMessage::SetText);
                     self.bind_2_1 = Some(id);
                 } else if let Some(id) = self.bind_2_1.take() {
-                    self.edit2.text_prop().unbind(id);
+                    self.edit2.text_prop()?.unbind(id);
                 }
             }
             BindPageMessage::Bind1ToLabel => {
                 if self.chk_1_label.is_checked()? && self.bind_1_label.is_none() {
                     let id = self
                         .edit1
-                        .text_prop()
+                        .text_prop()?
                         .bind(self.label.sender(), LabelMessage::SetText);
                     self.bind_1_label = Some(id);
                 } else if let Some(id) = self.bind_1_label.take() {
-                    self.edit1.text_prop().unbind(id);
+                    self.edit1.text_prop()?.unbind(id);
                 }
             }
         }

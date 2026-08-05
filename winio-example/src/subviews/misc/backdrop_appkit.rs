@@ -52,7 +52,7 @@ impl Component for BackdropChooser {
             }
         }
         combo
-            .selection_prop()
+            .selection_prop()?
             .bind(sender, |_| BackdropChooserMessage::Select);
         Ok(Self { combo })
     }

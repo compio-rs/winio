@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender, ObservableVecEvent, Prop};
+use winio_elm::{Component, ComponentSender, ObservableVecEvent, Prop, PropSource};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
     Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
@@ -14,8 +14,8 @@ use crate::{
 #[derive(Debug)]
 pub struct ComboBox {
     widget: sys::ComboBox,
-    text_prop: Prop<String>,
-    selection_prop: Prop<Option<usize>>,
+    text_prop: PropSource<String>,
+    selection_prop: PropSource<Option<usize>>,
 }
 
 impl Failable for ComboBox {
@@ -35,8 +35,10 @@ impl TextWidget for ComboBox {
 
     fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         let s = s.as_ref();
-        self.widget.set_text(s)?;
-        self.text_prop.set(s.to_owned());
+        if s != self.text()? {
+            self.widget.set_text(s)?;
+            self.text_prop.notify(s.to_owned());
+        }
         Ok(())
     }
 }
@@ -48,8 +50,10 @@ impl ComboBox {
 
     /// Set the selection.
     pub fn set_selection(&mut self, i: usize) -> Result<()> {
-        self.widget.set_selection(i)?;
-        self.selection_prop.set(Some(i));
+        if Some(i) != self.selection()? {
+            self.widget.set_selection(i)?;
+            self.selection_prop.notify(Some(i));
+        }
         Ok(())
     }
 
@@ -96,13 +100,13 @@ impl ComboBox {
     }
 
     /// Property for [`TextWidget::text`].
-    pub fn text_prop(&mut self) -> &mut Prop<String> {
-        &mut self.text_prop
+    pub fn text_prop(&mut self) -> Result<Prop<'_, String>> {
+        Ok(self.text_prop.as_prop(self.text()?))
     }
 
     /// Property for [`ComboBox::selection`].
-    pub fn selection_prop(&mut self) -> &mut Prop<Option<usize>> {
-        &mut self.selection_prop
+    pub fn selection_prop(&mut self) -> Result<Prop<'_, Option<usize>>> {
+        Ok(self.selection_prop.as_prop(self.selection()?))
     }
 }
 
@@ -220,12 +224,10 @@ impl Component for ComboBox {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ComboBoxMessage;
 
-    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::ComboBox::new(init)?;
-        let mut text_prop = Prop::new(String::new());
-        text_prop.bind(sender, ComboBoxMessage::SetText);
-        let mut selection_prop = Prop::new(None);
-        selection_prop.bind(sender, ComboBoxMessage::SetSelection);
+        let text_prop = PropSource::new();
+        let selection_prop = PropSource::new();
         Ok(Self {
             widget,
             text_prop,
@@ -274,13 +276,13 @@ impl Component for ComboBox {
             }
             ComboBoxMessage::ChangeInputSelection => {
                 let selection = self.widget.selection()?;
-                self.selection_prop.set(selection);
+                self.selection_prop.notify(selection);
                 sender.output(ComboBoxEvent::Select);
                 Ok(false)
             }
             ComboBoxMessage::ChangeInputText => {
                 let text = self.widget.text()?;
-                self.text_prop.set(text);
+                self.text_prop.notify(text);
                 sender.output(ComboBoxEvent::Change);
                 Ok(false)
             }
@@ -290,9 +292,8 @@ impl Component for ComboBox {
             }
             ComboBoxMessage::SetSelection(selection) => {
                 if let Some(i) = selection {
-                    self.widget.set_selection(i)?;
+                    self.set_selection(i)?;
                 }
-                self.selection_prop.set(selection);
                 Ok(true)
             }
             ComboBoxMessage::SetRect(rect) => {

@@ -45,7 +45,7 @@ impl Component for BackdropChooser {
                 selection: 0,
             },
         }
-        radios.selection_prop().bind(sender, |selection| {
+        radios.selection_prop()?.bind(sender, |selection| {
             if let Some(i) = selection {
                 BackdropChooserMessage::RSelect(i)
             } else {

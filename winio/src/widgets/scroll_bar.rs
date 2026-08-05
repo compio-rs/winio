@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender, Prop};
+use winio_elm::{Component, ComponentSender, Prop, PropSource};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{Enable, Failable, Layoutable, Orient, Point, Rect, Size, ToolTip, Visible};
 
@@ -12,7 +12,7 @@ use crate::{
 #[derive(Debug)]
 pub struct ScrollBar {
     widget: sys::ScrollBar,
-    pos_prop: Prop<usize>,
+    pos_prop: PropSource<usize>,
 }
 
 impl Failable for ScrollBar {
@@ -57,14 +57,16 @@ impl ScrollBar {
 
     /// Set the position.
     pub fn set_pos(&mut self, v: usize) -> Result<()> {
-        self.widget.set_pos(v)?;
-        self.pos_prop.set(v);
+        if v != self.pos()? {
+            self.widget.set_pos(v)?;
+            self.pos_prop.notify(v);
+        }
         Ok(())
     }
 
     /// Property for [`ScrollBar::pos`].
-    pub fn pos_prop(&mut self) -> &mut Prop<usize> {
-        &mut self.pos_prop
+    pub fn pos_prop(&mut self) -> Result<Prop<'_, usize>> {
+        Ok(self.pos_prop.as_prop(self.pos()?))
     }
 }
 
@@ -137,10 +139,9 @@ impl Component for ScrollBar {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = ScrollBarMessage;
 
-    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::ScrollBar::new(init)?;
-        let mut pos_prop = Prop::new(widget.pos()?);
-        pos_prop.bind(sender, ScrollBarMessage::SetPos);
+        let pos_prop = PropSource::new();
         Ok(Self { widget, pos_prop })
     }
 
@@ -160,7 +161,7 @@ impl Component for ScrollBar {
             ScrollBarMessage::Noop => Ok(false),
             ScrollBarMessage::ChangeInputPos => {
                 let pos = self.widget.pos()?;
-                self.pos_prop.set(pos);
+                self.pos_prop.notify(pos);
                 sender.output(ScrollBarEvent::Change);
                 Ok(false)
             }

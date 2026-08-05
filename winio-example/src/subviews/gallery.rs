@@ -136,11 +136,11 @@ impl Component for GalleryPage {
         }
 
         scrollbar
-            .pos_prop()
+            .pos_prop()?
             .bind(sender, |_| GalleryPageMessage::Redraw);
 
         clip_box
-            .checked_prop()
+            .checked_prop()?
             .bind(sender, |_| GalleryPageMessage::ClipClick);
 
         Ok(Self {

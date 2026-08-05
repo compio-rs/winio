@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender, Prop};
+use winio_elm::{Component, ComponentSender, Prop, PropSource};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, Visible};
 
@@ -12,7 +12,7 @@ use crate::{
 #[derive(Debug)]
 pub struct TabView {
     widget: sys::TabView,
-    selection_prop: Prop<Option<usize>>,
+    selection_prop: PropSource<Option<usize>>,
 }
 
 impl Failable for TabView {
@@ -26,8 +26,10 @@ impl TabView {
 
     /// Set the selection.
     pub fn set_selection(&mut self, i: usize) -> Result<()> {
-        self.widget.set_selection(i)?;
-        self.selection_prop.set(Some(i));
+        if Some(i) != self.selection()? {
+            self.widget.set_selection(i)?;
+            self.selection_prop.notify(Some(i));
+        }
         Ok(())
     }
 
@@ -54,8 +56,8 @@ impl TabView {
     pub fn clear(&mut self) -> Result<()>;
 
     /// Property for [`TabView::selection`].
-    pub fn selection_prop(&mut self) -> &mut Prop<Option<usize>> {
-        &mut self.selection_prop
+    pub fn selection_prop(&mut self) -> Result<Prop<'_, Option<usize>>> {
+        Ok(self.selection_prop.as_prop(self.selection()?))
     }
 }
 
@@ -116,10 +118,9 @@ impl Component for TabView {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = TabViewMessage;
 
-    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::TabView::new(init)?;
-        let mut selection_prop = Prop::new(None);
-        selection_prop.bind(sender, TabViewMessage::SetSelection);
+        let selection_prop = PropSource::new();
         Ok(Self {
             widget,
             selection_prop,
@@ -142,15 +143,14 @@ impl Component for TabView {
             TabViewMessage::Noop => Ok(false),
             TabViewMessage::ChangeInputSelection => {
                 let selection = self.widget.selection()?;
-                self.selection_prop.set(selection);
+                self.selection_prop.notify(selection);
                 sender.output(TabViewEvent::Select);
                 Ok(false)
             }
             TabViewMessage::SetSelection(selection) => {
                 if let Some(i) = selection {
-                    self.widget.set_selection(i)?;
+                    self.set_selection(i)?;
                 }
-                self.selection_prop.set(selection);
                 Ok(true)
             }
             TabViewMessage::SetRect(rect) => {

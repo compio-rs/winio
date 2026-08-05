@@ -144,15 +144,15 @@ impl Component for MiscPage {
 
         sender.post(MiscPageMessage::RSelect(0));
 
-        pcheck.checked_prop().bind(pentry.sender(), |checked| {
+        pcheck.checked_prop()?.bind(pentry.sender(), |checked| {
             EditMessage::SetPassword(!checked)
         });
 
         combo
-            .selection_prop()
+            .selection_prop()?
             .bind(sender, |_| MiscPageMessage::Select);
 
-        radios.selection_prop().bind(sender, |selection| {
+        radios.selection_prop()?.bind(sender, |selection| {
             if let Some(i) = selection {
                 MiscPageMessage::RSelect(i)
             } else {

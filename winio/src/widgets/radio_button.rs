@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Child, Component, ComponentSender, Prop};
+use winio_elm::{Child, Component, ComponentSender, Prop, PropSource};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
     Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
@@ -14,7 +14,7 @@ use crate::{
 #[derive(Debug)]
 pub struct RadioButton {
     widget: sys::RadioButton,
-    checked_prop: Prop<bool>,
+    checked_prop: PropSource<bool>,
 }
 
 impl Failable for RadioButton {
@@ -42,14 +42,16 @@ impl RadioButton {
 
     /// Set the checked state.
     pub fn set_checked(&mut self, v: bool) -> Result<()> {
-        self.widget.set_checked(v)?;
-        self.checked_prop.set(v);
+        if v != self.is_checked()? {
+            self.widget.set_checked(v)?;
+            self.checked_prop.notify(v);
+        }
         Ok(())
     }
 
     /// Property for [`RadioButton::is_checked`].
-    pub fn checked_prop(&mut self) -> &mut Prop<bool> {
-        &mut self.checked_prop
+    pub fn checked_prop(&mut self) -> Result<Prop<'_, bool>> {
+        Ok(self.checked_prop.as_prop(self.is_checked()?))
     }
 }
 
@@ -116,10 +118,9 @@ impl Component for RadioButton {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = RadioButtonMessage;
 
-    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::RadioButton::new(init)?;
-        let mut checked_prop = Prop::new(false);
-        checked_prop.bind(sender, RadioButtonMessage::SetChecked);
+        let checked_prop = PropSource::new();
         Ok(Self {
             widget,
             checked_prop,
@@ -142,7 +143,7 @@ impl Component for RadioButton {
             RadioButtonMessage::Noop => Ok(false),
             RadioButtonMessage::ChangeInputChecked => {
                 let checked = self.widget.is_checked()?;
-                self.checked_prop.set(checked);
+                self.checked_prop.notify(checked);
                 sender.output(RadioButtonEvent::Click);
                 Ok(false)
             }
@@ -179,7 +180,8 @@ winio_handle::impl_as_widget!(RadioButton, widget);
 /// A group of [`RadioButton`]. Only one of them could be checked.
 pub struct RadioButtonGroup {
     radios: Vec<Child<RadioButton>>,
-    selection_prop: Prop<Option<usize>>,
+    selection: Option<usize>,
+    selection_prop: PropSource<Option<usize>>,
 }
 
 /// Events of [`RadioButtonGroup`].
@@ -203,18 +205,24 @@ impl RadioButtonGroup {
     /// Get the index of the selected radio button, or `None` if none is
     /// selected.
     pub fn selection(&self) -> Result<Option<usize>> {
-        Ok(*self.selection_prop.get())
+        Ok(self.selection)
     }
 
     /// Set the index of the selected radio button.
     pub fn set_selection(&mut self, i: usize) -> Result<()> {
-        self.selection_prop.set(Some(i));
+        if Some(i) != self.selection {
+            self.selection = Some(i);
+            self.selection_prop.notify(Some(i));
+            for (idx, r) in self.radios.iter_mut().enumerate() {
+                r.set_checked(idx == i)?;
+            }
+        }
         Ok(())
     }
 
     /// Property for the selected radio button index.
-    pub fn selection_prop(&mut self) -> &mut Prop<Option<usize>> {
-        &mut self.selection_prop
+    pub fn selection_prop(&mut self) -> Result<Prop<'_, Option<usize>>> {
+        Ok(self.selection_prop.as_prop(self.selection))
     }
 
     /// Appends a radio button to the back of the group.
@@ -288,10 +296,11 @@ impl RadioButtonGroup {
     /// Resets the selection if the index is out of bounds.
     fn fix_selection(&mut self) {
         let len = self.radios.len();
-        if let Some(i) = *self.selection_prop.get()
+        if let Some(i) = self.selection
             && i >= len
         {
-            self.selection_prop.set(None);
+            self.selection = None;
+            self.selection_prop.notify(None);
         }
     }
 }
@@ -302,11 +311,11 @@ impl Component for RadioButtonGroup {
     type Init<'a> = Vec<Child<RadioButton>>;
     type Message = RadioButtonGroupMessage;
 
-    async fn init(radios: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
-        let mut selection_prop = Prop::new(None);
-        selection_prop.bind(sender, RadioButtonGroupMessage::SetSelection);
+    async fn init(radios: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        let selection_prop = PropSource::new();
         Ok(Self {
             radios,
+            selection: None,
             selection_prop,
         })
     }
@@ -345,14 +354,21 @@ impl Component for RadioButtonGroup {
         match message {
             RadioButtonGroupMessage::Noop => Ok(false),
             RadioButtonGroupMessage::Click(i) => {
-                self.selection_prop.set(Some(i));
+                if Some(i) != self.selection {
+                    self.selection = Some(i);
+                    self.selection_prop.notify(Some(i));
+                    self.radios[i].set_checked(true)?;
+                }
                 Ok(false)
             }
             RadioButtonGroupMessage::SetSelection(selection) => {
-                self.selection_prop.set(selection);
-                if let Some(i) = selection {
-                    for (idx, r) in self.radios.iter_mut().enumerate() {
-                        r.set_checked(idx == i)?;
+                if selection != self.selection {
+                    self.selection = selection;
+                    self.selection_prop.notify(selection);
+                    if let Some(i) = selection {
+                        for (idx, r) in self.radios.iter_mut().enumerate() {
+                            r.set_checked(idx == i)?;
+                        }
                     }
                 }
                 Ok(false)

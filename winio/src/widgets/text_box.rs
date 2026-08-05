@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender, Prop};
+use winio_elm::{Component, ComponentSender, Prop, PropSource};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
     Enable, Failable, HAlign, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
@@ -14,7 +14,7 @@ use crate::{
 #[derive(Debug)]
 pub struct TextBox {
     widget: sys::TextBox,
-    text_prop: Prop<String>,
+    text_prop: PropSource<String>,
 }
 
 impl Failable for TextBox {
@@ -34,8 +34,10 @@ impl TextWidget for TextBox {
 
     fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         let s = s.as_ref();
-        self.widget.set_text(s)?;
-        self.text_prop.set(s.to_owned());
+        if s != self.text()? {
+            self.widget.set_text(s)?;
+            self.text_prop.notify(s.to_owned());
+        }
         Ok(())
     }
 }
@@ -55,8 +57,8 @@ impl TextBox {
     pub fn set_readonly(&mut self, v: bool) -> Result<()>;
 
     /// Property for [`TextWidget::text`].
-    pub fn text_prop(&mut self) -> &mut Prop<String> {
-        &mut self.text_prop
+    pub fn text_prop(&mut self) -> Result<Prop<'_, String>> {
+        Ok(self.text_prop.as_prop(self.text()?))
     }
 }
 
@@ -124,10 +126,9 @@ impl Component for TextBox {
     type Init<'a> = BorrowedContainer<'a>;
     type Message = TextBoxMessage;
 
-    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::TextBox::new(init)?;
-        let mut text_prop = Prop::new(String::new());
-        text_prop.bind(sender, TextBoxMessage::SetText);
+        let text_prop = PropSource::new();
         Ok(Self { widget, text_prop })
     }
 
@@ -147,7 +148,7 @@ impl Component for TextBox {
             TextBoxMessage::Noop => Ok(false),
             TextBoxMessage::ChangeInput => {
                 let text = self.widget.text()?;
-                self.text_prop.set(text);
+                self.text_prop.notify(text);
                 Ok(false)
             }
             TextBoxMessage::SetRect(rect) => {
