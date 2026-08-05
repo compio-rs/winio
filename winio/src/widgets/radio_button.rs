@@ -357,7 +357,11 @@ impl Component for RadioButtonGroup {
                 if Some(i) != self.selection {
                     self.selection = Some(i);
                     self.selection_prop.notify(Some(i));
-                    self.radios[i].set_checked(true)?;
+                    for (idx, r) in self.radios.iter_mut().enumerate() {
+                        r.set_checked(idx == i)?;
+                    }
+                } else if let Some(r) = self.radios.get_mut(i) {
+                    r.set_checked(true)?;
                 }
                 Ok(false)
             }
