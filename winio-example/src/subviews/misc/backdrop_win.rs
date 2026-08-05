@@ -92,7 +92,7 @@ impl Component for BackdropChooser {
         let csize = self.view.size()?;
 
         let mut panel = StackPanel::new(Orient::Vertical);
-        for r in self.radios.items_mut() {
+        for r in &mut self.radios[..] {
             panel.push(r).finish();
         }
 
@@ -129,7 +129,7 @@ impl Layoutable for BackdropChooser {
     fn preferred_size(&self) -> SysResult<Size> {
         let mut width = 0.0f64;
         let mut height = 0.0f64;
-        for rb in self.radios.items() {
+        for rb in &self.radios[..] {
             let ps = rb.preferred_size()?;
             width = width.max(ps.width);
             height += ps.height;
