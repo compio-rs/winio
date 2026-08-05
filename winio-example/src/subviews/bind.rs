@@ -110,7 +110,10 @@ impl Component for BindPage {
             BindPageMessage::Noop => {}
             BindPageMessage::Bind1To2 => {
                 if self.chk_1_2.is_checked()? && self.bind_1_2.is_none() {
-                    let id = self.edit1.text_prop().bind_sink(self.edit2.text_prop());
+                    let id = self
+                        .edit1
+                        .text_prop()
+                        .bind(self.edit2.sender(), EditMessage::SetText);
                     self.bind_1_2 = Some(id);
                 } else if let Some(id) = self.bind_1_2.take() {
                     self.edit1.text_prop().unbind(id);
@@ -118,7 +121,10 @@ impl Component for BindPage {
             }
             BindPageMessage::Bind2To1 => {
                 if self.chk_2_1.is_checked()? && self.bind_2_1.is_none() {
-                    let id = self.edit2.text_prop().bind_sink(self.edit1.text_prop());
+                    let id = self
+                        .edit2
+                        .text_prop()
+                        .bind(self.edit1.sender(), EditMessage::SetText);
                     self.bind_2_1 = Some(id);
                 } else if let Some(id) = self.bind_2_1.take() {
                     self.edit2.text_prop().unbind(id);
