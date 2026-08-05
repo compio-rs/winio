@@ -6,6 +6,9 @@ use crate::{Error, Result};
 
 pub struct BindPage {
     window: Child<TabViewItem>,
+    label_edit1: Child<Label>,
+    label_edit2: Child<Label>,
+    label_label: Child<Label>,
     edit1: Child<Edit>,
     edit2: Child<Edit>,
     label: Child<Label>,
@@ -38,6 +41,18 @@ impl Component for BindPage {
             window: TabViewItem = (()) => {
                 text: "Bind",
             },
+            label_edit1: Label = (&window) => {
+                text: "Edit 1:",
+                halign: HAlign::Right,
+            },
+            label_edit2: Label = (&window) => {
+                text: "Edit 2:",
+                halign: HAlign::Right,
+            },
+            label_label: Label = (&window) => {
+                text: "Label:",
+                halign: HAlign::Right,
+            },
             edit1: Edit = (&window),
             edit2: Edit = (&window),
             label: Label = (&window),
@@ -64,6 +79,9 @@ impl Component for BindPage {
 
         Ok(Self {
             window,
+            label_edit1,
+            label_edit2,
+            label_label,
             edit1,
             edit2,
             label,
@@ -149,13 +167,16 @@ impl Component for BindPage {
         let csize = self.window.size()?;
         let margin = Margin::new_all_same(4.0);
         let mut grid = layout! {
-            Grid::from_str("1*,1*,auto,auto,1*", "1*,auto,auto,auto,1*").unwrap(),
-            self.edit1 => { margin: margin, column: 1, row: 1 },
-            self.edit2 => { margin: margin, column: 1, row: 2 },
-            self.label => { margin: margin, column: 1, row: 3 },
-            self.chk_1_2 => { margin: margin, column: 2, row: 2 },
-            self.chk_2_1 => { margin: margin, column: 3, row: 2 },
-            self.chk_1_label => { margin: margin, column: 2, row: 3 },
+            Grid::from_str("1*,auto,1*,auto,auto,1*", "1*,auto,auto,auto,1*").unwrap(),
+            self.label_edit1 => { margin: margin, column: 1, row: 1, valign: VAlign::Center },
+            self.label_edit2 => { margin: margin, column: 1, row: 2, valign: VAlign::Center },
+            self.label_label => { margin: margin, column: 1, row: 3, valign: VAlign::Center },
+            self.edit1 => { margin: margin, column: 2, row: 1 },
+            self.edit2 => { margin: margin, column: 2, row: 2 },
+            self.label => { margin: margin, column: 2, row: 3 },
+            self.chk_1_2 => { margin: margin, column: 3, row: 2 },
+            self.chk_2_1 => { margin: margin, column: 4, row: 2 },
+            self.chk_1_label => { margin: margin, column: 3, row: 3 },
         };
         grid.set_size(csize)?;
         Ok(())
