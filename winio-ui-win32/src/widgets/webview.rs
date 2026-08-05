@@ -1,5 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
+use compio_log::error;
 use cookie::Cookie;
 use futures_util::FutureExt;
 use webview2::{
@@ -289,6 +290,14 @@ impl WebView {
 impl AsWidget for WebView {
     fn as_widget(&self) -> BorrowedWidget<'_> {
         unimplemented!("cannot get HWND from WebView2")
+    }
+}
+
+impl Drop for WebView {
+    fn drop(&mut self) {
+        if let Err(e) = unsafe { self.host.Close() } {
+            error!("Failed to close WebView2: {:?}", e);
+        }
     }
 }
 

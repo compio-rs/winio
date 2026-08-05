@@ -214,7 +214,7 @@ winio_handle::impl_as_widget!(WebView, handle);
 impl Drop for WebView {
     fn drop(&mut self) {
         if let Err(e) = self.view.Close() {
-            error!("Failed to close WebView: {:?}", e);
+            error!("Failed to close WebView2: {:?}", e);
         }
     }
 }
