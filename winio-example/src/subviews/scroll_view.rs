@@ -137,7 +137,7 @@ impl Component for ScrollViewPage {
         let csize = self.window.size()?;
 
         let mut radios_panel = StackPanel::new(Orient::Vertical);
-        for radio in self.radios.items_mut() {
+        for radio in &mut self.radios[..] {
             radios_panel
                 .push(radio)
                 .margin(Margin::new_all_same(4.0))

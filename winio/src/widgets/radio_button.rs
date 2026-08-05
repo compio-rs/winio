@@ -1,3 +1,5 @@
+use std::ops::{Deref, DerefMut};
+
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Child, Component, ComponentSender, Prop, PropSource};
 use winio_handle::BorrowedContainer;
@@ -251,21 +253,10 @@ impl RadioButtonGroup {
         res
     }
 
-    /// Replaces the radio button at specified position, and returns the old
-    /// one.
-    pub fn replace(&mut self, i: usize, v: Child<RadioButton>) -> Child<RadioButton> {
-        std::mem::replace(&mut self.radios[i], v)
-    }
-
     /// Clears the group.
     pub fn clear(&mut self) {
         self.radios.clear();
         self.fix_selection();
-    }
-
-    /// Shrinks the capacity of the group as much as possible.
-    pub fn shrink_to_fit(&mut self) {
-        self.radios.shrink_to_fit();
     }
 
     /// Length of the group.
@@ -276,16 +267,6 @@ impl RadioButtonGroup {
     /// Checks if the group is empty.
     pub fn is_empty(&self) -> bool {
         self.radios.is_empty()
-    }
-
-    /// Gets the inner radio buttons.
-    pub fn items(&self) -> &[Child<RadioButton>] {
-        &self.radios
-    }
-
-    /// Gets the inner radio buttons mutably.
-    pub fn items_mut(&mut self) -> &mut [Child<RadioButton>] {
-        &mut self.radios
     }
 
     /// Gets the radio button at specified position.
@@ -378,5 +359,19 @@ impl Component for RadioButtonGroup {
                 Ok(false)
             }
         }
+    }
+}
+
+impl Deref for RadioButtonGroup {
+    type Target = [Child<RadioButton>];
+
+    fn deref(&self) -> &Self::Target {
+        &self.radios
+    }
+}
+
+impl DerefMut for RadioButtonGroup {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.radios
     }
 }

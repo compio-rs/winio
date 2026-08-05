@@ -313,7 +313,7 @@ impl Component for MiscPage {
 
             let mut rgroup_panel = Grid::from_str("auto", "1*,auto,auto,auto,1*").unwrap();
 
-            for (i, rb) in self.radios.items_mut().iter_mut().enumerate() {
+            for (i, rb) in self.radios.iter_mut().enumerate() {
                 rgroup_panel.push(rb).row(i + 1).finish();
             }
 
