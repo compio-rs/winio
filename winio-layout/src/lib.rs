@@ -12,6 +12,22 @@ use thiserror::Error;
 pub use winio_primitive::{Failable, HAlign, Layoutable, VAlign};
 use winio_primitive::{Margin, Point, Rect, Size};
 
+fn approx_eq(f1: f64, f2: f64) -> bool {
+    (f1 - f2).abs() < 1.0
+}
+
+fn approx_eq_point(p1: Point, p2: Point) -> bool {
+    approx_eq(p1.x, p2.x) && approx_eq(p1.y, p2.y)
+}
+
+fn approx_eq_size(s1: Size, s2: Size) -> bool {
+    approx_eq(s1.width, s2.width) && approx_eq(s1.height, s2.height)
+}
+
+fn approx_eq_rect(r1: Rect, r2: Rect) -> bool {
+    approx_eq_point(r1.origin, r2.origin) && approx_eq_size(r1.size, r2.size)
+}
+
 #[doc(hidden)]
 pub trait LayoutChild: Failable {
     fn child_preferred_size(&self) -> Result<Size, LayoutError<Self::Error>>;
@@ -39,15 +55,27 @@ impl<T: Layoutable> LayoutChild for T {
     }
 
     fn set_child_loc(&mut self, p: Point) -> Result<(), LayoutError<Self::Error>> {
-        self.set_loc(p).map_err(LayoutError::Child)
+        let old_p = self.loc().map_err(LayoutError::Child)?;
+        if !approx_eq_point(old_p, p) {
+            self.set_loc(p).map_err(LayoutError::Child)?;
+        }
+        Ok(())
     }
 
     fn set_child_size(&mut self, s: Size) -> Result<(), LayoutError<Self::Error>> {
-        self.set_size(s).map_err(LayoutError::Child)
+        let old_s = self.size().map_err(LayoutError::Child)?;
+        if !approx_eq_size(old_s, s) {
+            self.set_size(s).map_err(LayoutError::Child)?;
+        }
+        Ok(())
     }
 
     fn set_child_rect(&mut self, r: Rect) -> Result<(), LayoutError<Self::Error>> {
-        self.set_rect(r).map_err(LayoutError::Child)
+        let old_r = self.rect().map_err(LayoutError::Child)?;
+        if !approx_eq_rect(old_r, r) {
+            self.set_rect(r).map_err(LayoutError::Child)?;
+        }
+        Ok(())
     }
 }
 
