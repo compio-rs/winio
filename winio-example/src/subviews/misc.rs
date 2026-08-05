@@ -144,9 +144,9 @@ impl Component for MiscPage {
 
         sender.post(MiscPageMessage::RSelect(0));
 
-        pcheck
-            .checked_prop()
-            .bind_sink_map(pentry.password_prop(), |v| !v);
+        pcheck.checked_prop().bind(pentry.sender(), |checked| {
+            EditMessage::SetPassword(!checked)
+        });
 
         combo
             .selection_prop()

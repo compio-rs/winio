@@ -1,7 +1,9 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Child, Component, ComponentSender, PropSink, PropSinkEvent, start};
+use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Rect, Enable, Failable, Layoutable, Point, Size, TextWidget, ToolTip, Visible};
+use winio_primitive::{
+    Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
+};
 
 use crate::{
     sys,
@@ -12,11 +14,6 @@ use crate::{
 #[derive(Debug)]
 pub struct Button {
     widget: sys::Button,
-    text_prop: Child<PropSink<String>>,
-    enabled_prop: Child<PropSink<bool>>,
-    visible_prop: Child<PropSink<bool>>,
-    tooltip_prop: Child<PropSink<String>>,
-    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for Button {
@@ -27,86 +24,39 @@ impl Failable for Button {
 impl ToolTip for Button {
     fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.tooltip_prop.set(s.as_ref().to_owned());
-        Ok(())
-    }
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl TextWidget for Button {
     fn text(&self) -> Result<String>;
 
-    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.text_prop.set(s.as_ref().to_owned());
-        Ok(())
-    }
-}
-
-impl Button {
-    /// Property for [`TextWidget::text`].
-    pub fn text_prop(&self) -> &PropSink<String> {
-        &self.text_prop
-    }
-
-    /// Property for [`Enable::set_enabled`].
-    pub fn enabled_prop(&self) -> &PropSink<bool> {
-        &self.enabled_prop
-    }
-
-    /// Property for [`Visible::set_visible`].
-    pub fn visible_prop(&self) -> &PropSink<bool> {
-        &self.visible_prop
-    }
-
-    /// Property for [`ToolTip::set_tooltip`].
-    pub fn tooltip_prop(&self) -> &PropSink<String> {
-        &self.tooltip_prop
-    }
-
-    /// Property for [`Layoutable::rect`].
-    pub fn rect_prop(&self) -> &PropSink<Rect> {
-        &self.rect_prop
-    }
+    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Visible for Button {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()> {
-        self.visible_prop.set(v);
-        Ok(())
-    }
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for Button {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()> {
-        self.enabled_prop.set(v);
-        Ok(())
-    }
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for Button {
     fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(p, rect.size));
-        Ok(())
-    }
+    fn set_loc(&mut self, p: Point) -> Result<()>;
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, s: Size) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(rect.origin, s));
-        Ok(())
-    }
+    fn set_size(&mut self, s: Size) -> Result<()>;
 
     fn preferred_size(&self) -> Result<Size>;
 }
@@ -125,16 +75,16 @@ pub enum ButtonEvent {
 pub enum ButtonMessage {
     /// No operation.
     Noop,
-    /// The text has been changed.
-    ChangeText,
-    /// The enabled state has been changed.
-    ChangeEnabled,
-    /// The visible state has been changed.
-    ChangeVisible,
-    /// The tooltip has been changed.
-    ChangeTooltip,
-    /// The rect has been changed.
-    ChangeRect,
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the tooltip.
+    SetTooltip(String),
+    /// Set the text.
+    SetText(String),
 }
 
 impl Component for Button {
@@ -145,51 +95,14 @@ impl Component for Button {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Button::new(init)?;
-        let Ok(text_prop) = Child::<PropSink<String>>::init(String::new()).await;
-        let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
-        let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
-        let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
-        let loc = widget.loc()?;
-        let size = widget.size()?;
-        let rect = Rect::new(loc, size);
-        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
-        Ok(Self {
-            widget,
-            text_prop,
-            enabled_prop,
-            visible_prop,
-        rect_prop,
-            tooltip_prop,
-        })
+        Ok(Self { widget })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        let fut_click = async {
-            loop {
-                self.widget.wait_click().await;
-                sender.output(ButtonEvent::Click);
-            }
-        };
-        let fut_props = async {
-            start! {
-                sender, default: ButtonMessage::Noop,
-                self.text_prop => { PropSinkEvent::Changed => ButtonMessage::ChangeText },
-                self.enabled_prop => { PropSinkEvent::Changed => ButtonMessage::ChangeEnabled },
-                self.visible_prop => { PropSinkEvent::Changed => ButtonMessage::ChangeVisible },
-                self.tooltip_prop => { PropSinkEvent::Changed => ButtonMessage::ChangeTooltip },
-                self.rect_prop => { PropSinkEvent::Changed => ButtonMessage::ChangeRect },
-            }
-        };
-        futures_util::future::join(fut_click, fut_props).await.0
-    }
-
-    async fn update_children(&mut self) -> Result<bool> {
-        let Ok(r0) = self.text_prop.update().await;
-        let Ok(r1) = self.enabled_prop.update().await;
-        let Ok(r2) = self.visible_prop.update().await;
-        let Ok(r3) = self.tooltip_prop.update().await;
-        let Ok(r4) = self.rect_prop.update().await;
-        Ok(r0 || r1 || r2 || r3 || r4)
+        loop {
+            self.widget.wait_click().await;
+            sender.output(ButtonEvent::Click);
+        }
     }
 
     async fn update(
@@ -199,26 +112,24 @@ impl Component for Button {
     ) -> Result<bool> {
         match message {
             ButtonMessage::Noop => Ok(false),
-            ButtonMessage::ChangeText => {
-                self.widget.set_text(self.text_prop.get())?;
+            ButtonMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
                 Ok(true)
             }
-            ButtonMessage::ChangeEnabled => {
-                self.widget.set_enabled(**self.enabled_prop)?;
+            ButtonMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            ButtonMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
                 Ok(true)
             }
-            ButtonMessage::ChangeVisible => {
-                self.widget.set_visible(**self.visible_prop)?;
-                Ok(true)
+            ButtonMessage::SetTooltip(tooltip) => {
+                self.set_tooltip(tooltip)?;
+                Ok(false)
             }
-            ButtonMessage::ChangeTooltip => {
-                self.widget.set_tooltip(self.tooltip_prop.get())?;
-                Ok(true)
-            }
-            ButtonMessage::ChangeRect => {
-                let rect = *self.rect_prop.get();
-                self.widget.set_loc(rect.origin)?;
-                self.widget.set_size(rect.size)?;
+            ButtonMessage::SetText(text) => {
+                self.set_text(text)?;
                 Ok(true)
             }
         }

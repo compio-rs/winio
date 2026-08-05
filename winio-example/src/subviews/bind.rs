@@ -126,7 +126,10 @@ impl Component for BindPage {
             }
             BindPageMessage::Bind1ToLabel => {
                 if self.chk_1_label.is_checked()? && self.bind_1_label.is_none() {
-                    let id = self.edit1.text_prop().bind_sink(self.label.text_prop());
+                    let id = self
+                        .edit1
+                        .text_prop()
+                        .bind(self.label.sender(), LabelMessage::SetText);
                     self.bind_1_label = Some(id);
                 } else if let Some(id) = self.bind_1_label.take() {
                     self.edit1.text_prop().unbind(id);

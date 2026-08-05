@@ -1,27 +1,24 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{
-    Child, Component, ComponentSender, ObservableVecEvent, Prop, PropSink, PropSinkEvent,
-    PropSinkMessage, start,
+    Child, Component, ComponentSender, ObservableVecEvent, Prop, PropSinkEvent, PropSinkMessage,
+    start,
 };
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Rect, Enable, Failable, Layoutable, Point, Size, TextWidget, ToolTip, Visible};
+use winio_primitive::{
+    Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
+};
 
 use crate::{
     sys,
     sys::{Error, Result},
 };
 
-/// A simple combo box.
+/// A combo box.
 #[derive(Debug)]
 pub struct ComboBox {
     widget: sys::ComboBox,
     text_prop: Child<Prop<String>>,
     selection_prop: Child<Prop<Option<usize>>>,
-    editable_prop: Child<PropSink<bool>>,
-    enabled_prop: Child<PropSink<bool>>,
-    visible_prop: Child<PropSink<bool>>,
-    tooltip_prop: Child<PropSink<String>>,
-    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for ComboBox {
@@ -32,10 +29,7 @@ impl Failable for ComboBox {
 impl ToolTip for ComboBox {
     fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.tooltip_prop.set(s.as_ref().to_owned());
-        Ok(())
-    }
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -63,39 +57,36 @@ impl ComboBox {
     pub fn is_editable(&self) -> Result<bool>;
 
     /// Set if the combo box is editable.
-    pub fn set_editable(&mut self, v: bool) -> Result<()> {
-        self.editable_prop.set(v);
-        Ok(())
-    }
+    pub fn set_editable(&mut self, v: bool) -> Result<()>;
 
-    /// The length of list.
+    /// The length of the items.
     pub fn len(&self) -> Result<usize>;
 
-    /// If the list is empty.
+    /// If the items are empty.
     pub fn is_empty(&self) -> Result<bool>;
 
-    /// Clear the list.
+    /// Clear the items.
     pub fn clear(&mut self) -> Result<()>;
 
-    /// Get the item by index.
+    /// Get the item at the specified position.
     pub fn get(&self, i: usize) -> Result<String>;
 
-    /// Set the item by index.
+    /// Replace the item at the specified position.
     pub fn set(&mut self, i: usize, s: impl AsRef<str>) -> Result<()>;
 
-    /// Insert an item by index.
+    /// Insert a new item at the specified position.
     pub fn insert(&mut self, i: usize, s: impl AsRef<str>) -> Result<()>;
 
-    /// Remove the item by index.
+    /// Remove the item at the specified position.
     pub fn remove(&mut self, i: usize) -> Result<()>;
 
-    /// Push an item to the end of the list.
+    /// Push a new item to the end.
     pub fn push(&mut self, s: impl AsRef<str>) -> Result<()> {
         let len = self.len()?;
         self.insert(len, s)
     }
 
-    /// Clears all items, and appends the new items one by one.
+    /// Set all items.
     pub fn set_items<U: Into<String>>(&mut self, items: impl IntoIterator<Item = U>) -> Result<()> {
         self.clear()?;
         for it in items {
@@ -113,70 +104,31 @@ impl ComboBox {
     pub fn selection_prop(&mut self) -> &mut Prop<Option<usize>> {
         &mut self.selection_prop
     }
-
-    /// Property for [`ComboBox::is_editable`].
-    pub fn editable_prop(&self) -> &PropSink<bool> {
-        &self.editable_prop
-    }
-
-    /// Property for [`Enable::set_enabled`].
-    pub fn enabled_prop(&self) -> &PropSink<bool> {
-        &self.enabled_prop
-    }
-
-    /// Property for [`Visible::set_visible`].
-    pub fn visible_prop(&self) -> &PropSink<bool> {
-        &self.visible_prop
-    }
-
-    /// Property for [`ToolTip::set_tooltip`].
-    pub fn tooltip_prop(&self) -> &PropSink<String> {
-        &self.tooltip_prop
-    }
-
-    /// Property for [`Layoutable::rect`].
-    pub fn rect_prop(&self) -> &PropSink<Rect> {
-        &self.rect_prop
-    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Visible for ComboBox {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()> {
-        self.visible_prop.set(v);
-        Ok(())
-    }
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for ComboBox {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()> {
-        self.enabled_prop.set(v);
-        Ok(())
-    }
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for ComboBox {
     fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(p, rect.size));
-        Ok(())
-    }
+    fn set_loc(&mut self, p: Point) -> Result<()>;
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, s: Size) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(rect.origin, s));
-        Ok(())
-    }
+    fn set_size(&mut self, s: Size) -> Result<()>;
 
     fn preferred_size(&self) -> Result<Size>;
 }
@@ -226,16 +178,20 @@ pub enum ComboBoxMessage {
     ChangeInputText,
     /// The text prop has been changed.
     ChangePropText,
-    /// The editable state has been changed.
-    ChangeEditable,
-    /// The enabled state has been changed.
-    ChangeEnabled,
-    /// The visible state has been changed.
-    ChangeVisible,
-    /// The tooltip has been changed.
-    ChangeTooltip,
-    /// The rect has been changed.
-    ChangeRect,
+    /// Set the text.
+    SetText(String),
+    /// Set the selection.
+    SetSelection(Option<usize>),
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the editable state.
+    SetEditable(bool),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the tooltip.
+    SetTooltip(String),
 }
 
 impl ComboBoxMessage {
@@ -272,23 +228,10 @@ impl Component for ComboBox {
         let widget = sys::ComboBox::new(init)?;
         let Ok(text_prop) = Child::<Prop<String>>::init(String::new()).await;
         let Ok(selection_prop) = Child::<Prop<Option<usize>>>::init(None).await;
-        let Ok(editable_prop) = Child::<PropSink<bool>>::init(false).await;
-        let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
-        let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
-        let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
-        let loc = widget.loc()?;
-        let size = widget.size()?;
-        let rect = Rect::new(loc, size);
-        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
         Ok(Self {
             widget,
             text_prop,
             selection_prop,
-            editable_prop,
-            enabled_prop,
-            visible_prop,
-        rect_prop,
-            tooltip_prop,
         })
     }
 
@@ -310,11 +253,6 @@ impl Component for ComboBox {
                 sender, default: ComboBoxMessage::Noop,
                 self.selection_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangePropSelection },
                 self.text_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangePropText },
-                self.editable_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangeEditable },
-                self.enabled_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangeEnabled },
-                self.visible_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangeVisible },
-                self.tooltip_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangeTooltip },
-                self.rect_prop => { PropSinkEvent::Changed => ComboBoxMessage::ChangeRect },
             }
         };
         futures_util::future::join3(fut_select, fut_change, fut_props)
@@ -325,12 +263,7 @@ impl Component for ComboBox {
     async fn update_children(&mut self) -> Result<bool> {
         let Ok(r0) = self.text_prop.update().await;
         let Ok(r1) = self.selection_prop.update().await;
-        let Ok(r2) = self.editable_prop.update().await;
-        let Ok(r3) = self.enabled_prop.update().await;
-        let Ok(r4) = self.visible_prop.update().await;
-        let Ok(r5) = self.tooltip_prop.update().await;
-        let Ok(r6) = self.rect_prop.update().await;
-        Ok(r0 || r1 || r2 || r3 || r4 || r5 || r6)
+        Ok(r0 || r1)
     }
 
     async fn update(
@@ -385,27 +318,33 @@ impl Component for ComboBox {
                 }
                 Ok(true)
             }
-            ComboBoxMessage::ChangeEditable => {
-                self.widget.set_editable(**self.editable_prop)?;
+            ComboBoxMessage::SetText(text) => {
+                self.set_text(text)?;
                 Ok(true)
             }
-            ComboBoxMessage::ChangeEnabled => {
-                self.widget.set_enabled(**self.enabled_prop)?;
+            ComboBoxMessage::SetSelection(selection) => {
+                self.selection_prop.set(selection);
                 Ok(true)
             }
-            ComboBoxMessage::ChangeVisible => {
-                self.widget.set_visible(**self.visible_prop)?;
+            ComboBoxMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
                 Ok(true)
             }
-            ComboBoxMessage::ChangeTooltip => {
-                self.widget.set_tooltip(self.tooltip_prop.get())?;
+            ComboBoxMessage::SetEditable(editable) => {
+                self.set_editable(editable)?;
+                Ok(false)
+            }
+            ComboBoxMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            ComboBoxMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
                 Ok(true)
             }
-            ComboBoxMessage::ChangeRect => {
-                let rect = *self.rect_prop.get();
-                self.widget.set_loc(rect.origin)?;
-                self.widget.set_size(rect.size)?;
-                Ok(true)
+            ComboBoxMessage::SetTooltip(tooltip) => {
+                self.set_tooltip(tooltip)?;
+                Ok(false)
             }
         }
     }

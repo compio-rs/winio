@@ -1,10 +1,8 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{
-    Child, Component, ComponentSender, Prop, PropSink, PropSinkEvent, PropSinkMessage, start,
-};
+use winio_elm::{Child, Component, ComponentSender, Prop, PropSinkEvent, PropSinkMessage, start};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Rect, 
-    Enable, Failable, HAlign, Layoutable, Point, Size, TextWidget, ToolTip, Visible,
+use winio_primitive::{
+    Enable, Failable, HAlign, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
 };
 
 use crate::{
@@ -17,13 +15,6 @@ use crate::{
 pub struct Edit {
     widget: sys::Edit,
     text_prop: Child<Prop<String>>,
-    password_prop: Child<PropSink<bool>>,
-    halign_prop: Child<PropSink<HAlign>>,
-    readonly_prop: Child<PropSink<bool>>,
-    enabled_prop: Child<PropSink<bool>>,
-    visible_prop: Child<PropSink<bool>>,
-    tooltip_prop: Child<PropSink<String>>,
-    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for Edit {
@@ -34,10 +25,7 @@ impl Failable for Edit {
 impl ToolTip for Edit {
     fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.tooltip_prop.set(s.as_ref().to_owned());
-        Ok(())
-    }
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -56,19 +44,13 @@ impl Edit {
     pub fn is_password(&self) -> Result<bool>;
 
     /// Set if the text input is password.
-    pub fn set_password(&mut self, v: bool) -> Result<()> {
-        self.password_prop.set(v);
-        Ok(())
-    }
+    pub fn set_password(&mut self, v: bool) -> Result<()>;
 
     /// The horizontal alignment.
     pub fn halign(&self) -> Result<HAlign>;
 
     /// Set the horizontal alignment.
-    pub fn set_halign(&mut self, align: HAlign) -> Result<()> {
-        self.halign_prop.set(align);
-        Ok(())
-    }
+    pub fn set_halign(&mut self, align: HAlign) -> Result<()>;
 
     /// If the text input is read-only.
     /// A password edit cannot be read-only.
@@ -76,49 +58,11 @@ impl Edit {
 
     /// Set if the text input is read-only.
     /// A password edit cannot be read-only.
-    pub fn set_readonly(&mut self, v: bool) -> Result<()> {
-        self.readonly_prop.set(v);
-        Ok(())
-    }
+    pub fn set_readonly(&mut self, v: bool) -> Result<()>;
 
     /// Property for [`TextWidget::text`].
     pub fn text_prop(&mut self) -> &mut Prop<String> {
         &mut self.text_prop
-    }
-
-    /// Property for [`Edit::is_password`].
-    pub fn password_prop(&self) -> &PropSink<bool> {
-        &self.password_prop
-    }
-
-    /// Property for [`Edit::halign`].
-    pub fn halign_prop(&self) -> &PropSink<HAlign> {
-        &self.halign_prop
-    }
-
-    /// Property for [`Edit::is_readonly`].
-    pub fn readonly_prop(&self) -> &PropSink<bool> {
-        &self.readonly_prop
-    }
-
-    /// Property for [`Enable::set_enabled`].
-    pub fn enabled_prop(&self) -> &PropSink<bool> {
-        &self.enabled_prop
-    }
-
-    /// Property for [`Visible::set_visible`].
-    pub fn visible_prop(&self) -> &PropSink<bool> {
-        &self.visible_prop
-    }
-
-    /// Property for [`ToolTip::set_tooltip`].
-    pub fn tooltip_prop(&self) -> &PropSink<String> {
-        &self.tooltip_prop
-    }
-
-    /// Property for [`Layoutable::rect`].
-    pub fn rect_prop(&self) -> &PropSink<Rect> {
-        &self.rect_prop
     }
 }
 
@@ -126,39 +70,25 @@ impl Edit {
 impl Visible for Edit {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()> {
-        self.visible_prop.set(v);
-        Ok(())
-    }
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for Edit {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()> {
-        self.enabled_prop.set(v);
-        Ok(())
-    }
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for Edit {
     fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(p, rect.size));
-        Ok(())
-    }
+    fn set_loc(&mut self, p: Point) -> Result<()>;
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, s: Size) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(rect.origin, s));
-        Ok(())
-    }
+    fn set_size(&mut self, s: Size) -> Result<()>;
 
     fn preferred_size(&self) -> Result<Size>;
 }
@@ -181,20 +111,22 @@ pub enum EditMessage {
     ChangeInput,
     /// The text property has been changed.
     ChangeProp,
-    /// The password state has been changed.
-    ChangePassword,
-    /// The halign has been changed.
-    ChangeHalign,
-    /// The readonly state has been changed.
-    ChangeReadonly,
-    /// The enabled state has been changed.
-    ChangeEnabled,
-    /// The visible state has been changed.
-    ChangeVisible,
-    /// The tooltip has been changed.
-    ChangeTooltip,
-    /// The rect has been changed.
-    ChangeRect,
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the tooltip.
+    SetTooltip(String),
+    /// Set the text.
+    SetText(String),
+    /// Set the password state.
+    SetPassword(bool),
+    /// Set the halign.
+    SetHAlign(HAlign),
+    /// Set the readonly state.
+    SetReadonly(bool),
 }
 
 impl Component for Edit {
@@ -206,27 +138,7 @@ impl Component for Edit {
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Edit::new(init)?;
         let Ok(text_prop) = Child::<Prop<String>>::init(String::new()).await;
-        let Ok(password_prop) = Child::<PropSink<bool>>::init(false).await;
-        let Ok(halign_prop) = Child::<PropSink<HAlign>>::init(HAlign::Left).await;
-        let Ok(readonly_prop) = Child::<PropSink<bool>>::init(false).await;
-        let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
-        let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
-        let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
-        let loc = widget.loc()?;
-        let size = widget.size()?;
-        let rect = Rect::new(loc, size);
-        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
-        Ok(Self {
-            widget,
-            text_prop,
-            password_prop,
-            halign_prop,
-            readonly_prop,
-            enabled_prop,
-            visible_prop,
-        rect_prop,
-            tooltip_prop,
-        })
+        Ok(Self { widget, text_prop })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -240,13 +152,6 @@ impl Component for Edit {
             start! {
                 sender, default: EditMessage::Noop,
                 self.text_prop => { PropSinkEvent::Changed => EditMessage::ChangeProp },
-                self.password_prop => { PropSinkEvent::Changed => EditMessage::ChangePassword },
-                self.halign_prop => { PropSinkEvent::Changed => EditMessage::ChangeHalign },
-                self.readonly_prop => { PropSinkEvent::Changed => EditMessage::ChangeReadonly },
-                self.enabled_prop => { PropSinkEvent::Changed => EditMessage::ChangeEnabled },
-                self.visible_prop => { PropSinkEvent::Changed => EditMessage::ChangeVisible },
-                self.tooltip_prop => { PropSinkEvent::Changed => EditMessage::ChangeTooltip },
-                self.rect_prop => { PropSinkEvent::Changed => EditMessage::ChangeRect },
             }
         };
         futures_util::future::join(fut_listen, fut_start).await.0
@@ -254,14 +159,7 @@ impl Component for Edit {
 
     async fn update_children(&mut self) -> Result<bool> {
         let Ok(r0) = self.text_prop.update().await;
-        let Ok(r1) = self.password_prop.update().await;
-        let Ok(r2) = self.halign_prop.update().await;
-        let Ok(r3) = self.readonly_prop.update().await;
-        let Ok(r4) = self.enabled_prop.update().await;
-        let Ok(r5) = self.visible_prop.update().await;
-        let Ok(r6) = self.tooltip_prop.update().await;
-        let Ok(r7) = self.rect_prop.update().await;
-        Ok(r0 || r1 || r2 || r3 || r4 || r5 || r6 || r7)
+        Ok(r0)
     }
 
     async fn update(
@@ -284,35 +182,37 @@ impl Component for Edit {
                 }
                 Ok(true)
             }
-            EditMessage::ChangePassword => {
-                self.widget.set_password(**self.password_prop)?;
+            EditMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
                 Ok(true)
             }
-            EditMessage::ChangeHalign => {
-                self.widget.set_halign(*self.halign_prop.get())?;
+            EditMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            EditMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
                 Ok(true)
             }
-            EditMessage::ChangeReadonly => {
-                self.widget.set_readonly(**self.readonly_prop)?;
+            EditMessage::SetTooltip(tooltip) => {
+                self.set_tooltip(tooltip)?;
+                Ok(false)
+            }
+            EditMessage::SetText(text) => {
+                self.set_text(text)?;
                 Ok(true)
             }
-            EditMessage::ChangeEnabled => {
-                self.widget.set_enabled(**self.enabled_prop)?;
+            EditMessage::SetPassword(password) => {
+                self.set_password(password)?;
                 Ok(true)
             }
-            EditMessage::ChangeVisible => {
-                self.widget.set_visible(**self.visible_prop)?;
-                Ok(true)
+            EditMessage::SetHAlign(halign) => {
+                self.set_halign(halign)?;
+                Ok(false)
             }
-            EditMessage::ChangeTooltip => {
-                self.widget.set_tooltip(self.tooltip_prop.get())?;
-                Ok(true)
-            }
-            EditMessage::ChangeRect => {
-                let rect = *self.rect_prop.get();
-                self.widget.set_loc(rect.origin)?;
-                self.widget.set_size(rect.size)?;
-                Ok(true)
+            EditMessage::SetReadonly(readonly) => {
+                self.set_readonly(readonly)?;
+                Ok(false)
             }
         }
     }

@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Child, Component, ComponentSender, PropSink, PropSinkEvent, start};
+use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Rect, Enable, Failable, Layoutable, Point, Size, Visible};
+use winio_primitive::{Enable, Failable, Layoutable, Point, Rect, Size, Visible};
 
 use crate::{
     sys,
@@ -13,11 +13,6 @@ use crate::{
 #[derive(Debug)]
 pub struct ScrollView {
     widget: sys::ScrollView,
-    hscroll_prop: Child<PropSink<bool>>,
-    vscroll_prop: Child<PropSink<bool>>,
-    visible_prop: Child<PropSink<bool>>,
-    enabled_prop: Child<PropSink<bool>>,
-    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for ScrollView {
@@ -30,83 +25,38 @@ impl ScrollView {
     pub fn hscroll(&self) -> Result<bool>;
 
     /// Set if the horizontal scroll bar is visible.
-    pub fn set_hscroll(&mut self, v: bool) -> Result<()> {
-        self.hscroll_prop.set(v);
-        Ok(())
-    }
+    pub fn set_hscroll(&mut self, v: bool) -> Result<()>;
 
     /// Get if the vertical scroll bar is visible.
     pub fn vscroll(&self) -> Result<bool>;
 
     /// Set if the vertical scroll bar is visible.
-    pub fn set_vscroll(&mut self, v: bool) -> Result<()> {
-        self.vscroll_prop.set(v);
-        Ok(())
-    }
-
-    /// Property for [`ScrollView::hscroll`].
-    pub fn hscroll_prop(&self) -> &PropSink<bool> {
-        &self.hscroll_prop
-    }
-
-    /// Property for [`ScrollView::vscroll`].
-    pub fn vscroll_prop(&self) -> &PropSink<bool> {
-        &self.vscroll_prop
-    }
-
-    /// Property for [`Visible::set_visible`].
-    pub fn visible_prop(&self) -> &PropSink<bool> {
-        &self.visible_prop
-    }
-
-    /// Property for [`Enable::set_enabled`].
-    pub fn enabled_prop(&self) -> &PropSink<bool> {
-        &self.enabled_prop
-    }
-
-    /// Property for [`Layoutable::rect`].
-    pub fn rect_prop(&self) -> &PropSink<Rect> {
-        &self.rect_prop
-    }
+    pub fn set_vscroll(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Visible for ScrollView {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()> {
-        self.visible_prop.set(v);
-        Ok(())
-    }
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for ScrollView {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()> {
-        self.enabled_prop.set(v);
-        Ok(())
-    }
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for ScrollView {
     fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(p, rect.size));
-        Ok(())
-    }
+    fn set_loc(&mut self, p: Point) -> Result<()>;
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, s: Size) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(rect.origin, s));
-        Ok(())
-    }
+    fn set_size(&mut self, s: Size) -> Result<()>;
 }
 
 /// Events of [`ScrollView`].
@@ -120,16 +70,16 @@ pub enum ScrollViewEvent {}
 pub enum ScrollViewMessage {
     /// No operation.
     Noop,
-    /// The horizontal scroll visibility has been changed.
-    ChangeHscroll,
-    /// The vertical scroll visibility has been changed.
-    ChangeVscroll,
-    /// The visible state has been changed.
-    ChangeVisible,
-    /// The enabled state has been changed.
-    ChangeEnabled,
-    /// The rect has been changed.
-    ChangeRect,
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the horizontal scroll bar visibility.
+    SetHScroll(bool),
+    /// Set the vertical scroll bar visibility.
+    SetVScroll(bool),
 }
 
 impl Component for ScrollView {
@@ -140,46 +90,11 @@ impl Component for ScrollView {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::ScrollView::new(init)?;
-        let Ok(hscroll_prop) = Child::<PropSink<bool>>::init(widget.hscroll()?).await;
-        let Ok(vscroll_prop) = Child::<PropSink<bool>>::init(widget.vscroll()?).await;
-        let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
-        let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
-        let loc = widget.loc()?;
-        let size = widget.size()?;
-        let rect = Rect::new(loc, size);
-        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
-        Ok(Self {
-            widget,
-            hscroll_prop,
-            vscroll_prop,
-            visible_prop,
-        rect_prop,
-            enabled_prop,
-        })
+        Ok(Self { widget })
     }
 
-    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        let fut_native = self.widget.start();
-        let fut_props = async {
-            start! {
-                sender, default: ScrollViewMessage::Noop,
-                self.hscroll_prop => { PropSinkEvent::Changed => ScrollViewMessage::ChangeHscroll },
-                self.vscroll_prop => { PropSinkEvent::Changed => ScrollViewMessage::ChangeVscroll },
-                self.visible_prop => { PropSinkEvent::Changed => ScrollViewMessage::ChangeVisible },
-                self.enabled_prop => { PropSinkEvent::Changed => ScrollViewMessage::ChangeEnabled },
-                self.rect_prop => { PropSinkEvent::Changed => ScrollViewMessage::ChangeRect },
-            }
-        };
-        futures_util::future::join(fut_native, fut_props).await.0
-    }
-
-    async fn update_children(&mut self) -> Result<bool> {
-        let Ok(r0) = self.hscroll_prop.update().await;
-        let Ok(r1) = self.vscroll_prop.update().await;
-        let Ok(r2) = self.visible_prop.update().await;
-        let Ok(r3) = self.enabled_prop.update().await;
-        let Ok(r4) = self.rect_prop.update().await;
-        Ok(r0 || r1 || r2 || r3 || r4)
+    async fn start(&mut self, _sender: &ComponentSender<Self>) -> ! {
+        self.widget.start().await
     }
 
     async fn update(
@@ -189,26 +104,24 @@ impl Component for ScrollView {
     ) -> Result<bool> {
         match message {
             ScrollViewMessage::Noop => Ok(false),
-            ScrollViewMessage::ChangeHscroll => {
-                self.widget.set_hscroll(**self.hscroll_prop)?;
+            ScrollViewMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
                 Ok(true)
             }
-            ScrollViewMessage::ChangeVscroll => {
-                self.widget.set_vscroll(**self.vscroll_prop)?;
+            ScrollViewMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            ScrollViewMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
                 Ok(true)
             }
-            ScrollViewMessage::ChangeVisible => {
-                self.widget.set_visible(**self.visible_prop)?;
+            ScrollViewMessage::SetHScroll(hscroll) => {
+                self.set_hscroll(hscroll)?;
                 Ok(true)
             }
-            ScrollViewMessage::ChangeEnabled => {
-                self.widget.set_enabled(**self.enabled_prop)?;
-                Ok(true)
-            }
-            ScrollViewMessage::ChangeRect => {
-                let rect = *self.rect_prop.get();
-                self.widget.set_loc(rect.origin)?;
-                self.widget.set_size(rect.size)?;
+            ScrollViewMessage::SetVScroll(vscroll) => {
+                self.set_vscroll(vscroll)?;
                 Ok(true)
             }
         }

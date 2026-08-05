@@ -1,9 +1,7 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{
-    Child, Component, ComponentSender, ObservableVecEvent, PropSink, PropSinkEvent, start,
-};
+use winio_elm::{Component, ComponentSender, ObservableVecEvent};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Rect, Enable, Failable, Layoutable, Point, Size, ToolTip, Visible};
+use winio_primitive::{Enable, Failable, Layoutable, Point, Rect, Size, ToolTip, Visible};
 
 use crate::{
     sys,
@@ -14,11 +12,6 @@ use crate::{
 #[derive(Debug)]
 pub struct ListBox {
     widget: sys::ListBox,
-    multiple_prop: Child<PropSink<bool>>,
-    enabled_prop: Child<PropSink<bool>>,
-    visible_prop: Child<PropSink<bool>>,
-    tooltip_prop: Child<PropSink<String>>,
-    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for ListBox {
@@ -29,10 +22,7 @@ impl Failable for ListBox {
 impl ToolTip for ListBox {
     fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.tooltip_prop.set(s.as_ref().to_owned());
-        Ok(())
-    }
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -41,10 +31,7 @@ impl ListBox {
     pub fn is_multiple(&self) -> Result<bool>;
 
     /// Set if the list box allows multiple selection.
-    pub fn set_multiple(&mut self, v: bool) -> Result<()> {
-        self.multiple_prop.set(v);
-        Ok(())
-    }
+    pub fn set_multiple(&mut self, v: bool) -> Result<()>;
 
     /// Get the selected state by index.
     pub fn is_selected(&self, i: usize) -> Result<bool>;
@@ -87,70 +74,31 @@ impl ListBox {
         }
         Ok(())
     }
-
-    /// Property for [`ListBox::is_multiple`].
-    pub fn multiple_prop(&self) -> &PropSink<bool> {
-        &self.multiple_prop
-    }
-
-    /// Property for [`Enable::set_enabled`].
-    pub fn enabled_prop(&self) -> &PropSink<bool> {
-        &self.enabled_prop
-    }
-
-    /// Property for [`Visible::set_visible`].
-    pub fn visible_prop(&self) -> &PropSink<bool> {
-        &self.visible_prop
-    }
-
-    /// Property for [`ToolTip::set_tooltip`].
-    pub fn tooltip_prop(&self) -> &PropSink<String> {
-        &self.tooltip_prop
-    }
-
-    /// Property for [`Layoutable::rect`].
-    pub fn rect_prop(&self) -> &PropSink<Rect> {
-        &self.rect_prop
-    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Visible for ListBox {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()> {
-        self.visible_prop.set(v);
-        Ok(())
-    }
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for ListBox {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()> {
-        self.enabled_prop.set(v);
-        Ok(())
-    }
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for ListBox {
     fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(p, rect.size));
-        Ok(())
-    }
+    fn set_loc(&mut self, p: Point) -> Result<()>;
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, s: Size) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(rect.origin, s));
-        Ok(())
-    }
+    fn set_size(&mut self, s: Size) -> Result<()>;
 
     fn preferred_size(&self) -> Result<Size>;
 
@@ -192,16 +140,16 @@ pub enum ListBoxMessage {
     },
     /// The vector has been cleared.
     Clear,
-    /// The multiple selection state has been changed.
-    ChangeMultiple,
-    /// The enabled state has been changed.
-    ChangeEnabled,
-    /// The visible state has been changed.
-    ChangeVisible,
-    /// The tooltip has been changed.
-    ChangeTooltip,
-    /// The rect has been changed.
-    ChangeRect,
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the tooltip.
+    SetTooltip(String),
+    /// Set the multiple selection state.
+    SetMultiple(bool),
 }
 
 impl ListBoxMessage {
@@ -236,51 +184,14 @@ impl Component for ListBox {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::ListBox::new(init)?;
-        let Ok(multiple_prop) = Child::<PropSink<bool>>::init(false).await;
-        let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
-        let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
-        let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
-        let loc = widget.loc()?;
-        let size = widget.size()?;
-        let rect = Rect::new(loc, size);
-        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
-        Ok(Self {
-            widget,
-            multiple_prop,
-            enabled_prop,
-            visible_prop,
-        rect_prop,
-            tooltip_prop,
-        })
+        Ok(Self { widget })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        let fut_select = async {
-            loop {
-                self.widget.wait_select().await;
-                sender.output(ListBoxEvent::Select);
-            }
-        };
-        let fut_props = async {
-            start! {
-                sender, default: ListBoxMessage::Noop,
-                self.multiple_prop => { PropSinkEvent::Changed => ListBoxMessage::ChangeMultiple },
-                self.enabled_prop => { PropSinkEvent::Changed => ListBoxMessage::ChangeEnabled },
-                self.visible_prop => { PropSinkEvent::Changed => ListBoxMessage::ChangeVisible },
-                self.tooltip_prop => { PropSinkEvent::Changed => ListBoxMessage::ChangeTooltip },
-                self.rect_prop => { PropSinkEvent::Changed => ListBoxMessage::ChangeRect },
-            }
-        };
-        futures_util::future::join(fut_select, fut_props).await.0
-    }
-
-    async fn update_children(&mut self) -> Result<bool> {
-        let Ok(r0) = self.multiple_prop.update().await;
-        let Ok(r1) = self.enabled_prop.update().await;
-        let Ok(r2) = self.visible_prop.update().await;
-        let Ok(r3) = self.tooltip_prop.update().await;
-        let Ok(r4) = self.rect_prop.update().await;
-        Ok(r0 || r1 || r2 || r3 || r4)
+        loop {
+            self.widget.wait_select().await;
+            sender.output(ListBoxEvent::Select);
+        }
     }
 
     async fn update(
@@ -306,26 +217,24 @@ impl Component for ListBox {
                 self.clear()?;
                 Ok(true)
             }
-            ListBoxMessage::ChangeMultiple => {
-                self.widget.set_multiple(**self.multiple_prop)?;
+            ListBoxMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
                 Ok(true)
             }
-            ListBoxMessage::ChangeEnabled => {
-                self.widget.set_enabled(**self.enabled_prop)?;
+            ListBoxMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            ListBoxMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
                 Ok(true)
             }
-            ListBoxMessage::ChangeVisible => {
-                self.widget.set_visible(**self.visible_prop)?;
-                Ok(true)
+            ListBoxMessage::SetTooltip(tooltip) => {
+                self.set_tooltip(tooltip)?;
+                Ok(false)
             }
-            ListBoxMessage::ChangeTooltip => {
-                self.widget.set_tooltip(self.tooltip_prop.get())?;
-                Ok(true)
-            }
-            ListBoxMessage::ChangeRect => {
-                let rect = *self.rect_prop.get();
-                self.widget.set_loc(rect.origin)?;
-                self.widget.set_size(rect.size)?;
+            ListBoxMessage::SetMultiple(multiple) => {
+                self.set_multiple(multiple)?;
                 Ok(true)
             }
         }

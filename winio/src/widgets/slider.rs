@@ -1,10 +1,8 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{
-    Child, Component, ComponentSender, Prop, PropSink, PropSinkEvent, PropSinkMessage, start,
-};
+use winio_elm::{Child, Component, ComponentSender, Prop, PropSinkEvent, PropSinkMessage, start};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Rect, 
-    Enable, Failable, Layoutable, Orient, Point, Size, TickPosition, ToolTip, Visible,
+use winio_primitive::{
+    Enable, Failable, Layoutable, Orient, Point, Rect, Size, TickPosition, ToolTip, Visible,
 };
 
 use crate::{
@@ -12,20 +10,11 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A simple button.
+/// A slider.
 #[derive(Debug)]
 pub struct Slider {
     widget: sys::Slider,
     pos_prop: Child<Prop<usize>>,
-    minimum_prop: Child<PropSink<usize>>,
-    maximum_prop: Child<PropSink<usize>>,
-    freq_prop: Child<PropSink<usize>>,
-    tick_pos_prop: Child<PropSink<TickPosition>>,
-    orient_prop: Child<PropSink<Orient>>,
-    enabled_prop: Child<PropSink<bool>>,
-    visible_prop: Child<PropSink<bool>>,
-    tooltip_prop: Child<PropSink<String>>,
-    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for Slider {
@@ -36,10 +25,7 @@ impl Failable for Slider {
 impl ToolTip for Slider {
     fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.tooltip_prop.set(s.as_ref().to_owned());
-        Ok(())
-    }
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -48,46 +34,31 @@ impl Slider {
     pub fn tick_pos(&self) -> Result<TickPosition>;
 
     /// Set the tick position.
-    pub fn set_tick_pos(&mut self, v: TickPosition) -> Result<()> {
-        self.tick_pos_prop.set(v);
-        Ok(())
-    }
+    pub fn set_tick_pos(&mut self, v: TickPosition) -> Result<()>;
 
     /// The orientation.
     pub fn orient(&self) -> Result<Orient>;
 
     /// Set the orientation.
-    pub fn set_orient(&mut self, v: Orient) -> Result<()> {
-        self.orient_prop.set(v);
-        Ok(())
-    }
+    pub fn set_orient(&mut self, v: Orient) -> Result<()>;
 
     /// Value minimum.
     pub fn minimum(&self) -> Result<usize>;
 
     /// Set value minimum.
-    pub fn set_minimum(&mut self, v: usize) -> Result<()> {
-        self.minimum_prop.set(v);
-        Ok(())
-    }
+    pub fn set_minimum(&mut self, v: usize) -> Result<()>;
 
     /// Value maximum.
     pub fn maximum(&self) -> Result<usize>;
 
     /// Set value maximum.
-    pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        self.maximum_prop.set(v);
-        Ok(())
-    }
+    pub fn set_maximum(&mut self, v: usize) -> Result<()>;
 
     /// The tick frequency.
     pub fn freq(&self) -> Result<usize>;
 
     /// Set the tick frequency.
-    pub fn set_freq(&mut self, v: usize) -> Result<()> {
-        self.freq_prop.set(v);
-        Ok(())
-    }
+    pub fn set_freq(&mut self, v: usize) -> Result<()>;
 
     /// The position.
     pub fn pos(&self) -> Result<usize>;
@@ -102,90 +73,31 @@ impl Slider {
     pub fn pos_prop(&mut self) -> &mut Prop<usize> {
         &mut self.pos_prop
     }
-
-    /// Property for [`Slider::minimum`].
-    pub fn minimum_prop(&self) -> &PropSink<usize> {
-        &self.minimum_prop
-    }
-
-    /// Property for [`Slider::maximum`].
-    pub fn maximum_prop(&self) -> &PropSink<usize> {
-        &self.maximum_prop
-    }
-
-    /// Property for [`Slider::freq`].
-    pub fn freq_prop(&self) -> &PropSink<usize> {
-        &self.freq_prop
-    }
-
-    /// Property for [`Slider::tick_pos`].
-    pub fn tick_pos_prop(&self) -> &PropSink<TickPosition> {
-        &self.tick_pos_prop
-    }
-
-    /// Property for [`Slider::orient`].
-    pub fn orient_prop(&self) -> &PropSink<Orient> {
-        &self.orient_prop
-    }
-
-    /// Property for [`Enable::set_enabled`].
-    pub fn enabled_prop(&self) -> &PropSink<bool> {
-        &self.enabled_prop
-    }
-
-    /// Property for [`Visible::set_visible`].
-    pub fn visible_prop(&self) -> &PropSink<bool> {
-        &self.visible_prop
-    }
-
-    /// Property for [`ToolTip::set_tooltip`].
-    pub fn tooltip_prop(&self) -> &PropSink<String> {
-        &self.tooltip_prop
-    }
-
-    /// Property for [`Layoutable::rect`].
-    pub fn rect_prop(&self) -> &PropSink<Rect> {
-        &self.rect_prop
-    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Visible for Slider {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()> {
-        self.visible_prop.set(v);
-        Ok(())
-    }
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for Slider {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()> {
-        self.enabled_prop.set(v);
-        Ok(())
-    }
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for Slider {
     fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(p, rect.size));
-        Ok(())
-    }
+    fn set_loc(&mut self, p: Point) -> Result<()>;
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, s: Size) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(rect.origin, s));
-        Ok(())
-    }
+    fn set_size(&mut self, s: Size) -> Result<()>;
 
     fn preferred_size(&self) -> Result<Size>;
 }
@@ -194,7 +106,7 @@ impl Layoutable for Slider {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum SliderEvent {
-    /// The position of slider has changed.
+    /// The position has been changed.
     Change,
 }
 
@@ -204,28 +116,30 @@ pub enum SliderEvent {
 pub enum SliderMessage {
     /// No operation.
     Noop,
-    /// The position has been changed by user drag.
+    /// The position has been changed by user input.
     ChangeInputPos,
     /// The position prop has been changed.
     ChangePropPos,
-    /// The minimum has been changed.
-    ChangeMinimum,
-    /// The maximum has been changed.
-    ChangeMaximum,
-    /// The freq has been changed.
-    ChangeFreq,
-    /// The tick position has been changed.
-    ChangeTickPos,
-    /// The orientation has been changed.
-    ChangeOrient,
-    /// The enabled state has been changed.
-    ChangeEnabled,
-    /// The visible state has been changed.
-    ChangeVisible,
-    /// The tooltip has been changed.
-    ChangeTooltip,
-    /// The rect has been changed.
-    ChangeRect,
+    /// Set the position.
+    SetPos(usize),
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the minimum.
+    SetMinimum(usize),
+    /// Set the maximum.
+    SetMaximum(usize),
+    /// Set the tick frequency.
+    SetFreq(usize),
+    /// Set the tick position.
+    SetTickPos(TickPosition),
+    /// Set the orientation.
+    SetOrient(Orient),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the tooltip.
+    SetTooltip(String),
 }
 
 impl Component for Slider {
@@ -237,31 +151,7 @@ impl Component for Slider {
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Slider::new(init)?;
         let Ok(pos_prop) = Child::<Prop<usize>>::init(widget.pos()?).await;
-        let Ok(minimum_prop) = Child::<PropSink<usize>>::init(widget.minimum()?).await;
-        let Ok(maximum_prop) = Child::<PropSink<usize>>::init(widget.maximum()?).await;
-        let Ok(freq_prop) = Child::<PropSink<usize>>::init(widget.freq()?).await;
-        let Ok(tick_pos_prop) = Child::<PropSink<TickPosition>>::init(TickPosition::None).await;
-        let Ok(orient_prop) = Child::<PropSink<Orient>>::init(widget.orient()?).await;
-        let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
-        let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
-        let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
-        let loc = widget.loc()?;
-        let size = widget.size()?;
-        let rect = Rect::new(loc, size);
-        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
-        Ok(Self {
-            widget,
-            pos_prop,
-            minimum_prop,
-            maximum_prop,
-            freq_prop,
-            tick_pos_prop,
-            orient_prop,
-            enabled_prop,
-            visible_prop,
-        rect_prop,
-            tooltip_prop,
-        })
+        Ok(Self { widget, pos_prop })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -275,15 +165,6 @@ impl Component for Slider {
             start! {
                 sender, default: SliderMessage::Noop,
                 self.pos_prop => { PropSinkEvent::Changed => SliderMessage::ChangePropPos },
-                self.minimum_prop => { PropSinkEvent::Changed => SliderMessage::ChangeMinimum },
-                self.maximum_prop => { PropSinkEvent::Changed => SliderMessage::ChangeMaximum },
-                self.freq_prop => { PropSinkEvent::Changed => SliderMessage::ChangeFreq },
-                self.tick_pos_prop => { PropSinkEvent::Changed => SliderMessage::ChangeTickPos },
-                self.orient_prop => { PropSinkEvent::Changed => SliderMessage::ChangeOrient },
-                self.enabled_prop => { PropSinkEvent::Changed => SliderMessage::ChangeEnabled },
-                self.visible_prop => { PropSinkEvent::Changed => SliderMessage::ChangeVisible },
-                self.tooltip_prop => { PropSinkEvent::Changed => SliderMessage::ChangeTooltip },
-                self.rect_prop => { PropSinkEvent::Changed => SliderMessage::ChangeRect },
             }
         };
         futures_util::future::join(fut_change, fut_props).await.0
@@ -291,16 +172,7 @@ impl Component for Slider {
 
     async fn update_children(&mut self) -> Result<bool> {
         let Ok(r0) = self.pos_prop.update().await;
-        let Ok(r1) = self.minimum_prop.update().await;
-        let Ok(r2) = self.maximum_prop.update().await;
-        let Ok(r3) = self.freq_prop.update().await;
-        let Ok(r4) = self.tick_pos_prop.update().await;
-        let Ok(r5) = self.orient_prop.update().await;
-        let Ok(r6) = self.enabled_prop.update().await;
-        let Ok(r7) = self.visible_prop.update().await;
-        let Ok(r8) = self.tooltip_prop.update().await;
-        let Ok(r9) = self.rect_prop.update().await;
-        Ok(r0 || r1 || r2 || r3 || r4 || r5 || r6 || r7 || r8 || r9)
+        Ok(r0)
     }
 
     async fn update(
@@ -324,43 +196,45 @@ impl Component for Slider {
                 }
                 Ok(true)
             }
-            SliderMessage::ChangeMinimum => {
-                self.widget.set_minimum(**self.minimum_prop)?;
+            SliderMessage::SetPos(pos) => {
+                self.pos_prop.set(pos);
                 Ok(true)
             }
-            SliderMessage::ChangeMaximum => {
-                self.widget.set_maximum(**self.maximum_prop)?;
+            SliderMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
                 Ok(true)
             }
-            SliderMessage::ChangeFreq => {
-                self.widget.set_freq(**self.freq_prop)?;
+            SliderMessage::SetMinimum(minimum) => {
+                self.set_minimum(minimum)?;
+                Ok(false)
+            }
+            SliderMessage::SetMaximum(maximum) => {
+                self.set_maximum(maximum)?;
+                Ok(false)
+            }
+            SliderMessage::SetFreq(freq) => {
+                self.set_freq(freq)?;
                 Ok(true)
             }
-            SliderMessage::ChangeTickPos => {
-                self.widget.set_tick_pos(*self.tick_pos_prop.get())?;
+            SliderMessage::SetTickPos(tick_pos) => {
+                self.set_tick_pos(tick_pos)?;
                 Ok(true)
             }
-            SliderMessage::ChangeOrient => {
-                self.widget.set_orient(*self.orient_prop.get())?;
+            SliderMessage::SetOrient(orient) => {
+                self.set_orient(orient)?;
                 Ok(true)
             }
-            SliderMessage::ChangeEnabled => {
-                self.widget.set_enabled(**self.enabled_prop)?;
+            SliderMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            SliderMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
                 Ok(true)
             }
-            SliderMessage::ChangeVisible => {
-                self.widget.set_visible(**self.visible_prop)?;
-                Ok(true)
-            }
-            SliderMessage::ChangeTooltip => {
-                self.widget.set_tooltip(self.tooltip_prop.get())?;
-                Ok(true)
-            }
-            SliderMessage::ChangeRect => {
-                let rect = *self.rect_prop.get();
-                self.widget.set_loc(rect.origin)?;
-                self.widget.set_size(rect.size)?;
-                Ok(true)
+            SliderMessage::SetTooltip(tooltip) => {
+                self.set_tooltip(tooltip)?;
+                Ok(false)
             }
         }
     }

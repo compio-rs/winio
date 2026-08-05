@@ -1,28 +1,18 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{
-    Child, Component, ComponentSender, Prop, PropSink, PropSinkEvent, PropSinkMessage, start,
-};
+use winio_elm::{Child, Component, ComponentSender, Prop, PropSinkEvent, PropSinkMessage, start};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Rect, Enable, Failable, Layoutable, Orient, Point, Size, ToolTip, Visible};
+use winio_primitive::{Enable, Failable, Layoutable, Orient, Point, Rect, Size, ToolTip, Visible};
 
 use crate::{
     sys,
     sys::{Error, Result},
 };
 
-/// A simple button.
+/// A scroll bar.
 #[derive(Debug)]
 pub struct ScrollBar {
     widget: sys::ScrollBar,
     pos_prop: Child<Prop<usize>>,
-    minimum_prop: Child<PropSink<usize>>,
-    maximum_prop: Child<PropSink<usize>>,
-    page_prop: Child<PropSink<usize>>,
-    orient_prop: Child<PropSink<Orient>>,
-    enabled_prop: Child<PropSink<bool>>,
-    visible_prop: Child<PropSink<bool>>,
-    tooltip_prop: Child<PropSink<String>>,
-    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for ScrollBar {
@@ -33,10 +23,7 @@ impl Failable for ScrollBar {
 impl ToolTip for ScrollBar {
     fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.tooltip_prop.set(s.as_ref().to_owned());
-        Ok(())
-    }
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -45,37 +32,25 @@ impl ScrollBar {
     pub fn orient(&self) -> Result<Orient>;
 
     /// Set the orientation.
-    pub fn set_orient(&mut self, v: Orient) -> Result<()> {
-        self.orient_prop.set(v);
-        Ok(())
-    }
+    pub fn set_orient(&mut self, v: Orient) -> Result<()>;
 
     /// Value minimum.
     pub fn minimum(&self) -> Result<usize>;
 
     /// Set value minimum.
-    pub fn set_minimum(&mut self, v: usize) -> Result<()> {
-        self.minimum_prop.set(v);
-        Ok(())
-    }
+    pub fn set_minimum(&mut self, v: usize) -> Result<()>;
 
     /// Value maximum.
     pub fn maximum(&self) -> Result<usize>;
 
     /// Set value maximum.
-    pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        self.maximum_prop.set(v);
-        Ok(())
-    }
+    pub fn set_maximum(&mut self, v: usize) -> Result<()>;
 
     /// The page size.
     pub fn page(&self) -> Result<usize>;
 
     /// Set the page size.
-    pub fn set_page(&mut self, v: usize) -> Result<()> {
-        self.page_prop.set(v);
-        Ok(())
-    }
+    pub fn set_page(&mut self, v: usize) -> Result<()>;
 
     /// The position.
     pub fn pos(&self) -> Result<usize>;
@@ -90,85 +65,31 @@ impl ScrollBar {
     pub fn pos_prop(&mut self) -> &mut Prop<usize> {
         &mut self.pos_prop
     }
-
-    /// Property for [`ScrollBar::minimum`].
-    pub fn minimum_prop(&self) -> &PropSink<usize> {
-        &self.minimum_prop
-    }
-
-    /// Property for [`ScrollBar::maximum`].
-    pub fn maximum_prop(&self) -> &PropSink<usize> {
-        &self.maximum_prop
-    }
-
-    /// Property for [`ScrollBar::page`].
-    pub fn page_prop(&self) -> &PropSink<usize> {
-        &self.page_prop
-    }
-
-    /// Property for [`ScrollBar::orient`].
-    pub fn orient_prop(&self) -> &PropSink<Orient> {
-        &self.orient_prop
-    }
-
-    /// Property for [`Enable::set_enabled`].
-    pub fn enabled_prop(&self) -> &PropSink<bool> {
-        &self.enabled_prop
-    }
-
-    /// Property for [`Visible::set_visible`].
-    pub fn visible_prop(&self) -> &PropSink<bool> {
-        &self.visible_prop
-    }
-
-    /// Property for [`ToolTip::set_tooltip`].
-    pub fn tooltip_prop(&self) -> &PropSink<String> {
-        &self.tooltip_prop
-    }
-
-    /// Property for [`Layoutable::rect`].
-    pub fn rect_prop(&self) -> &PropSink<Rect> {
-        &self.rect_prop
-    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Visible for ScrollBar {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()> {
-        self.visible_prop.set(v);
-        Ok(())
-    }
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for ScrollBar {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()> {
-        self.enabled_prop.set(v);
-        Ok(())
-    }
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for ScrollBar {
     fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(p, rect.size));
-        Ok(())
-    }
+    fn set_loc(&mut self, p: Point) -> Result<()>;
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, s: Size) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(rect.origin, s));
-        Ok(())
-    }
+    fn set_size(&mut self, s: Size) -> Result<()>;
 
     fn preferred_size(&self) -> Result<Size>;
 }
@@ -177,7 +98,7 @@ impl Layoutable for ScrollBar {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ScrollBarEvent {
-    /// The position of scroll bar has changed.
+    /// The position has been changed.
     Change,
 }
 
@@ -191,22 +112,24 @@ pub enum ScrollBarMessage {
     ChangeInputPos,
     /// The position prop has been changed.
     ChangePropPos,
-    /// The minimum has been changed.
-    ChangeMinimum,
-    /// The maximum has been changed.
-    ChangeMaximum,
-    /// The page has been changed.
-    ChangePage,
-    /// The orientation has been changed.
-    ChangeOrient,
-    /// The enabled state has been changed.
-    ChangeEnabled,
-    /// The visible state has been changed.
-    ChangeVisible,
-    /// The tooltip has been changed.
-    ChangeTooltip,
-    /// The rect has been changed.
-    ChangeRect,
+    /// Set the position.
+    SetPos(usize),
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the minimum.
+    SetMinimum(usize),
+    /// Set the maximum.
+    SetMaximum(usize),
+    /// Set the page.
+    SetPage(usize),
+    /// Set the orientation.
+    SetOrient(Orient),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the tooltip.
+    SetTooltip(String),
 }
 
 impl Component for ScrollBar {
@@ -218,29 +141,7 @@ impl Component for ScrollBar {
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::ScrollBar::new(init)?;
         let Ok(pos_prop) = Child::<Prop<usize>>::init(widget.pos()?).await;
-        let Ok(minimum_prop) = Child::<PropSink<usize>>::init(widget.minimum()?).await;
-        let Ok(maximum_prop) = Child::<PropSink<usize>>::init(widget.maximum()?).await;
-        let Ok(page_prop) = Child::<PropSink<usize>>::init(widget.page()?).await;
-        let Ok(orient_prop) = Child::<PropSink<Orient>>::init(widget.orient()?).await;
-        let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
-        let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
-        let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
-        let loc = widget.loc()?;
-        let size = widget.size()?;
-        let rect = Rect::new(loc, size);
-        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
-        Ok(Self {
-            widget,
-            pos_prop,
-            minimum_prop,
-            maximum_prop,
-            page_prop,
-            orient_prop,
-            enabled_prop,
-            visible_prop,
-        rect_prop,
-            tooltip_prop,
-        })
+        Ok(Self { widget, pos_prop })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -254,14 +155,6 @@ impl Component for ScrollBar {
             start! {
                 sender, default: ScrollBarMessage::Noop,
                 self.pos_prop => { PropSinkEvent::Changed => ScrollBarMessage::ChangePropPos },
-                self.minimum_prop => { PropSinkEvent::Changed => ScrollBarMessage::ChangeMinimum },
-                self.maximum_prop => { PropSinkEvent::Changed => ScrollBarMessage::ChangeMaximum },
-                self.page_prop => { PropSinkEvent::Changed => ScrollBarMessage::ChangePage },
-                self.orient_prop => { PropSinkEvent::Changed => ScrollBarMessage::ChangeOrient },
-                self.enabled_prop => { PropSinkEvent::Changed => ScrollBarMessage::ChangeEnabled },
-                self.visible_prop => { PropSinkEvent::Changed => ScrollBarMessage::ChangeVisible },
-                self.tooltip_prop => { PropSinkEvent::Changed => ScrollBarMessage::ChangeTooltip },
-                self.rect_prop => { PropSinkEvent::Changed => ScrollBarMessage::ChangeRect },
             }
         };
         futures_util::future::join(fut_change, fut_props).await.0
@@ -269,15 +162,7 @@ impl Component for ScrollBar {
 
     async fn update_children(&mut self) -> Result<bool> {
         let Ok(r0) = self.pos_prop.update().await;
-        let Ok(r1) = self.minimum_prop.update().await;
-        let Ok(r2) = self.maximum_prop.update().await;
-        let Ok(r3) = self.page_prop.update().await;
-        let Ok(r4) = self.orient_prop.update().await;
-        let Ok(r5) = self.enabled_prop.update().await;
-        let Ok(r6) = self.visible_prop.update().await;
-        let Ok(r7) = self.tooltip_prop.update().await;
-        let Ok(r8) = self.rect_prop.update().await;
-        Ok(r0 || r1 || r2 || r3 || r4 || r5 || r6 || r7 || r8)
+        Ok(r0)
     }
 
     async fn update(
@@ -301,39 +186,41 @@ impl Component for ScrollBar {
                 }
                 Ok(true)
             }
-            ScrollBarMessage::ChangeMinimum => {
-                self.widget.set_minimum(**self.minimum_prop)?;
+            ScrollBarMessage::SetPos(pos) => {
+                self.pos_prop.set(pos);
                 Ok(true)
             }
-            ScrollBarMessage::ChangeMaximum => {
-                self.widget.set_maximum(**self.maximum_prop)?;
+            ScrollBarMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
                 Ok(true)
             }
-            ScrollBarMessage::ChangePage => {
-                self.widget.set_page(**self.page_prop)?;
+            ScrollBarMessage::SetMinimum(minimum) => {
+                self.set_minimum(minimum)?;
+                Ok(false)
+            }
+            ScrollBarMessage::SetMaximum(maximum) => {
+                self.set_maximum(maximum)?;
+                Ok(false)
+            }
+            ScrollBarMessage::SetPage(page) => {
+                self.set_page(page)?;
+                Ok(false)
+            }
+            ScrollBarMessage::SetOrient(orient) => {
+                self.set_orient(orient)?;
                 Ok(true)
             }
-            ScrollBarMessage::ChangeOrient => {
-                self.widget.set_orient(*self.orient_prop.get())?;
+            ScrollBarMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            ScrollBarMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
                 Ok(true)
             }
-            ScrollBarMessage::ChangeEnabled => {
-                self.widget.set_enabled(**self.enabled_prop)?;
-                Ok(true)
-            }
-            ScrollBarMessage::ChangeVisible => {
-                self.widget.set_visible(**self.visible_prop)?;
-                Ok(true)
-            }
-            ScrollBarMessage::ChangeTooltip => {
-                self.widget.set_tooltip(self.tooltip_prop.get())?;
-                Ok(true)
-            }
-            ScrollBarMessage::ChangeRect => {
-                let rect = *self.rect_prop.get();
-                self.widget.set_loc(rect.origin)?;
-                self.widget.set_size(rect.size)?;
-                Ok(true)
+            ScrollBarMessage::SetTooltip(tooltip) => {
+                self.set_tooltip(tooltip)?;
+                Ok(false)
             }
         }
     }

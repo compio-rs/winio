@@ -93,27 +93,27 @@ impl Component for MediaPage {
                 enabled: false,
             },
         }
-        loop_check.checked_prop().bind_sink(media.looped_prop());
-        volume_slider
-            .pos_prop()
-            .bind_sink_map(media.volume_prop(), |pos| pos as f64 / 100.0);
-        volume_slider
-            .pos_prop()
-            .bind_sink_map(volume_label.text_prop(), |pos| pos.to_string());
-        time_slider
-            .pos_prop()
-            .bind_sink_map(media.current_time_prop(), |pos| {
-                Duration::from_secs_f64(pos as f64 / 100.0)
-            });
-        rate_chooser
-            .selection_prop()
-            .bind_sink_map(media.playback_rate_prop(), |sel| match sel {
+        loop_check
+            .checked_prop()
+            .bind(media.sender(), MediaMessage::SetLooped);
+        volume_slider.pos_prop().bind(media.sender(), |pos| {
+            MediaMessage::SetVolume(pos as f64 / 100.0)
+        });
+        volume_slider.pos_prop().bind(volume_label.sender(), |pos| {
+            LabelMessage::SetText(pos.to_string())
+        });
+        time_slider.pos_prop().bind(media.sender(), |pos| {
+            MediaMessage::SetCurrentTime(Duration::from_secs_f64(pos as f64 / 100.0))
+        });
+        rate_chooser.selection_prop().bind(media.sender(), |sel| {
+            MediaMessage::SetPlaybackRate(match sel {
                 Some(0) => 0.5,
                 Some(2) => 1.5,
                 Some(3) => 2.0,
                 Some(4) => 10.0,
                 _ => 1.0,
-            });
+            })
+        });
 
         Ok(Self {
             window,

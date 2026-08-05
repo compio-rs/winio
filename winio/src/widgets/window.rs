@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Child, Component, ComponentSender, PropSink, PropSinkEvent, start};
+use winio_elm::{Component, ComponentSender};
 use winio_layout::Layoutable;
 use winio_primitive::{Failable, Point, Rect, Size, TextWidget, Visible};
 
@@ -20,17 +20,6 @@ use crate::{
 #[derive(Debug)]
 pub struct Window {
     widget: sys::Window,
-    text_prop: Child<PropSink<String>>,
-    visible_prop: Child<PropSink<bool>>,
-    #[cfg(win32)]
-    style_prop: Child<PropSink<u32>>,
-    #[cfg(win32)]
-    ex_style_prop: Child<PropSink<u32>>,
-    #[cfg(windows)]
-    backdrop_prop: Child<PropSink<Backdrop>>,
-    #[cfg(target_os = "macos")]
-    vibrancy_prop: Child<PropSink<Option<Vibrancy>>>,
-    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for Window {
@@ -41,10 +30,7 @@ impl Failable for Window {
 impl TextWidget for Window {
     fn text(&self) -> Result<String>;
 
-    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.text_prop.set(s.as_ref().to_owned());
-        Ok(())
-    }
+    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -62,10 +48,7 @@ impl Window {
 
     /// Set window style.
     #[cfg(win32)]
-    pub fn set_style(&mut self, s: u32) -> Result<()> {
-        self.style_prop.set(s);
-        Ok(())
-    }
+    pub fn set_style(&mut self, s: u32) -> Result<()>;
 
     /// Get window extended style.
     #[cfg(win32)]
@@ -73,10 +56,7 @@ impl Window {
 
     /// Set window extended style.
     #[cfg(win32)]
-    pub fn set_ex_style(&mut self, s: u32) -> Result<()> {
-        self.ex_style_prop.set(s);
-        Ok(())
-    }
+    pub fn set_ex_style(&mut self, s: u32) -> Result<()>;
 
     /// Get the backdrop effect of the window.
     ///
@@ -95,10 +75,7 @@ impl Window {
     /// ## Platform specific
     /// * Win32: backdrop effects may cause rendering artifacts.
     #[cfg(windows)]
-    pub fn set_backdrop(&mut self, backdrop: Backdrop) -> Result<()> {
-        self.backdrop_prop.set(backdrop);
-        Ok(())
-    }
+    pub fn set_backdrop(&mut self, backdrop: Backdrop) -> Result<()>;
 
     /// Get the visual effect of the window.
     #[cfg(target_os = "macos")]
@@ -106,73 +83,25 @@ impl Window {
 
     /// Set the visual effect of the window.
     #[cfg(target_os = "macos")]
-    pub fn set_vibrancy(&mut self, v: Option<Vibrancy>) -> Result<()> {
-        self.vibrancy_prop.set(v);
-        Ok(())
-    }
-
-    /// Property for [`TextWidget::text`].
-    pub fn text_prop(&self) -> &PropSink<String> {
-        &self.text_prop
-    }
-
-    /// Property for [`Visible::set_visible`].
-    pub fn visible_prop(&self) -> &PropSink<bool> {
-        &self.visible_prop
-    }
-
-    /// Property for [`Window::style`].
-    #[cfg(win32)]
-    pub fn style_prop(&self) -> &PropSink<u32> {
-        &self.style_prop
-    }
-
-    /// Property for [`Window::ex_style`].
-    #[cfg(win32)]
-    pub fn ex_style_prop(&self) -> &PropSink<u32> {
-        &self.ex_style_prop
-    }
-
-    /// Property for [`Window::backdrop`].
-    #[cfg(windows)]
-    pub fn backdrop_prop(&self) -> &PropSink<Backdrop> {
-        &self.backdrop_prop
-    }
-
-    /// Property for [`Window::vibrancy`].
-    #[cfg(target_os = "macos")]
-    pub fn vibrancy_prop(&self) -> &PropSink<Option<Vibrancy>> {
-        &self.vibrancy_prop
-    }
+    pub fn set_vibrancy(&mut self, v: Option<Vibrancy>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Visible for Window {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()> {
-        self.visible_prop.set(v);
-        Ok(())
-    }
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for Window {
     fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(p, rect.size));
-        Ok(())
-    }
+    fn set_loc(&mut self, p: Point) -> Result<()>;
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, s: Size) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(rect.origin, s));
-        Ok(())
-    }
+    fn set_size(&mut self, s: Size) -> Result<()>;
 }
 
 /// Events of [`Window`].
@@ -196,26 +125,24 @@ pub enum WindowEvent {
 pub enum WindowMessage {
     /// No operation.
     Noop,
-    /// The text has been changed.
-    ChangeText,
-    /// The visible state has been changed.
-    ChangeVisible,
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the text.
+    SetText(String),
+    /// Set the visible state.
+    SetVisible(bool),
     #[cfg(win32)]
-    /// The style has been changed.
-    ChangeStyle,
+    /// Set the style.
+    SetStyle(u32),
     #[cfg(win32)]
-    /// The ex style has been changed.
-    ChangeExStyle,
+    /// Set the ex style.
+    SetExStyle(u32),
     #[cfg(windows)]
-    /// The backdrop has been changed.
-    ChangeBackdrop,
+    /// Set the backdrop.
+    SetBackdrop(Backdrop),
     #[cfg(target_os = "macos")]
-    /// The vibrancy has been changed.
-    ChangeVibrancy,
-    /// The rect has been changed.
-    ChangeRect,
-    /// The window has been moved or resized.
-    ChangeInputRect,
+    /// Set the vibrancy.
+    SetVibrancy(Option<Vibrancy>),
 }
 
 impl Component for Window {
@@ -226,34 +153,7 @@ impl Component for Window {
 
     async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Window::new()?;
-        let Ok(text_prop) = Child::<PropSink<String>>::init(String::new()).await;
-        let Ok(visible_prop) = Child::<PropSink<bool>>::init(false).await;
-        #[cfg(win32)]
-        let Ok(style_prop) = Child::<PropSink<u32>>::init(widget.style()?).await;
-        #[cfg(win32)]
-        let Ok(ex_style_prop) = Child::<PropSink<u32>>::init(widget.ex_style()?).await;
-        #[cfg(windows)]
-        let Ok(backdrop_prop) = Child::<PropSink<Backdrop>>::init(Backdrop::None).await;
-        #[cfg(target_os = "macos")]
-        let Ok(vibrancy_prop) = Child::<PropSink<Option<Vibrancy>>>::init(None).await;
-        let loc = widget.loc()?;
-        let size = widget.size()?;
-        let rect = Rect::new(loc, size);
-        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
-        Ok(Self {
-            widget,
-            text_prop,
-            visible_prop,
-            #[cfg(win32)]
-            style_prop,
-            #[cfg(win32)]
-            ex_style_prop,
-            #[cfg(windows)]
-            backdrop_prop,
-            #[cfg(target_os = "macos")]
-            vibrancy_prop,
-            rect_prop,
-        })
+        Ok(Self { widget })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
@@ -266,14 +166,12 @@ impl Component for Window {
         let fut_move = async {
             loop {
                 self.widget.wait_move().await;
-                sender.post(WindowMessage::ChangeInputRect);
                 sender.output(WindowEvent::Move);
             }
         };
         let fut_resize = async {
             loop {
                 self.widget.wait_size().await;
-                sender.post(WindowMessage::ChangeInputRect);
                 sender.output(WindowEvent::Resize);
             }
         };
@@ -283,77 +181,8 @@ impl Component for Window {
                 sender.output(WindowEvent::ThemeChanged);
             }
         };
-        let fut_props = async {
-            start! {
-                sender, default: WindowMessage::Noop,
-                self.text_prop => { PropSinkEvent::Changed => WindowMessage::ChangeText },
-                self.visible_prop => { PropSinkEvent::Changed => WindowMessage::ChangeVisible },
-                self.rect_prop => { PropSinkEvent::Changed => WindowMessage::ChangeRect },
-            }
-        };
-        #[cfg(win32)]
-        let fut_style = async {
-            start! {
-                sender, default: WindowMessage::Noop,
-                self.style_prop => { PropSinkEvent::Changed => WindowMessage::ChangeStyle },
-                self.ex_style_prop => { PropSinkEvent::Changed => WindowMessage::ChangeExStyle },
-            }
-        };
-        #[cfg(not(win32))]
-        let fut_style = std::future::pending::<()>();
-        #[cfg(windows)]
-        let fut_backdrop = async {
-            start! {
-                sender, default: WindowMessage::Noop,
-                self.backdrop_prop => { PropSinkEvent::Changed => WindowMessage::ChangeBackdrop },
-            }
-        };
-        #[cfg(not(windows))]
-        let fut_backdrop = std::future::pending::<()>();
-        #[cfg(target_os = "macos")]
-        let fut_vibrancy = async {
-            start! {
-                sender, default: WindowMessage::Noop,
-                self.vibrancy_prop => { PropSinkEvent::Changed => WindowMessage::ChangeVibrancy },
-            }
-        };
-        #[cfg(not(target_os = "macos"))]
-        let fut_vibrancy = std::future::pending::<()>();
 
-        futures_util::join!(
-            fut_close,
-            fut_move,
-            fut_resize,
-            fut_theme,
-            fut_props,
-            fut_style,
-            fut_backdrop,
-            fut_vibrancy,
-        )
-        .0
-    }
-
-    async fn update_children(&mut self) -> Result<bool> {
-        let Ok(r0) = self.text_prop.update().await;
-        let Ok(r1) = self.visible_prop.update().await;
-        #[cfg(win32)]
-        let Ok(r2) = self.style_prop.update().await;
-        #[cfg(not(win32))]
-        let r2 = false;
-        #[cfg(win32)]
-        let Ok(r3) = self.ex_style_prop.update().await;
-        #[cfg(not(win32))]
-        let r3 = false;
-        #[cfg(windows)]
-        let Ok(r4) = self.backdrop_prop.update().await;
-        #[cfg(not(windows))]
-        let r4 = false;
-        #[cfg(target_os = "macos")]
-        let Ok(r5) = self.vibrancy_prop.update().await;
-        #[cfg(not(target_os = "macos"))]
-        let r5 = false;
-        let Ok(r6) = self.rect_prop.update().await;
-        Ok(r0 || r1 || r2 || r3 || r4 || r5 || r6)
+        futures_util::join!(fut_close, fut_move, fut_resize, fut_theme).0
     }
 
     async fn update(
@@ -363,45 +192,37 @@ impl Component for Window {
     ) -> Result<bool> {
         match message {
             WindowMessage::Noop => Ok(false),
-            WindowMessage::ChangeText => {
-                self.widget.set_text(self.text_prop.get())?;
+            WindowMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
                 Ok(true)
             }
-            WindowMessage::ChangeVisible => {
-                self.widget.set_visible(**self.visible_prop)?;
+            WindowMessage::SetText(text) => {
+                self.set_text(text)?;
+                Ok(true)
+            }
+            WindowMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
                 Ok(true)
             }
             #[cfg(win32)]
-            WindowMessage::ChangeStyle => {
-                self.widget.set_style(**self.style_prop)?;
+            WindowMessage::SetStyle(style) => {
+                self.set_style(style)?;
                 Ok(true)
             }
             #[cfg(win32)]
-            WindowMessage::ChangeExStyle => {
-                self.widget.set_ex_style(**self.ex_style_prop)?;
+            WindowMessage::SetExStyle(ex_style) => {
+                self.set_ex_style(ex_style)?;
                 Ok(true)
             }
             #[cfg(windows)]
-            WindowMessage::ChangeBackdrop => {
-                self.widget.set_backdrop(*self.backdrop_prop.get())?;
+            WindowMessage::SetBackdrop(backdrop) => {
+                self.set_backdrop(backdrop)?;
                 Ok(true)
             }
             #[cfg(target_os = "macos")]
-            WindowMessage::ChangeVibrancy => {
-                self.widget.set_vibrancy(*self.vibrancy_prop.get())?;
+            WindowMessage::SetVibrancy(vibrancy) => {
+                self.set_vibrancy(vibrancy)?;
                 Ok(true)
-            }
-            WindowMessage::ChangeRect => {
-                let rect = *self.rect_prop.get();
-                self.widget.set_loc(rect.origin)?;
-                self.widget.set_size(rect.size)?;
-                Ok(true)
-            }
-            WindowMessage::ChangeInputRect => {
-                let loc = self.widget.loc()?;
-                let size = self.widget.size()?;
-                self.rect_prop.set(Rect::new(loc, size));
-                Ok(false)
             }
         }
     }

@@ -1,9 +1,9 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{
-    Child, Component, ComponentSender, Prop, PropSink, PropSinkEvent, PropSinkMessage, start,
-};
+use winio_elm::{Child, Component, ComponentSender, Prop, PropSinkEvent, PropSinkMessage, start};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Rect, Enable, Failable, Layoutable, Point, Size, TextWidget, ToolTip, Visible};
+use winio_primitive::{
+    Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
+};
 
 use crate::{
     sys,
@@ -15,11 +15,6 @@ use crate::{
 pub struct CheckBox {
     widget: sys::CheckBox,
     checked_prop: Child<Prop<bool>>,
-    text_prop: Child<PropSink<String>>,
-    enabled_prop: Child<PropSink<bool>>,
-    visible_prop: Child<PropSink<bool>>,
-    tooltip_prop: Child<PropSink<String>>,
-    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for CheckBox {
@@ -30,20 +25,14 @@ impl Failable for CheckBox {
 impl ToolTip for CheckBox {
     fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.tooltip_prop.set(s.as_ref().to_owned());
-        Ok(())
-    }
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl TextWidget for CheckBox {
     fn text(&self) -> Result<String>;
 
-    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.text_prop.set(s.as_ref().to_owned());
-        Ok(())
-    }
+    fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -61,70 +50,31 @@ impl CheckBox {
     pub fn checked_prop(&mut self) -> &mut Prop<bool> {
         &mut self.checked_prop
     }
-
-    /// Property for [`TextWidget::text`].
-    pub fn text_prop(&self) -> &PropSink<String> {
-        &self.text_prop
-    }
-
-    /// Property for [`Enable::set_enabled`].
-    pub fn enabled_prop(&self) -> &PropSink<bool> {
-        &self.enabled_prop
-    }
-
-    /// Property for [`Visible::set_visible`].
-    pub fn visible_prop(&self) -> &PropSink<bool> {
-        &self.visible_prop
-    }
-
-    /// Property for [`ToolTip::set_tooltip`].
-    pub fn tooltip_prop(&self) -> &PropSink<String> {
-        &self.tooltip_prop
-    }
-
-    /// Property for [`Layoutable::rect`].
-    pub fn rect_prop(&self) -> &PropSink<Rect> {
-        &self.rect_prop
-    }
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Visible for CheckBox {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()> {
-        self.visible_prop.set(v);
-        Ok(())
-    }
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for CheckBox {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()> {
-        self.enabled_prop.set(v);
-        Ok(())
-    }
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for CheckBox {
     fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(p, rect.size));
-        Ok(())
-    }
+    fn set_loc(&mut self, p: Point) -> Result<()>;
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, s: Size) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(rect.origin, s));
-        Ok(())
-    }
+    fn set_size(&mut self, s: Size) -> Result<()>;
 
     fn preferred_size(&self) -> Result<Size>;
 }
@@ -147,16 +97,18 @@ pub enum CheckBoxMessage {
     ChangeInputChecked,
     /// The checked prop has been changed.
     ChangePropChecked,
-    /// The text has been changed.
-    ChangeText,
-    /// The enabled state has been changed.
-    ChangeEnabled,
-    /// The visible state has been changed.
-    ChangeVisible,
-    /// The tooltip has been changed.
-    ChangeTooltip,
-    /// The rect has been changed.
-    ChangeRect,
+    /// Set the checked state.
+    SetChecked(bool),
+    /// Set the rect.
+    SetRect(Rect),
+    /// Set the text.
+    SetText(String),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the tooltip.
+    SetTooltip(String),
 }
 
 impl Component for CheckBox {
@@ -168,22 +120,9 @@ impl Component for CheckBox {
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::CheckBox::new(init)?;
         let Ok(checked_prop) = Child::<Prop<bool>>::init(false).await;
-        let Ok(text_prop) = Child::<PropSink<String>>::init(String::new()).await;
-        let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
-        let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
-        let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
-        let loc = widget.loc()?;
-        let size = widget.size()?;
-        let rect = Rect::new(loc, size);
-        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
         Ok(Self {
             widget,
             checked_prop,
-            text_prop,
-            enabled_prop,
-            visible_prop,
-        rect_prop,
-            tooltip_prop,
         })
     }
 
@@ -198,11 +137,6 @@ impl Component for CheckBox {
             start! {
                 sender, default: CheckBoxMessage::Noop,
                 self.checked_prop => { PropSinkEvent::Changed => CheckBoxMessage::ChangePropChecked },
-                self.text_prop => { PropSinkEvent::Changed => CheckBoxMessage::ChangeText },
-                self.enabled_prop => { PropSinkEvent::Changed => CheckBoxMessage::ChangeEnabled },
-                self.visible_prop => { PropSinkEvent::Changed => CheckBoxMessage::ChangeVisible },
-                self.tooltip_prop => { PropSinkEvent::Changed => CheckBoxMessage::ChangeTooltip },
-                self.rect_prop => { PropSinkEvent::Changed => CheckBoxMessage::ChangeRect },
             }
         };
         futures_util::future::join(fut_click, fut_props).await.0
@@ -210,12 +144,7 @@ impl Component for CheckBox {
 
     async fn update_children(&mut self) -> Result<bool> {
         let Ok(r0) = self.checked_prop.update().await;
-        let Ok(r1) = self.text_prop.update().await;
-        let Ok(r2) = self.enabled_prop.update().await;
-        let Ok(r3) = self.visible_prop.update().await;
-        let Ok(r4) = self.tooltip_prop.update().await;
-        let Ok(r5) = self.rect_prop.update().await;
-        Ok(r0 || r1 || r2 || r3 || r4 || r5)
+        Ok(r0)
     }
 
     async fn update(
@@ -239,27 +168,30 @@ impl Component for CheckBox {
                 }
                 Ok(true)
             }
-            CheckBoxMessage::ChangeText => {
-                self.widget.set_text(self.text_prop.get())?;
+            CheckBoxMessage::SetChecked(checked) => {
+                self.widget.set_checked(checked)?;
+                self.checked_prop.post(PropSinkMessage::Set(checked));
+                Ok(false)
+            }
+            CheckBoxMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
                 Ok(true)
             }
-            CheckBoxMessage::ChangeEnabled => {
-                self.widget.set_enabled(**self.enabled_prop)?;
+            CheckBoxMessage::SetText(text) => {
+                self.set_text(text)?;
                 Ok(true)
             }
-            CheckBoxMessage::ChangeVisible => {
-                self.widget.set_visible(**self.visible_prop)?;
+            CheckBoxMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            CheckBoxMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
                 Ok(true)
             }
-            CheckBoxMessage::ChangeTooltip => {
-                self.widget.set_tooltip(self.tooltip_prop.get())?;
-                Ok(true)
-            }
-            CheckBoxMessage::ChangeRect => {
-                let rect = *self.rect_prop.get();
-                self.widget.set_loc(rect.origin)?;
-                self.widget.set_size(rect.size)?;
-                Ok(true)
+            CheckBoxMessage::SetTooltip(tooltip) => {
+                self.set_tooltip(tooltip)?;
+                Ok(false)
             }
         }
     }

@@ -1,9 +1,9 @@
 use std::time::Duration;
 
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Child, Component, ComponentSender, PropSink, PropSinkEvent, start};
+use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Rect, Enable, Failable, Layoutable, Point, Size, ToolTip, Visible};
+use winio_primitive::{Enable, Failable, Layoutable, Point, Rect, Size, ToolTip, Visible};
 
 use crate::{
     sys,
@@ -14,15 +14,6 @@ use crate::{
 #[derive(Debug)]
 pub struct Media {
     widget: sys::Media,
-    volume_prop: Child<PropSink<f64>>,
-    muted_prop: Child<PropSink<bool>>,
-    looped_prop: Child<PropSink<bool>>,
-    current_time_prop: Child<PropSink<Duration>>,
-    playback_rate_prop: Child<PropSink<f64>>,
-    enabled_prop: Child<PropSink<bool>>,
-    visible_prop: Child<PropSink<bool>>,
-    tooltip_prop: Child<PropSink<String>>,
-    rect_prop: Child<PropSink<Rect>>,
 }
 
 impl Failable for Media {
@@ -33,10 +24,7 @@ impl Failable for Media {
 impl ToolTip for Media {
     fn tooltip(&self) -> Result<String>;
 
-    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.tooltip_prop.set(s.as_ref().to_owned());
-        Ok(())
-    }
+    fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -64,10 +52,7 @@ impl Media {
     pub fn current_time(&self) -> Result<Duration>;
 
     /// Set the current time.
-    pub fn set_current_time(&mut self, t: Duration) -> Result<()> {
-        self.current_time_prop.set(t);
-        Ok(())
-    }
+    pub fn set_current_time(&mut self, t: Duration) -> Result<()>;
 
     /// Seek to a new time.
     pub fn seek(&mut self, t: Duration) -> Result<()> {
@@ -78,121 +63,50 @@ impl Media {
     pub fn volume(&self) -> Result<f64>;
 
     /// Set the volume. The value should between 0.0 to 1.0.
-    pub fn set_volume(&mut self, v: f64) -> Result<()> {
-        self.volume_prop.set(v);
-        Ok(())
-    }
+    pub fn set_volume(&mut self, v: f64) -> Result<()>;
 
     /// If the player is muted.
     pub fn is_muted(&self) -> Result<bool>;
 
     /// Set if the player is muted.
-    pub fn set_muted(&mut self, v: bool) -> Result<()> {
-        self.muted_prop.set(v);
-        Ok(())
-    }
+    pub fn set_muted(&mut self, v: bool) -> Result<()>;
 
     /// If the player is looped.
     pub fn is_looped(&self) -> Result<bool>;
 
     /// Set if the player is looped.
-    pub fn set_looped(&mut self, v: bool) -> Result<()> {
-        self.looped_prop.set(v);
-        Ok(())
-    }
+    pub fn set_looped(&mut self, v: bool) -> Result<()>;
 
     /// Playback rate.
     pub fn playback_rate(&self) -> Result<f64>;
 
     /// Set playback rate.
-    pub fn set_playback_rate(&mut self, v: f64) -> Result<()> {
-        self.playback_rate_prop.set(v);
-        Ok(())
-    }
-
-    /// Property for [`Media::volume`].
-    pub fn volume_prop(&self) -> &PropSink<f64> {
-        &self.volume_prop
-    }
-
-    /// Property for [`Media::is_muted`].
-    pub fn muted_prop(&self) -> &PropSink<bool> {
-        &self.muted_prop
-    }
-
-    /// Property for [`Media::is_looped`].
-    pub fn looped_prop(&self) -> &PropSink<bool> {
-        &self.looped_prop
-    }
-
-    /// Property for [`Media::current_time`].
-    pub fn current_time_prop(&self) -> &PropSink<Duration> {
-        &self.current_time_prop
-    }
-
-    /// Property for [`Media::playback_rate`].
-    pub fn playback_rate_prop(&self) -> &PropSink<f64> {
-        &self.playback_rate_prop
-    }
-
-    /// Property for [`Enable::set_enabled`].
-    pub fn enabled_prop(&self) -> &PropSink<bool> {
-        &self.enabled_prop
-    }
-
-    /// Property for [`Visible::set_visible`].
-    pub fn visible_prop(&self) -> &PropSink<bool> {
-        &self.visible_prop
-    }
-
-    /// Property for [`ToolTip::set_tooltip`].
-    pub fn tooltip_prop(&self) -> &PropSink<String> {
-        &self.tooltip_prop
-    }
-
-    /// Property for [`Layoutable::rect`].
-    pub fn rect_prop(&self) -> &PropSink<Rect> {
-        &self.rect_prop
-    }
+    pub fn set_playback_rate(&mut self, v: f64) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Visible for Media {
     fn is_visible(&self) -> Result<bool>;
 
-    fn set_visible(&mut self, v: bool) -> Result<()> {
-        self.visible_prop.set(v);
-        Ok(())
-    }
+    fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Enable for Media {
     fn is_enabled(&self) -> Result<bool>;
 
-    fn set_enabled(&mut self, v: bool) -> Result<()> {
-        self.enabled_prop.set(v);
-        Ok(())
-    }
+    fn set_enabled(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
 impl Layoutable for Media {
     fn loc(&self) -> Result<Point>;
 
-    fn set_loc(&mut self, p: Point) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(p, rect.size));
-        Ok(())
-    }
+    fn set_loc(&mut self, p: Point) -> Result<()>;
 
     fn size(&self) -> Result<Size>;
 
-    fn set_size(&mut self, s: Size) -> Result<()> {
-        let rect = *self.rect_prop.get();
-        self.rect_prop.set(Rect::new(rect.origin, s));
-        Ok(())
-    }
+    fn set_size(&mut self, s: Size) -> Result<()>;
 }
 
 /// Events of [`Media`].
@@ -206,24 +120,24 @@ pub enum MediaEvent {}
 pub enum MediaMessage {
     /// No operation.
     Noop,
-    /// The volume has been changed.
-    ChangeVolume,
-    /// The muted state has been changed.
-    ChangeMuted,
-    /// The looped state has been changed.
-    ChangeLooped,
-    /// The current time has been changed.
-    ChangeCurrentTime,
-    /// The playback rate has been changed.
-    ChangePlaybackRate,
-    /// The enabled state has been changed.
-    ChangeEnabled,
-    /// The visible state has been changed.
-    ChangeVisible,
-    /// The tooltip has been changed.
-    ChangeTooltip,
-    /// The rect has been changed.
-    ChangeRect,
+    /// Set the volume.
+    SetVolume(f64),
+    /// Set the muted state.
+    SetMuted(bool),
+    /// Set the looped state.
+    SetLooped(bool),
+    /// Set the current time.
+    SetCurrentTime(Duration),
+    /// Set the playback rate.
+    SetPlaybackRate(f64),
+    /// Set the enabled state.
+    SetEnabled(bool),
+    /// Set the visible state.
+    SetVisible(bool),
+    /// Set the tooltip.
+    SetTooltip(String),
+    /// Set the rect.
+    SetRect(Rect),
 }
 
 impl Component for Media {
@@ -234,58 +148,13 @@ impl Component for Media {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let widget = sys::Media::new(init)?;
-        let Ok(volume_prop) = Child::<PropSink<f64>>::init(1.0).await;
-        let Ok(muted_prop) = Child::<PropSink<bool>>::init(false).await;
-        let Ok(looped_prop) = Child::<PropSink<bool>>::init(false).await;
-        let Ok(current_time_prop) = Child::<PropSink<Duration>>::init(Duration::ZERO).await;
-        let Ok(playback_rate_prop) = Child::<PropSink<f64>>::init(1.0).await;
-        let Ok(enabled_prop) = Child::<PropSink<bool>>::init(true).await;
-        let Ok(visible_prop) = Child::<PropSink<bool>>::init(true).await;
-        let Ok(tooltip_prop) = Child::<PropSink<String>>::init(String::new()).await;
-        let loc = widget.loc()?;
-        let size = widget.size()?;
-        let rect = Rect::new(loc, size);
-        let Ok(rect_prop) = Child::<PropSink<Rect>>::init(rect).await;
-        Ok(Self {
-            widget,
-            volume_prop,
-            muted_prop,
-            looped_prop,
-            current_time_prop,
-            playback_rate_prop,
-            enabled_prop,
-            visible_prop,
-        rect_prop,
-            tooltip_prop,
-        })
+        Ok(Self { widget })
     }
 
-    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        start! {
-            sender, default: MediaMessage::Noop,
-            self.volume_prop => { PropSinkEvent::Changed => MediaMessage::ChangeVolume },
-            self.muted_prop => { PropSinkEvent::Changed => MediaMessage::ChangeMuted },
-            self.looped_prop => { PropSinkEvent::Changed => MediaMessage::ChangeLooped },
-            self.current_time_prop => { PropSinkEvent::Changed => MediaMessage::ChangeCurrentTime },
-            self.playback_rate_prop => { PropSinkEvent::Changed => MediaMessage::ChangePlaybackRate },
-            self.enabled_prop => { PropSinkEvent::Changed => MediaMessage::ChangeEnabled },
-            self.visible_prop => { PropSinkEvent::Changed => MediaMessage::ChangeVisible },
-            self.tooltip_prop => { PropSinkEvent::Changed => MediaMessage::ChangeTooltip },
-            self.rect_prop => { PropSinkEvent::Changed => MediaMessage::ChangeRect },
+    async fn start(&mut self, _sender: &ComponentSender<Self>) -> ! {
+        loop {
+            std::future::pending::<()>().await
         }
-    }
-
-    async fn update_children(&mut self) -> Result<bool> {
-        let Ok(r0) = self.volume_prop.update().await;
-        let Ok(r1) = self.muted_prop.update().await;
-        let Ok(r2) = self.looped_prop.update().await;
-        let Ok(r3) = self.current_time_prop.update().await;
-        let Ok(r4) = self.playback_rate_prop.update().await;
-        let Ok(r5) = self.enabled_prop.update().await;
-        let Ok(r6) = self.visible_prop.update().await;
-        let Ok(r7) = self.tooltip_prop.update().await;
-        let Ok(r8) = self.rect_prop.update().await;
-        Ok(r0 || r1 || r2 || r3 || r4 || r5 || r6 || r7 || r8)
     }
 
     async fn update(
@@ -295,42 +164,40 @@ impl Component for Media {
     ) -> Result<bool> {
         match message {
             MediaMessage::Noop => Ok(false),
-            MediaMessage::ChangeVolume => {
-                self.widget.set_volume(**self.volume_prop)?;
+            MediaMessage::SetVolume(volume) => {
+                self.set_volume(volume)?;
+                Ok(false)
+            }
+            MediaMessage::SetMuted(muted) => {
+                self.set_muted(muted)?;
+                Ok(false)
+            }
+            MediaMessage::SetLooped(looped) => {
+                self.set_looped(looped)?;
+                Ok(false)
+            }
+            MediaMessage::SetCurrentTime(current_time) => {
+                self.set_current_time(current_time)?;
+                Ok(false)
+            }
+            MediaMessage::SetPlaybackRate(playback_rate) => {
+                self.set_playback_rate(playback_rate)?;
+                Ok(false)
+            }
+            MediaMessage::SetEnabled(enabled) => {
+                self.set_enabled(enabled)?;
+                Ok(false)
+            }
+            MediaMessage::SetVisible(visible) => {
+                self.set_visible(visible)?;
                 Ok(true)
             }
-            MediaMessage::ChangeMuted => {
-                self.widget.set_muted(**self.muted_prop)?;
-                Ok(true)
+            MediaMessage::SetTooltip(tooltip) => {
+                self.set_tooltip(tooltip)?;
+                Ok(false)
             }
-            MediaMessage::ChangeLooped => {
-                self.widget.set_looped(**self.looped_prop)?;
-                Ok(true)
-            }
-            MediaMessage::ChangeCurrentTime => {
-                self.widget.set_current_time(**self.current_time_prop)?;
-                Ok(true)
-            }
-            MediaMessage::ChangePlaybackRate => {
-                self.widget.set_playback_rate(**self.playback_rate_prop)?;
-                Ok(true)
-            }
-            MediaMessage::ChangeEnabled => {
-                self.widget.set_enabled(**self.enabled_prop)?;
-                Ok(true)
-            }
-            MediaMessage::ChangeVisible => {
-                self.widget.set_visible(**self.visible_prop)?;
-                Ok(true)
-            }
-            MediaMessage::ChangeTooltip => {
-                self.widget.set_tooltip(self.tooltip_prop.get())?;
-                Ok(true)
-            }
-            MediaMessage::ChangeRect => {
-                let rect = *self.rect_prop.get();
-                self.widget.set_loc(rect.origin)?;
-                self.widget.set_size(rect.size)?;
+            MediaMessage::SetRect(rect) => {
+                self.set_rect(rect)?;
                 Ok(true)
             }
         }
