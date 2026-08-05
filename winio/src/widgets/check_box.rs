@@ -94,9 +94,8 @@ pub enum CheckBoxEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum CheckBoxMessage {
-    /// No operation.
-    Noop,
     /// The checked state has been changed by user click.
+    #[doc(hidden)]
     ChangeInputChecked,
     /// Set the checked state.
     SetChecked(bool),
@@ -140,7 +139,6 @@ impl Component for CheckBox {
         sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            CheckBoxMessage::Noop => Ok(false),
             CheckBoxMessage::ChangeInputChecked => {
                 let checked = self.widget.is_checked()?;
                 self.checked_prop.notify(checked);

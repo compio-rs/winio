@@ -87,8 +87,6 @@ pub enum LabelEvent {}
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum LabelMessage {
-    /// No operation.
-    Noop,
     /// Set the rect.
     SetRect(Rect),
     /// Set the enabled state.
@@ -123,7 +121,6 @@ impl Component for Label {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            LabelMessage::Noop => Ok(false),
             LabelMessage::SetRect(rect) => {
                 self.set_rect(rect)?;
                 Ok(true)

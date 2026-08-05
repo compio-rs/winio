@@ -96,8 +96,6 @@ pub enum LinkLabelEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum LinkLabelMessage {
-    /// No operation.
-    Noop,
     /// Set the rect.
     SetRect(Rect),
     /// Set the enabled state.
@@ -139,7 +137,6 @@ impl Component for LinkLabel {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            LinkLabelMessage::Noop => Ok(false),
             LinkLabelMessage::SetRect(rect) => {
                 self.set_rect(rect)?;
                 Ok(true)

@@ -88,8 +88,6 @@ pub enum ProgressEvent {}
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ProgressMessage {
-    /// No operation.
-    Noop,
     /// Set the rect.
     SetRect(Rect),
     /// Set the enabled state.
@@ -125,7 +123,6 @@ impl Component for Progress {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            ProgressMessage::Noop => Ok(false),
             ProgressMessage::SetRect(rect) => {
                 self.set_rect(rect)?;
                 Ok(true)

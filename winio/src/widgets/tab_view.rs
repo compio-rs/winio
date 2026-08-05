@@ -98,9 +98,8 @@ pub enum TabViewEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum TabViewMessage {
-    /// No operation.
-    Noop,
     /// The selection has been changed by user.
+    #[doc(hidden)]
     ChangeInputSelection,
     /// Set the selection.
     SetSelection(Option<usize>),
@@ -140,7 +139,6 @@ impl Component for TabView {
         sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            TabViewMessage::Noop => Ok(false),
             TabViewMessage::ChangeInputSelection => {
                 let selection = self.widget.selection()?;
                 self.selection_prop.notify(selection);
@@ -203,8 +201,6 @@ pub enum TabViewItemEvent {}
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum TabViewItemMessage {
-    /// No operation.
-    Noop,
     /// Set the text.
     SetText(String),
 }
@@ -226,7 +222,6 @@ impl Component for TabViewItem {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            TabViewItemMessage::Noop => Ok(false),
             TabViewItemMessage::SetText(text) => {
                 self.set_text(text)?;
                 Ok(true)

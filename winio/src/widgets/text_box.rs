@@ -100,9 +100,8 @@ pub enum TextBoxEvent {}
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum TextBoxMessage {
-    /// No operation.
-    Noop,
     /// The text has been changed by user input.
+    #[doc(hidden)]
     ChangeInput,
     /// Set the rect.
     SetRect(Rect),
@@ -145,7 +144,6 @@ impl Component for TextBox {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            TextBoxMessage::Noop => Ok(false),
             TextBoxMessage::ChangeInput => {
                 let text = self.widget.text()?;
                 self.text_prop.notify(text);

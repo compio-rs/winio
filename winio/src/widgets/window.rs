@@ -123,8 +123,6 @@ pub enum WindowEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum WindowMessage {
-    /// No operation.
-    Noop,
     /// Set the rect.
     SetRect(Rect),
     /// Set the text.
@@ -191,7 +189,6 @@ impl Component for Window {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            WindowMessage::Noop => Ok(false),
             WindowMessage::SetRect(rect) => {
                 self.set_rect(rect)?;
                 Ok(true)

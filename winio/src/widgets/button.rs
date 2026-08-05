@@ -73,8 +73,6 @@ pub enum ButtonEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ButtonMessage {
-    /// No operation.
-    Noop,
     /// Set the rect.
     SetRect(Rect),
     /// Set the enabled state.
@@ -111,7 +109,6 @@ impl Component for Button {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            ButtonMessage::Noop => Ok(false),
             ButtonMessage::SetRect(rect) => {
                 self.set_rect(rect)?;
                 Ok(true)

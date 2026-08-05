@@ -109,9 +109,8 @@ pub enum EditEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum EditMessage {
-    /// No operation.
-    Noop,
     /// The input has been changed.
+    #[doc(hidden)]
     ChangeInput,
     /// Set the rect.
     SetRect(Rect),
@@ -156,7 +155,6 @@ impl Component for Edit {
         sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            EditMessage::Noop => Ok(false),
             EditMessage::ChangeInput => {
                 let text = self.widget.text()?;
                 self.text_prop.notify(text);

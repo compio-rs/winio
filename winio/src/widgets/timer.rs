@@ -49,8 +49,6 @@ pub enum TimerEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum TimerMessage {
-    /// No operation.
-    Noop,
     /// Set the enabled state.
     SetEnabled(bool),
 }
@@ -79,7 +77,6 @@ impl Component for Timer {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            TimerMessage::Noop => Ok(false),
             TimerMessage::SetEnabled(enabled) => {
                 if enabled {
                     self.start()?;

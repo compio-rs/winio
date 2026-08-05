@@ -45,8 +45,6 @@ pub enum ViewEvent {}
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ViewMessage {
-    /// No operation.
-    Noop,
     /// Set the rect.
     SetRect(Rect),
     /// Set the visible state.
@@ -70,7 +68,6 @@ impl Component for View {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            ViewMessage::Noop => Ok(false),
             ViewMessage::SetRect(rect) => {
                 self.set_rect(rect)?;
                 Ok(true)

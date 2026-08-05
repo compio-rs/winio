@@ -117,9 +117,8 @@ pub enum SliderEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum SliderMessage {
-    /// No operation.
-    Noop,
     /// The position has been changed by user input.
+    #[doc(hidden)]
     ChangeInputPos,
     /// Set the position.
     SetPos(usize),
@@ -168,7 +167,6 @@ impl Component for Slider {
         sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            SliderMessage::Noop => Ok(false),
             SliderMessage::ChangeInputPos => {
                 let pos = self.widget.pos()?;
                 self.pos_prop.notify(pos);

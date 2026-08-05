@@ -95,8 +95,6 @@ pub enum WgpuCanvasEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum WgpuCanvasMessage {
-    /// No operation.
-    Noop,
     /// Set the rect.
     SetRect(Rect),
     /// Set the enabled state.
@@ -154,7 +152,6 @@ impl Component for WgpuCanvas {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            WgpuCanvasMessage::Noop => Ok(false),
             WgpuCanvasMessage::SetRect(rect) => {
                 self.set_rect(rect)?;
                 Ok(true)

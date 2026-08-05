@@ -118,8 +118,6 @@ pub enum MediaEvent {}
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum MediaMessage {
-    /// No operation.
-    Noop,
     /// Set the volume.
     SetVolume(f64),
     /// Set the muted state.
@@ -157,7 +155,6 @@ impl Component for Media {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            MediaMessage::Noop => Ok(false),
             MediaMessage::SetVolume(volume) => {
                 self.set_volume(volume)?;
                 Ok(false)

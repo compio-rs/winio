@@ -109,9 +109,8 @@ pub enum ScrollBarEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ScrollBarMessage {
-    /// No operation.
-    Noop,
     /// The position has been changed by user scroll.
+    #[doc(hidden)]
     ChangeInputPos,
     /// Set the position.
     SetPos(usize),
@@ -158,7 +157,6 @@ impl Component for ScrollBar {
         sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            ScrollBarMessage::Noop => Ok(false),
             ScrollBarMessage::ChangeInputPos => {
                 let pos = self.widget.pos()?;
                 self.pos_prop.notify(pos);

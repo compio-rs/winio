@@ -96,9 +96,8 @@ pub enum RadioButtonEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum RadioButtonMessage {
-    /// No operation.
-    Noop,
     /// The checked state has been changed by user click.
+    #[doc(hidden)]
     ChangeInputChecked,
     /// The checked state is set externally (e.g. from [`RadioButtonGroup`]).
     SetChecked(bool),
@@ -142,7 +141,6 @@ impl Component for RadioButton {
         sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            RadioButtonMessage::Noop => Ok(false),
             RadioButtonMessage::ChangeInputChecked => {
                 let checked = self.widget.is_checked()?;
                 self.checked_prop.notify(checked);
@@ -196,6 +194,7 @@ pub enum RadioButtonGroupEvent {}
 #[non_exhaustive]
 pub enum RadioButtonGroupMessage {
     /// No operation.
+    #[doc(hidden)]
     Noop,
     /// A radio button has been selected, with its index.
     Click(usize),

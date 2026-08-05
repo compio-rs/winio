@@ -151,8 +151,6 @@ pub enum ComboBoxEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ComboBoxMessage {
-    /// No operation.
-    Noop,
     /// An element inserted.
     Insert {
         /// The insert position.
@@ -175,8 +173,10 @@ pub enum ComboBoxMessage {
     /// The vector has been cleared.
     Clear,
     /// The selection has been changed by user.
+    #[doc(hidden)]
     ChangeInputSelection,
     /// The text has been changed by user input.
+    #[doc(hidden)]
     ChangeInputText,
     /// Set the text.
     SetText(String),
@@ -257,7 +257,6 @@ impl Component for ComboBox {
         sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            ComboBoxMessage::Noop => Ok(false),
             ComboBoxMessage::Insert { at, value } => {
                 self.insert(at, value)?;
                 Ok(true)

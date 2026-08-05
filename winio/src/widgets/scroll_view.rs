@@ -68,8 +68,6 @@ pub enum ScrollViewEvent {}
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ScrollViewMessage {
-    /// No operation.
-    Noop,
     /// Set the rect.
     SetRect(Rect),
     /// Set the enabled state.
@@ -103,7 +101,6 @@ impl Component for ScrollView {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            ScrollViewMessage::Noop => Ok(false),
             ScrollViewMessage::SetRect(rect) => {
                 self.set_rect(rect)?;
                 Ok(true)

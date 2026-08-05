@@ -117,8 +117,6 @@ pub enum ListBoxEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ListBoxMessage {
-    /// No operation.
-    Noop,
     /// An element inserted.
     Insert {
         /// The insert position.
@@ -200,7 +198,6 @@ impl Component for ListBox {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            ListBoxMessage::Noop => Ok(false),
             ListBoxMessage::Insert { at, value } => {
                 self.insert(at, value)?;
                 Ok(true)

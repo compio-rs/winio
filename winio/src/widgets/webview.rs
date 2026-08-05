@@ -141,8 +141,6 @@ pub enum WebViewEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum WebViewMessage {
-    /// No operation.
-    Noop,
     /// Set the source URL.
     SetSource(String),
     /// Set the visible state.
@@ -188,7 +186,6 @@ impl Component for WebView {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            WebViewMessage::Noop => Ok(false),
             WebViewMessage::SetSource(source) => {
                 self.set_source(source)?;
                 Ok(true)

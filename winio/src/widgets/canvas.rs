@@ -80,8 +80,6 @@ pub enum CanvasEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum CanvasMessage {
-    /// No operation.
-    Noop,
     /// Set the visible state.
     SetVisible(bool),
     /// Set the enabled state.
@@ -139,7 +137,6 @@ impl Component for Canvas {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            CanvasMessage::Noop => Ok(false),
             CanvasMessage::SetVisible(visible) => {
                 self.set_visible(visible)?;
                 Ok(true)
