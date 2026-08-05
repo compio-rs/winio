@@ -50,19 +50,23 @@ impl<T> Callback<T> {
     /// waiting.
     pub fn signal<R: Runnable>(&self, v: T) {
         let mut state = self.0.borrow_mut();
-        match &*state {
-            WakerState::Inactive => {}
+        let need_run = match &*state {
+            WakerState::Inactive => false,
             WakerState::Signaled(_) => {
                 // If a state is signaled again, the runtime might be too busy
                 // to wake the waker. Just try to run it again.
+                true
             }
             WakerState::Active(waker) => {
                 waker.wake_by_ref();
+                true
             }
-        }
+        };
         *state = WakerState::Signaled(v);
         drop(state);
-        R::run();
+        if need_run {
+            R::run();
+        }
     }
 
     pub(crate) fn register(&self, waker: &Waker) -> Poll<T> {
