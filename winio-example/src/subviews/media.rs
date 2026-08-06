@@ -99,9 +99,11 @@ impl Component for MediaPage {
         volume_slider.pos_prop()?.bind(media.sender(), |pos| {
             MediaMessage::SetVolume(pos as f64 / 100.0)
         });
-        volume_slider.pos_prop()?.bind(volume_label.sender(), |pos| {
-            LabelMessage::SetText(pos.to_string())
-        });
+        volume_slider
+            .pos_prop()?
+            .bind(volume_label.sender(), |pos| {
+                LabelMessage::SetText(pos.to_string())
+            });
         time_slider.pos_prop()?.bind(media.sender(), |pos| {
             MediaMessage::SetCurrentTime(Duration::from_secs_f64(pos as f64 / 100.0))
         });
