@@ -15,7 +15,7 @@ targets = ["x86_64-pc-windows-msvc"]
 [target.'cfg(windows)'.dependencies]
 winio-primitive = { workspace = true }
 winio-handle = { workspace = true }
-winio-pollable = { workspace = true }
+winio-pollable = { workspace = true, features = ["callback"] }
 winio-callback = { workspace = true }
 
 compio-log = { workspace = true }
