@@ -149,8 +149,7 @@ pub fn measure_string(hwnd: HWND, s: &U16Str) -> Result<Size> {
             height as f32,
             w!(""),
         )?;
-        let layout =
-            factory.CreateTextLayout(s.as_slice(), &format, std::f32::MAX, std::f32::MAX)?;
+        let layout = factory.CreateTextLayout(s.as_slice(), &format, f32::MAX, f32::MAX)?;
         let mut metrics = MaybeUninit::uninit();
         layout.GetMetrics(metrics.as_mut_ptr())?;
         let metrics = metrics.assume_init();
