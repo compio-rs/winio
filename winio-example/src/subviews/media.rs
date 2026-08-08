@@ -37,7 +37,6 @@ pub enum MediaPageEvent {
 
 #[derive(Debug)]
 pub enum MediaPageMessage {
-    Noop,
     Tick,
     Play,
     ChooseFile,
@@ -135,7 +134,7 @@ impl Component for MediaPage {
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: MediaPageMessage::Noop,
+            sender,
             self.window => {},
             self.media => {},
             self.timer => {
@@ -177,7 +176,6 @@ impl Component for MediaPage {
         sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            MediaPageMessage::Noop => Ok(false),
             MediaPageMessage::Tick => {
                 fn format_duration(dur: Duration) -> String {
                     let secs = dur.as_secs();

@@ -13,9 +13,7 @@ pub struct DummyPage {
 pub enum DummyPageEvent {}
 
 #[derive(Debug)]
-pub enum DummyPageMessage {
-    Noop,
-}
+pub enum DummyPageMessage {}
 
 impl Component for DummyPage {
     type Error = Error;
@@ -42,7 +40,7 @@ impl Component for DummyPage {
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: DummyPageMessage::Noop,
+            sender,
             self.window => {},
             self.label => {},
         }
@@ -50,16 +48,6 @@ impl Component for DummyPage {
 
     async fn update_children(&mut self) -> Result<bool> {
         update_children!(self.window, self.label)
-    }
-
-    async fn update(
-        &mut self,
-        message: Self::Message,
-        _sender: &ComponentSender<Self>,
-    ) -> Result<bool> {
-        match message {
-            DummyPageMessage::Noop => Ok(false),
-        }
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {

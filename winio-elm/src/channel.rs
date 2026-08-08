@@ -11,6 +11,7 @@ use smallvec::SmallVec;
 struct ChannelInner<T> {
     data: SmallVec<[T; 1]>,
     waker: Option<Waker>,
+    woke: bool,
 }
 
 pub struct Channel<T>(Arc<Mutex<ChannelInner<T>>>);
@@ -20,6 +21,7 @@ impl<T> Channel<T> {
         Self(Arc::new(Mutex::new(ChannelInner {
             data: SmallVec::new(),
             waker: None,
+            woke: false,
         })))
     }
 
@@ -31,7 +33,16 @@ impl<T> Channel<T> {
         }
     }
 
+    pub fn wake(&self) {
+        let mut inner = self.0.lock().unwrap();
+        if let Some(waker) = inner.waker.take() {
+            waker.wake();
+        }
+        inner.woke = true;
+    }
+
     pub fn wait(&self) -> impl Future<Output = ()> + '_ {
+        self.0.lock().unwrap().woke = false;
         RecvFut(&self.0)
     }
 
@@ -60,11 +71,11 @@ impl<T> Future for RecvFut<'_, T> {
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut inner = self.0.lock().unwrap();
-        if inner.data.is_empty() {
+        if inner.woke || !inner.data.is_empty() {
+            Poll::Ready(())
+        } else {
             inner.waker = Some(cx.waker().clone());
             Poll::Pending
-        } else {
-            Poll::Ready(())
         }
     }
 }

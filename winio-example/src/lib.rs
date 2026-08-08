@@ -29,7 +29,6 @@ pub struct MainModel {
 
 #[derive(Debug)]
 pub enum MainMessage {
-    Noop,
     Close,
     Redraw,
     #[cfg(feature = "compio-compat")]
@@ -158,7 +157,7 @@ impl Component for MainModel {
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: MainMessage::Noop,
+            sender,
             self.window => {
                 WindowEvent::Close => MainMessage::Close,
                 WindowEvent::Resize | WindowEvent::ThemeChanged => MainMessage::Redraw,
@@ -240,7 +239,6 @@ impl Component for MainModel {
         sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            MainMessage::Noop => Ok(false),
             MainMessage::Close => {
                 if cfg!(any(target_os = "ios", target_os = "android")) {
                     sender.output(());

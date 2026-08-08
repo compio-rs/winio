@@ -98,6 +98,10 @@ impl<T: Component> ComponentSender<T> {
         self.0.fetch_all()
     }
 
+    pub(crate) fn wake(&self) {
+        self.0.wake()
+    }
+
     /// Cast the sender for a different component type with the same message and
     /// event types.
     pub fn cast<U: Component<Message = T::Message, Event = T::Event>>(

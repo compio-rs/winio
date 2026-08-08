@@ -184,7 +184,7 @@ impl Component for MiscPage {
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: MiscPageMessage::Noop,
+            sender,
             self.window => {},
             self.link => {},
             self.ulabel => {},

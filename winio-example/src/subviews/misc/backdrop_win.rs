@@ -57,7 +57,7 @@ impl Component for BackdropChooser {
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: BackdropChooserMessage::Noop,
+            sender,
             self.view => {},
             self.radios => {},
         }

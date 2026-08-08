@@ -36,7 +36,6 @@ pub enum WebViewPageEvent {}
 
 #[derive(Debug)]
 pub enum WebViewPageMessage {
-    Noop,
     Go,
     Back,
     Forward,
@@ -95,7 +94,7 @@ impl Component for WebViewPage {
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: WebViewPageMessage::Noop,
+            sender,
             self.window => {},
             self.go_button => {
                 ButtonEvent::Click => WebViewPageMessage::Go,
@@ -135,7 +134,6 @@ impl Component for WebViewPage {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            WebViewPageMessage::Noop => Ok(false),
             WebViewPageMessage::Go => {
                 self.webview.navigate(self.entry.text()?)?;
                 self.set_reload_button(false)?;

@@ -40,7 +40,6 @@ pub enum MarkdownPageEvent {
 
 #[derive(Debug)]
 pub enum MarkdownPageMessage {
-    Noop,
     SetAddr(SocketAddr),
     ChooseFile,
     OpenFile(PathBuf),
@@ -125,7 +124,7 @@ impl Component for MarkdownPage {
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: MarkdownPageMessage::Noop,
+            sender,
             self.window => {},
             self.webview => {},
             self.button => {
@@ -145,7 +144,6 @@ impl Component for MarkdownPage {
         sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            MarkdownPageMessage::Noop => Ok(false),
             MarkdownPageMessage::SetAddr(addr) => {
                 self.addr = Some(addr);
                 Ok(false)
