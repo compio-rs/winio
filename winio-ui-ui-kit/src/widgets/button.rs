@@ -268,7 +268,7 @@ impl LinkLabel {
                 .titleLabel()
                 .and_then(|label| label.font())
                 .unwrap_or_else(|| UIFont::systemFontOfSize(UIFont::systemFontSize()));
-            Ok(uifont_to_font(&font))
+            uifont_to_font(&font)
         })
     }
 
