@@ -1,4 +1,3 @@
-use core::f32;
 #[cfg(feature = "once_cell_try")]
 use std::sync::OnceLock;
 use std::{cell::RefCell, collections::BTreeMap, mem::MaybeUninit, sync::Mutex};
