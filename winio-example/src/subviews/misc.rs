@@ -78,6 +78,7 @@ impl Component for MiscPage {
             link: LinkLabel = (&window) => {
                 text: "Source",
                 uri: "https://github.com/compio-rs/winio",
+                font_size: 20.0,
             },
             ulabel: Label = (&window) => {
                 text: "Username:",

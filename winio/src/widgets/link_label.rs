@@ -2,7 +2,7 @@ use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
-    Enable, Failable, Font, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
+    Enable, Failable, Font, Fontable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
 };
 
 use crate::{
@@ -33,12 +33,6 @@ impl LinkLabel {
     /// setting it. This could potentially be exploited with malicious URIs.
     pub fn set_uri(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    /// The font.
-    pub fn font(&self) -> Result<Font>;
-
-    /// Set the font.
-    pub fn set_font(&mut self, font: Font) -> Result<()>;
-
     /// If the label background is transparent.
     #[cfg(win32)]
     pub fn is_transparent(&self) -> Result<bool>;
@@ -60,6 +54,13 @@ impl TextWidget for LinkLabel {
     fn text(&self) -> Result<String>;
 
     fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+}
+
+#[inherit_methods(from = "self.widget")]
+impl Fontable for LinkLabel {
+    fn font(&self) -> Result<Font>;
+
+    fn set_font(&mut self, font: Font) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
