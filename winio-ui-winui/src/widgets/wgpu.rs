@@ -1,3 +1,4 @@
+use compio_log::error;
 use inherit_methods_macro::inherit_methods;
 use wgpu::{CreateSurfaceError, Instance, Surface, SurfaceTargetUnsafe};
 use windows::core::Interface;
@@ -69,3 +70,13 @@ impl WgpuCanvas {
 }
 
 winio_handle::impl_as_widget!(WgpuCanvas, handle);
+
+impl Drop for WgpuCanvas {
+    fn drop(&mut self) {
+        unsafe {
+            if let Err(e) = self.native.SetSwapChain(None) {
+                error!("Failed to clear swap chain: {e:?}")
+            }
+        }
+    }
+}
