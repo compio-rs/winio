@@ -84,23 +84,6 @@ pub enum VAlign {
 /// Color type.
 pub type Color = RGBA8;
 
-/// Font for drawing.
-#[derive(Debug, Clone)]
-pub struct DrawingFont {
-    /// Font name.
-    pub family: String,
-    /// Font size.
-    pub size: f64,
-    /// *Italic*.
-    pub italic: bool,
-    /// **Bold**.
-    pub bold: bool,
-    /// Horizontal alignment.
-    pub halign: HAlign,
-    /// Vertical alignment.
-    pub valign: VAlign,
-}
-
 /// Font for widgets.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Font {
@@ -114,78 +97,65 @@ pub struct Font {
     pub bold: bool,
 }
 
-impl DrawingFont {
+impl Font {
     /// Create a builder.
-    pub fn builder() -> DrawingFontBuilder {
-        DrawingFontBuilder::new()
+    pub fn builder() -> FontBuilder {
+        FontBuilder::new()
     }
 }
 
-/// Builder of [`DrawingFont`].
-pub struct DrawingFontBuilder {
-    value: DrawingFont,
+/// Builder of [`Font`].
+#[derive(Debug, Clone)]
+pub struct FontBuilder {
+    value: Font,
 }
 
-impl Default for DrawingFontBuilder {
+impl Default for FontBuilder {
     fn default() -> Self {
         Self {
-            value: DrawingFont {
+            value: Font {
                 family: String::new(),
-                size: 0.0,
+                size: 0.1,
                 italic: false,
                 bold: false,
-                halign: HAlign::Left,
-                valign: VAlign::Top,
             },
         }
     }
 }
 
-impl DrawingFontBuilder {
-    /// Create a builder for [`DrawingFont`].
+impl FontBuilder {
+    /// Create a builder for [`Font`].
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Font name.
-    pub fn family(&mut self, s: impl AsRef<str>) -> &mut Self {
+    pub fn family(mut self, s: impl AsRef<str>) -> Self {
         self.value.family = s.as_ref().to_string();
         self
     }
 
     /// Font size.
-    pub fn size(&mut self, s: f64) -> &mut Self {
+    pub fn size(mut self, s: f64) -> Self {
         self.value.size = s;
         self
     }
 
     /// *Italic*.
-    pub fn italic(&mut self, v: bool) -> &mut Self {
+    pub fn italic(mut self, v: bool) -> Self {
         self.value.italic = v;
         self
     }
 
     /// **Bold**.
-    pub fn bold(&mut self, v: bool) -> &mut Self {
+    pub fn bold(mut self, v: bool) -> Self {
         self.value.bold = v;
         self
     }
 
-    /// Horizontal alignment.
-    pub fn halign(&mut self, v: HAlign) -> &mut Self {
-        self.value.halign = v;
-        self
-    }
-
-    /// Vertical alignment.
-    pub fn valign(&mut self, v: VAlign) -> &mut Self {
-        self.value.valign = v;
-        self
-    }
-
-    /// Build [`DrawingFont`].
-    pub fn build(&self) -> DrawingFont {
-        self.value.clone()
+    /// Build [`Font`].
+    pub fn build(self) -> Font {
+        self.value
     }
 }
 

@@ -4,8 +4,8 @@ use plotters_backend::{
     text_anchor::{HPos, VPos},
 };
 use winio_primitive::{
-    Angle, BrushPen, Color, DrawingFont, DrawingFontBuilder, HAlign, Layoutable, Point, Rect,
-    RectBox, Rotation, Size, SolidColorBrush, Transform, VAlign,
+    Angle, BrushPen, Color, Font, FontBuilder, Layoutable, Point, Rect, RectBox, RelativePoint,
+    Rotation, Size, SolidColorBrush, Transform,
 };
 
 use crate::{Error, ui::DrawingContext, widgets::Canvas};
@@ -58,29 +58,29 @@ fn bpen(style: &impl BackendStyle) -> BrushPen<SolidColorBrush> {
     BrushPen::new(bbrush(style.color()), style.stroke_width() as f64)
 }
 
-fn bfont(style: &impl BackendTextStyle) -> DrawingFont {
-    let mut builder = DrawingFontBuilder::new();
-    builder.size(style.size()).family(style.family().as_str());
-    match style.style() {
-        FontStyle::Normal => &mut builder,
+fn bfont(style: &impl BackendTextStyle) -> (Font, RelativePoint) {
+    let mut builder = FontBuilder::new()
+        .size(style.size())
+        .family(style.family().as_str());
+    builder = match style.style() {
+        FontStyle::Normal => builder,
         FontStyle::Bold => builder.bold(true),
         FontStyle::Italic => builder.italic(true),
         FontStyle::Oblique => builder.italic(true),
     };
     let anchor = style.anchor();
-    let halign = match anchor.h_pos {
-        HPos::Left => HAlign::Left,
-        HPos::Center => HAlign::Center,
-        HPos::Right => HAlign::Right,
+    let anchor_x = match anchor.h_pos {
+        HPos::Left => 0.0,
+        HPos::Center => 0.5,
+        HPos::Right => 1.0,
     };
-    builder.halign(halign);
-    let valign = match anchor.v_pos {
-        VPos::Top => VAlign::Top,
-        VPos::Center => VAlign::Center,
-        VPos::Bottom => VAlign::Bottom,
+    let anchor_y = match anchor.v_pos {
+        VPos::Top => 0.0,
+        VPos::Center => 0.5,
+        VPos::Bottom => 1.0,
     };
-    builder.valign(valign);
-    builder.build()
+    let anchor_p = RelativePoint::new(anchor_x, anchor_y);
+    (builder.build(), anchor_p)
 }
 
 impl<'a> DrawingBackend for WinioCanvasBackend<'a> {
@@ -238,7 +238,7 @@ impl<'a> DrawingBackend for WinioCanvasBackend<'a> {
         pos: BackendCoord,
     ) -> Result<(), DrawingErrorKind<Self::ErrorType>> {
         let context = self.context_mut();
-        let font = bfont(style);
+        let (font, anchor) = bfont(style);
         let pos = bpoint(pos);
         let transform = style.transform();
         let rotate = match transform {
@@ -257,7 +257,7 @@ impl<'a> DrawingBackend for WinioCanvasBackend<'a> {
                         .then_translate(pos.to_vector()),
                 )?;
             }
-            context.draw_str(bbrush(style.color()), font, pos, text)?;
+            context.draw_str(bbrush(style.color()), font, anchor, pos, text)?;
             if need_transform {
                 context.set_transform(Transform::identity())?;
             }
@@ -271,7 +271,7 @@ impl<'a> DrawingBackend for WinioCanvasBackend<'a> {
         text: &str,
         style: &TStyle,
     ) -> Result<(u32, u32), DrawingErrorKind<Self::ErrorType>> {
-        let font = bfont(style);
+        let (font, _) = bfont(style);
         let size = self
             .context()
             .measure_str(font, text)

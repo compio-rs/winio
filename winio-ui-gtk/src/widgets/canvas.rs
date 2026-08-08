@@ -22,8 +22,8 @@ use pangocairo::functions::show_layout;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{
-    BrushPen, DrawingFont, HAlign, LinearGradientBrush, MouseButton, Point, RadialGradientBrush,
-    Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, Transform, VAlign, Vector,
+    BrushPen, Font, LinearGradientBrush, MouseButton, Point, RadialGradientBrush, Rect, RectBox,
+    RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform, Vector,
 };
 
 use crate::{GlobalRuntime, Result, widgets::Widget};
@@ -382,7 +382,7 @@ impl DrawingContext<'_> {
         Ok(())
     }
 
-    fn measure_str_impl(&self, font: &DrawingFont, text: &str) -> (Size, Layout) {
+    fn measure_str_impl(&self, font: &Font, text: &str) -> (Size, Layout) {
         let layout = self.canvas.widget.create_pango_layout(Some(text));
         let mut desp = FontDescription::from_string(&font.family);
         desp.set_size((font.size / 1.33) as i32 * PANGO_SCALE);
@@ -402,25 +402,16 @@ impl DrawingContext<'_> {
     pub fn draw_str(
         &mut self,
         brush: impl Brush,
-        font: DrawingFont,
+        font: Font,
+        anchor: RelativePoint,
         pos: Point,
         text: &str,
     ) -> Result<()> {
         let (size, layout) = self.measure_str_impl(&font, text);
         let (width, height) = (size.width, size.height);
 
-        let mut x = pos.x;
-        let mut y = pos.y;
-        match font.halign {
-            HAlign::Center => x -= width / 2.0,
-            HAlign::Right => x -= width,
-            _ => {}
-        }
-        match font.valign {
-            VAlign::Center => y -= height / 2.0,
-            VAlign::Bottom => y -= height,
-            _ => {}
-        }
+        let x = pos.x - width * anchor.x;
+        let y = pos.y - height * anchor.y;
         let rect = Rect::new(Point::new(x, y), Size::new(width, height));
 
         self.ctx.move_to(rect.origin.x, rect.origin.y);
@@ -429,7 +420,7 @@ impl DrawingContext<'_> {
         Ok(())
     }
 
-    pub fn measure_str(&self, font: DrawingFont, text: &str) -> Result<Size> {
+    pub fn measure_str(&self, font: Font, text: &str) -> Result<Size> {
         Ok(self.measure_str_impl(&font, text).0)
     }
 

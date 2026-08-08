@@ -415,13 +415,14 @@ impl Component for MiscPage {
             RelativePoint::new(0.2, 0.5),
             RelativeSize::new(0.5, 0.5),
         );
-        let font = DrawingFontBuilder::new()
-            .family("Arial")
-            .size(r / 5.0)
-            .halign(HAlign::Center)
-            .valign(VAlign::Bottom)
-            .build();
-        ctx.draw_str(&brush3, font, Point::new(cx, cy), "Hello world!")?;
+        let font = FontBuilder::new().family("Arial").size(r / 5.0).build();
+        ctx.draw_str(
+            &brush3,
+            font,
+            RelativePoint::new(0.5, 1.0),
+            Point::new(cx, cy),
+            "Hello world!",
+        )?;
         Ok(())
     }
 }
