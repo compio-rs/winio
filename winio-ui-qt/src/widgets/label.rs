@@ -81,11 +81,12 @@ impl Label {
     }
 
     pub fn font(&self) -> Result<Font> {
+        let font = self.widget.as_ref().font()?;
         Ok(Font {
-            family: ffi::label_font_family(self.widget.as_ref())?.try_into()?,
-            size: ffi::label_font_size(self.widget.as_ref())?,
-            bold: ffi::label_font_bold(self.widget.as_ref())?,
-            italic: ffi::label_font_italic(self.widget.as_ref())?,
+            family: font.family()?.try_into()?,
+            size: font.pointSizeF()?,
+            bold: font.bold()?,
+            italic: font.italic()?,
         })
     }
 
@@ -216,6 +217,7 @@ mod ffi {
         type QLabel;
         type QString = crate::common::QString;
         type QtAlignmentFlag = crate::widgets::QtAlignmentFlag;
+        type QFont;
 
         unsafe fn new_label(parent: *mut QWidget) -> Result<UniquePtr<QLabel>>;
 
@@ -229,6 +231,7 @@ mod ffi {
         fn setAlignment(self: Pin<&mut QLabel>, flag: QtAlignmentFlag) -> Result<()>;
         fn text(self: &QLabel) -> Result<QString>;
         fn setText(self: Pin<&mut QLabel>, s: &QString) -> Result<()>;
+        fn font(self: &QLabel) -> Result<&QFont>;
 
         fn setOpenExternalLinks(self: Pin<&mut QLabel>, v: bool) -> Result<()>;
 
@@ -240,9 +243,9 @@ mod ffi {
             italic: bool,
         ) -> Result<()>;
 
-        fn label_font_family(w: &QLabel) -> Result<QString>;
-        fn label_font_size(w: &QLabel) -> Result<f64>;
-        fn label_font_bold(w: &QLabel) -> Result<bool>;
-        fn label_font_italic(w: &QLabel) -> Result<bool>;
+        fn family(self: &QFont) -> Result<QString>;
+        fn pointSizeF(self: &QFont) -> Result<f64>;
+        fn bold(self: &QFont) -> Result<bool>;
+        fn italic(self: &QFont) -> Result<bool>;
     }
 }
