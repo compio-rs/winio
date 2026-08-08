@@ -2,6 +2,7 @@ jni::bind_java_type! {
     pub DisplayMetrics => android.util.DisplayMetrics,
     fields {
         density: float,
+        scaled_density: float,
     }
 }
 

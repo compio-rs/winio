@@ -1,6 +1,9 @@
 use super::{
     content::Context,
-    graphics::drawable::Drawable,
+    graphics::{
+        Paint, Typeface,
+        drawable::Drawable,
+    },
     text::{
         Editable, TextWatcher,
         method::{KeyListener, MovementMethod},
@@ -36,6 +39,8 @@ jni::bind_java_type! {
         View => android.view.View,
         Context => android.content.Context,
         MovementMethod => android.text.method.MovementMethod,
+        Paint => android.graphics.Paint,
+        Typeface => android.graphics.Typeface,
     },
     constructors {
         fn new(&Context),
@@ -46,6 +51,12 @@ jni::bind_java_type! {
         fn get_gravity() -> jint,
         fn set_gravity(gravity: jint),
         fn set_movement_method(method: &MovementMethod),
+        fn set_text_size(size: jfloat),
+        fn set_typeface(typeface: &Typeface),
+        fn set_typeface_style(typeface: &Typeface, style: jint),
+        fn set_font_family(family: &JString),
+        fn get_font_family() -> JObject,
+        fn get_paint() -> Paint,
     },
     is_instance_of = {
         view = View,

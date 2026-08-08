@@ -1,10 +1,15 @@
 use inherit_methods_macro::inherit_methods;
+use jni::{objects::JString, sys::jfloat};
 use winio_handle::{AsContainer, impl_as_widget};
-use winio_primitive::{HAlign, Point, Size};
+use winio_primitive::{Font, HAlign, Point, Size};
 
 use crate::{
     BaseWidget, JCharSequenceExt, Result, current_activity,
-    java::android::{view::gravity, widget::TextView as ATextView},
+    java::android::{
+        graphics::{Typeface, typeface},
+        view::gravity,
+        widget::TextView as ATextView,
+    },
     vm_exec,
 };
 
@@ -81,6 +86,50 @@ impl Label {
         } | gravity::CENTER_VERTICAL;
         vm_exec(|env| {
             self.inner.set_gravity(env, gravity)?;
+            Ok(())
+        })
+    }
+
+    pub fn font(&self) -> Result<Font> {
+        vm_exec(|env| {
+            let paint = self.inner.get_paint(env)?;
+            let px = paint.get_text_size(env)?;
+            let metrics = self
+                .inner
+                .as_view()
+                .get_resources(env)?
+                .get_display_metrics(env)?;
+            let typeface = paint.get_typeface(env)?;
+            let family = self.inner.get_font_family(env)?;
+            let family = if family.is_null() {
+                String::new()
+            } else {
+                let family = unsafe { JString::from_raw(env, family.into_raw()) };
+                family.try_to_string(env)?
+            };
+            Ok(Font {
+                family,
+                size: px as f64 / metrics.scaled_density(env)? as f64,
+                bold: typeface.is_bold(env)?,
+                italic: typeface.is_italic(env)?,
+            })
+        })
+    }
+
+    pub fn set_font(&mut self, font: Font) -> Result<()> {
+        vm_exec(|env| {
+            let mut style = typeface::NORMAL;
+            if font.bold {
+                style |= typeface::BOLD;
+            }
+            if font.italic {
+                style |= typeface::ITALIC;
+            }
+            let family = env.new_string(&font.family)?;
+            self.inner.set_text_size(env, font.size as jfloat)?;
+            let default = Typeface::DEFAULT(env)?;
+            self.inner.set_font_family(env, &family)?;
+            self.inner.set_typeface_style(env, &default, style)?;
             Ok(())
         })
     }

@@ -83,13 +83,21 @@ jni::bind_java_type! {
         fn set_stroke_width(width: jfloat),
         fn set_text_size(size: jfloat),
         fn set_typeface(typeface: &Typeface) -> Typeface,
+        fn get_text_size() -> jfloat,
+        fn get_typeface() -> Typeface,
     },
 }
 
 jni::bind_java_type! {
     pub Typeface => android.graphics.Typeface,
+    fields {
+        #[allow(non_snake_case)]
+        static DEFAULT: Typeface,
+    },
     methods {
         static fn create(family: JString, style: jint) -> Typeface,
+        fn is_bold() -> jboolean,
+        fn is_italic() -> jboolean,
     }
 }
 
