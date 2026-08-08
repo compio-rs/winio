@@ -1,12 +1,7 @@
 use core::f32;
 #[cfg(feature = "once_cell_try")]
 use std::sync::OnceLock;
-use std::{
-    cell::RefCell,
-    collections::BTreeMap,
-    mem::MaybeUninit,
-    sync::Mutex,
-};
+use std::{cell::RefCell, collections::BTreeMap, mem::MaybeUninit, sync::Mutex};
 
 #[cfg(not(feature = "once_cell_try"))]
 use once_cell::sync::OnceCell as OnceLock;
@@ -163,7 +158,7 @@ pub fn measure_string(hwnd: HWND, s: &U16Str) -> Result<Size> {
 }
 
 thread_local! {
-    static HWND_FONTS: RefCell<BTreeMap<HWND, (Font, bool, WinFont)>> = RefCell::new(BTreeMap::new());
+    static LABEL_FONTS: RefCell<BTreeMap<HWND, (Font, WinFont)>> = const { RefCell::new(BTreeMap::new()) };
 }
 
 /// Create an [`HFONT`] from a [`Font`], scaled to the DPI of the window.
@@ -212,32 +207,30 @@ pub(crate) fn hfont_to_font(hwnd: HWND, hfont: HFONT) -> Result<Font> {
 pub(crate) fn set_hwnd_font(hwnd: HWND, font: Font, underline: bool) -> Result<HFONT> {
     let hfont = font_to_hfont(hwnd, &font, underline)?;
     let res = hfont.0;
-    HWND_FONTS.with(|map| {
-        map.borrow_mut().insert(hwnd, (font, underline, hfont));
+    LABEL_FONTS.with(|map| {
+        map.borrow_mut().insert(hwnd, (font, hfont));
     });
     Ok(res)
 }
 
 /// Recreate the stored font of a window for its current DPI, and return the
 /// new [`HFONT`], or `None` if no font is stored for the window.
-pub(crate) fn refresh_hwnd_font(hwnd: HWND) -> Result<Option<HFONT>> {
-    let (font, underline) = match HWND_FONTS
-        .with(|map| map.borrow().get(&hwnd).map(|(f, u, _)| (f.clone(), *u)))
-    {
+pub(crate) fn refresh_hwnd_font(hwnd: HWND, underline: bool) -> Result<Option<HFONT>> {
+    let font = match LABEL_FONTS.with(|map| map.borrow().get(&hwnd).map(|(f, _)| f.clone())) {
         Some(x) => x,
         None => return Ok(None),
     };
     let hfont = font_to_hfont(hwnd, &font, underline)?;
     let res = hfont.0;
-    HWND_FONTS.with(|map| {
-        map.borrow_mut().insert(hwnd, (font, underline, hfont));
+    LABEL_FONTS.with(|map| {
+        map.borrow_mut().insert(hwnd, (font, hfont));
     });
     Ok(Some(res))
 }
 
 /// Remove the stored font of a window.
 pub(crate) fn remove_hwnd_font(hwnd: HWND) {
-    HWND_FONTS.with(|map| {
+    LABEL_FONTS.with(|map| {
         map.borrow_mut().remove(&hwnd);
     });
 }

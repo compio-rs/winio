@@ -310,7 +310,7 @@ pub(crate) unsafe fn refresh_font(handle: HWND) -> Result<()> {
 
     unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
         unsafe {
-            let hfont = match refresh_hwnd_font(hwnd) {
+            let hfont = match refresh_hwnd_font(hwnd, false) {
                 Ok(Some(hfont)) => hfont,
                 _ => lparam as _,
             };

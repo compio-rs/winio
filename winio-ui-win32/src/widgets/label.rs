@@ -3,22 +3,19 @@ use inherit_methods_macro::inherit_methods;
 use windows_sys::{
     Win32::{
         Foundation::{HWND, LPARAM, LRESULT, WPARAM},
+        Graphics::Gdi::HFONT,
         System::SystemServices::{SS_CENTER, SS_LEFT, SS_NOTIFY, SS_RIGHT},
         UI::{
             Controls::WC_STATICW,
             HiDpi::GetDpiForWindow,
             Shell::{DefSubclassProc, SetWindowSubclass, ShellExecuteW},
             WindowsAndMessaging::{
-                IDC_HAND, LoadCursorW, STN_CLICKED, SW_SHOW, SetCursor, WM_COMMAND, WM_SETCURSOR,
-                WM_SETFONT, WS_CHILD, WS_EX_TRANSPARENT, WS_VISIBLE,
+                IDC_HAND, LoadCursorW, STN_CLICKED, SW_SHOW, SendMessageW, SetCursor, WM_COMMAND,
+                WM_GETFONT, WM_SETCURSOR, WM_SETFONT, WS_CHILD, WS_EX_TRANSPARENT, WS_VISIBLE,
             },
         },
     },
     w,
-};
-use windows_sys::Win32::{
-    Graphics::Gdi::HFONT,
-    UI::WindowsAndMessaging::{SendMessageW, WM_GETFONT},
 };
 use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{Font, HAlign, Point, Size};
@@ -27,7 +24,7 @@ use winio_ui_windows_common::syscall;
 use crate::{
     Error, Result, WindowMessageCommand,
     platform::font::{
-        default_underline_font, hfont_to_font, refresh_hwnd_font, set_hwnd_font,
+        default_underline_font, hfont_to_font, refresh_hwnd_font, remove_hwnd_font, set_hwnd_font,
     },
     widgets::{Widget, with_u16c},
 };
@@ -128,6 +125,13 @@ impl Label {
 }
 
 winio_handle::impl_as_widget!(Label, handle);
+
+impl Drop for Label {
+    fn drop(&mut self) {
+        let hwnd = self.handle.as_widget().as_win32();
+        remove_hwnd_font(hwnd);
+    }
+}
 
 #[derive(Debug)]
 pub struct LinkLabel {
@@ -241,6 +245,7 @@ impl LinkLabel {
 
 winio_handle::impl_as_widget!(LinkLabel, handle);
 
+#[allow(clippy::single_match)]
 pub(crate) unsafe extern "system" fn link_label_wnd_proc(
     hwnd: HWND,
     msg: u32,
@@ -255,7 +260,7 @@ pub(crate) unsafe extern "system" fn link_label_wnd_proc(
             return 1;
         },
         WM_SETFONT => unsafe {
-            let hfont = match refresh_hwnd_font(hwnd) {
+            let hfont = match refresh_hwnd_font(hwnd, true) {
                 Ok(Some(hfont)) => Some(hfont),
                 Ok(None) => match default_underline_font(GetDpiForWindow(hwnd)) {
                     Ok(font) => Some(font as _),

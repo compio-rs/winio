@@ -39,7 +39,6 @@ use crate::{
     platform::{
         dpi::{DpiAware, get_dpi_for_window},
         font::measure_string,
-        font::remove_hwnd_font,
         tooltip::{get_tooltip, remove_tooltip, set_tooltip},
     },
     refresh_background,
@@ -360,7 +359,6 @@ impl Drop for Widget {
     fn drop(&mut self) {
         let hwnd = self.as_window().as_win32();
         remove_tooltip(hwnd);
-        remove_hwnd_font(hwnd);
     }
 }
 
