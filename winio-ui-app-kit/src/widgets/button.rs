@@ -274,7 +274,11 @@ impl LinkLabel {
 
     pub fn font(&self) -> Result<Font> {
         catch(|| {
-            let font = self.handle.view.font().unwrap_or_else(|| NSFont::systemFontOfSize(NSFont::systemFontSize()));
+            let font = self
+                .handle
+                .view
+                .font()
+                .unwrap_or_else(|| NSFont::systemFontOfSize(NSFont::systemFontSize()));
             nsfont_to_font(&font)
         })
     }

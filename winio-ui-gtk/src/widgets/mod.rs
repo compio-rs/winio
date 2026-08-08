@@ -1,8 +1,6 @@
 use std::cell::Cell;
 
-use gtk4::pango::{
-    AttrFontDesc, AttrList, FontDescription, SCALE as PANGO_SCALE, Style, Weight,
-};
+use gtk4::pango::{AttrFontDesc, AttrList, FontDescription, SCALE as PANGO_SCALE, Style, Weight};
 use winio_primitive::{ColorTheme, Font};
 
 thread_local! {

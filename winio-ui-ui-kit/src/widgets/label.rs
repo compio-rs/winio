@@ -89,7 +89,10 @@ impl Label {
 
     pub fn font(&self) -> Result<Font> {
         catch(|| {
-            let font = self.view.font().unwrap_or_else(|| UIFont::systemFontOfSize(UIFont::systemFontSize()));
+            let font = self
+                .view
+                .font()
+                .unwrap_or_else(|| UIFont::systemFontOfSize(UIFont::systemFontSize()));
             Ok(uifont_to_font(&font))
         })
     }

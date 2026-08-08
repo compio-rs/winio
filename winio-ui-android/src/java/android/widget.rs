@@ -1,9 +1,6 @@
 use super::{
     content::Context,
-    graphics::{
-        Paint, Typeface,
-        drawable::Drawable,
-    },
+    graphics::{Paint, Typeface, drawable::Drawable},
     text::{
         Editable, TextWatcher,
         method::{KeyListener, MovementMethod},

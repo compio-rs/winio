@@ -1,6 +1,6 @@
 use objc2::rc::Retained;
 use objc2_app_kit::{NSFont, NSFontDescriptorSymbolicTraits};
-use objc2_foundation::{NSUserDefaults, NSString, ns_string};
+use objc2_foundation::{NSString, NSUserDefaults, ns_string};
 use winio_primitive::{ColorTheme, Font};
 
 mod canvas;
@@ -97,6 +97,8 @@ pub(crate) fn font_to_nsfont(font: &Font) -> Retained<NSFont> {
     if font.italic {
         traits |= NSFontDescriptorSymbolicTraits::TraitItalic;
     }
-    let desc = base.fontDescriptor().fontDescriptorWithSymbolicTraits(traits);
+    let desc = base
+        .fontDescriptor()
+        .fontDescriptorWithSymbolicTraits(traits);
     NSFont::fontWithDescriptor_size(&desc, font.size).unwrap_or(base)
 }

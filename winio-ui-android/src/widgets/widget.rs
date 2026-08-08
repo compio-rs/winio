@@ -3,11 +3,11 @@ use std::ops::Deref;
 use compio_log::error;
 use jni::{
     Env,
-    objects::JObject,
+    objects::{JObject, JString},
     refs::{Global, Reference},
 };
 use winio_handle::{AsContainer, AsWidget, BorrowedContainer, BorrowedWidget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Font, Point, Size};
 
 use crate::{
     Result,
@@ -19,8 +19,6 @@ use crate::{
     platform::dpi::{logical_point, logical_size, physical_point, physical_size},
     vm_exec,
 };
-use jni::objects::JString;
-use winio_primitive::Font;
 
 /// Read the font of a [`ATextView`].
 pub(crate) fn text_view_to_font(
@@ -29,7 +27,10 @@ pub(crate) fn text_view_to_font(
 ) -> Result<Font> {
     let paint = view.get_paint(env)?;
     let px = paint.get_text_size(env)?;
-    let metrics = view.as_view().get_resources(env)?.get_display_metrics(env)?;
+    let metrics = view
+        .as_view()
+        .get_resources(env)?
+        .get_display_metrics(env)?;
     let typeface = paint.get_typeface(env)?;
     let family = view.get_font_family(env)?;
     let family = if family.is_null() {

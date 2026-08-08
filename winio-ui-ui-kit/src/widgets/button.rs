@@ -6,7 +6,9 @@ use objc2::{
     sel,
 };
 use objc2_foundation::{MainThreadMarker, NSDictionary, NSObject, NSString, NSURL};
-use objc2_ui_kit::{UIApplication, UIButton, UIButtonType, UIControlEvents, UIControlState, UIFont};
+use objc2_ui_kit::{
+    UIApplication, UIButton, UIButtonType, UIControlEvents, UIControlState, UIFont,
+};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Font, Point, Size};
