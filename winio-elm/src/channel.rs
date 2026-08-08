@@ -42,12 +42,12 @@ impl<T> Channel<T> {
     }
 
     pub fn wait(&self) -> impl Future<Output = ()> + '_ {
-        self.0.lock().unwrap().woke = false;
         RecvFut(&self.0)
     }
 
     pub fn fetch_all(&self) -> SmallVec<[T; 1]> {
         let mut inner = self.0.lock().unwrap();
+        inner.woke = false;
         std::mem::take(&mut inner.data)
     }
 }
