@@ -197,7 +197,6 @@ pub enum WgpuPageEvent {}
 
 #[derive(Debug)]
 pub enum WgpuPageMessage {
-    Noop,
     Tick,
 }
 
@@ -244,7 +243,7 @@ impl Component for WgpuPage {
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: WgpuPageMessage::Noop,
+            sender,
             self.window => {},
             self.canvas => {},
             self.timer => {
@@ -263,7 +262,6 @@ impl Component for WgpuPage {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            WgpuPageMessage::Noop => Ok(false),
             WgpuPageMessage::Tick => {
                 self.angle += 0.01;
                 self.angle %= std::f32::consts::TAU;

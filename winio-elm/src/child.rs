@@ -46,7 +46,6 @@ impl<T: Component> Child<T> {
     /// `window: Child<Window>`. The message of `MainModel` is defined as
     /// ```ignore
     /// enum MainMessage {
-    ///     Noop,
     ///     Close,
     /// }
     /// ```
@@ -54,7 +53,7 @@ impl<T: Component> Child<T> {
     /// ```ignore
     /// async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
     ///     start! {
-    ///         sender, default: MainMessage::Noop,
+    ///         sender,
     ///         self.window => {
     ///             WindowEvent::Close => MainMessage::Close,
     ///         },
@@ -72,8 +71,6 @@ impl<T: Component> Child<T> {
     ///             // ignore other events
     ///             _ => None,
     ///         },
-    ///         // you should always propagate internal messages
-    ///         || MainMessage::Noop,
     ///     );
     ///     // ...other children
     ///     futures_util::join!(fut_window, /* ... */);
@@ -83,7 +80,6 @@ impl<T: Component> Child<T> {
         &mut self,
         sender: &ComponentSender<C>,
         mut f: impl FnMut(T::Event) -> Option<C::Message>,
-        mut propagate: impl FnMut() -> C::Message,
     ) -> ! {
         let fut_start = self.model.start(&self.sender);
         let fut_forward = async {
@@ -93,7 +89,7 @@ impl<T: Component> Child<T> {
                     match msg {
                         ComponentMessage::Message(msg) => {
                             self.msg_cache.push(msg);
-                            sender.post(propagate());
+                            sender.wake();
                         }
                         ComponentMessage::Event(e) => {
                             if let Some(m) = f(e) {

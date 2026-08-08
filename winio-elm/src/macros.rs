@@ -59,7 +59,6 @@ macro_rules! __init_assign {
 ///     canvas: Child<Canvas>,
 /// }
 /// enum MainMessage {
-///     Noop,
 ///     Redraw,
 ///     Close,
 /// }
@@ -71,7 +70,7 @@ macro_rules! __init_assign {
 /// async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
 ///     start! {
 ///         sender,
-///         default: MainMessage::Noop,
+///        
 ///         self.window => {
 ///             WindowEvent::Close => MainMessage::Close,
 ///             WindowEvent::Resize => MainMessage::Redraw,
@@ -85,19 +84,18 @@ macro_rules! __init_assign {
 /// ```
 #[macro_export]
 macro_rules! start {
-    ($sender:expr, default: $noop:expr $(,)?) => {
+    ($sender:expr $(,)?) => {
         let _sender = $sender;
         let _default = $noop;
         ::core::future::pending().await
     };
-    ($sender:expr, default: $noop:expr, $($(#[$m:meta])* $w:expr => { $($t:tt)* }),+$(,)?) => {
+    ($sender:expr, $($(#[$m:meta])* $w:expr => { $($t:tt)* }),+$(,)?) => {
         #[allow(unreachable_code)]
         $crate::__join!($(
             $(#[$m])*
             $w.start(
                 $sender,
                 $crate::__start_map!($($t)*),
-                || $noop
             ),
         )*).0
     };

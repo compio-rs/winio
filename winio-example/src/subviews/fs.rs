@@ -37,7 +37,6 @@ pub enum FsPageEvent {
 
 #[derive(Debug)]
 pub enum FsPageMessage {
-    Noop,
     ChooseFile,
     ChooseSaveFile,
     OpenFile(PathBuf),
@@ -85,7 +84,7 @@ impl Component for FsPage {
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: FsPageMessage::Noop,
+            sender,
             self.window => {},
             self.canvas => {},
             self.open_button => {
@@ -114,7 +113,6 @@ impl Component for FsPage {
         sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            FsPageMessage::Noop => Ok(false),
             FsPageMessage::ChooseFile => {
                 sender.output(FsPageEvent::ChooseFile);
                 Ok(false)

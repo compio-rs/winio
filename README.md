@@ -59,7 +59,6 @@ struct MainModel {
 }
 
 enum MainMessage {
-    Noop,
     Close,
 }
 
@@ -84,7 +83,7 @@ impl Component for MainModel {
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         // listen to events
         start! {
-            sender, default: MainMessage::Noop,
+            sender,
             self.window => {
                 WindowEvent::Close => MainMessage::Close,
             }
@@ -99,7 +98,6 @@ impl Component for MainModel {
     async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> Result<bool> {
         // deal with custom messages
         match message {
-            MainMessage::Noop => Ok(false),
             MainMessage::Close => {
                 // the root component output stops the application
                 sender.output(());

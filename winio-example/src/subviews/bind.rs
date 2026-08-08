@@ -24,7 +24,6 @@ pub struct BindPage {
 pub enum BindPageEvent {}
 
 pub enum BindPageMessage {
-    Noop,
     Bind1To2,
     Bind2To1,
     Bind1ToLabel,
@@ -96,7 +95,7 @@ impl Component for BindPage {
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: BindPageMessage::Noop,
+            sender,
             self.window => {},
             self.edit1 => {},
             self.edit2 => {},
@@ -125,7 +124,6 @@ impl Component for BindPage {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            BindPageMessage::Noop => {}
             BindPageMessage::Bind1To2 => {
                 if self.chk_1_2.is_checked()? && self.bind_1_2.is_none() {
                     let id = self

@@ -14,7 +14,6 @@ pub enum BackdropChooserEvent {
 
 #[derive(Debug)]
 pub enum BackdropChooserMessage {
-    Noop,
     Select,
 }
 
@@ -59,7 +58,7 @@ impl Component for BackdropChooser {
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: BackdropChooserMessage::Noop,
+            sender,
             self.combo => {},
         }
     }
@@ -75,7 +74,6 @@ impl Component for BackdropChooser {
         sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            BackdropChooserMessage::Noop => Ok(false),
             BackdropChooserMessage::Select => {
                 let vibrancy = match self.combo.selection()? {
                     Some(0) => None,

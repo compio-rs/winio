@@ -28,7 +28,6 @@ pub enum NetPageEvent {}
 
 #[derive(Debug)]
 pub enum NetPageMessage {
-    Noop,
     Go,
     Fetch(NetFetchStatus),
 }
@@ -71,7 +70,7 @@ impl Component for NetPage {
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: NetPageMessage::Noop,
+            sender,
             self.window => {},
             self.canvas => {},
             self.button => {
@@ -91,7 +90,6 @@ impl Component for NetPage {
         sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            NetPageMessage::Noop => Ok(false),
             NetPageMessage::Go => {
                 spawn(fetch(
                     self.client.clone(),

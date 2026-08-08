@@ -20,7 +20,6 @@ pub enum ScrollViewPageEvent {
 
 #[derive(Debug)]
 pub enum ScrollViewPageMessage {
-    Noop,
     Add,
     Del,
     Show,
@@ -65,7 +64,7 @@ impl Component for ScrollViewPage {
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: ScrollViewPageMessage::Noop,
+            sender,
             self.window => {},
             self.add_btn => {
                 ButtonEvent::Click => ScrollViewPageMessage::Add,
@@ -98,7 +97,6 @@ impl Component for ScrollViewPage {
         sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            ScrollViewPageMessage::Noop => Ok(false),
             ScrollViewPageMessage::Add => {
                 let idx = self.radios.len() + 1;
                 init! {

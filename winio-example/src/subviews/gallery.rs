@@ -75,7 +75,6 @@ pub enum GalleryPageEvent {
 
 #[derive(Debug)]
 pub enum GalleryPageMessage {
-    Noop,
     Redraw,
     ChooseFolder,
     Start,
@@ -161,7 +160,7 @@ impl Component for GalleryPage {
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: GalleryPageMessage::Noop,
+            sender,
             self.window => {},
             self.canvas => {
                 CanvasEvent::MouseWheel(w) => GalleryPageMessage::Wheel(w),
@@ -205,7 +204,6 @@ impl Component for GalleryPage {
     ) -> Result<bool> {
         self.update_scrollbar()?;
         match message {
-            GalleryPageMessage::Noop => Ok(false),
             GalleryPageMessage::Redraw => Ok(true),
             GalleryPageMessage::ChooseFolder => {
                 sender.output(GalleryPageEvent::ChooseFolder);

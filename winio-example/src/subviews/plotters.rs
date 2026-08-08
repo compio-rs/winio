@@ -14,10 +14,7 @@ pub struct PlottersPage {
 pub enum PlottersPageEvent {}
 
 #[derive(Debug)]
-pub enum PlottersPageMessage {
-    /// No operation.
-    Noop,
-}
+pub enum PlottersPageMessage {}
 
 impl Component for PlottersPage {
     type Error = Error;
@@ -38,7 +35,7 @@ impl Component for PlottersPage {
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
-            sender, default: PlottersPageMessage::Noop,
+            sender,
             self.window => {},
             self.canvas => {},
         }

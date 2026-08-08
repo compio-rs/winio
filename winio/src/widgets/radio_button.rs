@@ -193,9 +193,6 @@ pub enum RadioButtonGroupEvent {}
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum RadioButtonGroupMessage {
-    /// No operation.
-    #[doc(hidden)]
-    Noop,
     /// A radio button has been selected, with its index.
     Click(usize),
     /// Set the selection.
@@ -306,13 +303,9 @@ impl Component for RadioButtonGroup {
             .iter_mut()
             .enumerate()
             .map(|(i, c)| {
-                c.start(
-                    sender,
-                    move |e| match e {
-                        RadioButtonEvent::Click => Some(RadioButtonGroupMessage::Click(i)),
-                    },
-                    || RadioButtonGroupMessage::Noop,
-                )
+                c.start(sender, move |e| match e {
+                    RadioButtonEvent::Click => Some(RadioButtonGroupMessage::Click(i)),
+                })
             })
             .collect::<Vec<_>>();
         futures_util::future::join_all(futures).await;
@@ -332,7 +325,6 @@ impl Component for RadioButtonGroup {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            RadioButtonGroupMessage::Noop => Ok(false),
             RadioButtonGroupMessage::Click(i) => {
                 if Some(i) != self.selection {
                     self.selection = Some(i);
