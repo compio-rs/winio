@@ -2,8 +2,8 @@ use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
 use winio_primitive::{
-    BrushPen, DrawingFont, LinearGradientBrush, MouseButton, Point, RadialGradientBrush, Rect,
-    Size, SolidColorBrush, Transform, Vector,
+    BrushPen, Font, LinearGradientBrush, MouseButton, Point, RadialGradientBrush, Rect,
+    RelativePoint, Size, SolidColorBrush, Transform, Vector,
 };
 
 use crate::{Result, Widget, not_impl};
@@ -154,14 +154,15 @@ impl DrawingContext<'_> {
     pub fn draw_str(
         &mut self,
         _brush: impl Brush,
-        _font: DrawingFont,
+        _font: Font,
+        _anchor: RelativePoint,
         _pos: Point,
         _text: &str,
     ) -> Result<()> {
         not_impl()
     }
 
-    pub fn measure_str(&self, _font: DrawingFont, _text: &str) -> Result<Size> {
+    pub fn measure_str(&self, _font: Font, _text: &str) -> Result<Size> {
         not_impl()
     }
 

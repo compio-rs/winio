@@ -1,5 +1,5 @@
 use image::DynamicImage;
-use winio_primitive::{DrawingFont, Point, Rect, Size, Transform};
+use winio_primitive::{Font, Point, Rect, RelativePoint, Size, Transform};
 
 use crate::{sys, sys::Result};
 
@@ -40,7 +40,7 @@ fn fix_size(mut size: Size) -> Size {
 }
 
 #[inline]
-fn fix_font(mut font: DrawingFont) -> DrawingFont {
+fn fix_font(mut font: Font) -> Font {
     font.size = font.size.max(0.1);
     if font.family.is_empty() {
         font.family = "Arial".to_string();
@@ -132,15 +132,17 @@ impl<'a> DrawingContext<'a> {
     pub fn draw_str(
         &mut self,
         brush: impl Brush,
-        font: DrawingFont,
+        font: Font,
+        anchor: RelativePoint,
         pos: Point,
         text: impl AsRef<str>,
     ) -> Result<()> {
-        self.0.draw_str(brush, fix_font(font), pos, text.as_ref())
+        self.0
+            .draw_str(brush, fix_font(font), anchor, pos, text.as_ref())
     }
 
     /// Measure string size.
-    pub fn measure_str(&self, font: DrawingFont, text: &str) -> Result<Size> {
+    pub fn measure_str(&self, font: Font, text: &str) -> Result<Size> {
         self.0.measure_str(fix_font(font), text)
     }
 

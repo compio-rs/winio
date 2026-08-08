@@ -7,9 +7,8 @@ use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{
-    BrushPen, Color, DrawingFont, HAlign, LinearGradientBrush, MouseButton, Point,
-    RadialGradientBrush, Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, Transform,
-    VAlign, Vector,
+    BrushPen, Color, Font, LinearGradientBrush, MouseButton, Point, RadialGradientBrush, Rect,
+    RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform, Vector,
 };
 
 use crate::{Error, GlobalRuntime, Result, widgets::Widget};
@@ -326,7 +325,7 @@ impl DrawingContext<'_> {
         Ok(())
     }
 
-    fn measure_str_impl(&self, font: &DrawingFont, text: &str) -> Result<Size> {
+    fn measure_str_impl(&self, font: &Font, text: &str) -> Result<Size> {
         let mut painter = self.painter.borrow_mut();
         ffi::painter_set_font(
             painter.pin_mut(),
@@ -342,29 +341,22 @@ impl DrawingContext<'_> {
     pub fn draw_str(
         &mut self,
         brush: impl Brush,
-        font: DrawingFont,
+        font: Font,
+        anchor: RelativePoint,
         pos: Point,
         text: &str,
     ) -> Result<()> {
         let size = self.measure_str_impl(&font, text)?;
         let mut rect = Rect::new(pos, size);
-        match font.halign {
-            HAlign::Center => rect.origin.x -= rect.width() / 2.0,
-            HAlign::Right => rect.origin.x -= rect.width(),
-            _ => {}
-        }
-        match font.valign {
-            VAlign::Center => rect.origin.y -= rect.height() / 2.0,
-            VAlign::Bottom => rect.origin.y -= rect.height(),
-            _ => {}
-        }
+        rect.origin.x -= rect.width() * anchor.x;
+        rect.origin.y -= rect.height() * anchor.y;
 
         self.set_pen(BrushPen::new(brush, 1.0), rect)?;
         ffi::painter_draw_text(self.painter.get_mut().pin_mut(), QRectF(rect), text)?;
         Ok(())
     }
 
-    pub fn measure_str(&self, font: DrawingFont, text: &str) -> Result<Size> {
+    pub fn measure_str(&self, font: Font, text: &str) -> Result<Size> {
         self.measure_str_impl(&font, text)
     }
 

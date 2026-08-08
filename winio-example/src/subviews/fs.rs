@@ -164,12 +164,8 @@ impl Component for FsPage {
         });
         ctx.draw_str(
             &brush,
-            DrawingFontBuilder::new()
-                .halign(HAlign::Left)
-                .valign(VAlign::Top)
-                .family("Courier New")
-                .size(12.0)
-                .build(),
+            FontBuilder::new().family("Courier New").size(12.0).build(),
+            RelativePoint::zero(),
             Point::zero(),
             match &self.text {
                 FsFetchStatus::Loading => "Loading...",

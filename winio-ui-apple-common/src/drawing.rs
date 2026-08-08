@@ -17,8 +17,8 @@ use objc2_core_text::{
 };
 use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
 use winio_primitive::{
-    BrushPen, Color, DrawingFont, GradientStop, LinearGradientBrush, Point, RadialGradientBrush,
-    Rect, RelativePoint, Size, SolidColorBrush,
+    BrushPen, Color, Font, GradientStop, LinearGradientBrush, Point, RadialGradientBrush, Rect,
+    RelativePoint, Size, SolidColorBrush,
 };
 
 use crate::{Error, Result, TollFreeBridge};
@@ -251,7 +251,7 @@ impl DrawAction {
 }
 
 pub fn create_attr_str(
-    font: &DrawingFont,
+    font: &Font,
     color: &CGColor,
     text: &str,
 ) -> Result<CFRetained<CFMutableAttributedString>> {

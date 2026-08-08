@@ -34,9 +34,8 @@ use windows::{
 };
 use windows_numerics::{Matrix3x2, Vector2};
 use winio_primitive::{
-    BrushPen, Color, DrawingFont, GradientStop, HAlign, LinearGradientBrush, Point,
-    RadialGradientBrush, Rect, RectBox, RelativeToLogical, Size, SolidColorBrush, Transform,
-    VAlign, Vector,
+    BrushPen, Color, Font, GradientStop, LinearGradientBrush, Point, RadialGradientBrush, Rect,
+    RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform, Vector,
 };
 
 use crate::Result;
@@ -174,8 +173,9 @@ impl DrawingContext {
 
     fn get_str_layout(
         &self,
-        font: DrawingFont,
-        mut pos: Point,
+        font: Font,
+        anchor: RelativePoint,
+        pos: Point,
         s: &str,
     ) -> Result<(Rect, IDWriteTextLayout)> {
         unsafe {
@@ -205,26 +205,10 @@ impl DrawingContext {
             let mut metrics = MaybeUninit::uninit();
             layout.GetMetrics(metrics.as_mut_ptr())?;
             let metrics = metrics.assume_init();
-            match font.halign {
-                HAlign::Center => {
-                    pos.x -= metrics.width as f64 / 2.0;
-                }
-                HAlign::Right => {
-                    pos.x -= metrics.width as f64;
-                }
-                _ => {}
-            }
-            match font.valign {
-                VAlign::Center => {
-                    pos.y -= metrics.height as f64 / 2.0;
-                }
-                VAlign::Bottom => {
-                    pos.y -= metrics.height as f64;
-                }
-                _ => {}
-            }
+            let x = pos.x - metrics.width as f64 * anchor.x;
+            let y = pos.y - metrics.height as f64 * anchor.y;
             let size = Size::new(metrics.width as f64, metrics.height as f64);
-            let rect = Rect::new(pos, size);
+            let rect = Rect::new(Point::new(x, y), size);
             Ok((rect, layout))
         }
     }
@@ -399,11 +383,12 @@ impl DrawingContext {
     pub fn draw_str(
         &mut self,
         brush: impl Brush,
-        font: DrawingFont,
+        font: Font,
+        anchor: RelativePoint,
         pos: Point,
         text: &str,
     ) -> Result<()> {
-        let (rect, layout) = self.get_str_layout(font, pos, text.as_ref())?;
+        let (rect, layout) = self.get_str_layout(font, anchor, pos, text.as_ref())?;
         let b = self.get_brush(brush, rect)?;
         unsafe {
             self.target.DrawTextLayout(
@@ -416,8 +401,9 @@ impl DrawingContext {
         Ok(())
     }
 
-    pub fn measure_str(&self, font: DrawingFont, text: &str) -> Result<Size> {
-        let (rect, _) = self.get_str_layout(font, Point::zero(), text.as_ref())?;
+    pub fn measure_str(&self, font: Font, text: &str) -> Result<Size> {
+        let (rect, _) =
+            self.get_str_layout(font, RelativePoint::zero(), Point::zero(), text.as_ref())?;
         Ok(rect.size)
     }
 

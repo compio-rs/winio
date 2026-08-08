@@ -30,7 +30,9 @@ use windows_sys::Win32::{
     },
 };
 use winio_handle::{AsContainer, AsWidget};
-use winio_primitive::{DrawingFont, MouseButton, Orient, Point, Rect, Size, Transform, Vector};
+use winio_primitive::{
+    Font, MouseButton, Orient, Point, Rect, RelativePoint, Size, Transform, Vector,
+};
 use winio_ui_windows_common::{Backdrop, d2d1_factory, is_dark_mode_allowed_for_app, syscall};
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 
@@ -352,12 +354,13 @@ impl<'a> DrawingContext<'a> {
     pub fn draw_str(
         &mut self,
         brush: impl Brush,
-        font: DrawingFont,
+        font: Font,
+        anchor: RelativePoint,
         pos: Point,
         text: &str,
     ) -> Result<()>;
 
-    pub fn measure_str(&self, font: DrawingFont, text: &str) -> Result<Size>;
+    pub fn measure_str(&self, font: Font, text: &str) -> Result<Size>;
 
     pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage>;
 
