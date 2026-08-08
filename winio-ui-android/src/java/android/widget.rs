@@ -50,10 +50,12 @@ jni::bind_java_type! {
         fn set_movement_method(method: &MovementMethod),
         fn set_text_size(size: jfloat),
         fn set_typeface(typeface: &Typeface),
-        fn set_typeface_style(typeface: &Typeface, style: jint),
-        fn set_font_family(family: &JString),
-        fn get_font_family() -> JObject,
-        fn get_paint() -> Paint,
+        fn set_typeface_style {
+            sig = (typeface: &Typeface, style: jint),
+            name = "setTypeface",
+        },
+        fn get_typeface() -> Typeface,
+        fn get_text_size() -> jfloat,
     },
     is_instance_of = {
         view = View,

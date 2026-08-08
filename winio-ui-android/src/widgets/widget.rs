@@ -25,14 +25,13 @@ pub(crate) fn text_view_to_font(
     env: &mut Env<'_>,
     view: &BaseWidget<ATextView<'_>>,
 ) -> Result<Font> {
-    let paint = view.get_paint(env)?;
-    let px = paint.get_text_size(env)?;
+    let px = view.get_text_size(env)?;
     let metrics = view
         .as_view()
         .get_resources(env)?
         .get_display_metrics(env)?;
-    let typeface = paint.get_typeface(env)?;
-    let family = view.get_font_family(env)?;
+    let typeface = view.get_typeface(env)?;
+    let family = typeface.get_system_font_family_name(env)?;
     let family = if family.is_null() {
         String::new()
     } else {
@@ -61,10 +60,9 @@ pub(crate) fn font_to_text_view(
         style |= typeface::ITALIC;
     }
     let family = env.new_string(&font.family)?;
-    let default = Typeface::DEFAULT(env)?;
-    view.set_text_size(env, font.size as jni::sys::jfloat)?;
-    view.set_font_family(env, &family)?;
-    view.set_typeface_style(env, &default, style)?;
+    let typeface = Typeface::create(env, &family, style)?;
+    view.set_text_size(env, font.size as _)?;
+    view.set_typeface(env, &typeface)?;
     Ok(())
 }
 
