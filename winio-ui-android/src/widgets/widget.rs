@@ -12,12 +12,60 @@ use winio_primitive::{Point, Size};
 use crate::{
     Result,
     java::android::{
+        graphics::{Typeface, typeface},
         view::{View as AView, ViewGroup as AViewGroup, gravity},
-        widget::{FrameLayout, FrameLayoutLayoutParams},
+        widget::{FrameLayout, FrameLayoutLayoutParams, TextView as ATextView},
     },
     platform::dpi::{logical_point, logical_size, physical_point, physical_size},
     vm_exec,
 };
+use jni::objects::JString;
+use winio_primitive::Font;
+
+/// Read the font of a [`ATextView`].
+pub(crate) fn text_view_to_font(
+    env: &mut Env<'_>,
+    view: &BaseWidget<ATextView<'_>>,
+) -> Result<Font> {
+    let paint = view.get_paint(env)?;
+    let px = paint.get_text_size(env)?;
+    let metrics = view.as_view().get_resources(env)?.get_display_metrics(env)?;
+    let typeface = paint.get_typeface(env)?;
+    let family = view.get_font_family(env)?;
+    let family = if family.is_null() {
+        String::new()
+    } else {
+        let family = unsafe { JString::from_raw(env, family.into_raw()) };
+        family.try_to_string(env)?
+    };
+    Ok(Font {
+        family,
+        size: px as f64 / metrics.scaled_density(env)? as f64,
+        bold: typeface.is_bold(env)?,
+        italic: typeface.is_italic(env)?,
+    })
+}
+
+/// Set the font of a [`ATextView`].
+pub(crate) fn font_to_text_view(
+    env: &mut Env<'_>,
+    view: &BaseWidget<ATextView<'_>>,
+    font: &Font,
+) -> Result<()> {
+    let mut style = typeface::NORMAL;
+    if font.bold {
+        style |= typeface::BOLD;
+    }
+    if font.italic {
+        style |= typeface::ITALIC;
+    }
+    let family = env.new_string(&font.family)?;
+    let default = Typeface::DEFAULT(env)?;
+    view.set_text_size(env, font.size as jni::sys::jfloat)?;
+    view.set_font_family(env, &family)?;
+    view.set_typeface_style(env, &default, style)?;
+    Ok(())
+}
 
 #[derive(Debug)]
 pub(crate) struct BaseWidget<T>

@@ -5,7 +5,6 @@ use jni::{
     Env,
     objects::{JObject, JString},
     refs::{Global, LoaderContext, Reference},
-    sys::jfloat,
 };
 use jni_min_helper::DynamicProxy;
 use winio_callback::SyncCallback;
@@ -16,7 +15,6 @@ use crate::{
     BaseWidget, Result, current_activity,
     java::{
         android::{
-            graphics::{Typeface, typeface},
             text::{
                 SpannableString, method::LinkMovementMethod, spanned::SPAN_INCLUSIVE_EXCLUSIVE,
                 style::URLSpan,
@@ -27,6 +25,7 @@ use crate::{
         lang::JRunnable,
     },
     vm_exec,
+    widgets::{font_to_text_view, text_view_to_font},
 };
 
 #[derive(Debug)]
@@ -159,47 +158,11 @@ impl LinkLabel {
     }
 
     pub fn font(&self) -> Result<Font> {
-        vm_exec(|env| {
-            let paint = self.inner.get_paint(env)?;
-            let px = paint.get_text_size(env)?;
-            let metrics = self
-                .inner
-                .as_view()
-                .get_resources(env)?
-                .get_display_metrics(env)?;
-            let typeface = paint.get_typeface(env)?;
-            let family = self.inner.get_font_family(env)?;
-            let family = if family.is_null() {
-                String::new()
-            } else {
-                let family = unsafe { JString::from_raw(env, family.into_raw()) };
-                family.try_to_string(env)?
-            };
-            Ok(Font {
-                family,
-                size: px as f64 / metrics.scaled_density(env)? as f64,
-                bold: typeface.is_bold(env)?,
-                italic: typeface.is_italic(env)?,
-            })
-        })
+        vm_exec(|env| text_view_to_font(env, &self.inner))
     }
 
     pub fn set_font(&mut self, font: Font) -> Result<()> {
-        vm_exec(|env| {
-            let mut style = typeface::NORMAL;
-            if font.bold {
-                style |= typeface::BOLD;
-            }
-            if font.italic {
-                style |= typeface::ITALIC;
-            }
-            let family = env.new_string(&font.family)?;
-            self.inner.set_text_size(env, font.size as jfloat)?;
-            let default = Typeface::DEFAULT(env)?;
-            self.inner.set_font_family(env, &family)?;
-            self.inner.set_typeface_style(env, &default, style)?;
-            Ok(())
-        })
+        vm_exec(|env| font_to_text_view(env, &self.inner, &font))
     }
 }
 
