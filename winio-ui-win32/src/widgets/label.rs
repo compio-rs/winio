@@ -16,13 +16,19 @@ use windows_sys::{
     },
     w,
 };
+use windows_sys::Win32::{
+    Graphics::Gdi::HFONT,
+    UI::WindowsAndMessaging::{SendMessageW, WM_GETFONT},
+};
 use winio_handle::{AsContainer, AsWidget};
-use winio_primitive::{HAlign, Point, Size};
+use winio_primitive::{Font, HAlign, Point, Size};
 use winio_ui_windows_common::syscall;
 
 use crate::{
     Error, Result, WindowMessageCommand,
-    platform::font::default_underline_font,
+    platform::font::{
+        default_underline_font, hfont_to_font, refresh_hwnd_font, set_hwnd_font,
+    },
     widgets::{Widget, with_u16c},
 };
 
@@ -98,6 +104,19 @@ impl Label {
         self.handle.set_style(style)
     }
 
+    pub fn font(&self) -> Result<Font> {
+        let hwnd = self.handle.as_widget().as_win32();
+        let hfont = unsafe { SendMessageW(hwnd, WM_GETFONT, 0, 0) } as HFONT;
+        hfont_to_font(hwnd, hfont)
+    }
+
+    pub fn set_font(&mut self, font: Font) -> Result<()> {
+        let hwnd = self.handle.as_widget().as_win32();
+        let hfont = set_hwnd_font(hwnd, font, false)?;
+        self.handle.send_message(WM_SETFONT, hfont as _, 1);
+        Ok(())
+    }
+
     pub fn is_transparent(&self) -> Result<bool> {
         Ok((self.handle.ex_style()? & WS_EX_TRANSPARENT) != 0)
     }
@@ -163,6 +182,13 @@ impl LinkLabel {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
+    pub fn set_font(&mut self, font: Font) -> Result<()> {
+        let hwnd = self.handle.as_widget().as_win32();
+        let hfont = set_hwnd_font(hwnd, font, true)?;
+        self.handle.handle.send_message(WM_SETFONT, hfont as _, 1);
+        Ok(())
+    }
+
     pub fn uri(&self) -> Result<String> {
         Ok(self.uri.clone())
     }
@@ -175,6 +201,8 @@ impl LinkLabel {
     pub fn is_transparent(&self) -> Result<bool>;
 
     pub fn set_transparent(&mut self, v: bool) -> Result<()>;
+
+    pub fn font(&self) -> Result<Font>;
 
     pub async fn wait_click(&self) {
         loop {
@@ -227,13 +255,22 @@ pub(crate) unsafe extern "system" fn link_label_wnd_proc(
             return 1;
         },
         WM_SETFONT => unsafe {
-            match default_underline_font(GetDpiForWindow(hwnd)) {
-                Ok(font) => {
-                    return DefSubclassProc(hwnd, WM_SETFONT, font as _, lparam);
-                }
+            let hfont = match refresh_hwnd_font(hwnd) {
+                Ok(Some(hfont)) => Some(hfont),
+                Ok(None) => match default_underline_font(GetDpiForWindow(hwnd)) {
+                    Ok(font) => Some(font as _),
+                    Err(_e) => {
+                        error!("Failed to set underline font: {}", _e);
+                        None
+                    }
+                },
                 Err(_e) => {
-                    error!("Failed to set underline font: {}", _e);
+                    error!("Failed to refresh font: {}", _e);
+                    None
                 }
+            };
+            if let Some(hfont) = hfont {
+                return DefSubclassProc(hwnd, WM_SETFONT, hfont as _, lparam);
             }
         },
         _ => {}

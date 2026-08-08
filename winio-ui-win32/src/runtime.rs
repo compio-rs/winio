@@ -55,7 +55,10 @@ use winio_ui_windows_common::{
 use crate::get_handle;
 use crate::{
     Error, Result, link_label_wnd_proc,
-    platform::{dpi::get_dpi_for_window, font::default_font},
+    platform::{
+        dpi::get_dpi_for_window,
+        font::{default_font, refresh_hwnd_font},
+    },
 };
 
 #[cfg(not(feature = "compio-compat"))]
@@ -307,7 +310,11 @@ pub(crate) unsafe fn refresh_font(handle: HWND) -> Result<()> {
 
     unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
         unsafe {
-            SendMessageW(hwnd, WM_SETFONT, lparam as _, 1);
+            let hfont = match refresh_hwnd_font(hwnd) {
+                Ok(Some(hfont)) => hfont,
+                _ => lparam as _,
+            };
+            SendMessageW(hwnd, WM_SETFONT, hfont as _, 1);
             EnumChildWindows(hwnd, Some(enum_callback), lparam);
             1
         }
