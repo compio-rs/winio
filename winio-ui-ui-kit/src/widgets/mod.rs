@@ -1,7 +1,7 @@
 use objc2::rc::Retained;
-use objc2_foundation::MainThreadMarker;
-use objc2_ui_kit::{UIApplication, UIUserInterfaceStyle, UIWindowScene};
-use winio_primitive::ColorTheme;
+use objc2_foundation::{MainThreadMarker, NSString};
+use objc2_ui_kit::{UIApplication, UIFont, UIFontDescriptorSymbolicTraits, UIUserInterfaceStyle, UIWindowScene};
+use winio_primitive::{ColorTheme, Font};
 
 mod canvas;
 pub use canvas::*;
@@ -80,4 +80,38 @@ pub(crate) fn first_ui_window_scene() -> crate::Result<Option<Retained<UIWindowS
         }
         None
     })
+}
+
+/// Convert a [`UIFont`] to a [`Font`].
+pub(crate) fn uifont_to_font(font: &UIFont) -> Font {
+    unsafe {
+        let traits = font.fontDescriptor().symbolicTraits();
+        Font {
+            family: crate::from_nsstring(&font.familyName()),
+            size: font.pointSize(),
+            bold: traits.contains(UIFontDescriptorSymbolicTraits::TraitBold),
+            italic: traits.contains(UIFontDescriptorSymbolicTraits::TraitItalic),
+        }
+    }
+}
+
+/// Convert a [`Font`] to a [`UIFont`].
+pub(crate) fn font_to_uifont(font: &Font) -> Retained<UIFont> {
+    unsafe {
+        let base =
+            UIFont::fontWithName_size(&NSString::from_str(&font.family), font.size)
+                .unwrap_or_else(|| UIFont::systemFontOfSize(font.size));
+        let mut traits = UIFontDescriptorSymbolicTraits::empty();
+        if font.bold {
+            traits |= UIFontDescriptorSymbolicTraits::TraitBold;
+        }
+        if font.italic {
+            traits |= UIFontDescriptorSymbolicTraits::TraitItalic;
+        }
+        let desc = base
+            .fontDescriptor()
+            .fontDescriptorWithSymbolicTraits(traits)
+            .unwrap_or_else(|| base.fontDescriptor());
+        UIFont::fontWithDescriptor_size(&desc, font.size)
+    }
 }

@@ -6,15 +6,18 @@ use objc2::{
     sel,
 };
 use objc2_app_kit::{
-    NSBezelStyle, NSButton, NSButtonType, NSControlStateValueOff, NSControlStateValueOn,
+    NSBezelStyle, NSButton, NSButtonType, NSControlStateValueOff, NSControlStateValueOn, NSFont,
     NSWorkspace,
 };
 use objc2_foundation::{MainThreadMarker, NSObject, NSString, NSURL};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Font, Point, Size};
 
-use crate::{GlobalRuntime, Result, Widget, catch, from_nsstring};
+use crate::{
+    GlobalRuntime, Result, Widget, catch, from_nsstring,
+    widgets::{font_to_nsfont, nsfont_to_font},
+};
 
 #[derive(Debug)]
 pub struct Button {
@@ -267,6 +270,20 @@ impl LinkLabel {
     pub fn set_uri(&mut self, uri: impl AsRef<str>) -> Result<()> {
         self.uri = uri.as_ref().to_string();
         Ok(())
+    }
+
+    pub fn font(&self) -> Result<Font> {
+        catch(|| {
+            let font = self.handle.view.font().unwrap_or_else(|| NSFont::systemFontOfSize(NSFont::systemFontSize()));
+            nsfont_to_font(&font)
+        })
+    }
+
+    pub fn set_font(&mut self, font: Font) -> Result<()> {
+        catch(|| {
+            let font = font_to_nsfont(&font);
+            self.handle.view.setFont(Some(&*font));
+        })
     }
 
     pub async fn wait_click(&self) {
