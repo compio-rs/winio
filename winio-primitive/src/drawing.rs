@@ -101,6 +101,19 @@ pub struct DrawingFont {
     pub valign: VAlign,
 }
 
+/// Font for widgets.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Font {
+    /// Font name.
+    pub family: String,
+    /// Font size.
+    pub size: f64,
+    /// *Italic*.
+    pub italic: bool,
+    /// **Bold**.
+    pub bold: bool,
+}
+
 impl DrawingFont {
     /// Create a builder.
     pub fn builder() -> DrawingFontBuilder {

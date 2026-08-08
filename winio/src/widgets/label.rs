@@ -2,7 +2,7 @@ use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
-    Enable, Failable, HAlign, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
+    Enable, Failable, Font, HAlign, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
 };
 
 use crate::{
@@ -41,6 +41,12 @@ impl Label {
 
     /// Set the horizontal alignment.
     pub fn set_halign(&mut self, align: HAlign) -> Result<()>;
+
+    /// The font.
+    pub fn font(&self) -> Result<Font>;
+
+    /// Set the font.
+    pub fn set_font(&mut self, font: Font) -> Result<()>;
 
     /// If the label background is transparent.
     #[cfg(win32)]
@@ -99,6 +105,8 @@ pub enum LabelMessage {
     SetText(String),
     /// Set the halign.
     SetHAlign(HAlign),
+    /// Set the font.
+    SetFont(Font),
     /// Set the transparent state.
     #[cfg(win32)]
     SetTransparent(bool),
@@ -143,6 +151,10 @@ impl Component for Label {
             }
             LabelMessage::SetHAlign(halign) => {
                 self.set_halign(halign)?;
+                Ok(true)
+            }
+            LabelMessage::SetFont(font) => {
+                self.set_font(font)?;
                 Ok(true)
             }
             #[cfg(win32)]

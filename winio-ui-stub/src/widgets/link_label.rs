@@ -1,6 +1,6 @@
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Font, Point, Size};
 
 use crate::{Result, Widget, not_impl};
 
@@ -46,6 +46,14 @@ impl LinkLabel {
     }
 
     pub fn set_uri(&mut self, _s: impl AsRef<str>) -> Result<()> {
+        not_impl()
+    }
+
+    pub fn font(&self) -> Result<Font> {
+        not_impl()
+    }
+
+    pub fn set_font(&mut self, _font: Font) -> Result<()> {
         not_impl()
     }
 

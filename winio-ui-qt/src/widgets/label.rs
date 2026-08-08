@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{HAlign, Point, Size};
+use winio_primitive::{Font, HAlign, Point, Size};
 
 use crate::{
     GlobalRuntime, Result,
@@ -77,6 +77,26 @@ impl Label {
             HAlign::Stretch => flag |= QtAlignmentFlag::AlignJustify,
         }
         self.widget.pin_mut().setAlignment(flag)?;
+        Ok(())
+    }
+
+    pub fn font(&self) -> Result<Font> {
+        Ok(Font {
+            family: ffi::label_font_family(self.widget.as_ref())?.try_into()?,
+            size: ffi::label_font_size(self.widget.as_ref())?,
+            bold: ffi::label_font_bold(self.widget.as_ref())?,
+            italic: ffi::label_font_italic(self.widget.as_ref())?,
+        })
+    }
+
+    pub fn set_font(&mut self, font: Font) -> Result<()> {
+        ffi::label_set_font(
+            self.widget.pin_mut(),
+            font.family.as_str(),
+            font.size,
+            font.bold,
+            font.italic,
+        )?;
         Ok(())
     }
 }
@@ -169,6 +189,10 @@ impl LinkLabel {
         self.refresh_text()
     }
 
+    pub fn font(&self) -> Result<Font>;
+
+    pub fn set_font(&mut self, font: Font) -> Result<()>;
+
     fn on_click(c: *const u8) {
         let c = c as *const Callback<()>;
         if let Some(c) = unsafe { c.as_ref() } {
@@ -207,5 +231,18 @@ mod ffi {
         fn setText(self: Pin<&mut QLabel>, s: &QString) -> Result<()>;
 
         fn setOpenExternalLinks(self: Pin<&mut QLabel>, v: bool) -> Result<()>;
+
+        fn label_set_font(
+            w: Pin<&mut QLabel>,
+            family: &str,
+            size: f64,
+            bold: bool,
+            italic: bool,
+        ) -> Result<()>;
+
+        fn label_font_family(w: &QLabel) -> Result<QString>;
+        fn label_font_size(w: &QLabel) -> Result<f64>;
+        fn label_font_bold(w: &QLabel) -> Result<bool>;
+        fn label_font_italic(w: &QLabel) -> Result<bool>;
     }
 }
