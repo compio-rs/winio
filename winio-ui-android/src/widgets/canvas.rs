@@ -12,8 +12,8 @@ use jni_min_helper::{DynamicProxy, JBoolean};
 use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{
-    BrushPen, DrawingFont, GradientStop, HAlign, LinearGradientBrush, MouseButton, Point,
-    RadialGradientBrush, Rect, RelativeToLogical, Size, SolidColorBrush, Transform, VAlign, Vector,
+    BrushPen, Font, GradientStop, LinearGradientBrush, MouseButton, Point, RadialGradientBrush,
+    Rect, RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform, Vector,
 };
 
 use crate::{
@@ -501,7 +501,7 @@ impl<'a> DrawingContext<'a> {
         &self,
         env: &mut Env<'local>,
         brush: Option<impl Brush>,
-        font: &DrawingFont,
+        font: &Font,
         text: &str,
     ) -> Result<(StaticLayout<'local>, Size)> {
         let mut style = typeface::NORMAL;
@@ -545,7 +545,8 @@ impl<'a> DrawingContext<'a> {
     pub fn draw_str(
         &mut self,
         brush: impl Brush,
-        font: DrawingFont,
+        font: Font,
+        anchor: RelativePoint,
         pos: Point,
         text: &str,
     ) -> Result<()> {
@@ -553,26 +554,8 @@ impl<'a> DrawingContext<'a> {
             let (layout, size) = self.create_layout(env, Some(brush), &font, text)?;
             let width = size.width;
             let height = size.height;
-            let mut x = pos.x;
-            let mut y = pos.y;
-            match font.halign {
-                HAlign::Center => {
-                    x -= width / 2.0;
-                }
-                HAlign::Right => {
-                    x -= width;
-                }
-                _ => {}
-            }
-            match font.valign {
-                VAlign::Center => {
-                    y -= height / 2.0;
-                }
-                VAlign::Bottom => {
-                    y -= height;
-                }
-                _ => {}
-            }
+            let x = pos.x - width * anchor.x;
+            let y = pos.y - height * anchor.y;
             self.canvas.translate(env, x as _, y as _)?;
             layout.draw(env, &self.canvas)?;
             self.canvas.translate(env, -x as _, -y as _)?;
@@ -580,7 +563,7 @@ impl<'a> DrawingContext<'a> {
         })
     }
 
-    pub fn measure_str(&self, font: DrawingFont, text: &str) -> Result<Size> {
+    pub fn measure_str(&self, font: Font, text: &str) -> Result<Size> {
         vm_exec(|env| {
             let (_, size) = self.create_layout(env, None::<SolidColorBrush>, &font, text)?;
             Ok(size)

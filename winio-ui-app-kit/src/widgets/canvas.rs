@@ -17,9 +17,7 @@ use objc2_core_text::CTFramesetter;
 use objc2_foundation::{MainThreadMarker, NSRect, NSSize};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{
-    DrawingFont, HAlign, MouseButton, Point, Rect, Size, Transform, VAlign, Vector,
-};
+use winio_primitive::{Font, MouseButton, Point, Rect, RelativePoint, Size, Transform, Vector};
 
 use crate::{
     Brush, DrawAction, DrawingImage, Error, GlobalRuntime, Pen, Result, Widget, catch,
@@ -385,24 +383,32 @@ impl DrawingContext<'_> {
     pub fn draw_str(
         &mut self,
         brush: impl Brush,
-        font: DrawingFont,
+        font: Font,
+        anchor: RelativePoint,
         pos: Point,
         text: &str,
     ) -> Result<()> {
         let color = brush.text_color()?;
-        let (framesetter, rect) = measure_str(font, &color, pos, text, self.size)?;
+        let (framesetter, rect) = measure_str(font, &color, anchor, pos, text, self.size)?;
         let rect = transform_rect(self.size, rect);
         self.actions
             .push(brush.create_text_action(framesetter, rect)?);
         Ok(())
     }
 
-    pub fn measure_str(&self, font: DrawingFont, text: &str) -> Result<Size> {
+    pub fn measure_str(&self, font: Font, text: &str) -> Result<Size> {
         let color =
             unsafe { CGColor::constant_color(Some(kCGColorWhite)).ok_or(Error::NullPointer) }?;
-        Ok(measure_str(font, &color, Point::zero(), text, self.size)?
-            .1
-            .size)
+        Ok(measure_str(
+            font,
+            &color,
+            RelativePoint::zero(),
+            Point::zero(),
+            text,
+            self.size,
+        )?
+        .1
+        .size)
     }
 
     pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage> {
@@ -580,8 +586,9 @@ fn path_round_rect(s: Size, rect: Rect, round: Size) -> CFRetained<CGPath> {
 }
 
 fn measure_str(
-    font: DrawingFont,
+    font: Font,
     color: &CGColor,
+    anchor: RelativePoint,
     pos: Point,
     text: &str,
     bound: Size,
@@ -596,17 +603,7 @@ fn measure_str(
             null_mut(),
         )
     });
-    let mut x = pos.x;
-    let mut y = pos.y;
-    match font.halign {
-        HAlign::Center => x -= size.width / 2.0,
-        HAlign::Right => x -= size.width,
-        _ => {}
-    }
-    match font.valign {
-        VAlign::Center => y -= size.height / 2.0,
-        VAlign::Bottom => y -= size.height,
-        _ => {}
-    }
+    let x = pos.x - size.width * anchor.x;
+    let y = pos.y - size.height * anchor.y;
     Ok((framesetter, Rect::new(Point::new(x, y), size)))
 }

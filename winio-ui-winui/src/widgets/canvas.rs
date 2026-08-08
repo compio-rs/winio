@@ -39,7 +39,9 @@ use windows::{
 };
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{ColorTheme, DrawingFont, MouseButton, Point, Rect, Size, Transform, Vector};
+use winio_primitive::{
+    ColorTheme, Font, MouseButton, Point, Rect, RelativePoint, Size, Transform, Vector,
+};
 use winio_ui_windows_common::d2d1_factory;
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 use winui3::{
@@ -532,12 +534,13 @@ impl<'a> DrawingContext<'a> {
     pub fn draw_str(
         &mut self,
         brush: impl Brush,
-        font: DrawingFont,
+        font: Font,
+        anchor: RelativePoint,
         pos: Point,
         text: &str,
     ) -> Result<()>;
 
-    pub fn measure_str(&self, font: DrawingFont, text: &str) -> Result<Size>;
+    pub fn measure_str(&self, font: Font, text: &str) -> Result<Size>;
 
     pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage>;
 
