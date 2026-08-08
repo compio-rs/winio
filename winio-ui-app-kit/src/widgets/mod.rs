@@ -1,5 +1,7 @@
-use objc2_foundation::{NSUserDefaults, ns_string};
-use winio_primitive::ColorTheme;
+use objc2::rc::Retained;
+use objc2_app_kit::{NSFont, NSFontDescriptorSymbolicTraits};
+use objc2_foundation::{NSString, NSUserDefaults, ns_string};
+use winio_primitive::{ColorTheme, Font};
 
 mod canvas;
 pub use canvas::*;
@@ -68,4 +70,35 @@ pub fn color_theme() -> crate::Result<ColorTheme> {
             ColorTheme::Light
         }
     })
+}
+
+/// Convert an [`NSFont`] to a [`Font`].
+pub(crate) fn nsfont_to_font(font: &NSFont) -> Font {
+    let traits = font.fontDescriptor().symbolicTraits();
+    Font {
+        family: font
+            .familyName()
+            .map(|s| crate::from_nsstring(&s))
+            .unwrap_or_default(),
+        size: font.pointSize(),
+        bold: traits.contains(NSFontDescriptorSymbolicTraits::TraitBold),
+        italic: traits.contains(NSFontDescriptorSymbolicTraits::TraitItalic),
+    }
+}
+
+/// Convert a [`Font`] to an [`NSFont`].
+pub(crate) fn font_to_nsfont(font: &Font) -> Retained<NSFont> {
+    let base = NSFont::fontWithName_size(&NSString::from_str(&font.family), font.size)
+        .unwrap_or_else(|| NSFont::systemFontOfSize(font.size));
+    let mut traits = NSFontDescriptorSymbolicTraits::empty();
+    if font.bold {
+        traits |= NSFontDescriptorSymbolicTraits::TraitBold;
+    }
+    if font.italic {
+        traits |= NSFontDescriptorSymbolicTraits::TraitItalic;
+    }
+    let desc = base
+        .fontDescriptor()
+        .fontDescriptorWithSymbolicTraits(traits);
+    NSFont::fontWithDescriptor_size(&desc, font.size).unwrap_or(base)
 }

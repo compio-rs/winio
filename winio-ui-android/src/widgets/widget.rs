@@ -3,21 +3,68 @@ use std::ops::Deref;
 use compio_log::error;
 use jni::{
     Env,
-    objects::JObject,
+    objects::{JObject, JString},
     refs::{Global, Reference},
 };
 use winio_handle::{AsContainer, AsWidget, BorrowedContainer, BorrowedWidget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Font, Point, Size};
 
 use crate::{
     Result,
     java::android::{
+        graphics::{Typeface, typeface},
         view::{View as AView, ViewGroup as AViewGroup, gravity},
-        widget::{FrameLayout, FrameLayoutLayoutParams},
+        widget::{FrameLayout, FrameLayoutLayoutParams, TextView as ATextView},
     },
     platform::dpi::{logical_point, logical_size, physical_point, physical_size},
     vm_exec,
 };
+
+/// Read the font of a [`ATextView`].
+pub(crate) fn text_view_to_font(
+    env: &mut Env<'_>,
+    view: &BaseWidget<ATextView<'_>>,
+) -> Result<Font> {
+    let px = view.get_text_size(env)?;
+    let metrics = view
+        .as_view()
+        .get_resources(env)?
+        .get_display_metrics(env)?;
+    let typeface = view.get_typeface(env)?;
+    let family = typeface.get_system_font_family_name(env)?;
+    let family = if family.is_null() {
+        String::new()
+    } else {
+        let family = unsafe { JString::from_raw(env, family.into_raw()) };
+        family.try_to_string(env)?
+    };
+    Ok(Font {
+        family,
+        size: px as f64 / metrics.scaled_density(env)? as f64,
+        bold: typeface.is_bold(env)?,
+        italic: typeface.is_italic(env)?,
+    })
+}
+
+/// Set the font of a [`ATextView`].
+pub(crate) fn font_to_text_view(
+    env: &mut Env<'_>,
+    view: &BaseWidget<ATextView<'_>>,
+    font: &Font,
+) -> Result<()> {
+    let mut style = typeface::NORMAL;
+    if font.bold {
+        style |= typeface::BOLD;
+    }
+    if font.italic {
+        style |= typeface::ITALIC;
+    }
+    let family = env.new_string(&font.family)?;
+    let typeface = Typeface::create(env, &family, style)?;
+    view.set_text_size(env, font.size as _)?;
+    view.set_typeface(env, &typeface)?;
+    Ok(())
+}
 
 #[derive(Debug)]
 pub(crate) struct BaseWidget<T>

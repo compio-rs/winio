@@ -1,10 +1,13 @@
 use inherit_methods_macro::inherit_methods;
 use windows::core::{HSTRING, Interface};
 use winio_handle::AsContainer;
-use winio_primitive::{HAlign, Point, Size};
+use winio_primitive::{Font, HAlign, Point, Size};
 use winui3::Microsoft::UI::Xaml::{Controls as MUXC, TextWrapping};
 
-use crate::{Result, Widget, widgets::Convertible};
+use crate::{
+    Result, Widget,
+    widgets::{Convertible, font_to_text_block, text_block_to_font},
+};
 
 #[derive(Debug)]
 pub struct Label {
@@ -61,6 +64,14 @@ impl Label {
     pub fn set_halign(&mut self, align: HAlign) -> Result<()> {
         self.label.SetTextAlignment(align.to_native())?;
         Ok(())
+    }
+
+    pub fn font(&self) -> Result<Font> {
+        text_block_to_font(&self.label)
+    }
+
+    pub fn set_font(&mut self, font: Font) -> Result<()> {
+        font_to_text_block(&self.label, &font)
     }
 }
 

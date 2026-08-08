@@ -1,9 +1,16 @@
-use gtk4::glib::object::Cast;
+use gtk4::{
+    glib::object::Cast,
+    pango::{AttrFontDesc, AttrList},
+    prelude::WidgetExt,
+};
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
-use winio_primitive::{HAlign, Point, Size};
+use winio_primitive::{Font, HAlign, Point, Size};
 
-use crate::{Result, widgets::Widget};
+use crate::{
+    Result,
+    widgets::{Widget, desc_to_font, font_desc_from_attrs, font_to_desc},
+};
 
 #[derive(Debug)]
 pub struct Label {
@@ -70,6 +77,21 @@ impl Label {
             _ => 0.5,
         };
         self.widget.set_xalign(align);
+        Ok(())
+    }
+
+    pub fn font(&self) -> Result<Font> {
+        let desc = font_desc_from_attrs(self.widget.attributes().as_ref())
+            .or_else(|| self.widget.pango_context().font_description())
+            .unwrap_or_default();
+        Ok(desc_to_font(&desc))
+    }
+
+    pub fn set_font(&mut self, font: Font) -> Result<()> {
+        let attr_list = AttrList::new();
+        attr_list.insert(AttrFontDesc::new(&font_to_desc(&font)));
+        self.widget.set_attributes(Some(&attr_list));
+        self.handle.reset_preferred_size();
         Ok(())
     }
 }

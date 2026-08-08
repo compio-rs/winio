@@ -9,10 +9,13 @@ use windows::{
 };
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Font, Point, Size};
 use winui3::Microsoft::UI::Xaml::{Controls as MUXC, RoutedEventHandler};
 
-use crate::{GlobalRuntime, Result, Widget};
+use crate::{
+    GlobalRuntime, Result, Widget,
+    widgets::{font_to_text_block, text_block_to_font},
+};
 
 #[derive(Debug)]
 pub struct LinkLabel {
@@ -102,6 +105,14 @@ impl LinkLabel {
 
     pub async fn wait_click(&self) {
         self.on_click.wait().await;
+    }
+
+    pub fn font(&self) -> Result<Font> {
+        text_block_to_font(&self.text)
+    }
+
+    pub fn set_font(&mut self, font: Font) -> Result<()> {
+        font_to_text_block(&self.text, &font)
     }
 }
 

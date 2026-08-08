@@ -2,7 +2,7 @@ use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
-    Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
+    Enable, Failable, Font, Fontable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
 };
 
 use crate::{
@@ -57,6 +57,13 @@ impl TextWidget for LinkLabel {
 }
 
 #[inherit_methods(from = "self.widget")]
+impl Fontable for LinkLabel {
+    fn font(&self) -> Result<Font>;
+
+    fn set_font(&mut self, font: Font) -> Result<()>;
+}
+
+#[inherit_methods(from = "self.widget")]
 impl Visible for LinkLabel {
     fn is_visible(&self) -> Result<bool>;
 
@@ -108,6 +115,8 @@ pub enum LinkLabelMessage {
     SetText(String),
     /// Set the URI.
     SetUri(String),
+    /// Set the font.
+    SetFont(Font),
     /// Set the transparent state.
     #[cfg(win32)]
     SetTransparent(bool),
@@ -159,6 +168,10 @@ impl Component for LinkLabel {
             }
             LinkLabelMessage::SetUri(uri) => {
                 self.set_uri(uri)?;
+                Ok(true)
+            }
+            LinkLabelMessage::SetFont(font) => {
+                self.set_font(font)?;
                 Ok(true)
             }
             #[cfg(win32)]

@@ -357,7 +357,8 @@ impl Widget {
 
 impl Drop for Widget {
     fn drop(&mut self) {
-        remove_tooltip(self.as_window().as_win32());
+        let hwnd = self.as_window().as_win32();
+        remove_tooltip(hwnd);
     }
 }
 

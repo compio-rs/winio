@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{HAlign, Point, Size};
+use winio_primitive::{Font, HAlign, Point, Size};
 
 use crate::{
     GlobalRuntime, Result,
@@ -77,6 +77,27 @@ impl Label {
             HAlign::Stretch => flag |= QtAlignmentFlag::AlignJustify,
         }
         self.widget.pin_mut().setAlignment(flag)?;
+        Ok(())
+    }
+
+    pub fn font(&self) -> Result<Font> {
+        let font = self.widget.as_ref().font()?;
+        Ok(Font {
+            family: font.family()?.try_into()?,
+            size: font.pointSizeF()?,
+            bold: font.bold()?,
+            italic: font.italic()?,
+        })
+    }
+
+    pub fn set_font(&mut self, font: Font) -> Result<()> {
+        ffi::label_set_font(
+            self.widget.pin_mut(),
+            font.family.as_str(),
+            font.size,
+            font.bold,
+            font.italic,
+        )?;
         Ok(())
     }
 }
@@ -169,6 +190,10 @@ impl LinkLabel {
         self.refresh_text()
     }
 
+    pub fn font(&self) -> Result<Font>;
+
+    pub fn set_font(&mut self, font: Font) -> Result<()>;
+
     fn on_click(c: *const u8) {
         let c = c as *const Callback<()>;
         if let Some(c) = unsafe { c.as_ref() } {
@@ -192,6 +217,7 @@ mod ffi {
         type QLabel;
         type QString = crate::common::QString;
         type QtAlignmentFlag = crate::widgets::QtAlignmentFlag;
+        type QFont;
 
         unsafe fn new_label(parent: *mut QWidget) -> Result<UniquePtr<QLabel>>;
 
@@ -205,7 +231,21 @@ mod ffi {
         fn setAlignment(self: Pin<&mut QLabel>, flag: QtAlignmentFlag) -> Result<()>;
         fn text(self: &QLabel) -> Result<QString>;
         fn setText(self: Pin<&mut QLabel>, s: &QString) -> Result<()>;
+        fn font(self: &QLabel) -> Result<&QFont>;
 
         fn setOpenExternalLinks(self: Pin<&mut QLabel>, v: bool) -> Result<()>;
+
+        fn label_set_font(
+            w: Pin<&mut QLabel>,
+            family: &str,
+            size: f64,
+            bold: bool,
+            italic: bool,
+        ) -> Result<()>;
+
+        fn family(self: &QFont) -> Result<QString>;
+        fn pointSizeF(self: &QFont) -> Result<f64>;
+        fn bold(self: &QFont) -> Result<bool>;
+        fn italic(self: &QFont) -> Result<bool>;
     }
 }

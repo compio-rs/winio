@@ -1,11 +1,12 @@
 use inherit_methods_macro::inherit_methods;
 use winio_handle::{AsContainer, impl_as_widget};
-use winio_primitive::{HAlign, Point, Size};
+use winio_primitive::{Font, HAlign, Point, Size};
 
 use crate::{
     BaseWidget, JCharSequenceExt, Result, current_activity,
     java::android::{view::gravity, widget::TextView as ATextView},
     vm_exec,
+    widgets::{font_to_text_view, text_view_to_font},
 };
 
 #[derive(Debug)]
@@ -83,6 +84,14 @@ impl Label {
             self.inner.set_gravity(env, gravity)?;
             Ok(())
         })
+    }
+
+    pub fn font(&self) -> Result<Font> {
+        vm_exec(|env| text_view_to_font(env, &self.inner))
+    }
+
+    pub fn set_font(&mut self, font: Font) -> Result<()> {
+        vm_exec(|env| font_to_text_view(env, &self.inner, &font))
     }
 }
 

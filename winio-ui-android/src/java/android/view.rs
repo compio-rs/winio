@@ -1,5 +1,5 @@
 use super::{
-    content::Context,
+    content::{Context, res::Resources},
     graphics::{Insets, Rect},
 };
 use crate::impl_listener;
@@ -19,6 +19,7 @@ jni::bind_java_type! {
     pub View => "android.view.View",
     type_map {
         Context => android.content.Context,
+        Resources => android.content.res.Resources,
         ViewParent => android.view.ViewParent,
         ViewGroupLayoutParams => "android.view.ViewGroup$LayoutParams",
         ViewOnLayoutChangeListener => "android.view.View$OnLayoutChangeListener",
@@ -47,6 +48,7 @@ jni::bind_java_type! {
         fn is_enabled() -> jboolean,
         fn set_enabled(enabled: jboolean),
         fn get_parent() -> ViewParent,
+        fn get_resources() -> Resources,
         fn add_on_layout_change_listener(listener: &ViewOnLayoutChangeListener),
         fn set_on_touch_listener(listener: &ViewOnTouchListener),
         fn get_root_window_insets() -> WindowInsets,

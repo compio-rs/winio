@@ -6,12 +6,17 @@ use objc2::{
     sel,
 };
 use objc2_foundation::{MainThreadMarker, NSDictionary, NSObject, NSString, NSURL};
-use objc2_ui_kit::{UIApplication, UIButton, UIButtonType, UIControlEvents, UIControlState};
+use objc2_ui_kit::{
+    UIApplication, UIButton, UIButtonType, UIControlEvents, UIControlState, UIFont,
+};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Font, Point, Size};
 
-use crate::{GlobalRuntime, Result, catch, from_nsstring, widgets::Widget};
+use crate::{
+    GlobalRuntime, Result, catch, from_nsstring,
+    widgets::{Widget, font_to_uifont, uifont_to_font},
+};
 
 #[derive(Debug)]
 pub struct Button {
@@ -253,6 +258,27 @@ impl LinkLabel {
     pub fn set_uri(&mut self, uri: impl AsRef<str>) -> Result<()> {
         self.uri = uri.as_ref().to_string();
         Ok(())
+    }
+
+    pub fn font(&self) -> Result<Font> {
+        catch(|| {
+            let font = self
+                .handle
+                .view
+                .titleLabel()
+                .and_then(|label| label.font())
+                .unwrap_or_else(|| UIFont::systemFontOfSize(UIFont::systemFontSize()));
+            uifont_to_font(&font)
+        })
+    }
+
+    pub fn set_font(&mut self, font: Font) -> Result<()> {
+        catch(|| unsafe {
+            let font = font_to_uifont(&font);
+            if let Some(label) = self.handle.view.titleLabel() {
+                label.setFont(Some(&*font));
+            }
+        })
     }
 
     pub async fn wait_click(&self) {

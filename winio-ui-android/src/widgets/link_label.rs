@@ -9,7 +9,7 @@ use jni::{
 use jni_min_helper::DynamicProxy;
 use winio_callback::SyncCallback;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Font, Point, Size};
 
 use crate::{
     BaseWidget, Result, current_activity,
@@ -25,6 +25,7 @@ use crate::{
         lang::JRunnable,
     },
     vm_exec,
+    widgets::{font_to_text_view, text_view_to_font},
 };
 
 #[derive(Debug)]
@@ -154,6 +155,14 @@ impl LinkLabel {
 
     pub async fn wait_click(&self) {
         self.on_click.wait().await;
+    }
+
+    pub fn font(&self) -> Result<Font> {
+        vm_exec(|env| text_view_to_font(env, &self.inner))
+    }
+
+    pub fn set_font(&mut self, font: Font) -> Result<()> {
+        vm_exec(|env| font_to_text_view(env, &self.inner, &font))
     }
 }
 

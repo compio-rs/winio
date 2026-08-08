@@ -1,11 +1,11 @@
 use core::f32;
 #[cfg(feature = "once_cell_try")]
 use std::sync::OnceLock;
-use std::{collections::BTreeMap, mem::MaybeUninit, sync::Mutex};
+use std::{cell::RefCell, collections::BTreeMap, mem::MaybeUninit, sync::Mutex};
 
 #[cfg(not(feature = "once_cell_try"))]
 use once_cell::sync::OnceCell as OnceLock;
-use widestring::U16Str;
+use widestring::{U16CStr, U16Str};
 use windows::{
     Win32::Graphics::DirectWrite::{
         DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC,
@@ -24,10 +24,10 @@ use windows_sys::Win32::{
         },
     },
 };
-use winio_primitive::Size;
+use winio_primitive::{Font, Size};
 use winio_ui_windows_common::syscall;
 
-use super::dpi::DpiAware;
+use super::dpi::{DpiAware, get_dpi_for_window};
 use crate::{Error, Result};
 
 unsafe fn system_default_font() -> Result<LOGFONTW> {
@@ -155,4 +155,82 @@ pub fn measure_string(hwnd: HWND, s: &U16Str) -> Result<Size> {
         let metrics = metrics.assume_init();
         Ok(Size::new(metrics.width as _, metrics.height as _))
     }
+}
+
+thread_local! {
+    static LABEL_FONTS: RefCell<BTreeMap<HWND, (Font, WinFont)>> = const { RefCell::new(BTreeMap::new()) };
+}
+
+/// Create an [`HFONT`] from a [`Font`], scaled to the DPI of the window.
+pub(crate) fn font_to_hfont(hwnd: HWND, font: &Font, underline: bool) -> Result<WinFont> {
+    let dpi = get_dpi_for_window(hwnd);
+    create_font(dpi, |f| {
+        f.lfHeight = -(font.size.to_device(dpi) as i32);
+        f.lfWeight = if font.bold { 700 } else { 400 };
+        f.lfItalic = font.italic as u8;
+        if underline {
+            f.lfUnderline = 1;
+        }
+        let mut chars = font.family.encode_utf16();
+        for slot in f.lfFaceName.iter_mut().take(31) {
+            *slot = chars.next().unwrap_or(0);
+        }
+        f.lfFaceName[31] = 0;
+    })
+}
+
+/// Read a [`Font`] from an [`HFONT`], scaled back to logical size by the DPI
+/// of the window.
+pub(crate) fn hfont_to_font(hwnd: HWND, hfont: HFONT) -> Result<Font> {
+    let mut lf: LOGFONTW = unsafe { std::mem::zeroed() };
+    let size = unsafe {
+        GetObjectW(
+            hfont,
+            std::mem::size_of::<LOGFONTW>() as _,
+            &mut lf as *mut _ as _,
+        )
+    };
+    if size == 0 {
+        return Err(Error::from_thread());
+    }
+    let dpi = get_dpi_for_window(hwnd);
+    let family = unsafe { U16CStr::from_ptr_str(lf.lfFaceName.as_ptr()) }.to_string_lossy();
+    Ok(Font {
+        family,
+        size: (lf.lfHeight.abs() as f64).to_logical(dpi),
+        bold: lf.lfWeight >= 600,
+        italic: lf.lfItalic != 0,
+    })
+}
+
+/// Store the font of a window, and return the created [`HFONT`].
+pub(crate) fn set_hwnd_font(hwnd: HWND, font: Font, underline: bool) -> Result<HFONT> {
+    let hfont = font_to_hfont(hwnd, &font, underline)?;
+    let res = hfont.0;
+    LABEL_FONTS.with(|map| {
+        map.borrow_mut().insert(hwnd, (font, hfont));
+    });
+    Ok(res)
+}
+
+/// Recreate the stored font of a window for its current DPI, and return the
+/// new [`HFONT`], or `None` if no font is stored for the window.
+pub(crate) fn refresh_hwnd_font(hwnd: HWND, underline: bool) -> Result<Option<HFONT>> {
+    let font = match LABEL_FONTS.with(|map| map.borrow().get(&hwnd).map(|(f, _)| f.clone())) {
+        Some(x) => x,
+        None => return Ok(None),
+    };
+    let hfont = font_to_hfont(hwnd, &font, underline)?;
+    let res = hfont.0;
+    LABEL_FONTS.with(|map| {
+        map.borrow_mut().insert(hwnd, (font, hfont));
+    });
+    Ok(Some(res))
+}
+
+/// Remove the stored font of a window.
+pub(crate) fn remove_hwnd_font(hwnd: HWND) {
+    LABEL_FONTS.with(|map| {
+        map.borrow_mut().remove(&hwnd);
+    });
 }

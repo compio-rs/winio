@@ -3,14 +3,18 @@ use std::rc::Rc;
 use compio_log::info;
 use gtk4::{
     glib::{Propagation, object::Cast},
-    prelude::ButtonExt,
+    pango::{AttrFontDesc, AttrList},
+    prelude::{ButtonExt, WidgetExt},
 };
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Font, Point, Size};
 
-use crate::{GlobalRuntime, Result, widgets::Widget};
+use crate::{
+    GlobalRuntime, Result,
+    widgets::{Widget, desc_to_font, font_desc_from_attrs, font_to_desc},
+};
 
 #[derive(Debug)]
 pub struct LinkLabel {
@@ -87,6 +91,31 @@ impl LinkLabel {
 
     pub fn set_uri(&mut self, s: impl AsRef<str>) -> Result<()> {
         self.widget.set_uri(s.as_ref());
+        Ok(())
+    }
+
+    pub fn font(&self) -> Result<Font> {
+        let attrs = self
+            .widget
+            .child()
+            .and_then(|child| child.downcast::<gtk4::Label>().ok())
+            .and_then(|label| font_desc_from_attrs(label.attributes().as_ref()))
+            .or_else(|| self.widget.pango_context().font_description())
+            .unwrap_or_default();
+        Ok(desc_to_font(&attrs))
+    }
+
+    pub fn set_font(&mut self, font: Font) -> Result<()> {
+        let attr_list = AttrList::new();
+        attr_list.insert(AttrFontDesc::new(&font_to_desc(&font)));
+        if let Some(label) = self
+            .widget
+            .child()
+            .and_then(|child| child.downcast::<gtk4::Label>().ok())
+        {
+            label.set_attributes(Some(&attr_list));
+        }
+        self.handle.reset_preferred_size();
         Ok(())
     }
 

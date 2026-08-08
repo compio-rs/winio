@@ -1,10 +1,13 @@
 use inherit_methods_macro::inherit_methods;
 use objc2::{MainThreadOnly, rc::Retained};
-use objc2_app_kit::{NSTextAlignment, NSTextField};
+use objc2_app_kit::{NSFont, NSTextAlignment, NSTextField};
 use winio_handle::AsContainer;
-use winio_primitive::{HAlign, Point, Size};
+use winio_primitive::{Font, HAlign, Point, Size};
 
-use crate::{Result, catch, widgets::Widget};
+use crate::{
+    Result, catch,
+    widgets::{Widget, font_to_nsfont, nsfont_to_font},
+};
 
 #[derive(Debug)]
 pub struct Label {
@@ -79,6 +82,23 @@ impl Label {
             HAlign::Stretch => NSTextAlignment::Justified,
         };
         catch(|| self.view.setAlignment(align))
+    }
+
+    pub fn font(&self) -> Result<Font> {
+        catch(|| {
+            let font = self
+                .view
+                .font()
+                .unwrap_or_else(|| NSFont::systemFontOfSize(NSFont::systemFontSize()));
+            nsfont_to_font(&font)
+        })
+    }
+
+    pub fn set_font(&mut self, font: Font) -> Result<()> {
+        catch(|| {
+            let font = font_to_nsfont(&font);
+            self.view.setFont(Some(&*font));
+        })
     }
 }
 

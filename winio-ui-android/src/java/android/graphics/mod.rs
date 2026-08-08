@@ -90,6 +90,9 @@ jni::bind_java_type! {
     pub Typeface => android.graphics.Typeface,
     methods {
         static fn create(family: JString, style: jint) -> Typeface,
+        fn is_bold() -> jboolean,
+        fn is_italic() -> jboolean,
+        fn get_system_font_family_name() -> JString,
     }
 }
 

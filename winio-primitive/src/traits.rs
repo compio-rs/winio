@@ -1,4 +1,4 @@
-use crate::{Point, Rect, Size};
+use crate::{Font, Point, Rect, Size};
 
 /// A trait for types that can fail with an associated error type.
 pub trait Failable {
@@ -100,5 +100,42 @@ pub trait Layoutable: Failable {
     /// Min acceptable size.
     fn min_size(&self) -> Result<Size, Self::Error> {
         self.preferred_size()
+    }
+}
+
+/// Trait for a widget to set font.
+pub trait Fontable: Failable {
+    /// The font.
+    fn font(&self) -> Result<Font, Self::Error>;
+
+    /// Set the font.
+    fn set_font(&mut self, font: Font) -> Result<(), Self::Error>;
+
+    /// Set the font family.
+    fn set_font_family(&mut self, family: impl AsRef<str>) -> Result<(), Self::Error> {
+        let mut font = self.font()?;
+        font.family = family.as_ref().to_string();
+        self.set_font(font)
+    }
+
+    /// Set the font size.
+    fn set_font_size(&mut self, size: f64) -> Result<(), Self::Error> {
+        let mut font = self.font()?;
+        font.size = size;
+        self.set_font(font)
+    }
+
+    /// Set the font italic.
+    fn set_font_italic(&mut self, italic: bool) -> Result<(), Self::Error> {
+        let mut font = self.font()?;
+        font.italic = italic;
+        self.set_font(font)
+    }
+
+    /// Set the font bold.
+    fn set_font_bold(&mut self, bold: bool) -> Result<(), Self::Error> {
+        let mut font = self.font()?;
+        font.bold = bold;
+        self.set_font(font)
     }
 }

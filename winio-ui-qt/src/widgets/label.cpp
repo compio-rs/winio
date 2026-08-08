@@ -13,3 +13,13 @@ void label_connect_link_activated(QLabel &w, callback_fn_t<void()> callback,
                          }
                      });
 }
+
+void label_set_font(QLabel &w, rust::Str family, double size, bool bold,
+                    bool italic) {
+    auto font = w.font();
+    font.setFamily(QString::fromUtf8(family.data(), family.size()));
+    font.setPointSizeF(size);
+    font.setBold(bold);
+    font.setItalic(italic);
+    w.setFont(font);
+}

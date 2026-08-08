@@ -1,11 +1,40 @@
 use windows::{
     Foundation::{IReference, PropertyValue},
     Graphics::{PointInt32, SizeInt32},
+    UI::Text::{FontStyle, FontWeight},
     core::{HSTRING, Interface, Result, RuntimeType},
 };
-use winio_primitive::{ColorTheme, HAlign, Orient, Point, Size};
+use winio_primitive::{ColorTheme, Font, HAlign, Orient, Point, Size};
 pub use winio_ui_windows_common::{Backdrop, FileBox, FileFilter, accent_color, monitor_get_all};
-use winui3::Microsoft::UI::Xaml::{Application, Controls::Orientation, TextAlignment};
+use winui3::Microsoft::UI::Xaml::{
+    Application, Controls as MUXC, Controls::Orientation, Media::FontFamily, TextAlignment,
+};
+
+/// Read the font of a [`MUXC::TextBlock`].
+pub(crate) fn text_block_to_font(block: &MUXC::TextBlock) -> Result<Font> {
+    Ok(Font {
+        family: block.FontFamily()?.Source()?.to_string_lossy(),
+        size: block.FontSize()?,
+        bold: block.FontWeight()?.Weight >= 600,
+        italic: block.FontStyle()? == FontStyle::Italic,
+    })
+}
+
+/// Set the font of a [`MUXC::TextBlock`].
+pub(crate) fn font_to_text_block(block: &MUXC::TextBlock, font: &Font) -> Result<()> {
+    let family = FontFamily::CreateInstanceWithName(&HSTRING::from(font.family.as_str()))?;
+    block.SetFontFamily(&family)?;
+    block.SetFontSize(font.size)?;
+    block.SetFontStyle(if font.italic {
+        FontStyle::Italic
+    } else {
+        FontStyle::Normal
+    })?;
+    block.SetFontWeight(FontWeight {
+        Weight: if font.bold { 700 } else { 400 },
+    })?;
+    Ok(())
+}
 
 trait Convertible<T> {
     fn from_native(native: T) -> Self;
