@@ -203,7 +203,7 @@ impl Component for MediaPage {
                         format_duration(ct),
                         format_duration(ft)
                     ))?;
-                    if ft == ct {
+                    if ft_secs > 0.0 && ft == ct && !self.media.is_looped()? {
                         self.set_playing(false)?;
                     }
                 } else {
