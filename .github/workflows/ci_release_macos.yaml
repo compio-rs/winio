@@ -45,7 +45,7 @@ jobs:
           mkdir dist
 
           zip -r dist/${{ matrix.artifact }}.app.zip \
-            target/universal/release/bundle/osx/Widgets.app
+            ../target/universal/release/bundle/osx/Widgets.app
 
       - uses: actions/upload-artifact@v7
         with:

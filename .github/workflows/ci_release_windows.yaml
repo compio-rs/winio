@@ -72,7 +72,7 @@ jobs:
           BIN=winio-example.exe
 
           cp \
-            "target/${{ matrix.target }}/release/${BIN}" \
+            "../target/${{ matrix.target }}/release/${BIN}" \
             "dist/${{ matrix.artifact }}"
 
       - uses: actions/upload-artifact@v7
