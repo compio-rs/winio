@@ -158,7 +158,7 @@ impl SurfaceData {
     }
 }
 
-pub struct WgpuPage {
+pub struct WgpuPageInner {
     window: Child<TabViewItem>,
     timer: Child<Timer>,
     canvas: Child<WgpuCanvas>,
@@ -170,7 +170,7 @@ pub struct WgpuPage {
     surface: Option<SurfaceData>,
 }
 
-impl WgpuPage {
+impl WgpuPageInner {
     fn configure(&mut self, size: Size) -> Result<()> {
         if self.surface.is_none() {
             self.surface = self
@@ -193,18 +193,18 @@ impl WgpuPage {
 }
 
 #[derive(Debug)]
-pub enum WgpuPageEvent {}
+pub enum WgpuPageInnerEvent {}
 
 #[derive(Debug)]
-pub enum WgpuPageMessage {
+pub enum WgpuPageInnerMessage {
     Tick,
 }
 
-impl Component for WgpuPage {
+impl Component for WgpuPageInner {
     type Error = Error;
-    type Event = WgpuPageEvent;
+    type Event = WgpuPageInnerEvent;
     type Init<'a> = ();
-    type Message = WgpuPageMessage;
+    type Message = WgpuPageInnerMessage;
 
     async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
@@ -247,7 +247,7 @@ impl Component for WgpuPage {
             self.window => {},
             self.canvas => {},
             self.timer => {
-                TimerEvent::Tick => WgpuPageMessage::Tick,
+                TimerEvent::Tick => WgpuPageInnerMessage::Tick,
             }
         }
     }
@@ -262,7 +262,7 @@ impl Component for WgpuPage {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            WgpuPageMessage::Tick => {
+            WgpuPageInnerMessage::Tick => {
                 self.angle += 0.01;
                 self.angle %= std::f32::consts::TAU;
                 Ok(true)
@@ -345,7 +345,7 @@ impl Component for WgpuPage {
     }
 }
 
-impl Deref for WgpuPage {
+impl Deref for WgpuPageInner {
     type Target = TabViewItem;
 
     fn deref(&self) -> &Self::Target {
@@ -431,4 +431,93 @@ const INDICES: &[u16] = &[
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct Uniforms {
     model_view_proj: [[f32; 4]; 4],
+}
+
+#[allow(clippy::large_enum_variant)]
+pub enum WgpuPage {
+    Wgpu(Child<WgpuPageInner>),
+    Dummy {
+        window: Child<TabViewItem>,
+        label: Child<Label>,
+    },
+}
+
+#[derive(Debug)]
+pub enum WgpuPageEvent {}
+
+#[derive(Debug)]
+pub enum WgpuPageMessage {}
+
+impl Component for WgpuPage {
+    type Error = Error;
+    type Event = WgpuPageEvent;
+    type Init<'a> = ();
+    type Message = WgpuPageMessage;
+
+    async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        match Child::<WgpuPageInner>::init(()).await {
+            Ok(wgpu) => Ok(Self::Wgpu(wgpu)),
+            Err(e) => {
+                init! {
+                    window: TabViewItem = (()) => {
+                        text: "WGPU",
+                    },
+                    label: Label = (&window) => {
+                        text: format!("{e:?}"),
+                    },
+                }
+                Ok(Self::Dummy { window, label })
+            }
+        }
+    }
+
+    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
+        match self {
+            Self::Wgpu(wgpu) => wgpu.start(sender, |e| match e {}).await,
+            Self::Dummy { window, label } => {
+                start! {
+                    sender,
+                    window => {},
+                    label => {},
+                }
+            }
+        }
+    }
+
+    async fn update_children(&mut self) -> Result<bool> {
+        match self {
+            Self::Wgpu(wgpu) => wgpu.update().await,
+            Self::Dummy { window, label } => update_children!(window, label),
+        }
+    }
+
+    fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
+        if let Self::Dummy { window, label } = self {
+            let csize = window.size()?;
+            label.set_rect(csize.into())?;
+        }
+        Ok(())
+    }
+
+    fn render_children(&mut self) -> Result<()> {
+        match self {
+            Self::Wgpu(wgpu) => wgpu.render(),
+            Self::Dummy { window, label } => {
+                window.render()?;
+                label.render()?;
+                Ok(())
+            }
+        }
+    }
+}
+
+impl Deref for WgpuPage {
+    type Target = TabViewItem;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Wgpu(wgpu) => wgpu,
+            Self::Dummy { window, .. } => window,
+        }
+    }
 }
