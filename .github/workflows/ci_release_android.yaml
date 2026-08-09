@@ -70,7 +70,7 @@ jobs:
       - name: 📁 Collect APK
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-${{ matrix.abi }}-release.apk \
+          cp app/build/outputs/apk/release/app-release.apk \
             dist/winio-example-android-${{ matrix.abi }}.apk
           ls -lh dist/
 
