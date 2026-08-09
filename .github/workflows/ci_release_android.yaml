@@ -71,11 +71,11 @@ jobs:
         run: |
           mkdir -p dist
           cp android/app/build/outputs/apk/release/app-${{ matrix.abi }}-release.apk \
-            dist/winio-exapmle-android-${{ matrix.abi }}.apk
+            dist/winio-example-android-${{ matrix.abi }}.apk
           ls -lh dist/
 
       - name: 📤 Upload APK
         uses: actions/upload-artifact@v7
         with:
-          name: winio-exapmle-android-${{ matrix.abi }}
+          name: winio-example-android-${{ matrix.abi }}
           path: dist/

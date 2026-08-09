@@ -13,17 +13,17 @@ jobs:
     strategy:
       matrix:
         include:
-          - artifact: winio-exapmle-qt6-x86_64
+          - artifact: winio-example-qt6-x86_64
             target: x86_64-unknown-linux-gnu
             runner: ubuntu-24.04
-            deps: 'qt6-base-dev qt6-base-private-dev qt6-multimedia-dev qt6-webengine-dev qmake6'
-            features: 'all,nightly'
+            deps: "qt6-base-dev qt6-base-private-dev qt6-multimedia-dev qt6-webengine-dev qmake6"
+            features: "all,nightly"
 
-          - artifact: winio-exapmle-gtk4-x86_64
+          - artifact: winio-example-gtk4-x86_64
             target: x86_64-unknown-linux-gnu
             runner: ubuntu-24.04
-            deps: 'libgtk-4-dev libwebkitgtk-6.0-dev'
-            features: 'all,nightly,gtk,enable_log'
+            deps: "libgtk-4-dev libwebkitgtk-6.0-dev"
+            features: "all,nightly,gtk,enable_log"
             no_default_features: true
 
     name: ${{ matrix.artifact }}

@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - artifact: winio-exapmle-macos
+          - artifact: winio-example-macos
             runner: macos-15
 
     name: ${{ matrix.artifact }}

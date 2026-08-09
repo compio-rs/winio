@@ -14,24 +14,24 @@ jobs:
     strategy:
       matrix:
         include:
-          - artifact: winio-exapmle-win32-i686.exe
+          - artifact: winio-example-win32-i686.exe
             target: i686-pc-windows-msvc
             features: all,nightly,windows-dark-mode
 
-          - artifact: winio-exapmle-win32-x86_64.exe
+          - artifact: winio-example-win32-x86_64.exe
             target: x86_64-pc-windows-msvc
             features: all,nightly,windows-dark-mode
 
-          - artifact: winio-exapmle-win32-arm64.exe
+          - artifact: winio-example-win32-arm64.exe
             target: aarch64-pc-windows-msvc
             features: all,nightly,windows-dark-mode
 
-          - artifact: winio-exapmle-winui-x86_64.exe
+          - artifact: winio-example-winui-x86_64.exe
             target: x86_64-pc-windows-msvc
             features: all,nightly,windows-dark-mode,winui,winui-enable-cbs,winui-webview-system,winui-content-dialog
             no_default_features: true
 
-          - artifact: winio-exapmle-winui-arm64.exe
+          - artifact: winio-example-winui-arm64.exe
             target: aarch64-pc-windows-msvc
             features: all,nightly,windows-dark-mode,winui,winui-enable-cbs,winui-webview-system,winui-content-dialog
             no_default_features: true
