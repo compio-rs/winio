@@ -1,0 +1,81 @@
+name: Release Android
+
+on:
+  workflow_call:
+    secrets:
+      ANDROID_KEYSTORE_BASE64:
+        required: true
+      ANDROID_STORE_PASSWORD:
+        required: true
+      ANDROID_KEY_ALIAS:
+        required: true
+      ANDROID_KEY_PASSWORD:
+        required: true
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: ./winio-example/android
+
+    strategy:
+      matrix:
+        include:
+          - abi: arm64-v8a
+            target: aarch64-linux-android
+          - abi: armeabi-v7a
+            target: armv7-linux-androideabi
+          - abi: x86_64
+            target: x86_64-linux-android
+
+    name: Android ${{ matrix.abi }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 🦀 Setup Rust (${{ matrix.abi }})
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
+
+      - name: 📝 Configure local.properties
+        run: |
+          echo "ndk.abis=${{ matrix.abi }}" > local.properties
+
+      - uses: gradle/actions/setup-gradle@v6
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME_21_X64 }}
+
+      - name: 🏗 Build APK (${{ matrix.abi }})
+        run: |
+          base64 -d > key.keystore <<EOF
+          ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          EOF
+          cat > key.properties <<EOF
+          storeFile=key.keystore
+          storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          EOF
+          gradle assembleRelease
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME_21_X64 }}
+
+      - name: 📁 Collect APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk \
+            dist/winio-example-android-${{ matrix.abi }}.apk
+          ls -lh dist/
+
+      - name: 📤 Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: winio-example-android-${{ matrix.abi }}
+          path: ./winio-example/android/dist/*

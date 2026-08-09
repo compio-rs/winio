@@ -1,0 +1,53 @@
+name: Release macOS
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        working-directory: ./winio-example
+
+    strategy:
+      matrix:
+        include:
+          - artifact: winio-example-macos
+            runner: macos-15
+
+    name: ${{ matrix.artifact }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: x86_64-apple-darwin,aarch64-apple-darwin
+
+      - name: Install cargo-bundle
+        shell: bash
+        run: cargo install cargo-bundle --git https://github.com/burtonageo/cargo-bundle.git
+
+      - name: Build
+        shell: bash
+        run: |
+          cargo bundle \
+            --release \
+            --features all,nightly \
+            --target x86_64-apple-darwin \
+            --target aarch64-apple-darwin
+
+      - name: Collect
+        shell: bash
+        run: |
+          mkdir dist
+
+          zip -r dist/${{ matrix.artifact }}.app.zip \
+            ../target/universal/release/bundle/osx/Widgets.app
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: ./winio-example/dist/*

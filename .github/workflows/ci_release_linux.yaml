@@ -1,0 +1,74 @@
+name: Release Linux
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  build:
+    defaults:
+      run:
+        working-directory: ./winio-example
+
+    strategy:
+      matrix:
+        include:
+          - artifact: winio-example-qt6-x86_64
+            target: x86_64-unknown-linux-gnu
+            runner: ubuntu-24.04
+            deps: "qt6-base-dev qt6-base-private-dev qt6-multimedia-dev qt6-webengine-dev qmake6"
+            features: "all,nightly"
+
+          - artifact: winio-example-gtk4-x86_64
+            target: x86_64-unknown-linux-gnu
+            runner: ubuntu-24.04
+            deps: "libgtk-4-dev libwebkitgtk-6.0-dev"
+            features: "all,nightly,gtk,enable_log"
+            no_default_features: true
+
+    name: ${{ matrix.artifact }}
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.deps }}
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deb
+
+      - name: Build
+        shell: bash
+        run: |
+          set -ex
+
+          # Add features if features is not empty
+          if [[ -n "${{ matrix.features }}" ]]; then
+              ARGS+=("--features" "${{ matrix.features }}")
+          fi
+          # Add no-default-features if no_default_features is true
+          if [[ -n "${{ matrix.no_default_features }}" ]]; then
+              ARGS+=("--no-default-features")
+          fi
+
+          cargo build \
+            --release \
+            --target ${{ matrix.target }} \
+            "${ARGS[@]}"
+          cargo deb \
+            --no-build \
+            --target ${{ matrix.target }} \
+            --output dist/${{ matrix.artifact }}.deb
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: ./winio-example/dist/*
