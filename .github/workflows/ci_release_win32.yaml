@@ -33,10 +33,6 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ${{ matrix.artifact }}
-
       - name: Build
         shell: bash
         run: |

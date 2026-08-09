@@ -54,11 +54,6 @@ jobs:
           mv cargo-ndk-x86_64-unknown-linux-gnu-v4.1.2/cargo-ndk ~/.cargo/bin/
           rm -rf cargo-ndk-x86_64-unknown-linux-gnu-v4.1.2*
 
-      - name: ♻️ Restore Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: winio-gallery-android-${{ matrix.abi }}
-
       - name: 🏗 Build .so (${{ matrix.abi }})
         env:
           ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/29.0.14206865

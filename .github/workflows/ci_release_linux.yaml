@@ -40,10 +40,6 @@ jobs:
             qt6-base-dev qt6-base-private-dev \
             qt6-multimedia-dev qt6-webengine-dev qmake6
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ${{ matrix.artifact }}
-
       # zig for glibc baseline
       - name: Install zigbuild
         run: |
