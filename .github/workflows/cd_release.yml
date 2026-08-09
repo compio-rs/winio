@@ -3,14 +3,6 @@ name: Winio Widgets Gallery Build
 on:
   workflow_dispatch:
   push:
-    branches:
-      - master
-    paths:
-      - "**.rs"
-      - "Cargo.lock"
-      - "Cargo.toml"
-      - "**/Cargo.toml"
-      - "*/android/**"
     tags:
       - v*
 
@@ -49,18 +41,17 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
+      - uses: actions/checkout@v6
       - uses: actions/download-artifact@v8
         with:
           path: artifacts
 
-      - id: date
+      - id: version
         run: |
-          echo "date=$(date -u +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+          echo "version=$(grep -m1 '^version' winio/Cargo.toml | cut -d '"' -f 2)" >> $GITHUB_OUTPUT
 
       - uses: softprops/action-gh-release@v3
         with:
-          tag_name: nightly
-          name: Nightly ${{ steps.date.outputs.date }}
-          prerelease: true
+          tag_name: v${{ steps.version.outputs.version }}
           files: artifacts/**/*
           overwrite_files: true
