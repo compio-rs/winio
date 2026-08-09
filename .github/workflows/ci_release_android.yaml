@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-24.04
     defaults:
       run:
-        working-directory: ./winio-example
+        working-directory: ./winio-example/android
 
     strategy:
       matrix:
@@ -46,7 +46,7 @@ jobs:
 
       - name: 📝 Configure local.properties
         run: |
-          echo "ndk.abis=${{ matrix.abi }}" > android/local.properties
+          echo "ndk.abis=${{ matrix.abi }}" > local.properties
 
       - uses: gradle/actions/setup-gradle@v6
         env:
@@ -54,10 +54,10 @@ jobs:
 
       - name: 🏗 Build APK (${{ matrix.abi }})
         run: |
-          base64 -d > android/key.keystore <<EOF
+          base64 -d > key.keystore <<EOF
           ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           EOF
-          cat > android/key.properties <<EOF
+          cat > key.properties <<EOF
           storeFile=key.keystore
           storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}
           keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
@@ -70,7 +70,7 @@ jobs:
       - name: 📁 Collect APK
         run: |
           mkdir -p dist
-          cp android/app/build/outputs/apk/release/app-${{ matrix.abi }}-release.apk \
+          cp app/build/outputs/apk/release/app-${{ matrix.abi }}-release.apk \
             dist/winio-example-android-${{ matrix.abi }}.apk
           ls -lh dist/
 
