@@ -1,4 +1,4 @@
-name: build-macos
+name: Build macOS
 
 on:
   workflow_call:
@@ -11,14 +11,10 @@ jobs:
       run:
         working-directory: ./winio-example
 
-    strategy:
-      fail-fast: false
-
       matrix:
         include:
-          - artifact: winio-gallery-macos-arm64
+          - artifact: winio-exapmle-macos
             runner: macos-15
-            target: aarch64-apple-darwin
 
     name: ${{ matrix.artifact }}
 
@@ -27,25 +23,28 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          targets: ${{ matrix.target }}
+          targets: x86_64-apple-darwin,aarch64-apple-darwin
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-bundle
 
       - name: Build
         shell: bash
         run: |
-          cargo build \
+          cargo bundle \
             --release \
-            --target ${{ matrix.target }}
+            --features all,nightly \
+            --target x86_64-apple-darwin \
+            --target aarch64-apple-darwin
 
       - name: Collect
         shell: bash
         run: |
           mkdir dist
 
-          BIN=app
-
-          cp \
-            "target/${{ matrix.target }}/release/${BIN}" \
-            "dist/${{ matrix.artifact }}"
+          zip -r dist/${{ matrix.artifact }}.app.zip \
+            target/universal/release/bundle/osx/Widgets.app
 
       - uses: actions/upload-artifact@v7
         with:

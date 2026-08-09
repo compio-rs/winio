@@ -1,4 +1,4 @@
-name: build-windows-10
+name: Build Win32
 
 on:
   workflow_call:
@@ -6,22 +6,17 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.runner }}
+    runs-on: windows-latest
     defaults:
       run:
         working-directory: ./winio-example
 
-    strategy:
-      fail-fast: false
-
       matrix:
         include:
-          - artifact: winio-gallery-win32-x86_64.exe
-            runner: windows-2022
+          - artifact: winio-exapmle-win32-x86_64.exe
             target: x86_64-pc-windows-msvc
 
-          - artifact: winio-gallery-win32-arm64.exe
-            runner: windows-11-arm
+          - artifact: winio-exapmle-win32-arm64.exe
             target: aarch64-pc-windows-msvc
 
     name: ${{ matrix.artifact }}
@@ -38,10 +33,7 @@ jobs:
         run: |
           cargo build \
             --release \
-            --no-default-features \
-            --features win32 \
-            --features all \
-            --features enable_log \
+            --features all,nightly,windows-dark-mode \
             --target ${{ matrix.target }}
 
       - name: Collect
@@ -49,7 +41,7 @@ jobs:
         run: |
           mkdir dist
 
-          BIN=app.exe
+          BIN=winio-example.exe
 
           cp \
             "target/${{ matrix.target }}/release/${BIN}" \

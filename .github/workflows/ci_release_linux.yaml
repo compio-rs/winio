@@ -1,4 +1,4 @@
-name: build-linux-glibc
+name: Build Qt6
 
 on:
   workflow_call:
@@ -10,16 +10,13 @@ jobs:
       run:
         working-directory: ./winio-example
 
-    strategy:
-      fail-fast: false
-
       matrix:
         include:
-          - artifact: winio-gallery-qt6-x86_64
+          - artifact: winio-exapmle-qt6-x86_64
             target: x86_64-unknown-linux-gnu
             runner: ubuntu-24.04
 
-          - artifact: winio-gallery-qt6-aarch64
+          - artifact: winio-exapmle-qt6-aarch64
             target: aarch64-unknown-linux-gnu
             runner: ubuntu-24.04-arm
 
@@ -40,39 +37,20 @@ jobs:
             qt6-base-dev qt6-base-private-dev \
             qt6-multimedia-dev qt6-webengine-dev qmake6
 
-      # zig for glibc baseline
-      - name: Install zigbuild
-        run: |
-          ARCH=$(uname -m)
-
-          echo "📦 Installing cargo-zigbuild for $ARCH..."
-
-          curl -LO "https://github.com/rust-cross/cargo-zigbuild/releases/latest/download/cargo-zigbuild-${ARCH}-unknown-linux-gnu.tar.xz"
-          tar xf "cargo-zigbuild-${ARCH}-unknown-linux-gnu.tar.xz"
-          mkdir -p ~/.cargo/bin && 
-            mv "cargo-zigbuild-${ARCH}-unknown-linux-gnu/cargo-zigbuild" ~/.cargo/bin/
-          rm -rf "cargo-zigbuild-${ARCH}-unknown-linux-gnu"*
-
-          echo "✅ Installed to ~/.cargo/bin/cargo-zigbuild"
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deb
 
       - name: Build
         shell: bash
-        env:
-          CXXFLAGS: "-flto"
-          RUSTFLAGS: "-Clink-arg=-flto"
         run: |
-          cargo zigbuild \
+          cargo build \
             --release \
-            --target ${{ matrix.target }}.2.31
-
-      - name: Collect
-        shell: bash
-        run: |
-          mkdir dist
-          BIN=app
-          cp \
-            "target/${{ matrix.target }}/release/${BIN}" \
-            "dist/${{ matrix.artifact }}"
+            --target ${{ matrix.target }}
+          cargo deb \
+            --no-build \
+            --target ${{ matrix.target }} \
+            --output dist/${{ matrix.artifact }}.deb
 
       - uses: actions/upload-artifact@v7
         with:

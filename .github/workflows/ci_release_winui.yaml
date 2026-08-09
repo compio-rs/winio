@@ -1,4 +1,4 @@
-name: build-windows-11
+name: Build WinUI
 
 on:
   workflow_call:
@@ -6,22 +6,17 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.runner }}
+    runs-on: windows-latest
     defaults:
       run:
         working-directory: ./winio-example
 
-    strategy:
-      fail-fast: false
-
       matrix:
         include:
-          - artifact: winio-gallery-winui-x86_64.exe
-            runner: windows-2022
+          - artifact: winio-exapmle-winui-x86_64.exe
             target: x86_64-pc-windows-msvc
 
-          - artifact: winio-gallery-winui-arm64.exe
-            runner: windows-11-arm
+          - artifact: winio-exapmle-winui-arm64.exe
             target: aarch64-pc-windows-msvc
 
     name: ${{ matrix.artifact }}
@@ -38,6 +33,8 @@ jobs:
         run: |
           cargo build \
             --release \
+            --features all,nightly,windows-dark-mode,winui,winui-enable-cbs,winui-webview-system,winui-content-dialog \
+            --no-default-features \
             --target ${{ matrix.target }}
 
       - name: Collect
@@ -45,7 +42,7 @@ jobs:
         run: |
           mkdir dist
 
-          BIN=app.exe
+          BIN=winio-example.exe
 
           cp \
             "target/${{ matrix.target }}/release/${BIN}" \
