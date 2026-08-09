@@ -11,6 +11,7 @@ jobs:
       run:
         working-directory: ./winio-example
 
+    strategy:
       matrix:
         include:
           - artifact: winio-exapmle-winui-x86_64.exe

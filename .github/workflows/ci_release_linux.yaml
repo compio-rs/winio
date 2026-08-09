@@ -10,6 +10,7 @@ jobs:
       run:
         working-directory: ./winio-example
 
+    strategy:
       matrix:
         include:
           - artifact: winio-exapmle-qt6-x86_64
