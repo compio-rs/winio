@@ -71,4 +71,4 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
-          path: dist/*
+          path: ./winio-example/dist/*
