@@ -1,0 +1,101 @@
+name: build-android
+
+on:
+  workflow_call:
+    secrets:
+      ANDROID_KEYSTORE_BASE64:
+        required: true
+      ANDROID_STORE_PASSWORD:
+        required: true
+      ANDROID_KEY_ALIAS:
+        required: true
+      ANDROID_KEY_PASSWORD:
+        required: true
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: ./winio-example
+
+    strategy:
+      matrix:
+        include:
+          - abi: arm64-v8a
+            target: aarch64-linux-android
+          - abi: armeabi-v7a
+            target: armv7-linux-androideabi
+          - abi: x86_64
+            target: x86_64-linux-android
+
+    name: Android ${{ matrix.abi }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: ☕️ Setup Java (Temurin 17)
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: 🦀 Setup Rust (${{ matrix.abi }})
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: 📦 Install cargo-ndk
+        run: |
+          curl -LO \
+            https://github.com/bbqsrc/cargo-ndk/releases/download/v4.1.2/cargo-ndk-x86_64-unknown-linux-gnu-v4.1.2.tgz
+          tar xvf cargo-ndk-x86_64-unknown-linux-gnu-v4.1.2.tgz
+          mv cargo-ndk-x86_64-unknown-linux-gnu-v4.1.2/cargo-ndk ~/.cargo/bin/
+          rm -rf cargo-ndk-x86_64-unknown-linux-gnu-v4.1.2*
+
+      - name: ♻️ Restore Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: winio-gallery-android-${{ matrix.abi }}
+
+      - name: 🏗 Build .so (${{ matrix.abi }})
+        env:
+          ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/29.0.14206865
+          ANDROID_NDK_ROOT: /usr/local/lib/android/sdk/ndk/29.0.14206865
+        run: |
+          cargo ndk -t ${{ matrix.abi }} -o android/app/src/main/jniLibs rustc --crate-type cdylib --lib --release
+
+      - name: 📝 Configure local.properties
+        run: |
+          echo "ndk.abis=${{ matrix.abi }}" > android/local.properties
+
+      - name: 📦️ Setup gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "9.6.0"
+
+      - name: 🏗 Build APK (${{ matrix.abi }})
+        run: |
+          base64 -d > android/key.keystore <<EOF
+          ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          EOF
+          cat > android/key.properties <<EOF
+          storeFile=key.keystore
+          storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          EOF
+
+      - name: 📁 Collect APK
+        run: |
+          mkdir -p dist
+          cp android/app/build/outputs/apk/release/app-${{ matrix.abi }}-release.apk \
+            dist/winio-gallery-android-${{ matrix.abi }}.apk
+          ls -lh dist/
+
+      - name: 📤 Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: winio-gallery-android-${{ matrix.abi }}
+          path: dist/

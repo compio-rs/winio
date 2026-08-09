@@ -1,0 +1,65 @@
+name: build-windows-10
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        working-directory: ./winio-example
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        include:
+          - artifact: winio-gallery-win32-x86_64.exe
+            runner: windows-2022
+            target: x86_64-pc-windows-msvc
+
+          - artifact: winio-gallery-win32-arm64.exe
+            runner: windows-11-arm
+            target: aarch64-pc-windows-msvc
+
+    name: ${{ matrix.artifact }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ${{ matrix.artifact }}
+
+      - name: Build
+        shell: bash
+        run: |
+          cargo build \
+            --release \
+            --no-default-features \
+            --features win32 \
+            --features all \
+            --features enable_log \
+            --target ${{ matrix.target }}
+
+      - name: Collect
+        shell: bash
+        run: |
+          mkdir dist
+
+          BIN=app.exe
+
+          cp \
+            "target/${{ matrix.target }}/release/${BIN}" \
+            "dist/${{ matrix.artifact }}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/*

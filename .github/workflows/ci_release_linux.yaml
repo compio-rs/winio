@@ -1,0 +1,84 @@
+name: build-linux-glibc
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  build:
+    defaults:
+      run:
+        working-directory: ./winio-example
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        include:
+          - artifact: winio-gallery-qt6-x86_64
+            target: x86_64-unknown-linux-gnu
+            runner: ubuntu-24.04
+
+          - artifact: winio-gallery-qt6-aarch64
+            target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+
+    name: ${{ matrix.artifact }}
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Qt6
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            qt6-base-dev qt6-base-private-dev \
+            qt6-multimedia-dev qt6-webengine-dev qmake6
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ${{ matrix.artifact }}
+
+      # zig for glibc baseline
+      - name: Install zigbuild
+        run: |
+          ARCH=$(uname -m)
+
+          echo "📦 Installing cargo-zigbuild for $ARCH..."
+
+          curl -LO "https://github.com/rust-cross/cargo-zigbuild/releases/latest/download/cargo-zigbuild-${ARCH}-unknown-linux-gnu.tar.xz"
+          tar xf "cargo-zigbuild-${ARCH}-unknown-linux-gnu.tar.xz"
+          mkdir -p ~/.cargo/bin && 
+            mv "cargo-zigbuild-${ARCH}-unknown-linux-gnu/cargo-zigbuild" ~/.cargo/bin/
+          rm -rf "cargo-zigbuild-${ARCH}-unknown-linux-gnu"*
+
+          echo "✅ Installed to ~/.cargo/bin/cargo-zigbuild"
+
+      - name: Build
+        shell: bash
+        env:
+          CXXFLAGS: "-flto"
+          RUSTFLAGS: "-Clink-arg=-flto"
+        run: |
+          cargo zigbuild \
+            --release \
+            --target ${{ matrix.target }}.2.31
+
+      - name: Collect
+        shell: bash
+        run: |
+          mkdir dist
+          BIN=app
+          cp \
+            "target/${{ matrix.target }}/release/${BIN}" \
+            "dist/${{ matrix.artifact }}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/*

@@ -1,0 +1,70 @@
+name: Winio Widgets Gallery Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - "**.rs"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "**/Cargo.toml"
+      - "*/android/**"
+    tags:
+      - v*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  win32:
+    uses: ./.github/workflows/ci_release_winui.yaml
+
+  winui:
+    uses: ./.github/workflows/ci_release_win32.yaml
+
+  macos:
+    uses: ./.github/workflows/ci_release_macos.yaml
+
+  linux:
+    uses: ./.github/workflows/ci_release_linux.yaml
+
+  android:
+    uses: ./.github/workflows/ci_release_android.yaml
+    secrets:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+  release:
+    needs:
+      - win32
+      - winui
+      - macos
+      - linux
+      - android
+
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+
+      - id: date
+        run: |
+          echo "date=$(date -u +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          tag_name: nightly
+          name: Nightly ${{ steps.date.outputs.date }}
+          prerelease: true
+          files: artifacts/**/*
+          overwrite_files: true
