@@ -1,4 +1,4 @@
-name: Build macOS
+name: Release macOS
 
 on:
   workflow_call:

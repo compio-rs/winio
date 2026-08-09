@@ -1,4 +1,4 @@
-name: Build Android
+name: Release Android
 
 on:
   workflow_call:

@@ -1,4 +1,4 @@
-name: Build WinUI
+name: Release WinUI
 
 on:
   workflow_call:
@@ -33,7 +33,7 @@ jobs:
         run: |
           cargo build \
             --release \
-            --features all,nightly,windows-dark-mode,winui,winui-enable-cbs,winui-webview-system,winui-content-dialog \
+            --features all,nightly,windows-dark-mode,winui,winui-enable-cbs,winui-webview-system,winui-content-dialog,enable_log \
             --no-default-features \
             --target ${{ matrix.target }}
 
