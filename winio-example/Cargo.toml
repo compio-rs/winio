@@ -7,7 +7,7 @@ edition.workspace = true
 name = "main"
 
 [dependencies]
-winio = { workspace = true }
+winio = { workspace = true, default-features = false }
 compio = { workspace = true, default-features = true, features = [
     "time",
     "rustls",
@@ -49,8 +49,9 @@ jni = { workspace = true }
 rustls-platform-verifier = "0.7.0"
 
 [features]
-default = ["enable_log"]
+default = ["enable_log", "winio/win32", "winio/qt"]
 enable_log = ["winio/enable_log", "compio-log/enable_log"]
+gtk = ["winio/gtk"]
 
 media = ["winio/media"]
 webview = ["winio/webview"]
