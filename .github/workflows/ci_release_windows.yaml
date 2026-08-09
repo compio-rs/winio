@@ -7,9 +7,6 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: ./winio-example
 
     strategy:
       matrix:
@@ -61,6 +58,7 @@ jobs:
 
           cargo build \
             --release \
+            --bin winio-example \
             --target ${{ matrix.target }} \
             "${ARGS[@]}"
 
@@ -72,10 +70,10 @@ jobs:
           BIN=winio-example.exe
 
           cp \
-            "../target/${{ matrix.target }}/release/${BIN}" \
+            "target/${{ matrix.target }}/release/${BIN}" \
             "dist/${{ matrix.artifact }}"
 
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
-          path: ./winio-example/dist/*
+          path: ./dist/*
