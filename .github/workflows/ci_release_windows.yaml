@@ -1,0 +1,81 @@
+name: Release Windows
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: ./winio-example
+
+    strategy:
+      matrix:
+        include:
+          - artifact: winio-exapmle-win32-i686.exe
+            target: i686-pc-windows-msvc
+            features: all,nightly,windows-dark-mode
+
+          - artifact: winio-exapmle-win32-x86_64.exe
+            target: x86_64-pc-windows-msvc
+            features: all,nightly,windows-dark-mode
+
+          - artifact: winio-exapmle-win32-arm64.exe
+            target: aarch64-pc-windows-msvc
+            features: all,nightly,windows-dark-mode
+
+          - artifact: winio-exapmle-winui-x86_64.exe
+            target: x86_64-pc-windows-msvc
+            features: all,nightly,windows-dark-mode,winui,winui-enable-cbs,winui-webview-system,winui-content-dialog
+            no_default_features: true
+
+          - artifact: winio-exapmle-winui-arm64.exe
+            target: aarch64-pc-windows-msvc
+            features: all,nightly,windows-dark-mode,winui,winui-enable-cbs,winui-webview-system,winui-content-dialog
+            no_default_features: true
+
+    name: ${{ matrix.artifact }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build
+        shell: bash
+        run: |
+          set -ex
+
+          # Add features if features is not empty
+          if [[ -n "${{ matrix.setup.features }}" ]]; then
+              ARGS+=("--features" "${{ matrix.setup.features }}")
+          fi
+          # Add no-default-features if no_default_features is true
+          if [[ -n "${{ matrix.setup.no_default_features }}" ]]; then
+              ARGS+=("--no-default-features")
+          fi
+
+          cargo build \
+            --release \
+            --target ${{ matrix.target }} \
+            "${ARGS[@]}"
+
+      - name: Collect
+        shell: bash
+        run: |
+          mkdir dist
+
+          BIN=winio-example.exe
+
+          cp \
+            "target/${{ matrix.target }}/release/${BIN}" \
+            "dist/${{ matrix.artifact }}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/*

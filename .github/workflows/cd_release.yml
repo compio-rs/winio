@@ -22,11 +22,8 @@ permissions:
   contents: write
 
 jobs:
-  win32:
-    uses: ./.github/workflows/ci_release_winui.yaml
-
-  winui:
-    uses: ./.github/workflows/ci_release_win32.yaml
+  windows:
+    uses: ./.github/workflows/ci_release_windows.yaml
 
   macos:
     uses: ./.github/workflows/ci_release_macos.yaml
@@ -44,8 +41,7 @@ jobs:
 
   release:
     needs:
-      - win32
-      - winui
+      - windows
       - macos
       - linux
       - android
