@@ -51,11 +51,11 @@ jobs:
           set -ex
 
           # Add features if features is not empty
-          if [[ -n "${{ matrix.setup.features }}" ]]; then
-              ARGS+=("--features" "${{ matrix.setup.features }}")
+          if [[ -n "${{ matrix.features }}" ]]; then
+              ARGS+=("--features" "${{ matrix.features }}")
           fi
           # Add no-default-features if no_default_features is true
-          if [[ -n "${{ matrix.setup.no_default_features }}" ]]; then
+          if [[ -n "${{ matrix.no_default_features }}" ]]; then
               ARGS+=("--no-default-features")
           fi
 
