@@ -26,9 +26,9 @@ jobs:
         with:
           targets: x86_64-apple-darwin,aarch64-apple-darwin
 
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-bundle
+      - name: Install cargo-bundle
+        shell: bash
+        run: cargo install cargo-bundle --git https://github.com/burtonageo/cargo-bundle.git
 
       - name: Build
         shell: bash
