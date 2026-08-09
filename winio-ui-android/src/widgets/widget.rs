@@ -12,7 +12,7 @@ use winio_primitive::{Font, Point, Size};
 use crate::{
     Result,
     java::android::{
-        graphics::{Typeface, typeface},
+        graphics::{Typeface, Typeface2, typeface},
         view::{View as AView, ViewGroup as AViewGroup, gravity},
         widget::{FrameLayout, FrameLayoutLayoutParams, TextView as ATextView},
     },
@@ -31,7 +31,13 @@ pub(crate) fn text_view_to_font(
         .get_resources(env)?
         .get_display_metrics(env)?;
     let typeface = view.get_typeface(env)?;
-    let family = typeface.get_system_font_family_name(env)?;
+    let family = {
+        let typeface = env.new_local_ref(&typeface)?;
+        let typeface = unsafe { Typeface2::from_raw(env, typeface.into_raw()) };
+        typeface
+            .get_system_font_family_name(env)
+            .unwrap_or_else(|_| JString::null())
+    };
     let family = if family.is_null() {
         String::new()
     } else {

@@ -92,6 +92,13 @@ jni::bind_java_type! {
         static fn create(family: JString, style: jint) -> Typeface,
         fn is_bold() -> jboolean,
         fn is_italic() -> jboolean,
+    }
+}
+
+jni::bind_java_type! {
+    pub Typeface2 => android.graphics.Typeface,
+    methods {
+        /// Need Android 34+.
         fn get_system_font_family_name() -> JString,
     }
 }
