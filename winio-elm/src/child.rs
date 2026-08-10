@@ -18,6 +18,81 @@ use crate::{BoxComponent, Component, ComponentSender, Root};
 
 /// Helper to embed one component into another. It handles different types of
 /// messages and events.
+///
+/// A component tree is built with [`Child`]: the parent component owns its
+/// children as `Child<T>` fields, and drives them in its own lifecycle:
+///
+/// * In [`Component::init`], create the children with [`Child::init`] (or the
+///   [`init!`](crate::init) macro).
+/// * In [`Component::start`], start listening to the children's events with
+///   [`Child::start`] (or the [`start!`](crate::start) macro).
+/// * In [`Component::update_children`], update the children with
+///   [`Child::update`] (or the [`update_children!`](crate::update_children)
+///   macro).
+/// * In [`Component::render_children`], render the children with
+///   [`Child::render`].
+///
+/// # Example
+///
+/// A parent component with a button child:
+///
+/// ```ignore
+/// struct MainModel {
+///     window: Child<Window>,
+///     button: Child<Button>,
+/// }
+///
+/// enum MainMessage {
+///     Noop,
+///     Clicked,
+/// }
+///
+/// enum MainEvent {}
+///
+/// impl Component for MainModel {
+///     type Init<'a> = ();
+///     type Message = MainMessage;
+///     type Event = MainEvent;
+///     type Error = Error;
+///
+///     async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+///         init! {
+///             window: Window = (()),
+///             button: Button = (&window),
+///         }
+///         Ok(Self { window, button })
+///     }
+///
+///     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
+///         start! {
+///             sender,
+///             self.window => {},
+///             self.button => {
+///                 ButtonEvent::Click => MainMessage::Clicked,
+///             },
+///         }
+///     }
+///
+///     async fn update_children(&mut self) -> Result<bool> {
+///         update_children!(
+///             self.window,
+///             self.button,
+///         )
+///     }
+///
+///     async fn update(&mut self, message: Self::Message, _sender: &ComponentSender<Self>) -> Result<bool> {
+///         match message {
+///             MainMessage::Noop => Ok(false),
+///             MainMessage::Clicked => {
+///                 println!("Button clicked!");
+///                 Ok(false)
+///             }
+///         }
+///     }
+/// }
+/// ```
+///
+/// See the [crate-level documentation](crate) for the overall architecture.
 pub struct Child<T: Component> {
     model: T,
     sender: ComponentSender<T>,
