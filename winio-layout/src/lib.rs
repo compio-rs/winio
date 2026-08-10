@@ -276,20 +276,44 @@ fn render<E>(
 
 /// Helper macro for layouts in `Component::render`.
 ///
+/// It creates a layout container (e.g. [`Grid`]), pushes the widgets into it
+/// with their layout hints, and returns the container for further layouting
+/// (usually by setting its size to the available space).
+///
+/// Each entry has the form:
+///
+/// ```text
+/// container,
+/// self.widget,
+/// self.widget => { property: value, ... },
+/// ```
+///
+/// * `container`: the layout container, such as [`Grid`] created with
+///   [`Grid::from_str`];
+/// * `self.widget`: the child widget to be laid out. It can be written alone
+///   as a shorthand, in which case it is laid out with the default hints;
+/// * `property: value`: the layout hints of the child, e.g. `column`, `row`,
+///   `margin`, `halign`, `valign`. The available properties depend on the
+///   container (see [`Grid`]).
+///
+/// The widgets are pushed into the container in order, and the container is
+/// returned. You should then set the size of the container to the available
+/// space, and the layout will be calculated on the next render.
+///
 /// ```ignore
 /// # use winio::prelude::*;
 /// # struct MainModel {
 /// #     window: Child<Window>,
 /// #     canvas: Child<Canvas>,
 /// # }
-/// # impl MainModel { fn foo(&mut self) {
-/// let csize = self.window.client_size();
+/// # impl MainModel { fn foo(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+/// let csize = self.window.client_size()?;
 /// {
 ///     let mut grid = layout! {
 ///         Grid::from_str("1*,2*,1*", "1*,2*,1*").unwrap(),
 ///         self.canvas => { column: 1, row: 1 },
 ///     };
-///     grid.set_size(csize);
+///     grid.set_size(csize)?;
 /// }
 /// # } }
 /// ```

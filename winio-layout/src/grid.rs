@@ -108,6 +108,15 @@ impl<'a, E> Grid<'a, E> {
     }
 
     /// Create [`Grid`] with string-representative of grid lengths.
+    ///
+    /// The `columns` and `rows` are comma-separated lists of grid lengths,
+    /// where each length can be:
+    ///
+    /// * `auto`: the track is sized to the preferred size of its children;
+    /// * `<number>*`: a stretch track, sized proportionally to the remaining
+    ///   space. For example, `1*,2*,1*` divides the available space into three
+    ///   tracks of ratios 1:2:1;
+    /// * `<number>`: a fixed length track.
     pub fn from_str(
         columns: impl AsRef<str>,
         rows: impl AsRef<str>,
