@@ -78,6 +78,9 @@ impl Window {
     pub fn vibrancy(&self) -> Result<Option<Vibrancy>>;
 
     /// Set the visual effect of the window.
+    ///
+    /// ## Platform specific
+    /// * macOS: Supported on macOS 10.10 and later.
     #[cfg(target_os = "macos")]
     pub fn set_vibrancy(&mut self, v: Option<Vibrancy>) -> Result<()>;
 }

@@ -64,6 +64,7 @@ impl WebView {
     ///
     /// ## Platform specific
     /// * Android: returns cookies for the current URL.
+    /// * Qt: Returns an error if the web engine cookie store is unavailable.
     pub async fn cookies(&self) -> Result<Vec<Cookie<'static>>> {
         self.widget.cookies().await
     }
@@ -71,7 +72,8 @@ impl WebView {
     /// Set a cookie.
     ///
     /// ## Platform specific
-    /// * Qt: the method doesn't wait for the cookie to be set.
+    /// * Qt: the method doesn't wait for the cookie to be set, and returns an
+    ///   error if the web engine cookie store is unavailable.
     /// * Android: sets a cookie for the current URL.
     pub async fn set_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
         self.widget.set_cookie(c).await
@@ -80,7 +82,8 @@ impl WebView {
     /// Delete a cookie.
     ///
     /// ## Platform specific
-    /// * Qt: the method doesn't wait for the cookie to be deleted.
+    /// * Qt: the method doesn't wait for the cookie to be deleted, and returns
+    ///   an error if the web engine cookie store is unavailable.
     /// * Android: deletes a cookie for the current URL.
     pub async fn delete_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
         self.widget.delete_cookie(c).await

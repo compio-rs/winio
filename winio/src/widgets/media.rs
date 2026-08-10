@@ -81,6 +81,9 @@ impl Media {
     pub fn playback_rate(&self) -> Result<f64>;
 
     /// Set playback rate.
+    ///
+    /// ## Platform specific
+    /// * GTK: Not supported.
     pub fn set_playback_rate(&mut self, v: f64) -> Result<()>;
 }
 
