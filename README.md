@@ -9,12 +9,15 @@ All IO requests could be issued in the same thread as GUI, without blocking the 
 | Backend | Platform                                                           |
 | ------- | ------------------------------------------------------------------ |
 | Win32   | Windows 10 1703+ <br> Windows 10 1809+ (`windows-dark-mode`)       |
-| WinUI   | Windows 11 21H2+ <br> WinUI (3) 1.0+ <br> WinUI (3) 1.2+ (`media`) |
+| WinUI   | Windows 10 1809+ <br> WinUI (3) 1.0+ <br> WinUI (3) 1.2+ (`media`) |
 | Qt      | Qt 5.15+ <br> Qt 6.0+                                              |
 | GTK     | GTK 4.14+ <br> WebkitGtk 6 2.42+ (`webview`)                       |
 | AppKit  | macOS 11.0+                                                        |
 | UIKit   | iOS 13.0+ <br> Mac Catalyst 13.1+                                  |
 | Android | Android SDK 36+ <br> Android NDK 27+                               |
+
+> [!NOTE]
+> WinUI backend needs `Microsoft.WindowsAppRuntime.dll` on Windows 10.
 
 > [!WARNING]
 > On systems other than macOS, iOS, and Android, you have to select only one backend by enabling features. The default one is `win32` for Windows and `qt` for others.
@@ -22,7 +25,6 @@ All IO requests could be issued in the same thread as GUI, without blocking the 
 > [!WARNING]
 > WGPU canvas doesn't work well on some platforms:
 > * iOS simulator
-> * Mac Catalyst
 > * Android simulator
 > * Qt
 > * GTK
