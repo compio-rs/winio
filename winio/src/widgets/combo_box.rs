@@ -10,7 +10,9 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A combo box.
+/// A list of options.
+///
+/// It is usually a drop-down list.
 #[derive(Debug)]
 pub struct ComboBox {
     widget: sys::ComboBox,
@@ -57,10 +59,14 @@ impl ComboBox {
         Ok(())
     }
 
-    /// If the combo box is editable.
+    /// If the text of the combo box is editable.
     pub fn is_editable(&self) -> Result<bool>;
 
-    /// Set if the combo box is editable.
+    /// Set if the text of the combo box is editable.
+    ///
+    /// ## Platform specific
+    /// * GTK: Enables the search feature.
+    /// * Android: Not supported.
     pub fn set_editable(&mut self, v: bool) -> Result<()>;
 
     /// The length of the items.

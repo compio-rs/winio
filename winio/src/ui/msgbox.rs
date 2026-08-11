@@ -3,7 +3,14 @@ use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
 
 use crate::{sys, sys::Result};
 
-/// Message box.
+/// Shows a message to the user, and collects the response with the given
+/// buttons.
+///
+/// ## Platform specific
+/// * Android: There should be only one button for each kind of button:
+///   * Positive button: OK, Yes, Retry;
+///   * Negative button: Cancel, No, Close;
+///   * Neutral button: Custom button.
 #[derive(Debug, Default, Clone)]
 pub struct MessageBox(sys::MessageBox);
 

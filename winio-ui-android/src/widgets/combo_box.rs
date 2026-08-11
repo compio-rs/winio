@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use compio_log::error;
 use inherit_methods_macro::inherit_methods;
 use jni::{
     Env,
@@ -133,6 +134,7 @@ impl ComboBox {
     }
 
     pub fn set_editable(&mut self, _v: bool) -> Result<()> {
+        error!("ComboBox is not editable on Android");
         Ok(())
     }
 

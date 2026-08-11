@@ -29,6 +29,10 @@ impl ColorThemeExt for ColorTheme {
 /// Extension trait for [`Color`].
 pub trait ColorExt: Sized {
     /// Get accent color.
+    ///
+    /// ## Platform specific
+    /// * GTK: Not supported.
+    /// * Qt: Returns an error if the system does not provide an accent color.
     fn accent() -> Result<Self>;
 }
 

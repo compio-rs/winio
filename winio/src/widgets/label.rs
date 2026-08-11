@@ -11,7 +11,7 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A simple single-line label.
+/// A single line of read-only text.
 #[derive(Debug)]
 pub struct Label {
     widget: sys::Label,

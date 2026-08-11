@@ -10,7 +10,8 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A media player.
+/// Plays audio and video, and controls the playback such as playing, pausing
+/// and seeking.
 #[derive(Debug)]
 pub struct Media {
     widget: sys::Media,
@@ -81,6 +82,9 @@ impl Media {
     pub fn playback_rate(&self) -> Result<f64>;
 
     /// Set playback rate.
+    ///
+    /// ## Platform specific
+    /// * GTK: Not supported.
     pub fn set_playback_rate(&mut self, v: f64) -> Result<()>;
 }
 

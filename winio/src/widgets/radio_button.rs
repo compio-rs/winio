@@ -12,7 +12,8 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A simple radio box. See [`RadioButtonGroup`] for making selection groups.
+/// A single-choice button. See [`RadioButtonGroup`] for making selection
+/// groups.
 #[derive(Debug)]
 pub struct RadioButton {
     widget: sys::RadioButton,
@@ -177,7 +178,7 @@ impl Component for RadioButton {
 
 winio_handle::impl_as_widget!(RadioButton, widget);
 
-/// A group of [`RadioButton`]. Only one of them could be checked.
+/// A group of [`RadioButton`]s that keeps exactly one of them selected.
 pub struct RadioButtonGroup {
     radios: Vec<Child<RadioButton>>,
     selection: Option<usize>,

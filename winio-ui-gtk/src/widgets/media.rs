@@ -1,5 +1,6 @@
 use std::{rc::Rc, time::Duration};
 
+use compio_log::error;
 use gtk4::{
     MediaFile,
     gio::prelude::FileExt,
@@ -180,7 +181,8 @@ impl Media {
     }
 
     pub fn set_playback_rate(&mut self, _r: f64) -> Result<()> {
-        Err(Error::NotSupported)
+        error!("Playback rate is not supported on GTK");
+        Ok(())
     }
 }
 

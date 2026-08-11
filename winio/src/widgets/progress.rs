@@ -8,7 +8,7 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A progress bar.
+/// Shows the progress of a long-running operation as a filling bar.
 #[derive(Debug)]
 pub struct Progress {
     widget: sys::Progress,

@@ -9,7 +9,7 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A timer without requiring an async runtime.
+/// Fires a periodic event, without requiring an async runtime.
 #[derive(Debug)]
 pub struct Timer {
     widget: sys::Timer,

@@ -3,17 +3,17 @@ use winio_primitive::{Font, Point, Rect, RelativePoint, Size, Transform};
 
 use crate::{sys, sys::Result};
 
-/// Drawing brush.
+/// Fills the interior of the drawing shapes.
 pub trait Brush: sys::Brush {}
 
 impl<B: sys::Brush> Brush for B {}
 
-/// Drawing Pen.
+/// Draws the outlines of the drawing shapes.
 pub trait Pen: sys::Pen {}
 
 impl<P: sys::Pen> Pen for P {}
 
-/// Canvas compatible drawing image.
+/// An image that can be drawn on a [`DrawingContext`].
 pub struct DrawingImage(sys::DrawingImage);
 
 impl DrawingImage {
@@ -23,7 +23,7 @@ impl DrawingImage {
     }
 }
 
-/// Canvas drawing context.
+/// Provides the drawing operations of a [`Canvas`](crate::widgets::Canvas).
 pub struct DrawingContext<'a>(sys::DrawingContext<'a>);
 
 #[inline]
@@ -172,7 +172,8 @@ impl<'a> DrawingContext<'a> {
     }
 }
 
-/// A drawing path.
+/// A sequence of line and curve segments, which forms a complex shape for
+/// filling or stroking.
 pub struct DrawingPath(sys::DrawingPath);
 
 /// Builder for [`DrawingPath`].

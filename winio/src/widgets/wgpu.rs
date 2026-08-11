@@ -11,7 +11,8 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A canvas for [`wgpu`].
+/// Renders GPU graphics with [`wgpu`], accelerated by the native graphics API
+/// of the platform.
 ///
 /// ## Recommended backends
 /// * Windows: DirectX 12

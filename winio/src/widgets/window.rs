@@ -12,11 +12,8 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A simple window.
-///
-/// ## Platform specific
-/// * Qt: The desctruct order of Qt requires the window to be dropped last, and
-///   you should better put it at the end of the struct.
+/// The top-level container of the application, with its own title bar and
+/// border.
 #[derive(Debug)]
 pub struct Window {
     widget: sys::Window,
@@ -82,6 +79,9 @@ impl Window {
     pub fn vibrancy(&self) -> Result<Option<Vibrancy>>;
 
     /// Set the visual effect of the window.
+    ///
+    /// ## Platform specific
+    /// * macOS: Supported on macOS 10.10 and later.
     #[cfg(target_os = "macos")]
     pub fn set_vibrancy(&mut self, v: Option<Vibrancy>) -> Result<()>;
 }

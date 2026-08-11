@@ -29,6 +29,40 @@ impl<T, E> RunEvent<T, E> {
 }
 
 /// Helper to run a root component.
+///
+/// A [`Root`] is the top of a component tree: it owns a single
+/// [`Component`], and drives its lifecycle. It is created with
+/// [`Root::init`], and run with [`Root::run`], which yields the events
+/// emitted by the component tree.
+///
+/// # Example
+///
+/// ```ignore
+/// async fn main() -> Result<()> {
+///     let mut root = Root::<MainModel>::init(()).await?;
+///     let mut events = root.run();
+///     while let Some(event) = events.next().await {
+///         match event {
+///             RunEvent::Event(e) => {
+///                 // An event emitted by the component tree.
+///             }
+///             RunEvent::UpdateErr(e) => {
+///                 // An error occurred during an update.
+///             }
+///             RunEvent::RenderErr(e) => {
+///                 // An error occurred during a render.
+///             }
+///         }
+///     }
+///     Ok(())
+/// }
+/// ```
+///
+/// The component tree is driven in a loop: the root component is started,
+/// then waits for the messages, updates itself and its children, and renders
+/// them when needed.
+///
+/// See the [crate-level documentation](crate) for the overall architecture.
 pub struct Root<T: Component> {
     model: T,
     sender: ComponentSender<T>,

@@ -10,7 +10,7 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A slider.
+/// Selects a value from a range by dragging a handle along a track.
 #[derive(Debug)]
 pub struct Slider {
     widget: sys::Slider,

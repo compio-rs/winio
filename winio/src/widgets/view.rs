@@ -8,7 +8,7 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A simple view.
+/// An empty container for other widgets, used as a layout placeholder.
 #[derive(Debug)]
 pub struct View {
     widget: sys::View,

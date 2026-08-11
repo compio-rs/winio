@@ -10,7 +10,7 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A simple button.
+/// A button that triggers an event when pressed by the user.
 #[derive(Debug)]
 pub struct Button {
     widget: sys::Button,

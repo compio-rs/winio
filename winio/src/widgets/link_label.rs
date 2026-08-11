@@ -10,7 +10,7 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A simple link label.
+/// A hyperlink-style text that opens its URI when clicked.
 #[derive(Debug)]
 pub struct LinkLabel {
     widget: sys::LinkLabel,

@@ -10,7 +10,7 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A simple single-line text input box.
+/// A single-line text input for the user to type and edit text.
 #[derive(Debug)]
 pub struct Edit {
     widget: sys::Edit,

@@ -11,7 +11,12 @@ use crate::{
     ui::DrawingContext,
 };
 
-/// A simple drawing canvas.
+/// A drawing surface for custom graphics, which also receives pointer input
+/// from the user.
+///
+/// It doesn't ensure hardware acceleration, so it might be slow on some
+/// platforms. [`WgpuCanvas`](crate::widgets::WgpuCanvas) is a better choice if
+/// you need hardware acceleration.
 #[derive(Debug)]
 pub struct Canvas {
     widget: sys::Canvas,
