@@ -45,7 +45,8 @@ use compat_stub::*;
 #[doc(no_inline)]
 pub use sys::AndroidApp;
 
-/// Root application, manages the async runtime.
+/// The root application of the winio program. It owns the async runtime and the
+/// event loop of the GUI.
 pub struct App {
     app: SysApp,
     name: String,

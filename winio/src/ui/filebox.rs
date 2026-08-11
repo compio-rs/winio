@@ -4,7 +4,7 @@ use winio_handle::MaybeBorrowedWindow;
 
 use crate::{sys, sys::Result};
 
-/// File open/save box.
+/// A dialog for the user to open or save files.
 ///
 /// The file box uses [`PathBuf`] as returned path type, but it might not be a
 /// valid Unix path on mobile platforms. Use [`UriFile`](crate::ui::UriFile) and

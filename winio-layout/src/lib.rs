@@ -290,8 +290,8 @@ fn render<E>(
 ///
 /// * `container`: the layout container, such as [`Grid`] created with
 ///   [`Grid::from_str`];
-/// * `self.widget`: the child widget to be laid out. It can be written alone
-///   as a shorthand, in which case it is laid out with the default hints;
+/// * `self.widget`: the child widget to be laid out. It can be written alone as
+///   a shorthand, in which case it is laid out with the default hints;
 /// * `property: value`: the layout hints of the child, e.g. `column`, `row`,
 ///   `margin`, `halign`, `valign`. The available properties depend on the
 ///   container (see [`Grid`]).
