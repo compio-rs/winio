@@ -8,7 +8,8 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A tabbed view that contains many [`TabViewItem`]s.
+/// Organizes content into multiple pages, and switches between them with
+/// clickable tabs. Each page is a [`TabViewItem`].
 #[derive(Debug)]
 pub struct TabView {
     widget: sys::TabView,
@@ -169,7 +170,7 @@ impl Component for TabView {
 
 winio_handle::impl_as_widget!(TabView, widget);
 
-/// A tab item of [`TabView`].
+/// A page of a [`TabView`], which has its own title and content.
 #[derive(Debug)]
 pub struct TabViewItem {
     widget: sys::TabViewItem,

@@ -8,7 +8,9 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A simple list box.
+/// A list of selectable items, where the user can select one or more entries.
+///
+/// It is vertically scrollable.
 #[derive(Debug)]
 pub struct ListBox {
     widget: sys::ListBox,

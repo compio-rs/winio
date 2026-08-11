@@ -10,7 +10,8 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A media player.
+/// Plays audio and video, and controls the playback such as playing, pausing
+/// and seeking.
 #[derive(Debug)]
 pub struct Media {
     widget: sys::Media,

@@ -8,7 +8,7 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A scroll bar.
+/// A bar that allows the user to scroll through a range of values.
 #[derive(Debug)]
 pub struct ScrollBar {
     widget: sys::ScrollBar,

@@ -10,7 +10,9 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A simple check box.
+/// A button that switches a boolean state between checked and unchecked.
+///
+/// It is usually a square box with a check mark, and a label.
 #[derive(Debug)]
 pub struct CheckBox {
     widget: sys::CheckBox,

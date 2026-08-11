@@ -11,7 +11,8 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A web view.
+/// Displays web content, and navigates it such as going back, going forward and
+/// reloading.
 #[derive(Debug)]
 pub struct WebView {
     widget: sys::WebView,

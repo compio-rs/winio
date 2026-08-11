@@ -10,7 +10,9 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A combo box.
+/// A list of options.
+///
+/// It is usually a drop-down list.
 #[derive(Debug)]
 pub struct ComboBox {
     widget: sys::ComboBox,

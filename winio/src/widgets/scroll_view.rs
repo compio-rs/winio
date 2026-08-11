@@ -8,8 +8,7 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A scroll view that can contain other widgets and provide scrolling.
-/// functionality.
+/// A container that scrolls its content when it overflows the available space.
 #[derive(Debug)]
 pub struct ScrollView {
     widget: sys::ScrollView,

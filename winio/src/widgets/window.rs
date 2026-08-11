@@ -12,7 +12,8 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A simple window.
+/// The top-level container of the application, with its own title bar and
+/// border.
 #[derive(Debug)]
 pub struct Window {
     widget: sys::Window,
