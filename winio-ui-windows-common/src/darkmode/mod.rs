@@ -1,6 +1,5 @@
 use std::{mem::MaybeUninit, sync::LazyLock};
 
-use widestring::U16CStr;
 use windows_sys::Win32::{
     Foundation::{COLORREF, HWND, LRESULT},
     Globalization::{
@@ -57,17 +56,8 @@ pub enum PreferredAppMode {
 ///
 /// `s2` should be a valid null-terminated UTF-16 string.
 #[inline]
-unsafe fn u16_string_eq_ignore_case(s1: &U16CStr, s2: *const u16) -> bool {
-    unsafe {
-        CompareStringW(
-            LOCALE_ALL,
-            NORM_IGNORECASE,
-            s1.as_ptr(),
-            s1.len() as _,
-            s2,
-            -1,
-        ) == CSTR_EQUAL
-    }
+unsafe fn u16_string_eq_ignore_case(s1: *const u16, s2: *const u16) -> bool {
+    unsafe { CompareStringW(LOCALE_ALL, NORM_IGNORECASE, s1, -1, s2, -1) == CSTR_EQUAL }
 }
 
 /// # Safety
@@ -75,8 +65,8 @@ unsafe fn u16_string_eq_ignore_case(s1: &U16CStr, s2: *const u16) -> bool {
 /// `s2` should be a valid null-terminated UTF-16 string.
 #[inline]
 #[allow(unused)]
-unsafe fn u16_string_starts_with_ignore_case(s1: &U16CStr, s2: *const u16) -> bool {
-    unsafe { FindStringOrdinal(FIND_STARTSWITH, s1.as_ptr(), s1.len() as _, s2, -1, 1) >= 0 }
+unsafe fn u16_string_starts_with_ignore_case(s1: *const u16, s2: *const u16) -> bool {
+    unsafe { FindStringOrdinal(FIND_STARTSWITH, s1, -1, s2, -1, 1) >= 0 }
 }
 
 const WHITE: COLORREF = 0x00FFFFFF;
@@ -94,8 +84,7 @@ pub unsafe fn control_color_static(hwnd: HWND, hdc: HDC) -> LRESULT {
 
         let mut class = [0u16; MAX_CLASS_NAME as usize];
         GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
-        let class = U16CStr::from_ptr_str(class.as_ptr());
-        let is_static = u16_string_eq_ignore_case(class, WC_STATICW)
+        let is_static = u16_string_eq_ignore_case(class.as_ptr(), WC_STATICW)
             && ((GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32 & WS_EX_TRANSPARENT) != 0);
 
         SetBkMode(hdc, TRANSPARENT as _);
@@ -153,11 +142,10 @@ pub unsafe fn control_color_edit(hparent: HWND, hwnd: HWND, hdc: HDC) -> Option<
         if is_dark_mode_allowed_for_app() {
             let mut class = [0u16; MAX_CLASS_NAME as usize];
             GetClassNameW(hwnd, class.as_mut_ptr(), MAX_CLASS_NAME);
-            let class = U16CStr::from_ptr_str(class.as_ptr());
 
             SetTextColor(hdc, WHITE);
             SetBkColor(hdc, BLACK);
-            let is_hover = if u16_string_eq_ignore_case(class, WC_EDITW) {
+            let is_hover = if u16_string_eq_ignore_case(class.as_ptr(), WC_EDITW) {
                 let mut p = MaybeUninit::uninit();
                 GetCursorPos(p.as_mut_ptr());
                 let mut p = p.assume_init();

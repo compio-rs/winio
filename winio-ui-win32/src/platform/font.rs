@@ -171,27 +171,21 @@ pub(crate) fn font_to_hfont(hwnd: HWND, font: &Font, underline: bool) -> Result<
             f.lfUnderline = 1;
         }
         let mut chars = font.family.encode_utf16();
-        for slot in f.lfFaceName.iter_mut().take(31) {
+        for slot in f.lfFaceName.iter_mut() {
             *slot = chars.next().unwrap_or(0);
         }
-        f.lfFaceName[31] = 0;
     })
 }
 
 /// Read a [`Font`] from an [`HFONT`], scaled back to logical size by the DPI
 /// of the window.
 pub(crate) fn hfont_to_font(hwnd: HWND, hfont: HFONT) -> Result<Font> {
-    let mut lf: LOGFONTW = unsafe { std::mem::zeroed() };
-    let size = unsafe {
-        GetObjectW(
-            hfont,
-            std::mem::size_of::<LOGFONTW>() as _,
-            &mut lf as *mut _ as _,
-        )
-    };
+    let mut lf = MaybeUninit::<LOGFONTW>::uninit();
+    let size = unsafe { GetObjectW(hfont, size_of::<LOGFONTW>() as _, lf.as_mut_ptr().cast()) };
     if size == 0 {
         return Err(Error::from_thread());
     }
+    let lf = unsafe { lf.assume_init() };
     let dpi = get_dpi_for_window(hwnd);
     let family = unsafe { U16CStr::from_ptr_str(lf.lfFaceName.as_ptr()) }.to_string_lossy();
     Ok(Font {

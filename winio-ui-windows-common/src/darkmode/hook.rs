@@ -8,7 +8,6 @@ use std::{
 use compio_log::error;
 use slim_detours_sys::{DETOUR_INLINE_HOOK, SlimDetoursInlineHooks};
 use sync_unsafe_cell::SyncUnsafeCell;
-use widestring::U16CStr;
 use windows_sys::{
     Win32::{
         Foundation::{COLORREF, E_INVALIDARG, HWND, LPARAM, LRESULT, RECT, S_OK, WPARAM},
@@ -285,15 +284,14 @@ static HTHEME_MAP: Mutex<BTreeMap<HTHEME, (usize, ThemeType)>> = Mutex::new(BTre
 
 unsafe fn on_theme_open(pszclasslist: PCWSTR, htheme: HTHEME) {
     unsafe {
-        let class_list = U16CStr::from_ptr_str(pszclasslist);
-        let ty = if u16_string_starts_with_ignore_case(class_list, w!("Button")) {
+        let ty = if u16_string_starts_with_ignore_case(pszclasslist, w!("Button")) {
             Some(ThemeType::Button)
-        } else if u16_string_starts_with_ignore_case(class_list, w!("TaskDialog")) {
+        } else if u16_string_starts_with_ignore_case(pszclasslist, w!("TaskDialog")) {
             Some(ThemeType::TaskDialog)
-        } else if u16_string_eq_ignore_case(class_list, w!("Tab")) {
+        } else if u16_string_eq_ignore_case(pszclasslist, w!("Tab")) {
             Some(ThemeType::Tab)
-        } else if u16_string_eq_ignore_case(class_list, w!("Progress"))
-            || u16_string_eq_ignore_case(class_list, w!("Indeterminate::Progress"))
+        } else if u16_string_eq_ignore_case(pszclasslist, w!("Progress"))
+            || u16_string_eq_ignore_case(pszclasslist, w!("Indeterminate::Progress"))
         {
             Some(ThemeType::Progress)
         } else {
@@ -533,8 +531,7 @@ unsafe extern "system" fn dark_draw_theme_parent_background(
             let mut class_name = [0u16; MAX_CLASS_NAME as usize];
             let res = GetClassNameW(hwnd, class_name.as_mut_ptr(), MAX_CLASS_NAME);
             if res != 0 {
-                let class_name = U16CStr::from_ptr_str(class_name.as_ptr());
-                if u16_string_eq_ignore_case(class_name, WC_TABCONTROLW) {
+                if u16_string_eq_ignore_case(class_name.as_ptr(), WC_TABCONTROLW) {
                     let rect = if prect.is_null() {
                         let mut rect = MaybeUninit::uninit();
                         GetClientRect(hwnd, rect.as_mut_ptr());
@@ -640,25 +637,24 @@ pub unsafe fn control_use_dark_mode(hwnd: HWND, misc_task_dialog: bool) -> Resul
         if res == 0 {
             return Err(Error::from_thread());
         }
-        let class = U16CStr::from_ptr_str(class.as_ptr());
         let subappname = if is_dark_mode_allowed_for_app() {
-            if u16_string_eq_ignore_case(class, WC_COMBOBOXW) {
+            if u16_string_eq_ignore_case(class.as_ptr(), WC_COMBOBOXW) {
                 w!("DarkMode_CFD")
-            } else if u16_string_eq_ignore_case(class, WC_EDITW) {
+            } else if u16_string_eq_ignore_case(class.as_ptr(), WC_EDITW) {
                 let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
                 if style as i32 & ES_MULTILINE != 0 {
                     w!("DarkMode_Explorer")
                 } else {
                     w!("DarkMode_CFD")
                 }
-            } else if u16_string_eq_ignore_case(class, PROGRESS_CLASSW)
-                || (u16_string_eq_ignore_case(class, WC_BUTTONW) && misc_task_dialog)
+            } else if u16_string_eq_ignore_case(class.as_ptr(), PROGRESS_CLASSW)
+                || (u16_string_eq_ignore_case(class.as_ptr(), WC_BUTTONW) && misc_task_dialog)
             {
                 null()
             } else {
                 w!("DarkMode_Explorer")
             }
-        } else if u16_string_eq_ignore_case(class, WC_BUTTONW) && misc_task_dialog {
+        } else if u16_string_eq_ignore_case(class.as_ptr(), WC_BUTTONW) && misc_task_dialog {
             w!("DarkMode_Explorer")
         } else {
             null()
