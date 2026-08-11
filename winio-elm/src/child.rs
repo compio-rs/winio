@@ -164,7 +164,6 @@ impl<T: Component> Child<T> {
                     match msg {
                         ComponentMessage::Message(msg) => {
                             self.msg_cache.push(msg);
-                            sender.wake();
                         }
                         ComponentMessage::Event(e) => {
                             if let Some(m) = f(e) {
@@ -173,6 +172,7 @@ impl<T: Component> Child<T> {
                         }
                     }
                 }
+                sender.wake();
             }
         };
         futures_util::future::join(fut_start, fut_forward).await.0
