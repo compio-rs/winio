@@ -31,7 +31,7 @@ use crate::{Error, Result};
 
 unsafe fn system_default_font() -> Result<LOGFONTW> {
     let mut ncm: NONCLIENTMETRICSW = unsafe { std::mem::zeroed() };
-    ncm.cbSize = std::mem::size_of::<NONCLIENTMETRICSW>() as u32;
+    ncm.cbSize = size_of::<NONCLIENTMETRICSW>() as u32;
     syscall!(
         BOOL,
         SystemParametersInfoForDpi(
@@ -119,12 +119,7 @@ pub fn measure_string(hwnd: HWND, s: &U16Str) -> Result<Size> {
     unsafe {
         let hfont = SendMessageW(hwnd, WM_GETFONT, 0, 0) as HFONT;
         let mut font = MaybeUninit::<LOGFONTW>::uninit();
-        if GetObjectW(
-            hfont,
-            std::mem::size_of::<LOGFONTW>() as _,
-            font.as_mut_ptr().cast(),
-        ) == 0
-        {
+        if GetObjectW(hfont, size_of::<LOGFONTW>() as _, font.as_mut_ptr().cast()) == 0 {
             return Ok(Size::zero());
         }
         let font = font.assume_init();

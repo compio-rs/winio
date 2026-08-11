@@ -386,7 +386,7 @@ const WINDOW_CLASS_NAME: &U16CStr =
 fn register() {
     set_preferred_app_mode(PreferredAppMode::AllowDark);
     let cls = WNDCLASSEXW {
-        cbSize: std::mem::size_of::<WNDCLASSEXW>() as _,
+        cbSize: size_of::<WNDCLASSEXW>() as _,
         style: 0,
         lpfnWndProc: Some(window_proc),
         cbClsExtra: 0,

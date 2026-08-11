@@ -402,7 +402,7 @@ unsafe extern "system" fn dark_draw_theme_text(
             || (ty == &ThemeType::Tab))
     {
         let mut options: DTTOPTS = unsafe { std::mem::zeroed() };
-        options.dwSize = std::mem::size_of::<DTTOPTS>() as _;
+        options.dwSize = size_of::<DTTOPTS>() as _;
         options.dwFlags = DTT_TEXTCOLOR;
         options.crText = WHITE;
         return unsafe {
@@ -443,7 +443,7 @@ unsafe extern "system" fn dark_draw_theme_background(
     pcliprect: *const RECT,
 ) -> HRESULT {
     let options = DTBGOPTS {
-        dwSize: std::mem::size_of::<DTBGOPTS>() as _,
+        dwSize: size_of::<DTBGOPTS>() as _,
         dwFlags: if pcliprect.is_null() {
             0
         } else {

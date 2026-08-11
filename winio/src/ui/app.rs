@@ -156,7 +156,7 @@ impl App {
     fn block_on_with_runtime_impl<F: Future>(&self, runtime: Runtime, future: F) -> F::Output {
         let compat = WinioRuntimeCompat::new(runtime).unwrap();
         let future = compat.execute(future);
-        if std::mem::size_of_val(&future) >= 2048 {
+        if size_of_val(&future) >= 2048 {
             self.app.block_on(Box::pin(future))
         } else {
             self.app.block_on(future)

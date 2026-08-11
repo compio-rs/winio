@@ -1,7 +1,4 @@
-use std::{
-    mem::{MaybeUninit, size_of},
-    ptr::null_mut,
-};
+use std::{mem::MaybeUninit, ptr::null_mut};
 
 use compio_log::error;
 use futures_util::FutureExt;

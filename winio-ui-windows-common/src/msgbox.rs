@@ -40,7 +40,7 @@ fn msgbox(
             })
             .collect::<Vec<_>>();
         let config = TASKDIALOGCONFIG {
-            cbSize: std::mem::size_of::<TASKDIALOGCONFIG>() as _,
+            cbSize: size_of::<TASKDIALOGCONFIG>() as _,
             hwndParent: parent_handle as _,
             hInstance: null_mut(),
             dwFlags: TDF_ALLOW_DIALOG_CANCELLATION | TDF_SIZE_TO_CONTENT,

@@ -70,7 +70,7 @@ impl ToolTip {
         handle.send_message(TTM_SETMAXTIPWIDTH, 0, max_width as isize);
 
         let mut info: TTTOOLINFOW = unsafe { std::mem::zeroed() };
-        info.cbSize = std::mem::size_of::<TTTOOLINFOW>() as _;
+        info.cbSize = size_of::<TTTOOLINFOW>() as _;
         info.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
         info.hwnd = parent;
         info.uId = hwnd as _;

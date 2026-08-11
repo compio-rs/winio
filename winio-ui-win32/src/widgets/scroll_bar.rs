@@ -51,7 +51,7 @@ impl ScrollBarImpl {
 
     fn info(&self, mask: u32) -> Result<SCROLLINFO> {
         let mut info: SCROLLINFO = unsafe { std::mem::zeroed() };
-        info.cbSize = std::mem::size_of::<SCROLLINFO>() as _;
+        info.cbSize = size_of::<SCROLLINFO>() as _;
         info.fMask = mask;
         syscall!(
             BOOL,
@@ -62,7 +62,7 @@ impl ScrollBarImpl {
 
     fn set_info(&mut self, mask: u32, f: impl FnOnce(&mut SCROLLINFO)) {
         let mut info: SCROLLINFO = unsafe { std::mem::zeroed() };
-        info.cbSize = std::mem::size_of::<SCROLLINFO>() as _;
+        info.cbSize = size_of::<SCROLLINFO>() as _;
         info.fMask = mask;
         f(&mut info);
         unsafe {
