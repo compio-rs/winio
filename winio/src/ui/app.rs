@@ -47,6 +47,44 @@ pub use sys::AndroidApp;
 
 /// The root application of the winio program. It owns the async runtime and the
 /// event loop of the GUI.
+///
+/// # Example
+///
+/// Create the app with [`App::builder`], and block on the main future with
+/// `App::block_on`:
+///
+/// ```ignore
+/// use winio::prelude::*;
+///
+/// fn main() -> Result<()> {
+///     let app = App::builder()
+///         .name("My app")
+///         .build()?;
+///     app.block_on(MainModel::run_until_event(()))
+/// }
+/// ```
+///
+/// On Android, the entry point is `android_main`, which receives the
+/// `AndroidApp` object. Pass it to the builder with
+/// `AppBuilder::android_app`, and spawn the main future with
+/// `App::spawn` instead of blocking:
+///
+/// ```ignore
+/// use winio::prelude::*;
+///
+/// #[unsafe(no_mangle)]
+/// fn android_main(app: AndroidApp) {
+///     let app = App::builder()
+///         .android_app(app)
+///         .build()
+///         .expect("cannot create app");
+///     app.spawn(|| async {
+///         if let Err(e) = MainModel::run_until_event(()).await {
+///             error!("App error: {e:?}");
+///         }
+///     })
+/// }
+/// ```
 pub struct App {
     app: SysApp,
     name: String,
