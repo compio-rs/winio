@@ -35,7 +35,7 @@ jobs:
         run: |
           cargo bundle \
             --release \
-            --features all,nightly \
+            --features all,nightly,winio/objc-static \
             --target x86_64-apple-darwin \
             --target aarch64-apple-darwin
 
