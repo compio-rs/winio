@@ -35,38 +35,41 @@ impl WebView {
     pub async fn new(parent: impl AsContainer) -> Result<Self> {
         #[cfg(feature = "webview-system")]
         {
-            fn add_webview2sdk_path() {
-                use std::path::PathBuf;
-
+            fn add_webview2sdk_path() -> Result<()> {
                 use windows::{
                     Win32::{
                         System::LibraryLoader::{
                             AddDllDirectory, LOAD_LIBRARY_SEARCH_SYSTEM32,
                             LOAD_LIBRARY_SEARCH_USER_DIRS, SetDefaultDllDirectories,
                         },
-                        UI::Shell::{CSIDL_WINDOWS, SHGetSpecialFolderPathW},
+                        UI::Shell::{
+                            CSIDL_WINDOWS, PATHCCH_NONE, PathCchCombineEx, SHGetSpecialFolderPathW,
+                        },
                     },
-                    core::PCWSTR,
+                    core::{PCWSTR, w},
                 };
 
                 unsafe {
                     SetDefaultDllDirectories(
                         LOAD_LIBRARY_SEARCH_USER_DIRS | LOAD_LIBRARY_SEARCH_SYSTEM32,
-                    )
-                    .ok();
+                    )?;
 
                     let mut buffer = [0u16; 260];
-                    if SHGetSpecialFolderPathW(None, &mut buffer, CSIDL_WINDOWS as _, false)
-                        .ok()
-                        .is_ok()
-                    {
-                        let windir =
-                            widestring::U16CStr::from_ptr_str(buffer.as_ptr()).to_os_string();
-                        let dlldir = PathBuf::from(windir).join(r"SystemApps\Shared\WebView2SDK");
+                    SHGetSpecialFolderPathW(None, &mut buffer, CSIDL_WINDOWS as _, false).ok()?;
+                    // It's allowed to call `PathCchCombineEx` with a inplace buffer.
+                    let input = PCWSTR(buffer.as_ptr());
+                    PathCchCombineEx(
+                        &mut buffer,
+                        input,
+                        w!(r"SystemApps\Shared\WebView2SDK"),
+                        PATHCCH_NONE,
+                    )?;
 
-                        if let Ok(dlldir) = widestring::U16CString::from_os_str(&dlldir) {
-                            AddDllDirectory(PCWSTR(dlldir.as_ptr()));
-                        }
+                    let dir = AddDllDirectory(PCWSTR(buffer.as_ptr()));
+                    if dir.is_null() {
+                        Err(Error::from_thread())
+                    } else {
+                        Ok(())
                     }
                 }
             }
@@ -75,7 +78,11 @@ impl WebView {
 
             static ADD_PATH: Once = Once::new();
 
-            ADD_PATH.call_once(add_webview2sdk_path);
+            ADD_PATH.call_once(|| {
+                if let Err(e) = add_webview2sdk_path() {
+                    error!("Failed to add WebView2 SDK path: {:?}", e);
+                }
+            });
         }
         let view = MUXC::WebView2::new()?;
         view.EnsureCoreWebView2Async()?.await?;

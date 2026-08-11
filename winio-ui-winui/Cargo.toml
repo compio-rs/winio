@@ -29,7 +29,6 @@ inherit-methods-macro = { workspace = true }
 percent-encoding = { workspace = true, optional = true }
 send_wrapper = { workspace = true }
 time = { workspace = true, optional = true }
-widestring = { workspace = true }
 
 wgpu = { workspace = true, optional = true, features = ["dx12"] }
 
@@ -74,7 +73,10 @@ wgpu = ["dep:wgpu"]
 # Use CBS WinUI3 shipped with Windows
 enable-cbs = []
 # Use WebView2 Core shipped with Windows
-webview-system = []
+webview-system = [
+    "windows/Win32_System_LibraryLoader",
+    "windows/Win32_UI_Shell",
+]
 # Use ContentDialog for MessageBox
 content-dialog = []
 
