@@ -57,10 +57,14 @@ impl ComboBox {
         Ok(())
     }
 
-    /// If the combo box is editable.
+    /// If the text of the combo box is editable.
     pub fn is_editable(&self) -> Result<bool>;
 
-    /// Set if the combo box is editable.
+    /// Set if the text of the combo box is editable.
+    ///
+    /// ## Platform specific
+    /// * GTK: Enables the search feature.
+    /// * Android: Not supported.
     pub fn set_editable(&mut self, v: bool) -> Result<()>;
 
     /// The length of the items.
