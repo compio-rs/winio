@@ -1,5 +1,5 @@
 use std::{
-    path::PathBuf,
+    ffi::OsString,
     sync::{Arc, Mutex},
 };
 
@@ -28,12 +28,12 @@ use crate::{
 
 struct ProxyCallback {
     proxy: DynamicProxy,
-    rx: Arc<AsyncMutex<UnboundedReceiver<Vec<PathBuf>>>>,
+    rx: Arc<AsyncMutex<UnboundedReceiver<Vec<OsString>>>>,
 }
 
 impl ProxyCallback {
     pub fn new(env: &mut Env, context: &Activity) -> jni::errors::Result<Self> {
-        let (tx, rx) = futures_channel::mpsc::unbounded::<Vec<PathBuf>>();
+        let (tx, rx) = futures_channel::mpsc::unbounded::<Vec<OsString>>();
         let proxy = DynamicProxy::build(
             env,
             &LoaderContext::FromObject(context),
@@ -44,7 +44,7 @@ impl ProxyCallback {
                     let uri = unsafe { Uri::from_raw(env, result.into_raw()) };
                     if !uri.is_null() {
                         let path = uri.to_string(env)?.try_to_string(env)?;
-                        tx.unbounded_send(vec![PathBuf::from(path)]).ok();
+                        tx.unbounded_send(vec![OsString::from(path)]).ok();
                     } else {
                         tx.unbounded_send(vec![]).ok();
                     }
@@ -56,7 +56,7 @@ impl ProxyCallback {
                         let uri = unsafe { Uri::from_raw(env, item.into_raw()) };
                         if !uri.is_null() {
                             let path = uri.to_string(env)?.try_to_string(env)?;
-                            paths.push(PathBuf::from(path));
+                            paths.push(OsString::from(path));
                         }
                     }
                     tx.unbounded_send(paths).ok();
@@ -76,7 +76,7 @@ impl ProxyCallback {
         self.proxy.as_ref()
     }
 
-    pub fn receiver(&self) -> Arc<AsyncMutex<UnboundedReceiver<Vec<PathBuf>>>> {
+    pub fn receiver(&self) -> Arc<AsyncMutex<UnboundedReceiver<Vec<OsString>>>> {
         self.rx.clone()
     }
 }
@@ -157,7 +157,7 @@ impl FileBox {
     pub fn open(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         filebox(
             parent,
             self.title,
@@ -173,7 +173,7 @@ impl FileBox {
     pub fn open_multiple(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Vec<OsString>>> + 'static> {
         filebox(
             parent,
             self.title,
@@ -188,7 +188,7 @@ impl FileBox {
     pub fn open_folder(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         filebox(
             parent,
             self.title,
@@ -204,7 +204,7 @@ impl FileBox {
     pub fn save(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         filebox(
             parent,
             self.title,
@@ -226,7 +226,7 @@ fn filebox(
     open: bool,
     multiple: bool,
     folder: bool,
-) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
+) -> Result<impl Future<Output = Result<Vec<OsString>>> + 'static> {
     vm_exec(|env| {
         let (launcher, input) = if open && multiple {
             (LAUNCHER_GET_MULTIPLE_CONTENTS.lock().unwrap(), Some("*/*"))

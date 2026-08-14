@@ -1,7 +1,4 @@
-use std::{
-    ffi::OsString,
-    path::{Path, PathBuf},
-};
+use std::ffi::{OsStr, OsString};
 
 use compio::{
     BufResult,
@@ -29,7 +26,7 @@ pub struct UriFile {
 
 impl UriFile {
     /// Opens a file from a URI.
-    pub async fn open(uri: impl AsRef<Path>) -> Result<Self> {
+    pub async fn open(uri: impl AsRef<OsStr>) -> Result<Self> {
         Ok(Self {
             inner: internal::open_uri(uri.as_ref()).await?,
         })
@@ -37,7 +34,7 @@ impl UriFile {
 
     /// Creates a file from a URI. If the file already exists, it will be
     /// truncated.
-    pub async fn create(uri: impl AsRef<Path>) -> Result<Self> {
+    pub async fn create(uri: impl AsRef<OsStr>) -> Result<Self> {
         Ok(Self {
             inner: internal::create_uri(uri.as_ref()).await?,
         })
@@ -45,7 +42,7 @@ impl UriFile {
 
     /// Opens a file from a URI for both reading and writing. The file must
     /// exist.
-    pub async fn update(uri: impl AsRef<Path>) -> Result<Self> {
+    pub async fn update(uri: impl AsRef<OsStr>) -> Result<Self> {
         Ok(Self {
             inner: internal::update_uri(uri.as_ref()).await?,
         })
@@ -88,7 +85,7 @@ pub struct UriDirEntry(internal::UriDirEntry);
 
 impl UriDirEntry {
     /// The URI or the path of the directory entry.
-    pub fn path(&self) -> PathBuf {
+    pub fn path(&self) -> OsString {
         self.0.path()
     }
 
@@ -125,6 +122,6 @@ impl UriFileType {
 }
 
 /// Read a URI directory.
-pub fn read_uri_dir(uri: impl AsRef<Path>) -> Result<UriReadDir> {
+pub fn read_uri_dir(uri: impl AsRef<OsStr>) -> Result<UriReadDir> {
     Ok(UriReadDir(internal::read_dir(uri.as_ref())?))
 }

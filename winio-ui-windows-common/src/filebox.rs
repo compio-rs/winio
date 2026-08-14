@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::ffi::OsString;
 
 use widestring::U16CString;
 use windows::{
@@ -50,7 +50,7 @@ impl FileBox {
     pub fn open(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         let parent = parent
             .and_then(|p| p.as_window().handle().ok())
             .map(|h| h as isize);
@@ -72,7 +72,7 @@ impl FileBox {
     pub fn open_multiple(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Vec<OsString>>> + 'static> {
         let parent = parent
             .and_then(|p| p.as_window().handle().ok())
             .map(|h| h as isize);
@@ -94,7 +94,7 @@ impl FileBox {
     pub fn open_folder(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         let parent = parent
             .and_then(|p| p.as_window().handle().ok())
             .map(|h| h as isize);
@@ -116,7 +116,7 @@ impl FileBox {
     pub fn save(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         let parent = parent
             .and_then(|p| p.as_window().handle().ok())
             .map(|h| h as isize);
@@ -214,20 +214,20 @@ fn filebox(
 struct FileBoxInner(Option<IFileDialog>, CoInitialize);
 
 impl FileBoxInner {
-    pub fn result(self) -> Result<Option<PathBuf>> {
+    pub fn result(self) -> Result<Option<OsString>> {
         if let Some(dialog) = self.0 {
             unsafe {
                 let item = dialog.GetResult()?;
                 let name_ptr = item.GetDisplayName(SIGDN_FILESYSPATH)?;
                 let name_ptr = CoTaskMemPtr(name_ptr.0);
-                Ok(Some(PathBuf::from(name_ptr.to_string()?)))
+                Ok(Some(OsString::from(name_ptr.to_string()?)))
             }
         } else {
             Ok(None)
         }
     }
 
-    pub fn results(self) -> Result<Vec<PathBuf>> {
+    pub fn results(self) -> Result<Vec<OsString>> {
         if let Some(dialog) = self.0 {
             unsafe {
                 let handle: IFileOpenDialog = dialog.cast()?;
@@ -239,7 +239,7 @@ impl FileBoxInner {
                     let name_ptr = item.GetDisplayName(SIGDN_FILESYSPATH)?;
                     let name_ptr = CoTaskMemPtr(name_ptr.0);
                     let name = name_ptr.to_string()?;
-                    names.push(PathBuf::from(name));
+                    names.push(OsString::from(name));
                 }
                 Ok(names)
             }

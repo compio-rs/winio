@@ -1,4 +1,4 @@
-use std::{cell::Cell, path::PathBuf, rc::Rc};
+use std::{cell::Cell, ffi::OsString, rc::Rc};
 
 use block2::StackBlock;
 use futures_util::{FutureExt, TryFutureExt, future::Either};
@@ -60,7 +60,7 @@ impl FileBox {
     pub fn open(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         filebox(
             parent,
             self.title,
@@ -76,7 +76,7 @@ impl FileBox {
     pub fn open_multiple(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Vec<OsString>>> + 'static> {
         filebox(
             parent,
             self.title,
@@ -92,7 +92,7 @@ impl FileBox {
     pub fn open_folder(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         filebox(
             parent,
             self.title,
@@ -108,7 +108,7 @@ impl FileBox {
     pub fn save(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         filebox(
             parent,
             self.title,
@@ -224,27 +224,27 @@ fn filebox(
 struct FileBoxInner(Option<Retained<NSSavePanel>>);
 
 impl FileBoxInner {
-    pub fn result(self) -> Result<Option<PathBuf>> {
+    pub fn result(self) -> Result<Option<OsString>> {
         if let Some(dialog) = self.0 {
             catch(|| {
                 dialog
                     .URL()
                     .and_then(|url| url.path())
-                    .map(|s| PathBuf::from(from_nsstring(&s)))
+                    .map(|s| OsString::from(from_nsstring(&s)))
             })
         } else {
             Ok(None)
         }
     }
 
-    pub fn results(self) -> Result<Vec<PathBuf>> {
+    pub fn results(self) -> Result<Vec<OsString>> {
         if let Some(dialog) = self.0 {
             let dialog: Retained<NSOpenPanel> = unsafe { Retained::cast_unchecked(dialog) };
             catch(|| {
                 dialog
                     .URLs()
                     .iter()
-                    .filter_map(|url| url.path().map(|s| PathBuf::from(from_nsstring(&s))))
+                    .filter_map(|url| url.path().map(|s| OsString::from(from_nsstring(&s))))
                     .collect()
             })
         } else {

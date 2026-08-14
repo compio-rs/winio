@@ -1,7 +1,7 @@
 use std::{
+    ffi::{OsStr, OsString},
     io,
     ops::Deref,
-    path::{Path, PathBuf},
 };
 
 use compio::{
@@ -39,8 +39,8 @@ pub enum FsPageEvent {
 pub enum FsPageMessage {
     ChooseFile,
     ChooseSaveFile,
-    OpenFile(PathBuf),
-    SaveFile(PathBuf),
+    OpenFile(OsString),
+    SaveFile(OsString),
     Fetch(FsFetchStatus),
 }
 
@@ -183,13 +183,13 @@ impl Deref for FsPage {
     }
 }
 
-async fn read_file(path: impl AsRef<Path>) -> Result<String> {
+async fn read_file(path: impl AsRef<OsStr>) -> Result<String> {
     let file = UriFile::open(path).await?;
     let (_, buffer) = buf_try!(@try file.read_to_end_at(vec![], 0).await);
     Ok(String::from_utf8(buffer).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?)
 }
 
-async fn fetch(path: impl AsRef<Path>, sender: ComponentSender<FsPage>) {
+async fn fetch(path: impl AsRef<OsStr>, sender: ComponentSender<FsPage>) {
     sender.post(FsPageMessage::Fetch(FsFetchStatus::Loading));
     let status = match read_file(path).await {
         Ok(text) => FsFetchStatus::Complete(text),
@@ -198,13 +198,13 @@ async fn fetch(path: impl AsRef<Path>, sender: ComponentSender<FsPage>) {
     sender.post(FsPageMessage::Fetch(status));
 }
 
-async fn write_file(path: impl AsRef<Path>, data: String) -> Result<()> {
+async fn write_file(path: impl AsRef<OsStr>, data: String) -> Result<()> {
     let mut file = UriFile::create(path).await?;
     file.write_all_at(data, 0).await.0?;
     Ok(())
 }
 
-async fn save(path: impl AsRef<Path>, data: String, sender: ComponentSender<FsPage>) {
+async fn save(path: impl AsRef<OsStr>, data: String, sender: ComponentSender<FsPage>) {
     match write_file(path, data).await {
         Ok(()) => {}
         Err(e) => {

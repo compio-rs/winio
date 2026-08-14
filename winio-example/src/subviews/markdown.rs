@@ -1,5 +1,6 @@
 use std::{
     cell::RefCell,
+    ffi::{OsStr, OsString},
     io,
     net::SocketAddr,
     ops::Deref,
@@ -42,7 +43,7 @@ pub enum MarkdownPageEvent {
 pub enum MarkdownPageMessage {
     SetAddr(SocketAddr),
     ChooseFile,
-    OpenFile(PathBuf),
+    OpenFile(OsString),
     Fetch(MarkdownFetchStatus),
 }
 
@@ -154,7 +155,7 @@ impl Component for MarkdownPage {
             }
             MarkdownPageMessage::OpenFile(p) => {
                 self.label.set_text(p.to_str().unwrap_or_default())?;
-                *self.markdown_path.borrow_mut() = p.clone();
+                *self.markdown_path.borrow_mut() = p.clone().into();
                 spawn(fetch(p, sender.clone())).detach();
                 Ok(true)
             }
@@ -286,22 +287,22 @@ impl Drop for MarkdownPage {
     }
 }
 
-async fn read_file(path: impl AsRef<Path>) -> Result<Vec<u8>> {
+async fn read_file(path: impl AsRef<OsStr>) -> Result<Vec<u8>> {
     let file = UriFile::open(path).await?;
     let (_, buffer) = buf_try!(@try file.read_to_end_at(vec![], 0).await);
     Ok(buffer)
 }
 
-async fn read_file_content(path: impl AsRef<Path>) -> Result<String> {
+async fn read_file_content(path: impl AsRef<OsStr>) -> Result<String> {
     let path = path.as_ref();
-    if path.as_os_str().is_empty() {
+    if path.is_empty() {
         return Ok(String::new());
     }
     let bytes = read_file(path).await?;
     Ok(String::from_utf8(bytes).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?)
 }
 
-async fn fetch(path: impl AsRef<Path>, sender: ComponentSender<MarkdownPage>) {
+async fn fetch(path: impl AsRef<OsStr>, sender: ComponentSender<MarkdownPage>) {
     let status = match read_file_content(path).await {
         Ok(text) => MarkdownFetchStatus::Complete(text),
         Err(e) => MarkdownFetchStatus::Error(format!("{e:?}")),
