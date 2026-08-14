@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{ffi::OsString, path::PathBuf};
 
 use futures_util::TryFutureExt;
 use gtk4::{
@@ -55,18 +55,18 @@ impl FileBox {
     pub fn open(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         Ok(self
             .filebox()
             .open_future(parent.as_ref().map(|w| w.as_window().to_gtk()))
-            .map_ok(|res| res.path())
+            .map_ok(|res| res.path().map(PathBuf::into_os_string))
             .map_err(|e| e.into()))
     }
 
     pub fn open_multiple(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Vec<OsString>>> + 'static> {
         Ok(self
             .filebox()
             .open_multiple_future(parent.as_ref().map(|w| w.as_window().to_gtk()))
@@ -75,6 +75,7 @@ impl FileBox {
                     .filter_map(|f| f.ok())
                     .filter_map(|f| f.dynamic_cast::<gtk4::gio::File>().ok())
                     .filter_map(|f| f.path())
+                    .map(PathBuf::into_os_string)
                     .collect()
             })
             .map_err(|e| e.into()))
@@ -83,22 +84,22 @@ impl FileBox {
     pub fn open_folder(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         Ok(self
             .filebox()
             .select_folder_future(parent.as_ref().map(|w| w.as_window().to_gtk()))
-            .map_ok(|res| res.path())
+            .map_ok(|res| res.path().map(PathBuf::into_os_string))
             .map_err(|e| e.into()))
     }
 
     pub fn save(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         Ok(self
             .filebox()
             .save_future(parent.as_ref().map(|w| w.as_window().to_gtk()))
-            .map_ok(|res| res.path())
+            .map_ok(|res| res.path().map(PathBuf::into_os_string))
             .map_err(|e| e.into()))
     }
 

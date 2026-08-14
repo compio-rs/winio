@@ -1,7 +1,6 @@
 use std::{
-    ffi::OsString,
+    ffi::{OsStr, OsString},
     os::fd::{BorrowedFd, FromRawFd, IntoRawFd},
-    path::{Path, PathBuf},
 };
 
 use compio::fs::File;
@@ -21,7 +20,7 @@ use crate::{
     vm_exec,
 };
 
-fn open_uri_with_mode(uri: &Path, mode: &str) -> Result<File> {
+fn open_uri_with_mode(uri: &OsStr, mode: &str) -> Result<File> {
     vm_exec(|env| {
         let act = current_activity(env)?;
         let context = env.cast_local::<Context>(act)?;
@@ -39,27 +38,27 @@ fn open_uri_with_mode(uri: &Path, mode: &str) -> Result<File> {
 
 pub use compio::fs::File as UriFile;
 
-pub async fn open_uri(uri: &Path) -> Result<File> {
+pub async fn open_uri(uri: &OsStr) -> Result<File> {
     open_uri_with_mode(uri, "r")
 }
 
-pub async fn create_uri(uri: &Path) -> Result<File> {
+pub async fn create_uri(uri: &OsStr) -> Result<File> {
     open_uri_with_mode(uri, "w")
 }
 
-pub async fn update_uri(uri: &Path) -> Result<File> {
+pub async fn update_uri(uri: &OsStr) -> Result<File> {
     open_uri_with_mode(uri, "rw")
 }
 
 #[derive(Debug)]
 pub struct UriDirEntry {
     name: String,
-    uri: PathBuf,
+    uri: OsString,
     mime: String,
 }
 
 impl UriDirEntry {
-    pub fn path(&self) -> PathBuf {
+    pub fn path(&self) -> OsString {
         self.uri.clone()
     }
 
@@ -99,7 +98,7 @@ pub struct UriReadDir {
     cursor: Global<Cursor<'static>>,
 }
 
-pub fn read_dir(uri: &Path) -> Result<UriReadDir> {
+pub fn read_dir(uri: &OsStr) -> Result<UriReadDir> {
     vm_exec(|env| {
         let act = current_activity(env)?;
         let context = env.cast_local::<Context>(act)?;
@@ -169,7 +168,7 @@ impl Iterator for UriReadDir {
 
             Ok(Some(UriDirEntry {
                 name,
-                uri: PathBuf::from(uri),
+                uri: OsString::from(uri),
                 mime,
             }))
         })

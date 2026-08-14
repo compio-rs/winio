@@ -1,4 +1,4 @@
-use std::{path::PathBuf, ptr::null_mut};
+use std::{ffi::OsString, ptr::null_mut};
 
 use cxx::{ExternType, type_id};
 use futures_util::{FutureExt, TryFutureExt};
@@ -53,7 +53,7 @@ impl FileBox {
     pub fn open(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         self.filebox(parent, true, false, false)
             .map(|fut| fut.map_ok(|res| res.into_iter().next()))
     }
@@ -61,14 +61,14 @@ impl FileBox {
     pub fn open_multiple(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Vec<OsString>>> + 'static> {
         self.filebox(parent, true, true, false)
     }
 
     pub fn open_folder(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         self.filebox(parent, true, false, true)
             .map(|fut| fut.map_ok(|res| res.into_iter().next()))
     }
@@ -76,7 +76,7 @@ impl FileBox {
     pub fn save(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         self.filebox(parent, false, false, false)
             .map(|fut| fut.map_ok(|res| res.into_iter().next()))
     }
@@ -87,7 +87,7 @@ impl FileBox {
         open: bool,
         multiple: bool,
         folder: bool,
-    ) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Vec<OsString>>> + 'static> {
         let parent = parent.map(|p| p.as_window().as_qt()).unwrap_or(null_mut());
         let mut b = unsafe { ffi::new_file_dialog(parent) }?;
 
@@ -140,7 +140,7 @@ impl FileBox {
 
             Ok(ffi::file_dialog_files(&b)?
                 .into_iter()
-                .map(PathBuf::from)
+                .map(OsString::from)
                 .collect())
         }))
     }

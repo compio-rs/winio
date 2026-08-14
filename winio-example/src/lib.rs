@@ -1,5 +1,5 @@
 #[cfg(any(feature = "compio-compat", feature = "media"))]
-use std::path::PathBuf;
+use std::ffi::OsString;
 use std::{future::Future, pin::Pin};
 
 pub use anyhow::{Error, Result};
@@ -36,22 +36,22 @@ pub enum MainMessage {
     #[cfg(feature = "compio-compat")]
     ChooseSaveFile,
     #[cfg(feature = "compio-compat")]
-    OpenFile(PathBuf),
+    OpenFile(OsString),
     #[cfg(feature = "compio-compat")]
-    SaveFile(PathBuf),
+    SaveFile(OsString),
     #[cfg(feature = "compio-compat")]
     ChooseFolder,
     #[cfg(feature = "compio-compat")]
-    OpenFolder(PathBuf),
+    OpenFolder(OsString),
     ShowMessage(MessageBox),
     #[cfg(feature = "media")]
     ChooseMedia,
     #[cfg(feature = "media")]
-    OpenMedia(PathBuf),
+    OpenMedia(OsString),
     #[cfg(all(feature = "webview", feature = "compio-compat"))]
     ChooseMarkdown,
     #[cfg(all(feature = "webview", feature = "compio-compat"))]
-    OpenMarkdown(PathBuf),
+    OpenMarkdown(OsString),
     #[cfg(windows)]
     ChooseBackdrop(Backdrop),
     #[cfg(target_os = "macos")]

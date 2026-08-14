@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::ffi::OsString;
 
 use winio_handle::AsWindow;
 
@@ -31,28 +31,28 @@ impl FileBox {
     pub fn open(
         self,
         _parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         Ok(not_impl_fut())
     }
 
     pub fn open_multiple(
         self,
         _parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Vec<OsString>>> + 'static> {
         Ok(not_impl_fut())
     }
 
     pub fn open_folder(
         self,
         _parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         Ok(not_impl_fut())
     }
 
     pub fn save(
         self,
         _parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         Ok(not_impl_fut())
     }
 }

@@ -1,4 +1,4 @@
-use std::{ops::Deref, path::PathBuf, time::Duration};
+use std::{ffi::OsString, ops::Deref, time::Duration};
 
 use url::Url;
 use winio::prelude::*;
@@ -40,7 +40,7 @@ pub enum MediaPageMessage {
     Tick,
     Play,
     ChooseFile,
-    OpenFile(PathBuf),
+    OpenFile(OsString),
 }
 
 impl Component for MediaPage {

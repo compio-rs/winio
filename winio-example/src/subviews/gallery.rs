@@ -1,8 +1,7 @@
 use std::{
     collections::BTreeMap,
-    ffi::OsString,
+    ffi::{OsStr, OsString},
     ops::Deref,
-    path::{Path, PathBuf},
 };
 
 use compio::{
@@ -78,7 +77,7 @@ pub enum GalleryPageMessage {
     Redraw,
     ChooseFolder,
     Start,
-    OpenFolder(PathBuf),
+    OpenFolder(OsString),
     Clear,
     Append(OsString, DynamicImage),
     List(ObservableVecEvent<String>),
@@ -210,7 +209,7 @@ impl Component for GalleryPage {
                 Ok(false)
             }
             GalleryPageMessage::Start => {
-                let p = PathBuf::from(self.entry.text()?);
+                let p = OsString::from(self.entry.text()?);
                 let sender = sender.clone();
                 spawn(fetch(p, sender)).detach();
                 Ok(true)
@@ -369,7 +368,7 @@ impl Deref for GalleryPage {
     }
 }
 
-async fn fetch(path: impl AsRef<Path>, sender: ComponentSender<GalleryPage>) {
+async fn fetch(path: impl AsRef<OsStr>, sender: ComponentSender<GalleryPage>) {
     sender.post(GalleryPageMessage::Clear);
     let dir = match read_uri_dir(path) {
         Ok(dir) => dir,

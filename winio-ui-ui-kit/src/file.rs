@@ -1,4 +1,5 @@
 use std::{
+    ffi::{OsStr, OsString},
     os::fd::{BorrowedFd, FromRawFd, IntoRawFd},
     path::Path,
 };
@@ -64,7 +65,7 @@ enum OpenMode {
     ReadWrite,
 }
 
-fn uri_from_path(path: &Path) -> Result<Retained<NSURL>> {
+fn uri_from_path(path: &OsStr) -> Result<Retained<NSURL>> {
     catch(|| {
         let uri_str = NSString::from_str(&path.to_string_lossy());
         let uri = if let Some(uri) = NSURL::URLWithString(&uri_str)
@@ -75,14 +76,14 @@ fn uri_from_path(path: &Path) -> Result<Retained<NSURL>> {
         {
             uri
         } else {
-            NSURL::from_path(path, false, None).ok_or_else(|| Error::NullPointer)?
+            NSURL::from_path(Path::new(path), false, None).ok_or_else(|| Error::NullPointer)?
         };
         Ok(uri)
     })
     .flatten()
 }
 
-fn open_uri_with_mode(path: &Path, mode: OpenMode) -> Result<UriFile> {
+fn open_uri_with_mode(path: &OsStr, mode: OpenMode) -> Result<UriFile> {
     let uri = uri_from_path(path)?;
     catch(|| {
         if unsafe { !uri.startAccessingSecurityScopedResource() } {
@@ -98,19 +99,36 @@ fn open_uri_with_mode(path: &Path, mode: OpenMode) -> Result<UriFile> {
     .flatten()
 }
 
-pub async fn open_uri(uri: &Path) -> Result<UriFile> {
+pub async fn open_uri(uri: &OsStr) -> Result<UriFile> {
     open_uri_with_mode(uri, OpenMode::Read)
 }
 
-pub async fn create_uri(uri: &Path) -> Result<UriFile> {
+pub async fn create_uri(uri: &OsStr) -> Result<UriFile> {
     open_uri_with_mode(uri, OpenMode::Write)
 }
 
-pub async fn update_uri(uri: &Path) -> Result<UriFile> {
+pub async fn update_uri(uri: &OsStr) -> Result<UriFile> {
     open_uri_with_mode(uri, OpenMode::ReadWrite)
 }
 
-pub use std::fs::{DirEntry as UriDirEntry, FileType as UriFileType};
+pub use std::fs::FileType as UriFileType;
+
+#[derive(Debug)]
+pub struct UriDirEntry(std::fs::DirEntry);
+
+impl UriDirEntry {
+    pub fn path(&self) -> OsString {
+        self.0.path().into_os_string()
+    }
+
+    pub fn file_name(&self) -> OsString {
+        self.0.file_name()
+    }
+
+    pub fn file_type(&self) -> std::io::Result<UriFileType> {
+        self.0.file_type()
+    }
+}
 
 #[derive(Debug)]
 pub struct UriReadDir {
@@ -145,11 +163,13 @@ impl Iterator for UriReadDir {
     type Item = Result<UriDirEntry>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(|res| res.map_err(Error::from))
+        self.inner
+            .next()
+            .map(|res| res.map(UriDirEntry).map_err(Error::from))
     }
 }
 
-pub fn read_dir(uri: &Path) -> Result<UriReadDir> {
+pub fn read_dir(uri: &OsStr) -> Result<UriReadDir> {
     let uri = uri_from_path(uri)?;
     UriReadDir::new(uri)
 }

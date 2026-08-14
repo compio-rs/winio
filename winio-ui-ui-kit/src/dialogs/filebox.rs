@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::ffi::OsString;
 
 use futures_util::TryFutureExt;
 use objc2::{
@@ -66,7 +66,7 @@ impl FileBox {
     pub fn open(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         filebox(parent, self.filters, false, false, false)
             .map(|fut| fut.map_ok(|res| res.into_iter().next()))
     }
@@ -74,14 +74,14 @@ impl FileBox {
     pub fn open_multiple(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Vec<OsString>>> + 'static> {
         filebox(parent, self.filters, true, false, false)
     }
 
     pub fn open_folder(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         filebox(parent, self.filters, false, true, false)
             .map(|fut| fut.map_ok(|res| res.into_iter().next()))
     }
@@ -89,7 +89,7 @@ impl FileBox {
     pub fn save(
         self,
         parent: Option<impl AsWindow>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         filebox(parent, self.filters, false, false, true)
             .map(|fut| fut.map_ok(|res| res.into_iter().next()))
     }
@@ -101,7 +101,7 @@ fn filebox(
     multiple: bool,
     folder: bool,
     save: bool,
-) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
+) -> Result<impl Future<Output = Result<Vec<OsString>>> + 'static> {
     let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
     let delegate = catch(|| {
         let ns_filters = if folder {
@@ -164,7 +164,7 @@ fn filebox(
             .filter_map(|url| {
                 url.absoluteString()
                     .map(|s| from_nsstring(&s))
-                    .map(PathBuf::from)
+                    .map(OsString::from)
             })
             .collect())
     })

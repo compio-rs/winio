@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::ffi::OsString;
 
 use winio_handle::MaybeBorrowedWindow;
 
@@ -6,7 +6,7 @@ use crate::{sys, sys::Result};
 
 /// A dialog for the user to open or save files.
 ///
-/// The file box uses [`PathBuf`] as returned path type, but it might not be a
+/// The file box uses [`OsString`] as returned path type, but it might not be a
 /// valid Unix path on mobile platforms. Use [`UriFile`](crate::ui::UriFile) and
 /// [`read_uri_dir`](crate::ui::read_uri_dir) to handle the returned path.
 #[derive(Debug, Default, Clone)]
@@ -53,7 +53,7 @@ impl FileBox {
     pub fn open<'a>(
         self,
         parent: impl Into<MaybeBorrowedWindow<'a>>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         self.0.open(parent.into().0)
     }
 
@@ -68,7 +68,7 @@ impl FileBox {
     pub fn open_multiple<'a>(
         self,
         parent: impl Into<MaybeBorrowedWindow<'a>>,
-    ) -> Result<impl Future<Output = Result<Vec<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Vec<OsString>>> + 'static> {
         self.0.open_multiple(parent.into().0)
     }
 
@@ -83,7 +83,7 @@ impl FileBox {
     pub fn open_folder<'a>(
         self,
         parent: impl Into<MaybeBorrowedWindow<'a>>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         self.0.open_folder(parent.into().0)
     }
 
@@ -98,7 +98,7 @@ impl FileBox {
     pub fn save<'a>(
         self,
         parent: impl Into<MaybeBorrowedWindow<'a>>,
-    ) -> Result<impl Future<Output = Result<Option<PathBuf>>> + 'static> {
+    ) -> Result<impl Future<Output = Result<Option<OsString>>> + 'static> {
         self.0.save(parent.into().0)
     }
 }
