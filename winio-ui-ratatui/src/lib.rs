@@ -1,5 +1,8 @@
 pub use std::io::{Error, Result};
 
+#[cfg(feature = "compio-compat")]
+pub use compio::compat::FuturesAdapter as CompioAdapter;
+
 pub(crate) fn not_impl() -> ! {
     unimplemented!("stub implementation")
 }
@@ -19,8 +22,3 @@ pub use dialogs::*;
 
 mod platform;
 pub use platform::*;
-
-#[cfg(feature = "compio-compat")]
-mod compat;
-#[cfg(feature = "compio-compat")]
-pub use compat::*;

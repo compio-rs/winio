@@ -1,5 +1,7 @@
 use std::{cell::RefCell, future::Future, task::Waker};
 
+use ratatui::Frame;
+
 use super::Result;
 
 pub struct App {
@@ -22,7 +24,7 @@ impl App {
         winio_pollable::block_on(future, Waker::noop().clone(), || {
             self.terminal
                 .borrow_mut()
-                .draw(|f| todo!())
+                .draw(render)
                 .expect("failed to draw frame");
             let event = crossterm::event::read().expect("failed to read event");
         })
@@ -34,3 +36,5 @@ impl Drop for App {
         ratatui::restore();
     }
 }
+
+fn render(f: &mut Frame) {}
