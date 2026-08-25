@@ -15,5 +15,8 @@ pub use monitor::*;
 mod canvas;
 pub use canvas::*;
 
+mod keyboard;
+pub use keyboard::*;
+
 mod msgbox;
 pub use msgbox::*;
