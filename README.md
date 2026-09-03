@@ -24,6 +24,7 @@ All IO requests could be issued in the same thread as GUI, without blocking the 
 
 > [!WARNING]
 > WGPU canvas doesn't work well on some platforms:
+>
 > * iOS simulator
 > * Android simulator
 > * Qt
@@ -48,20 +49,21 @@ Read the [example](winio-example) and learn more!
 
 > [!NOTE]
 > Alternatively, a fully configured [template](https://github.com/mokurin000/winio-template)
-is available as a starting point.
+> is available as a starting point.
 
 Winio follows ELM-like design, inspired by [`yew`](https://yew.rs/) and [`relm4`](https://relm4.org/).
-The application starts with a root `Component`:
+The application starts with a root `Component` in `src/lib.rs`:
 
 ```rust
 use winio::prelude::*;
 
-struct MainModel {
+pub struct MainModel {
     window: Child<Window>,
 }
 
-enum MainMessage {
+pub enum MainMessage {
     Close,
+    Noop,
 }
 
 impl Component for MainModel {
@@ -97,7 +99,11 @@ impl Component for MainModel {
         update_children!(self.window)
     }
 
-    async fn update(&mut self, message: Self::Message, sender: &ComponentSender<Self>) -> Result<bool> {
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
         // deal with custom messages
         match message {
             MainMessage::Close => {
@@ -106,11 +112,12 @@ impl Component for MainModel {
                 // need not to call `render`
                 Ok(false)
             }
+            MainMessage::Noop => Ok(true),
         }
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
-        let csize = self.window.client_size()?;
+        let _csize = self.window.client_size()?;
         // adjust layout and draw widgets here
         Ok(())
     }
@@ -121,13 +128,15 @@ impl Component for MainModel {
 }
 ```
 
-It is recommended to set the lib name to "main" for convenience.
+It is recommended to set the lib name to "main" in `Cargo.toml` for convenience.
+
 ```toml
 [lib]
 name = "main"
 ```
 
-All platforms except Android start with `main`. You should add the code below to `main.rs`:
+All platforms except Android start with `main`. You should add the code below to `src/main.rs`:
+
 ```rust
 #[cfg(not(target_os = "android"))]
 fn main() -> winio::Result<()> {
@@ -145,10 +154,12 @@ fn main() {
     unreachable!("Android entry point is `android_main` in `android.rs`")
 }
 ```
+
 > [!NOTE]
 > `WindowEvent::Close` will never be emitted on iOS, and the application will exit if the window (Mac Catalyst) or the app (iOS) closes. `block_on` doesn't return in that case.
 
 The Android entry point is the `android_main` method:
+
 ```rust
 use winio::prelude::*;
 
@@ -167,13 +178,17 @@ fn android_main(app: AndroidApp) {
     })
 }
 ```
+
 > [!NOTE]
+>
 > * `android_main` might be called multiple times, but the lifetime of each calling don't overlap.
 > * `android_main` runs on a dedicate thread, while all code of `winio` execute on the main thread.
 > * You have to do the following to create a complete Android project with `winio`.
 
 ## Integrate into an Android app
+
 To integrate the `winio` app into an Android app with id "rs.compio.winio.example", the main activity should inherit `rs.compio.winio.Activity`:
+
 ```java
 package rs.compio.winio.example;
 
@@ -185,11 +200,15 @@ public class MainActivity extends Activity {
     }
 }
 ```
+
 Add the following to the `<activity>` section of `AndroidManifest.xml`:
+
 ```xml
 <meta-data android:name="android.app.lib_name" android:value="main" />
 ```
+
 Put the project folder "android" beside the "src" folder of the rust project, and modify the "dependencyResolutionManagement" part of `android/settings.gradle`
+
 ```gradle
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
@@ -216,13 +235,17 @@ String findWinioUiAndroidProject() {
     return new File(manifestPath.parentFile, "maven").path
 }
 ```
+
 and `gradle/libs.versions.toml`
+
 ```toml
 [libraries]
 # ...
 winio = { module = "compio:winio", version = "latest.release" }
 ```
+
 and `android/app/build.gradle`
+
 ```gradle
 dependencies {
     // ...
