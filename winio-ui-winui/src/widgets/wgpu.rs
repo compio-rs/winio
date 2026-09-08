@@ -1,7 +1,7 @@
 use compio_log::error;
 use inherit_methods_macro::inherit_methods;
 use wgpu::{CreateSurfaceError, Instance, Surface, SurfaceTargetUnsafe};
-use windows::core::Interface;
+use windows_core::Interface;
 use winio_handle::AsContainer;
 use winio_primitive::{MouseButton, Point, Size, Vector};
 use winui3::ISwapChainPanelNative;

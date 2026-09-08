@@ -3,14 +3,11 @@ use std::rc::Rc;
 use compio_log::info;
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
-use windows::{
-    Foundation::Uri,
-    core::{HSTRING, Interface},
-};
+use windows_core::{HSTRING, Interface};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Font, Point, Size};
-use winui3::Microsoft::UI::Xaml::{Controls as MUXC, RoutedEventHandler};
+use winui3::{Microsoft::UI::Xaml::Controls as MUXC, Windows::Foundation::Uri};
 
 use crate::{
     GlobalRuntime, Result, Widget,
@@ -32,16 +29,18 @@ impl LinkLabel {
         let on_click = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_click = on_click.clone();
-            button.Click(&RoutedEventHandler::new(move |sender, _| {
-                let button = sender.ok()?.cast::<MUXC::HyperlinkButton>()?;
-                let uri = button.NavigateUri();
-                if let Ok(_uri) = uri {
-                    info!("Opening link: {}", _uri.ToString()?.to_string_lossy());
-                } else {
-                    on_click.signal::<GlobalRuntime>(());
-                }
-                Ok(())
-            }))?;
+            button
+                .Click(move |sender, _| {
+                    let button = sender.ok()?.cast::<MUXC::HyperlinkButton>()?;
+                    let uri = button.NavigateUri();
+                    if let Ok(_uri) = uri {
+                        info!("Opening link: {}", _uri.ToString()?.to_string_lossy());
+                    } else {
+                        on_click.signal::<GlobalRuntime>(());
+                    }
+                    Ok(())
+                })?
+                .forget();
         }
         let text = MUXC::TextBlock::new()?;
         button.SetContent(&text)?;

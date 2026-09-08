@@ -2,18 +2,14 @@ use std::rc::Rc;
 
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
-use windows::{
-    Foundation::IReference,
-    core::{HSTRING, IInspectable, Interface},
-};
+use windows_core::{HSTRING, IInspectable, Interface};
+use windows_reference::IReference;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
-use winui3::Microsoft::UI::Xaml::Controls::{
-    self as MUXC, SelectionChangedEventHandler, SelectionMode,
-};
+use winui3::Microsoft::UI::Xaml::Controls::{self as MUXC, SelectionMode};
 
-use crate::{GlobalRuntime, Result, Widget, widgets::ToIReference};
+use crate::{GlobalRuntime, Result, Widget};
 
 #[derive(Debug)]
 pub struct ListBox {
@@ -29,10 +25,12 @@ impl ListBox {
         let on_select = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_select = on_select.clone();
-            list_box.SelectionChanged(&SelectionChangedEventHandler::new(move |_, _| {
-                on_select.signal::<GlobalRuntime>(());
-                Ok(())
-            }))?;
+            list_box
+                .SelectionChanged(move |_, _| {
+                    on_select.signal::<GlobalRuntime>(());
+                    Ok(())
+                })?
+                .forget();
         }
         Ok(Self {
             on_select,
@@ -101,7 +99,7 @@ impl ListBox {
 
     pub fn insert(&mut self, i: usize, s: impl AsRef<str>) -> Result<()> {
         let item = MUXC::ListBoxItem::new()?;
-        item.SetContent(&HSTRING::from(s.as_ref()).to_reference()?)?;
+        item.SetContent(&IReference::<HSTRING>::from(s.as_ref()))?;
         self.list_box
             .Items()?
             .InsertAt(i as _, &item.cast::<IInspectable>()?)?;
@@ -126,7 +124,7 @@ impl ListBox {
     pub fn set(&mut self, i: usize, s: impl AsRef<str>) -> Result<()> {
         let item = self.list_box.Items()?.GetAt(i as _)?;
         item.cast::<MUXC::ListBoxItem>()?
-            .SetContent(&HSTRING::from(s.as_ref()).to_reference()?)?;
+            .SetContent(&IReference::<HSTRING>::from(s.as_ref()))?;
         Ok(())
     }
 

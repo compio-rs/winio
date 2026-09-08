@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use windows::core::{HSTRING, Interface};
+use windows_core::{HSTRING, Interface};
 use winio_handle::AsContainer;
 use winio_primitive::{Font, HAlign, Point, Size};
 use winui3::Microsoft::UI::Xaml::{Controls as MUXC, TextWrapping};

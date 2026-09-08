@@ -1,14 +1,9 @@
 use std::{cell::RefCell, mem::MaybeUninit, rc::Rc, sync::Arc};
 
-use compio_log::error;
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
-use windows::{
-    Foundation::TypedEventHandler,
-    UI::ViewManagement::UISettings,
-    Win32::Foundation::E_NOINTERFACE,
-    core::{Interface, Ref},
-};
+use windows_core::{EventRevoker, Interface};
+use windows_subset::{UI::ViewManagement::UISettings, Win32::E_NOINTERFACE};
 use windows_sys::Win32::UI::{
     HiDpi::GetDpiForWindow,
     WindowsAndMessaging::{
@@ -26,13 +21,10 @@ use winui3::{
     Microsoft::UI::{
         Composition::SystemBackdrops::MicaKind,
         IconId, WindowId,
-        Windowing::{
-            AppWindow, AppWindowChangedEventArgs, AppWindowClosingEventArgs, TitleBarTheme,
-        },
+        Windowing::{AppWindow, TitleBarTheme},
         Xaml::{
             self as MUX, Controls as MUXC,
             Media::{MicaBackdrop, SystemBackdrop},
-            RoutedEventHandler,
         },
     },
 };
@@ -42,7 +34,6 @@ use crate::{
     widgets::Convertible,
 };
 
-#[derive(Debug)]
 pub struct Window {
     on_size: SendWrapper<Rc<Callback>>,
     on_move: SendWrapper<Rc<Callback>>,
@@ -51,7 +42,17 @@ pub struct Window {
     handle: MUX::Window,
     app_window: AppWindow,
     canvas: MUXC::Canvas,
-    closing_token: i64,
+    closing_token: Option<EventRevoker>,
+}
+
+impl std::fmt::Debug for Window {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Window")
+            .field("handle", &self.handle)
+            .field("app_window", &self.app_window)
+            .field("canvas", &self.canvas)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Window {
@@ -82,23 +83,21 @@ impl Window {
         let on_close = SendWrapper::new(Rc::new(Callback::new()));
         let closing_token = {
             let on_close = on_close.clone();
-            app_window.Closing(&TypedEventHandler::new(
-                move |_, args: Ref<AppWindowClosingEventArgs>| {
-                    let args = args.ok()?;
-                    on_close.signal::<GlobalRuntime>(());
-                    // Prevent the window from closing
-                    args.SetCancel(true)?;
-                    Ok(())
-                },
-            ))?
+            app_window.Closing(move |_, args| {
+                let args = args.ok()?;
+                on_close.signal::<GlobalRuntime>(());
+                // Prevent the window from closing
+                args.SetCancel(true)?;
+                Ok(())
+            })?
         };
         let on_size = SendWrapper::new(Rc::new(Callback::new()));
         let on_move = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_size = on_size.clone();
             let on_move = on_move.clone();
-            app_window.Changed(&TypedEventHandler::new(
-                move |_, args: Ref<AppWindowChangedEventArgs>| {
+            app_window
+                .Changed(move |_, args| {
                     let args = args.ok()?;
                     if args.DidPositionChange()? {
                         on_move.signal::<GlobalRuntime>(());
@@ -107,15 +106,17 @@ impl Window {
                         on_size.signal::<GlobalRuntime>(());
                     }
                     Ok(())
-                },
-            ))?;
+                })?
+                .forget();
         }
         {
             let on_size = on_size.clone();
-            canvas.Loaded(&RoutedEventHandler::new(move |_, _| {
-                on_size.signal::<GlobalRuntime>(());
-                Ok(())
-            }))?;
+            canvas
+                .Loaded(move |_, _| {
+                    on_size.signal::<GlobalRuntime>(());
+                    Ok(())
+                })?
+                .forget();
         }
         let theme_watcher = ColorThemeWatcher::new()?;
 
@@ -127,7 +128,7 @@ impl Window {
             handle,
             app_window,
             canvas,
-            closing_token,
+            closing_token: Some(closing_token),
         })
     }
 
@@ -297,7 +298,7 @@ impl Drop for Window {
         ROOT_WINDOWS.with_borrow_mut(|map| {
             map.retain(|w| w != &self.handle);
         });
-        self.app_window.RemoveClosing(self.closing_token).ok();
+        self.closing_token.take();
         self.handle.Close().ok();
     }
 }
@@ -321,11 +322,11 @@ pub(crate) fn get_root_window(e: &MUX::FrameworkElement) -> Option<MUX::Window> 
     })
 }
 
-#[derive(Debug)]
+#[allow(unused)]
 struct ColorThemeWatcher {
     settings: UISettings,
     notify: Arc<SyncCallback>,
-    token: i64,
+    token: EventRevoker,
 }
 
 impl ColorThemeWatcher {
@@ -334,10 +335,10 @@ impl ColorThemeWatcher {
         let notify = Arc::new(SyncCallback::new());
         let token = {
             let notify = notify.clone();
-            settings.ColorValuesChanged(&TypedEventHandler::new(move |_, _| {
+            settings.ColorValuesChanged(move |_, _| {
                 notify.signal(());
                 Ok(())
-            }))?
+            })?
         };
         Ok(Self {
             settings,
@@ -348,17 +349,6 @@ impl ColorThemeWatcher {
 
     pub async fn wait(&self) {
         self.notify.wait().await
-    }
-}
-
-impl Drop for ColorThemeWatcher {
-    fn drop(&mut self) {
-        match self.settings.RemoveColorValuesChanged(self.token) {
-            Ok(()) => {}
-            Err(_e) => {
-                error!("RemoveColorValuesChanged: {_e:?}");
-            }
-        }
     }
 }
 

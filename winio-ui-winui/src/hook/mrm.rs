@@ -6,13 +6,8 @@ use std::{env::current_exe, sync::Once};
 use compio_log::error;
 use slim_detours_sys::SlimDetoursInlineHook;
 use sync_unsafe_cell::SyncUnsafeCell;
-use windows::{
-    Win32::System::{
-        Com::CoTaskMemAlloc,
-        LibraryLoader::{GetProcAddress, LoadLibraryW},
-    },
-    core::{HSTRING, Result, s, w},
-};
+use windows_core::{HSTRING, Result, s, w};
+use windows_subset::Win32::{CoTaskMemAlloc, GetProcAddress, LoadLibraryW};
 use windows_sys::{
     Win32::{
         Foundation::{E_NOTIMPL, ERROR_FILE_NOT_FOUND, S_OK},
@@ -73,7 +68,10 @@ unsafe extern "system" fn mrm_get_file_path_from_name(
 #[allow(clippy::missing_transmute_annotations)]
 fn detour_attach() -> Result<()> {
     unsafe {
-        let module = LoadLibraryW(w!("MRM.dll"))?;
+        let module = LoadLibraryW(w!("MRM.dll"));
+        if module.0.is_null() {
+            return Err(windows_core::Error::from_thread());
+        }
         let func = GetProcAddress(module, s!("MrmGetFilePathFromName"));
         *TRUE_MRM_GET_FILE_PATH_FROM_NAME.get() = std::mem::transmute(func);
 
@@ -82,7 +80,7 @@ fn detour_attach() -> Result<()> {
             TRUE_MRM_GET_FILE_PATH_FROM_NAME.get().cast(),
             mrm_get_file_path_from_name as _,
         );
-        windows::core::HRESULT(res).ok()
+        windows_core::HRESULT(res).ok()
     }
 }
 

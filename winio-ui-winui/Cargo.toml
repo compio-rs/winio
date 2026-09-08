@@ -32,51 +32,28 @@ time = { workspace = true, optional = true }
 
 wgpu = { workspace = true, optional = true, features = ["dx12"] }
 
-winui3 = { workspace = true, features = [
-    "native",
-    "UI_Composition",
-    "UI_Composition_SystemBackdrops",
-    "UI_Dispatching",
-    "UI_Windowing",
-    "UI_Xaml_Controls",
-    "UI_Xaml_Controls_Primitives",
-    "UI_Xaml_Input",
-    "UI_Xaml_Interop",
-    "UI_Xaml_Markup",
-    "UI_Xaml_Media",
-    "UI_Xaml_XamlTypeInfo",
-] }
+winui3 = { workspace = true }
 windows-sys = { workspace = true, features = [
     "Win32_System_Diagnostics_Debug",
     "Win32_UI_HiDpi",
 ] }
-windows = { workspace = true, features = [
-    "Foundation",
-    "Foundation_Collections",
-    "Graphics",
-    "Win32_Graphics_Direct2D",
-    "Win32_Graphics_Direct3D",
-    "Win32_Graphics_Direct3D11",
-    "Win32_Graphics_Dxgi",
-] }
+windows-subset = { workspace = true }
 windows-core = { workspace = true }
+windows-reference = "0.100"
 
 slim-detours-sys = { workspace = true }
 sync-unsafe-cell = { workspace = true }
 
 [features]
-media = ["windows/Media_Core", "dep:percent-encoding"]
-webview = ["winui3/Web_WebView2_Core", "dep:cookie", "dep:time"]
+media = ["dep:percent-encoding"]
+webview = ["dep:cookie", "dep:time"]
 compio-compat = ["compio/compat-futures"]
 wgpu = ["dep:wgpu"]
 
 # Use CBS WinUI3 shipped with Windows
 enable-cbs = []
 # Use WebView2 Core shipped with Windows
-webview-system = [
-    "windows/Win32_System_LibraryLoader",
-    "windows/Win32_UI_Shell",
-]
+webview-system = []
 # Use ContentDialog for MessageBox
 content-dialog = []
 

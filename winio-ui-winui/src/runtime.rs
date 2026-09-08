@@ -7,35 +7,28 @@ use std::{
 
 use compio_log::*;
 use futures_util::FutureExt;
-use windows::{
-    Foundation::Uri,
-    Win32::System::LibraryLoader::LoadLibraryW,
-    core::{
-        Array, Error, HRESULT, HSTRING, IInspectable_Vtbl, Interface, Ref, h, imp::WeakRefCount,
-        implement, w,
-    },
-};
+use windows_core::{Array, Error, HSTRING, Interface, Ref, WIN32_ERROR, h, implement, w};
+use windows_subset::Win32::{E_POINTER, LoadLibraryW};
 use windows_sys::Win32::Foundation::ERROR_MOD_NOT_FOUND;
 use winio_ui_windows_common::{PreferredAppMode, init_dark, set_preferred_app_mode};
 use winui3::{
-    ApartmentType, ChildClass, ChildClassImpl, Compose, CreateInstanceFn,
+    ApartmentType,
     Microsoft::UI::{
         Dispatching::{DispatcherQueue, DispatcherQueueHandler},
         Xaml::{
             Application, ApplicationInitializationCallback,
             Controls::XamlControlsResources,
-            IApplicationFactory, IApplicationFactory_Vtbl, IApplicationOverrides,
-            IApplicationOverrides_Impl, LaunchActivatedEventArgs,
+            IApplicationOverrides, IApplicationOverrides_Impl, LaunchActivatedEventArgs,
             Markup::{
                 IXamlMetadataProvider, IXamlMetadataProvider_Impl, IXamlType, XmlnsDefinition,
             },
-            ResourceDictionary, UnhandledExceptionEventHandler,
+            ResourceDictionary,
             XamlTypeInfo::XamlControlsXamlMetaDataProvider,
         },
     },
-    Windows::UI::Xaml::Interop::TypeName,
-    bootstrap::{PackageDependency, WindowsAppSDKVersion},
-    init_apartment,
+    PackageDependency,
+    Windows::{Foundation::Uri, UI::Xaml::Interop::TypeName},
+    WindowsAppSDKVersion, init_apartment,
 };
 
 use crate::Result;
@@ -46,7 +39,7 @@ pub struct App {
 }
 
 fn detect_valid_winui3() -> bool {
-    unsafe { LoadLibraryW(w!("Microsoft.UI.Xaml.dll")).is_ok() }
+    unsafe { !LoadLibraryW(w!("Microsoft.UI.Xaml.dll")).0.is_null() }
 }
 
 fn init_appsdk_with(
@@ -60,9 +53,7 @@ fn init_appsdk_with(
         }
     }
     error!("Failed to initialize Windows App SDK with any known version");
-    Err(Error::from_hresult(HRESULT::from_win32(
-        ERROR_MOD_NOT_FOUND,
-    )))
+    Err(WIN32_ERROR(ERROR_MOD_NOT_FOUND).to_hresult().into())
 }
 
 impl App {
@@ -138,17 +129,16 @@ fn app_start(waker: Arc<DispatcherWaker>) -> Result<()> {
     debug!("Application::Start");
 
     let app = XamlApp::compose()?;
-    app.UnhandledException(Some(&UnhandledExceptionEventHandler::new(
-        |_sender, args| {
-            let args = args.ok()?;
-            error!(
-                "Unhandled exception: {}\n{}",
-                args.Exception()?,
-                args.Message()?
-            );
-            Ok(())
-        },
-    )))?;
+    app.UnhandledException(|_sender, args| {
+        let args = args.ok()?;
+        error!(
+            "Unhandled exception: {:?}\n{:?}",
+            args.Exception()?.ok(),
+            args.Message()?
+        );
+        Ok(())
+    })?
+    .forget();
 
     let dispatcher = DispatcherQueue::GetForCurrentThread()?;
     waker.dispatcher.lock().unwrap().replace(dispatcher);
@@ -164,19 +154,23 @@ struct XamlApp {
 
 impl XamlApp {
     pub(crate) fn compose() -> Result<Application> {
-        Compose::compose(Self {
+        Application::compose(Self {
             provider: XamlControlsXamlMetaDataProvider::new()?,
         })
     }
 }
 
-impl ChildClassImpl for XamlApp_Impl {}
-
 impl IApplicationOverrides_Impl for XamlApp_Impl {
     fn OnLaunched(&self, _: Ref<LaunchActivatedEventArgs>) -> Result<()> {
         debug!("App::OnLaunched");
 
-        let resources = self.base()?.cast::<Application>()?.Resources()?;
+        let resources = self
+            .base
+            .as_option()
+            .as_ref()
+            .ok_or_else(|| Error::from_hresult(E_POINTER))?
+            .cast::<Application>()?
+            .Resources()?;
         let merged_dictionaries = resources.MergedDictionaries()?;
         let xaml_controls_resources = XamlControlsResources::new()?;
         merged_dictionaries.Append(&xaml_controls_resources)?;
@@ -202,27 +196,6 @@ impl IXamlMetadataProvider_Impl for XamlApp_Impl {
 
     fn GetXmlnsDefinitions(&self) -> Result<Array<XmlnsDefinition>> {
         self.provider.GetXmlnsDefinitions()
-    }
-}
-
-impl ChildClass for XamlApp {
-    type BaseType = Application;
-    type FactoryInterface = IApplicationFactory;
-
-    fn create_interface_fn(vtable: &IApplicationFactory_Vtbl) -> CreateInstanceFn {
-        vtable.CreateInstance
-    }
-
-    fn identity_vtable(vtable: &mut Self::Outer) -> &mut &'static IInspectable_Vtbl {
-        &mut vtable.identity
-    }
-
-    fn ref_count(vtable: &Self::Outer) -> &WeakRefCount {
-        &vtable.count
-    }
-
-    fn into_outer(self) -> Self::Outer {
-        Self::into_outer(self)
     }
 }
 

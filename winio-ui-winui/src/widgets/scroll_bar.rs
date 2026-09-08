@@ -2,14 +2,11 @@ use std::rc::Rc;
 
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
-use windows::core::Interface;
+use windows_core::Interface;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Orient, Point, Size};
-use winui3::Microsoft::UI::Xaml::Controls::{
-    self as MUXC,
-    Primitives::{ScrollEventHandler, ScrollingIndicatorMode},
-};
+use winui3::Microsoft::UI::Xaml::Controls::{self as MUXC, Primitives::ScrollingIndicatorMode};
 
 use crate::{GlobalRuntime, Result, Widget, widgets::Convertible};
 
@@ -28,10 +25,11 @@ impl ScrollBar {
         let on_scroll = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_scroll = on_scroll.clone();
-            bar.Scroll(&ScrollEventHandler::new(move |_, _| {
+            bar.Scroll(move |_, _| {
                 on_scroll.signal::<GlobalRuntime>(());
                 Ok(())
-            }))?;
+            })?
+            .forget();
         }
         let handle = Widget::new(parent, bar.cast()?)?;
         Ok(Self {

@@ -2,28 +2,28 @@ use std::{cell::RefCell, rc::Rc};
 
 use futures_util::FutureExt;
 use send_wrapper::SendWrapper;
-use windows::{
-    Foundation::PropertyValue,
-    UI::Text::FontWeight,
-    Win32::Foundation::E_POINTER,
-    core::{HSTRING, Interface, h},
-};
+use windows_core::{HSTRING, Interface, h};
+use windows_reference::IReference;
+use windows_subset::Win32::E_POINTER;
 use windows_sys::Win32::Foundation::HWND;
 use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
-use winui3::Microsoft::UI::{
-    WindowId,
-    Windowing::{AppWindow, OverlappedPresenter},
-    Xaml::{
-        Application,
-        Controls::{
-            BackgroundSizing, Button, ColumnDefinition, ContentDialog, ContentDialogButton, Grid,
-            RowDefinition, StackPanel, TextBlock,
+use winui3::{
+    Microsoft::UI::{
+        WindowId,
+        Windowing::{AppWindow, OverlappedPresenter},
+        Xaml::{
+            Application,
+            Controls::{
+                BackgroundSizing, Button, ColumnDefinition, ContentDialog, ContentDialogButton,
+                Grid, RowDefinition, StackPanel, TextBlock,
+            },
+            GridLength, GridUnitType, HorizontalAlignment,
+            Media::Brush,
+            Style, TextWrapping, Thickness, XamlRoot,
         },
-        GridLength, GridUnitType, HorizontalAlignment,
-        Media::Brush,
-        RoutedEventHandler, Style, TextWrapping, Thickness, XamlRoot,
     },
+    Windows::UI::Text::FontWeight,
 };
 
 use crate::{Error, ROOT_WINDOWS, Result};
@@ -158,7 +158,7 @@ fn collect_buttons(
 
 fn lookup<T: Interface>(key: &HSTRING) -> Result<T> {
     let resources = Application::Current()?.Resources()?;
-    let key_obj = PropertyValue::CreateString(key)?;
+    let key_obj = IReference::<HSTRING>::from(key);
     resources.Lookup(&key_obj)?.cast()
 }
 
@@ -203,11 +203,12 @@ fn build_button_grid(
         let result = result.clone();
         let dialog = dialog.clone();
         let resp = *response;
-        btn.Click(&RoutedEventHandler::new(move |_, _| {
+        btn.Click(move |_, _| {
             *result.borrow_mut() = Some(resp);
             dialog.Hide()?;
             Ok(())
-        }))?;
+        })?
+        .forget();
 
         children.Append(&btn)?;
     }
@@ -316,7 +317,7 @@ fn msgbox(
 
     let dialog = ContentDialog::new()?;
     dialog.SetXamlRoot(&xaml_root)?;
-    dialog.SetTitle(&PropertyValue::CreateString(&title)?)?;
+    dialog.SetTitle(&IReference::<HSTRING>::from(title))?;
     dialog.SetDefaultButton(ContentDialogButton::None)?;
 
     let result = SendWrapper::new(Rc::new(RefCell::new(None)));

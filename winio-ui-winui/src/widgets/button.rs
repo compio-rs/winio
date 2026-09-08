@@ -2,11 +2,11 @@ use std::rc::Rc;
 
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
-use windows::core::{HSTRING, Interface};
+use windows_core::{HSTRING, Interface};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
-use winui3::Microsoft::UI::Xaml::{Controls as MUXC, RoutedEventHandler};
+use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
 use crate::{GlobalRuntime, Result, Widget};
 
@@ -24,10 +24,12 @@ impl Button {
         let on_click = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_click = on_click.clone();
-            button.Click(&RoutedEventHandler::new(move |_, _| {
-                on_click.signal::<GlobalRuntime>(());
-                Ok(())
-            }))?;
+            button
+                .Click(move |_, _| {
+                    on_click.signal::<GlobalRuntime>(());
+                    Ok(())
+                })?
+                .forget();
         }
         let text = MUXC::TextBlock::new()?;
         button.SetContent(&text)?;

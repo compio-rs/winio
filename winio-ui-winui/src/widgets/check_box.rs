@@ -2,13 +2,13 @@ use std::rc::Rc;
 
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
-use windows::core::{HSTRING, Interface};
+use windows_core::{HSTRING, Interface};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
-use winui3::Microsoft::UI::Xaml::{Controls as MUXC, RoutedEventHandler};
+use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
-use crate::{GlobalRuntime, Result, Widget, widgets::ToIReference};
+use crate::{GlobalRuntime, Result, Widget};
 
 #[derive(Debug)]
 pub struct CheckBox {
@@ -25,10 +25,12 @@ impl CheckBox {
         let on_click = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_click = on_click.clone();
-            button.Click(&RoutedEventHandler::new(move |_, _| {
-                on_click.signal::<GlobalRuntime>(());
-                Ok(())
-            }))?;
+            button
+                .Click(move |_, _| {
+                    on_click.signal::<GlobalRuntime>(());
+                    Ok(())
+                })?
+                .forget();
         }
         let text = MUXC::TextBlock::new()?;
         button.SetContent(&text)?;
@@ -72,11 +74,11 @@ impl CheckBox {
     }
 
     pub fn is_checked(&self) -> Result<bool> {
-        self.button.IsChecked()?.GetBoolean()
+        self.button.IsChecked()
     }
 
     pub fn set_checked(&mut self, v: bool) -> Result<()> {
-        self.button.SetIsChecked(&v.to_reference()?)?;
+        self.button.SetIsChecked(Some(v))?;
         Ok(())
     }
 

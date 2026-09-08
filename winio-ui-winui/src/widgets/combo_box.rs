@@ -2,16 +2,14 @@ use std::rc::Rc;
 
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
-use windows::{
-    Foundation::{IReference, TypedEventHandler},
-    core::{HSTRING, IInspectable, Interface},
-};
+use windows_core::{HSTRING, IInspectable, Interface};
+use windows_reference::IReference;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
-use winui3::Microsoft::UI::Xaml::Controls::{self as MUXC, SelectionChangedEventHandler};
+use winui3::Microsoft::UI::Xaml::Controls::{self as MUXC};
 
-use crate::{GlobalRuntime, Result, Widget, widgets::ToIReference};
+use crate::{GlobalRuntime, Result, Widget};
 
 #[derive(Debug)]
 pub struct ComboBox {
@@ -28,18 +26,22 @@ impl ComboBox {
         let on_select = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_select = on_select.clone();
-            combo_box.SelectionChanged(&SelectionChangedEventHandler::new(move |_, _| {
-                on_select.signal::<GlobalRuntime>(());
-                Ok(())
-            }))?;
+            combo_box
+                .SelectionChanged(move |_, _| {
+                    on_select.signal::<GlobalRuntime>(());
+                    Ok(())
+                })?
+                .forget();
         }
         let on_edit = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_edit = on_edit.clone();
-            combo_box.TextSubmitted(&TypedEventHandler::new(move |_, _| {
-                on_edit.signal::<GlobalRuntime>(());
-                Ok(())
-            }))?;
+            combo_box
+                .TextSubmitted(move |_, _| {
+                    on_edit.signal::<GlobalRuntime>(());
+                    Ok(())
+                })?
+                .forget();
         }
         Ok(Self {
             on_select,
@@ -109,7 +111,7 @@ impl ComboBox {
 
     pub fn insert(&mut self, i: usize, s: impl AsRef<str>) -> Result<()> {
         let item = MUXC::ComboBoxItem::new()?;
-        item.SetContent(&HSTRING::from(s.as_ref()).to_reference()?)?;
+        item.SetContent(&IReference::<HSTRING>::from(s.as_ref()))?;
         self.combo_box
             .Items()?
             .InsertAt(i as _, &item.cast::<IInspectable>()?)?;
@@ -146,7 +148,7 @@ impl ComboBox {
     pub fn set(&mut self, i: usize, s: impl AsRef<str>) -> Result<()> {
         let item = self.combo_box.Items()?.GetAt(i as _)?;
         item.cast::<MUXC::ComboBoxItem>()?
-            .SetContent(&HSTRING::from(s.as_ref()).to_reference()?)?;
+            .SetContent(&IReference::<HSTRING>::from(s.as_ref()))?;
         Ok(())
     }
 
