@@ -2,14 +2,11 @@ use std::rc::Rc;
 
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
-use windows::core::Interface;
+use windows_core::Interface;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Orient, Point, Size, TickPosition};
-use winui3::Microsoft::UI::Xaml::Controls::{
-    self as MUXC,
-    Primitives::{RangeBaseValueChangedEventHandler, TickPlacement},
-};
+use winui3::Microsoft::UI::Xaml::Controls::{self as MUXC, Primitives::TickPlacement};
 
 use crate::{GlobalRuntime, Result, Widget, widgets::Convertible};
 
@@ -29,10 +26,11 @@ impl Slider {
         let on_scroll = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_scroll = on_scroll.clone();
-            bar.ValueChanged(&RangeBaseValueChangedEventHandler::new(move |_, _| {
+            bar.ValueChanged(move |_, _| {
                 on_scroll.signal::<GlobalRuntime>(());
                 Ok(())
-            }))?;
+            })?
+            .forget();
         }
         let handle = Widget::new(parent, bar.cast()?)?;
         Ok(Self {

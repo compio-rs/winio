@@ -1,11 +1,11 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::Cell, rc::Rc};
 
 use compio_log::error;
 use cookie::Cookie;
 use futures_util::FutureExt;
 use webview2::{
     COREWEBVIEW2_COOKIE_SAME_SITE_KIND_LAX, COREWEBVIEW2_COOKIE_SAME_SITE_KIND_NONE,
-    COREWEBVIEW2_COOKIE_SAME_SITE_KIND_STRICT, CreateCoreWebView2Environment, ICoreWebView2,
+    COREWEBVIEW2_COOKIE_SAME_SITE_KIND_STRICT, CreateCoreWebView2Environment, HWND, ICoreWebView2,
     ICoreWebView2_2, ICoreWebView2Controller, ICoreWebView2Cookie, ICoreWebView2CookieList,
     ICoreWebView2CookieManager, ICoreWebView2CreateCoreWebView2ControllerCompletedHandler,
     ICoreWebView2CreateCoreWebView2ControllerCompletedHandler_Impl,
@@ -16,11 +16,10 @@ use webview2::{
     ICoreWebView2NavigationCompletedEventArgs, ICoreWebView2NavigationCompletedEventHandler,
     ICoreWebView2NavigationCompletedEventHandler_Impl, ICoreWebView2NavigationStartingEventArgs,
     ICoreWebView2NavigationStartingEventHandler, ICoreWebView2NavigationStartingEventHandler_Impl,
+    RECT,
 };
-use windows::{
-    Win32::Foundation::{E_FAIL, E_INVALIDARG, HWND, RECT},
-    core::{HRESULT, HSTRING, Interface, PCWSTR, Ref, implement},
-};
+use windows_core::{HRESULT, HSTRING, Interface, PCWSTR, Ref, WIN32_ERROR, implement};
+use windows_subset::Win32::{E_FAIL, E_INVALIDARG};
 use windows_sys::Win32::{Foundation::ERROR_CANCELLED, UI::HiDpi::GetDpiForWindow};
 use winio_callback::Callback;
 use winio_handle::{AsContainer, AsWidget, BorrowedWidget};
@@ -243,7 +242,7 @@ impl WebView {
         });
         unsafe { self.cookie_manager()?.GetCookies(None, &handler)? };
         rx.await
-            .map_err(|_| Error::from_hresult(HRESULT::from_win32(ERROR_CANCELLED)))??
+            .map_err(|_| Error::from_hresult(WIN32_ERROR(ERROR_CANCELLED).to_hresult()))??
     }
 
     pub async fn set_cookie(&mut self, c: &Cookie<'_>) -> Result<()> {
@@ -280,7 +279,7 @@ impl WebView {
         })?;
         Ok(rx.into_future().map(|result| {
             result
-                .map_err(|_| Error::from_hresult(HRESULT::from_win32(ERROR_CANCELLED)))
+                .map_err(|_| Error::from_hresult(WIN32_ERROR(ERROR_CANCELLED).to_hresult()))
                 .flatten()
                 .map(|s| s.to_string_lossy())
         }))
@@ -379,35 +378,29 @@ fn webview_cookie_to_cookie(c: &ICoreWebView2Cookie) -> Result<Cookie<'static>> 
     ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,
     Agile = false
 )]
-struct CreateEnvHandler<F>
-where
-    F: FnOnce(Result<Ref<ICoreWebView2Environment>>) -> Result<()> + 'static,
-{
-    f: RefCell<Option<F>>,
+#[allow(clippy::type_complexity)]
+struct CreateEnvHandler {
+    f: Cell<Option<Box<dyn FnOnce(Result<Ref<ICoreWebView2Environment>>) -> Result<()>>>>,
 }
 
-impl<F> CreateEnvHandler<F>
-where
-    F: FnOnce(Result<Ref<ICoreWebView2Environment>>) -> Result<()> + 'static,
-{
-    pub fn create(f: F) -> ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler {
+impl CreateEnvHandler {
+    pub fn create(
+        f: impl FnOnce(Result<Ref<ICoreWebView2Environment>>) -> Result<()> + 'static,
+    ) -> ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler {
         Self {
-            f: RefCell::new(Some(f)),
+            f: Cell::new(Some(Box::new(f))),
         }
         .into()
     }
 }
 
-impl<F> ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler_Impl for CreateEnvHandler_Impl<F>
-where
-    F: FnOnce(Result<Ref<ICoreWebView2Environment>>) -> Result<()> + 'static,
-{
+impl ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler_Impl for CreateEnvHandler_Impl {
     fn Invoke(
         &self,
         errorcode: HRESULT,
         createdenvironment: Ref<ICoreWebView2Environment>,
     ) -> Result<()> {
-        let f = self.f.borrow_mut().take();
+        let f = self.f.take();
         if let Some(f) = f {
             f(errorcode.map(|| createdenvironment))
         } else {
@@ -420,36 +413,31 @@ where
     ICoreWebView2CreateCoreWebView2ControllerCompletedHandler,
     Agile = false
 )]
-struct CreateControllerHandler<F>
-where
-    F: FnOnce(Result<Ref<ICoreWebView2Controller>>) -> Result<()> + 'static,
-{
-    f: RefCell<Option<F>>,
+#[allow(clippy::type_complexity)]
+struct CreateControllerHandler {
+    f: Cell<Option<Box<dyn FnOnce(Result<Ref<ICoreWebView2Controller>>) -> Result<()>>>>,
 }
 
-impl<F> CreateControllerHandler<F>
-where
-    F: FnOnce(Result<Ref<ICoreWebView2Controller>>) -> Result<()> + 'static,
-{
-    pub fn create(f: F) -> ICoreWebView2CreateCoreWebView2ControllerCompletedHandler {
+impl CreateControllerHandler {
+    pub fn create(
+        f: impl FnOnce(Result<Ref<ICoreWebView2Controller>>) -> Result<()> + 'static,
+    ) -> ICoreWebView2CreateCoreWebView2ControllerCompletedHandler {
         Self {
-            f: RefCell::new(Some(f)),
+            f: Cell::new(Some(Box::new(f))),
         }
         .into()
     }
 }
 
-impl<F> ICoreWebView2CreateCoreWebView2ControllerCompletedHandler_Impl
-    for CreateControllerHandler_Impl<F>
-where
-    F: FnOnce(Result<Ref<ICoreWebView2Controller>>) -> Result<()> + 'static,
+impl ICoreWebView2CreateCoreWebView2ControllerCompletedHandler_Impl
+    for CreateControllerHandler_Impl
 {
     fn Invoke(
         &self,
         errorcode: HRESULT,
         createdcontroller: Ref<ICoreWebView2Controller>,
     ) -> Result<()> {
-        let f = self.f.borrow_mut().take();
+        let f = self.f.take();
         if let Some(f) = f {
             f(errorcode.map(|| createdcontroller))
         } else {
@@ -459,29 +447,24 @@ where
 }
 
 #[implement(ICoreWebView2NavigationStartingEventHandler, Agile = false)]
-struct NavStartingHandler<F>
-where
-    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> Result<()>
-        + 'static,
-{
-    f: F,
+#[allow(clippy::type_complexity)]
+struct NavStartingHandler {
+    f: Box<
+        dyn Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> Result<()>
+            + 'static,
+    >,
 }
 
-impl<F> NavStartingHandler<F>
-where
-    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> Result<()>
+impl NavStartingHandler {
+    pub fn create(
+        f: impl Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> Result<()>
         + 'static,
-{
-    pub fn create(f: F) -> ICoreWebView2NavigationStartingEventHandler {
-        Self { f }.into()
+    ) -> ICoreWebView2NavigationStartingEventHandler {
+        Self { f: Box::new(f) }.into()
     }
 }
 
-impl<F> ICoreWebView2NavigationStartingEventHandler_Impl for NavStartingHandler_Impl<F>
-where
-    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationStartingEventArgs>) -> Result<()>
-        + 'static,
-{
+impl ICoreWebView2NavigationStartingEventHandler_Impl for NavStartingHandler_Impl {
     fn Invoke(
         &self,
         sender: Ref<ICoreWebView2>,
@@ -492,29 +475,23 @@ where
 }
 
 #[implement(ICoreWebView2NavigationCompletedEventHandler, Agile = false)]
-struct NavCompletedHandler<F>
-where
-    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> Result<()>
-        + 'static,
-{
-    f: F,
+#[allow(clippy::type_complexity)]
+struct NavCompletedHandler {
+    f: Box<
+        dyn Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> Result<()>,
+    >,
 }
 
-impl<F> NavCompletedHandler<F>
-where
-    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> Result<()>
+impl NavCompletedHandler {
+    pub fn create(
+        f: impl Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> Result<()>
         + 'static,
-{
-    pub fn create(f: F) -> ICoreWebView2NavigationCompletedEventHandler {
-        Self { f }.into()
+    ) -> ICoreWebView2NavigationCompletedEventHandler {
+        Self { f: Box::new(f) }.into()
     }
 }
 
-impl<F> ICoreWebView2NavigationCompletedEventHandler_Impl for NavCompletedHandler_Impl<F>
-where
-    F: Fn(Ref<ICoreWebView2>, Ref<ICoreWebView2NavigationCompletedEventArgs>) -> Result<()>
-        + 'static,
-{
+impl ICoreWebView2NavigationCompletedEventHandler_Impl for NavCompletedHandler_Impl {
     fn Invoke(
         &self,
         sender: Ref<ICoreWebView2>,
@@ -525,31 +502,25 @@ where
 }
 
 #[implement(ICoreWebView2GetCookiesCompletedHandler, Agile = false)]
-struct GetCookiesHandler<F>
-where
-    F: FnOnce(Result<Ref<ICoreWebView2CookieList>>) -> Result<()> + 'static,
-{
-    f: RefCell<Option<F>>,
+#[allow(clippy::type_complexity)]
+struct GetCookiesHandler {
+    f: Cell<Option<Box<dyn FnOnce(Result<Ref<ICoreWebView2CookieList>>) -> Result<()>>>>,
 }
 
-impl<F> GetCookiesHandler<F>
-where
-    F: FnOnce(Result<Ref<ICoreWebView2CookieList>>) -> Result<()> + 'static,
-{
-    pub fn create(f: F) -> ICoreWebView2GetCookiesCompletedHandler {
+impl GetCookiesHandler {
+    pub fn create(
+        f: impl FnOnce(Result<Ref<ICoreWebView2CookieList>>) -> Result<()> + 'static,
+    ) -> ICoreWebView2GetCookiesCompletedHandler {
         Self {
-            f: RefCell::new(Some(f)),
+            f: Cell::new(Some(Box::new(f))),
         }
         .into()
     }
 }
 
-impl<F> ICoreWebView2GetCookiesCompletedHandler_Impl for GetCookiesHandler_Impl<F>
-where
-    F: FnOnce(Result<Ref<ICoreWebView2CookieList>>) -> Result<()> + 'static,
-{
+impl ICoreWebView2GetCookiesCompletedHandler_Impl for GetCookiesHandler_Impl {
     fn Invoke(&self, errorcode: HRESULT, cookie_list: Ref<ICoreWebView2CookieList>) -> Result<()> {
-        let f = self.f.borrow_mut().take();
+        let f = self.f.take();
         if let Some(f) = f {
             f(errorcode.map(|| cookie_list))
         } else {
@@ -563,7 +534,7 @@ struct ExecuteScriptHandler<F>
 where
     F: FnOnce(Result<PCWSTR>) -> Result<()> + 'static,
 {
-    f: RefCell<Option<F>>,
+    f: Cell<Option<F>>,
 }
 
 impl<F> ExecuteScriptHandler<F>
@@ -572,7 +543,7 @@ where
 {
     pub fn create(f: F) -> ICoreWebView2ExecuteScriptCompletedHandler {
         Self {
-            f: RefCell::new(Some(f)),
+            f: Cell::new(Some(f)),
         }
         .into()
     }
@@ -583,7 +554,7 @@ where
     F: FnOnce(Result<PCWSTR>) -> Result<()> + 'static,
 {
     fn Invoke(&self, errorcode: HRESULT, resultobjectasjson: &PCWSTR) -> Result<()> {
-        let f = self.f.borrow_mut().take();
+        let f = self.f.take();
         if let Some(f) = f {
             f(errorcode.map(|| *resultobjectasjson))
         } else {

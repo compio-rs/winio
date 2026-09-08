@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use compio_log::error;
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
-use windows::core::{HSTRING, Interface};
+use windows_core::{HSTRING, Interface};
 use winio_callback::Callback;
 use winio_handle::{AsContainer, BorrowedContainer};
 use winio_primitive::{Point, Size};
@@ -24,13 +24,14 @@ impl TabView {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let on_select = SendWrapper::new(Rc::new(Callback::new()));
         let view = MUXC::TabView::new()?;
-        view.SelectionChanged(&MUXC::SelectionChangedEventHandler::new({
+        view.SelectionChanged({
             let on_select = on_select.clone();
             move |_, _| {
                 on_select.signal::<GlobalRuntime>(());
                 Ok(())
             }
-        }))?;
+        })?
+        .forget();
         view.SetHorizontalContentAlignment(HorizontalAlignment::Stretch)?;
         view.SetVerticalContentAlignment(VerticalAlignment::Stretch)?;
         view.SetIsAddTabButtonVisible(false)?;

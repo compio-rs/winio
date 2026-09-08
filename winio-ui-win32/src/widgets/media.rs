@@ -2,24 +2,15 @@ use std::{mem::MaybeUninit, sync::Arc, time::Duration};
 
 use compio_log::error;
 use inherit_methods_macro::inherit_methods;
-use windows::{
-    Win32::{
-        Foundation::E_POINTER,
-        Media::MediaFoundation::{
-            CLSID_MFMediaEngineClassFactory, IMFMediaEngine, IMFMediaEngineClassFactory,
-            IMFMediaEngineEx, IMFMediaEngineNotify, IMFMediaEngineNotify_Impl,
-            MF_MEDIA_ENGINE_CALLBACK, MF_MEDIA_ENGINE_EVENT, MF_MEDIA_ENGINE_EVENT_CANPLAY,
-            MF_MEDIA_ENGINE_EVENT_ERROR, MF_MEDIA_ENGINE_PLAYBACK_HWND, MF_VERSION,
-            MFCreateAttributes, MFSTARTUP_FULL, MFShutdown, MFStartup,
-        },
-        System::Com::{
-            CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx,
-            CoUninitialize,
-        },
-    },
-    core::{BSTR, HRESULT, Interface, implement},
+use windows_core::{BSTR, Error, HRESULT, Interface, implement};
+use windows_subset::Win32::{
+    CLSCTX_INPROC_SERVER, CLSID_MFMediaEngineClassFactory, COINIT_APARTMENTTHREADED,
+    CoCreateInstance, CoInitializeEx, CoUninitialize, E_FAIL, E_POINTER, IMFMediaEngine,
+    IMFMediaEngineClassFactory, IMFMediaEngineEx, IMFMediaEngineNotify, IMFMediaEngineNotify_Impl,
+    MF_MEDIA_ENGINE_CALLBACK, MF_MEDIA_ENGINE_EVENT_CANPLAY, MF_MEDIA_ENGINE_EVENT_ERROR,
+    MF_MEDIA_ENGINE_PLAYBACK_HWND, MF_VERSION, MFCreateAttributes, MFSTARTUP_FULL, MFShutdown,
+    MFStartup,
 };
-use windows_core::Error;
 use windows_sys::Win32::{
     System::SystemServices::SS_OWNERDRAW,
     UI::{
@@ -124,15 +115,19 @@ impl Media {
     }
 
     pub fn url(&self) -> Result<String> {
-        unsafe { Ok(self.engine.GetCurrentSource()?.to_string()) }
+        unsafe {
+            self.engine
+                .GetCurrentSource()?
+                .try_into()
+                .map_err(|_| Error::from_hresult(E_FAIL))
+        }
     }
 
     pub async fn load(&mut self, url: impl AsRef<str>) -> Result<()> {
         let url = percent_encoding::percent_decode_str(url.as_ref()).decode_utf8_lossy();
         unsafe {
             with_u16c(url.as_ref(), |s| {
-                self.engine.SetSource(&BSTR::from_wide(s.as_slice()))?;
-                Ok(())
+                self.engine.SetSource(&BSTR::from_wide(s.as_slice()))
             })?;
         }
         self.notify.wait().await
@@ -210,7 +205,7 @@ struct MFGuard;
 impl MFGuard {
     pub fn init() -> Result<Self> {
         unsafe {
-            CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok()?;
+            CoInitializeEx(None, COINIT_APARTMENTTHREADED as _)?;
             MFStartup(MF_VERSION, MFSTARTUP_FULL)?;
         }
         Ok(Self)
@@ -241,7 +236,7 @@ impl MediaNotify {
 
 impl IMFMediaEngineNotify_Impl for MediaNotify_Impl {
     fn EventNotify(&self, event: u32, _param1: usize, param2: u32) -> Result<()> {
-        let msg = match MF_MEDIA_ENGINE_EVENT(event as _) {
+        let msg = match event as _ {
             MF_MEDIA_ENGINE_EVENT_CANPLAY => Some(Ok(())),
             MF_MEDIA_ENGINE_EVENT_ERROR => Some(Err(Error::from_hresult(HRESULT(param2 as _)))),
             _ => None,

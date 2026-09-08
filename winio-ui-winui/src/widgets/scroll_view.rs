@@ -1,9 +1,9 @@
 use inherit_methods_macro::inherit_methods;
-use windows::core::Interface;
+use windows_core::Interface;
 use winio_handle::{AsContainer, BorrowedContainer};
 use winio_primitive::{Point, Rect, Size};
 use winui3::Microsoft::UI::Xaml::{
-    Controls as MUXC, FrameworkElement, HorizontalAlignment, RoutedEventHandler, VerticalAlignment,
+    Controls as MUXC, FrameworkElement, HorizontalAlignment, VerticalAlignment,
 };
 
 use crate::{Result, Widget, widgets::Convertible};
@@ -43,11 +43,13 @@ impl ScrollView {
         view.SetContent(&canvas)?;
         view.SetHorizontalScrollBarVisibility(MUXC::ScrollBarVisibility::Auto)?;
         view.SetVerticalScrollBarVisibility(MUXC::ScrollBarVisibility::Auto)?;
-        canvas.Loaded(&RoutedEventHandler::new(|sender, _| {
-            let canvas = sender.ok()?.cast::<MUXC::Canvas>()?;
-            set_canvas_to_fit_children(&canvas)?;
-            Ok(())
-        }))?;
+        canvas
+            .Loaded(|sender, _| {
+                let canvas = sender.ok()?.cast::<MUXC::Canvas>()?;
+                set_canvas_to_fit_children(&canvas)?;
+                Ok(())
+            })?
+            .forget();
         Ok(Self {
             handle: Widget::new(parent, view.cast()?)?,
             view,

@@ -5,7 +5,7 @@
 #![cfg_attr(feature = "once_cell_try", feature(once_cell_try))]
 #![cfg(windows)]
 
-pub use windows::core::{Error, Result};
+pub use windows_core::{Error, Result};
 
 mod version;
 pub(crate) use version::*;

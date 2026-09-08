@@ -1,10 +1,8 @@
 use std::fmt::Debug;
 
 use compio_log::error;
-use windows::{
-    Win32::Foundation::E_POINTER,
-    core::{Interface, Weak},
-};
+use windows_core::{Interface, Weak};
+use windows_subset::Win32::E_POINTER;
 use winio_handle::{AsContainer, AsWidget, BorrowedWidget};
 use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::Xaml::{self as MUX, Controls as MUXC};
@@ -119,15 +117,17 @@ impl Widget {
                 text
             }
         };
-        text.SetText(&windows::core::HSTRING::from(s.as_ref()))?;
+        text.SetText(&windows_core::HSTRING::from(s.as_ref()))?;
         Ok(())
     }
 
     fn drop_impl(&mut self) -> Result<()> {
-        let children = self.parent()?.Children()?;
-        let mut index = 0;
-        if children.IndexOf(&self.handle, &mut index).is_ok() {
-            children.RemoveAt(index as _)?;
+        if let Ok(parent) = self.parent() {
+            let children = parent.Children()?;
+            let mut index = 0;
+            if children.IndexOf(&self.handle, &mut index).is_ok() {
+                children.RemoveAt(index as _)?;
+            }
         }
         Ok(())
     }

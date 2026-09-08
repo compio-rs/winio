@@ -1,12 +1,9 @@
 use std::cell::RefCell;
 
-use windows::{
-    UI::Color,
-    core::{IInspectable_Vtbl, Interface, Ref, Result, imp::WeakRefCount, implement},
-};
+use windows_core::{Interface, Ref, implement};
+use windows_subset::Win32::E_POINTER;
 use winio_primitive::ColorTheme;
 use winui3::{
-    ChildClass, ChildClassImpl, Compose, CreateInstanceFn,
     Microsoft::UI::{
         Composition::{
             ICompositionSupportsSystemBackdrop,
@@ -14,15 +11,13 @@ use winui3::{
         },
         Xaml::{
             self as MUX,
-            Media::{
-                ISystemBackdropFactory, ISystemBackdropFactory_Vtbl, ISystemBackdropOverrides,
-                ISystemBackdropOverrides_Impl, SystemBackdrop,
-            },
+            Media::{ISystemBackdropOverrides, ISystemBackdropOverrides_Impl, SystemBackdrop},
         },
     },
+    Windows::UI::Color,
 };
 
-use crate::color_theme;
+use crate::{Error, Result, color_theme};
 
 // Magic colors to match Win32.
 const fn color(dark: bool) -> Color {
@@ -76,20 +71,18 @@ impl Drop for CustomDesktopAcrylicBackdropControllerEntry {
     }
 }
 
-#[implement(ISystemBackdropOverrides, Agile = false)]
+#[implement(ISystemBackdropOverrides)]
 pub struct CustomDesktopAcrylicBackdrop {
     controllers: RefCell<Vec<CustomDesktopAcrylicBackdropControllerEntry>>,
 }
 
 impl CustomDesktopAcrylicBackdrop {
     pub fn compose() -> Result<SystemBackdrop> {
-        Compose::compose(Self {
+        SystemBackdrop::compose(Self {
             controllers: RefCell::new(vec![]),
         })
     }
 }
-
-impl ChildClassImpl for CustomDesktopAcrylicBackdrop_Impl {}
 
 impl ISystemBackdropOverrides_Impl for CustomDesktopAcrylicBackdrop_Impl {
     fn OnTargetConnected(
@@ -97,17 +90,18 @@ impl ISystemBackdropOverrides_Impl for CustomDesktopAcrylicBackdrop_Impl {
         target: Ref<ICompositionSupportsSystemBackdrop>,
         root: Ref<MUX::XamlRoot>,
     ) -> Result<()> {
-        self.base()?
-            .cast::<ISystemBackdropOverrides>()?
-            .OnTargetConnected(target.as_ref(), root.as_ref())?;
+        let base = self
+            .base
+            .as_option()
+            .as_ref()
+            .ok_or_else(|| Error::from_hresult(E_POINTER))?
+            .cast::<SystemBackdrop>()?;
+        base.OnTargetConnected(target.as_ref(), root.as_ref())?;
 
         let target = target.ok()?;
         let root = root.ok()?;
 
-        let configuration = self
-            .base()?
-            .cast::<SystemBackdrop>()?
-            .GetDefaultSystemBackdropConfiguration(target, root)?;
+        let configuration = base.GetDefaultSystemBackdropConfiguration(target, root)?;
         let controller = DesktopAcrylicController::new()?;
         // Magic number to match Win32.
         controller.SetLuminosityOpacity(0.65)?;
@@ -124,9 +118,13 @@ impl ISystemBackdropOverrides_Impl for CustomDesktopAcrylicBackdrop_Impl {
     }
 
     fn OnTargetDisconnected(&self, target: Ref<ICompositionSupportsSystemBackdrop>) -> Result<()> {
-        self.base()?
-            .cast::<ISystemBackdropOverrides>()?
-            .OnTargetDisconnected(target.as_ref())?;
+        let base = self
+            .base
+            .as_option()
+            .as_ref()
+            .ok_or_else(|| Error::from_hresult(E_POINTER))?
+            .cast::<SystemBackdrop>()?;
+        base.OnTargetDisconnected(target.as_ref())?;
 
         let target = target.ok()?;
 
@@ -142,9 +140,13 @@ impl ISystemBackdropOverrides_Impl for CustomDesktopAcrylicBackdrop_Impl {
         target: Ref<ICompositionSupportsSystemBackdrop>,
         root: Ref<MUX::XamlRoot>,
     ) -> Result<()> {
-        self.base()?
-            .cast::<ISystemBackdropOverrides>()?
-            .OnDefaultSystemBackdropConfigurationChanged(target.as_ref(), root.as_ref())?;
+        let base = self
+            .base
+            .as_option()
+            .as_ref()
+            .ok_or_else(|| Error::from_hresult(E_POINTER))?
+            .cast::<SystemBackdrop>()?;
+        base.OnDefaultSystemBackdropConfigurationChanged(target.as_ref(), root.as_ref())?;
 
         let target = target.ok()?;
 
@@ -155,26 +157,5 @@ impl ISystemBackdropOverrides_Impl for CustomDesktopAcrylicBackdrop_Impl {
             }
         }
         Ok(())
-    }
-}
-
-impl ChildClass for CustomDesktopAcrylicBackdrop {
-    type BaseType = SystemBackdrop;
-    type FactoryInterface = ISystemBackdropFactory;
-
-    fn create_interface_fn(vtable: &ISystemBackdropFactory_Vtbl) -> CreateInstanceFn {
-        vtable.CreateInstance
-    }
-
-    fn identity_vtable(vtable: &mut Self::Outer) -> &mut &'static IInspectable_Vtbl {
-        &mut vtable.identity
-    }
-
-    fn ref_count(vtable: &Self::Outer) -> &WeakRefCount {
-        &vtable.count
-    }
-
-    fn into_outer(self) -> Self::Outer {
-        Self::into_outer(self)
     }
 }

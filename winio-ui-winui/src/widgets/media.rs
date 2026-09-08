@@ -1,10 +1,13 @@
 use std::time::Duration;
 
 use inherit_methods_macro::inherit_methods;
-use windows::{Foundation::Uri, Media::Core::MediaSource, core::Interface};
+use windows_core::Interface;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
-use winui3::Microsoft::UI::Xaml::Controls as MUXC;
+use winui3::{
+    Microsoft::UI::Xaml::Controls as MUXC,
+    Windows::{Foundation::Uri, Media::Core::MediaSource},
+};
 
 use crate::{Result, Widget};
 
@@ -82,21 +85,23 @@ impl Media {
             .mpe
             .MediaPlayer()
             .and_then(|player| player.NaturalDuration())
-            .map(|d| d.into())
-            .ok())
+            .ok()
+            .and_then(|d| d.try_into().ok()))
     }
 
     pub fn current_time(&self) -> Result<Duration> {
         if let Ok(player) = self.mpe.MediaPlayer() {
-            Ok(player.Position()?.into())
+            Ok(player.Position()?.try_into().unwrap_or_default())
         } else {
             Ok(Duration::ZERO)
         }
     }
 
     pub fn set_current_time(&mut self, t: Duration) -> Result<()> {
-        if let Ok(player) = self.mpe.MediaPlayer() {
-            player.SetPosition(t.into()).ok();
+        if let Ok(player) = self.mpe.MediaPlayer()
+            && let Ok(t) = t.try_into()
+        {
+            player.SetPosition(t).ok();
         }
         Ok(())
     }

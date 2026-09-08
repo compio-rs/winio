@@ -5,19 +5,19 @@ use cookie::Cookie;
 use futures_util::TryFutureExt;
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
-use windows::{
-    Foundation::{TypedEventHandler, Uri},
-    Win32::Foundation::E_INVALIDARG,
-    core::{HSTRING, Interface, h},
-};
+use windows_core::{HSTRING, Interface, h};
+use windows_subset::Win32::E_INVALIDARG;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
-use winui3::Microsoft::{
-    UI::Xaml::Controls as MUXC,
-    Web::WebView2::Core::{
-        CoreWebView2Cookie, CoreWebView2CookieManager, CoreWebView2CookieSameSiteKind,
+use winui3::{
+    Microsoft::{
+        UI::Xaml::Controls as MUXC,
+        Web::WebView2::Core::{
+            CoreWebView2Cookie, CoreWebView2CookieManager, CoreWebView2CookieSameSiteKind,
+        },
     },
+    Windows::Foundation::Uri,
 };
 
 use crate::{Error, GlobalRuntime, Result, Widget};
@@ -36,30 +36,32 @@ impl WebView {
         #[cfg(feature = "webview-system")]
         {
             fn add_webview2sdk_path() -> Result<()> {
-                use windows::{
-                    Win32::{
-                        System::LibraryLoader::{
-                            AddDllDirectory, LOAD_LIBRARY_SEARCH_SYSTEM32,
-                            LOAD_LIBRARY_SEARCH_USER_DIRS, SetDefaultDllDirectories,
-                        },
-                        UI::Shell::{
-                            CSIDL_WINDOWS, PATHCCH_NONE, PathCchCombineEx, SHGetSpecialFolderPathW,
-                        },
-                    },
-                    core::{PCWSTR, w},
+                use windows_core::{PCWSTR, PWSTR, w};
+                use windows_subset::Win32::{
+                    AddDllDirectory, CSIDL_WINDOWS, LOAD_LIBRARY_SEARCH_SYSTEM32,
+                    LOAD_LIBRARY_SEARCH_USER_DIRS, PATHCCH_NONE, PathCchCombineEx,
+                    SHGetSpecialFolderPathW, SetDefaultDllDirectories,
                 };
 
                 unsafe {
                     SetDefaultDllDirectories(
                         LOAD_LIBRARY_SEARCH_USER_DIRS | LOAD_LIBRARY_SEARCH_SYSTEM32,
-                    )?;
+                    )
+                    .ok()?;
 
                     let mut buffer = [0u16; 260];
-                    SHGetSpecialFolderPathW(None, &mut buffer, CSIDL_WINDOWS as _, false).ok()?;
+                    SHGetSpecialFolderPathW(
+                        None,
+                        PWSTR(buffer.as_mut_ptr()),
+                        CSIDL_WINDOWS as _,
+                        false,
+                    )
+                    .ok()?;
                     // It's allowed to call `PathCchCombineEx` with a inplace buffer.
                     let input = PCWSTR(buffer.as_ptr());
                     PathCchCombineEx(
-                        &mut buffer,
+                        PWSTR(buffer.as_mut_ptr()),
+                        buffer.len() as _,
                         input,
                         w!(r"SystemApps\Shared\WebView2SDK"),
                         PATHCCH_NONE,
@@ -89,18 +91,20 @@ impl WebView {
         let on_navigating = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_navigating = on_navigating.clone();
-            view.NavigationStarting(&TypedEventHandler::new(move |_, _| {
+            view.NavigationStarting(move |_, _| {
                 on_navigating.signal::<GlobalRuntime>(());
                 Ok(())
-            }))?;
+            })?
+            .forget();
         }
         let on_navigated = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_navigated = on_navigated.clone();
-            view.NavigationCompleted(&TypedEventHandler::new(move |_, _| {
+            view.NavigationCompleted(move |_, _| {
                 on_navigated.signal::<GlobalRuntime>(());
                 Ok(())
-            }))?;
+            })?
+            .forget();
         }
         Ok(Self {
             on_navigating,

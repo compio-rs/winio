@@ -142,6 +142,7 @@ impl Component for MediaPage {
             },
             self.time_label => {},
             self.volume_slider => {},
+            self.volume_label => {},
             self.time_slider => {},
             self.play_button => {
                 ButtonEvent::Click => MediaPageMessage::Play,

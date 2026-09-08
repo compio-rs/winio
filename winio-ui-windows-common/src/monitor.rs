@@ -44,7 +44,7 @@ unsafe extern "system" fn enum_monitor(m: HMONITOR, _: HDC, _: *mut RECT, res: L
     if r < 0 {
         error!(
             "GetDpiForMonitor: {:?}",
-            crate::Error::from_hresult(windows::core::HRESULT(r))
+            crate::Error::from_hresult(windows_core::HRESULT(r))
         );
         return 0;
     }

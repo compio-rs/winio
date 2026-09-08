@@ -1,41 +1,22 @@
-use std::{cell::Cell, mem::ManuallyDrop, ops::Deref, ptr::null_mut, rc::Rc};
+use std::{cell::Cell, mem::ManuallyDrop, ops::Deref, rc::Rc};
 
 use compio_log::error;
 use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
-use windows::{
-    Win32::{
-        Foundation::{D2DERR_RECREATE_TARGET, E_POINTER, HMODULE},
-        Graphics::{
-            Direct2D::{
-                Common::{D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_COLOR_F, D2D1_PIXEL_FORMAT},
-                D2D1_BITMAP_OPTIONS_CANNOT_DRAW, D2D1_BITMAP_OPTIONS_TARGET,
-                D2D1_BITMAP_PROPERTIES1, D2D1_DEVICE_CONTEXT_OPTIONS_NONE, ID2D1Bitmap1,
-                ID2D1Device, ID2D1DeviceContext,
-            },
-            Direct3D::{
-                D3D_DRIVER_TYPE_HARDWARE, D3D_FEATURE_LEVEL_9_1, D3D_FEATURE_LEVEL_9_2,
-                D3D_FEATURE_LEVEL_9_3, D3D_FEATURE_LEVEL_10_0, D3D_FEATURE_LEVEL_10_1,
-                D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_11_1,
-            },
-            Direct3D11::{
-                D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_SDK_VERSION, D3D11CreateDevice,
-                ID3D11Device, ID3D11DeviceContext,
-            },
-            DirectWrite::{DWRITE_FACTORY_TYPE_SHARED, DWriteCreateFactory, IDWriteFactory},
-            Dxgi::{
-                Common::{
-                    DXGI_ALPHA_MODE_PREMULTIPLIED, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_SAMPLE_DESC,
-                },
-                DXGI_ERROR_DEVICE_REMOVED, DXGI_ERROR_DEVICE_RESET, DXGI_MATRIX_3X2_F,
-                DXGI_PRESENT, DXGI_SCALING_STRETCH, DXGI_SWAP_CHAIN_DESC1, DXGI_SWAP_CHAIN_FLAG,
-                DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, DXGI_USAGE_RENDER_TARGET_OUTPUT, IDXGIDevice1,
-                IDXGIFactory2, IDXGISurface, IDXGISwapChain1, IDXGISwapChain2,
-            },
-        },
-    },
-    core::{BOOL, Interface},
+use windows_core::{BOOL, Interface};
+use windows_subset::Win32::{
+    D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_BITMAP_OPTIONS_CANNOT_DRAW, D2D1_BITMAP_OPTIONS_TARGET,
+    D2D1_BITMAP_PROPERTIES1, D2D1_COLOR_F, D2D1_DEVICE_CONTEXT_OPTIONS_NONE, D2D1_PIXEL_FORMAT,
+    D2DERR_RECREATE_TARGET, D3D_DRIVER_TYPE_HARDWARE, D3D_FEATURE_LEVEL_9_1, D3D_FEATURE_LEVEL_9_2,
+    D3D_FEATURE_LEVEL_9_3, D3D_FEATURE_LEVEL_10_0, D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_11_0,
+    D3D_FEATURE_LEVEL_11_1, D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_SDK_VERSION, D3D11CreateDevice,
+    DWRITE_FACTORY_TYPE_SHARED, DWriteCreateFactory, DXGI_ALPHA_MODE_PREMULTIPLIED,
+    DXGI_ERROR_DEVICE_REMOVED, DXGI_ERROR_DEVICE_RESET, DXGI_FORMAT_B8G8R8A8_UNORM,
+    DXGI_MATRIX_3X2_F, DXGI_SAMPLE_DESC, DXGI_SCALING_STRETCH, DXGI_SWAP_CHAIN_DESC1,
+    DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, DXGI_USAGE_RENDER_TARGET_OUTPUT, E_POINTER, ID2D1Bitmap1,
+    ID2D1Device, ID2D1DeviceContext, ID3D11Device, ID3D11DeviceContext, IDWriteFactory,
+    IDXGIDevice1, IDXGIFactory2, IDXGISurface, IDXGISwapChain1, IDXGISwapChain2,
 };
 use winio_callback::Callback;
 use winio_handle::AsContainer;
@@ -50,7 +31,7 @@ use winui3::{
         Input::{PointerDeviceType, PointerPointProperties},
         Xaml::{
             Controls::{self as MUXC, SwapChainPanel},
-            Input::{PointerEventHandler, PointerRoutedEventArgs},
+            Input::PointerRoutedEventArgs,
         },
     },
 };
@@ -79,52 +60,60 @@ impl CanvasImpl {
         {
             let on_press = on_press.clone();
             let mouse_button_cache = mouse_button_cache.clone();
-            panel.PointerPressed(&PointerEventHandler::new(move |sender, args| {
-                let panel = sender.ok()?.cast::<SwapChainPanel>()?;
-                let args = args.ok()?;
-                let mouse = mouse_button(&panel, args)?;
-                mouse_button_cache.set(mouse);
-                on_press.signal::<GlobalRuntime>(mouse);
-                Ok(())
-            }))?;
+            panel
+                .PointerPressed(move |sender, args| {
+                    let panel = sender.ok()?.cast::<SwapChainPanel>()?;
+                    let args = args.ok()?;
+                    let mouse = mouse_button(&panel, args)?;
+                    mouse_button_cache.set(mouse);
+                    on_press.signal::<GlobalRuntime>(mouse);
+                    Ok(())
+                })?
+                .forget();
         }
         let on_release = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_release = on_release.clone();
             let mouse_button_cache = mouse_button_cache.clone();
-            panel.PointerReleased(&PointerEventHandler::new(move |_, _| {
-                let mouse = mouse_button_cache.get();
-                on_release.signal::<GlobalRuntime>(mouse);
-                mouse_button_cache.set(MouseButton::Other);
-                Ok(())
-            }))?;
+            panel
+                .PointerReleased(move |_, _| {
+                    let mouse = mouse_button_cache.get();
+                    on_release.signal::<GlobalRuntime>(mouse);
+                    mouse_button_cache.set(MouseButton::Other);
+                    Ok(())
+                })?
+                .forget();
         }
         let on_move = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_move = on_move.clone();
-            panel.PointerMoved(&PointerEventHandler::new(move |sender, args| {
-                let panel = sender.ok()?.cast::<SwapChainPanel>()?;
-                let args = args.ok()?;
-                let point = args.GetCurrentPoint(&panel)?;
-                on_move.signal::<GlobalRuntime>(Point::from_native(point.Position()?));
-                Ok(())
-            }))?;
+            panel
+                .PointerMoved(move |sender, args| {
+                    let panel = sender.ok()?.cast::<SwapChainPanel>()?;
+                    let args = args.ok()?;
+                    let point = args.GetCurrentPoint(&panel)?;
+                    on_move.signal::<GlobalRuntime>(Point::from_native(point.Position()?));
+                    Ok(())
+                })?
+                .forget();
         }
         let on_wheel = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_wheel = on_wheel.clone();
-            panel.PointerWheelChanged(&PointerEventHandler::new(move |sender, args| {
-                let panel = sender.ok()?.cast::<SwapChainPanel>()?;
-                let args = args.ok()?;
-                let point = args.GetCurrentPoint(&panel)?;
-                let props = point.Properties()?;
-                let delta = props.MouseWheelDelta()?;
-                let orient = props.Orientation()? / 180.0 * std::f32::consts::PI;
-                let deltay = orient.cos() as f64 * delta as f64;
-                let deltax = -orient.sin() as f64 * delta as f64;
-                on_wheel.signal::<GlobalRuntime>(Vector::new(deltax, deltay));
-                Ok(())
-            }))?;
+            panel
+                .PointerWheelChanged(move |sender, args| {
+                    let panel = sender.ok()?.cast::<SwapChainPanel>()?;
+                    let args = args.ok()?;
+                    let point = args.GetCurrentPoint(&panel)?;
+                    let props = point.Properties()?;
+                    let delta = props.MouseWheelDelta()?;
+                    let orient = props.Orientation()? / 180.0 * std::f32::consts::PI;
+                    let deltay = orient.cos() as f64 * delta as f64;
+                    let deltax = -orient.sin() as f64 * delta as f64;
+                    on_wheel.signal::<GlobalRuntime>(Vector::new(deltax, deltay));
+                    Ok(())
+                })?
+                .forget();
         }
 
         Ok(Self {
@@ -235,7 +224,7 @@ impl SwapChain {
             D3D11CreateDevice(
                 None,
                 D3D_DRIVER_TYPE_HARDWARE,
-                HMODULE(null_mut()),
+                None,
                 D3D11_CREATE_DEVICE_BGRA_SUPPORT,
                 Some(&[
                     D3D_FEATURE_LEVEL_11_1,
@@ -315,7 +304,7 @@ impl SwapChain {
                 (size.width as f32 * scalex).max(1.0) as _,
                 (size.height as f32 * scaley).max(1.0) as _,
                 DXGI_FORMAT_B8G8R8A8_UNORM,
-                DXGI_SWAP_CHAIN_FLAG(0),
+                0,
             )?;
             let matrix = DXGI_MATRIX_3X2_F {
                 _11: 1.0 / scalex,
@@ -369,7 +358,7 @@ impl SwapChain {
     pub fn end_draw(&mut self) -> Result<()> {
         unsafe {
             self.d2d1_context.EndDraw(None, None)?;
-            self.swap_chain.Present(1, DXGI_PRESENT(0)).ok()?;
+            self.swap_chain.Present(1, 0)?;
         }
         Ok(())
     }

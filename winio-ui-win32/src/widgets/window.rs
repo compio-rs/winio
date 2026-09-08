@@ -7,7 +7,7 @@ use std::{
 use futures_util::FutureExt;
 use inherit_methods_macro::inherit_methods;
 use widestring::{U16CStr, U16CString, U16Str, u16cstr};
-use windows::core::HRESULT;
+use windows_core::WIN32_ERROR;
 use windows_sys::Win32::{
     Foundation::{ERROR_INVALID_HANDLE, HWND, LPARAM, LRESULT, SetLastError, WPARAM},
     Graphics::Gdi::{GetStockObject, InvalidateRect, MapWindowPoints, WHITE_BRUSH},
@@ -339,7 +339,10 @@ impl Widget {
         );
         match res {
             Ok(_) => Ok(()),
-            Err(e) if e.code().is_ok() || e.code() == HRESULT::from_win32(ERROR_INVALID_HANDLE) => {
+            Err(e)
+                if e.code().is_ok()
+                    || e.code() == WIN32_ERROR(ERROR_INVALID_HANDLE).to_hresult() =>
+            {
                 Ok(())
             }
             Err(e) => Err(e),

@@ -2,7 +2,7 @@ use std::ptr::{null, null_mut};
 
 use futures_util::FutureExt;
 use widestring::U16CString;
-use windows::core::HRESULT;
+use windows_core::HRESULT;
 use windows_sys::Win32::{
     Foundation::HWND,
     UI::{

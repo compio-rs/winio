@@ -1,20 +1,13 @@
 use std::ffi::OsString;
 
 use widestring::U16CString;
-use windows::{
-    Win32::{
-        Foundation::{ERROR_CANCELLED, HWND},
-        System::Com::{
-            CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx,
-            CoTaskMemFree, CoUninitialize,
-        },
-        UI::Shell::{
-            Common::COMDLG_FILTERSPEC, FOS_ALLOWMULTISELECT, FOS_PICKFOLDERS, FileOpenDialog,
-            FileSaveDialog, IFileDialog, IFileOpenDialog, SIGDN_FILESYSPATH,
-        },
-    },
-    core::{HRESULT, Interface, PCWSTR},
+use windows_core::{Interface, PCWSTR, PWSTR, WIN32_ERROR};
+use windows_subset::Win32::{
+    CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, COMDLG_FILTERSPEC, CoCreateInstance,
+    CoInitializeEx, CoTaskMemFree, CoUninitialize, FOS_ALLOWMULTISELECT, FOS_PICKFOLDERS,
+    FileOpenDialog, FileSaveDialog, HWND, IFileDialog, IFileOpenDialog, SIGDN_FILESYSPATH,
 };
+use windows_sys::Win32::Foundation::ERROR_CANCELLED;
 use winio_handle::AsWindow;
 
 use crate::Result;
@@ -155,7 +148,7 @@ fn filebox(
     parent: Option<HWND>,
     title: U16CString,
     filename: U16CString,
-    filters: Vec<FileFilter>,
+    mut filters: Vec<FileFilter>,
     open: bool,
     multiple: bool,
     folder: bool,
@@ -177,10 +170,10 @@ fn filebox(
         }
 
         let types = filters
-            .iter()
+            .iter_mut()
             .map(|filter| COMDLG_FILTERSPEC {
-                pszName: PCWSTR(filter.name.as_ptr()),
-                pszSpec: PCWSTR(filter.pattern.as_ptr()),
+                pszName: PWSTR(filter.name.as_mut_ptr()),
+                pszSpec: PWSTR(filter.pattern.as_mut_ptr()),
             })
             .collect::<Vec<_>>();
         handle.SetFileTypes(&types)?;
@@ -203,7 +196,7 @@ fn filebox(
 
         let handle = match handle.Show(parent) {
             Ok(()) => Some(handle),
-            Err(e) if e.code() == HRESULT::from(ERROR_CANCELLED) => None,
+            Err(e) if e.code() == WIN32_ERROR(ERROR_CANCELLED).to_hresult() => None,
             Err(e) => return Err(e),
         };
 
@@ -288,7 +281,7 @@ struct CoInitialize;
 impl CoInitialize {
     pub fn init() -> Result<Self> {
         unsafe {
-            CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok()?;
+            CoInitializeEx(None, COINIT_APARTMENTTHREADED as _)?;
         }
         Ok(Self)
     }

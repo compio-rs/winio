@@ -2,13 +2,13 @@ use std::rc::Rc;
 
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
-use windows::core::{HSTRING, Interface};
+use windows_core::{HSTRING, Interface};
 use winio_callback::Callback;
 use winio_handle::{AsContainer, AsWidget, BorrowedContainer};
 use winio_primitive::{HAlign, Point, Size};
 use winui3::Microsoft::UI::Xaml::{
-    Controls::{self as MUXC, ScrollBarVisibility, ScrollViewer, TextChangedEventHandler},
-    RoutedEventHandler, TextWrapping, Visibility,
+    Controls::{self as MUXC, ScrollBarVisibility, ScrollViewer},
+    TextWrapping, Visibility,
 };
 
 use crate::{GlobalRuntime, Result, Widget, widgets::Convertible};
@@ -31,17 +31,21 @@ impl Edit {
         let on_change = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_change = on_change.clone();
-            text_box.TextChanged(&TextChangedEventHandler::new(move |_, _| {
-                on_change.signal::<GlobalRuntime>(());
-                Ok(())
-            }))?;
+            text_box
+                .TextChanged(move |_, _| {
+                    on_change.signal::<GlobalRuntime>(());
+                    Ok(())
+                })?
+                .forget();
         }
         {
             let on_change = on_change.clone();
-            password_box.PasswordChanged(&RoutedEventHandler::new(move |_, _| {
-                on_change.signal::<GlobalRuntime>(());
-                Ok(())
-            }))?;
+            password_box
+                .PasswordChanged(move |_, _| {
+                    on_change.signal::<GlobalRuntime>(());
+                    Ok(())
+                })?
+                .forget();
         }
 
         Ok(Self {
@@ -205,10 +209,12 @@ impl TextBox {
         let on_change = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_change = on_change.clone();
-            text_box.TextChanged(&TextChangedEventHandler::new(move |_, _| {
-                on_change.signal::<GlobalRuntime>(());
-                Ok(())
-            }))?;
+            text_box
+                .TextChanged(move |_, _| {
+                    on_change.signal::<GlobalRuntime>(());
+                    Ok(())
+                })?
+                .forget();
         }
         Ok(Self {
             on_change,

@@ -1,6 +1,6 @@
 #![warn(missing_docs)]
 
-use windows::core::{Error, HRESULT};
+use windows_core::HRESULT;
 use windows_sys::Win32::{
     Foundation::HWND,
     Graphics::Dwm::{
@@ -9,7 +9,7 @@ use windows_sys::Win32::{
     },
 };
 
-use crate::{Result, get_nt_build};
+use crate::{Error, Result, get_nt_build};
 
 /// Backdrop effects for windows.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
