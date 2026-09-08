@@ -126,7 +126,7 @@ pub unsafe fn window_use_dark_mode(h_wnd: HWND) -> Result<()> {
                 size_of::<BOOL>() as _,
             );
             if hr != 0 {
-                return windows::core::HRESULT(hr).ok();
+                return windows_core::HRESULT(hr).ok();
             }
         }
         FlushMenuThemes();
@@ -258,7 +258,7 @@ fn detour_attach() -> Result<()> {
     unsafe {
         let mut hooks = detour_hooks();
         let res = SlimDetoursInlineHooks(1, hooks.len() as _, hooks.as_mut_ptr());
-        windows::core::HRESULT(res).ok()
+        windows_core::HRESULT(res).ok()
     }
 }
 
@@ -660,7 +660,7 @@ pub unsafe fn control_use_dark_mode(hwnd: HWND, misc_task_dialog: bool) -> Resul
             null()
         };
         let res = SetWindowTheme(hwnd, subappname, null());
-        windows::core::HRESULT(res).ok()
+        windows_core::HRESULT(res).ok()
     }
 }
 

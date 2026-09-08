@@ -1,4 +1,4 @@
-use windows::UI::ViewManagement::{UIColorType, UISettings};
+use windows_subset::UI::ViewManagement::{UIColorType, UISettings};
 use winio_primitive::Color;
 
 /// Get the accent color.

@@ -5,34 +5,21 @@ use std::{
 
 use image::{DynamicImage, Pixel, Rgba, RgbaImage};
 use widestring::U16CString;
-use windows::{
-    Win32::Graphics::{
-        Direct2D::{
-            Common::{
-                D2D_RECT_F, D2D_SIZE_F, D2D_SIZE_U, D2D1_ALPHA_MODE_PREMULTIPLIED,
-                D2D1_BEZIER_SEGMENT, D2D1_COLOR_F, D2D1_FIGURE_BEGIN_HOLLOW,
-                D2D1_FIGURE_END_CLOSED, D2D1_FIGURE_END_OPEN, D2D1_GRADIENT_STOP,
-                D2D1_PIXEL_FORMAT,
-            },
-            D2D1_ARC_SEGMENT, D2D1_ARC_SIZE_LARGE, D2D1_ARC_SIZE_SMALL,
-            D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR, D2D1_BITMAP_PROPERTIES,
-            D2D1_BRUSH_PROPERTIES, D2D1_DEFAULT_FLATTENING_TOLERANCE,
-            D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT, D2D1_ELLIPSE, D2D1_EXTEND_MODE_CLAMP,
-            D2D1_GAMMA_2_2, D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES,
-            D2D1_RADIAL_GRADIENT_BRUSH_PROPERTIES, D2D1_ROUNDED_RECT,
-            D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_SWEEP_DIRECTION_COUNTER_CLOCKWISE, ID2D1Bitmap,
-            ID2D1Brush, ID2D1Factory, ID2D1Geometry, ID2D1GeometrySink, ID2D1PathGeometry,
-            ID2D1RenderTarget,
-        },
-        DirectWrite::{
-            DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STYLE_NORMAL,
-            DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_WEIGHT_NORMAL, IDWriteFactory, IDWriteTextLayout,
-        },
-        Dxgi::Common::DXGI_FORMAT_R8G8B8A8_UNORM,
-    },
-    core::Interface,
+use windows_core::Interface;
+use windows_subset::Win32::{
+    D2D_MATRIX_3X2_F, D2D_MATRIX_3X2_F_0, D2D_MATRIX_3X2_F_0_1, D2D_POINT_2F, D2D_RECT_F,
+    D2D_SIZE_F, D2D_SIZE_U, D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_ARC_SEGMENT, D2D1_ARC_SIZE_LARGE,
+    D2D1_ARC_SIZE_SMALL, D2D1_BEZIER_SEGMENT, D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR,
+    D2D1_BITMAP_PROPERTIES, D2D1_BRUSH_PROPERTIES, D2D1_COLOR_F, D2D1_DEFAULT_FLATTENING_TOLERANCE,
+    D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT, D2D1_ELLIPSE, D2D1_EXTEND_MODE_CLAMP,
+    D2D1_FIGURE_BEGIN_HOLLOW, D2D1_FIGURE_END_CLOSED, D2D1_FIGURE_END_OPEN, D2D1_GAMMA_2_2,
+    D2D1_GRADIENT_STOP, D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES, D2D1_PIXEL_FORMAT,
+    D2D1_RADIAL_GRADIENT_BRUSH_PROPERTIES, D2D1_ROUNDED_RECT, D2D1_SWEEP_DIRECTION_CLOCKWISE,
+    D2D1_SWEEP_DIRECTION_COUNTER_CLOCKWISE, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC,
+    DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_WEIGHT_NORMAL,
+    DXGI_FORMAT_R8G8B8A8_UNORM, ID2D1Bitmap, ID2D1Brush, ID2D1Factory, ID2D1Geometry,
+    ID2D1GeometrySink, ID2D1PathGeometry, ID2D1RenderTarget, IDWriteFactory, IDWriteTextLayout,
 };
-use windows_numerics::{Matrix3x2, Vector2};
 use winio_primitive::{
     BrushPen, Color, Font, GradientStop, LinearGradientBrush, Point, RadialGradientBrush, Rect,
     RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform, Vector,
@@ -49,10 +36,10 @@ fn color_f(c: Color) -> D2D1_COLOR_F {
     }
 }
 
-const fn point_2f(p: Point) -> Vector2 {
-    Vector2 {
-        X: p.x as f32,
-        Y: p.y as f32,
+const fn point_2f(p: Point) -> D2D_POINT_2F {
+    D2D_POINT_2F {
+        x: p.x as f32,
+        y: p.y as f32,
     }
 }
 
@@ -72,14 +59,18 @@ fn rect_f(r: Rect) -> D2D_RECT_F {
     }
 }
 
-fn matrix_f(m: Transform) -> Matrix3x2 {
-    Matrix3x2 {
-        M11: m.m11 as _,
-        M12: m.m12 as _,
-        M21: m.m21 as _,
-        M22: m.m22 as _,
-        M31: m.m31 as _,
-        M32: m.m32 as _,
+const fn matrix_f(m: Transform) -> D2D_MATRIX_3X2_F {
+    D2D_MATRIX_3X2_F {
+        Anonymous: D2D_MATRIX_3X2_F_0 {
+            Anonymous2: D2D_MATRIX_3X2_F_0_1 {
+                _11: m.m11 as _,
+                _12: m.m12 as _,
+                _21: m.m21 as _,
+                _22: m.m22 as _,
+                _31: m.m31 as _,
+                _32: m.m32 as _,
+            },
+        },
     }
 }
 
@@ -181,7 +172,7 @@ impl DrawingContext {
         unsafe {
             let f = U16CString::from_str_truncate(&font.family);
             let format = self.dwrite.CreateTextFormat(
-                windows::core::PCWSTR::from_raw(f.as_ptr()),
+                windows_core::PCWSTR::from_raw(f.as_ptr()),
                 None,
                 if font.bold {
                     DWRITE_FONT_WEIGHT_BOLD
@@ -195,7 +186,7 @@ impl DrawingContext {
                 },
                 DWRITE_FONT_STRETCH_NORMAL,
                 font.size as f32,
-                windows::core::w!(""),
+                windows_core::w!(""),
             )?;
             let size = self.target.GetSize();
             let s = U16CString::from_str_truncate(s);
@@ -227,14 +218,16 @@ impl DrawingContext {
             self.target.GetTransform(matrix.as_mut_ptr());
             matrix.assume_init()
         };
-        Ok(Transform::new(
-            matrix.M11 as f64,
-            matrix.M12 as f64,
-            matrix.M21 as f64,
-            matrix.M22 as f64,
-            matrix.M31 as f64,
-            matrix.M32 as f64,
-        ))
+        Ok(unsafe {
+            Transform::new(
+                matrix.Anonymous.Anonymous2._11 as f64,
+                matrix.Anonymous.Anonymous2._12 as f64,
+                matrix.Anonymous.Anonymous2._21 as f64,
+                matrix.Anonymous.Anonymous2._22 as f64,
+                matrix.Anonymous.Anonymous2._31 as f64,
+                matrix.Anonymous.Anonymous2._32 as f64,
+            )
+        })
     }
 
     pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) -> Result<()> {
@@ -523,14 +516,7 @@ impl DrawingPathBuilder {
     }
 }
 
-const MATRIX_IDENTITY: Matrix3x2 = Matrix3x2 {
-    M11: 1.0,
-    M12: 0.0,
-    M21: 0.0,
-    M22: 1.0,
-    M31: 0.0,
-    M32: 0.0,
-};
+const MATRIX_IDENTITY: D2D_MATRIX_3X2_F = matrix_f(Transform::new(1.0, 0.0, 0.0, 1.0, 0.0, 0.0));
 
 const BRUSH_PROPERTIES_DEFAULT: D2D1_BRUSH_PROPERTIES = D2D1_BRUSH_PROPERTIES {
     opacity: 1.0,
