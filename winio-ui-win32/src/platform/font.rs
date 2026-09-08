@@ -5,12 +5,10 @@ use std::{cell::RefCell, collections::BTreeMap, mem::MaybeUninit, sync::Mutex};
 #[cfg(not(feature = "once_cell_try"))]
 use once_cell::sync::OnceCell as OnceLock;
 use widestring::{U16CStr, U16Str};
-use windows::{
-    Win32::Graphics::DirectWrite::{
-        DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC,
-        DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_WEIGHT, DWriteCreateFactory, IDWriteFactory,
-    },
-    core::w,
+use windows_core::w;
+use windows_subset::Win32::{
+    DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC,
+    DWRITE_FONT_STYLE_NORMAL, DWriteCreateFactory, IDWriteFactory,
 };
 use windows_sys::Win32::{
     Foundation::HWND,
@@ -109,10 +107,19 @@ pub fn default_underline_font(dpi: u32) -> Result<HFONT> {
     }
 }
 
-static DWRITE_FACTORY: OnceLock<IDWriteFactory> = OnceLock::new();
+struct DWriteFactoryWrap(IDWriteFactory);
+
+unsafe impl Send for DWriteFactoryWrap {}
+unsafe impl Sync for DWriteFactoryWrap {}
+
+static DWRITE_FACTORY: OnceLock<DWriteFactoryWrap> = OnceLock::new();
 
 pub fn dwrite_factory() -> Result<&'static IDWriteFactory> {
-    DWRITE_FACTORY.get_or_try_init(|| unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED) })
+    DWRITE_FACTORY
+        .get_or_try_init(|| {
+            unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED) }.map(DWriteFactoryWrap)
+        })
+        .map(|wrap| &wrap.0)
 }
 
 pub fn measure_string(hwnd: HWND, s: &U16Str) -> Result<Size> {
@@ -131,9 +138,9 @@ pub fn measure_string(hwnd: HWND, s: &U16Str) -> Result<Size> {
 
         let factory = dwrite_factory()?;
         let format = factory.CreateTextFormat(
-            windows::core::PCWSTR::from_raw(font.lfFaceName.as_ptr()),
+            windows_core::PCWSTR::from_raw(font.lfFaceName.as_ptr()),
             None,
-            DWRITE_FONT_WEIGHT(font.lfWeight),
+            font.lfWeight,
             if font.lfItalic != 0 {
                 DWRITE_FONT_STYLE_ITALIC
             } else {

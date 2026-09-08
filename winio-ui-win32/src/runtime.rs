@@ -15,7 +15,7 @@ use std::{
 use compio_log::*;
 use futures_util::FutureExt;
 use slab::Slab;
-use windows::core::HRESULT;
+use windows_core::HRESULT;
 #[cfg(target_pointer_width = "64")]
 use windows_sys::Win32::UI::WindowsAndMessaging::SetClassLongPtrW;
 #[cfg(not(target_pointer_width = "64"))]

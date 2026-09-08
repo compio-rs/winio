@@ -4,17 +4,11 @@ use compio_log::error;
 use futures_util::FutureExt;
 use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
-use windows::Win32::{
-    Foundation::D2DERR_RECREATE_TARGET,
-    Graphics::{
-        Direct2D::{
-            Common::{D2D_SIZE_U, D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_COLOR_F, D2D1_PIXEL_FORMAT},
-            D2D1_FEATURE_LEVEL_DEFAULT, D2D1_HWND_RENDER_TARGET_PROPERTIES,
-            D2D1_PRESENT_OPTIONS_NONE, D2D1_RENDER_TARGET_PROPERTIES,
-            D2D1_RENDER_TARGET_TYPE_HARDWARE, D2D1_RENDER_TARGET_USAGE_NONE, ID2D1HwndRenderTarget,
-        },
-        Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM,
-    },
+use windows_subset::Win32::{
+    D2D_SIZE_U, D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_COLOR_F, D2D1_FEATURE_LEVEL_DEFAULT,
+    D2D1_HWND_RENDER_TARGET_PROPERTIES, D2D1_PIXEL_FORMAT, D2D1_PRESENT_OPTIONS_NONE,
+    D2D1_RENDER_TARGET_PROPERTIES, D2D1_RENDER_TARGET_TYPE_HARDWARE, D2D1_RENDER_TARGET_USAGE_NONE,
+    D2DERR_RECREATE_TARGET, DXGI_FORMAT_B8G8R8A8_UNORM, ID2D1HwndRenderTarget,
 };
 use windows_sys::Win32::{
     Foundation::{HWND, LPARAM, POINT, SetLastError},
@@ -172,7 +166,7 @@ fn create_target(handle: HWND) -> Result<ID2D1HwndRenderTarget> {
                 minLevel: D2D1_FEATURE_LEVEL_DEFAULT,
             },
             &D2D1_HWND_RENDER_TARGET_PROPERTIES {
-                hwnd: windows::Win32::Foundation::HWND(handle),
+                hwnd: windows_subset::Win32::HWND(handle),
                 pixelSize: D2D_SIZE_U::default(),
                 presentOptions: D2D1_PRESENT_OPTIONS_NONE,
             },

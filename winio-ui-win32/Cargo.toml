@@ -48,27 +48,15 @@ windows-sys = { workspace = true, features = [
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_UI_WindowsAndMessaging",
 ] }
-windows = { workspace = true, features = [
-    "Win32_Foundation",
-    "Win32_Graphics_Direct2D",
-    "Win32_Graphics_Direct2D_Common",
-    "Win32_Graphics_DirectWrite",
-    "Win32_Graphics_Dxgi_Common",
-] }
-windows-core = { workspace = true, optional = true }
+windows-core = { workspace = true }
+windows-subset = { workspace = true }
 webview2 = { workspace = true, optional = true }
 
 [features]
-media = [
-    "dep:winio-callback",
-    "dep:windows-core",
-    "dep:percent-encoding",
-    "windows/Win32_Media_MediaFoundation",
-]
+media = ["dep:winio-callback", "dep:percent-encoding"]
 webview = [
     "dep:winio-callback",
     "dep:webview2",
-    "dep:windows-core",
     "dep:local-sync",
     "dep:cookie",
     "dep:time",

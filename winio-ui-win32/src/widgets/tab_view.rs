@@ -5,7 +5,7 @@ use std::{
 };
 
 use inherit_methods_macro::inherit_methods;
-use windows::core::HRESULT;
+use windows_core::WIN32_ERROR;
 use windows_sys::{
     Win32::{
         Foundation::ERROR_ALREADY_EXISTS,
@@ -28,7 +28,7 @@ use winio_handle::{AsContainer, AsWidget, BorrowedContainer};
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{children_refresh_dark_mode, syscall};
 
-use crate::{Error, Result, View, Widget, WindowMessageNotify, widgets::with_u16c};
+use crate::{Result, View, Widget, WindowMessageNotify, widgets::with_u16c};
 
 #[derive(Debug)]
 pub struct TabView {
@@ -169,17 +169,13 @@ impl TabView {
 
     pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
         if item.inner.borrow().index.is_some() {
-            return Err(Error::from_hresult(HRESULT::from_win32(
-                ERROR_ALREADY_EXISTS,
-            )));
+            return Err(WIN32_ERROR(ERROR_ALREADY_EXISTS).to_hresult().into());
         }
         let item_hwnd = item.as_container().as_win32();
         let previous_parent = unsafe { GetParent(item_hwnd) };
         let new_parent = self.as_widget().as_win32();
         if previous_parent == new_parent {
-            return Err(Error::from_hresult(HRESULT::from_win32(
-                ERROR_ALREADY_EXISTS,
-            )));
+            return Err(WIN32_ERROR(ERROR_ALREADY_EXISTS).to_hresult().into());
         }
         unsafe { SetParent(item_hwnd, new_parent) };
 
