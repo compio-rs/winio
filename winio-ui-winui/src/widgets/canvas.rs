@@ -357,8 +357,8 @@ impl SwapChain {
 
     pub fn end_draw(&mut self) -> Result<()> {
         unsafe {
-            self.d2d1_context.EndDraw(None, None)?;
-            self.swap_chain.Present(1, 0)?;
+            self.d2d1_context.EndDraw(None, None).ok()?;
+            self.swap_chain.Present(1, 0).ok()?;
         }
         Ok(())
     }
@@ -467,7 +467,7 @@ impl<'a> DrawingContext<'a> {
     fn new(canvas: &'a mut Canvas) -> Result<Self> {
         Ok(Self {
             ctx: winio_ui_windows_common::DrawingContext::new(
-                d2d1_factory()?.into(),
+                d2d1_factory()?.clone().into(),
                 canvas.dwrite.clone(),
                 canvas.swap_chain.d2d1_context.clone().into(),
             ),

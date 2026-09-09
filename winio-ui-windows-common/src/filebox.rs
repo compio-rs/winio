@@ -281,7 +281,7 @@ struct CoInitialize;
 impl CoInitialize {
     pub fn init() -> Result<Self> {
         unsafe {
-            CoInitializeEx(None, COINIT_APARTMENTTHREADED as _)?;
+            CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok()?;
         }
         Ok(Self)
     }

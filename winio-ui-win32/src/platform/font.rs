@@ -107,19 +107,10 @@ pub fn default_underline_font(dpi: u32) -> Result<HFONT> {
     }
 }
 
-struct DWriteFactoryWrap(IDWriteFactory);
-
-unsafe impl Send for DWriteFactoryWrap {}
-unsafe impl Sync for DWriteFactoryWrap {}
-
-static DWRITE_FACTORY: OnceLock<DWriteFactoryWrap> = OnceLock::new();
+static DWRITE_FACTORY: OnceLock<IDWriteFactory> = OnceLock::new();
 
 pub fn dwrite_factory() -> Result<&'static IDWriteFactory> {
-    DWRITE_FACTORY
-        .get_or_try_init(|| {
-            unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED) }.map(DWriteFactoryWrap)
-        })
-        .map(|wrap| &wrap.0)
+    DWRITE_FACTORY.get_or_try_init(|| unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED) })
 }
 
 pub fn measure_string(hwnd: HWND, s: &U16Str) -> Result<Size> {

@@ -290,7 +290,7 @@ impl<'a> DrawingContext<'a> {
     fn new(canvas: &'a mut Canvas) -> Result<Self> {
         Ok(Self {
             ctx: winio_ui_windows_common::DrawingContext::new(
-                d2d1_factory()?.into(),
+                d2d1_factory()?.clone().into(),
                 dwrite_factory()?.clone(),
                 canvas.target.clone().into(),
             ),
@@ -302,7 +302,7 @@ impl<'a> DrawingContext<'a> {
     fn end_draw(&mut self) -> Result<()> {
         if !self.ended {
             unsafe {
-                match self.ctx.render_target().EndDraw(None, None) {
+                match self.ctx.render_target().EndDraw(None, None).ok() {
                     Ok(()) => {}
                     Err(e) if e.code() == D2DERR_RECREATE_TARGET => self.canvas.handle_lost()?,
                     Err(e) => return Err(e),

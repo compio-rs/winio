@@ -205,7 +205,7 @@ struct MFGuard;
 impl MFGuard {
     pub fn init() -> Result<Self> {
         unsafe {
-            CoInitializeEx(None, COINIT_APARTMENTTHREADED as _)?;
+            CoInitializeEx(None, COINIT_APARTMENTTHREADED as _).ok()?;
             MFStartup(MF_VERSION, MFSTARTUP_FULL)?;
         }
         Ok(Self)
