@@ -1,20 +1,17 @@
 use std::cell::RefCell;
 
+use windows::{UI::Color, Win32::Foundation::E_POINTER};
 use windows_core::{Interface, Ref, implement};
-use windows_subset::Win32::E_POINTER;
 use winio_primitive::ColorTheme;
-use winui3::{
-    Microsoft::UI::{
-        Composition::{
-            ICompositionSupportsSystemBackdrop,
-            SystemBackdrops::{DesktopAcrylicController, SystemBackdropConfiguration},
-        },
-        Xaml::{
-            self as MUX,
-            Media::{ISystemBackdropOverrides, ISystemBackdropOverrides_Impl, SystemBackdrop},
-        },
+use winui3::Microsoft::UI::{
+    Composition::{
+        ICompositionSupportsSystemBackdrop,
+        SystemBackdrops::{DesktopAcrylicController, SystemBackdropConfiguration},
     },
-    Windows::UI::Color,
+    Xaml::{
+        self as MUX,
+        Media::{ISystemBackdropOverrides, ISystemBackdropOverrides_Impl, SystemBackdrop},
+    },
 };
 
 use crate::{Error, Result, color_theme};

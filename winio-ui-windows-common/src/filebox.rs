@@ -1,12 +1,18 @@
 use std::ffi::OsString;
 
 use widestring::U16CString;
-use windows_core::{Interface, PCWSTR, PWSTR, WIN32_ERROR};
-use windows_subset::Win32::{
-    CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, COMDLG_FILTERSPEC, CoCreateInstance,
-    CoInitializeEx, CoTaskMemFree, CoUninitialize, FOS_ALLOWMULTISELECT, FOS_PICKFOLDERS,
-    FileOpenDialog, FileSaveDialog, HWND, IFileDialog, IFileOpenDialog, SIGDN_FILESYSPATH,
+use windows::Win32::{
+    Foundation::HWND,
+    System::Com::{
+        CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx,
+        CoTaskMemFree, CoUninitialize,
+    },
+    UI::Shell::{
+        Common::COMDLG_FILTERSPEC, FOS_ALLOWMULTISELECT, FOS_PICKFOLDERS, FileOpenDialog,
+        FileSaveDialog, IFileDialog, IFileOpenDialog, SIGDN_FILESYSPATH,
+    },
 };
+use windows_core::{Interface, PCWSTR, PWSTR, WIN32_ERROR};
 use windows_sys::Win32::Foundation::ERROR_CANCELLED;
 use winio_handle::AsWindow;
 

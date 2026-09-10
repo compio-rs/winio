@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
 use compio_log::error;
+use windows::Win32::Foundation::E_POINTER;
 use windows_core::{Interface, Weak};
-use windows_subset::Win32::E_POINTER;
 use winio_handle::{AsContainer, AsWidget, BorrowedWidget};
 use winio_primitive::{Point, Size};
 use winui3::Microsoft::UI::Xaml::{self as MUX, Controls as MUXC};

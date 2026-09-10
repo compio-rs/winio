@@ -7,8 +7,12 @@ use std::{
 
 use compio_log::*;
 use futures_util::FutureExt;
+use windows::{
+    Foundation::Uri,
+    UI::Xaml::Interop::TypeName,
+    Win32::{Foundation::E_POINTER, System::LibraryLoader::LoadLibraryW},
+};
 use windows_core::{Array, Error, HSTRING, Interface, Ref, WIN32_ERROR, h, implement, w};
-use windows_subset::Win32::{E_POINTER, LoadLibraryW};
 use windows_sys::Win32::Foundation::ERROR_MOD_NOT_FOUND;
 use winio_ui_windows_common::{PreferredAppMode, init_dark, set_preferred_app_mode};
 use winui3::{
@@ -26,9 +30,7 @@ use winui3::{
             XamlTypeInfo::XamlControlsXamlMetaDataProvider,
         },
     },
-    PackageDependency,
-    Windows::{Foundation::Uri, UI::Xaml::Interop::TypeName},
-    WindowsAppSDKVersion, init_apartment,
+    PackageDependency, WindowsAppSDKVersion, init_apartment,
 };
 
 use crate::Result;

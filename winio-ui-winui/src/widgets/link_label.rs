@@ -3,11 +3,12 @@ use std::rc::Rc;
 use compio_log::info;
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
+use windows::Foundation::Uri;
 use windows_core::{HSTRING, Interface};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Font, Point, Size};
-use winui3::{Microsoft::UI::Xaml::Controls as MUXC, Windows::Foundation::Uri};
+use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
 use crate::{
     GlobalRuntime, Result, Widget,

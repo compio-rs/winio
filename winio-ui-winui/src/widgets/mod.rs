@@ -1,14 +1,12 @@
+use windows::{
+    Graphics::{PointInt32, SizeInt32},
+    UI::Text::{FontStyle, FontWeight},
+};
 use windows_core::{HSTRING, Result};
 use winio_primitive::{ColorTheme, Font, HAlign, Orient, Point, Size};
 pub use winio_ui_windows_common::{Backdrop, FileBox, FileFilter, accent_color, monitor_get_all};
-use winui3::{
-    Microsoft::UI::Xaml::{
-        Application, Controls as MUXC, Controls::Orientation, Media::FontFamily, TextAlignment,
-    },
-    Windows::{
-        Graphics::{PointInt32, SizeInt32},
-        UI::Text::{FontStyle, FontWeight},
-    },
+use winui3::Microsoft::UI::Xaml::{
+    Application, Controls as MUXC, Controls::Orientation, Media::FontFamily, TextAlignment,
 };
 
 /// Read the font of a [`MUXC::TextBlock`].
@@ -68,26 +66,26 @@ impl Convertible<SizeInt32> for Size {
     }
 }
 
-impl Convertible<winui3::Windows::Foundation::Size> for Size {
-    fn from_native(native: winui3::Windows::Foundation::Size) -> Self {
+impl Convertible<windows::Foundation::Size> for Size {
+    fn from_native(native: windows::Foundation::Size) -> Self {
         Size::new(native.Width as _, native.Height as _)
     }
 
-    fn to_native(self) -> winui3::Windows::Foundation::Size {
-        winui3::Windows::Foundation::Size {
+    fn to_native(self) -> windows::Foundation::Size {
+        windows::Foundation::Size {
             Width: self.width as _,
             Height: self.height as _,
         }
     }
 }
 
-impl Convertible<winui3::Windows::Foundation::Point> for Point {
-    fn from_native(native: winui3::Windows::Foundation::Point) -> Self {
+impl Convertible<windows::Foundation::Point> for Point {
+    fn from_native(native: windows::Foundation::Point) -> Self {
         Point::new(native.X as _, native.Y as _)
     }
 
-    fn to_native(self) -> winui3::Windows::Foundation::Point {
-        winui3::Windows::Foundation::Point {
+    fn to_native(self) -> windows::Foundation::Point {
+        windows::Foundation::Point {
             X: self.x as _,
             Y: self.y as _,
         }

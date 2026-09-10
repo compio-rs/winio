@@ -2,28 +2,25 @@ use std::{cell::RefCell, rc::Rc};
 
 use futures_util::FutureExt;
 use send_wrapper::SendWrapper;
+use windows::{UI::Text::FontWeight, Win32::Foundation::E_POINTER};
 use windows_core::{HSTRING, Interface, h};
 use windows_reference::IReference;
-use windows_subset::Win32::E_POINTER;
 use windows_sys::Win32::Foundation::HWND;
 use winio_handle::AsWindow;
 use winio_primitive::{MessageBoxButton, MessageBoxResponse, MessageBoxStyle};
-use winui3::{
-    Microsoft::UI::{
-        WindowId,
-        Windowing::{AppWindow, OverlappedPresenter},
-        Xaml::{
-            Application,
-            Controls::{
-                BackgroundSizing, Button, ColumnDefinition, ContentDialog, ContentDialogButton,
-                Grid, RowDefinition, StackPanel, TextBlock,
-            },
-            GridLength, GridUnitType, HorizontalAlignment,
-            Media::Brush,
-            Style, TextWrapping, Thickness, XamlRoot,
+use winui3::Microsoft::UI::{
+    WindowId,
+    Windowing::{AppWindow, OverlappedPresenter},
+    Xaml::{
+        Application,
+        Controls::{
+            BackgroundSizing, Button, ColumnDefinition, ContentDialog, ContentDialogButton, Grid,
+            RowDefinition, StackPanel, TextBlock,
         },
+        GridLength, GridUnitType, HorizontalAlignment,
+        Media::Brush,
+        Style, TextWrapping, Thickness, XamlRoot,
     },
-    Windows::UI::Text::FontWeight,
 };
 
 use crate::{Error, ROOT_WINDOWS, Result};

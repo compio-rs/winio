@@ -3,7 +3,9 @@ use std::sync::OnceLock;
 
 #[cfg(not(feature = "once_cell_try"))]
 use once_cell::sync::OnceCell as OnceLock;
-use windows_subset::Win32::{D2D1_FACTORY_TYPE_MULTI_THREADED, D2D1CreateFactory, ID2D1Factory2};
+use windows::Win32::Graphics::Direct2D::{
+    D2D1_FACTORY_TYPE_MULTI_THREADED, D2D1CreateFactory, ID2D1Factory2,
+};
 
 static D2D1_FACTORY: OnceLock<ID2D1Factory2> = OnceLock::new();
 

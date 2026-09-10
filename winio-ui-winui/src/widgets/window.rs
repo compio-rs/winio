@@ -2,8 +2,8 @@ use std::{cell::RefCell, mem::MaybeUninit, rc::Rc, sync::Arc};
 
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
+use windows::{UI::ViewManagement::UISettings, Win32::Foundation::E_NOINTERFACE};
 use windows_core::{EventRevoker, Interface};
-use windows_subset::{UI::ViewManagement::UISettings, Win32::E_NOINTERFACE};
 use windows_sys::Win32::UI::{
     HiDpi::GetDpiForWindow,
     WindowsAndMessaging::{

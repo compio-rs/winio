@@ -5,7 +5,7 @@ use cookie::Cookie;
 use futures_util::FutureExt;
 use webview2::{
     COREWEBVIEW2_COOKIE_SAME_SITE_KIND_LAX, COREWEBVIEW2_COOKIE_SAME_SITE_KIND_NONE,
-    COREWEBVIEW2_COOKIE_SAME_SITE_KIND_STRICT, CreateCoreWebView2Environment, HWND, ICoreWebView2,
+    COREWEBVIEW2_COOKIE_SAME_SITE_KIND_STRICT, CreateCoreWebView2Environment, ICoreWebView2,
     ICoreWebView2_2, ICoreWebView2Controller, ICoreWebView2Cookie, ICoreWebView2CookieList,
     ICoreWebView2CookieManager, ICoreWebView2CreateCoreWebView2ControllerCompletedHandler,
     ICoreWebView2CreateCoreWebView2ControllerCompletedHandler_Impl,
@@ -16,10 +16,9 @@ use webview2::{
     ICoreWebView2NavigationCompletedEventArgs, ICoreWebView2NavigationCompletedEventHandler,
     ICoreWebView2NavigationCompletedEventHandler_Impl, ICoreWebView2NavigationStartingEventArgs,
     ICoreWebView2NavigationStartingEventHandler, ICoreWebView2NavigationStartingEventHandler_Impl,
-    RECT,
 };
+use windows::Win32::Foundation::{E_FAIL, E_INVALIDARG, HWND, RECT};
 use windows_core::{HRESULT, HSTRING, Interface, PCWSTR, Ref, WIN32_ERROR, implement};
-use windows_subset::Win32::{E_FAIL, E_INVALIDARG};
 use windows_sys::Win32::{Foundation::ERROR_CANCELLED, UI::HiDpi::GetDpiForWindow};
 use winio_callback::Callback;
 use winio_handle::{AsContainer, AsWidget, BorrowedWidget};
