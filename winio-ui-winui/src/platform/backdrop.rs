@@ -91,14 +91,16 @@ impl ISystemBackdropOverrides_Impl for CustomDesktopAcrylicBackdrop_Impl {
             .base
             .as_option()
             .as_ref()
-            .ok_or_else(|| Error::from_hresult(E_POINTER))?
-            .cast::<SystemBackdrop>()?;
-        base.OnTargetConnected(target.as_ref(), root.as_ref())?;
+            .ok_or_else(|| Error::from_hresult(E_POINTER))?;
+        base.cast::<ISystemBackdropOverrides>()?
+            .OnTargetConnected(target.as_ref(), root.as_ref())?;
 
         let target = target.ok()?;
         let root = root.ok()?;
 
-        let configuration = base.GetDefaultSystemBackdropConfiguration(target, root)?;
+        let configuration = base
+            .cast::<SystemBackdrop>()?
+            .GetDefaultSystemBackdropConfiguration(target, root)?;
         let controller = DesktopAcrylicController::new()?;
         // Magic number to match Win32.
         controller.SetLuminosityOpacity(0.65)?;
@@ -120,7 +122,7 @@ impl ISystemBackdropOverrides_Impl for CustomDesktopAcrylicBackdrop_Impl {
             .as_option()
             .as_ref()
             .ok_or_else(|| Error::from_hresult(E_POINTER))?
-            .cast::<SystemBackdrop>()?;
+            .cast::<ISystemBackdropOverrides>()?;
         base.OnTargetDisconnected(target.as_ref())?;
 
         let target = target.ok()?;
@@ -142,7 +144,7 @@ impl ISystemBackdropOverrides_Impl for CustomDesktopAcrylicBackdrop_Impl {
             .as_option()
             .as_ref()
             .ok_or_else(|| Error::from_hresult(E_POINTER))?
-            .cast::<SystemBackdrop>()?;
+            .cast::<ISystemBackdropOverrides>()?;
         base.OnDefaultSystemBackdropConfigurationChanged(target.as_ref(), root.as_ref())?;
 
         let target = target.ok()?;
