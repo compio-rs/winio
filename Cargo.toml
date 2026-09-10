@@ -74,9 +74,9 @@ widestring = "1"
 windows-sys = "0.61"
 windows-core = "0.100"
 
-windows-subset = { version = "0.1.0", package = "winio-windows-subset" }
-winui3 = { version = "0.5.0", package = "winio-winui3" }
-webview2 = { version = "0.3.0", package = "winio-webview2" }
+windows = { version = "0.2.0", package = "winio-windows-subset" }
+winui3 = { version = "0.6.0", package = "winio-winui3" }
+webview2 = { version = "0.3.1", package = "winio-webview2" }
 
 send_wrapper = "0.6"
 slim-detours-sys = "0.4"
