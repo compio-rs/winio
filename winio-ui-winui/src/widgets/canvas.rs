@@ -39,14 +39,12 @@ use winio_primitive::{
 };
 use winio_ui_windows_common::d2d1_factory;
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
-use winui3::{
-    ISwapChainPanelNative,
-    Microsoft::UI::{
-        Input::{PointerDeviceType, PointerPointProperties},
-        Xaml::{
-            Controls::{self as MUXC, SwapChainPanel},
-            Input::PointerRoutedEventArgs,
-        },
+use winui3::Microsoft::UI::{
+    Input::{PointerDeviceType, PointerPointProperties},
+    Xaml::{
+        Controls::{self as MUXC, SwapChainPanel},
+        Input::PointerRoutedEventArgs,
+        Media::DxInterop::ISwapChainPanelNative,
     },
 };
 

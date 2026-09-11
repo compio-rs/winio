@@ -4,7 +4,7 @@ use wgpu::{CreateSurfaceError, Instance, Surface, SurfaceTargetUnsafe};
 use windows_core::Interface;
 use winio_handle::AsContainer;
 use winio_primitive::{MouseButton, Point, Size, Vector};
-use winui3::ISwapChainPanelNative;
+use winui3::Microsoft::UI::Xaml::Media::DxInterop::ISwapChainPanelNative;
 
 use crate::{CanvasImpl, Result};
 

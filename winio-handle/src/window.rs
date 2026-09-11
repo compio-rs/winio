@@ -90,7 +90,7 @@ impl<'a> BorrowedWindow<'a> {
             #[cfg(feature = "winui")]
             BorrowedWindowInner::WinUI(window) => unsafe {
                 use windows_core::Interface;
-                use winui3::IWindowNative;
+                use winui3::Microsoft::UI::Xaml::IWindowNative;
                 Ok(window.cast::<IWindowNative>()?.WindowHandle()?.0)
             },
             #[cfg(not(any(feature = "win32", feature = "winui")))]

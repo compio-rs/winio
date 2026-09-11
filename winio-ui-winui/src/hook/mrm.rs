@@ -6,26 +6,14 @@ use std::{env::current_exe, sync::Once};
 use compio_log::error;
 use slim_detours_sys::SlimDetoursInlineHook;
 use sync_unsafe_cell::SyncUnsafeCell;
-use windows::Win32::System::{
-    Com::CoTaskMemAlloc,
-    LibraryLoader::{GetProcAddress, LoadLibraryW},
-};
-use windows_core::{HSTRING, Result, s, w};
-use windows_sys::{
-    Win32::{
-        Foundation::{E_NOTIMPL, ERROR_FILE_NOT_FOUND, S_OK},
-        System::Diagnostics::Debug::FACILITY_WIN32,
+use windows::Win32::{
+    Foundation::{E_NOTIMPL, ERROR_FILE_NOT_FOUND, S_OK},
+    System::{
+        Com::CoTaskMemAlloc,
+        LibraryLoader::{GetProcAddress, LoadLibraryW},
     },
-    core::{HRESULT, PCWSTR, PWSTR},
 };
-
-const fn hresult_from_win32(x: i32) -> HRESULT {
-    if x <= 0 {
-        x
-    } else {
-        ((x) & 0x0000FFFF) | ((FACILITY_WIN32 as HRESULT) << 16) | 0x80000000u32 as HRESULT
-    }
-}
+use windows_core::{HRESULT, HSTRING, PCWSTR, PWSTR, Result, s, w};
 
 type MrmGetFilePathFromNameFn =
     unsafe extern "system" fn(filename: PCWSTR, filepath: *mut PWSTR) -> HRESULT;
@@ -44,7 +32,7 @@ fn get_resource_filename() -> Option<PWSTR> {
         let slice: &mut [u16] = std::slice::from_raw_parts_mut(ptr.cast(), path.len() + 1);
         slice.get_unchecked_mut(..path.len()).copy_from_slice(&path);
         *slice.get_unchecked_mut(path.len()) = 0;
-        Some(ptr.cast())
+        Some(PWSTR(ptr.cast()))
     }
 }
 
@@ -55,7 +43,7 @@ unsafe extern "system" fn mrm_get_file_path_from_name(
     match unsafe { *TRUE_MRM_GET_FILE_PATH_FROM_NAME.get() } {
         Some(f) => {
             let mut res = unsafe { f(filename, filepath) };
-            if res == hresult_from_win32(ERROR_FILE_NOT_FOUND as _)
+            if res == ERROR_FILE_NOT_FOUND.to_hresult()
                 && let Some(ptr) = get_resource_filename()
                 && let Some(filepath) = unsafe { filepath.as_mut() }
             {
@@ -83,7 +71,7 @@ fn detour_attach() -> Result<()> {
             TRUE_MRM_GET_FILE_PATH_FROM_NAME.get().cast(),
             mrm_get_file_path_from_name as _,
         );
-        windows_core::HRESULT(res).ok()
+        HRESULT(res).ok()
     }
 }
 

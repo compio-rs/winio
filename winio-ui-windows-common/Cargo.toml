@@ -56,7 +56,6 @@ windows-sys = { workspace = true, features = [
 ] }
 windows-threading = "0.100"
 winui3 = { workspace = true, optional = true, features = [
-    "native",
     "UI_Xaml",
     "UI_Composition",
 ] }

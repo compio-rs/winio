@@ -33,22 +33,23 @@ time = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true, features = ["dx12"] }
 
 winui3 = { workspace = true, features = [
-    "native",
     "UI_Composition",
     "UI_Composition_SystemBackdrops",
     "UI_Dispatching",
     "UI_Windowing",
+    "UI_Xaml",
     "UI_Xaml_Controls",
     "UI_Xaml_Controls_Primitives",
     "UI_Xaml_Input",
     "UI_Xaml_Interop",
     "UI_Xaml_Markup",
     "UI_Xaml_Media",
+    "UI_Xaml_Media_DxInterop",
     "UI_Xaml_XamlTypeInfo",
 ] }
 windows-sys = { workspace = true, features = [
-    "Win32_System_Diagnostics_Debug",
     "Win32_UI_HiDpi",
+    "Win32_UI_WindowsAndMessaging",
 ] }
 windows = { workspace = true, features = [
     "Foundation",

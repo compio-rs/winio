@@ -16,16 +16,13 @@ use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{
     Backdrop, get_current_module_handle, set_backdrop, syscall, window_use_dark_mode,
 };
-use winui3::{
-    IWindowNative,
-    Microsoft::UI::{
-        Composition::SystemBackdrops::MicaKind,
-        IconId, WindowId,
-        Windowing::{AppWindow, TitleBarTheme},
-        Xaml::{
-            self as MUX, Controls as MUXC,
-            Media::{MicaBackdrop, SystemBackdrop},
-        },
+use winui3::Microsoft::UI::{
+    Composition::SystemBackdrops::MicaKind,
+    IconId, WindowId,
+    Windowing::{AppWindow, TitleBarTheme},
+    Xaml::{
+        self as MUX, Controls as MUXC, IWindowNative,
+        Media::{MicaBackdrop, SystemBackdrop},
     },
 };
 
