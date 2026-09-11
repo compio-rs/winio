@@ -2,15 +2,21 @@ use std::{mem::MaybeUninit, sync::Arc, time::Duration};
 
 use compio_log::error;
 use inherit_methods_macro::inherit_methods;
-use windows_core::{BSTR, Error, HRESULT, Interface, implement};
-use windows_subset::Win32::{
-    CLSCTX_INPROC_SERVER, CLSID_MFMediaEngineClassFactory, COINIT_APARTMENTTHREADED,
-    CoCreateInstance, CoInitializeEx, CoUninitialize, E_FAIL, E_POINTER, IMFMediaEngine,
-    IMFMediaEngineClassFactory, IMFMediaEngineEx, IMFMediaEngineNotify, IMFMediaEngineNotify_Impl,
-    MF_MEDIA_ENGINE_CALLBACK, MF_MEDIA_ENGINE_EVENT_CANPLAY, MF_MEDIA_ENGINE_EVENT_ERROR,
-    MF_MEDIA_ENGINE_PLAYBACK_HWND, MF_VERSION, MFCreateAttributes, MFSTARTUP_FULL, MFShutdown,
-    MFStartup,
+use windows::Win32::{
+    Foundation::{E_FAIL, E_POINTER},
+    Media::MediaFoundation::{
+        CLSID_MFMediaEngineClassFactory, IMFMediaEngine, IMFMediaEngineClassFactory,
+        IMFMediaEngineEx, IMFMediaEngineNotify, IMFMediaEngineNotify_Impl,
+        MF_MEDIA_ENGINE_CALLBACK, MF_MEDIA_ENGINE_EVENT_CANPLAY, MF_MEDIA_ENGINE_EVENT_ERROR,
+        MF_MEDIA_ENGINE_PLAYBACK_HWND, MF_VERSION, MFCreateAttributes, MFSTARTUP_FULL, MFShutdown,
+        MFStartup,
+    },
+    System::Com::{
+        CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx,
+        CoUninitialize,
+    },
 };
+use windows_core::{BSTR, Error, HRESULT, Interface, implement};
 use windows_sys::Win32::{
     System::SystemServices::SS_OWNERDRAW,
     UI::{

@@ -49,11 +49,21 @@ windows-sys = { workspace = true, features = [
     "Win32_UI_WindowsAndMessaging",
 ] }
 windows-core = { workspace = true }
-windows-subset = { workspace = true }
+windows = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Direct2D",
+    "Win32_Graphics_Direct2D_Common",
+    "Win32_Graphics_DirectWrite",
+    "Win32_Graphics_Dxgi_Common",
+] }
 webview2 = { workspace = true, optional = true }
 
 [features]
-media = ["dep:winio-callback", "dep:percent-encoding"]
+media = [
+    "dep:winio-callback",
+    "dep:percent-encoding",
+    "windows/Win32_Media_MediaFoundation",
+]
 webview = [
     "dep:winio-callback",
     "dep:webview2",

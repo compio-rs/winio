@@ -5,11 +5,11 @@ use std::{cell::RefCell, collections::BTreeMap, mem::MaybeUninit, sync::Mutex};
 #[cfg(not(feature = "once_cell_try"))]
 use once_cell::sync::OnceCell as OnceLock;
 use widestring::{U16CStr, U16Str};
-use windows_core::w;
-use windows_subset::Win32::{
+use windows::Win32::Graphics::DirectWrite::{
     DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC,
     DWRITE_FONT_STYLE_NORMAL, DWriteCreateFactory, IDWriteFactory,
 };
+use windows_core::w;
 use windows_sys::Win32::{
     Foundation::HWND,
     Graphics::Gdi::{CreateFontIndirectW, DeleteObject, GetObjectW, HFONT, LOGFONTW},

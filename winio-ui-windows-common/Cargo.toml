@@ -29,7 +29,16 @@ slab = { workspace = true }
 widestring = { workspace = true }
 
 windows-core = { workspace = true }
-windows-subset = { workspace = true }
+windows = { workspace = true, features = [
+    "UI_ViewManagement",
+    "Win32_Graphics_Direct2D",
+    "Win32_Graphics_Direct2D_Common",
+    "Win32_Graphics_DirectWrite",
+    "Win32_Graphics_Dxgi_Common",
+    "Win32_System_Com",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
+] }
 windows-sys = { workspace = true, features = [
     "Win32_Foundation",
     "Win32_Globalization",
@@ -46,7 +55,11 @@ windows-sys = { workspace = true, features = [
     "Win32_UI_WindowsAndMessaging",
 ] }
 windows-threading = "0.100"
-winui3 = { workspace = true, optional = true }
+winui3 = { workspace = true, optional = true, features = [
+    "native",
+    "UI_Xaml",
+    "UI_Composition",
+] }
 
 slim-detours-sys = { workspace = true, optional = true }
 sync-unsafe-cell = { workspace = true, optional = true }

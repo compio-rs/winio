@@ -6,8 +6,11 @@ use std::{env::current_exe, sync::Once};
 use compio_log::error;
 use slim_detours_sys::SlimDetoursInlineHook;
 use sync_unsafe_cell::SyncUnsafeCell;
+use windows::Win32::System::{
+    Com::CoTaskMemAlloc,
+    LibraryLoader::{GetProcAddress, LoadLibraryW},
+};
 use windows_core::{HSTRING, Result, s, w};
-use windows_subset::Win32::{CoTaskMemAlloc, GetProcAddress, LoadLibraryW};
 use windows_sys::{
     Win32::{
         Foundation::{E_NOTIMPL, ERROR_FILE_NOT_FOUND, S_OK},

@@ -1,20 +1,17 @@
 use std::cell::RefCell;
 
+use windows::{UI::Color, Win32::Foundation::E_POINTER};
 use windows_core::{Interface, Ref, implement};
-use windows_subset::Win32::E_POINTER;
 use winio_primitive::ColorTheme;
-use winui3::{
-    Microsoft::UI::{
-        Composition::{
-            ICompositionSupportsSystemBackdrop,
-            SystemBackdrops::{DesktopAcrylicController, SystemBackdropConfiguration},
-        },
-        Xaml::{
-            self as MUX,
-            Media::{ISystemBackdropOverrides, ISystemBackdropOverrides_Impl, SystemBackdrop},
-        },
+use winui3::Microsoft::UI::{
+    Composition::{
+        ICompositionSupportsSystemBackdrop,
+        SystemBackdrops::{DesktopAcrylicController, SystemBackdropConfiguration},
     },
-    Windows::UI::Color,
+    Xaml::{
+        self as MUX,
+        Media::{ISystemBackdropOverrides, ISystemBackdropOverrides_Impl, SystemBackdrop},
+    },
 };
 
 use crate::{Error, Result, color_theme};
@@ -94,14 +91,16 @@ impl ISystemBackdropOverrides_Impl for CustomDesktopAcrylicBackdrop_Impl {
             .base
             .as_option()
             .as_ref()
-            .ok_or_else(|| Error::from_hresult(E_POINTER))?
-            .cast::<SystemBackdrop>()?;
-        base.OnTargetConnected(target.as_ref(), root.as_ref())?;
+            .ok_or_else(|| Error::from_hresult(E_POINTER))?;
+        base.cast::<ISystemBackdropOverrides>()?
+            .OnTargetConnected(target.as_ref(), root.as_ref())?;
 
         let target = target.ok()?;
         let root = root.ok()?;
 
-        let configuration = base.GetDefaultSystemBackdropConfiguration(target, root)?;
+        let configuration = base
+            .cast::<SystemBackdrop>()?
+            .GetDefaultSystemBackdropConfiguration(target, root)?;
         let controller = DesktopAcrylicController::new()?;
         // Magic number to match Win32.
         controller.SetLuminosityOpacity(0.65)?;
@@ -123,7 +122,7 @@ impl ISystemBackdropOverrides_Impl for CustomDesktopAcrylicBackdrop_Impl {
             .as_option()
             .as_ref()
             .ok_or_else(|| Error::from_hresult(E_POINTER))?
-            .cast::<SystemBackdrop>()?;
+            .cast::<ISystemBackdropOverrides>()?;
         base.OnTargetDisconnected(target.as_ref())?;
 
         let target = target.ok()?;
@@ -145,7 +144,7 @@ impl ISystemBackdropOverrides_Impl for CustomDesktopAcrylicBackdrop_Impl {
             .as_option()
             .as_ref()
             .ok_or_else(|| Error::from_hresult(E_POINTER))?
-            .cast::<SystemBackdrop>()?;
+            .cast::<ISystemBackdropOverrides>()?;
         base.OnDefaultSystemBackdropConfigurationChanged(target.as_ref(), root.as_ref())?;
 
         let target = target.ok()?;

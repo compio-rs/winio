@@ -5,19 +5,16 @@ use cookie::Cookie;
 use futures_util::TryFutureExt;
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
+use windows::{Foundation::Uri, Win32::Foundation::E_INVALIDARG};
 use windows_core::{HSTRING, Interface, h};
-use windows_subset::Win32::E_INVALIDARG;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
-use winui3::{
-    Microsoft::{
-        UI::Xaml::Controls as MUXC,
-        Web::WebView2::Core::{
-            CoreWebView2Cookie, CoreWebView2CookieManager, CoreWebView2CookieSameSiteKind,
-        },
+use winui3::Microsoft::{
+    UI::Xaml::Controls as MUXC,
+    Web::WebView2::Core::{
+        CoreWebView2Cookie, CoreWebView2CookieManager, CoreWebView2CookieSameSiteKind,
     },
-    Windows::Foundation::Uri,
 };
 
 use crate::{Error, GlobalRuntime, Result, Widget};
@@ -36,12 +33,16 @@ impl WebView {
         #[cfg(feature = "webview-system")]
         {
             fn add_webview2sdk_path() -> Result<()> {
-                use windows_core::{PCWSTR, PWSTR, w};
-                use windows_subset::Win32::{
-                    AddDllDirectory, CSIDL_WINDOWS, LOAD_LIBRARY_SEARCH_SYSTEM32,
-                    LOAD_LIBRARY_SEARCH_USER_DIRS, PATHCCH_NONE, PathCchCombineEx,
-                    SHGetSpecialFolderPathW, SetDefaultDllDirectories,
+                use windows::Win32::{
+                    System::LibraryLoader::{
+                        AddDllDirectory, LOAD_LIBRARY_SEARCH_SYSTEM32,
+                        LOAD_LIBRARY_SEARCH_USER_DIRS, SetDefaultDllDirectories,
+                    },
+                    UI::Shell::{
+                        CSIDL_WINDOWS, PATHCCH_NONE, PathCchCombineEx, SHGetSpecialFolderPathW,
+                    },
                 };
+                use windows_core::{PCWSTR, PWSTR, w};
 
                 unsafe {
                     SetDefaultDllDirectories(
