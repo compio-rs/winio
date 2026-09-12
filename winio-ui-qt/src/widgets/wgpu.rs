@@ -11,9 +11,13 @@ use wgpu::{
 };
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{MouseButton, Point, Size, Vector};
+use winio_primitive::{KeyCode, MouseButton, Point, Size, Vector};
 
-use crate::{GlobalRuntime, QtMouseButton, Result, Widget};
+use crate::{
+    GlobalRuntime, QtMouseButton, Result, Widget,
+    common::QString,
+    keyboard::{KeyCharCallback, key_code},
+};
 
 #[derive(Debug)]
 pub struct WgpuCanvas {
@@ -21,6 +25,9 @@ pub struct WgpuCanvas {
     on_press: Box<Callback<MouseButton>>,
     on_release: Box<Callback<MouseButton>>,
     on_wheel: Box<Callback<Vector>>,
+    on_key_down: Box<Callback<KeyCode>>,
+    on_key_up: Box<Callback<KeyCode>>,
+    on_key_char: Box<KeyCharCallback>,
     widget: Widget<ffi::QWidget>,
 }
 
@@ -33,6 +40,9 @@ impl WgpuCanvas {
         let on_press = Box::new(Callback::new());
         let on_release = Box::new(Callback::new());
         let on_wheel = Box::new(Callback::new());
+        let on_key_down = Box::new(Callback::new());
+        let on_key_up = Box::new(Callback::new());
+        let on_key_char = Box::<KeyCharCallback>::default();
         unsafe {
             ffi::wgpu_canvas_register_move_event(
                 widget.pin_mut(),
@@ -54,12 +64,30 @@ impl WgpuCanvas {
                 Self::on_wheel,
                 on_wheel.as_ref() as *const _ as _,
             )?;
+            ffi::wgpu_canvas_register_key_down_event(
+                widget.pin_mut(),
+                Self::on_key_down,
+                on_key_down.as_ref() as *const _ as _,
+            )?;
+            ffi::wgpu_canvas_register_key_up_event(
+                widget.pin_mut(),
+                Self::on_key_up,
+                on_key_up.as_ref() as *const _ as _,
+            )?;
+            ffi::wgpu_canvas_register_key_char_event(
+                widget.pin_mut(),
+                Self::on_key_char,
+                on_key_char.as_ref() as *const _ as _,
+            )?;
         }
         Ok(Self {
             on_move,
             on_press,
             on_release,
             on_wheel,
+            on_key_down,
+            on_key_up,
+            on_key_char,
             widget: Widget::new(widget)?,
         })
     }
@@ -112,6 +140,27 @@ impl WgpuCanvas {
         }
     }
 
+    fn on_key_down(c: *const u8, key: i32) {
+        let c = c as *const Callback<KeyCode>;
+        if let Some(c) = unsafe { c.as_ref() } {
+            c.signal::<GlobalRuntime>(key_code(key));
+        }
+    }
+
+    fn on_key_up(c: *const u8, key: i32) {
+        let c = c as *const Callback<KeyCode>;
+        if let Some(c) = unsafe { c.as_ref() } {
+            c.signal::<GlobalRuntime>(key_code(key));
+        }
+    }
+
+    fn on_key_char(c: *const u8, text: &QString) {
+        let c = c as *const KeyCharCallback;
+        if let Some(c) = unsafe { c.as_ref() } {
+            c.signal(text)
+        }
+    }
+
     pub async fn wait_mouse_down(&self) -> MouseButton {
         self.on_press.wait().await
     }
@@ -126,6 +175,18 @@ impl WgpuCanvas {
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
         self.on_wheel.wait().await
+    }
+
+    pub async fn wait_key_down(&self) -> KeyCode {
+        self.on_key_down.wait().await
+    }
+
+    pub async fn wait_key_up(&self) -> KeyCode {
+        self.on_key_up.wait().await
+    }
+
+    pub async fn wait_key_char(&self) -> char {
+        self.on_key_char.wait().await
     }
 
     fn wayland(&self) -> Option<WindowHandleWrapper> {
@@ -201,6 +262,7 @@ mod ffi {
 
         type QWidget = crate::QWidget;
         type QtMouseButton = crate::QtMouseButton;
+        type QString = crate::common::QString;
         type wl_display;
         type wl_surface;
         type xcb_connection_t;
@@ -224,6 +286,21 @@ mod ffi {
         unsafe fn wgpu_canvas_register_wheel_event(
             w: Pin<&mut QWidget>,
             callback: unsafe fn(*const u8, i32, i32),
+            data: *const u8,
+        ) -> Result<()>;
+        unsafe fn wgpu_canvas_register_key_down_event(
+            w: Pin<&mut QWidget>,
+            callback: unsafe fn(*const u8, i32),
+            data: *const u8,
+        ) -> Result<()>;
+        unsafe fn wgpu_canvas_register_key_up_event(
+            w: Pin<&mut QWidget>,
+            callback: unsafe fn(*const u8, i32),
+            data: *const u8,
+        ) -> Result<()>;
+        unsafe fn wgpu_canvas_register_key_char_event(
+            w: Pin<&mut QWidget>,
+            callback: unsafe fn(*const u8, &QString),
             data: *const u8,
         ) -> Result<()>;
 

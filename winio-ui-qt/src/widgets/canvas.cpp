@@ -4,6 +4,7 @@
 #include <QFont>
 #include <QLinearGradient>
 #include <QPen>
+#include <QPointer>
 #include <QRadialGradient>
 
 WinioCanvas::WinioCanvas(QWidget *parent)
@@ -15,8 +16,12 @@ WinioCanvas::WinioCanvas(QWidget *parent)
 #endif
       m_paint_callback(std::nullopt), m_move_callback(std::nullopt),
       m_press_callback(std::nullopt), m_release_callback(std::nullopt),
-      m_wheel_callback(std::nullopt), m_buffer() {
+      m_wheel_callback(std::nullopt), m_key_down_callback(std::nullopt),
+      m_key_up_callback(std::nullopt), m_key_char_callback(std::nullopt),
+      m_buffer() {
     setMouseTracking(true);
+    setFocusPolicy(Qt::StrongFocus);
+    setAttribute(Qt::WA_InputMethodEnabled);
 }
 
 WinioCanvas::~WinioCanvas() {}
@@ -57,6 +62,32 @@ void WinioCanvas::wheelEvent(QWheelEvent *event) {
     }
 }
 
+void WinioCanvas::keyPressEvent(QKeyEvent *event) {
+    if (m_key_down_callback) {
+        auto &[callback, data] = *m_key_down_callback;
+        callback(data, event->key());
+    }
+    if (m_key_char_callback) {
+        auto &[callback, data] = *m_key_char_callback;
+        callback(data, event->text());
+    }
+}
+
+void WinioCanvas::keyReleaseEvent(QKeyEvent *event) {
+    if (m_key_up_callback) {
+        auto &[callback, data] = *m_key_up_callback;
+        callback(data, event->key());
+    }
+}
+
+void WinioCanvas::inputMethodEvent(QInputMethodEvent *event) {
+    event->accept();
+    if (m_key_char_callback) {
+        auto &[callback, data] = *m_key_char_callback;
+        callback(data, event->commitString());
+    }
+}
+
 std::unique_ptr<QWidget> new_canvas(QWidget *parent) {
     return std::make_unique<WinioCanvas>(parent);
 }
@@ -86,6 +117,26 @@ void canvas_register_wheel_event(QWidget &w,
                                  callback_fn_t<void(int, int)> callback,
                                  std::uint8_t const *data) {
     static_cast<WinioCanvas &>(w).m_wheel_callback =
+        std::make_tuple(std::move(callback), data);
+}
+
+void canvas_register_key_down_event(QWidget &w,
+                                    callback_fn_t<void(int)> callback,
+                                    std::uint8_t const *data) {
+    static_cast<WinioCanvas &>(w).m_key_down_callback =
+        std::make_tuple(std::move(callback), data);
+}
+
+void canvas_register_key_up_event(QWidget &w, callback_fn_t<void(int)> callback,
+                                  std::uint8_t const *data) {
+    static_cast<WinioCanvas &>(w).m_key_up_callback =
+        std::make_tuple(std::move(callback), data);
+}
+
+void canvas_register_key_char_event(
+    QWidget &w, callback_fn_t<void(QString const &)> callback,
+    std::uint8_t const *data) {
+    static_cast<WinioCanvas &>(w).m_key_char_callback =
         std::make_tuple(std::move(callback), data);
 }
 

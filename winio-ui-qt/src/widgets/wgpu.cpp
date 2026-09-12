@@ -1,6 +1,7 @@
 #include "wgpu.hpp"
 #include <QGuiApplication>
 #include <QMouseEvent>
+#include <QPointer>
 #include <QWheelEvent>
 
 #include <qpa/qplatformnativeinterface.h>
@@ -8,8 +9,11 @@
 WinioWgpuCanvas::WinioWgpuCanvas(QWidget *parent)
     : QWidget(parent), m_move_callback(std::nullopt),
       m_press_callback(std::nullopt), m_release_callback(std::nullopt),
-      m_wheel_callback(std::nullopt) {
+      m_wheel_callback(std::nullopt), m_key_down_callback(std::nullopt),
+      m_key_up_callback(std::nullopt), m_key_char_callback(std::nullopt) {
     setMouseTracking(true);
+    setFocusPolicy(Qt::StrongFocus);
+    setAttribute(Qt::WA_InputMethodEnabled);
     QCoreApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
     setAttribute(Qt::WA_DontCreateNativeAncestors);
     setAttribute(Qt::WA_NativeWindow);
@@ -51,6 +55,32 @@ void WinioWgpuCanvas::wheelEvent(QWheelEvent *event) {
     }
 }
 
+void WinioWgpuCanvas::keyPressEvent(QKeyEvent *event) {
+    if (m_key_down_callback) {
+        auto &[callback, data] = *m_key_down_callback;
+        callback(data, event->key());
+    }
+    if (m_key_char_callback) {
+        auto &[callback, data] = *m_key_char_callback;
+        callback(data, event->text());
+    }
+}
+
+void WinioWgpuCanvas::keyReleaseEvent(QKeyEvent *event) {
+    if (m_key_up_callback) {
+        auto &[callback, data] = *m_key_up_callback;
+        callback(data, event->key());
+    }
+}
+
+void WinioWgpuCanvas::inputMethodEvent(QInputMethodEvent *event) {
+    event->accept();
+    if (m_key_char_callback) {
+        auto &[callback, data] = *m_key_char_callback;
+        callback(data, event->commitString());
+    }
+}
+
 std::unique_ptr<QWidget> new_wgpu_canvas(QWidget *parent) {
     return std::make_unique<WinioWgpuCanvas>(parent);
 }
@@ -80,6 +110,27 @@ void wgpu_canvas_register_wheel_event(QWidget &w,
                                       callback_fn_t<void(int, int)> callback,
                                       std::uint8_t const *data) {
     static_cast<WinioWgpuCanvas &>(w).m_wheel_callback =
+        std::make_tuple(std::move(callback), data);
+}
+
+void wgpu_canvas_register_key_down_event(QWidget &w,
+                                         callback_fn_t<void(int)> callback,
+                                         std::uint8_t const *data) {
+    static_cast<WinioWgpuCanvas &>(w).m_key_down_callback =
+        std::make_tuple(std::move(callback), data);
+}
+
+void wgpu_canvas_register_key_up_event(QWidget &w,
+                                       callback_fn_t<void(int)> callback,
+                                       std::uint8_t const *data) {
+    static_cast<WinioWgpuCanvas &>(w).m_key_up_callback =
+        std::make_tuple(std::move(callback), data);
+}
+
+void wgpu_canvas_register_key_char_event(
+    QWidget &w, callback_fn_t<void(QString const &)> callback,
+    std::uint8_t const *data) {
+    static_cast<WinioWgpuCanvas &>(w).m_key_char_callback =
         std::make_tuple(std::move(callback), data);
 }
 

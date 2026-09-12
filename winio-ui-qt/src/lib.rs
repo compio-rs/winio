@@ -10,6 +10,8 @@ pub use runtime::*;
 
 mod common;
 
+mod keyboard;
+
 mod widgets;
 pub use widgets::*;
 
