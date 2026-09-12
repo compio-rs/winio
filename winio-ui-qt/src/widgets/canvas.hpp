@@ -3,6 +3,8 @@
 #include "../common.hpp"
 #include <QGradient>
 #include <QImage>
+#include <QInputMethodEvent>
+#include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPaintEvent>
 #include <QPainter>
@@ -34,6 +36,9 @@ struct WinioCanvas :
     callback_t<void(QtMouseButton)> m_press_callback;
     callback_t<void(QtMouseButton)> m_release_callback;
     callback_t<void(int, int)> m_wheel_callback;
+    callback_t<void(int)> m_key_down_callback;
+    callback_t<void(int)> m_key_up_callback;
+    callback_t<void(QString const &)> m_key_char_callback;
 
     QPicture m_buffer;
 
@@ -46,6 +51,9 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
+    void keyReleaseEvent(QKeyEvent *event) override;
+    void inputMethodEvent(QInputMethodEvent *event) override;
 };
 
 std::unique_ptr<QWidget> new_canvas(QWidget *parent);
@@ -61,6 +69,14 @@ void canvas_register_release_event(QWidget &w,
 void canvas_register_wheel_event(QWidget &w,
                                  callback_fn_t<void(int, int)> callback,
                                  std::uint8_t const *data);
+void canvas_register_key_down_event(QWidget &w,
+                                    callback_fn_t<void(int)> callback,
+                                    std::uint8_t const *data);
+void canvas_register_key_up_event(QWidget &w, callback_fn_t<void(int)> callback,
+                                  std::uint8_t const *data);
+void canvas_register_key_char_event(
+    QWidget &w, callback_fn_t<void(QString const &)> callback,
+    std::uint8_t const *data);
 
 std::unique_ptr<QPainter> canvas_new_painter(QWidget &w);
 void painter_set_font(QPainter &p, rust::Str family, double size, bool italic,
