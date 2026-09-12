@@ -123,7 +123,7 @@ impl Keyboard {
                     return Propagation::Stop;
                 }
                 if let Some(c) = key_char(key, modifiers) {
-                    on_key_char.signal(c.encode_utf8(&mut [0; 4]));
+                    on_key_char.signal_char(c);
                 }
                 Propagation::Stop
             }
@@ -187,6 +187,11 @@ impl KeyCharCallback {
             self.pending.borrow_mut().extend(text.chars());
             self.ready.signal::<GlobalRuntime>(());
         }
+    }
+
+    fn signal_char(&self, c: char) {
+        self.pending.borrow_mut().push_back(c);
+        self.ready.signal::<GlobalRuntime>(());
     }
 
     async fn wait(&self) -> char {
