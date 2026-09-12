@@ -10,7 +10,7 @@ use wgpu::{
     },
 };
 use winio_handle::{AsContainer, AsWidget};
-use winio_primitive::{MouseButton, Point, Size, Vector};
+use winio_primitive::{KeyCode, MouseButton, Point, Size, Vector};
 
 use crate::{CanvasImpl, Result};
 
@@ -60,6 +60,18 @@ impl WgpuCanvas {
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
         self.handle.wait_mouse_wheel().await
+    }
+
+    pub async fn wait_key_down(&self) -> KeyCode {
+        self.handle.wait_key_down().await
+    }
+
+    pub async fn wait_key_up(&self) -> KeyCode {
+        self.handle.wait_key_up().await
+    }
+
+    pub async fn wait_key_char(&self) -> char {
+        self.handle.wait_key_char().await
     }
 
     pub fn create_surface(
