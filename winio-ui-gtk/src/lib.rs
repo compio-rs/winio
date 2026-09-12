@@ -13,6 +13,8 @@ mod compat;
 #[cfg(feature = "compio-compat")]
 pub use compat::*;
 
+mod keyboard;
+
 mod widgets;
 pub use widgets::*;
 
