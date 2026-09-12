@@ -51,7 +51,6 @@ pub(crate) fn key_code(key: Key) -> KeyCode {
             .to_upper()
             .to_unicode()
             .filter(|c| !c.is_control())
-            .and_then(|c| u8::try_from(c as u32).ok())
             .map_or(KeyCode::Unidentified, KeyCode::Char),
     }
 }

@@ -73,8 +73,9 @@ pub(crate) fn key_code(key: i32) -> KeyCode {
         QT_KEY_HYPER_L | QT_KEY_HYPER_R => KeyCode::Hyper,
         QT_KEY_F1..=QT_KEY_F35 => KeyCode::F((key - QT_KEY_F1 + 1) as u8),
         // Qt uses uppercase letter symbols regardless of Shift or Caps Lock.
-        0x20..=0x7e | 0xa0..=0xff => KeyCode::Char(key as u8),
-        _ => KeyCode::Unidentified,
+        _ => char::from_u32(key as u32)
+            .filter(|c| !c.is_control())
+            .map_or(KeyCode::Unidentified, KeyCode::Char),
     }
 }
 
