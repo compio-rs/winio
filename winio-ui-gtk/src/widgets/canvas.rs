@@ -26,7 +26,7 @@ use winio_primitive::{
     RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform, Vector,
 };
 
-use crate::{GlobalRuntime, Result, keyboard::Keyboard, widgets::Widget};
+use crate::{GlobalRuntime, Result, platform::Keyboard, widgets::Widget};
 
 #[derive(Debug)]
 pub struct Canvas {

@@ -14,7 +14,7 @@ use winio_primitive::{
 use crate::{
     Error, GlobalRuntime, Result,
     common::QString,
-    keyboard::{KeyCharCallback, key_code},
+    platform::{KeyCharCallback, key_code},
     widgets::Widget,
 };
 
