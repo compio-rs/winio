@@ -3,7 +3,6 @@
 #include "../common.hpp"
 #include <QGradient>
 #include <QImage>
-#include <QInputMethodEvent>
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPaintEvent>
@@ -53,7 +52,6 @@ protected:
     void wheelEvent(QWheelEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
-    void inputMethodEvent(QInputMethodEvent *event) override;
 };
 
 std::unique_ptr<QWidget> new_canvas(QWidget *parent);

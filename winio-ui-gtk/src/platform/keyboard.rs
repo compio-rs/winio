@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
 use gtk4::{
-    EventControllerKey, IMMulticontext,
+    EventControllerKey,
     gdk::{Key, ModifierType},
     glib::{Propagation, translate::IntoGlib},
     prelude::*,
@@ -56,7 +56,7 @@ pub(crate) fn key_code(key: Key) -> KeyCode {
     }
 }
 
-// Only used when the input method did not consume the key event.
+// Translate key symbols directly, without treating shortcuts as text.
 fn key_char(key: Key, modifiers: ModifierType) -> Option<char> {
     if modifiers.intersects(
         ModifierType::CONTROL_MASK
@@ -76,7 +76,6 @@ pub(crate) struct Keyboard {
     on_key_down: Rc<Callback<KeyCode>>,
     on_key_up: Rc<Callback<KeyCode>>,
     on_key_char: Rc<KeyCharCallback>,
-    im_context: IMMulticontext,
 }
 
 impl Keyboard {
@@ -85,43 +84,12 @@ impl Keyboard {
         let on_key_up = Rc::new(Callback::new());
         let on_key_char = Rc::new(KeyCharCallback::default());
 
-        let im_context = IMMulticontext::new();
-        im_context.set_client_widget(Some(widget));
-        // Let the input method display preedit; the canvas emits committed text.
-        im_context.set_use_preedit(false);
-        im_context.connect_commit({
-            let on_key_char = on_key_char.clone();
-            move |_, text| on_key_char.signal(text)
-        });
-
-        // Use global focus so switching to another window also deactivates IME.
-        widget.connect_has_focus_notify({
-            let im_context = im_context.clone();
-            move |widget| {
-                if widget.has_focus() {
-                    im_context.focus_in();
-                } else {
-                    im_context.focus_out();
-                    im_context.reset();
-                }
-            }
-        });
-
         let controller = EventControllerKey::new();
-        // Filter explicitly after signaling KeyDown/KeyUp: set_im_context()
-        // would consume text-producing keys before these signals are emitted.
         controller.connect_key_pressed({
             let on_key_down = on_key_down.clone();
             let on_key_char = on_key_char.clone();
-            let im_context = im_context.clone();
-            move |controller, key, _, modifiers| {
+            move |_, key, _, modifiers| {
                 on_key_down.signal::<GlobalRuntime>(key_code(key));
-                if controller
-                    .current_event()
-                    .is_some_and(|event| im_context.filter_keypress(event))
-                {
-                    return Propagation::Stop;
-                }
                 if let Some(c) = key_char(key, modifiers) {
                     on_key_char.signal_char(c);
                 }
@@ -130,25 +98,17 @@ impl Keyboard {
         });
         controller.connect_key_released({
             let on_key_up = on_key_up.clone();
-            let im_context = im_context.clone();
-            move |controller, key, _, _| {
+            move |_, key, _, _| {
                 on_key_up.signal::<GlobalRuntime>(key_code(key));
-                if let Some(event) = controller.current_event() {
-                    im_context.filter_keypress(event);
-                }
             }
         });
         widget.add_controller(controller);
         widget.set_focusable(true);
-        if widget.has_focus() {
-            im_context.focus_in();
-        }
 
         Self {
             on_key_down,
             on_key_up,
             on_key_char,
-            im_context,
         }
     }
 
@@ -165,15 +125,7 @@ impl Keyboard {
     }
 }
 
-impl Drop for Keyboard {
-    fn drop(&mut self) {
-        self.im_context.focus_out();
-        self.im_context.reset();
-        self.im_context.set_client_widget(gtk4::Widget::NONE);
-    }
-}
-
-// Keep every character of a commit, even if the component is busy or its
+// Keep every input character, even if the component is busy or its
 // start() future is cancelled while processing an earlier character.
 #[derive(Debug, Default)]
 struct KeyCharCallback {
@@ -182,13 +134,6 @@ struct KeyCharCallback {
 }
 
 impl KeyCharCallback {
-    fn signal(&self, text: &str) {
-        if !text.is_empty() {
-            self.pending.borrow_mut().extend(text.chars());
-            self.ready.signal::<GlobalRuntime>(());
-        }
-    }
-
     fn signal_char(&self, c: char) {
         self.pending.borrow_mut().push_back(c);
         self.ready.signal::<GlobalRuntime>(());

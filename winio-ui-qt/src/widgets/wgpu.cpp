@@ -13,7 +13,6 @@ WinioWgpuCanvas::WinioWgpuCanvas(QWidget *parent)
       m_key_up_callback(std::nullopt), m_key_char_callback(std::nullopt) {
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
-    setAttribute(Qt::WA_InputMethodEnabled);
     QCoreApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
     setAttribute(Qt::WA_DontCreateNativeAncestors);
     setAttribute(Qt::WA_NativeWindow);
@@ -70,14 +69,6 @@ void WinioWgpuCanvas::keyReleaseEvent(QKeyEvent *event) {
     if (m_key_up_callback) {
         auto &[callback, data] = *m_key_up_callback;
         callback(data, event->key());
-    }
-}
-
-void WinioWgpuCanvas::inputMethodEvent(QInputMethodEvent *event) {
-    event->accept();
-    if (m_key_char_callback) {
-        auto &[callback, data] = *m_key_char_callback;
-        callback(data, event->commitString());
     }
 }
 

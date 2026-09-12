@@ -83,8 +83,8 @@ pub enum CanvasEvent {
     KeyDown(KeyCode),
     /// A keyboard key was released.
     KeyUp(KeyCode),
-    /// A Unicode character was entered. Text containing multiple characters
-    /// produces one event per character.
+    /// A Unicode character was produced directly by a key press. Text
+    /// containing multiple characters produces one event per character.
     KeyChar(char),
 }
 
