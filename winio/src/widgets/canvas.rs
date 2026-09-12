@@ -2,7 +2,7 @@ use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
-    Enable, Failable, Layoutable, MouseButton, Point, Rect, Size, ToolTip, Vector, Visible,
+    Enable, Failable, KeyCode, Layoutable, MouseButton, Point, Rect, Size, ToolTip, Vector, Visible,
 };
 
 use crate::{
@@ -11,8 +11,8 @@ use crate::{
     ui::DrawingContext,
 };
 
-/// A drawing surface for custom graphics, which also receives pointer input
-/// from the user.
+/// A drawing surface for custom graphics, which also receives pointer and
+/// keyboard input from the user.
 ///
 /// It doesn't ensure hardware acceleration, so it might be slow on some
 /// platforms. [`WgpuCanvas`](crate::widgets::WgpuCanvas) is a better choice if
@@ -79,6 +79,13 @@ pub enum CanvasEvent {
     /// * `x`: Positive is right.
     /// * `y`: Positive is up/forward.
     MouseWheel(Vector),
+    /// A keyboard key was pressed down.
+    KeyDown(KeyCode),
+    /// A keyboard key was released.
+    KeyUp(KeyCode),
+    /// A Unicode character was entered. Text containing multiple characters
+    /// produces one event per character.
+    KeyChar(char),
 }
 
 /// Messages of [`Canvas`].
@@ -131,9 +138,34 @@ impl Component for Canvas {
                 sender.output(CanvasEvent::MouseWheel(w));
             }
         };
-        futures_util::future::join4(fut_move, fut_down, fut_up, fut_wheel)
-            .await
-            .0
+        let fut_key_down = async {
+            loop {
+                let event = self.widget.wait_key_down().await;
+                sender.output(CanvasEvent::KeyDown(event));
+            }
+        };
+        let fut_key_up = async {
+            loop {
+                let event = self.widget.wait_key_up().await;
+                sender.output(CanvasEvent::KeyUp(event));
+            }
+        };
+        let fut_key_char = async {
+            loop {
+                let c = self.widget.wait_key_char().await;
+                sender.output(CanvasEvent::KeyChar(c));
+            }
+        };
+        futures_util::join!(
+            fut_move,
+            fut_down,
+            fut_up,
+            fut_wheel,
+            fut_key_down,
+            fut_key_up,
+            fut_key_char
+        )
+        .0
     }
 
     async fn update(
