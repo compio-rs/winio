@@ -5,6 +5,16 @@ use super::{
 use crate::impl_listener;
 
 jni::bind_java_type! {
+    pub KeyEvent => android.view.KeyEvent,
+    methods {
+        fn get_action() -> jint,
+        fn get_key_code() -> jint,
+        fn get_meta_state() -> jint,
+        fn get_unicode_char(meta_state: jint) -> jint,
+    },
+}
+
+jni::bind_java_type! {
     pub MotionEvent => android.view.MotionEvent,
     methods {
         fn get_action() -> jint,
@@ -24,6 +34,7 @@ jni::bind_java_type! {
         ViewGroupLayoutParams => "android.view.ViewGroup$LayoutParams",
         ViewOnLayoutChangeListener => "android.view.View$OnLayoutChangeListener",
         ViewOnTouchListener => "android.view.View$OnTouchListener",
+        ViewOnKeyListener => "android.view.View$OnKeyListener",
         WindowInsets => android.view.WindowInsets,
     },
     constructors {
@@ -51,6 +62,9 @@ jni::bind_java_type! {
         fn get_resources() -> Resources,
         fn add_on_layout_change_listener(listener: &ViewOnLayoutChangeListener),
         fn set_on_touch_listener(listener: &ViewOnTouchListener),
+        fn set_on_key_listener(listener: &ViewOnKeyListener),
+        fn set_focusable_in_touch_mode(focusable: jboolean),
+        fn request_focus() -> jboolean,
         fn get_root_window_insets() -> WindowInsets,
     }
 }
@@ -97,6 +111,12 @@ jni::bind_java_type! {
 }
 
 impl_listener!(ViewOnTouchListener);
+
+jni::bind_java_type! {
+    pub ViewOnKeyListener => "android.view.View$OnKeyListener",
+}
+
+impl_listener!(ViewOnKeyListener);
 
 jni::bind_java_type! {
     pub ViewOnClickListener => "android.view.View$OnClickListener",
