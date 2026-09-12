@@ -14,7 +14,7 @@ targets = ["aarch64-apple-darwin", "aarch64-apple-ios"]
 
 [target.'cfg(target_vendor = "apple")'.dependencies]
 winio-primitive = { workspace = true }
-winio-pollable = { workspace = true }
+winio-pollable = { workspace = true, features = ["callback"] }
 winio-callback = { workspace = true }
 
 block2 = { workspace = true }

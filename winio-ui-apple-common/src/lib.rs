@@ -77,6 +77,9 @@ pub use drawing::*;
 mod string;
 pub use string::*;
 
+mod keyboard;
+pub use keyboard::*;
+
 #[cfg(feature = "webview")]
 mod webview;
 #[cfg(feature = "webview")]
