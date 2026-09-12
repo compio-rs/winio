@@ -1,9 +1,8 @@
-use std::{cell::RefCell, collections::VecDeque, rc::Rc};
+use std::rc::Rc;
 
 use windows_sys::Win32::{
     Foundation::{HWND, LPARAM, LRESULT, WPARAM},
     UI::{
-        Input::KeyboardAndMouse::{self as key, MAPVK_VK_TO_CHAR, MapVirtualKeyW},
         Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
         WindowsAndMessaging::{
             DLGC_WANTALLKEYS, DLGC_WANTARROWS, DLGC_WANTCHARS, DLGC_WANTTAB, UNICODE_NOCHAR,
@@ -15,56 +14,9 @@ use windows_sys::Win32::{
 use winio_callback::Callback;
 use winio_pollable::GlobalRuntime;
 use winio_primitive::KeyCode;
-use winio_ui_windows_common::syscall;
+use winio_ui_windows_common::{KeyCharCallback, key_code, syscall};
 
 use crate::Result;
-
-pub(crate) fn key_code(code: u16) -> KeyCode {
-    match code {
-        key::VK_BACK => KeyCode::Backspace,
-        key::VK_RETURN => KeyCode::Enter,
-        key::VK_LEFT => KeyCode::Left,
-        key::VK_RIGHT => KeyCode::Right,
-        key::VK_UP => KeyCode::Up,
-        key::VK_DOWN => KeyCode::Down,
-        key::VK_HOME => KeyCode::Home,
-        key::VK_END => KeyCode::End,
-        key::VK_PRIOR => KeyCode::PageUp,
-        key::VK_NEXT => KeyCode::PageDown,
-        key::VK_TAB => KeyCode::Tab,
-        key::VK_DELETE => KeyCode::Delete,
-        key::VK_INSERT => KeyCode::Insert,
-        key::VK_ESCAPE => KeyCode::Esc,
-        key::VK_CAPITAL => KeyCode::CapsLock,
-        key::VK_SCROLL => KeyCode::ScrollLock,
-        key::VK_NUMLOCK => KeyCode::NumLock,
-        key::VK_SNAPSHOT => KeyCode::PrintScreen,
-        key::VK_PAUSE | key::VK_CANCEL => KeyCode::Pause,
-        key::VK_APPS => KeyCode::Menu,
-        key::VK_CLEAR => KeyCode::Clear,
-        key::VK_SHIFT | key::VK_LSHIFT | key::VK_RSHIFT => KeyCode::Shift,
-        key::VK_CONTROL | key::VK_LCONTROL | key::VK_RCONTROL => KeyCode::Control,
-        key::VK_MENU | key::VK_LMENU | key::VK_RMENU => KeyCode::Alt,
-        key::VK_LWIN | key::VK_RWIN => KeyCode::Super,
-        key::VK_F1..=key::VK_F24 => KeyCode::F((code - key::VK_F1 + 1) as u8),
-        key::VK_NUMPAD0..=key::VK_NUMPAD9 => {
-            KeyCode::Char(char::from(b'0' + (code - key::VK_NUMPAD0) as u8))
-        }
-        key::VK_MULTIPLY => KeyCode::Char('*'),
-        key::VK_ADD => KeyCode::Char('+'),
-        key::VK_SUBTRACT => KeyCode::Char('-'),
-        key::VK_DIVIDE => KeyCode::Char('/'),
-        _ => {
-            // Uses the current keyboard layout and does not alter its dead-key
-            // state. The high bit marks a dead key rather than part of Unicode.
-            const DEAD_KEY_FLAG: u32 = 1 << 31;
-            let c = unsafe { MapVirtualKeyW(code.into(), MAPVK_VK_TO_CHAR) } & !DEAD_KEY_FLAG;
-            char::from_u32(c)
-                .filter(|c| !c.is_control())
-                .map_or(KeyCode::Unidentified, KeyCode::Char)
-        }
-    }
-}
 
 #[derive(Debug)]
 pub(crate) struct Keyboard {
@@ -96,12 +48,7 @@ impl Keyboard {
     }
 
     pub async fn wait_key_char(&self) -> char {
-        loop {
-            if let Some(c) = self.state.chars.borrow_mut().pending.pop_front() {
-                return c;
-            }
-            self.state.ready.wait().await;
-        }
+        self.state.chars.wait().await
     }
 }
 
@@ -115,8 +62,7 @@ impl Drop for Keyboard {
 struct KeyboardState {
     key_down: Callback<KeyCode>,
     key_up: Callback<KeyCode>,
-    chars: RefCell<CharBuffer>,
-    ready: Callback,
+    chars: KeyCharCallback,
 }
 
 unsafe extern "system" fn keyboard_wnd_proc(
@@ -159,21 +105,14 @@ unsafe extern "system" fn keyboard_wnd_proc(
                 0
             };
             let repeat = ((lparam as usize) & 0xffff).max(1);
-            let ready = {
-                let mut chars = state.chars.borrow_mut();
-                if msg == WM_UNICHAR {
-                    let c = u32::try_from(wparam)
-                        .ok()
-                        .and_then(char::from_u32)
-                        .unwrap_or(char::REPLACEMENT_CHARACTER);
-                    chars.push_char(c, repeat);
-                } else {
-                    chars.push_utf16(wparam as u16, repeat);
-                }
-                !chars.pending.is_empty()
-            };
-            if ready {
-                state.ready.signal::<GlobalRuntime>(());
+            if msg == WM_UNICHAR {
+                let c = u32::try_from(wparam)
+                    .ok()
+                    .and_then(char::from_u32)
+                    .unwrap_or(char::REPLACEMENT_CHARACTER);
+                state.chars.signal_char(c, repeat);
+            } else {
+                state.chars.signal_utf16(wparam as u16, repeat);
             }
             result
         }
@@ -182,52 +121,5 @@ unsafe extern "system" fn keyboard_wnd_proc(
             DefSubclassProc(hwnd, msg, wparam, lparam)
         },
         _ => unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) },
-    }
-}
-
-// Persist partial surrogate pairs and queued characters across cancelled waits.
-#[derive(Debug, Default)]
-struct CharBuffer {
-    high: Option<(u16, usize)>,
-    pending: VecDeque<char>,
-}
-
-impl CharBuffer {
-    fn push_utf16(&mut self, unit: u16, repeat: usize) {
-        let high = self.high.take();
-        if (0xdc00..=0xdfff).contains(&unit)
-            && let Some((high, high_repeat)) = high
-        {
-            let c = char::decode_utf16([high, unit]).next().unwrap().unwrap();
-            self.pending.extend(std::iter::repeat_n(
-                char::REPLACEMENT_CHARACTER,
-                high_repeat.saturating_sub(repeat),
-            ));
-            self.pending
-                .extend(std::iter::repeat_n(c, repeat.min(high_repeat)));
-            self.pending.extend(std::iter::repeat_n(
-                char::REPLACEMENT_CHARACTER,
-                repeat.saturating_sub(high_repeat),
-            ));
-            return;
-        }
-        if let Some((_, count)) = high {
-            self.pending
-                .extend(std::iter::repeat_n(char::REPLACEMENT_CHARACTER, count));
-        }
-        if (0xd800..=0xdbff).contains(&unit) {
-            self.high = Some((unit, repeat));
-        } else {
-            let c = char::from_u32(unit.into()).unwrap_or(char::REPLACEMENT_CHARACTER);
-            self.pending.extend(std::iter::repeat_n(c, repeat));
-        }
-    }
-
-    fn push_char(&mut self, c: char, repeat: usize) {
-        if let Some((_, count)) = self.high.take() {
-            self.pending
-                .extend(std::iter::repeat_n(char::REPLACEMENT_CHARACTER, count));
-        }
-        self.pending.extend(std::iter::repeat_n(c, repeat));
     }
 }

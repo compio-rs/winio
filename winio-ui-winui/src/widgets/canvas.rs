@@ -35,7 +35,7 @@ use windows_core::{BOOL, Interface};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{
-    ColorTheme, Font, MouseButton, Point, Rect, RelativePoint, Size, Transform, Vector,
+    ColorTheme, Font, KeyCode, MouseButton, Point, Rect, RelativePoint, Size, Transform, Vector,
 };
 use winio_ui_windows_common::d2d1_factory;
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
@@ -43,13 +43,15 @@ use winui3::Microsoft::UI::{
     Input::{PointerDeviceType, PointerPointProperties},
     Xaml::{
         Controls::{self as MUXC, SwapChainPanel},
+        FocusState,
         Input::PointerRoutedEventArgs,
         Media::DxInterop::ISwapChainPanelNative,
     },
 };
 
 use crate::{
-    Error, GlobalRuntime, Result, Widget, color_theme, get_root_window, widgets::Convertible,
+    Error, GlobalRuntime, Result, Widget, color_theme, get_root_window,
+    platform::keyboard::Keyboard, widgets::Convertible,
 };
 
 #[derive(Debug)]
@@ -58,6 +60,7 @@ pub(crate) struct CanvasImpl {
     on_release: SendWrapper<Rc<Callback<MouseButton>>>,
     on_move: SendWrapper<Rc<Callback<Point>>>,
     on_wheel: SendWrapper<Rc<Callback<Vector>>>,
+    keyboard: Keyboard,
     handle: Widget,
     panel: MUXC::SwapChainPanel,
 }
@@ -66,6 +69,7 @@ pub(crate) struct CanvasImpl {
 impl CanvasImpl {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let panel = MUXC::SwapChainPanel::new()?;
+        let keyboard = Keyboard::new(&panel.cast()?)?;
 
         let mouse_button_cache = SendWrapper::new(Rc::new(Cell::new(MouseButton::Other)));
         let on_press = SendWrapper::new(Rc::new(Callback::new()));
@@ -76,6 +80,7 @@ impl CanvasImpl {
                 .PointerPressed(move |sender, args| {
                     let panel = sender.ok()?.cast::<SwapChainPanel>()?;
                     let args = args.ok()?;
+                    panel.Focus(FocusState::Pointer)?;
                     let mouse = mouse_button(&panel, args)?;
                     mouse_button_cache.set(mouse);
                     on_press.signal::<GlobalRuntime>(mouse);
@@ -133,6 +138,7 @@ impl CanvasImpl {
             on_release,
             on_move,
             on_wheel,
+            keyboard,
             handle: Widget::new(parent, panel.cast()?)?,
             panel,
         })
@@ -172,6 +178,18 @@ impl CanvasImpl {
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
         self.on_wheel.wait().await
+    }
+
+    pub async fn wait_key_down(&self) -> KeyCode {
+        self.keyboard.wait_key_down().await
+    }
+
+    pub async fn wait_key_up(&self) -> KeyCode {
+        self.keyboard.wait_key_up().await
+    }
+
+    pub async fn wait_key_char(&self) -> char {
+        self.keyboard.wait_key_char().await
     }
 }
 
@@ -455,6 +473,18 @@ impl Canvas {
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
         self.handle.wait_mouse_wheel().await
+    }
+
+    pub async fn wait_key_down(&self) -> KeyCode {
+        self.handle.wait_key_down().await
+    }
+
+    pub async fn wait_key_up(&self) -> KeyCode {
+        self.handle.wait_key_up().await
+    }
+
+    pub async fn wait_key_char(&self) -> char {
+        self.handle.wait_key_char().await
     }
 }
 
