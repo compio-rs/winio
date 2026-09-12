@@ -3,7 +3,7 @@ use wgpu::{CreateSurfaceError, Instance, Surface};
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
-    Enable, Failable, Layoutable, MouseButton, Point, Rect, Size, ToolTip, Vector, Visible,
+    Enable, Failable, KeyCode, Layoutable, MouseButton, Point, Rect, Size, ToolTip, Vector, Visible,
 };
 
 use crate::{
@@ -90,6 +90,13 @@ pub enum WgpuCanvasEvent {
     /// * `x`: Positive is right.
     /// * `y`: Positive is up/forward.
     MouseWheel(Vector),
+    /// A keyboard key was pressed down.
+    KeyDown(KeyCode),
+    /// A keyboard key was released.
+    KeyUp(KeyCode),
+    /// A Unicode character was entered. Text containing multiple characters
+    /// produces one event per character.
+    KeyChar(char),
 }
 
 /// Messages of [`WgpuCanvas`].
@@ -142,9 +149,34 @@ impl Component for WgpuCanvas {
                 sender.output(WgpuCanvasEvent::MouseWheel(w));
             }
         };
-        futures_util::future::join4(fut_move, fut_down, fut_up, fut_wheel)
-            .await
-            .0
+        let fut_key_down = async {
+            loop {
+                let event = self.widget.wait_key_down().await;
+                sender.output(WgpuCanvasEvent::KeyDown(event));
+            }
+        };
+        let fut_key_up = async {
+            loop {
+                let event = self.widget.wait_key_up().await;
+                sender.output(WgpuCanvasEvent::KeyUp(event));
+            }
+        };
+        let fut_key_char = async {
+            loop {
+                let c = self.widget.wait_key_char().await;
+                sender.output(WgpuCanvasEvent::KeyChar(c));
+            }
+        };
+        futures_util::join!(
+            fut_move,
+            fut_down,
+            fut_up,
+            fut_wheel,
+            fut_key_down,
+            fut_key_up,
+            fut_key_char
+        )
+        .0
     }
 
     async fn update(
