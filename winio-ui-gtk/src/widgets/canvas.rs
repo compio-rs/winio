@@ -14,7 +14,7 @@ use gtk4::{
     gdk::ScrollUnit,
     glib::{Propagation, object::Cast},
     pango::{FontDescription, Layout, SCALE as PANGO_SCALE, Style, Weight},
-    prelude::{DrawingAreaExtManual, GestureSingleExt, WidgetExt},
+    prelude::{DrawingAreaExtManual, EventControllerExt, GestureSingleExt, WidgetExt},
 };
 use image::{DynamicImage, Rgba, Rgba32FImage};
 use inherit_methods_macro::inherit_methods;
@@ -22,11 +22,11 @@ use pangocairo::functions::show_layout;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{
-    BrushPen, Font, LinearGradientBrush, MouseButton, Point, RadialGradientBrush, Rect, RectBox,
-    RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform, Vector,
+    BrushPen, Font, KeyCode, LinearGradientBrush, MouseButton, Point, RadialGradientBrush, Rect,
+    RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform, Vector,
 };
 
-use crate::{GlobalRuntime, Result, widgets::Widget};
+use crate::{GlobalRuntime, Result, keyboard::Keyboard, widgets::Widget};
 
 #[derive(Debug)]
 pub struct Canvas {
@@ -34,6 +34,7 @@ pub struct Canvas {
     on_pressed: Rc<Callback<MouseButton>>,
     on_released: Rc<Callback<MouseButton>>,
     on_scroll: Rc<Callback<Vector>>,
+    keyboard: Keyboard,
     widget: gtk4::DrawingArea,
     handle: Widget,
     surface: Rc<RefCell<RecordingSurface>>,
@@ -44,6 +45,7 @@ impl Canvas {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let widget = gtk4::DrawingArea::new();
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() })?;
+        let keyboard = Keyboard::new(&widget);
 
         let on_motion = Rc::new(Callback::new());
         let on_pressed = Rc::new(Callback::new());
@@ -89,6 +91,9 @@ impl Canvas {
         controller.connect_pressed({
             let on_pressed = on_pressed.clone();
             move |controller, _, _, _| {
+                if let Some(widget) = controller.widget() {
+                    widget.grab_focus();
+                }
                 on_pressed.signal::<GlobalRuntime>(gtk_current_button(controller.current_button()));
             }
         });
@@ -120,6 +125,7 @@ impl Canvas {
             on_pressed,
             on_released,
             on_scroll,
+            keyboard,
             widget,
             handle,
             surface,
@@ -170,6 +176,18 @@ impl Canvas {
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
         self.on_scroll.wait().await
+    }
+
+    pub async fn wait_key_down(&self) -> KeyCode {
+        self.keyboard.wait_key_down().await
+    }
+
+    pub async fn wait_key_up(&self) -> KeyCode {
+        self.keyboard.wait_key_up().await
+    }
+
+    pub async fn wait_key_char(&self) -> char {
+        self.keyboard.wait_key_char().await
     }
 }
 
