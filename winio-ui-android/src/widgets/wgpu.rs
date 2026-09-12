@@ -12,11 +12,11 @@ use wgpu::{
 };
 use winio_callback::SyncCallback;
 use winio_handle::AsContainer;
-use winio_primitive::{MouseButton, Point, Size, Vector};
+use winio_primitive::{KeyCode, MouseButton, Point, Size, Vector};
 
 use crate::{
-    BaseWidget, Result, current_activity, java::android::view::SurfaceView, view_touch_proxy,
-    vm_exec,
+    BaseWidget, Result, current_activity, java::android::view::SurfaceView, platform::Keyboard,
+    view_touch_proxy, vm_exec,
 };
 
 #[derive(Debug)]
@@ -26,6 +26,7 @@ pub struct WgpuCanvas {
     on_up: Arc<SyncCallback<MouseButton>>,
     on_move: Arc<SyncCallback<Point>>,
     on_scroll: Arc<SyncCallback<Vector>>,
+    keyboard: Keyboard,
     #[allow(dead_code)]
     touch_proxy: DynamicProxy,
 }
@@ -37,6 +38,7 @@ impl WgpuCanvas {
             let act = current_activity(env)?;
             let widget = SurfaceView::new(env, &act)?;
             let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
+            let keyboard = Keyboard::new(env, inner.as_view())?;
             let on_down = Arc::new(SyncCallback::new());
             let on_up = Arc::new(SyncCallback::new());
             let on_move = Arc::new(SyncCallback::new());
@@ -55,6 +57,7 @@ impl WgpuCanvas {
                 on_up,
                 on_move,
                 on_scroll,
+                keyboard,
                 touch_proxy,
             })
         })
@@ -94,6 +97,18 @@ impl WgpuCanvas {
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
         self.on_scroll.wait().await
+    }
+
+    pub async fn wait_key_down(&self) -> KeyCode {
+        self.keyboard.wait_key_down().await
+    }
+
+    pub async fn wait_key_up(&self) -> KeyCode {
+        self.keyboard.wait_key_up().await
+    }
+
+    pub async fn wait_key_char(&self) -> char {
+        self.keyboard.wait_key_char().await
     }
 
     fn native_window(&self) -> Option<NativeWindow> {
