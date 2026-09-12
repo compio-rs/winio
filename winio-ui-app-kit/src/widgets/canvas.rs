@@ -17,11 +17,14 @@ use objc2_core_text::CTFramesetter;
 use objc2_foundation::{MainThreadMarker, NSRect, NSSize};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Font, MouseButton, Point, Rect, RelativePoint, Size, Transform, Vector};
+use winio_primitive::{
+    Font, KeyCode, MouseButton, Point, Rect, RelativePoint, Size, Transform, Vector,
+};
 
 use crate::{
     Brush, DrawAction, DrawingImage, Error, GlobalRuntime, Pen, Result, Widget, catch,
-    create_attr_str, from_cgsize, transform_cgpoint, transform_point, transform_rect,
+    create_attr_str, from_cgsize, platform::Keyboard, transform_cgpoint, transform_point,
+    transform_rect,
 };
 
 #[derive(Debug)]
@@ -79,6 +82,18 @@ impl CanvasImpl {
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
         self.view.ivars().mouse_scroll.wait().await
+    }
+
+    pub async fn wait_key_down(&self) -> KeyCode {
+        self.view.ivars().keyboard.wait_key_down().await
+    }
+
+    pub async fn wait_key_up(&self) -> KeyCode {
+        self.view.ivars().keyboard.wait_key_up().await
+    }
+
+    pub async fn wait_key_char(&self) -> char {
+        self.view.ivars().keyboard.wait_key_char().await
     }
 }
 
@@ -141,6 +156,18 @@ impl Canvas {
     pub async fn wait_mouse_wheel(&self) -> Vector {
         self.handle.wait_mouse_wheel().await
     }
+
+    pub async fn wait_key_down(&self) -> KeyCode {
+        self.handle.wait_key_down().await
+    }
+
+    pub async fn wait_key_up(&self) -> KeyCode {
+        self.handle.wait_key_up().await
+    }
+
+    pub async fn wait_key_char(&self) -> char {
+        self.handle.wait_key_char().await
+    }
 }
 
 winio_handle::impl_as_widget!(Canvas, handle);
@@ -160,6 +187,7 @@ struct CanvasViewIvars {
     mouse_up: Callback<MouseButton>,
     mouse_move: Callback,
     mouse_scroll: Callback<Vector>,
+    keyboard: Keyboard,
     actions: RefCell<Vec<DrawAction>>,
     // A buffer for actions, to avoid frequent allocations.
     actions_buf: RefCell<Vec<DrawAction>>,
@@ -203,6 +231,31 @@ define_class! {
         #[unsafe(method(acceptsFirstResponder))]
         unsafe fn acceptsFirstResponder(&self) -> bool {
             true
+        }
+
+        #[unsafe(method(becomeFirstResponder))]
+        unsafe fn becomeFirstResponder(&self) -> bool {
+            let accepted = unsafe { msg_send![super(self), becomeFirstResponder] };
+            if accepted {
+                self.ivars().keyboard.sync_modifiers(NSEvent::modifierFlags_class());
+            }
+            accepted
+        }
+
+        #[unsafe(method(keyDown:))]
+        unsafe fn keyDown(&self, event: &NSEvent) {
+            self.ivars().keyboard.key_down(event);
+            self.ivars().keyboard.key_char(event);
+        }
+
+        #[unsafe(method(keyUp:))]
+        unsafe fn keyUp(&self, event: &NSEvent) {
+            self.ivars().keyboard.key_up(event);
+        }
+
+        #[unsafe(method(flagsChanged:))]
+        unsafe fn flagsChanged(&self, event: &NSEvent) {
+            self.ivars().keyboard.flags_changed(event.modifierFlags());
         }
 
         #[unsafe(method(drawRect:))]

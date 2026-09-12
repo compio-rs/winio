@@ -21,7 +21,6 @@ WinioCanvas::WinioCanvas(QWidget *parent)
       m_buffer() {
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
-    setAttribute(Qt::WA_InputMethodEnabled);
 }
 
 WinioCanvas::~WinioCanvas() {}
@@ -77,14 +76,6 @@ void WinioCanvas::keyReleaseEvent(QKeyEvent *event) {
     if (m_key_up_callback) {
         auto &[callback, data] = *m_key_up_callback;
         callback(data, event->key());
-    }
-}
-
-void WinioCanvas::inputMethodEvent(QInputMethodEvent *event) {
-    event->accept();
-    if (m_key_char_callback) {
-        auto &[callback, data] = *m_key_char_callback;
-        callback(data, event->commitString());
     }
 }
 

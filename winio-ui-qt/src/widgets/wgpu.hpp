@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../common.hpp"
-#include <QInputMethodEvent>
 #include <QKeyEvent>
 #include <QWidget>
 #include <memory>
@@ -35,7 +34,6 @@ protected:
     void wheelEvent(QWheelEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
-    void inputMethodEvent(QInputMethodEvent *event) override;
 };
 
 std::unique_ptr<QWidget> new_wgpu_canvas(QWidget *parent);
