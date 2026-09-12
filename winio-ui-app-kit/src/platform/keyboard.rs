@@ -99,10 +99,11 @@ fn character_key(text: &str) -> KeyCode {
         _ => {
             let mut upper = c.to_uppercase();
             let c = upper.next().unwrap();
-            if c.is_control() || upper.next().is_some() {
+            // Unmapped AppKit function-key symbols are not character keys.
+            if c.is_control() || ('\u{f700}'..='\u{f8ff}').contains(&c) || upper.next().is_some() {
                 return KeyCode::Unidentified;
             }
-            u8::try_from(c as u32).map_or(KeyCode::Unidentified, KeyCode::Char)
+            KeyCode::Char(c)
         }
     }
 }

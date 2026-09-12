@@ -35,12 +35,12 @@ pub enum KeyCode {
     Insert,
     /// A function key.
     F(u8),
-    /// A single-byte key symbol in the active keyboard layout.
+    /// A Unicode key symbol in the active keyboard layout.
     ///
-    /// Values use Latin-1, with ASCII letters represented by uppercase bytes
-    /// (`b'A'` through `b'Z'`), independently of Shift and Caps Lock. This is a
+    /// ASCII letters are represented by uppercase characters
+    /// (`'A'` through `'Z'`), independently of Shift and Caps Lock. This is a
     /// key identifier, not an input character.
-    Char(u8),
+    Char(char),
     /// The Escape key.
     Esc,
     /// The Caps Lock key.
