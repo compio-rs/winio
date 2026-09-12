@@ -27,6 +27,7 @@ pub struct MiscPage {
     uentry: Child<Edit>,
     pentry: Child<Edit>,
     pcheck: Child<CheckBox>,
+    klabel: Child<Label>,
     canvas: Child<Canvas>,
     combo: Child<ComboBox>,
     list: Child<ObservableVec<String>>,
@@ -57,6 +58,9 @@ pub enum MiscPageMessage {
     Pop,
     Show,
     RSelect(usize),
+    KeyUp(KeyCode),
+    KeyDown(KeyCode),
+    KeyChar(char),
     #[cfg(windows)]
     ChooseBackdrop(Backdrop),
     #[cfg(target_os = "macos")]
@@ -75,6 +79,7 @@ impl Component for MiscPage {
                 text: "Widgets",
             },
             canvas: Canvas = (&window),
+            klabel: Label = (&window),
             link: LinkLabel = (&window) => {
                 text: "Source",
                 uri: "https://github.com/compio-rs/winio",
@@ -169,6 +174,7 @@ impl Component for MiscPage {
             uentry,
             pentry,
             pcheck,
+            klabel,
             canvas,
             combo,
             list,
@@ -192,7 +198,12 @@ impl Component for MiscPage {
             self.uentry => {},
             self.pcheck => {},
             self.pentry => {},
-            self.canvas => {},
+            self.canvas => {
+                CanvasEvent::KeyDown(c) => MiscPageMessage::KeyDown(c),
+                CanvasEvent::KeyUp(c) => MiscPageMessage::KeyUp(c),
+                CanvasEvent::KeyChar(c) => MiscPageMessage::KeyChar(c),
+            },
+            self.klabel => {},
             self.combo => {},
             self.push_button => {
                 ButtonEvent::Click => MiscPageMessage::Push,
@@ -286,6 +297,18 @@ impl Component for MiscPage {
                 ));
                 Ok(false)
             }
+            MiscPageMessage::KeyUp(c) => {
+                self.klabel.set_text(format!("Key up: {c:?}"))?;
+                Ok(true)
+            }
+            MiscPageMessage::KeyDown(c) => {
+                self.klabel.set_text(format!("Key down: {c:?}"))?;
+                Ok(true)
+            }
+            MiscPageMessage::KeyChar(c) => {
+                self.klabel.set_text(format!("Key char: {c:?}"))?;
+                Ok(true)
+            }
             #[cfg(windows)]
             MiscPageMessage::ChooseBackdrop(b) => {
                 sender.output(MiscPageEvent::ChooseBackdrop(b));
@@ -327,15 +350,16 @@ impl Component for MiscPage {
 
             let mut root_panel = if csize.width < csize.height {
                 layout! {
-                    Grid::from_str("1*", "auto,1*,1*,auto,auto,1*,1*,1*").unwrap(),
+                    Grid::from_str("1*", "auto,1*,1*,auto,auto,1*,auto,1*,1*").unwrap(),
                     self.backdrop => { column: 0, row: 0, halign: HAlign::Stretch, margin: Margin::new_all_same(8.0) },
                     cred_panel    => { column: 0, row: 1 },
                     rgroup_panel  => { column: 0, row: 2, halign: HAlign::Center },
                     self.combo    => { column: 0, row: 3, halign: HAlign::Center },
                     self.progress => { column: 0, row: 4 },
                     self.canvas   => { column: 0, row: 5 },
-                    self.mltext   => { column: 0, row: 6, margin: Margin::new_all_same(8.0) },
-                    buttons_panel => { column: 0, row: 7 },
+                    self.klabel   => { column: 0, row: 6, halign: HAlign::Center },
+                    self.mltext   => { column: 0, row: 7, margin: Margin::new_all_same(8.0) },
+                    buttons_panel => { column: 0, row: 8 },
                 }
             } else {
                 layout! {
@@ -343,7 +367,8 @@ impl Component for MiscPage {
                     self.backdrop => { column: 0, row: 0, halign: HAlign::Stretch, valign: VAlign::Center, margin: Margin::new_all_same(8.0) },
                     cred_panel    => { column: 1, row: 0 },
                     rgroup_panel  => { column: 2, row: 0, halign: HAlign::Center },
-                    self.canvas   => { column: 0, row: 1, row_span: 2 },
+                    self.klabel   => { column: 0, row: 1, halign: HAlign::Center },
+                    self.canvas   => { column: 0, row: 2 },
                     self.combo    => { column: 1, row: 1, halign: HAlign::Center },
                     self.progress => { column: 2, row: 1 },
                     self.mltext   => { column: 1, row: 2, margin: Margin::new_all_same(8.0) },
