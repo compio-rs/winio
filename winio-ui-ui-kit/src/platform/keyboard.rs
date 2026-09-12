@@ -1,10 +1,8 @@
-use std::{cell::RefCell, collections::VecDeque};
-
 use objc2_ui_kit::{UIKey, UIKeyModifierFlags, UIKeyboardHIDUsage as Key};
 use winio_callback::Callback;
 use winio_primitive::KeyCode;
 
-use crate::{GlobalRuntime, from_nsstring};
+use crate::{GlobalRuntime, KeyCharCallback, character_key, from_nsstring};
 
 pub(crate) fn key_code(key: &UIKey) -> KeyCode {
     match key.keyCode() {
@@ -42,20 +40,7 @@ pub(crate) fn key_code(key: &UIKey) -> KeyCode {
         _ => {
             // HID letter positions are layout-independent; use UIKit's key
             // symbol instead so non-US layouts keep their native mapping.
-            let text = from_nsstring(&key.charactersIgnoringModifiers());
-            let mut chars = text.chars();
-            let Some(c) = chars.next() else {
-                return KeyCode::Unidentified;
-            };
-            if chars.next().is_some() {
-                return KeyCode::Unidentified;
-            }
-            let mut upper = c.to_uppercase();
-            let c = upper.next().unwrap();
-            if c.is_control() || ('\u{f700}'..='\u{f8ff}').contains(&c) || upper.next().is_some() {
-                return KeyCode::Unidentified;
-            }
-            KeyCode::Char(c)
+            character_key(&from_nsstring(&key.charactersIgnoringModifiers()))
         }
     }
 }
@@ -64,8 +49,7 @@ pub(crate) fn key_code(key: &UIKey) -> KeyCode {
 pub(crate) struct Keyboard {
     key_down: Callback<KeyCode>,
     key_up: Callback<KeyCode>,
-    pending: RefCell<VecDeque<char>>,
-    ready: Callback,
+    key_char: KeyCharCallback,
 }
 
 impl Keyboard {
@@ -95,15 +79,7 @@ impl Keyboard {
         ) {
             return;
         }
-        let text = from_nsstring(&key.characters());
-        let mut chars = text
-            .chars()
-            .filter(|c| !('\u{f700}'..='\u{f8ff}').contains(c))
-            .peekable();
-        if chars.peek().is_some() {
-            self.pending.borrow_mut().extend(chars);
-            self.ready.signal::<GlobalRuntime>(());
-        }
+        self.key_char.signal(&key.characters());
     }
 
     pub async fn wait_key_down(&self) -> KeyCode {
@@ -115,11 +91,6 @@ impl Keyboard {
     }
 
     pub async fn wait_key_char(&self) -> char {
-        loop {
-            if let Some(c) = self.pending.borrow_mut().pop_front() {
-                return c;
-            }
-            self.ready.wait().await;
-        }
+        self.key_char.wait().await
     }
 }

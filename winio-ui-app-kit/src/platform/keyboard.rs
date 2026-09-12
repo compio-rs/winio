@@ -1,71 +1,71 @@
-use std::{
-    cell::{Cell, RefCell},
-    collections::VecDeque,
-};
+use std::cell::Cell;
 
 use objc2_app_kit::{self as appkit, NSEvent, NSEventModifierFlags};
 use winio_callback::Callback;
 use winio_primitive::KeyCode;
 
-use crate::{GlobalRuntime, from_nsstring};
+use super::key_codes as vk;
+use crate::{GlobalRuntime, KeyCharCallback, character_key, from_nsstring};
+
+const ESCAPE_CHARACTER: u32 = '\u{1b}' as u32;
 
 // These virtual key codes identify non-text keys independently of the layout.
 pub(crate) fn key_code(event: &NSEvent) -> KeyCode {
     let character = event
         .charactersIgnoringModifiers()
-        .map(|s| character_key(&from_nsstring(&s)))
+        .map(|s| event_character_key(&from_nsstring(&s)))
         .unwrap_or(KeyCode::Unidentified);
     // AppKit may translate combinations such as Fn+Left to a named key (Home).
     if !matches!(character, KeyCode::Char(_) | KeyCode::Unidentified) {
         return character;
     }
     match event.keyCode() {
-        0x24 | 0x4c => KeyCode::Enter,
-        0x30 => KeyCode::Tab,
-        0x33 => KeyCode::Backspace,
-        0x35 => KeyCode::Esc,
-        0x36 | 0x37 => KeyCode::Super,
-        0x38 | 0x3c => KeyCode::Shift,
-        0x39 => KeyCode::CapsLock,
-        0x3a | 0x3d => KeyCode::Alt,
-        0x3b | 0x3e => KeyCode::Control,
-        0x47 => KeyCode::Clear,
-        0x6e => KeyCode::Menu,
-        0x72 => KeyCode::Insert,
-        0x73 => KeyCode::Home,
-        0x74 => KeyCode::PageUp,
-        0x75 => KeyCode::Delete,
-        0x77 => KeyCode::End,
-        0x79 => KeyCode::PageDown,
-        0x7b => KeyCode::Left,
-        0x7c => KeyCode::Right,
-        0x7d => KeyCode::Down,
-        0x7e => KeyCode::Up,
-        0x7a => KeyCode::F(1),
-        0x78 => KeyCode::F(2),
-        0x63 => KeyCode::F(3),
-        0x76 => KeyCode::F(4),
-        0x60 => KeyCode::F(5),
-        0x61 => KeyCode::F(6),
-        0x62 => KeyCode::F(7),
-        0x64 => KeyCode::F(8),
-        0x65 => KeyCode::F(9),
-        0x6d => KeyCode::F(10),
-        0x67 => KeyCode::F(11),
-        0x6f => KeyCode::F(12),
-        0x69 => KeyCode::F(13),
-        0x6b => KeyCode::F(14),
-        0x71 => KeyCode::F(15),
-        0x6a => KeyCode::F(16),
-        0x40 => KeyCode::F(17),
-        0x4f => KeyCode::F(18),
-        0x50 => KeyCode::F(19),
-        0x5a => KeyCode::F(20),
+        vk::kVK_Return | vk::kVK_ANSI_KeypadEnter => KeyCode::Enter,
+        vk::kVK_Tab => KeyCode::Tab,
+        vk::kVK_Delete => KeyCode::Backspace,
+        vk::kVK_Escape => KeyCode::Esc,
+        vk::kVK_RightCommand | vk::kVK_Command => KeyCode::Super,
+        vk::kVK_Shift | vk::kVK_RightShift => KeyCode::Shift,
+        vk::kVK_CapsLock => KeyCode::CapsLock,
+        vk::kVK_Option | vk::kVK_RightOption => KeyCode::Alt,
+        vk::kVK_Control | vk::kVK_RightControl => KeyCode::Control,
+        vk::kVK_ANSI_KeypadClear => KeyCode::Clear,
+        vk::CONTEXT_MENU => KeyCode::Menu,
+        vk::kVK_Help => KeyCode::Insert,
+        vk::kVK_Home => KeyCode::Home,
+        vk::kVK_PageUp => KeyCode::PageUp,
+        vk::kVK_ForwardDelete => KeyCode::Delete,
+        vk::kVK_End => KeyCode::End,
+        vk::kVK_PageDown => KeyCode::PageDown,
+        vk::kVK_LeftArrow => KeyCode::Left,
+        vk::kVK_RightArrow => KeyCode::Right,
+        vk::kVK_DownArrow => KeyCode::Down,
+        vk::kVK_UpArrow => KeyCode::Up,
+        vk::kVK_F1 => KeyCode::F(1),
+        vk::kVK_F2 => KeyCode::F(2),
+        vk::kVK_F3 => KeyCode::F(3),
+        vk::kVK_F4 => KeyCode::F(4),
+        vk::kVK_F5 => KeyCode::F(5),
+        vk::kVK_F6 => KeyCode::F(6),
+        vk::kVK_F7 => KeyCode::F(7),
+        vk::kVK_F8 => KeyCode::F(8),
+        vk::kVK_F9 => KeyCode::F(9),
+        vk::kVK_F10 => KeyCode::F(10),
+        vk::kVK_F11 => KeyCode::F(11),
+        vk::kVK_F12 => KeyCode::F(12),
+        vk::kVK_F13 => KeyCode::F(13),
+        vk::kVK_F14 => KeyCode::F(14),
+        vk::kVK_F15 => KeyCode::F(15),
+        vk::kVK_F16 => KeyCode::F(16),
+        vk::kVK_F17 => KeyCode::F(17),
+        vk::kVK_F18 => KeyCode::F(18),
+        vk::kVK_F19 => KeyCode::F(19),
+        vk::kVK_F20 => KeyCode::F(20),
         _ => character,
     }
 }
 
-fn character_key(text: &str) -> KeyCode {
+fn event_character_key(text: &str) -> KeyCode {
     let mut chars = text.chars();
     let Some(c) = chars.next() else {
         return KeyCode::Unidentified;
@@ -74,10 +74,10 @@ fn character_key(text: &str) -> KeyCode {
         return KeyCode::Unidentified;
     }
     match c as u32 {
-        0x08 | 0x7f => KeyCode::Backspace,
-        0x09 | 0x19 => KeyCode::Tab,
-        0x03 | 0x0d => KeyCode::Enter,
-        0x1b => KeyCode::Esc,
+        appkit::NSBackspaceCharacter | appkit::NSDeleteCharacter => KeyCode::Backspace,
+        appkit::NSTabCharacter | appkit::NSBackTabCharacter => KeyCode::Tab,
+        appkit::NSEnterCharacter | appkit::NSCarriageReturnCharacter => KeyCode::Enter,
+        ESCAPE_CHARACTER => KeyCode::Esc,
         appkit::NSUpArrowFunctionKey => KeyCode::Up,
         appkit::NSDownArrowFunctionKey => KeyCode::Down,
         appkit::NSLeftArrowFunctionKey => KeyCode::Left,
@@ -96,15 +96,7 @@ fn character_key(text: &str) -> KeyCode {
         appkit::NSScrollLockFunctionKey => KeyCode::ScrollLock,
         appkit::NSPauseFunctionKey | appkit::NSBreakFunctionKey => KeyCode::Pause,
         appkit::NSMenuFunctionKey => KeyCode::Menu,
-        _ => {
-            let mut upper = c.to_uppercase();
-            let c = upper.next().unwrap();
-            // Unmapped AppKit function-key symbols are not character keys.
-            if c.is_control() || ('\u{f700}'..='\u{f8ff}').contains(&c) || upper.next().is_some() {
-                return KeyCode::Unidentified;
-            }
-            KeyCode::Char(c)
-        }
+        _ => character_key(text),
     }
 }
 
@@ -119,8 +111,7 @@ const MODIFIERS: [(NSEventModifierFlags, KeyCode); 4] = [
 pub(crate) struct Keyboard {
     key_down: Callback<KeyCode>,
     key_up: Callback<KeyCode>,
-    pending: RefCell<VecDeque<char>>,
-    ready: Callback,
+    key_char: KeyCharCallback,
     modifiers: Cell<usize>,
 }
 
@@ -141,16 +132,7 @@ impl Keyboard {
             return;
         }
         if let Some(text) = event.characters() {
-            let text = from_nsstring(&text);
-            // AppKit encodes function keys in this private-use range.
-            let mut chars = text
-                .chars()
-                .filter(|c| !('\u{f700}'..='\u{f8ff}').contains(c))
-                .peekable();
-            if chars.peek().is_some() {
-                self.pending.borrow_mut().extend(chars);
-                self.ready.signal::<GlobalRuntime>(());
-            }
+            self.key_char.signal(&text);
         }
     }
 
@@ -189,11 +171,6 @@ impl Keyboard {
     }
 
     pub async fn wait_key_char(&self) -> char {
-        loop {
-            if let Some(c) = self.pending.borrow_mut().pop_front() {
-                return c;
-            }
-            self.ready.wait().await;
-        }
+        self.key_char.wait().await
     }
 }
