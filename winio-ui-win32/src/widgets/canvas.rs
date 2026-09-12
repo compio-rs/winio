@@ -22,24 +22,31 @@ use windows_sys::Win32::{
     System::SystemServices::SS_OWNERDRAW,
     UI::{
         Controls::WC_STATICW,
+        Input::KeyboardAndMouse::SetFocus,
         WindowsAndMessaging::{
             GA_ROOT, GetAncestor, GetParent, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN,
             WM_MBUTTONUP, WM_MOUSEHWHEEL, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_RBUTTONDOWN,
-            WM_RBUTTONUP, WS_CHILD, WS_VISIBLE,
+            WM_RBUTTONUP, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
         },
     },
 };
 use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{
-    Font, MouseButton, Orient, Point, Rect, RelativePoint, Size, Transform, Vector,
+    Font, KeyCode, MouseButton, Orient, Point, Rect, RelativePoint, Size, Transform, Vector,
 };
 use winio_ui_windows_common::{Backdrop, d2d1_factory, is_dark_mode_allowed_for_app, syscall};
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 
-use crate::{Result, get_backdrop, platform::font::dwrite_factory, widgets::Widget};
+use crate::{
+    Result, get_backdrop,
+    platform::{font::dwrite_factory, keyboard::Keyboard},
+    widgets::Widget,
+};
 
 #[derive(Debug)]
 pub(crate) struct CanvasImpl {
+    // Remove the keyboard subclass before destroying the native window.
+    keyboard: Keyboard,
     handle: Widget,
 }
 
@@ -48,11 +55,12 @@ impl CanvasImpl {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let handle = Widget::new(
             WC_STATICW,
-            WS_CHILD | WS_VISIBLE | SS_OWNERDRAW,
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | SS_OWNERDRAW,
             0,
             parent.as_container().as_win32(),
         )?;
-        Ok(Self { handle })
+        let keyboard = Keyboard::new(handle.as_widget().as_win32())?;
+        Ok(Self { keyboard, handle })
     }
 
     pub fn is_visible(&self) -> Result<bool>;
@@ -83,6 +91,7 @@ impl CanvasImpl {
                 msg = self.handle.wait_parent(WM_MBUTTONDOWN).fuse() => (msg, MouseButton::Middle),
             };
             if self.is_in(msg.lparam(), false).is_some() {
+                unsafe { SetFocus(self.handle.as_widget().as_win32()) };
                 break b;
             }
         }
@@ -125,6 +134,18 @@ impl CanvasImpl {
             Orient::Vertical => Vector::new(0.0, delta as _),
             Orient::Horizontal => Vector::new(delta as _, 0.0),
         }
+    }
+
+    pub async fn wait_key_down(&self) -> KeyCode {
+        self.keyboard.wait_key_down().await
+    }
+
+    pub async fn wait_key_up(&self) -> KeyCode {
+        self.keyboard.wait_key_up().await
+    }
+
+    pub async fn wait_key_char(&self) -> char {
+        self.keyboard.wait_key_char().await
     }
 
     fn is_in(&self, lparam: LPARAM, screen: bool) -> Option<Point> {
@@ -272,6 +293,18 @@ impl Canvas {
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
         self.handle.wait_mouse_wheel().await
+    }
+
+    pub async fn wait_key_down(&self) -> KeyCode {
+        self.handle.wait_key_down().await
+    }
+
+    pub async fn wait_key_up(&self) -> KeyCode {
+        self.handle.wait_key_up().await
+    }
+
+    pub async fn wait_key_char(&self) -> char {
+        self.handle.wait_key_char().await
     }
 }
 
