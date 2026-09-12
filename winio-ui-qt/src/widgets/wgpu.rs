@@ -16,7 +16,7 @@ use winio_primitive::{KeyCode, MouseButton, Point, Size, Vector};
 use crate::{
     GlobalRuntime, QtMouseButton, Result, Widget,
     common::QString,
-    keyboard::{KeyCharCallback, key_code},
+    platform::{KeyCharCallback, key_code},
 };
 
 #[derive(Debug)]
