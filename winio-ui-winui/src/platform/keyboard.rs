@@ -36,11 +36,15 @@ impl Keyboard {
         element
             .KeyDown({
                 let key_down = key_down.clone();
+                let key_char = key_char.clone();
                 move |_, args| {
                     let args = args.ok()?;
                     let code = u16::try_from(args.Key()?.0).map_or(KeyCode::Unidentified, key_code);
-                    args.SetHandled(true)?;
                     key_down.signal::<GlobalRuntime>(code);
+                    if code == KeyCode::Tab {
+                        args.SetHandled(true)?;
+                        key_char.signal_utf16(b'\t' as u16, 1);
+                    }
                     Ok(())
                 }
             })?
@@ -51,7 +55,6 @@ impl Keyboard {
                 move |_, args| {
                     let args = args.ok()?;
                     let code = u16::try_from(args.Key()?.0).map_or(KeyCode::Unidentified, key_code);
-                    args.SetHandled(true)?;
                     key_up.signal::<GlobalRuntime>(code);
                     Ok(())
                 }
