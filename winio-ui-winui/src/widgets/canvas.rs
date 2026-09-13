@@ -41,12 +41,7 @@ use winio_ui_windows_common::d2d1_factory;
 pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
 use winui3::Microsoft::UI::{
     Input::{PointerDeviceType, PointerPointProperties},
-    Xaml::{
-        Controls::{self as MUXC, SwapChainPanel},
-        FocusState,
-        Input::PointerRoutedEventArgs,
-        Media::DxInterop::ISwapChainPanelNative,
-    },
+    Xaml::{Controls as MUXC, Input as MUXI, Media::DxInterop::ISwapChainPanelNative},
 };
 
 use crate::{
@@ -69,7 +64,9 @@ pub(crate) struct CanvasImpl {
 impl CanvasImpl {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let panel = MUXC::SwapChainPanel::new()?;
-        let keyboard = Keyboard::new(&panel.cast()?)?;
+        let control = MUXC::UserControl::new()?;
+        control.SetContent(&panel)?;
+        let keyboard = Keyboard::new(&control.cast()?)?;
 
         let mouse_button_cache = SendWrapper::new(Rc::new(Cell::new(MouseButton::Other)));
         let on_press = SendWrapper::new(Rc::new(Callback::new()));
@@ -78,9 +75,8 @@ impl CanvasImpl {
             let mouse_button_cache = mouse_button_cache.clone();
             panel
                 .PointerPressed(move |sender, args| {
-                    let panel = sender.ok()?.cast::<SwapChainPanel>()?;
+                    let panel = sender.ok()?.cast::<MUXC::SwapChainPanel>()?;
                     let args = args.ok()?;
-                    panel.Focus(FocusState::Pointer)?;
                     let mouse = mouse_button(&panel, args)?;
                     mouse_button_cache.set(mouse);
                     on_press.signal::<GlobalRuntime>(mouse);
@@ -106,7 +102,7 @@ impl CanvasImpl {
             let on_move = on_move.clone();
             panel
                 .PointerMoved(move |sender, args| {
-                    let panel = sender.ok()?.cast::<SwapChainPanel>()?;
+                    let panel = sender.ok()?.cast::<MUXC::SwapChainPanel>()?;
                     let args = args.ok()?;
                     let point = args.GetCurrentPoint(&panel)?;
                     on_move.signal::<GlobalRuntime>(Point::from_native(point.Position()?));
@@ -119,7 +115,7 @@ impl CanvasImpl {
             let on_wheel = on_wheel.clone();
             panel
                 .PointerWheelChanged(move |sender, args| {
-                    let panel = sender.ok()?.cast::<SwapChainPanel>()?;
+                    let panel = sender.ok()?.cast::<MUXC::SwapChainPanel>()?;
                     let args = args.ok()?;
                     let point = args.GetCurrentPoint(&panel)?;
                     let props = point.Properties()?;
@@ -139,7 +135,7 @@ impl CanvasImpl {
             on_move,
             on_wheel,
             keyboard,
-            handle: Widget::new(parent, panel.cast()?)?,
+            handle: Widget::new(parent, control.cast()?)?,
             panel,
         })
     }
@@ -203,7 +199,10 @@ impl Deref for CanvasImpl {
 
 winio_handle::impl_as_widget!(CanvasImpl, handle);
 
-fn mouse_button(panel: &SwapChainPanel, args: &PointerRoutedEventArgs) -> Result<MouseButton> {
+fn mouse_button(
+    panel: &MUXC::SwapChainPanel,
+    args: &MUXI::PointerRoutedEventArgs,
+) -> Result<MouseButton> {
     let pointer = args.Pointer()?;
     if pointer.PointerDeviceType() == Ok(PointerDeviceType::Mouse) {
         let pt = args.GetCurrentPoint(panel)?;
@@ -306,7 +305,7 @@ impl SwapChain {
         }
     }
 
-    pub fn set_to_panel(&self, panel: &SwapChainPanel) -> Result<()> {
+    pub fn set_to_panel(&self, panel: &MUXC::SwapChainPanel) -> Result<()> {
         let native = panel.cast::<ISwapChainPanelNative>()?;
         unsafe {
             native.SetSwapChain(&self.swap_chain)?;
@@ -316,7 +315,7 @@ impl SwapChain {
 
     pub fn begin_draw(
         &mut self,
-        panel: &SwapChainPanel,
+        panel: &MUXC::SwapChainPanel,
         size: Size,
         scalex: f32,
         scaley: f32,

@@ -1,10 +1,11 @@
 use std::rc::Rc;
 
 use send_wrapper::SendWrapper;
+use windows_core::Interface;
 use winio_callback::Callback;
 use winio_primitive::KeyCode;
 use winio_ui_windows_common::{KeyCharCallback, key_code};
-use winui3::Microsoft::UI::Xaml::UIElement;
+use winui3::Microsoft::UI::Xaml::{FocusState, UIElement};
 
 use crate::{GlobalRuntime, Result};
 
@@ -21,6 +22,16 @@ impl Keyboard {
         let key_down = SendWrapper::new(Rc::new(Callback::new()));
         let key_up = SendWrapper::new(Rc::new(Callback::new()));
         let key_char = SendWrapper::new(Rc::new(KeyCharCallback::default()));
+
+        element
+            .PointerPressed(|sender, args| {
+                let sender = sender.ok()?.cast::<UIElement>()?;
+                sender.Focus(FocusState::Programmatic)?;
+                let args = args.ok()?;
+                args.SetHandled(true)?;
+                Ok(())
+            })?
+            .forget();
 
         element
             .KeyDown({
