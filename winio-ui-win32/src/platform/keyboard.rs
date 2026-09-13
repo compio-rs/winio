@@ -5,9 +5,9 @@ use windows_sys::Win32::{
     UI::{
         Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
         WindowsAndMessaging::{
-            DLGC_WANTALLKEYS, DLGC_WANTARROWS, DLGC_WANTCHARS, DLGC_WANTTAB, UNICODE_NOCHAR,
-            WM_CHAR, WM_GETDLGCODE, WM_KEYDOWN, WM_KEYUP, WM_NCDESTROY, WM_SYSCHAR, WM_SYSKEYDOWN,
-            WM_SYSKEYUP, WM_UNICHAR,
+            DLGC_WANTALLKEYS, DLGC_WANTARROWS, DLGC_WANTCHARS, DLGC_WANTTAB, WM_CHAR,
+            WM_GETDLGCODE, WM_KEYDOWN, WM_KEYUP, WM_NCDESTROY, WM_SYSCHAR, WM_SYSKEYDOWN,
+            WM_SYSKEYUP,
         },
     },
 };
@@ -97,23 +97,14 @@ unsafe extern "system" fn keyboard_wnd_proc(
             }
             result
         }
-        WM_UNICHAR if wparam == UNICODE_NOCHAR as WPARAM => 1,
-        WM_CHAR | WM_SYSCHAR | WM_UNICHAR => {
+        WM_CHAR | WM_SYSCHAR => {
             let result = if msg == WM_SYSCHAR {
                 unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
             } else {
                 0
             };
-            let repeat = ((lparam as usize) & 0xffff).max(1);
-            if msg == WM_UNICHAR {
-                let c = u32::try_from(wparam)
-                    .ok()
-                    .and_then(char::from_u32)
-                    .unwrap_or(char::REPLACEMENT_CHARACTER);
-                state.chars.signal_char(c, repeat);
-            } else {
-                state.chars.signal_utf16(wparam as u16, repeat);
-            }
+            let repeat = (lparam as usize) & 0xffff;
+            state.chars.signal_utf16(wparam as u16, repeat);
             result
         }
         WM_NCDESTROY => unsafe {

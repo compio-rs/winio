@@ -59,83 +59,40 @@ pub fn key_code(code: u16) -> KeyCode {
 /// Buffers native character messages, including partial UTF-16 surrogate pairs.
 #[derive(Debug, Default)]
 pub struct KeyCharCallback {
-    chars: RefCell<CharBuffer>,
+    chars: RefCell<VecDeque<u16>>,
     ready: Callback,
 }
 
 impl KeyCharCallback {
-    /// Enqueue a UTF-16 code unit. A zero repeat count is treated as one.
     pub fn signal_utf16(&self, unit: u16, repeat: usize) {
-        self.chars.borrow_mut().push_utf16(unit, repeat.max(1));
-        self.notify();
+        self.chars
+            .borrow_mut()
+            .extend(std::iter::repeat_n(unit, repeat.max(1)));
+        self.ready.signal::<GlobalRuntime>(());
     }
 
-    /// Enqueue a Unicode character. A zero repeat count is treated as one.
-    pub fn signal_char(&self, c: char, repeat: usize) {
-        self.chars.borrow_mut().push_char(c, repeat.max(1));
-        self.notify();
-    }
-
-    fn notify(&self) {
-        if !self.chars.borrow().pending.is_empty() {
-            self.ready.signal::<GlobalRuntime>(());
+    fn pop(&self) -> Option<char> {
+        let mut chars = self.chars.borrow_mut();
+        let first = *chars.front()?;
+        // Keep a lone high surrogate until the next code unit arrives.
+        if (0xd800..=0xdbff).contains(&first) && chars.len() == 1 {
+            return None;
         }
+        let c = char::decode_utf16(chars.iter().copied())
+            .next()?
+            .unwrap_or(char::REPLACEMENT_CHARACTER);
+        chars.drain(..c.len_utf16());
+        Some(c)
     }
 
     /// Wait for a character, preserving partial pairs and queued text on
     /// cancellation.
     pub async fn wait(&self) -> char {
         loop {
-            if let Some(c) = self.chars.borrow_mut().pending.pop_front() {
+            if let Some(c) = self.pop() {
                 return c;
             }
             self.ready.wait().await;
         }
-    }
-}
-
-#[derive(Debug, Default)]
-struct CharBuffer {
-    high: Option<(u16, usize)>,
-    pending: VecDeque<char>,
-}
-
-impl CharBuffer {
-    fn push_utf16(&mut self, unit: u16, repeat: usize) {
-        let high = self.high.take();
-        if (0xdc00..=0xdfff).contains(&unit)
-            && let Some((high, high_repeat)) = high
-        {
-            let c = char::decode_utf16([high, unit]).next().unwrap().unwrap();
-            self.pending.extend(std::iter::repeat_n(
-                char::REPLACEMENT_CHARACTER,
-                high_repeat.saturating_sub(repeat),
-            ));
-            self.pending
-                .extend(std::iter::repeat_n(c, repeat.min(high_repeat)));
-            self.pending.extend(std::iter::repeat_n(
-                char::REPLACEMENT_CHARACTER,
-                repeat.saturating_sub(high_repeat),
-            ));
-            return;
-        }
-        if let Some((_, count)) = high {
-            self.pending
-                .extend(std::iter::repeat_n(char::REPLACEMENT_CHARACTER, count));
-        }
-        if (0xd800..=0xdbff).contains(&unit) {
-            self.high = Some((unit, repeat));
-        } else {
-            let c = char::from_u32(unit.into()).unwrap_or(char::REPLACEMENT_CHARACTER);
-            self.pending.extend(std::iter::repeat_n(c, repeat));
-        }
-    }
-
-    fn push_char(&mut self, c: char, repeat: usize) {
-        if let Some((_, count)) = self.high.take() {
-            self.pending
-                .extend(std::iter::repeat_n(char::REPLACEMENT_CHARACTER, count));
-        }
-        self.pending.extend(std::iter::repeat_n(c, repeat));
     }
 }
