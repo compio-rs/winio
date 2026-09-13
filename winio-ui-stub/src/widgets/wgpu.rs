@@ -1,6 +1,6 @@
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
-use winio_primitive::{MouseButton, Point, Size, Vector};
+use winio_primitive::{KeyCode, MouseButton, Point, Size, Vector};
 
 use crate::{Result, Widget, not_impl};
 
@@ -52,6 +52,18 @@ impl WgpuCanvas {
     }
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
+        not_impl()
+    }
+
+    pub async fn wait_key_down(&self) -> KeyCode {
+        not_impl()
+    }
+
+    pub async fn wait_key_up(&self) -> KeyCode {
+        not_impl()
+    }
+
+    pub async fn wait_key_char(&self) -> char {
         not_impl()
     }
 
