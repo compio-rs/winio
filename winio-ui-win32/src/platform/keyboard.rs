@@ -6,8 +6,7 @@ use windows_sys::Win32::{
         Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
         WindowsAndMessaging::{
             DLGC_WANTALLKEYS, DLGC_WANTARROWS, DLGC_WANTCHARS, DLGC_WANTTAB, WM_CHAR,
-            WM_GETDLGCODE, WM_KEYDOWN, WM_KEYUP, WM_NCDESTROY, WM_SYSCHAR, WM_SYSKEYDOWN,
-            WM_SYSKEYUP,
+            WM_GETDLGCODE, WM_KEYDOWN, WM_KEYUP, WM_SYSCHAR, WM_SYSKEYDOWN, WM_SYSKEYUP,
         },
     },
 };
@@ -70,7 +69,7 @@ unsafe extern "system" fn keyboard_wnd_proc(
     msg: u32,
     wparam: WPARAM,
     lparam: LPARAM,
-    id: usize,
+    _id: usize,
     data: usize,
 ) -> LRESULT {
     // The owner keeps this allocation alive while the subclass is installed.
@@ -107,10 +106,6 @@ unsafe extern "system" fn keyboard_wnd_proc(
             state.chars.signal_utf16(wparam as u16, repeat);
             result
         }
-        WM_NCDESTROY => unsafe {
-            RemoveWindowSubclass(hwnd, Some(keyboard_wnd_proc), id);
-            DefSubclassProc(hwnd, msg, wparam, lparam)
-        },
         _ => unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) },
     }
 }
