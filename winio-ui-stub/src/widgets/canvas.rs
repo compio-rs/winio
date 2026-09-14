@@ -2,7 +2,7 @@ use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
 use winio_primitive::{
-    BrushPen, Font, LinearGradientBrush, MouseButton, Point, RadialGradientBrush, Rect,
+    BrushPen, Font, KeyCode, LinearGradientBrush, MouseButton, Point, RadialGradientBrush, Rect,
     RelativePoint, Size, SolidColorBrush, Transform, Vector,
 };
 
@@ -60,6 +60,18 @@ impl Canvas {
     }
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
+        not_impl()
+    }
+
+    pub async fn wait_key_down(&self) -> KeyCode {
+        not_impl()
+    }
+
+    pub async fn wait_key_up(&self) -> KeyCode {
+        not_impl()
+    }
+
+    pub async fn wait_key_char(&self) -> char {
         not_impl()
     }
 }

@@ -10,13 +10,17 @@ use futures_util::FutureExt;
 use windows::{
     Foundation::Uri,
     UI::Xaml::Interop::TypeName,
-    Win32::{Foundation::E_POINTER, System::LibraryLoader::LoadLibraryW},
+    Win32::{
+        Foundation::{E_POINTER, ERROR_MOD_NOT_FOUND},
+        System::{
+            LibraryLoader::LoadLibraryW,
+            WinRT::{RO_INIT_SINGLETHREADED, RoInitialize},
+        },
+    },
 };
-use windows_core::{Array, Error, HSTRING, Interface, Ref, WIN32_ERROR, h, implement, w};
-use windows_sys::Win32::Foundation::ERROR_MOD_NOT_FOUND;
+use windows_core::{Array, Error, HSTRING, Interface, Ref, h, implement, w};
 use winio_ui_windows_common::{PreferredAppMode, init_dark, set_preferred_app_mode};
 use winui3::{
-    ApartmentType,
     Microsoft::UI::{
         Dispatching::{DispatcherQueue, DispatcherQueueHandler},
         Xaml::{
@@ -30,7 +34,7 @@ use winui3::{
             XamlTypeInfo::XamlControlsXamlMetaDataProvider,
         },
     },
-    PackageDependency, WindowsAppSDKVersion, init_apartment,
+    PackageDependency, WindowsAppSDKVersion,
 };
 
 use crate::Result;
@@ -55,12 +59,14 @@ fn init_appsdk_with(
         }
     }
     error!("Failed to initialize Windows App SDK with any known version");
-    Err(WIN32_ERROR(ERROR_MOD_NOT_FOUND).to_hresult().into())
+    Err(ERROR_MOD_NOT_FOUND.to_hresult().into())
 }
 
 impl App {
     pub fn new() -> Result<Self> {
-        init_apartment(ApartmentType::SingleThreaded)?;
+        unsafe {
+            RoInitialize(RO_INIT_SINGLETHREADED)?;
+        }
 
         let winui_dependency = if detect_valid_winui3() {
             None

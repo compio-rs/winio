@@ -12,8 +12,9 @@ use jni_min_helper::{DynamicProxy, JBoolean};
 use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{
-    BrushPen, Font, GradientStop, LinearGradientBrush, MouseButton, Point, RadialGradientBrush,
-    Rect, RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform, Vector,
+    BrushPen, Font, GradientStop, KeyCode, LinearGradientBrush, MouseButton, Point,
+    RadialGradientBrush, Rect, RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform,
+    Vector,
 };
 
 use crate::{
@@ -28,6 +29,7 @@ use crate::{
         view::{MotionEvent, View as AView, ViewOnTouchListener, motion_event},
         widget::ImageView,
     },
+    platform::Keyboard,
     vm_exec,
 };
 
@@ -706,6 +708,7 @@ pub struct Canvas {
     on_up: Arc<SyncCallback<MouseButton>>,
     on_move: Arc<SyncCallback<Point>>,
     on_scroll: Arc<SyncCallback<Vector>>,
+    keyboard: Keyboard,
     #[allow(dead_code)]
     touch_proxy: DynamicProxy,
     latest_size: Size,
@@ -743,6 +746,9 @@ pub(crate) fn view_touch_proxy(
             let action = event.get_action(env)?;
             match action & 0xFF {
                 ACTION_DOWN => {
+                    let view = args.get_element(env, 0)?;
+                    let view = unsafe { AView::from_raw(env, view.into_raw()) };
+                    view.request_focus(env)?;
                     let btn = event.get_action_button(env)?;
                     on_down.signal(button(btn));
                 }
@@ -778,6 +784,7 @@ impl Canvas {
             let act = current_activity(env)?;
             let widget = ImageView::new(env, &act)?;
             let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
+            let keyboard = Keyboard::new(env, inner.as_view())?;
             let on_down = Arc::new(SyncCallback::new());
             let on_up = Arc::new(SyncCallback::new());
             let on_move = Arc::new(SyncCallback::new());
@@ -796,6 +803,7 @@ impl Canvas {
                 on_up,
                 on_move,
                 on_scroll,
+                keyboard,
                 touch_proxy,
                 latest_size: Size::zero(),
             })
@@ -860,6 +868,18 @@ impl Canvas {
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
         self.on_scroll.wait().await
+    }
+
+    pub async fn wait_key_down(&self) -> KeyCode {
+        self.keyboard.wait_key_down().await
+    }
+
+    pub async fn wait_key_up(&self) -> KeyCode {
+        self.keyboard.wait_key_up().await
+    }
+
+    pub async fn wait_key_char(&self) -> char {
+        self.keyboard.wait_key_char().await
     }
 }
 

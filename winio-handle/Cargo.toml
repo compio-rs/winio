@@ -25,8 +25,8 @@ raw-window-handle = { workspace = true, optional = true }
 [target.'cfg(windows)'.dependencies]
 windows-sys = { workspace = true, features = ["Win32_Foundation"] }
 winui3 = { workspace = true, optional = true, features = [
-    "native",
     "UI_Composition",
+    "UI_Xaml",
     "UI_Xaml_Controls",
 ] }
 windows-core = { workspace = true }

@@ -17,16 +17,19 @@ use objc2_core_graphics::{
 };
 use objc2_core_text::CTFramesetter;
 use objc2_foundation::{MainThreadMarker, NSRect, NSSet, NSSize};
-use objc2_ui_kit::{UIEvent, UIGraphicsGetCurrentContext, UITouch, UIView};
+use objc2_ui_kit::{
+    UIEvent, UIGraphicsGetCurrentContext, UIPress, UIPressesEvent, UITouch, UIView,
+};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{
-    ColorTheme, Font, MouseButton, Point, Rect, RelativePoint, Size, Transform, Vector,
+    ColorTheme, Font, KeyCode, MouseButton, Point, Rect, RelativePoint, Size, Transform, Vector,
 };
 
 use crate::{
     Brush, DrawAction, DrawingImage, Error, GlobalRuntime, Pen, Result, Widget, catch,
-    create_attr_str, from_cgsize, to_cgpoint, to_cgrect, transform_cgpoint, transform_rect,
+    create_attr_str, from_cgsize, platform::Keyboard, to_cgpoint, to_cgrect, transform_cgpoint,
+    transform_rect,
 };
 
 #[derive(Debug)]
@@ -90,6 +93,18 @@ impl CanvasImpl {
     pub async fn wait_mouse_wheel(&self) -> Vector {
         std::future::pending().await
     }
+
+    pub async fn wait_key_down(&self) -> KeyCode {
+        self.view.ivars().keyboard.wait_key_down().await
+    }
+
+    pub async fn wait_key_up(&self) -> KeyCode {
+        self.view.ivars().keyboard.wait_key_up().await
+    }
+
+    pub async fn wait_key_char(&self) -> char {
+        self.view.ivars().keyboard.wait_key_char().await
+    }
 }
 
 winio_handle::impl_as_widget!(CanvasImpl, handle);
@@ -151,6 +166,18 @@ impl Canvas {
     pub async fn wait_mouse_wheel(&self) -> Vector {
         self.handle.wait_mouse_wheel().await
     }
+
+    pub async fn wait_key_down(&self) -> KeyCode {
+        self.handle.wait_key_down().await
+    }
+
+    pub async fn wait_key_up(&self) -> KeyCode {
+        self.handle.wait_key_up().await
+    }
+
+    pub async fn wait_key_char(&self) -> char {
+        self.handle.wait_key_char().await
+    }
 }
 
 winio_handle::impl_as_widget!(Canvas, handle);
@@ -174,6 +201,7 @@ struct CanvasViewIvars {
     touches_began: Callback,
     touches_moved: Callback<CGPoint>,
     touches_ended: Callback,
+    keyboard: Keyboard,
     actions: RefCell<Vec<DrawAction>>,
     actions_buf: RefCell<Vec<DrawAction>>,
     factor: Cell<f64>,
@@ -213,6 +241,54 @@ define_class! {
             unsafe { msg_send![super(this), initWithFrame: frame] }
         }
 
+        #[unsafe(method(canBecomeFirstResponder))]
+        fn canBecomeFirstResponder(&self) -> bool {
+            true
+        }
+
+        #[unsafe(method(pressesBegan:withEvent:))]
+        unsafe fn pressesBegan(&self, presses: &NSSet<UIPress>, event: Option<&UIPressesEvent>) {
+            let mut handled = false;
+            for press in presses {
+                if let Some(key) = press.key(self.mtm()) {
+                    handled = true;
+                    self.ivars().keyboard.key_down(&key);
+                    self.ivars().keyboard.key_char(&key);
+                }
+            }
+            if !handled {
+                unsafe { msg_send![super(self), pressesBegan: presses, withEvent: event] }
+            }
+        }
+
+        #[unsafe(method(pressesEnded:withEvent:))]
+        unsafe fn pressesEnded(&self, presses: &NSSet<UIPress>, event: Option<&UIPressesEvent>) {
+            let mut handled = false;
+            for press in presses {
+                if let Some(key) = press.key(self.mtm()) {
+                    handled = true;
+                    self.ivars().keyboard.key_up(&key);
+                }
+            }
+            if !handled {
+                unsafe { msg_send![super(self), pressesEnded: presses, withEvent: event] }
+            }
+        }
+
+        #[unsafe(method(pressesCancelled:withEvent:))]
+        unsafe fn pressesCancelled(&self, presses: &NSSet<UIPress>, event: Option<&UIPressesEvent>) {
+            let mut handled = false;
+            for press in presses {
+                if let Some(key) = press.key(self.mtm()) {
+                    handled = true;
+                    self.ivars().keyboard.key_up(&key);
+                }
+            }
+            if !handled {
+                unsafe { msg_send![super(self), pressesCancelled: presses, withEvent: event] }
+            }
+        }
+
         #[unsafe(method(drawRect:))]
         unsafe fn drawRect(&self, rect: NSRect) {
             let ivars = self.ivars();
@@ -221,6 +297,7 @@ define_class! {
 
         #[unsafe(method(touchesBegan:withEvent:))]
         unsafe fn touchesBegan(&self, _touches: &NSSet<UITouch>, _event: &UIEvent) {
+            self.becomeFirstResponder();
             self.ivars().touches_began.signal::<GlobalRuntime>(());
         }
 
