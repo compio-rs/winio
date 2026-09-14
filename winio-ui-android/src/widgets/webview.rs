@@ -127,6 +127,23 @@ impl WebView {
         })
     }
 
+    pub fn user_agent(&self) -> Result<String> {
+        vm_exec(|env| {
+            let settings = self.inner.get_settings(env)?;
+            let ua = settings.get_user_agent_string(env)?;
+            Ok(ua.try_to_string(env)?)
+        })
+    }
+
+    pub fn set_user_agent(&mut self, ua: impl AsRef<str>) -> Result<()> {
+        vm_exec(|env| {
+            let settings = self.inner.get_settings(env)?;
+            let ua = env.new_string(ua.as_ref())?;
+            settings.set_user_agent_string(env, &ua)?;
+            Ok(())
+        })
+    }
+
     pub fn can_go_forward(&self) -> Result<bool> {
         vm_exec(|env| Ok(self.inner.can_go_forward(env)?))
     }

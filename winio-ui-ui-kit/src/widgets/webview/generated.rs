@@ -234,5 +234,18 @@ impl WKWebView {
             java_script_string: &NSString,
             completion_handler: Option<&block2::DynBlock<dyn Fn(*mut AnyObject, *mut NSError)>>,
         );
+
+        /// The custom user agent string or nil if no custom user agent string
+        /// has been set.
+        #[unsafe(method(customUserAgent))]
+        #[unsafe(method_family = none)]
+        pub unsafe fn customUserAgent(&self) -> Option<Retained<NSString>>;
+
+        /// Setter for [`customUserAgent`][Self::customUserAgent].
+        ///
+        /// This is [copied][objc2_foundation::NSCopying::copy] when set.
+        #[unsafe(method(setCustomUserAgent:))]
+        #[unsafe(method_family = none)]
+        pub unsafe fn setCustomUserAgent(&self, custom_user_agent: Option<&NSString>);
     );
 }

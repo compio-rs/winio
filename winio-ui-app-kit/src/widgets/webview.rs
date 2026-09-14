@@ -121,6 +121,26 @@ impl WebView {
         })
     }
 
+    pub fn user_agent(&self) -> Result<String> {
+        catch(|| unsafe {
+            self.view
+                .customUserAgent()
+                .map(|s| from_nsstring(&s))
+                .unwrap_or_default()
+        })
+    }
+
+    pub fn set_user_agent(&mut self, ua: impl AsRef<str>) -> Result<()> {
+        catch(|| unsafe {
+            let ua = ua.as_ref();
+            if ua.is_empty() {
+                self.view.setCustomUserAgent(None);
+            } else {
+                self.view.setCustomUserAgent(Some(&NSString::from_str(ua)));
+            }
+        })
+    }
+
     pub fn can_go_forward(&self) -> Result<bool> {
         catch(|| unsafe { self.view.canGoForward() })
     }

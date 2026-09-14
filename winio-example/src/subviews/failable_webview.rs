@@ -43,6 +43,13 @@ impl FailableWebView {
         self.set_html(s)
     }
 
+    pub fn user_agent(&self) -> Result<String> {
+        match self {
+            FailableWebView::Widget(wv) => wv.user_agent(),
+            FailableWebView::ErrLabel(_) => Ok(String::new()),
+        }
+    }
+
     pub fn can_go_forward(&self) -> Result<bool> {
         match self {
             FailableWebView::Widget(wv) => wv.can_go_forward(),

@@ -43,6 +43,16 @@ impl WebView {
         self.set_html(s)
     }
 
+    /// Get the user agent string.
+    ///
+    /// ## Platform specific
+    /// * macOS & iOS: returns the custom user agent string if set, otherwise
+    ///   returns an empty string.
+    pub fn user_agent(&self) -> Result<String>;
+
+    /// Set the user agent string.
+    pub fn set_user_agent(&mut self, s: impl AsRef<str>) -> Result<()>;
+
     /// Get if can go forward.
     pub fn can_go_forward(&self) -> Result<bool>;
 

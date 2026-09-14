@@ -38,6 +38,8 @@ jni::bind_java_type! {
     pub WebSettings => android.webkit.WebSettings,
     methods {
         fn set_java_script_enabled(enabled: bool),
+        fn set_user_agent_string(ua: &JString),
+        fn get_user_agent_string() -> JString,
     }
 }
 
