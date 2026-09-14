@@ -44,6 +44,14 @@ impl WebView {
         not_impl()
     }
 
+    pub fn user_agent(&self) -> Result<String> {
+        not_impl()
+    }
+
+    pub fn set_user_agent(&mut self, _s: impl AsRef<str>) -> Result<()> {
+        not_impl()
+    }
+
     pub fn can_go_forward(&self) -> Result<bool> {
         not_impl()
     }
