@@ -16,6 +16,7 @@ use webview2::{
     ICoreWebView2NavigationCompletedEventArgs, ICoreWebView2NavigationCompletedEventHandler,
     ICoreWebView2NavigationCompletedEventHandler_Impl, ICoreWebView2NavigationStartingEventArgs,
     ICoreWebView2NavigationStartingEventHandler, ICoreWebView2NavigationStartingEventHandler_Impl,
+    ICoreWebView2Settings2,
 };
 use windows::Win32::Foundation::{E_FAIL, E_INVALIDARG, HWND, RECT};
 use windows_core::{HRESULT, HSTRING, Interface, PCWSTR, Ref, WIN32_ERROR, implement};
@@ -172,6 +173,29 @@ impl WebView {
     pub fn set_html(&mut self, s: impl AsRef<str>) -> Result<()> {
         with_u16c(s.as_ref(), |s| unsafe {
             self.view.NavigateToString(PCWSTR(s.as_ptr()))?;
+            Ok(())
+        })
+    }
+
+    pub fn user_agent(&self) -> Result<String> {
+        unsafe {
+            let ua = CoTaskMemPtr::new(
+                self.view
+                    .Settings()?
+                    .cast::<ICoreWebView2Settings2>()?
+                    .UserAgent()?
+                    .0,
+            );
+            ua.to_string()
+        }
+    }
+
+    pub fn set_user_agent(&mut self, s: impl AsRef<str>) -> Result<()> {
+        with_u16c(s.as_ref(), |s| unsafe {
+            self.view
+                .Settings()?
+                .cast::<ICoreWebView2Settings2>()?
+                .SetUserAgent(PCWSTR(s.as_ptr()))?;
             Ok(())
         })
     }

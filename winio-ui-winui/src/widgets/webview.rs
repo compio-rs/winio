@@ -149,6 +149,23 @@ impl WebView {
         Ok(())
     }
 
+    pub fn user_agent(&self) -> Result<String> {
+        Ok(self
+            .view
+            .CoreWebView2()?
+            .Settings()?
+            .UserAgent()?
+            .to_string_lossy())
+    }
+
+    pub fn set_user_agent(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.view
+            .CoreWebView2()?
+            .Settings()?
+            .SetUserAgent(&HSTRING::from(s.as_ref()))?;
+        Ok(())
+    }
+
     pub fn can_go_forward(&self) -> Result<bool> {
         self.view.CanGoForward()
     }
