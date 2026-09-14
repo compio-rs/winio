@@ -9,7 +9,7 @@ use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{GlobalRuntime, Result, widgets::Widget};
+use crate::{Error, GlobalRuntime, Result, widgets::Widget};
 
 #[derive(Debug)]
 pub struct WebView {
@@ -73,6 +73,25 @@ impl WebView {
 
     pub fn set_html(&mut self, s: impl AsRef<str>) -> Result<()> {
         self.widget.load_html(s.as_ref(), None);
+        Ok(())
+    }
+
+    pub fn user_agent(&self) -> Result<String> {
+        Ok(self
+            .widget
+            .settings()
+            .ok_or_else(|| Error::NullPointer)?
+            .user_agent()
+            .map(|s| s.to_string())
+            .unwrap_or_default())
+    }
+
+    pub fn set_user_agent(&mut self, ua: impl AsRef<str>) -> Result<()> {
+        let ua = ua.as_ref();
+        self.widget
+            .settings()
+            .ok_or_else(|| Error::NullPointer)?
+            .set_user_agent(if ua.is_empty() { None } else { Some(ua) });
         Ok(())
     }
 
