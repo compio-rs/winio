@@ -80,6 +80,8 @@ impl Component for WebViewPage {
 
         sender.post(WebViewPageMessage::Go);
 
+        compio_log::info!("WebView UserAgent: {}", webview.user_agent()?);
+
         Ok(Self {
             window,
             go_button,
