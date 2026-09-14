@@ -44,6 +44,10 @@ impl WebView {
     }
 
     /// Get the user agent string.
+    ///
+    /// ## Platform specific
+    /// * macOS & iOS: returns the custom user agent string if set, otherwise
+    ///   returns an empty string.
     pub fn user_agent(&self) -> Result<String>;
 
     /// Set the user agent string.
