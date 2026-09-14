@@ -113,6 +113,17 @@ impl WebView {
         Ok(())
     }
 
+    pub fn user_agent(&self) -> Result<String> {
+        Ok(self.profile.httpUserAgent()?.try_into()?)
+    }
+
+    pub fn set_user_agent(&mut self, ua: impl AsRef<str>) -> Result<()> {
+        self.profile
+            .pin_mut()
+            .setHttpUserAgent(&ua.as_ref().try_into()?)?;
+        Ok(())
+    }
+
     pub fn can_go_forward(&self) -> Result<bool> {
         unsafe {
             if let Some(history) = self.widget.as_ref().history()?.as_ref() {
@@ -424,6 +435,8 @@ mod ffi {
         fn new_webview_profile() -> Result<UniquePtr<QWebEngineProfile>>;
 
         fn cookieStore(self: Pin<&mut QWebEngineProfile>) -> Result<*mut QWebEngineCookieStore>;
+        fn httpUserAgent(self: &QWebEngineProfile) -> Result<QString>;
+        fn setHttpUserAgent(self: Pin<&mut QWebEngineProfile>, ua: &QString) -> Result<()>;
 
         fn webview_cookie_store_add(
             store: Pin<&mut QWebEngineCookieStore>,
