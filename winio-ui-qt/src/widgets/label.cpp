@@ -1,4 +1,5 @@
 #include "label.hpp"
+#include <QPixmap>
 
 std::unique_ptr<QLabel> new_label(QWidget *parent) {
     return std::make_unique<QLabel>(parent);
@@ -12,6 +13,10 @@ void label_connect_link_activated(QLabel &w, callback_fn_t<void()> callback,
                              callback(data);
                          }
                      });
+}
+
+void label_set_image(QLabel &w, QImage const &image) {
+    w.setPixmap(QPixmap::fromImage(image));
 }
 
 void label_set_font(QLabel &w, rust::Str family, double size, bool bold,

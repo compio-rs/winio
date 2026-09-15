@@ -1,4 +1,6 @@
 #include "window.hpp"
+#include <QIcon>
+#include <QPixmap>
 
 WinioMainWindow::WinioMainWindow(QWidget *parent)
     : QMainWindow(parent), m_resize_callback(std::nullopt),
@@ -49,6 +51,10 @@ void WinioMainWindow::changeEvent(QEvent *event) {
 
 std::unique_ptr<QMainWindow> new_main_window() {
     return std::make_unique<WinioMainWindow>(nullptr);
+}
+
+void main_window_set_icon(QMainWindow &w, QImage const &icon) {
+    w.setWindowIcon(QIcon(QPixmap::fromImage(icon)));
 }
 
 void main_window_register_resize_event(QMainWindow &w,

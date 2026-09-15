@@ -4,7 +4,7 @@ use winio_handle::AsContainer;
 use winio_primitive::{Font, HAlign, Point, Size};
 
 use crate::{
-    GlobalRuntime, Result,
+    GlobalRuntime, Image, Result,
     widgets::{QtAlignmentFlag, Widget, impl_static_cast},
 };
 
@@ -50,6 +50,11 @@ impl Label {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         self.widget.pin_mut().setText(&s.as_ref().try_into()?)?;
+        Ok(())
+    }
+
+    pub fn set_image(&mut self, image: &Image) -> Result<()> {
+        ffi::label_set_image(self.widget.pin_mut(), image.as_qimage())?;
         Ok(())
     }
 
@@ -218,6 +223,7 @@ mod ffi {
         type QString = crate::common::QString;
         type QtAlignmentFlag = crate::widgets::QtAlignmentFlag;
         type QFont;
+        type QImage = crate::platform::QImage;
 
         unsafe fn new_label(parent: *mut QWidget) -> Result<UniquePtr<QLabel>>;
 
@@ -231,6 +237,7 @@ mod ffi {
         fn setAlignment(self: Pin<&mut QLabel>, flag: QtAlignmentFlag) -> Result<()>;
         fn text(self: &QLabel) -> Result<QString>;
         fn setText(self: Pin<&mut QLabel>, s: &QString) -> Result<()>;
+        fn label_set_image(w: Pin<&mut QLabel>, image: &QImage) -> Result<()>;
         fn font(self: &QLabel) -> Result<&QFont>;
 
         fn setOpenExternalLinks(self: Pin<&mut QLabel>, v: bool) -> Result<()>;

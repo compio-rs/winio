@@ -5,7 +5,7 @@ use winio_callback::Callback;
 use winio_handle::{AsContainer, AsWindow, BorrowedContainer, BorrowedWindow};
 use winio_primitive::{Point, Size};
 
-use crate::{GlobalRuntime, Result, StaticCastTo, widgets::impl_static_cast};
+use crate::{GlobalRuntime, Image, Result, StaticCastTo, widgets::impl_static_cast};
 
 pub struct Window {
     on_resize: Box<Callback<Size>>,
@@ -111,6 +111,11 @@ impl Window {
         Ok(())
     }
 
+    pub fn set_icon(&mut self, icon: &Image) -> Result<()> {
+        ffi::main_window_set_icon(self.widget.pin_mut(), icon.as_qimage())?;
+        Ok(())
+    }
+
     fn on_resize(c: *const u8, width: i32, height: i32) {
         let c = c as *const Callback<Size>;
         if let Some(c) = unsafe { c.as_ref() } {
@@ -184,8 +189,11 @@ mod ffi {
 
         type QWidget = crate::widgets::QWidget;
         type QMainWindow;
+        type QImage = crate::platform::QImage;
 
         fn new_main_window() -> Result<UniquePtr<QMainWindow>>;
+
+        fn main_window_set_icon(w: Pin<&mut QMainWindow>, icon: &QImage) -> Result<()>;
 
         unsafe fn main_window_register_resize_event(
             w: Pin<&mut QMainWindow>,

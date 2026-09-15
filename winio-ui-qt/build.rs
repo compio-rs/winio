@@ -40,6 +40,7 @@ fn main() {
             "src/runtime/qt",
             "src/common",
             "src/widgets/widget",
+            "src/platform/image",
             "src/platform/monitor",
             "src/platform/timer",
             "src/dialogs/msgbox",
