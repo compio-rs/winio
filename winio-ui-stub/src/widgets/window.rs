@@ -4,7 +4,7 @@ use winio_primitive::{Point, Size};
 #[cfg(windows)]
 pub use winio_ui_windows_common::Backdrop;
 
-use crate::{Result, Widget, not_impl};
+use crate::{Image, Result, Widget, not_impl};
 
 #[derive(Debug)]
 pub struct Window {
@@ -36,6 +36,10 @@ impl Window {
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn set_icon(&mut self, _icon: &Image) -> Result<()> {
+        not_impl()
+    }
 
     #[cfg(windows)]
     pub fn set_icon_by_id(&mut self, _id: u16) -> Result<()> {

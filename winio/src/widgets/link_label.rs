@@ -8,6 +8,7 @@ use winio_primitive::{
 use crate::{
     sys,
     sys::{Error, Result},
+    ui::Image,
 };
 
 /// A hyperlink-style text that opens its URI when clicked.
@@ -22,6 +23,11 @@ impl Failable for LinkLabel {
 
 #[inherit_methods(from = "self.widget")]
 impl LinkLabel {
+    /// Set the icon of the link label.
+    pub fn set_icon(&mut self, icon: &Image) -> Result<()> {
+        self.widget.set_icon(&icon.0)
+    }
+
     /// The URI of the link.
     pub fn uri(&self) -> Result<String>;
 

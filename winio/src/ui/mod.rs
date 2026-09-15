@@ -4,12 +4,14 @@ mod app;
 mod canvas;
 mod ext;
 mod filebox;
+mod image;
 mod msgbox;
 
 pub use app::*;
 pub use canvas::*;
 pub use ext::*;
 pub use filebox::*;
+pub use image::*;
 pub use msgbox::*;
 
 #[cfg(feature = "plotters")]

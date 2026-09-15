@@ -8,6 +8,7 @@ use winio_primitive::{
 use crate::{
     sys,
     sys::{Error, Result},
+    ui::Image,
 };
 
 /// A button that triggers an event when pressed by the user.
@@ -32,6 +33,13 @@ impl TextWidget for Button {
     fn text(&self) -> Result<String>;
 
     fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+}
+
+impl Button {
+    /// Set the icon of the button.
+    pub fn set_icon(&mut self, icon: &Image) -> Result<()> {
+        self.widget.set_icon(&icon.0)
+    }
 }
 
 #[inherit_methods(from = "self.widget")]

@@ -10,6 +10,7 @@ pub use crate::sys::Vibrancy;
 use crate::{
     sys,
     sys::{Error, Result},
+    ui::Image,
 };
 
 /// The top-level container of the application, with its own title bar and
@@ -34,6 +35,11 @@ impl TextWidget for Window {
 impl Window {
     /// The inner client size.
     pub fn client_size(&self) -> Result<Size>;
+
+    /// Set the icon of the window.
+    pub fn set_icon(&mut self, icon: &Image) -> Result<()> {
+        self.widget.set_icon(&icon.0)
+    }
 
     /// Set window icon by resource ID.
     #[cfg(windows)]

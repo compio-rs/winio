@@ -9,6 +9,7 @@ use winio_primitive::{
 use crate::{
     sys,
     sys::{Error, Result},
+    ui::Image,
 };
 
 /// A single line of read-only text.
@@ -44,6 +45,11 @@ impl Fontable for Label {
 
 #[inherit_methods(from = "self.widget")]
 impl Label {
+    /// Set the icon of the label.
+    pub fn set_icon(&mut self, icon: &Image) -> Result<()> {
+        self.widget.set_icon(&icon.0)
+    }
+
     /// The horizontal alignment.
     pub fn halign(&self) -> Result<HAlign>;
 

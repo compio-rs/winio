@@ -2,7 +2,7 @@ use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
 use winio_primitive::{Font, Point, Size};
 
-use crate::{Result, Widget, not_impl};
+use crate::{Image, Result, Widget, not_impl};
 
 #[derive(Debug)]
 pub struct LinkLabel {
@@ -40,6 +40,10 @@ impl LinkLabel {
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn set_icon(&mut self, _icon: &Image) -> Result<()> {
+        not_impl()
+    }
 
     pub fn uri(&self) -> Result<String> {
         not_impl()
