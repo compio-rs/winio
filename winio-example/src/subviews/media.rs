@@ -3,7 +3,7 @@ use std::{ffi::OsString, ops::Deref, time::Duration};
 use url::Url;
 use winio::prelude::*;
 
-use crate::{Error, Result};
+use crate::{Error, Result, icons};
 
 pub struct MediaPage {
     window: Child<TabViewItem>,
@@ -18,13 +18,18 @@ pub struct MediaPage {
     volume_label: Child<Label>,
     rate_chooser: Child<ComboBox>,
     loop_check: Child<CheckBox>,
+    play_icon: Image,
+    pause_icon: Image,
 }
 
 impl MediaPage {
     fn set_playing(&mut self, v: bool) -> Result<()> {
         self.playing = v;
-        self.play_button
-            .set_text(if self.playing { "⏸️" } else { "▶️" })?;
+        self.play_button.set_icon(if self.playing {
+            &self.pause_icon
+        } else {
+            &self.play_icon
+        })?;
         Ok(())
     }
 }
@@ -50,6 +55,8 @@ impl Component for MediaPage {
     type Message = MediaPageMessage;
 
     async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        let play_icon = icons::play()?;
+        let pause_icon = icons::pause()?;
         init! {
             window: TabViewItem = (()) => {
                 text: "Media",
@@ -59,8 +66,8 @@ impl Component for MediaPage {
                 enabled: true,
             },
             play_button: Button = (&window) => {
+                icon: &play_icon,
                 enabled: false,
-                text: "▶️"
             },
             browse_button: Button = (&window) => {
                 text: "..."
@@ -129,6 +136,8 @@ impl Component for MediaPage {
             volume_label,
             rate_chooser,
             loop_check,
+            play_icon,
+            pause_icon,
         })
     }
 

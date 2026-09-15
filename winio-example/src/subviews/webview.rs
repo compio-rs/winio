@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use winio::prelude::*;
 
-use crate::{Error, FailableWebView, Result};
+use crate::{Error, FailableWebView, Result, icons};
 
 pub struct WebViewPage {
     window: Child<TabViewItem>,
@@ -13,6 +13,8 @@ pub struct WebViewPage {
     can_reload: bool,
     entry: Child<Edit>,
     webview: Child<FailableWebView>,
+    reload_icon: Image,
+    stop_icon: Image,
 }
 
 impl WebViewPage {
@@ -23,9 +25,9 @@ impl WebViewPage {
 
         self.can_reload = enabled;
         if enabled {
-            self.reload_button.set_text("🔄")?;
+            self.reload_button.set_icon(&self.reload_icon)?;
         } else {
-            self.reload_button.set_text("⏹️")?;
+            self.reload_button.set_icon(&self.stop_icon)?;
         }
         Ok(())
     }
@@ -52,6 +54,8 @@ impl Component for WebViewPage {
 
     async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let url = "https://compio.rs/";
+        let reload_icon = icons::reload()?;
+        let stop_icon = icons::stop()?;
         init! {
             window: TabViewItem = (()) => {
                 text: "WebView",
@@ -60,18 +64,18 @@ impl Component for WebViewPage {
                 source: url
             },
             go_button: Button = (&window) => {
-                text: "⬇️",
+                icon: &icons::go()?,
             },
             back_button: Button = (&window) => {
-                text: "⬅️",
+                icon: &icons::back()?,
                 enabled: false,
             },
             forward_button: Button = (&window) => {
-                text: "➡️",
+                icon: &icons::forward()?,
                 enabled: false,
             },
             reload_button: Button = (&window) => {
-                text: "🔄",
+                icon: &reload_icon,
             },
             entry: Edit = (&window) => {
                 text: url,
@@ -91,6 +95,8 @@ impl Component for WebViewPage {
             can_reload: true,
             entry,
             webview,
+            reload_icon,
+            stop_icon,
         })
     }
 

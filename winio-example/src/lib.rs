@@ -11,6 +11,9 @@ mod android;
 mod subviews;
 use subviews::*;
 
+#[cfg(any(feature = "media", feature = "webview"))]
+mod icons;
+
 pub struct MainModel {
     window: Child<Window>,
     tabview: Child<TabView>,
