@@ -1,17 +1,21 @@
 use std::rc::Rc;
 
-use gtk4::{glib::object::Cast, prelude::ButtonExt};
+use gtk4::{
+    glib::object::Cast,
+    prelude::{BoxExt, ButtonExt, WidgetExt},
+};
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
-use crate::{GlobalRuntime, Result, widgets::Widget};
+use crate::{GlobalRuntime, Image, Result, widgets::Widget};
 
 #[derive(Debug)]
 pub struct Button {
     on_click: Rc<Callback<()>>,
-    widget: gtk4::Button,
+    image: gtk4::Image,
+    label: gtk4::Label,
     handle: Widget,
 }
 
@@ -19,6 +23,14 @@ pub struct Button {
 impl Button {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let widget = gtk4::Button::new();
+        let content = gtk4::Box::new(gtk4::Orientation::Horizontal, 6);
+        let image = gtk4::Image::new();
+        image.set_visible(false);
+        let label = gtk4::Label::new(None);
+        label.set_visible(false);
+        content.append(&image);
+        content.append(&label);
+        widget.set_child(Some(&content));
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() })?;
         let on_click = Rc::new(Callback::new());
         widget.connect_clicked({
@@ -29,7 +41,8 @@ impl Button {
         });
         Ok(Self {
             on_click,
-            widget,
+            image,
+            label,
             handle,
         })
     }
@@ -57,15 +70,20 @@ impl Button {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub fn text(&self) -> Result<String> {
-        Ok(self
-            .widget
-            .label()
-            .map(|s| s.to_string())
-            .unwrap_or_default())
+        Ok(self.label.text().to_string())
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.widget.set_label(s.as_ref());
+        let s = s.as_ref();
+        self.label.set_text(s);
+        self.label.set_visible(!s.is_empty());
+        self.handle.reset_preferred_size();
+        Ok(())
+    }
+
+    pub fn set_icon(&mut self, icon: &Image) -> Result<()> {
+        self.image.set_paintable(Some(icon.texture()));
+        self.image.set_visible(true);
         self.handle.reset_preferred_size();
         Ok(())
     }

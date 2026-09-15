@@ -2,7 +2,6 @@
 
 #include "../common.hpp"
 #include <QCloseEvent>
-#include <QImage>
 #include <QMainWindow>
 #include <QMoveEvent>
 #include <QResizeEvent>
@@ -26,8 +25,6 @@ protected:
 };
 
 std::unique_ptr<QMainWindow> new_main_window();
-
-void main_window_set_icon(QMainWindow &w, QImage const &icon);
 
 STATIC_CAST_ASSERT(QMainWindow, QWidget);
 
