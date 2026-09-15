@@ -1,3 +1,4 @@
+use image::DynamicImage;
 use winio_primitive::Size;
 
 use crate::{sys, sys::Result};
@@ -9,6 +10,11 @@ use crate::{sys, sys::Result};
 pub struct Image(pub(crate) sys::Image);
 
 impl Image {
+    /// Create an image from a [`DynamicImage`].
+    pub fn new(image: DynamicImage) -> Result<Self> {
+        Ok(Self(sys::Image::new(image)?))
+    }
+
     /// Size of the image.
     pub fn size(&self) -> Result<Size> {
         self.0.size()
