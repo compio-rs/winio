@@ -41,7 +41,7 @@ impl Label {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn set_icon(&mut self, _icon: &Image) -> Result<()> {
+    pub fn set_image(&mut self, _image: &Image) -> Result<()> {
         not_impl()
     }
 

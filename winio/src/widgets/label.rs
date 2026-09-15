@@ -33,6 +33,10 @@ impl ToolTip for Label {
 impl TextWidget for Label {
     fn text(&self) -> Result<String>;
 
+    /// Set the text of the label.
+    ///
+    /// The text and the image are mutually exclusive: only one of them is
+    /// displayed at a time.
     fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
@@ -45,9 +49,12 @@ impl Fontable for Label {
 
 #[inherit_methods(from = "self.widget")]
 impl Label {
-    /// Set the icon of the label.
-    pub fn set_icon(&mut self, icon: &Image) -> Result<()> {
-        self.widget.set_icon(&icon.0)
+    /// Set the image of the label.
+    ///
+    /// The image and the text are mutually exclusive: only one of them is
+    /// displayed at a time.
+    pub fn set_image(&mut self, image: &Image) -> Result<()> {
+        self.widget.set_image(&image.0)
     }
 
     /// The horizontal alignment.
