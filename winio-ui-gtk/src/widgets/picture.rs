@@ -7,14 +7,14 @@ use crate::{Image, Result, widgets::Widget};
 
 #[derive(Debug)]
 pub struct Picture {
-    image: gtk4::Image,
+    image: gtk4::Picture,
     handle: Widget,
 }
 
 #[inherit_methods(from = "self.handle")]
 impl Picture {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
-        let image = gtk4::Image::new();
+        let image = gtk4::Picture::new();
         let handle = Widget::new(parent, unsafe { image.clone().unsafe_cast() })?;
         Ok(Self { image, handle })
     }
