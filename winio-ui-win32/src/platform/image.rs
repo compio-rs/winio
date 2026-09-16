@@ -1,11 +1,16 @@
 use std::{cell::RefCell, collections::BTreeMap, mem::zeroed, ptr::null_mut};
 
 use image::{DynamicImage, imageops::FilterType};
+use windows_core::{Error, HRESULT, WIN32_ERROR};
 use windows_sys::Win32::{
-    Foundation::HWND,
+    Foundation::{
+        E_ABORT, E_ACCESSDENIED, E_BOUNDS, E_FAIL, E_INVALIDARG, E_NOTIMPL, E_OUTOFMEMORY,
+        E_UNEXPECTED, ERROR_BUSY, ERROR_FILE_NOT_FOUND, ERROR_INSUFFICIENT_BUFFER,
+        ERROR_INVALID_STATE, ERROR_NOT_FOUND, ERROR_NOT_SUPPORTED, HWND,
+    },
     Graphics::GdiPlus::{
-        GdipCreateBitmapFromScan0, GdipCreateHICONFromBitmap, GdipDisposeImage, GdiplusShutdown,
-        GdiplusStartup, GdiplusStartupInput, GpBitmap,
+        self as gdiplus, GdipCreateBitmapFromScan0, GdipCreateHICONFromBitmap, GdipDisposeImage,
+        GdiplusShutdown, GdiplusStartup, GdiplusStartupInput, GpBitmap, Status,
     },
     UI::{
         HiDpi::GetSystemMetricsForDpi,
@@ -27,6 +32,43 @@ impl Drop for WinIcon {
     }
 }
 
+fn gdip_status(status: Status) -> Result<()> {
+    match status {
+        gdiplus::Ok => Ok(()),
+        gdiplus::InvalidParameter => Err(Error::from_hresult(HRESULT(E_INVALIDARG))),
+        gdiplus::OutOfMemory => Err(Error::from_hresult(HRESULT(E_OUTOFMEMORY))),
+        gdiplus::ObjectBusy => Err(Error::from_hresult(WIN32_ERROR(ERROR_BUSY).to_hresult())),
+        gdiplus::InsufficientBuffer => Err(Error::from_hresult(
+            WIN32_ERROR(ERROR_INSUFFICIENT_BUFFER).to_hresult(),
+        )),
+        gdiplus::NotImplemented => Err(Error::from_hresult(HRESULT(E_NOTIMPL))),
+        gdiplus::Win32Error => Err(Error::from_thread()),
+        gdiplus::WrongState => Err(Error::from_hresult(
+            WIN32_ERROR(ERROR_INVALID_STATE).to_hresult(),
+        )),
+        gdiplus::Aborted => Err(Error::from_hresult(HRESULT(E_ABORT))),
+        gdiplus::FileNotFound => Err(Error::from_hresult(
+            WIN32_ERROR(ERROR_FILE_NOT_FOUND).to_hresult(),
+        )),
+        gdiplus::ValueOverflow => Err(Error::from_hresult(HRESULT(E_BOUNDS))),
+        gdiplus::AccessDenied => Err(Error::from_hresult(HRESULT(E_ACCESSDENIED))),
+        gdiplus::FontFamilyNotFound
+        | gdiplus::FontStyleNotFound
+        | gdiplus::PropertyNotFound
+        | gdiplus::ProfileNotFound => Err(Error::from_hresult(
+            WIN32_ERROR(ERROR_NOT_FOUND).to_hresult(),
+        )),
+        gdiplus::UnknownImageFormat
+        | gdiplus::NotTrueTypeFont
+        | gdiplus::UnsupportedGdiplusVersion
+        | gdiplus::PropertyNotSupported => Err(Error::from_hresult(
+            WIN32_ERROR(ERROR_NOT_SUPPORTED).to_hresult(),
+        )),
+        gdiplus::GdiplusNotInitialized => Err(Error::from_hresult(HRESULT(E_UNEXPECTED))),
+        _ => Err(Error::from_hresult(HRESULT(E_FAIL))),
+    }
+}
+
 struct GdipInit {
     token: usize,
 }
@@ -36,8 +78,7 @@ impl GdipInit {
         let mut token = 0;
         let mut input: GdiplusStartupInput = unsafe { zeroed() };
         input.GdiplusVersion = 1;
-        let status = unsafe { GdiplusStartup(&mut token, &input, null_mut()) };
-        assert_eq!(status, 0);
+        gdip_status(unsafe { GdiplusStartup(&mut token, &input, null_mut()) })?;
         Ok(Self { token })
     }
 }
@@ -61,6 +102,24 @@ fn gdip_init() -> Result<()> {
 }
 
 struct GdipBitmap(*mut GpBitmap);
+
+impl GdipBitmap {
+    pub fn new(width: i32, height: i32, stride: i32, format: i32, data: *const u8) -> Result<Self> {
+        gdip_init()?;
+
+        let mut bitmap = null_mut();
+        gdip_status(unsafe {
+            GdipCreateBitmapFromScan0(width, height, stride, format, data, &mut bitmap)
+        })?;
+        Ok(Self(bitmap))
+    }
+
+    pub fn create_hicon(&self) -> Result<WinIcon> {
+        let mut icon = null_mut();
+        gdip_status(unsafe { GdipCreateHICONFromBitmap(self.0, &mut icon) })?;
+        Ok(WinIcon(icon))
+    }
+}
 
 impl Drop for GdipBitmap {
     fn drop(&mut self) {
@@ -91,18 +150,10 @@ impl Image {
 
     #[allow(non_upper_case_globals)]
     fn to_hicon(&self, (width, height): (i32, i32)) -> Result<WinIcon> {
-        gdip_init()?;
-
         let image = self
             .0
             .resize_exact(width as _, height as _, FilterType::Triangle)
             .into_rgba8();
-
-        const PixelFormatGDI: i32 = 0x00020000;
-        const PixelFormatAlpha: i32 = 0x00040000;
-        const PixelFormatCanonical: i32 = 0x00200000;
-        const PixelFormat32bppARGB: i32 =
-            10 | (32 << 8) | PixelFormatAlpha | PixelFormatGDI | PixelFormatCanonical;
 
         let mut data = Vec::with_capacity(image.len());
         for pixel in image.pixels() {
@@ -115,23 +166,20 @@ impl Image {
             ]);
         }
 
-        let mut bitmap = null_mut();
-        let status = unsafe {
-            GdipCreateBitmapFromScan0(
-                width,
-                height,
-                width * 4,
-                PixelFormat32bppARGB,
-                data.as_ptr(),
-                &mut bitmap,
-            )
-        };
-        assert_eq!(status, 0);
-        let bitmap = GdipBitmap(bitmap);
-        let mut icon = null_mut();
-        let status = unsafe { GdipCreateHICONFromBitmap(bitmap.0, &mut icon) };
-        assert_eq!(status, 0);
-        Ok(WinIcon(icon))
+        const PixelFormatGDI: i32 = 0x00020000;
+        const PixelFormatAlpha: i32 = 0x00040000;
+        const PixelFormatCanonical: i32 = 0x00200000;
+        const PixelFormat32bppARGB: i32 =
+            10 | (32 << 8) | PixelFormatAlpha | PixelFormatGDI | PixelFormatCanonical;
+
+        let bitmap = GdipBitmap::new(
+            width,
+            height,
+            width * 4,
+            PixelFormat32bppARGB,
+            data.as_ptr(),
+        )?;
+        bitmap.create_hicon()
     }
 }
 
