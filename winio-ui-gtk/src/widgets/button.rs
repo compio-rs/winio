@@ -14,7 +14,7 @@ use crate::{GlobalRuntime, Image, Result, widgets::Widget};
 #[derive(Debug)]
 pub struct Button {
     on_click: Rc<Callback<()>>,
-    image: gtk4::Image,
+    image: gtk4::Picture,
     label: gtk4::Label,
     handle: Widget,
 }
@@ -24,7 +24,11 @@ impl Button {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let widget = gtk4::Button::new();
         let content = gtk4::Box::new(gtk4::Orientation::Horizontal, 6);
-        let image = gtk4::Image::new();
+        content.set_halign(gtk4::Align::Center);
+        content.set_valign(gtk4::Align::Center);
+        content.set_hexpand(false);
+        content.set_vexpand(false);
+        let image = gtk4::Picture::new();
         image.set_visible(false);
         let label = gtk4::Label::new(None);
         label.set_visible(false);
