@@ -1,85 +1,34 @@
-use std::cell::UnsafeCell;
-
 use image::DynamicImage;
-use windows::{
-    Graphics::Imaging::{BitmapAlphaMode, BitmapPixelFormat, SoftwareBitmap},
-    Storage::Streams::{IBuffer, IBuffer_Impl},
-    Win32::System::WinRT::{IBufferByteAccess, IBufferByteAccess_Impl},
-};
-use windows_core::{Result as WinResult, implement};
-use winui3::Microsoft::UI::Xaml::Media::Imaging::SoftwareBitmapSource;
+use windows::Win32::System::WinRT::IBufferByteAccess;
+use windows_core::Interface;
+use winui3::Microsoft::UI::Xaml::Media::Imaging::WriteableBitmap;
 
 use crate::Result;
 
-#[implement(IBuffer, IBufferByteAccess)]
-struct Buffer {
-    data: UnsafeCell<Vec<u8>>,
-}
-
-impl Buffer {
-    fn new(data: Vec<u8>) -> Self {
-        Self {
-            data: UnsafeCell::new(data),
-        }
-    }
-
-    fn data(&self) -> &Vec<u8> {
-        unsafe { &*self.data.get() }
-    }
-}
-
-impl IBuffer_Impl for Buffer_Impl {
-    fn Capacity(&self) -> WinResult<u32> {
-        Ok(self.data().capacity() as _)
-    }
-
-    fn Length(&self) -> WinResult<u32> {
-        Ok(self.data().len() as _)
-    }
-
-    fn SetLength(&self, value: u32) -> WinResult<()> {
-        unsafe { (*self.data.get()).resize(value as _, 0) };
-        Ok(())
-    }
-}
-
-impl IBufferByteAccess_Impl for Buffer_Impl {
-    fn Buffer(&self) -> WinResult<*mut u8> {
-        Ok(unsafe { (*self.data.get()).as_mut_ptr() })
-    }
-}
-
 #[derive(Debug)]
-pub struct Image(DynamicImage);
+pub struct Image(WriteableBitmap);
 
 impl Image {
     pub fn new(image: DynamicImage) -> Result<Self> {
-        Ok(Self(image))
+        let image = image.into_rgba8();
+        let (width, height) = image.dimensions();
+        let bitmap = WriteableBitmap::CreateInstanceWithDimensions(width as _, height as _)?;
+        let buffer = bitmap.PixelBuffer()?;
+        let access = buffer.cast::<IBufferByteAccess>()?;
+        let data =
+            unsafe { std::slice::from_raw_parts_mut(access.Buffer()?, buffer.Length()? as usize) };
+        for (pixel, slice) in image.pixels().zip(data.as_chunks_mut::<4>().0) {
+            let [r, g, b, a] = pixel.0;
+            let a = a as u32;
+            slice[0] = ((b as u32 * a + 127) / 255) as u8;
+            slice[1] = ((g as u32 * a + 127) / 255) as u8;
+            slice[2] = ((r as u32 * a + 127) / 255) as u8;
+            slice[3] = a as u8;
+        }
+        Ok(Self(bitmap))
     }
 
-    pub(crate) fn source(&self) -> Result<SoftwareBitmapSource> {
-        let image = self.0.to_rgba8();
-        let (width, height) = image.dimensions();
-        let mut data = Vec::with_capacity(image.len());
-        for pixel in image.pixels() {
-            let [r, g, b, a] = pixel.0;
-            data.extend_from_slice(&[
-                ((b as u32 * a as u32 + 127) / 255) as u8,
-                ((g as u32 * a as u32 + 127) / 255) as u8,
-                ((r as u32 * a as u32 + 127) / 255) as u8,
-                a,
-            ]);
-        }
-        let buffer: IBuffer = Buffer::new(data).into();
-        let bitmap = SoftwareBitmap::CreateCopyWithAlphaFromBuffer(
-            &buffer,
-            BitmapPixelFormat::Bgra8,
-            width as _,
-            height as _,
-            BitmapAlphaMode::Premultiplied,
-        )?;
-        let source = SoftwareBitmapSource::new()?;
-        source.SetBitmapAsync(&bitmap)?;
-        Ok(source)
+    pub(crate) fn as_ref(&self) -> &WriteableBitmap {
+        &self.0
     }
 }

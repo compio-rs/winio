@@ -40,7 +40,7 @@ impl Picture {
 
     pub fn set_image(&mut self, image: Option<&Image>) -> Result<()> {
         match image {
-            Some(image) => self.image.SetSource(&image.source()?)?,
+            Some(image) => self.image.SetSource(image.as_ref())?,
             None => self.image.SetSource(None::<&ImageSource>)?,
         }
         Ok(())

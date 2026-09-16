@@ -55,7 +55,6 @@ windows-sys = { workspace = true, features = [
 windows = { workspace = true, features = [
     "Foundation",
     "Graphics",
-    "Graphics_Imaging",
     "Storage_Streams",
     "Win32_Graphics_Direct2D",
     "Win32_Graphics_Direct3D",

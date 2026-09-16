@@ -101,7 +101,7 @@ impl Button {
     pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
         match icon {
             Some(icon) => {
-                self.image.SetSource(&icon.source()?)?;
+                self.image.SetSource(icon.as_ref())?;
                 self.image.SetVisibility(Visibility::Visible)?;
             }
             None => {
