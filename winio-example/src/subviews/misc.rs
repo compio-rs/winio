@@ -356,7 +356,7 @@ impl Component for MiscPage {
         {
             let mut source_panel = layout! {
                 Grid::from_str("auto,auto", "auto").unwrap(),
-                self.github => { column: 0, row: 0, halign: HAlign::Right, valign: VAlign::Center, margin: Margin::new_all_same(4.0) },
+                self.github => { column: 0, row: 0, min_width: 36.0, min_height: 36.0, width: 36.0, height: 36.0, halign: HAlign::Right, valign: VAlign::Center, margin: Margin::new_all_same(4.0) },
                 self.link   => { column: 1, row: 0, halign: HAlign::Left, valign: VAlign::Center, margin: Margin::new_all_same(4.0) },
             };
             let mut cred_panel = layout! {

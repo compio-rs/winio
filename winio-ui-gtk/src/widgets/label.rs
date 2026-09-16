@@ -21,7 +21,7 @@ pub struct Label {
 #[derive(Debug)]
 enum LabelImpl {
     Label(gtk4::Label),
-    Image(gtk4::Image),
+    Image(gtk4::Picture),
 }
 
 impl LabelImpl {
@@ -108,7 +108,7 @@ impl Label {
                 None
             }
             LabelImpl::Label(_) => {
-                let widget = gtk4::Image::new();
+                let widget = gtk4::Picture::new();
                 widget.set_paintable(Some(image.texture()));
                 Some(LabelImpl::Image(widget))
             }

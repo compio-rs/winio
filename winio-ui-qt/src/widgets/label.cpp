@@ -2,7 +2,9 @@
 #include <QPixmap>
 
 std::unique_ptr<QLabel> new_label(QWidget *parent) {
-    return std::make_unique<QLabel>(parent);
+    auto label = std::make_unique<QLabel>(parent);
+    label->setScaledContents(true);
+    return label;
 }
 
 void label_connect_link_activated(QLabel &w, callback_fn_t<void()> callback,
