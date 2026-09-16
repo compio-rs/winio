@@ -45,6 +45,7 @@ winui3 = { workspace = true, features = [
     "UI_Xaml_Markup",
     "UI_Xaml_Media",
     "UI_Xaml_Media_DxInterop",
+    "UI_Xaml_Media_Imaging",
     "UI_Xaml_XamlTypeInfo",
 ] }
 windows-sys = { workspace = true, features = [
@@ -54,10 +55,13 @@ windows-sys = { workspace = true, features = [
 windows = { workspace = true, features = [
     "Foundation",
     "Graphics",
+    "Graphics_Imaging",
+    "Storage_Streams",
     "Win32_Graphics_Direct2D",
     "Win32_Graphics_Direct3D",
     "Win32_Graphics_Direct3D11",
     "Win32_Graphics_Dxgi",
+    "Win32_System_WinRT",
 ] }
 windows-core = { workspace = true }
 windows-reference = "0.100"

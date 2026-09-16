@@ -6,14 +6,17 @@ use windows_core::{HSTRING, Interface};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
-use winui3::Microsoft::UI::Xaml::Controls as MUXC;
+use winui3::Microsoft::UI::Xaml::{Controls as MUXC, Controls::Orientation, Visibility};
 
-use crate::{GlobalRuntime, Result, Widget};
+use crate::{GlobalRuntime, Image, Result, Widget};
+
+const DISABLED_OPACITY: f64 = 0.4;
 
 #[derive(Debug)]
 pub struct Button {
     on_click: SendWrapper<Rc<Callback>>,
     handle: Widget,
+    image: MUXC::Image,
     text: MUXC::TextBlock,
 }
 
@@ -21,6 +24,19 @@ pub struct Button {
 impl Button {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let button = MUXC::Button::new()?;
+        let content = MUXC::StackPanel::new()?;
+        content.SetOrientation(Orientation::Horizontal)?;
+        content.SetSpacing(6.0)?;
+        let image = MUXC::Image::new()?;
+        let icon_size = button.FontSize()?;
+        image.SetWidth(icon_size)?;
+        image.SetHeight(icon_size)?;
+        image.SetVisibility(Visibility::Collapsed)?;
+        let text = MUXC::TextBlock::new()?;
+        text.SetVisibility(Visibility::Collapsed)?;
+        content.Children()?.Append(&image)?;
+        content.Children()?.Append(&text)?;
+        button.SetContent(&content)?;
         let on_click = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_click = on_click.clone();
@@ -31,11 +47,10 @@ impl Button {
                 })?
                 .forget();
         }
-        let text = MUXC::TextBlock::new()?;
-        button.SetContent(&text)?;
         Ok(Self {
             on_click,
             handle: Widget::new(parent, button.cast()?)?,
+            image,
             text,
         })
     }
@@ -46,7 +61,11 @@ impl Button {
 
     pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
+    pub fn set_enabled(&mut self, v: bool) -> Result<()> {
+        self.handle.set_enabled(v)?;
+        self.update_icon_opacity()?;
+        Ok(())
+    }
 
     pub fn preferred_size(&self) -> Result<Size>;
 
@@ -67,7 +86,29 @@ impl Button {
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.text.SetText(&HSTRING::from(s.as_ref()))?;
+        let s = s.as_ref();
+        self.text.SetText(&HSTRING::from(s))?;
+        self.text.SetVisibility(if s.is_empty() {
+            Visibility::Collapsed
+        } else {
+            Visibility::Visible
+        })?;
+        Ok(())
+    }
+
+    pub fn set_icon(&mut self, icon: &Image) -> Result<()> {
+        self.image.SetSource(&icon.source()?)?;
+        self.image.SetVisibility(Visibility::Visible)?;
+        self.update_icon_opacity()?;
+        Ok(())
+    }
+
+    fn update_icon_opacity(&self) -> Result<()> {
+        self.image.SetOpacity(if self.handle.is_enabled()? {
+            1.0
+        } else {
+            DISABLED_OPACITY
+        })?;
         Ok(())
     }
 

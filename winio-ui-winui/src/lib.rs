@@ -16,6 +16,7 @@ mod dialogs;
 pub use dialogs::*;
 
 mod platform;
+pub use platform::image::Image;
 
 mod hook;
 
