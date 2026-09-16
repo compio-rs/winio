@@ -14,7 +14,7 @@ use winio_handle::AsContainer;
 use winio_primitive::{Font, Point, Size};
 
 use crate::{
-    GlobalRuntime, Result, catch, from_nsstring,
+    GlobalRuntime, Image, Result, catch, from_nsstring,
     widgets::{Widget, font_to_uifont, uifont_to_font},
 };
 
@@ -88,6 +88,13 @@ impl Button {
         catch(|| {
             self.view
                 .setTitle_forState(Some(&ns), UIControlState::Normal)
+        })
+    }
+
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
+        catch(|| {
+            self.view
+                .setImage_forState(icon.map(|icon| icon.as_uiimage()), UIControlState::Normal)
         })
     }
 

@@ -6,8 +6,8 @@ use objc2::{
     sel,
 };
 use objc2_app_kit::{
-    NSBezelStyle, NSButton, NSButtonType, NSControlStateValueOff, NSControlStateValueOn, NSFont,
-    NSWorkspace,
+    NSBezelStyle, NSButton, NSButtonType, NSCellImagePosition, NSControlStateValueOff,
+    NSControlStateValueOn, NSFont, NSWorkspace,
 };
 use objc2_foundation::{MainThreadMarker, NSObject, NSString, NSURL};
 use winio_callback::Callback;
@@ -15,7 +15,7 @@ use winio_handle::AsContainer;
 use winio_primitive::{Font, Point, Size};
 
 use crate::{
-    GlobalRuntime, Result, Widget, catch, from_nsstring,
+    GlobalRuntime, Image, Result, Widget, catch, from_nsstring,
     widgets::{font_to_nsfont, nsfont_to_font},
 };
 
@@ -78,6 +78,17 @@ impl Button {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         catch(|| self.view.setTitle(&NSString::from_str(s.as_ref())))
+    }
+
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
+        catch(|| {
+            self.view.setImage(icon.map(|icon| icon.as_nsimage()));
+            self.view.setImagePosition(if icon.is_some() {
+                NSCellImagePosition::ImageLeft
+            } else {
+                NSCellImagePosition::NoImage
+            });
+        })
     }
 
     pub async fn wait_click(&self) {
