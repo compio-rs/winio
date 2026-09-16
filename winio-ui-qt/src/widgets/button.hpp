@@ -25,3 +25,4 @@ void push_button_connect_clicked(QAbstractButton &w,
                                  std::uint8_t const *data);
 
 void button_set_icon(QAbstractButton &w, QImage const &icon);
+void button_clear_icon(QAbstractButton &w);

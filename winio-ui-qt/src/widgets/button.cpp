@@ -26,3 +26,5 @@ void push_button_connect_clicked(QAbstractButton &w,
 void button_set_icon(QAbstractButton &w, QImage const &icon) {
     w.setIcon(QIcon(QPixmap::fromImage(icon)));
 }
+
+void button_clear_icon(QAbstractButton &w) { w.setIcon(QIcon()); }

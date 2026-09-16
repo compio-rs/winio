@@ -25,11 +25,11 @@ pub struct MediaPage {
 impl MediaPage {
     fn set_playing(&mut self, v: bool) -> Result<()> {
         self.playing = v;
-        self.play_button.set_icon(if self.playing {
+        self.play_button.set_icon(Some(if self.playing {
             &self.pause_icon
         } else {
             &self.play_icon
-        })?;
+        }))?;
         Ok(())
     }
 }
@@ -66,7 +66,7 @@ impl Component for MediaPage {
                 enabled: true,
             },
             play_button: Button = (&window) => {
-                icon: &play_icon,
+                icon: Some(&play_icon),
                 enabled: false,
             },
             browse_button: Button = (&window) => {

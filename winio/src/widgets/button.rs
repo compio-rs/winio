@@ -37,8 +37,10 @@ impl TextWidget for Button {
 
 impl Button {
     /// Set the icon of the button.
-    pub fn set_icon(&mut self, icon: &Image) -> Result<()> {
-        self.widget.set_icon(&icon.0)
+    ///
+    /// If `icon` is `None`, the icon is removed.
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
+        self.widget.set_icon(icon.map(|icon| &icon.0))
     }
 }
 

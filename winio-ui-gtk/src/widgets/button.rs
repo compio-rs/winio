@@ -85,9 +85,17 @@ impl Button {
         Ok(())
     }
 
-    pub fn set_icon(&mut self, icon: &Image) -> Result<()> {
-        self.image.set_paintable(Some(icon.texture()));
-        self.image.set_visible(true);
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
+        match icon {
+            Some(icon) => {
+                self.image.set_paintable(Some(icon.texture()));
+                self.image.set_visible(true);
+            }
+            None => {
+                self.image.set_paintable(gtk4::gdk::Paintable::NONE);
+                self.image.set_visible(false);
+            }
+        }
         self.handle.reset_preferred_size();
         Ok(())
     }

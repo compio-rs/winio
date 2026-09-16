@@ -76,11 +76,12 @@ where
         Ok(())
     }
 
-    pub fn set_icon(&mut self, icon: &Image) -> Result<()> {
-        ffi::button_set_icon(
-            static_cast_mut::<ffi::QAbstractButton>(self.widget.pin_mut()),
-            icon.as_qimage(),
-        )?;
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
+        let button = static_cast_mut::<ffi::QAbstractButton>(self.widget.pin_mut());
+        match icon {
+            Some(icon) => ffi::button_set_icon(button, icon.as_qimage())?,
+            None => ffi::button_clear_icon(button)?,
+        }
         Ok(())
     }
 
@@ -213,6 +214,7 @@ mod ffi {
         fn setText(self: Pin<&mut QAbstractButton>, s: &QString) -> Result<()>;
 
         fn button_set_icon(w: Pin<&mut QAbstractButton>, icon: &QImage) -> Result<()>;
+        fn button_clear_icon(w: Pin<&mut QAbstractButton>) -> Result<()>;
 
         fn checkState(self: &QCheckBox) -> Result<QtCheckState>;
         fn setCheckState(self: Pin<&mut QCheckBox>, s: QtCheckState) -> Result<()>;

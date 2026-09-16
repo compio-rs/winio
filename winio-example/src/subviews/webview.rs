@@ -25,9 +25,9 @@ impl WebViewPage {
 
         self.can_reload = enabled;
         if enabled {
-            self.reload_button.set_icon(&self.reload_icon)?;
+            self.reload_button.set_icon(Some(&self.reload_icon))?;
         } else {
-            self.reload_button.set_icon(&self.stop_icon)?;
+            self.reload_button.set_icon(Some(&self.stop_icon))?;
         }
         Ok(())
     }
@@ -64,18 +64,18 @@ impl Component for WebViewPage {
                 source: url
             },
             go_button: Button = (&window) => {
-                icon: &icons::go()?,
+                icon: Some(&icons::go()?),
             },
             back_button: Button = (&window) => {
-                icon: &icons::back()?,
+                icon: Some(&icons::back()?),
                 enabled: false,
             },
             forward_button: Button = (&window) => {
-                icon: &icons::forward()?,
+                icon: Some(&icons::forward()?),
                 enabled: false,
             },
             reload_button: Button = (&window) => {
-                icon: &reload_icon,
+                icon: Some(&reload_icon),
             },
             entry: Edit = (&window) => {
                 text: url,
