@@ -73,13 +73,13 @@ impl Image {
         let image = self.0.to_rgba8();
         let (width, height) = image.dimensions();
         let mut data = Vec::with_capacity(image.len());
-        for pixel in image.as_raw().as_chunks::<4>().0 {
-            let alpha = pixel[3] as u32;
+        for pixel in image.pixels() {
+            let [r, g, b, a] = pixel.0;
             data.extend_from_slice(&[
-                ((pixel[2] as u32 * alpha + 127) / 255) as u8,
-                ((pixel[1] as u32 * alpha + 127) / 255) as u8,
-                ((pixel[0] as u32 * alpha + 127) / 255) as u8,
-                pixel[3],
+                ((b as u32 * a as u32 + 127) / 255) as u8,
+                ((g as u32 * a as u32 + 127) / 255) as u8,
+                ((r as u32 * a as u32 + 127) / 255) as u8,
+                a,
             ]);
         }
         let buffer: IBuffer = Buffer::new(data).into();

@@ -14,6 +14,7 @@ mod widgets;
 pub use widgets::*;
 
 mod platform;
+pub use platform::image::Image;
 
 #[cfg(feature = "compio-compat")]
 mod compat;

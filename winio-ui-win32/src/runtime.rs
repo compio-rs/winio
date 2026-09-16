@@ -290,6 +290,9 @@ pub(crate) unsafe extern "system" fn window_proc(
             if let Err(_e) = unsafe { refresh_font(handle) } {
                 warn!("refresh_font: handle: {handle:?}, error: {_e:?}");
             }
+            if let Err(_e) = unsafe { refresh_icon(handle) } {
+                warn!("refresh_icon: handle: {handle:?}, error: {_e:?}");
+            }
         }
         _ => {}
     }
@@ -321,6 +324,18 @@ pub(crate) unsafe fn refresh_font(handle: HWND) -> Result<()> {
     }
 
     unsafe { enum_callback(handle, font as _) };
+    Ok(())
+}
+
+pub(crate) unsafe fn refresh_icon(handle: HWND) -> Result<()> {
+    unsafe extern "system" fn enum_callback(hwnd: HWND, _: LPARAM) -> BOOL {
+        if let Err(_e) = crate::platform::image::refresh_hwnd_icon(hwnd) {
+            warn!("refresh_hwnd_icon: handle: {hwnd:?}, error: {_e:?}");
+        }
+        1
+    }
+
+    unsafe { EnumChildWindows(handle, Some(enum_callback), 0) };
     Ok(())
 }
 
