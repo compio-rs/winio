@@ -59,7 +59,7 @@ impl Picture {
         let hwnd = self.handle.as_widget().as_win32();
         match image {
             Some(image) => {
-                set_hwnd_icon(hwnd, image, IconSize::Logical(image.size()?), STM_SETIMAGE)?;
+                set_hwnd_icon(hwnd, image, IconSize::Logical, STM_SETIMAGE)?;
             }
             None => clear_hwnd_icon(hwnd),
         }

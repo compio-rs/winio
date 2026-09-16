@@ -1,6 +1,5 @@
 use cxx::{ExternType, UniquePtr, type_id};
 use image::{DynamicImage, Pixel, Rgb, Rgba};
-use winio_primitive::Size;
 
 use crate::Result;
 
@@ -62,16 +61,6 @@ impl Image {
         Ok(Self { buffer, image })
     }
 
-    pub fn size(&self) -> Result<Size> {
-        let size = self.image.size()?;
-        Ok(Size::new(size.width as _, size.height as _))
-    }
-
-    pub fn set_size(&mut self, size: Size) -> Result<()> {
-        self.image = ffi::image_scaled(&self.image, size.width as _, size.height as _)?;
-        Ok(())
-    }
-
     pub(crate) fn as_qimage(&self) -> &ffi::QImage {
         &self.image
     }
@@ -111,6 +100,5 @@ mod ffi {
             format: QImageFormat,
         ) -> Result<UniquePtr<QImage>>;
         fn size(self: &QImage) -> Result<QSize>;
-        fn image_scaled(image: &QImage, width: i32, height: i32) -> Result<UniquePtr<QImage>>;
     }
 }

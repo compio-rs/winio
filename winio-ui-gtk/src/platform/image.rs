@@ -1,16 +1,14 @@
 use gtk4::{
     gdk,
-    gdk_pixbuf::{Colorspace, InterpType, Pixbuf},
+    gdk_pixbuf::{Colorspace, Pixbuf},
     glib::Bytes,
 };
 use image::DynamicImage;
-use winio_primitive::Size;
 
-use crate::{Error, Result};
+use crate::Result;
 
 #[derive(Debug)]
 pub struct Image {
-    pixbuf: Pixbuf,
     texture: gdk::Texture,
 }
 
@@ -29,23 +27,7 @@ impl Image {
             (width * 4) as _,
         );
         let texture = gdk::Texture::for_pixbuf(&pixbuf);
-        Ok(Self { pixbuf, texture })
-    }
-
-    pub fn size(&self) -> Result<Size> {
-        Ok(Size::new(
-            self.pixbuf.width() as _,
-            self.pixbuf.height() as _,
-        ))
-    }
-
-    pub fn set_size(&mut self, size: Size) -> Result<()> {
-        self.pixbuf = self
-            .pixbuf
-            .scale_simple(size.width as _, size.height as _, InterpType::Bilinear)
-            .ok_or(Error::NullPointer)?;
-        self.texture = gdk::Texture::for_pixbuf(&self.pixbuf);
-        Ok(())
+        Ok(Self { texture })
     }
 
     pub(crate) fn texture(&self) -> &gdk::Texture {

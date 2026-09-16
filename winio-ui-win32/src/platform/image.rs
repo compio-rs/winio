@@ -137,17 +137,6 @@ impl Image {
         Ok(Self(image))
     }
 
-    pub fn size(&self) -> Result<Size> {
-        Ok(Size::new(self.0.width() as _, self.0.height() as _))
-    }
-
-    pub fn set_size(&mut self, size: Size) -> Result<()> {
-        let width = size.width.max(1.0).round() as u32;
-        let height = size.height.max(1.0).round() as u32;
-        self.0 = self.0.resize_exact(width, height, FilterType::Triangle);
-        Ok(())
-    }
-
     #[allow(non_upper_case_globals)]
     fn to_hicon(&self, (width, height): (i32, i32)) -> Result<WinIcon> {
         let image = self
@@ -186,7 +175,7 @@ impl Image {
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum IconSize {
     Small,
-    Logical(Size),
+    Logical,
 }
 
 struct HwndIcon {
@@ -206,11 +195,11 @@ fn small_icon_size(dpi: u32) -> Size {
     Size::new(cx as _, cy as _)
 }
 
-fn target_size(hwnd: HWND, size: IconSize) -> (i32, i32) {
+fn target_size(hwnd: HWND, image: &Image, size: IconSize) -> (i32, i32) {
     let dpi = get_dpi_for_window(hwnd);
     let size = match size {
         IconSize::Small => small_icon_size(dpi),
-        IconSize::Logical(size) => size.to_device(dpi),
+        IconSize::Logical => Size::new(image.0.width() as _, image.0.height() as _).to_device(dpi),
     };
     (
         size.width.round().max(1.0) as _,
@@ -221,7 +210,7 @@ fn target_size(hwnd: HWND, size: IconSize) -> (i32, i32) {
 /// Create an icon for `hwnd` and send `msg` (`BM_SETIMAGE` or `STM_SETIMAGE`)
 /// to set it, replacing any previous icon.
 pub(crate) fn set_hwnd_icon(hwnd: HWND, image: &Image, size: IconSize, msg: u32) -> Result<()> {
-    let icon = image.to_hicon(target_size(hwnd, size))?;
+    let icon = image.to_hicon(target_size(hwnd, image, size))?;
     unsafe { SendMessageW(hwnd, msg, IMAGE_ICON as _, icon.0 as _) };
     HWND_ICONS.with(|map| {
         map.borrow_mut().insert(
@@ -254,7 +243,7 @@ pub(crate) fn refresh_hwnd_icon(hwnd: HWND) -> Result<()> {
     }) else {
         return Ok(());
     };
-    let icon = image.to_hicon(target_size(hwnd, size))?;
+    let icon = image.to_hicon(target_size(hwnd, &image, size))?;
     unsafe { SendMessageW(hwnd, msg, IMAGE_ICON as _, icon.0 as _) };
     HWND_ICONS.with(|map| {
         map.borrow_mut().insert(
@@ -288,7 +277,7 @@ pub(crate) fn hwnd_icon_size(hwnd: HWND) -> Option<Size> {
                 let dpi = get_dpi_for_window(hwnd);
                 small_icon_size(dpi).to_logical(dpi)
             }
-            IconSize::Logical(size) => size,
+            IconSize::Logical => Size::new(entry.image.0.width() as _, entry.image.0.height() as _),
         })
     })
 }
