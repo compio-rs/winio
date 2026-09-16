@@ -18,6 +18,9 @@ pub use text_box::*;
 mod label;
 pub use label::*;
 
+mod picture;
+pub use picture::*;
+
 mod link_label;
 pub use link_label::*;
 

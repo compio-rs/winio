@@ -1,18 +1,23 @@
 use inherit_methods_macro::inherit_methods;
+use windows_core::Interface;
 use winio_handle::AsContainer;
-use winio_primitive::{Font, HAlign, Point, Size};
+use winio_primitive::{Point, Size};
+use winui3::Microsoft::UI::Xaml::{Controls as MUXC, Media::ImageSource};
 
-use crate::{Result, Widget, not_impl};
+use crate::{Image, Result, Widget};
 
 #[derive(Debug)]
-pub struct Label {
+pub struct Picture {
     handle: Widget,
+    image: MUXC::Image,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl Label {
-    pub fn new(_parent: impl AsContainer) -> Result<Self> {
-        not_impl()
+impl Picture {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let image = MUXC::Image::new()?;
+        let handle = Widget::new(parent, image.cast()?)?;
+        Ok(Self { handle, image })
     }
 
     pub fn is_visible(&self) -> Result<bool>;
@@ -37,25 +42,13 @@ impl Label {
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
-    pub fn text(&self) -> Result<String>;
-
-    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
-
-    pub fn halign(&self) -> Result<HAlign> {
-        not_impl()
-    }
-
-    pub fn set_halign(&mut self, _align: HAlign) -> Result<()> {
-        not_impl()
-    }
-
-    pub fn font(&self) -> Result<Font> {
-        not_impl()
-    }
-
-    pub fn set_font(&mut self, _font: Font) -> Result<()> {
-        not_impl()
+    pub fn set_image(&mut self, image: Option<&Image>) -> Result<()> {
+        match image {
+            Some(image) => self.image.SetSource(&image.source()?)?,
+            None => self.image.SetSource(None::<&ImageSource>)?,
+        }
+        Ok(())
     }
 }
 
-winio_handle::impl_as_widget!(Label, handle);
+winio_handle::impl_as_widget!(Picture, handle);

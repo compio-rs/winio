@@ -13,6 +13,7 @@ void label_connect_link_activated(QLabel &w, callback_fn_t<void()> callback,
                                   std::uint8_t const *data);
 
 void label_set_image(QLabel &w, QImage const &image);
+void label_clear_image(QLabel &w);
 
 void label_set_font(QLabel &w, rust::Str family, double size, bool bold,
                     bool italic);

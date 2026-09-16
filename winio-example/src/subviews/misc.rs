@@ -21,7 +21,7 @@ use backdrop::*;
 
 pub struct MiscPage {
     window: Child<TabViewItem>,
-    github: Child<Label>,
+    github: Child<Picture>,
     github_icon: Image,
     github_white_icon: Image,
     link: Child<LinkLabel>,
@@ -92,8 +92,8 @@ impl Component for MiscPage {
             },
             canvas: Canvas = (&window),
             klabel: Label = (&window),
-            github: Label = (&window) => {
-                image: github_image,
+            github: Picture = (&window) => {
+                image: Some(github_image),
             },
             link: LinkLabel = (&window) => {
                 text: "Source",
@@ -280,11 +280,11 @@ impl Component for MiscPage {
             MiscPageMessage::Noop => Ok(false),
             MiscPageMessage::Redraw => {
                 let dark = ColorTheme::current()? == ColorTheme::Dark;
-                self.github.set_image(if dark {
+                self.github.set_image(Some(if dark {
                     &self.github_white_icon
                 } else {
                     &self.github_icon
-                })?;
+                }))?;
                 Ok(true)
             }
             MiscPageMessage::List(e) => {
