@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Rect, Size, ToolTip, Visible};
+use winio_primitive::{Failable, Layoutable, Point, Rect, Size, ToolTip, Visible};
 
 use crate::{
     sys,
@@ -31,13 +31,6 @@ impl Visible for Picture {
     fn is_visible(&self) -> Result<bool>;
 
     fn set_visible(&mut self, v: bool) -> Result<()>;
-}
-
-#[inherit_methods(from = "self.widget")]
-impl Enable for Picture {
-    fn is_enabled(&self) -> Result<bool>;
-
-    fn set_enabled(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
@@ -73,8 +66,6 @@ pub enum PictureEvent {}
 pub enum PictureMessage {
     /// Set the rect.
     SetRect(Rect),
-    /// Set the enabled state.
-    SetEnabled(bool),
     /// Set the visible state.
     SetVisible(bool),
     /// Set the tooltip.
@@ -101,10 +92,6 @@ impl Component for Picture {
             PictureMessage::SetRect(rect) => {
                 self.set_rect(rect)?;
                 Ok(true)
-            }
-            PictureMessage::SetEnabled(enabled) => {
-                self.set_enabled(enabled)?;
-                Ok(false)
             }
             PictureMessage::SetVisible(visible) => {
                 self.set_visible(visible)?;

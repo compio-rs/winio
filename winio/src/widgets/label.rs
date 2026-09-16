@@ -2,8 +2,7 @@ use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
-    Enable, Failable, Font, Fontable, HAlign, Layoutable, Point, Rect, Size, TextWidget, ToolTip,
-    Visible,
+    Failable, Font, Fontable, HAlign, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
 };
 
 use crate::{
@@ -67,13 +66,6 @@ impl Visible for Label {
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Enable for Label {
-    fn is_enabled(&self) -> Result<bool>;
-
-    fn set_enabled(&mut self, v: bool) -> Result<()>;
-}
-
-#[inherit_methods(from = "self.widget")]
 impl Layoutable for Label {
     fn loc(&self) -> Result<Point>;
 
@@ -97,8 +89,6 @@ pub enum LabelEvent {}
 pub enum LabelMessage {
     /// Set the rect.
     SetRect(Rect),
-    /// Set the enabled state.
-    SetEnabled(bool),
     /// Set the visible state.
     SetVisible(bool),
     /// Set the tooltip.
@@ -134,10 +124,6 @@ impl Component for Label {
             LabelMessage::SetRect(rect) => {
                 self.set_rect(rect)?;
                 Ok(true)
-            }
-            LabelMessage::SetEnabled(enabled) => {
-                self.set_enabled(enabled)?;
-                Ok(false)
             }
             LabelMessage::SetVisible(visible) => {
                 self.set_visible(visible)?;
