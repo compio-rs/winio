@@ -190,7 +190,7 @@ pub struct DrawingImage {
 impl DrawingImage {
     fn new(image: DynamicImage) -> Result<Self> {
         vm_exec(|env| {
-            let rgba = image.to_rgba8();
+            let rgba = image.into_rgba8();
             let (width, height) = rgba.dimensions();
             let pixels = rgba
                 .pixels()
