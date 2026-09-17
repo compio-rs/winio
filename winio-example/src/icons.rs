@@ -51,5 +51,5 @@ pub fn stop() -> Result<Image> {
 }
 
 fn load(bytes: &[u8]) -> Result<Image> {
-    Ok(Image::new(image::load_from_memory(bytes)?)?)
+    Ok(Image::try_from(image::load_from_memory(bytes)?)?)
 }
