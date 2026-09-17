@@ -1,4 +1,7 @@
-use std::ptr::{null, null_mut};
+use std::{
+    borrow::Cow,
+    ptr::{null, null_mut},
+};
 
 use compio_log::error;
 use image::DynamicImage;
@@ -497,13 +500,19 @@ pub struct DrawingImage {
 }
 
 impl DrawingImage {
-    pub fn new(image: DynamicImage) -> Result<Self> {
+    pub fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
         let width = image.width();
         let height = image.height();
         let size = Size::new(width as f64, height as f64);
         let (mut buffer, spp) = match image {
-            DynamicImage::ImageRgba8(_) => (image.into_bytes(), 4),
-            _ => (DynamicImage::ImageRgba8(image.into_rgba8()).into_bytes(), 4),
+            Cow::Owned(image) => match image {
+                DynamicImage::ImageRgba8(_) => (image.into_bytes(), 4),
+                _ => (DynamicImage::ImageRgba8(image.into_rgba8()).into_bytes(), 4),
+            },
+            Cow::Borrowed(image) => match image {
+                DynamicImage::ImageRgba8(_) => (image.as_bytes().to_vec(), 4),
+                _ => (DynamicImage::ImageRgba8(image.to_rgba8()).into_bytes(), 4),
+            },
         };
         let ptr = buffer.as_mut_ptr();
         let space = CGColorSpace::new_device_rgb();
