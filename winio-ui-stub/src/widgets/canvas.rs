@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
@@ -178,7 +180,7 @@ impl DrawingContext<'_> {
         not_impl()
     }
 
-    pub fn create_image(&self, _image: DynamicImage) -> Result<DrawingImage> {
+    pub fn create_image(&self, _image: Cow<'_, DynamicImage>) -> Result<DrawingImage> {
         not_impl()
     }
 

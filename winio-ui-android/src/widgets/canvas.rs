@@ -1,7 +1,7 @@
-use std::sync::Arc;
+use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use compio_log::error;
-use image::DynamicImage;
+use image::{DynamicImage, RgbaImage};
 use inherit_methods_macro::inherit_methods;
 use jni::{
     Env,
@@ -18,7 +18,7 @@ use winio_primitive::{
 };
 
 use crate::{
-    BaseWidget, Result, current_activity,
+    BaseWidget, Error, Result, current_activity,
     java::android::{
         graphics::{
             Bitmap, BitmapConfig, Canvas as ACanvas, LinearGradient, Matrix as AMatrix, Paint,
@@ -183,15 +183,20 @@ impl<B: Brush> Pen for BrushPen<B> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DrawingImage {
-    bitmap: Global<Bitmap<'static>>,
+    bitmap: Rc<Global<Bitmap<'static>>>,
 }
 
 impl DrawingImage {
-    pub fn new(image: DynamicImage) -> Result<Self> {
+    pub fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
         vm_exec(|env| {
-            let rgba = image.into_rgba8();
+            let rgba: Cow<'_, RgbaImage> = match image {
+                Cow::Owned(DynamicImage::ImageRgba8(image)) => Cow::Owned(image),
+                Cow::Borrowed(DynamicImage::ImageRgba8(image)) => Cow::Borrowed(image),
+                Cow::Owned(image) => Cow::Owned(image.into_rgba8()),
+                Cow::Borrowed(image) => Cow::Owned(image.to_rgba8()),
+            };
             let (width, height) = rgba.dimensions();
             let pixels = rgba
                 .pixels()
@@ -207,8 +212,14 @@ impl DrawingImage {
             let config = BitmapConfig::ARGB_8888(env)?;
             let bitmap = Bitmap::create_bitmap(env, &jcolors, width as _, height as _, &config)?;
             let bitmap = env.new_global_ref(bitmap)?;
-            Ok(Self { bitmap })
+            Ok(Self {
+                bitmap: Rc::new(bitmap),
+            })
         })
+    }
+
+    pub fn try_to_drawing(&self, _context: &DrawingContext) -> Result<Self> {
+        Ok(self.clone())
     }
 
     pub fn size(&self) -> Result<Size> {
@@ -220,7 +231,23 @@ impl DrawingImage {
     }
 
     pub(crate) fn drawable<'local>(&self, env: &mut Env<'local>) -> Result<BitmapDrawable<'local>> {
-        Ok(BitmapDrawable::new(env, &self.bitmap)?)
+        Ok(BitmapDrawable::new(env, &*self.bitmap)?)
+    }
+}
+
+impl TryFrom<DynamicImage> for DrawingImage {
+    type Error = Error;
+
+    fn try_from(value: DynamicImage) -> std::result::Result<Self, Self::Error> {
+        Self::new(Cow::Owned(value))
+    }
+}
+
+impl TryFrom<&DynamicImage> for DrawingImage {
+    type Error = Error;
+
+    fn try_from(value: &DynamicImage) -> std::result::Result<Self, Self::Error> {
+        Self::new(Cow::Borrowed(value))
     }
 }
 
@@ -577,7 +604,7 @@ impl<'a> DrawingContext<'a> {
         })
     }
 
-    pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage> {
+    pub fn create_image(&self, image: Cow<'_, DynamicImage>) -> Result<DrawingImage> {
         DrawingImage::new(image)
     }
 
@@ -609,7 +636,7 @@ impl<'a> DrawingContext<'a> {
             let style = PaintStyle::FILL(env)?;
             paint.set_style(env, style)?;
             self.canvas
-                .draw_bitmap(env, &image.bitmap, src, dest, paint)?;
+                .draw_bitmap(env, &*image.bitmap, src, dest, paint)?;
             Ok(())
         })
     }

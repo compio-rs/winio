@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use image::DynamicImage;
 use winio_primitive::{Font, Point, Rect, RelativePoint, Size, Transform};
 
@@ -14,7 +16,7 @@ pub trait Pen: sys::Pen {}
 impl<P: sys::Pen> Pen for P {}
 
 /// An image that can be drawn on a [`DrawingContext`].
-pub struct DrawingImage(sys::DrawingImage);
+pub struct DrawingImage(pub(crate) sys::DrawingImage);
 
 impl DrawingImage {
     /// Size of the image.
@@ -24,7 +26,7 @@ impl DrawingImage {
 }
 
 /// Provides the drawing operations of a [`Canvas`](crate::widgets::Canvas).
-pub struct DrawingContext<'a>(sys::DrawingContext<'a>);
+pub struct DrawingContext<'a>(pub(crate) sys::DrawingContext<'a>);
 
 #[inline]
 fn fix_rect(mut rect: Rect) -> Rect {
@@ -148,7 +150,12 @@ impl<'a> DrawingContext<'a> {
 
     /// Create a [`DrawingContext`]-compatible image from [`DynamicImage`].
     pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage> {
-        Ok(DrawingImage(self.0.create_image(image)?))
+        Ok(DrawingImage(self.0.create_image(Cow::Owned(image))?))
+    }
+
+    /// Create a [`DrawingContext`]-compatible image from [`DynamicImage`].
+    pub fn create_image_from_ref(&self, image: &DynamicImage) -> Result<DrawingImage> {
+        Ok(DrawingImage(self.0.create_image(Cow::Borrowed(image))?))
     }
 
     /// Draw a [`DrawingImage`].

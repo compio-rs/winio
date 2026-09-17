@@ -1,4 +1,4 @@
-use std::ptr::null_mut;
+use std::{borrow::Cow, ptr::null_mut};
 
 use compio_log::error;
 use futures_util::FutureExt;
@@ -395,7 +395,7 @@ impl<'a> DrawingContext<'a> {
 
     pub fn measure_str(&self, font: Font, text: &str) -> Result<Size>;
 
-    pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage>;
+    pub fn create_image(&self, image: Cow<'_, DynamicImage>) -> Result<DrawingImage>;
 
     pub fn draw_image(
         &mut self,

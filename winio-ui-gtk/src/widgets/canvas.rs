@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     cell::RefCell,
     f64::consts::{FRAC_PI_2, PI},
     rc::Rc,
@@ -11,10 +12,13 @@ use gtk4::{
         Content, Context, Format, ImageSurface, LinearGradient, Matrix, RadialGradient,
         RecordingSurface,
     },
-    gdk::ScrollUnit,
+    gdk::{ScrollUnit, Texture},
     glib::{Propagation, object::Cast},
     pango::{FontDescription, Layout, SCALE as PANGO_SCALE, Style, Weight},
-    prelude::{DrawingAreaExtManual, EventControllerExt, GestureSingleExt, WidgetExt},
+    prelude::{
+        DrawingAreaExtManual, EventControllerExt, GestureSingleExt, TextureExt, TextureExtManual,
+        WidgetExt,
+    },
 };
 use image::{DynamicImage, Rgba, Rgba32FImage};
 use inherit_methods_macro::inherit_methods;
@@ -442,7 +446,7 @@ impl DrawingContext<'_> {
         Ok(self.measure_str_impl(&font, text).0)
     }
 
-    pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage> {
+    pub fn create_image(&self, image: Cow<'_, DynamicImage>) -> Result<DrawingImage> {
         DrawingImage::new(image)
     }
 
@@ -646,7 +650,7 @@ impl<B: Brush> Pen for BrushPen<B> {
 pub struct DrawingImage(ImageSurface);
 
 impl DrawingImage {
-    fn new(image: DynamicImage) -> Result<Self> {
+    fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
         fn alpha_premultiply(mut image: Rgba32FImage) -> Rgba32FImage {
             for Rgba(pixel) in image.pixels_mut() {
                 let a = pixel[3];
@@ -672,23 +676,73 @@ impl DrawingImage {
         const CAIRO_FORMAT_RGBA128F: Format = Format::__Unknown(7);
 
         let (format, buffer) = match image {
-            DynamicImage::ImageRgb32F(_) => (CAIRO_FORMAT_RGB96F, image.into_bytes()),
-            DynamicImage::ImageRgb8(_) | DynamicImage::ImageRgb16(_) => (
-                CAIRO_FORMAT_RGB96F,
-                DynamicImage::ImageRgb32F(image.into_rgb32f()).into_bytes(),
-            ),
-            DynamicImage::ImageRgba32F(image) => (
-                CAIRO_FORMAT_RGBA128F,
-                DynamicImage::ImageRgba32F(alpha_premultiply(image)).into_bytes(),
-            ),
-            _ => (
-                CAIRO_FORMAT_RGBA128F,
-                DynamicImage::ImageRgba32F(alpha_premultiply(image.into_rgba32f())).into_bytes(),
-            ),
+            Cow::Owned(image) => match image {
+                DynamicImage::ImageRgb32F(_) => (CAIRO_FORMAT_RGB96F, image.into_bytes()),
+                DynamicImage::ImageRgb8(_) | DynamicImage::ImageRgb16(_) => (
+                    CAIRO_FORMAT_RGB96F,
+                    DynamicImage::ImageRgb32F(image.into_rgb32f()).into_bytes(),
+                ),
+                DynamicImage::ImageRgba32F(image) => (
+                    CAIRO_FORMAT_RGBA128F,
+                    DynamicImage::ImageRgba32F(alpha_premultiply(image)).into_bytes(),
+                ),
+                _ => (
+                    CAIRO_FORMAT_RGBA128F,
+                    DynamicImage::ImageRgba32F(alpha_premultiply(image.into_rgba32f()))
+                        .into_bytes(),
+                ),
+            },
+            Cow::Borrowed(image) => match image {
+                DynamicImage::ImageRgb32F(_) => (
+                    CAIRO_FORMAT_RGB96F,
+                    DynamicImage::ImageRgb32F(image.to_rgb32f()).into_bytes(),
+                ),
+                DynamicImage::ImageRgb8(_) | DynamicImage::ImageRgb16(_) => (
+                    CAIRO_FORMAT_RGB96F,
+                    DynamicImage::ImageRgb32F(image.to_rgb32f()).into_bytes(),
+                ),
+                _ => (
+                    CAIRO_FORMAT_RGBA128F,
+                    DynamicImage::ImageRgba32F(alpha_premultiply(image.to_rgba32f())).into_bytes(),
+                ),
+            },
         };
         let stride = format.stride_for_width(width)?;
         let surface =
             ImageSurface::create_for_data(buffer, format, width as _, height as _, stride as _)?;
+        Ok(Self(surface))
+    }
+
+    pub(crate) fn from_texture(texture: &Texture) -> Result<Self> {
+        const CAIRO_FORMAT_RGBA128F: Format = Format::__Unknown(7);
+
+        let width = texture.width();
+        let height = texture.height();
+        let stride = width as usize * 4;
+        let mut data = vec![0; stride * height as usize];
+        texture.download(&mut data, stride);
+
+        // `download` returns premultiplied Cairo ARGB32 data (native-endian).
+        let mut buffer = Vec::with_capacity(stride * height as usize * 4);
+        for pixel in data.as_chunks::<4>().0 {
+            let value = u32::from_ne_bytes(*pixel);
+            let a = ((value >> 24) & 0xff) as f32 / 255.0;
+            let r = ((value >> 16) & 0xff) as f32 / 255.0;
+            let g = ((value >> 8) & 0xff) as f32 / 255.0;
+            let b = (value & 0xff) as f32 / 255.0;
+            for c in [r, g, b, a] {
+                buffer.extend_from_slice(&c.to_ne_bytes());
+            }
+        }
+
+        let stride = CAIRO_FORMAT_RGBA128F.stride_for_width(width as _)?;
+        let surface = ImageSurface::create_for_data(
+            buffer,
+            CAIRO_FORMAT_RGBA128F,
+            width,
+            height,
+            stride as _,
+        )?;
         Ok(Self(surface))
     }
 

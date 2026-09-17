@@ -1,7 +1,7 @@
-use std::{cell::Cell, mem::ManuallyDrop, ops::Deref, rc::Rc};
+use std::{borrow::Cow, cell::Cell, mem::ManuallyDrop, ops::Deref, rc::Rc};
 
 use compio_log::error;
-use image::DynamicImage;
+use image::{DynamicImage, RgbaImage};
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows::Win32::{
@@ -572,7 +572,11 @@ impl<'a> DrawingContext<'a> {
 
     pub fn measure_str(&self, font: Font, text: &str) -> Result<Size>;
 
-    pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage>;
+    pub fn create_image(&self, image: Cow<'_, DynamicImage>) -> Result<DrawingImage>;
+
+    pub(crate) fn create_image_from_premultiplied(&self, image: RgbaImage) -> Result<DrawingImage> {
+        DrawingImage::from_premultiplied_rgba8(self.ctx.render_target(), image)
+    }
 
     pub fn draw_image(
         &mut self,

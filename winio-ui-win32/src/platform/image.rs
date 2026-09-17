@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::BTreeMap, mem::zeroed, ptr::null_mut};
+use std::{borrow::Cow, cell::RefCell, collections::BTreeMap, mem::zeroed, ptr::null_mut, rc::Rc};
 
 use image::{DynamicImage, imageops::FilterType};
 use windows_core::{Error, HRESULT, WIN32_ERROR};
@@ -22,7 +22,7 @@ use windows_sys::Win32::{
 use winio_primitive::Size;
 
 use super::dpi::{DpiAware, get_dpi_for_window};
-use crate::Result;
+use crate::{DrawingContext, DrawingImage, Result};
 
 struct WinIcon(HICON);
 
@@ -130,11 +130,11 @@ impl Drop for GdipBitmap {
 }
 
 #[derive(Debug, Clone)]
-pub struct Image(DynamicImage);
+pub struct Image(Rc<DynamicImage>);
 
 impl Image {
-    pub fn new(image: DynamicImage) -> Result<Self> {
-        Ok(Self(image))
+    pub fn try_to_drawing(&self, context: &DrawingContext) -> Result<DrawingImage> {
+        context.create_image(Cow::Borrowed(&self.0))
     }
 
     #[allow(non_upper_case_globals)]
@@ -169,6 +169,22 @@ impl Image {
             data.as_ptr(),
         )?;
         bitmap.create_hicon()
+    }
+}
+
+impl TryFrom<DynamicImage> for Image {
+    type Error = Error;
+
+    fn try_from(value: DynamicImage) -> std::result::Result<Self, Self::Error> {
+        Ok(Self(Rc::new(value)))
+    }
+}
+
+impl TryFrom<&DynamicImage> for Image {
+    type Error = Error;
+
+    fn try_from(value: &DynamicImage) -> std::result::Result<Self, Self::Error> {
+        Ok(Self(Rc::new(value.clone())))
     }
 }
 
