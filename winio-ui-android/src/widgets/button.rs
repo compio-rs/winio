@@ -12,9 +12,11 @@ use winio_handle::{AsContainer, AsWidget, BorrowedWidget, impl_as_widget};
 use winio_primitive::{Point, Size};
 
 use crate::{
-    BaseWidget, JCharSequenceExt, Result, current_activity,
+    BaseWidget, Image, JCharSequenceExt, Result, current_activity,
     java::{
         android::{
+            content::res::ColorStateList,
+            graphics::drawable::Drawable,
             view::{View as AView, ViewOnClickListener},
             widget::{Button as AButton, CompoundButton as ACompoundButton, TextView as ATextView},
         },
@@ -233,6 +235,20 @@ impl Button {
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, text: impl AsRef<str>) -> Result<()>;
+
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
+        vm_exec(|env| {
+            let button = &self.inner.inner;
+            button.set_icon_tint_list(env, ColorStateList::null())?;
+            if let Some(icon) = icon {
+                let drawable = icon.drawable(env)?;
+                button.set_icon(env, drawable)?;
+            } else {
+                button.set_icon(env, Drawable::null())?;
+            }
+            Ok(())
+        })
+    }
 
     pub async fn wait_click(&self) {
         self.inner.wait_click().await;

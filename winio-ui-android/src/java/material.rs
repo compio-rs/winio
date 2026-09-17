@@ -2,7 +2,8 @@ use crate::{
     impl_listener,
     java::{
         android::{
-            content::Context,
+            content::{Context, res::ColorStateList},
+            graphics::drawable::Drawable,
             view::View,
             widget::{Button, CompoundButton, TextView},
         },
@@ -17,9 +18,15 @@ jni::bind_java_type! {
         View => android.view.View,
         TextView => android.widget.TextView,
         Context => android.content.Context,
+        ColorStateList => android.content.res.ColorStateList,
+        Drawable => android.graphics.drawable.Drawable,
     },
     constructors {
         fn new(context: &Context),
+    },
+    methods {
+        fn set_icon(icon: &Drawable),
+        fn set_icon_tint_list(tint: &ColorStateList),
     },
     is_instance_of = {
         button = Button,

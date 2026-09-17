@@ -18,6 +18,9 @@ pub use label::*;
 mod link_label;
 pub use link_label::*;
 
+mod picture;
+pub use picture::*;
+
 mod list_box;
 pub use list_box::*;
 

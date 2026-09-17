@@ -1,6 +1,10 @@
 use super::super::util::DisplayMetrics;
 
 jni::bind_java_type! {
+    pub ColorStateList => android.content.res.ColorStateList,
+}
+
+jni::bind_java_type! {
     pub Resources => android.content.res.Resources,
     type_map {
         Configuration => android.content.res.Configuration,

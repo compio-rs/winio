@@ -1,3 +1,5 @@
+pub use crate::widgets::DrawingImage as Image;
+
 mod keyboard;
 pub(crate) use keyboard::*;
 
