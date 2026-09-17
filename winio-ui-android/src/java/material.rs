@@ -26,7 +26,7 @@ jni::bind_java_type! {
     },
     methods {
         fn set_icon(icon: &Drawable),
-        fn set_icon_tint_list(tint: &ColorStateList),
+        fn set_icon_tint(tint: &ColorStateList),
     },
     is_instance_of = {
         button = Button,

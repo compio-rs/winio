@@ -239,7 +239,7 @@ impl Button {
     pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
         vm_exec(|env| {
             let button = &self.inner.inner;
-            button.set_icon_tint_list(env, ColorStateList::null())?;
+            button.set_icon_tint(env, ColorStateList::null())?;
             if let Some(icon) = icon {
                 let drawable = icon.drawable(env)?;
                 button.set_icon(env, drawable)?;
