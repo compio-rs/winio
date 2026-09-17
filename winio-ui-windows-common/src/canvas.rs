@@ -693,6 +693,11 @@ impl DrawingImage {
                 }
             }
         }
+        Self::from_premultiplied_rgba8(target, image)
+    }
+
+    /// Create a [`DrawingImage`] from premultiplied RGBA pixels.
+    pub fn from_premultiplied_rgba8(target: &ID2D1RenderTarget, image: RgbaImage) -> Result<Self> {
         let bitmap = Self::create_bitmap(target, &image)?;
         Ok(Self {
             image,
