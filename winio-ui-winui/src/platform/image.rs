@@ -12,9 +12,11 @@ pub struct Image(WriteableBitmap);
 
 impl Image {
     pub(crate) fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
-        let image = match image {
-            Cow::Owned(image) => image.into_rgba8(),
-            Cow::Borrowed(image) => image.to_rgba8(),
+        let image: Cow<'_, RgbaImage> = match image {
+            Cow::Owned(DynamicImage::ImageRgba8(image)) => Cow::Owned(image),
+            Cow::Borrowed(DynamicImage::ImageRgba8(image)) => Cow::Borrowed(image),
+            Cow::Owned(image) => Cow::Owned(image.into_rgba8()),
+            Cow::Borrowed(image) => Cow::Owned(image.to_rgba8()),
         };
         let (width, height) = image.dimensions();
         let bitmap = WriteableBitmap::CreateInstanceWithDimensions(width as _, height as _)?;

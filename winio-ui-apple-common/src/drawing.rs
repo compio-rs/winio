@@ -504,25 +504,24 @@ impl DrawingImage {
         let width = image.width();
         let height = image.height();
         let size = Size::new(width as f64, height as f64);
-        let (mut buffer, spp) = match image {
-            Cow::Owned(image) => match image {
-                DynamicImage::ImageRgba8(_) => (image.into_bytes(), 4),
-                _ => (DynamicImage::ImageRgba8(image.into_rgba8()).into_bytes(), 4),
-            },
-            Cow::Borrowed(image) => match image {
-                DynamicImage::ImageRgba8(_) => (image.as_bytes().to_vec(), 4),
-                _ => (DynamicImage::ImageRgba8(image.to_rgba8()).into_bytes(), 4),
-            },
+        let buffer: Cow<'_, [u8]> = match image {
+            Cow::Owned(DynamicImage::ImageRgba8(image)) => Cow::Owned(image.into_raw()),
+            Cow::Borrowed(DynamicImage::ImageRgba8(image)) => Cow::Borrowed(image.as_raw()),
+            Cow::Owned(image) => {
+                Cow::Owned(DynamicImage::ImageRgba8(image.into_rgba8()).into_bytes())
+            }
+            Cow::Borrowed(image) => {
+                Cow::Owned(DynamicImage::ImageRgba8(image.to_rgba8()).into_bytes())
+            }
         };
-        let ptr = buffer.as_mut_ptr();
         let space = CGColorSpace::new_device_rgb();
         let context = unsafe {
             CGBitmapContextCreate(
-                ptr.cast(),
+                buffer.as_ptr().cast_mut().cast(),
                 width as _,
                 height as _,
-                spp * 2,
-                spp * width as usize,
+                8,
+                width as usize * 4,
                 space.as_deref(),
                 CGImageAlphaInfo::PremultipliedLast.0,
             )

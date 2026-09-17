@@ -1,7 +1,7 @@
 use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use compio_log::error;
-use image::DynamicImage;
+use image::{DynamicImage, RgbaImage};
 use inherit_methods_macro::inherit_methods;
 use jni::{
     Env,
@@ -191,9 +191,11 @@ pub struct DrawingImage {
 impl DrawingImage {
     pub fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
         vm_exec(|env| {
-            let rgba = match image {
-                Cow::Owned(image) => image.into_rgba8(),
-                Cow::Borrowed(image) => image.to_rgba8(),
+            let rgba: Cow<'_, RgbaImage> = match image {
+                Cow::Owned(DynamicImage::ImageRgba8(image)) => Cow::Owned(image),
+                Cow::Borrowed(DynamicImage::ImageRgba8(image)) => Cow::Borrowed(image),
+                Cow::Owned(image) => Cow::Owned(image.into_rgba8()),
+                Cow::Borrowed(image) => Cow::Owned(image.to_rgba8()),
             };
             let (width, height) = rgba.dimensions();
             let pixels = rgba

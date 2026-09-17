@@ -1,4 +1,4 @@
-use std::{borrow::Cow, rc::Rc};
+use std::{borrow::Cow, fmt, rc::Rc};
 
 use cxx::{ExternType, UniquePtr, type_id};
 use image::{DynamicImage, Pixel, Rgb, Rgba};
@@ -8,6 +8,12 @@ use crate::{DrawingContext, Error, Result};
 
 #[derive(Clone)]
 pub struct Image(Rc<ImageData>);
+
+impl fmt::Debug for Image {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Image").finish_non_exhaustive()
+    }
+}
 
 struct ImageData {
     #[allow(dead_code)]
