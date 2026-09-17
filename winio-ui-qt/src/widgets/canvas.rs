@@ -1,4 +1,4 @@
-use std::{cell::RefCell, mem::MaybeUninit, pin::Pin};
+use std::{borrow::Cow, cell::RefCell, mem::MaybeUninit, pin::Pin};
 
 use compio_log::error;
 use cxx::{ExternType, UniquePtr, type_id};
@@ -11,6 +11,7 @@ use winio_primitive::{
     Rect, RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform, Vector,
 };
 
+pub use crate::platform::Image as DrawingImage;
 use crate::{
     Error, GlobalRuntime, Result,
     common::QString,
@@ -422,7 +423,7 @@ impl DrawingContext<'_> {
         self.measure_str_impl(&font, text)
     }
 
-    pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage> {
+    pub fn create_image(&self, image: Cow<'_, DynamicImage>) -> Result<DrawingImage> {
         DrawingImage::new(image)
     }
 
@@ -439,7 +440,7 @@ impl DrawingContext<'_> {
         ffi::painter_draw_image(
             self.painter.get_mut().pin_mut(),
             &QRectF(rect),
-            &image.image,
+            image.as_qimage(),
             &QRectF(clip),
         )?;
         Ok(())
@@ -575,24 +576,6 @@ impl<B: Brush> Pen for BrushPen<B> {
     fn create(&self, trans: RelativeToLogical) -> Result<QPen> {
         let brush = self.brush.create(trans)?;
         Ok(ffi::new_pen(&brush, self.width)?)
-    }
-}
-
-pub struct DrawingImage {
-    #[allow(dead_code)]
-    buffer: Vec<u8>,
-    image: UniquePtr<ffi::QImage>,
-}
-
-impl DrawingImage {
-    fn new(image: DynamicImage) -> Result<Self> {
-        let (buffer, image) = crate::platform::create_image(image)?;
-        Ok(Self { buffer, image })
-    }
-
-    pub fn size(&self) -> Result<Size> {
-        let size = self.image.size()?;
-        Ok(Size::new(size.width as _, size.height as _))
     }
 }
 

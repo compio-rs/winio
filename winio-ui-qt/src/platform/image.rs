@@ -1,53 +1,10 @@
+use std::borrow::Cow;
+
 use cxx::{ExternType, UniquePtr, type_id};
 use image::{DynamicImage, Pixel, Rgb, Rgba};
+use winio_primitive::Size;
 
-use crate::Result;
-
-/// Create a [`QImage`] from a [`DynamicImage`].
-///
-/// The returned buffer must be kept alive as long as the image, because the
-/// image does not own the data.
-pub(crate) fn create_image(image: DynamicImage) -> Result<(Vec<u8>, UniquePtr<ffi::QImage>)> {
-    let width = image.width();
-    let height = image.height();
-    let (format, buffer, count) = match image {
-        DynamicImage::ImageRgb8(_) => (
-            QImageFormat::RGB888,
-            image.into_bytes(),
-            Rgb::<u8>::CHANNEL_COUNT,
-        ),
-        DynamicImage::ImageRgba8(_) => (
-            QImageFormat::RGBA8888,
-            image.into_bytes(),
-            Rgba::<u8>::CHANNEL_COUNT,
-        ),
-        DynamicImage::ImageRgba16(_) => (
-            QImageFormat::RGBA64,
-            image.into_bytes(),
-            Rgba::<u16>::CHANNEL_COUNT * 2,
-        ),
-        DynamicImage::ImageRgba32F(_) => (
-            QImageFormat::RGBA32FPx4,
-            image.into_bytes(),
-            Rgba::<f32>::CHANNEL_COUNT * 4,
-        ),
-        _ => (
-            QImageFormat::RGBA32FPx4,
-            DynamicImage::ImageRgba32F(image.into_rgba32f()).into_bytes(),
-            Rgba::<f32>::CHANNEL_COUNT * 4,
-        ),
-    };
-    let image = unsafe {
-        ffi::new_image(
-            width as _,
-            height as _,
-            (width * count as u32) as _,
-            buffer.as_ptr(),
-            format,
-        )?
-    };
-    Ok((buffer, image))
-}
+use crate::{DrawingContext, Error, Result};
 
 pub struct Image {
     #[allow(dead_code)]
@@ -56,13 +13,102 @@ pub struct Image {
 }
 
 impl Image {
-    pub fn new(image: DynamicImage) -> Result<Self> {
-        let (buffer, image) = create_image(image)?;
+    pub(crate) fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
+        let width = image.width();
+        let height = image.height();
+        let (format, count, buffer) = match qimage_format(image.as_ref()) {
+            Some((format, count)) => {
+                let buffer = match image {
+                    Cow::Owned(image) => image.into_bytes(),
+                    Cow::Borrowed(image) => image.as_bytes().to_vec(),
+                };
+                (format, count, buffer)
+            }
+            None => {
+                let image = match image {
+                    Cow::Owned(image) => image.into_rgba32f(),
+                    Cow::Borrowed(image) => image.to_rgba32f(),
+                };
+                (
+                    QImageFormat::RGBA32FPx4,
+                    Rgba::<f32>::CHANNEL_COUNT as usize * 4,
+                    DynamicImage::ImageRgba32F(image).into_bytes(),
+                )
+            }
+        };
+        let image = unsafe {
+            ffi::new_image(
+                width as _,
+                height as _,
+                (width * count as u32) as _,
+                buffer.as_ptr(),
+                format,
+            )?
+        };
         Ok(Self { buffer, image })
+    }
+
+    pub fn try_clone(&self) -> Result<Self> {
+        let image = ffi::image_copy(&self.image)?;
+        Ok(Self {
+            buffer: vec![],
+            image,
+        })
+    }
+
+    pub fn try_to_drawing(&self, _context: &DrawingContext) -> Result<Self> {
+        self.try_clone()
+    }
+
+    pub fn try_into_drawing(self, _context: &DrawingContext) -> Result<Self> {
+        Ok(self)
+    }
+
+    pub fn size(&self) -> Result<Size> {
+        let size = self.image.size()?;
+        Ok(Size::new(size.width as _, size.height as _))
     }
 
     pub(crate) fn as_qimage(&self) -> &ffi::QImage {
         &self.image
+    }
+}
+
+impl TryFrom<DynamicImage> for Image {
+    type Error = Error;
+
+    fn try_from(value: DynamicImage) -> Result<Self, Self::Error> {
+        Self::new(Cow::Owned(value))
+    }
+}
+
+impl TryFrom<&DynamicImage> for Image {
+    type Error = Error;
+
+    fn try_from(value: &DynamicImage) -> Result<Self, Self::Error> {
+        Self::new(Cow::Borrowed(value))
+    }
+}
+
+/// Get the [`QImage`] format of a [`DynamicImage`], if its memory layout can be
+/// used directly.
+fn qimage_format(image: &DynamicImage) -> Option<(QImageFormat, usize)> {
+    match image {
+        DynamicImage::ImageRgb8(_) => {
+            Some((QImageFormat::RGB888, Rgb::<u8>::CHANNEL_COUNT as usize))
+        }
+        DynamicImage::ImageRgba8(_) => {
+            Some((QImageFormat::RGBA8888, Rgba::<u8>::CHANNEL_COUNT as usize))
+        }
+        DynamicImage::ImageRgba16(_) => Some((
+            QImageFormat::RGBA64,
+            Rgba::<u16>::CHANNEL_COUNT as usize * 2,
+        )),
+        DynamicImage::ImageRgba32F(_) => Some((
+            QImageFormat::RGBA32FPx4,
+            Rgba::<f32>::CHANNEL_COUNT as usize * 4,
+        )),
+        _ => None,
     }
 }
 
@@ -100,5 +146,7 @@ mod ffi {
             format: QImageFormat,
         ) -> Result<UniquePtr<QImage>>;
         fn size(self: &QImage) -> Result<QSize>;
+
+        fn image_copy(image: &QImage) -> Result<UniquePtr<QImage>>;
     }
 }
