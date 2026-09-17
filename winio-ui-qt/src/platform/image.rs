@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, rc::Rc};
 
 use cxx::{ExternType, UniquePtr, type_id};
 use image::{DynamicImage, Pixel, Rgb, Rgba};
@@ -6,7 +6,10 @@ use winio_primitive::Size;
 
 use crate::{DrawingContext, Error, Result};
 
-pub struct Image {
+#[derive(Clone)]
+pub struct Image(Rc<ImageData>);
+
+struct ImageData {
     #[allow(dead_code)]
     buffer: Vec<u8>,
     image: UniquePtr<ffi::QImage>,
@@ -45,32 +48,20 @@ impl Image {
                 format,
             )?
         };
-        Ok(Self { buffer, image })
-    }
-
-    pub fn try_clone(&self) -> Result<Self> {
-        let image = ffi::image_copy(&self.image)?;
-        Ok(Self {
-            buffer: vec![],
-            image,
-        })
+        Ok(Self(Rc::new(ImageData { buffer, image })))
     }
 
     pub fn try_to_drawing(&self, _context: &DrawingContext) -> Result<Self> {
-        self.try_clone()
-    }
-
-    pub fn try_into_drawing(self, _context: &DrawingContext) -> Result<Self> {
-        Ok(self)
+        Ok(self.clone())
     }
 
     pub fn size(&self) -> Result<Size> {
-        let size = self.image.size()?;
+        let size = self.0.image.size()?;
         Ok(Size::new(size.width as _, size.height as _))
     }
 
     pub(crate) fn as_qimage(&self) -> &ffi::QImage {
-        &self.image
+        &self.0.image
     }
 }
 
@@ -146,7 +137,5 @@ mod ffi {
             format: QImageFormat,
         ) -> Result<UniquePtr<QImage>>;
         fn size(self: &QImage) -> Result<QSize>;
-
-        fn image_copy(image: &QImage) -> Result<UniquePtr<QImage>>;
     }
 }

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, sync::Arc};
+use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use compio_log::error;
 use image::DynamicImage;
@@ -183,9 +183,9 @@ impl<B: Brush> Pen for BrushPen<B> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DrawingImage {
-    bitmap: Global<Bitmap<'static>>,
+    bitmap: Rc<Global<Bitmap<'static>>>,
 }
 
 impl DrawingImage {
@@ -210,23 +210,14 @@ impl DrawingImage {
             let config = BitmapConfig::ARGB_8888(env)?;
             let bitmap = Bitmap::create_bitmap(env, &jcolors, width as _, height as _, &config)?;
             let bitmap = env.new_global_ref(bitmap)?;
-            Ok(Self { bitmap })
-        })
-    }
-
-    pub fn try_clone(&self) -> Result<Self> {
-        vm_exec(|env| {
-            let bitmap = env.new_global_ref(&self.bitmap)?;
-            Ok(Self { bitmap })
+            Ok(Self {
+                bitmap: Rc::new(bitmap),
+            })
         })
     }
 
     pub fn try_to_drawing(&self, _context: &DrawingContext) -> Result<Self> {
-        self.try_clone()
-    }
-
-    pub fn try_into_drawing(self, _context: &DrawingContext) -> Result<Self> {
-        Ok(self)
+        Ok(self.clone())
     }
 
     pub fn size(&self) -> Result<Size> {
@@ -238,7 +229,7 @@ impl DrawingImage {
     }
 
     pub(crate) fn drawable<'local>(&self, env: &mut Env<'local>) -> Result<BitmapDrawable<'local>> {
-        Ok(BitmapDrawable::new(env, &self.bitmap)?)
+        Ok(BitmapDrawable::new(env, &*self.bitmap)?)
     }
 }
 
@@ -643,7 +634,7 @@ impl<'a> DrawingContext<'a> {
             let style = PaintStyle::FILL(env)?;
             paint.set_style(env, style)?;
             self.canvas
-                .draw_bitmap(env, &image.bitmap, src, dest, paint)?;
+                .draw_bitmap(env, &*image.bitmap, src, dest, paint)?;
             Ok(())
         })
     }

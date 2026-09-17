@@ -9,7 +9,7 @@ use image::DynamicImage;
 
 use crate::{DrawingContext, DrawingImage, Error, Result};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Image {
     texture: gdk::Texture,
 }
@@ -35,18 +35,8 @@ impl Image {
         Ok(Self { texture })
     }
 
-    pub fn try_clone(&self) -> Result<Self> {
-        Ok(Self {
-            texture: self.texture.clone(),
-        })
-    }
-
     pub fn try_to_drawing(&self, _context: &DrawingContext) -> Result<DrawingImage> {
         DrawingImage::from_texture(&self.texture)
-    }
-
-    pub fn try_into_drawing(self, context: &DrawingContext) -> Result<DrawingImage> {
-        self.try_to_drawing(context)
     }
 
     pub(crate) fn texture(&self) -> &gdk::Texture {

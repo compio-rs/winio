@@ -2,19 +2,11 @@ use image::DynamicImage;
 
 use crate::{DrawingContext, DrawingImage, Error, Result, not_impl};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Image;
 
 impl Image {
-    pub fn try_clone(&self) -> Result<Self> {
-        not_impl()
-    }
-
     pub fn try_to_drawing(&self, _context: &DrawingContext) -> Result<DrawingImage> {
-        not_impl()
-    }
-
-    pub fn try_into_drawing(self, _context: &DrawingContext) -> Result<DrawingImage> {
         not_impl()
     }
 }

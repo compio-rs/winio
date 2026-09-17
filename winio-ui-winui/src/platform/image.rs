@@ -7,7 +7,7 @@ use winui3::Microsoft::UI::Xaml::Media::Imaging::WriteableBitmap;
 
 use crate::{DrawingContext, DrawingImage, Error, Result};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Image(WriteableBitmap);
 
 impl Image {
@@ -33,26 +33,8 @@ impl Image {
         Ok(Self(bitmap))
     }
 
-    pub fn try_clone(&self) -> Result<Self> {
-        let width = self.0.PixelWidth()?;
-        let height = self.0.PixelHeight()?;
-        let bitmap = WriteableBitmap::CreateInstanceWithDimensions(width, height)?;
-        let src = self.pixel_buffer()?;
-        let buffer = bitmap.PixelBuffer()?;
-        let access = buffer.cast::<IBufferByteAccess>()?;
-        let dst =
-            unsafe { std::slice::from_raw_parts_mut(access.Buffer()?, buffer.Length()? as usize) };
-        let len = src.len().min(dst.len());
-        dst[..len].copy_from_slice(&src[..len]);
-        Ok(Self(bitmap))
-    }
-
     pub fn try_to_drawing(&self, context: &DrawingContext) -> Result<DrawingImage> {
         context.create_image_from_premultiplied(self.premultiplied_rgba()?)
-    }
-
-    pub fn try_into_drawing(self, context: &DrawingContext) -> Result<DrawingImage> {
-        self.try_to_drawing(context)
     }
 
     pub(crate) fn as_ref(&self) -> &WriteableBitmap {
