@@ -490,30 +490,6 @@ impl<B: Brush> Pen for BrushPen<B> {
     }
 }
 
-/// Create a [`CGImage`] from a [`DynamicImage`].
-pub fn create_cgimage(image: DynamicImage) -> Result<CFRetained<CGImage>> {
-    let width = image.width();
-    let height = image.height();
-    let (mut buffer, spp) = match image {
-        DynamicImage::ImageRgba8(_) => (image.into_bytes(), 4),
-        _ => (DynamicImage::ImageRgba8(image.into_rgba8()).into_bytes(), 4),
-    };
-    let ptr = buffer.as_mut_ptr();
-    let space = CGColorSpace::new_device_rgb();
-    let context = unsafe {
-        CGBitmapContextCreate(
-            ptr.cast(),
-            width as _,
-            height as _,
-            spp * 2,
-            spp * width as usize,
-            space.as_deref(),
-            CGImageAlphaInfo::PremultipliedLast.0,
-        )
-    };
-    CGBitmapContextCreateImage(context.as_deref()).ok_or(Error::NullPointer)
-}
-
 #[derive(Debug, Clone)]
 pub struct DrawingImage {
     image: CFRetained<CGImage>,
@@ -522,8 +498,27 @@ pub struct DrawingImage {
 
 impl DrawingImage {
     pub fn new(image: DynamicImage) -> Result<Self> {
-        let size = Size::new(image.width() as _, image.height() as _);
-        let image = create_cgimage(image)?;
+        let width = image.width();
+        let height = image.height();
+        let size = Size::new(width as f64, height as f64);
+        let (mut buffer, spp) = match image {
+            DynamicImage::ImageRgba8(_) => (image.into_bytes(), 4),
+            _ => (DynamicImage::ImageRgba8(image.into_rgba8()).into_bytes(), 4),
+        };
+        let ptr = buffer.as_mut_ptr();
+        let space = CGColorSpace::new_device_rgb();
+        let context = unsafe {
+            CGBitmapContextCreate(
+                ptr.cast(),
+                width as _,
+                height as _,
+                spp * 2,
+                spp * width as usize,
+                space.as_deref(),
+                CGImageAlphaInfo::PremultipliedLast.0,
+            )
+        };
+        let image = CGBitmapContextCreateImage(context.as_deref()).ok_or(Error::NullPointer)?;
         Ok(Self { image, size })
     }
 

@@ -46,7 +46,16 @@ impl Picture {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub fn set_image(&mut self, image: Option<&Image>) -> Result<()> {
-        catch(|| self.view.setImage(image.map(|image| image.as_nsimage())))
+        catch(|| {
+            if let Some(image) = image {
+                let nsimage = image.nsimage(None)?;
+                self.view.setImage(Some(&nsimage));
+            } else {
+                self.view.setImage(None);
+            }
+            Ok(())
+        })
+        .flatten()
     }
 }
 

@@ -93,9 +93,16 @@ impl Button {
 
     pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
         catch(|| {
-            self.view
-                .setImage_forState(icon.map(|icon| icon.as_uiimage()), UIControlState::Normal)
+            if let Some(icon) = icon {
+                let image = icon.uiimage(Some(UIFont::systemFontSize()))?;
+                self.view
+                    .setImage_forState(Some(&image), UIControlState::Normal);
+            } else {
+                self.view.setImage_forState(None, UIControlState::Normal);
+            }
+            Ok(())
         })
+        .flatten()
     }
 
     pub async fn wait_click(&self) {

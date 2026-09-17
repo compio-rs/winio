@@ -9,7 +9,7 @@ use objc2_app_kit::{
     NSBezelStyle, NSButton, NSButtonType, NSCellImagePosition, NSControlStateValueOff,
     NSControlStateValueOn, NSFont, NSWorkspace,
 };
-use objc2_foundation::{MainThreadMarker, NSObject, NSString, NSURL};
+use objc2_foundation::{MainThreadMarker, NSObject, NSString, NSURL, ns_string};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{Font, Point, Size};
@@ -34,6 +34,7 @@ impl Button {
 
         catch(|| unsafe {
             let view = NSButton::new(mtm);
+            view.setTitle(ns_string!(""));
             let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()))?;
 
             let delegate = ButtonDelegate::new(mtm);
@@ -82,13 +83,17 @@ impl Button {
 
     pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
         catch(|| {
-            self.view.setImage(icon.map(|icon| icon.as_nsimage()));
-            self.view.setImagePosition(if icon.is_some() {
-                NSCellImagePosition::ImageLeft
+            if let Some(icon) = icon {
+                let image = icon.nsimage(Some(NSFont::systemFontSize()))?;
+                self.view.setImage(Some(&image));
+                self.view.setImagePosition(NSCellImagePosition::ImageLeft);
             } else {
-                NSCellImagePosition::NoImage
-            });
+                self.view.setImage(None);
+                self.view.setImagePosition(NSCellImagePosition::NoImage);
+            }
+            Ok(())
         })
+        .flatten()
     }
 
     pub async fn wait_click(&self) {
