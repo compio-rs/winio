@@ -4,7 +4,7 @@ use winio_handle::AsContainer;
 use winio_primitive::{Font, HAlign, Point, Size};
 
 use crate::{
-    GlobalRuntime, Result,
+    GlobalRuntime, Image, Result,
     widgets::{QtAlignmentFlag, Widget, impl_static_cast},
 };
 
@@ -103,6 +103,49 @@ impl Label {
 }
 
 winio_handle::impl_as_widget!(Label, widget);
+
+#[derive(Debug)]
+pub struct Picture {
+    widget: Widget<ffi::QLabel>,
+}
+
+#[inherit_methods(from = "self.widget")]
+impl Picture {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let widget = unsafe { ffi::new_label(parent.as_container().as_qt()) }?;
+        let mut widget = Widget::new(widget)?;
+        widget.set_visible(true)?;
+        Ok(Self { widget })
+    }
+
+    pub fn is_visible(&self) -> Result<bool>;
+
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
+
+    pub fn preferred_size(&self) -> Result<Size>;
+
+    pub fn loc(&self) -> Result<Point>;
+
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
+
+    pub fn size(&self) -> Result<Size>;
+
+    pub fn set_size(&mut self, s: Size) -> Result<()>;
+
+    pub fn tooltip(&self) -> Result<String>;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn set_image(&mut self, image: Option<&Image>) -> Result<()> {
+        match image {
+            Some(image) => ffi::label_set_image(self.widget.pin_mut(), image.as_qimage())?,
+            None => ffi::label_clear_image(self.widget.pin_mut())?,
+        }
+        Ok(())
+    }
+}
+
+winio_handle::impl_as_widget!(Picture, widget);
 
 impl_static_cast!(ffi::QLabel, ffi::QWidget);
 
@@ -218,6 +261,7 @@ mod ffi {
         type QString = crate::common::QString;
         type QtAlignmentFlag = crate::widgets::QtAlignmentFlag;
         type QFont;
+        type QImage = crate::platform::QImage;
 
         unsafe fn new_label(parent: *mut QWidget) -> Result<UniquePtr<QLabel>>;
 
@@ -231,6 +275,8 @@ mod ffi {
         fn setAlignment(self: Pin<&mut QLabel>, flag: QtAlignmentFlag) -> Result<()>;
         fn text(self: &QLabel) -> Result<QString>;
         fn setText(self: Pin<&mut QLabel>, s: &QString) -> Result<()>;
+        fn label_set_image(w: Pin<&mut QLabel>, image: &QImage) -> Result<()>;
+        fn label_clear_image(w: Pin<&mut QLabel>) -> Result<()>;
         fn font(self: &QLabel) -> Result<&QFont>;
 
         fn setOpenExternalLinks(self: Pin<&mut QLabel>, v: bool) -> Result<()>;

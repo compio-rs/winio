@@ -30,10 +30,6 @@ impl Label {
 
     pub fn set_visible(&mut self, visible: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> Result<bool>;
-
-    pub fn set_enabled(&mut self, enabled: bool) -> Result<()>;
-
     pub fn loc(&self) -> Result<Point>;
 
     pub fn set_loc(&mut self, p: Point) -> Result<()>;

@@ -7,7 +7,7 @@ use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{
-    GlobalRuntime, Result,
+    GlobalRuntime, Image, Result,
     widgets::{
         StaticCastTo, Widget, impl_static_cast, impl_static_cast_propogate, static_cast,
         static_cast_mut,
@@ -73,6 +73,15 @@ where
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         static_cast_mut::<ffi::QAbstractButton>(self.widget.pin_mut())
             .setText(&s.as_ref().try_into()?)?;
+        Ok(())
+    }
+
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
+        let button = static_cast_mut::<ffi::QAbstractButton>(self.widget.pin_mut());
+        match icon {
+            Some(icon) => ffi::button_set_icon(button, icon.as_qimage())?,
+            None => ffi::button_clear_icon(button)?,
+        }
         Ok(())
     }
 
@@ -189,6 +198,7 @@ mod ffi {
         type QCheckBox;
         type QRadioButton;
         type QtCheckState = super::QtCheckState;
+        type QImage = crate::platform::QImage;
 
         unsafe fn new_push_button(parent: *mut QWidget) -> Result<UniquePtr<QPushButton>>;
         unsafe fn new_check_box(parent: *mut QWidget) -> Result<UniquePtr<QCheckBox>>;
@@ -202,6 +212,9 @@ mod ffi {
 
         fn text(self: &QAbstractButton) -> Result<QString>;
         fn setText(self: Pin<&mut QAbstractButton>, s: &QString) -> Result<()>;
+
+        fn button_set_icon(w: Pin<&mut QAbstractButton>, icon: &QImage) -> Result<()>;
+        fn button_clear_icon(w: Pin<&mut QAbstractButton>) -> Result<()>;
 
         fn checkState(self: &QCheckBox) -> Result<QtCheckState>;
         fn setCheckState(self: Pin<&mut QCheckBox>, s: QtCheckState) -> Result<()>;

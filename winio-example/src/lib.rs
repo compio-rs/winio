@@ -11,6 +11,8 @@ mod android;
 mod subviews;
 use subviews::*;
 
+mod icons;
+
 pub struct MainModel {
     window: Child<Window>,
     tabview: Child<TabView>,
@@ -31,6 +33,7 @@ pub struct MainModel {
 pub enum MainMessage {
     Close,
     Redraw,
+    ThemeChanged,
     #[cfg(feature = "compio-compat")]
     ChooseFile,
     #[cfg(feature = "compio-compat")]
@@ -160,7 +163,8 @@ impl Component for MainModel {
             sender,
             self.window => {
                 WindowEvent::Close => MainMessage::Close,
-                WindowEvent::Resize | WindowEvent::ThemeChanged => MainMessage::Redraw,
+                WindowEvent::Resize => MainMessage::Redraw,
+                WindowEvent::ThemeChanged => MainMessage::ThemeChanged,
             },
             self.tabview => {},
             self.misc => {
@@ -261,16 +265,8 @@ impl Component for MainModel {
                 }
                 Ok(false)
             }
-            MainMessage::Redraw => {
-                #[cfg(feature = "compio-compat")]
-                {
-                    self.gallery.emit(GalleryPageMessage::Redraw).await
-                }
-                #[cfg(not(feature = "compio-compat"))]
-                {
-                    Ok(true)
-                }
-            }
+            MainMessage::Redraw => Ok(true),
+            MainMessage::ThemeChanged => self.misc.emit(MiscPageMessage::Redraw).await,
             #[cfg(feature = "compio-compat")]
             MainMessage::ChooseFile => {
                 if let Some(p) = FileBox::new()

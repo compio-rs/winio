@@ -1,4 +1,6 @@
 #include "button.hpp"
+#include <QIcon>
+#include <QPixmap>
 
 std::unique_ptr<QPushButton> new_push_button(QWidget *parent) {
     return std::make_unique<QPushButton>(parent);
@@ -20,3 +22,9 @@ void push_button_connect_clicked(QAbstractButton &w,
     QObject::connect(&w, &QAbstractButton::clicked,
                      [callback, data](bool) { callback(data); });
 }
+
+void button_set_icon(QAbstractButton &w, QImage const &icon) {
+    w.setIcon(QIcon(QPixmap::fromImage(icon)));
+}
+
+void button_clear_icon(QAbstractButton &w) { w.setIcon(QIcon()); }

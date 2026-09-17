@@ -40,6 +40,7 @@ wgpu = { workspace = true, optional = true, features = ["dx12"] }
 windows-sys = { workspace = true, features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
+    "Win32_Graphics_GdiPlus",
     "Win32_System_SystemServices",
     "Win32_System_Threading",
     "Win32_System_WindowsProgramming",
@@ -60,16 +61,8 @@ windows = { workspace = true, features = [
 webview2 = { workspace = true, optional = true }
 
 [features]
-media = [
-    "dep:percent-encoding",
-    "windows/Win32_Media_MediaFoundation",
-]
-webview = [
-    "dep:webview2",
-    "dep:local-sync",
-    "dep:cookie",
-    "dep:time",
-]
+media = ["dep:percent-encoding", "windows/Win32_Media_MediaFoundation"]
+webview = ["dep:webview2", "dep:local-sync", "dep:cookie", "dep:time"]
 compio-compat = ["compio/runtime", "compio/compat"]
 wgpu = ["dep:wgpu"]
 

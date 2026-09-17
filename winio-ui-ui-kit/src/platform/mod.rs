@@ -1,3 +1,6 @@
+mod image;
+pub use image::*;
+
 mod keyboard;
 pub(crate) use keyboard::*;
 

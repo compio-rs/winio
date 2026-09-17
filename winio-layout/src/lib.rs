@@ -131,6 +131,8 @@ macro_rules! __layout_child {
             widget: &'a mut dyn $crate::LayoutChild<Error = E>,
             width: Option<f64>,
             height: Option<f64>,
+            min_width: Option<f64>,
+            min_height: Option<f64>,
             margin: $crate::Margin,
             halign: $crate::HAlign,
             valign: $crate::VAlign,
@@ -146,6 +148,8 @@ macro_rules! __layout_child {
                     widget,
                     width: None,
                     height: None,
+                    min_width: None,
+                    min_height: None,
                     margin: $crate::Margin::zero(),
                     halign: $crate::HAlign::Stretch,
                     valign: $crate::VAlign::Stretch,
@@ -196,6 +200,18 @@ macro_rules! __layout_child {
                 /// Specify the child height.
                 pub fn height(mut self, v: f64) -> Self {
                     self.child.height = Some(v);
+                    self
+                }
+
+                /// Specify the child minimum width.
+                pub fn min_width(mut self, v: f64) -> Self {
+                    self.child.min_width = Some(v);
+                    self
+                }
+
+                /// Specify the child minimum height.
+                pub fn min_height(mut self, v: f64) -> Self {
+                    self.child.min_height = Some(v);
                     self
                 }
 

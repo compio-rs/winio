@@ -2,7 +2,7 @@ use std::{cell::RefCell, mem::MaybeUninit, pin::Pin};
 
 use compio_log::error;
 use cxx::{ExternType, UniquePtr, type_id};
-use image::{DynamicImage, Pixel, Rgb, Rgba};
+use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
@@ -439,7 +439,7 @@ impl DrawingContext<'_> {
         ffi::painter_draw_image(
             self.painter.get_mut().pin_mut(),
             &QRectF(rect),
-            &image.pixmap,
+            &image.image,
             &QRectF(clip),
         )?;
         Ok(())
@@ -581,54 +581,17 @@ impl<B: Brush> Pen for BrushPen<B> {
 pub struct DrawingImage {
     #[allow(dead_code)]
     buffer: Vec<u8>,
-    pixmap: UniquePtr<ffi::QImage>,
+    image: UniquePtr<ffi::QImage>,
 }
 
 impl DrawingImage {
     fn new(image: DynamicImage) -> Result<Self> {
-        let width = image.width();
-        let height = image.height();
-        let (format, buffer, count) = match image {
-            DynamicImage::ImageRgb8(_) => (
-                QImageFormat::RGB888,
-                image.into_bytes(),
-                Rgb::<u8>::CHANNEL_COUNT,
-            ),
-            DynamicImage::ImageRgba8(_) => (
-                QImageFormat::RGBA8888,
-                image.into_bytes(),
-                Rgba::<u8>::CHANNEL_COUNT,
-            ),
-            DynamicImage::ImageRgba16(_) => (
-                QImageFormat::RGBA64,
-                image.into_bytes(),
-                Rgba::<u16>::CHANNEL_COUNT * 2,
-            ),
-            DynamicImage::ImageRgba32F(_) => (
-                QImageFormat::RGBA32FPx4,
-                image.into_bytes(),
-                Rgba::<f32>::CHANNEL_COUNT * 4,
-            ),
-            _ => (
-                QImageFormat::RGBA32FPx4,
-                DynamicImage::ImageRgba32F(image.into_rgba32f()).into_bytes(),
-                Rgba::<f32>::CHANNEL_COUNT * 4,
-            ),
-        };
-        let pixmap = unsafe {
-            ffi::new_image(
-                width as _,
-                height as _,
-                (width * count as u32) as _,
-                buffer.as_ptr(),
-                format,
-            )?
-        };
-        Ok(Self { buffer, pixmap })
+        let (buffer, image) = crate::platform::create_image(image)?;
+        Ok(Self { buffer, image })
     }
 
     pub fn size(&self) -> Result<Size> {
-        let size = self.pixmap.size()?;
+        let size = self.image.size()?;
         Ok(Size::new(size.width as _, size.height as _))
     }
 }
@@ -786,21 +749,6 @@ pub(crate) struct QSizeF(Size);
 
 unsafe impl ExternType for QSizeF {
     type Id = type_id!("QSizeF");
-    type Kind = cxx::kind::Trivial;
-}
-
-#[derive(Debug, Clone, Copy)]
-#[repr(i32)]
-#[non_exhaustive]
-pub(crate) enum QImageFormat {
-    RGB888     = 13,
-    RGBA8888   = 17,
-    RGBA64     = 26,
-    RGBA32FPx4 = 34,
-}
-
-unsafe impl ExternType for QImageFormat {
-    type Id = type_id!("QImageFormat");
     type Kind = cxx::kind::Trivial;
 }
 
@@ -1002,24 +950,14 @@ mod ffi {
             m32: f64,
         ) -> Result<()>;
 
-        type QImage;
-        type QImageFormat = super::QImageFormat;
+        type QImage = crate::platform::QImage;
 
-        unsafe fn new_image(
-            width: i32,
-            height: i32,
-            stride: i32,
-            bits: *const u8,
-            format: QImageFormat,
-        ) -> Result<UniquePtr<QImage>>;
         fn painter_draw_image(
             p: Pin<&mut QPainter>,
             target: &QRectF,
             image: &QImage,
             source: &QRectF,
         ) -> Result<()>;
-
-        fn size(self: &QImage) -> Result<QSize>;
 
         type QPainterPath;
 

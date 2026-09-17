@@ -67,9 +67,13 @@ impl<'a, E> StackPanel<'a, E> {
                 },
             };
             let min_size = child.child_min_size()?;
-            style.min_size = taffy::Size {
-                width: length(min_size.width as f32),
-                height: length(min_size.height as f32),
+            style.min_size.width = match child.min_width {
+                Some(w) => length(w as f32),
+                None => length(min_size.width as f32),
+            };
+            style.min_size.height = match child.min_height {
+                Some(h) => length(h as f32),
+                None => length(min_size.height as f32),
             };
             match self.orient {
                 Orient::Horizontal => {

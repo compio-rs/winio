@@ -14,7 +14,7 @@ use winio_handle::AsContainer;
 use winio_primitive::{Font, Point, Size};
 
 use crate::{
-    GlobalRuntime, Result, catch, from_nsstring,
+    GlobalRuntime, Image, Result, catch, from_nsstring,
     widgets::{Widget, font_to_uifont, uifont_to_font},
 };
 
@@ -89,6 +89,20 @@ impl Button {
             self.view
                 .setTitle_forState(Some(&ns), UIControlState::Normal)
         })
+    }
+
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
+        catch(|| {
+            if let Some(icon) = icon {
+                let image = icon.uiimage(Some(UIFont::systemFontSize()))?;
+                self.view
+                    .setImage_forState(Some(&image), UIControlState::Normal);
+            } else {
+                self.view.setImage_forState(None, UIControlState::Normal);
+            }
+            Ok(())
+        })
+        .flatten()
     }
 
     pub async fn wait_click(&self) {

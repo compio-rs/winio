@@ -30,10 +30,6 @@ impl Label {
 
     pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> Result<bool>;
-
-    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
-
     pub fn preferred_size(&self) -> Result<Size> {
         let mut size = self.handle.preferred_size()?;
         size.width += 1.0;

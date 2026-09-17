@@ -23,7 +23,8 @@ use crate::{
         graphics::{
             Bitmap, BitmapConfig, Canvas as ACanvas, LinearGradient, Matrix as AMatrix, Paint,
             PaintStyle, Path, Picture, RadialGradient, Rect as ARect, ShaderTileMode, Typeface,
-            drawable::PictureDrawable, typeface,
+            drawable::{BitmapDrawable, PictureDrawable},
+            typeface,
         },
         text::{StaticLayout, StaticLayoutBuilder, TextPaint},
         view::{MotionEvent, View as AView, ViewOnTouchListener, motion_event},
@@ -188,9 +189,9 @@ pub struct DrawingImage {
 }
 
 impl DrawingImage {
-    fn new(image: DynamicImage) -> Result<Self> {
+    pub fn new(image: DynamicImage) -> Result<Self> {
         vm_exec(|env| {
-            let rgba = image.to_rgba8();
+            let rgba = image.into_rgba8();
             let (width, height) = rgba.dimensions();
             let pixels = rgba
                 .pixels()
@@ -216,6 +217,10 @@ impl DrawingImage {
             let height = self.bitmap.get_height(env)? as f64;
             Ok(Size::new(width, height))
         })
+    }
+
+    pub(crate) fn drawable<'local>(&self, env: &mut Env<'local>) -> Result<BitmapDrawable<'local>> {
+        Ok(BitmapDrawable::new(env, &self.bitmap)?)
     }
 }
 

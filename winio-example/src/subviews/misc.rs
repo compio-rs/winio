@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use winio::prelude::*;
 
-use crate::{Error, Result};
+use crate::{Error, Result, icons};
 
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
@@ -21,6 +21,9 @@ use backdrop::*;
 
 pub struct MiscPage {
     window: Child<TabViewItem>,
+    github: Child<Picture>,
+    github_icon: Image,
+    github_white_icon: Image,
     link: Child<LinkLabel>,
     ulabel: Child<Label>,
     plabel: Child<Label>,
@@ -52,6 +55,7 @@ pub enum MiscPageEvent {
 #[derive(Debug)]
 pub enum MiscPageMessage {
     Noop,
+    Redraw,
     List(ObservableVecEvent<String>),
     Select,
     Push,
@@ -74,12 +78,23 @@ impl Component for MiscPage {
     type Message = MiscPageMessage;
 
     async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+        let github_icon = icons::github()?;
+        let github_white_icon = icons::github_white()?;
+        let dark = ColorTheme::current()? == ColorTheme::Dark;
+        let github_image = if dark {
+            &github_white_icon
+        } else {
+            &github_icon
+        };
         init! {
             window: TabViewItem = (()) => {
                 text: "Widgets",
             },
             canvas: Canvas = (&window),
             klabel: Label = (&window),
+            github: Picture = (&window) => {
+                image: Some(github_image),
+            },
             link: LinkLabel = (&window) => {
                 text: "Source",
                 uri: "https://github.com/compio-rs/winio",
@@ -168,6 +183,9 @@ impl Component for MiscPage {
 
         Ok(Self {
             window,
+            github,
+            github_icon,
+            github_white_icon,
             link,
             ulabel,
             plabel,
@@ -192,6 +210,7 @@ impl Component for MiscPage {
         start! {
             sender,
             self.window => {},
+            self.github => {},
             self.link => {},
             self.ulabel => {},
             self.plabel => {},
@@ -232,6 +251,7 @@ impl Component for MiscPage {
     async fn update_children(&mut self) -> Result<bool> {
         update_children!(
             self.window,
+            self.github,
             self.link,
             self.ulabel,
             self.plabel,
@@ -258,6 +278,15 @@ impl Component for MiscPage {
     ) -> Result<bool> {
         match message {
             MiscPageMessage::Noop => Ok(false),
+            MiscPageMessage::Redraw => {
+                let dark = ColorTheme::current()? == ColorTheme::Dark;
+                self.github.set_image(Some(if dark {
+                    &self.github_white_icon
+                } else {
+                    &self.github_icon
+                }))?;
+                Ok(true)
+            }
             MiscPageMessage::List(e) => {
                 self.pop_button.set_enabled(!self.list.is_empty())?;
                 Ok(self
@@ -325,9 +354,14 @@ impl Component for MiscPage {
     fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
         let csize = self.window.size()?;
         {
+            let mut source_panel = layout! {
+                Grid::from_str("auto,auto", "auto").unwrap(),
+                self.github => { column: 0, row: 0, min_width: 36.0, min_height: 36.0, width: 36.0, height: 36.0, halign: HAlign::Right, valign: VAlign::Center, margin: Margin::new_all_same(4.0) },
+                self.link   => { column: 1, row: 0, halign: HAlign::Left, valign: VAlign::Center, margin: Margin::new_all_same(4.0) },
+            };
             let mut cred_panel = layout! {
                 Grid::from_str("auto,1*,auto", "2*,auto,1*,auto,auto,2*").unwrap(),
-                self.link   => { column: 0, row: 1, column_span: 3, halign: HAlign::Center, margin: Margin::new_all_same(4.0) },
+                source_panel => { column: 0, row: 1, column_span: 3, halign: HAlign::Center },
                 self.ulabel => { column: 0, row: 3, valign: VAlign::Center },
                 self.uentry => { column: 1, row: 3, margin: Margin::new_all_same(4.0) },
                 self.plabel => { column: 0, row: 4, valign: VAlign::Center },
