@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use compio_log::error;
 use image::DynamicImage;
@@ -18,7 +18,7 @@ use winio_primitive::{
 };
 
 use crate::{
-    BaseWidget, Result, current_activity,
+    BaseWidget, Error, Result, current_activity,
     java::android::{
         graphics::{
             Bitmap, BitmapConfig, Canvas as ACanvas, LinearGradient, Matrix as AMatrix, Paint,
@@ -189,9 +189,12 @@ pub struct DrawingImage {
 }
 
 impl DrawingImage {
-    pub fn new(image: DynamicImage) -> Result<Self> {
+    pub fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
         vm_exec(|env| {
-            let rgba = image.into_rgba8();
+            let rgba = match image {
+                Cow::Owned(image) => image.into_rgba8(),
+                Cow::Borrowed(image) => image.to_rgba8(),
+            };
             let (width, height) = rgba.dimensions();
             let pixels = rgba
                 .pixels()
@@ -211,6 +214,21 @@ impl DrawingImage {
         })
     }
 
+    pub fn try_clone(&self) -> Result<Self> {
+        vm_exec(|env| {
+            let bitmap = env.new_global_ref(&self.bitmap)?;
+            Ok(Self { bitmap })
+        })
+    }
+
+    pub fn try_to_drawing(&self, _context: &DrawingContext) -> Result<Self> {
+        self.try_clone()
+    }
+
+    pub fn try_into_drawing(self, _context: &DrawingContext) -> Result<Self> {
+        Ok(self)
+    }
+
     pub fn size(&self) -> Result<Size> {
         vm_exec(|env| {
             let width = self.bitmap.get_width(env)? as f64;
@@ -221,6 +239,22 @@ impl DrawingImage {
 
     pub(crate) fn drawable<'local>(&self, env: &mut Env<'local>) -> Result<BitmapDrawable<'local>> {
         Ok(BitmapDrawable::new(env, &self.bitmap)?)
+    }
+}
+
+impl TryFrom<DynamicImage> for DrawingImage {
+    type Error = Error;
+
+    fn try_from(value: DynamicImage) -> std::result::Result<Self, Self::Error> {
+        Self::new(Cow::Owned(value))
+    }
+}
+
+impl TryFrom<&DynamicImage> for DrawingImage {
+    type Error = Error;
+
+    fn try_from(value: &DynamicImage) -> std::result::Result<Self, Self::Error> {
+        Self::new(Cow::Borrowed(value))
     }
 }
 
@@ -577,7 +611,7 @@ impl<'a> DrawingContext<'a> {
         })
     }
 
-    pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage> {
+    pub fn create_image(&self, image: Cow<'_, DynamicImage>) -> Result<DrawingImage> {
         DrawingImage::new(image)
     }
 
