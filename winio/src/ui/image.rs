@@ -34,7 +34,7 @@ impl Image {
 impl TryFrom<&DynamicImage> for Image {
     type Error = crate::Error;
 
-    fn try_from(value: &DynamicImage) -> Result<Self, Self::Error> {
+    fn try_from(value: &DynamicImage) -> Result<Self> {
         let image = sys::Image::try_from(value)?;
         Ok(Self(image))
     }
@@ -43,7 +43,7 @@ impl TryFrom<&DynamicImage> for Image {
 impl TryFrom<DynamicImage> for Image {
     type Error = crate::Error;
 
-    fn try_from(value: DynamicImage) -> Result<Self, Self::Error> {
+    fn try_from(value: DynamicImage) -> Result<Self> {
         let image = sys::Image::try_from(value)?;
         Ok(Self(image))
     }

@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     cell::{Ref, RefCell},
     mem::MaybeUninit,
 };
@@ -409,7 +410,7 @@ impl DrawingContext {
         Ok(rect.size)
     }
 
-    pub fn create_image(&self, image: DynamicImage) -> Result<DrawingImage> {
+    pub fn create_image(&self, image: Cow<'_, DynamicImage>) -> Result<DrawingImage> {
         DrawingImage::new(&self.target, image)
     }
 
@@ -656,13 +657,24 @@ pub struct DrawingImage {
 }
 
 impl DrawingImage {
-    fn new(target: &ID2D1RenderTarget, image: DynamicImage) -> Result<Self> {
+    fn new(target: &ID2D1RenderTarget, image: Cow<'_, DynamicImage>) -> Result<Self> {
         let (mut image, has_alpha) = match image {
-            DynamicImage::ImageRgb8(_)
-            | DynamicImage::ImageRgb16(_)
-            | DynamicImage::ImageRgb32F(_) => (image.into_rgba8(), false),
-            DynamicImage::ImageRgba8(image) => (image, true),
-            _ => (image.into_rgba8(), true),
+            Cow::Owned(image) => match image {
+                DynamicImage::ImageRgb8(_)
+                | DynamicImage::ImageRgb16(_)
+                | DynamicImage::ImageRgb32F(_) => (image.into_rgba8(), false),
+                DynamicImage::ImageRgba8(image) => (image, true),
+                _ => (image.into_rgba8(), true),
+            },
+            Cow::Borrowed(image) => {
+                let has_alpha = !matches!(
+                    image,
+                    DynamicImage::ImageRgb8(_)
+                        | DynamicImage::ImageRgb16(_)
+                        | DynamicImage::ImageRgb32F(_)
+                );
+                (image.to_rgba8(), has_alpha)
+            }
         };
         // alpha premultiplication
         if has_alpha {
