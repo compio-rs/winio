@@ -238,7 +238,7 @@ impl DrawingImage {
 impl TryFrom<DynamicImage> for DrawingImage {
     type Error = Error;
 
-    fn try_from(value: DynamicImage) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: DynamicImage) -> Result<Self> {
         Self::new(Cow::Owned(value))
     }
 }
@@ -246,7 +246,7 @@ impl TryFrom<DynamicImage> for DrawingImage {
 impl TryFrom<&DynamicImage> for DrawingImage {
     type Error = Error;
 
-    fn try_from(value: &DynamicImage) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: &DynamicImage) -> Result<Self> {
         Self::new(Cow::Borrowed(value))
     }
 }
