@@ -11,7 +11,7 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {}
 
 /// A stub result type.
-pub type Result<T, E = Error> = std::result::Result<T, E>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 impl From<std::io::Error> for Error {
     fn from(_err: std::io::Error) -> Self {

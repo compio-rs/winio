@@ -175,7 +175,7 @@ impl Image {
 impl TryFrom<DynamicImage> for Image {
     type Error = Error;
 
-    fn try_from(value: DynamicImage) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: DynamicImage) -> Result<Self> {
         Ok(Self(Rc::new(value)))
     }
 }
@@ -183,7 +183,7 @@ impl TryFrom<DynamicImage> for Image {
 impl TryFrom<&DynamicImage> for Image {
     type Error = Error;
 
-    fn try_from(value: &DynamicImage) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: &DynamicImage) -> Result<Self> {
         Ok(Self(Rc::new(value.clone())))
     }
 }

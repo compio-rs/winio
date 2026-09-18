@@ -55,4 +55,4 @@ pub enum Error {
 }
 
 /// Result type for GTK.
-pub type Result<T, E = Error> = std::result::Result<T, E>;
+pub type Result<T> = std::result::Result<T, Error>;

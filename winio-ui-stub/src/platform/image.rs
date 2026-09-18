@@ -15,7 +15,7 @@ impl Image {
 impl TryFrom<DynamicImage> for Image {
     type Error = Error;
 
-    fn try_from(_value: DynamicImage) -> Result<Self, Self::Error> {
+    fn try_from(_value: DynamicImage) -> Result<Self> {
         not_impl()
     }
 }
@@ -24,7 +24,7 @@ impl TryFrom<DynamicImage> for Image {
 impl TryFrom<&DynamicImage> for Image {
     type Error = Error;
 
-    fn try_from(_value: &DynamicImage) -> Result<Self, Self::Error> {
+    fn try_from(_value: &DynamicImage) -> Result<Self> {
         not_impl()
     }
 }

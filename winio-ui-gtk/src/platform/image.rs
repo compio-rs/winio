@@ -47,7 +47,7 @@ impl Image {
 impl TryFrom<DynamicImage> for Image {
     type Error = Error;
 
-    fn try_from(value: DynamicImage) -> Result<Self, Self::Error> {
+    fn try_from(value: DynamicImage) -> Result<Self> {
         Self::new(Cow::Owned(value))
     }
 }
@@ -55,7 +55,7 @@ impl TryFrom<DynamicImage> for Image {
 impl TryFrom<&DynamicImage> for Image {
     type Error = Error;
 
-    fn try_from(value: &DynamicImage) -> Result<Self, Self::Error> {
+    fn try_from(value: &DynamicImage) -> Result<Self> {
         Self::new(Cow::Borrowed(value))
     }
 }
