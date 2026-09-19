@@ -811,16 +811,16 @@ impl DrawingImage {
     }
 
     fn create_bitmap(target: &ID2D1RenderTarget, bitmap: &IWICBitmap) -> Result<ID2D1Bitmap> {
-        let mut dpix = 0.0;
-        let mut dpiy = 0.0;
-        unsafe { target.GetDpi(&mut dpix, &mut dpiy) };
+        // Direct2D bitmap coordinates are DIPs, but winio measures images and
+        // clip regions in pixels (like the other backends). A 96 DPI bitmap
+        // has pixel-sized DIPs.
         let prop = D2D1_BITMAP_PROPERTIES {
             pixelFormat: D2D1_PIXEL_FORMAT {
                 format: DXGI_FORMAT_B8G8R8A8_UNORM,
                 alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
             },
-            dpiX: dpix,
-            dpiY: dpiy,
+            dpiX: 96.0,
+            dpiY: 96.0,
         };
         unsafe { target.CreateBitmapFromWicBitmap(&**bitmap, Some(&prop)) }
     }
