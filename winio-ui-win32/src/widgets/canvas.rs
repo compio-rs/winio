@@ -1,8 +1,7 @@
-use std::{borrow::Cow, ptr::null_mut};
+use std::ptr::null_mut;
 
 use compio_log::error;
 use futures_util::FutureExt;
-use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
 use windows::Win32::{
     Foundation::D2DERR_RECREATE_TARGET,
@@ -12,6 +11,7 @@ use windows::Win32::{
             D2D1_FEATURE_LEVEL_DEFAULT, D2D1_HWND_RENDER_TARGET_PROPERTIES,
             D2D1_PRESENT_OPTIONS_NONE, D2D1_RENDER_TARGET_PROPERTIES,
             D2D1_RENDER_TARGET_TYPE_HARDWARE, D2D1_RENDER_TARGET_USAGE_NONE, ID2D1HwndRenderTarget,
+            ID2D1RenderTarget,
         },
         Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM,
     },
@@ -31,11 +31,13 @@ use windows_sys::Win32::{
     },
 };
 use winio_handle::{AsContainer, AsWidget};
-use winio_primitive::{
-    Font, KeyCode, MouseButton, Orient, Point, Rect, RelativePoint, Size, Transform, Vector,
+use winio_primitive::{KeyCode, MouseButton, Orient, Point, Size, Vector};
+use winio_ui_windows_common::{
+    Backdrop, ContextOwner, d2d1_factory, is_dark_mode_allowed_for_app, syscall,
 };
-use winio_ui_windows_common::{Backdrop, d2d1_factory, is_dark_mode_allowed_for_app, syscall};
-pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
+pub use winio_ui_windows_common::{
+    Brush, DrawingContext, DrawingImage, DrawingPath, DrawingPathBuilder, Pen,
+};
 
 use crate::{
     Result, get_backdrop,
@@ -271,7 +273,12 @@ impl Canvas {
             self.target
                 .Clear(clear_color.as_ref().map(|c| c as *const _));
         }
-        DrawingContext::new(self)
+        Ok(DrawingContext::new(
+            d2d1_factory()?.clone().into(),
+            dwrite_factory()?.clone(),
+            self.target.clone().into(),
+            Some(self),
+        ))
     }
 
     fn handle_lost(&mut self) -> Result<()> {
@@ -310,99 +317,14 @@ impl Canvas {
 
 winio_handle::impl_as_widget!(Canvas, handle);
 
-pub struct DrawingContext<'a> {
-    ctx: winio_ui_windows_common::DrawingContext,
-    canvas: &'a mut Canvas,
-    ended: bool,
-}
-
-impl Drop for DrawingContext<'_> {
-    fn drop(&mut self) {
-        if let Err(_e) = self.end_draw() {
-            error!("EndDraw: {_e:?}");
-        }
-    }
-}
-
-#[inherit_methods(from = "self.ctx")]
-impl<'a> DrawingContext<'a> {
-    fn new(canvas: &'a mut Canvas) -> Result<Self> {
-        Ok(Self {
-            ctx: winio_ui_windows_common::DrawingContext::new(
-                d2d1_factory()?.clone().into(),
-                dwrite_factory()?.clone(),
-                canvas.target.clone().into(),
-            ),
-            canvas,
-            ended: false,
-        })
-    }
-
-    fn end_draw(&mut self) -> Result<()> {
-        if !self.ended {
-            unsafe {
-                match self.ctx.render_target().EndDraw(None, None).ok() {
-                    Ok(()) => {}
-                    Err(e) if e.code() == D2DERR_RECREATE_TARGET => self.canvas.handle_lost()?,
-                    Err(e) => return Err(e),
-                }
+impl ContextOwner for Canvas {
+    fn end_draw(&mut self, target: &ID2D1RenderTarget) -> Result<()> {
+        unsafe {
+            match target.EndDraw(None, None).ok() {
+                Ok(()) => Ok(()),
+                Err(e) if e.code() == D2DERR_RECREATE_TARGET => self.handle_lost(),
+                Err(e) => Err(e),
             }
-            self.ended = true;
         }
-        Ok(())
     }
-
-    pub fn close(mut self) -> Result<()> {
-        self.end_draw()
-    }
-
-    pub fn set_transform(&mut self, transform: Transform) -> Result<()>;
-
-    pub fn transform(&self) -> Result<Transform>;
-
-    pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) -> Result<()>;
-
-    pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) -> Result<()>;
-
-    pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> Result<()>;
-
-    pub fn draw_pie(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> Result<()>;
-
-    pub fn fill_pie(&mut self, brush: impl Brush, rect: Rect, start: f64, end: f64) -> Result<()>;
-
-    pub fn draw_ellipse(&mut self, pen: impl Pen, rect: Rect) -> Result<()>;
-
-    pub fn fill_ellipse(&mut self, brush: impl Brush, rect: Rect) -> Result<()>;
-
-    pub fn draw_line(&mut self, pen: impl Pen, start: Point, end: Point) -> Result<()>;
-
-    pub fn draw_rect(&mut self, pen: impl Pen, rect: Rect) -> Result<()>;
-
-    pub fn fill_rect(&mut self, brush: impl Brush, rect: Rect) -> Result<()>;
-
-    pub fn draw_round_rect(&mut self, pen: impl Pen, rect: Rect, round: Size) -> Result<()>;
-
-    pub fn fill_round_rect(&mut self, brush: impl Brush, rect: Rect, round: Size) -> Result<()>;
-
-    pub fn draw_str(
-        &mut self,
-        brush: impl Brush,
-        font: Font,
-        anchor: RelativePoint,
-        pos: Point,
-        text: &str,
-    ) -> Result<()>;
-
-    pub fn measure_str(&self, font: Font, text: &str) -> Result<Size>;
-
-    pub fn create_image(&self, image: Cow<'_, DynamicImage>) -> Result<DrawingImage>;
-
-    pub fn draw_image(
-        &mut self,
-        image: &DrawingImage,
-        rect: Rect,
-        clip: Option<Rect>,
-    ) -> Result<()>;
-
-    pub fn create_path_builder(&self, start: Point) -> Result<DrawingPathBuilder>;
 }

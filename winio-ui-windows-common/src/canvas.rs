@@ -1,41 +1,48 @@
 use std::{
     borrow::Cow,
-    cell::{Ref, RefCell},
+    cell::{Cell, Ref, RefCell},
     mem::MaybeUninit,
 };
 
-use image::{DynamicImage, Pixel, Rgba, RgbaImage};
+use compio_log::error;
+use image::{DynamicImage, RgbaImage};
 use widestring::U16CString;
 use windows::Win32::Graphics::{
     Direct2D::{
         Common::{
             D2D_MATRIX_3X2_F, D2D_MATRIX_3X2_F_0, D2D_MATRIX_3X2_F_0_1, D2D_POINT_2F, D2D_RECT_F,
-            D2D_SIZE_F, D2D_SIZE_U, D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_BEZIER_SEGMENT,
-            D2D1_COLOR_F, D2D1_FIGURE_BEGIN_HOLLOW, D2D1_FIGURE_END_CLOSED, D2D1_FIGURE_END_OPEN,
+            D2D_SIZE_F, D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_BEZIER_SEGMENT, D2D1_COLOR_F,
+            D2D1_FIGURE_BEGIN_HOLLOW, D2D1_FIGURE_END_CLOSED, D2D1_FIGURE_END_OPEN,
             D2D1_GRADIENT_STOP, D2D1_PIXEL_FORMAT,
         },
         D2D1_ARC_SEGMENT, D2D1_ARC_SIZE_LARGE, D2D1_ARC_SIZE_SMALL,
         D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR, D2D1_BITMAP_PROPERTIES,
         D2D1_BRUSH_PROPERTIES, D2D1_DEFAULT_FLATTENING_TOLERANCE,
         D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT, D2D1_ELLIPSE, D2D1_EXTEND_MODE_CLAMP,
-        D2D1_GAMMA_2_2, D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES,
-        D2D1_RADIAL_GRADIENT_BRUSH_PROPERTIES, D2D1_ROUNDED_RECT, D2D1_SWEEP_DIRECTION_CLOCKWISE,
-        D2D1_SWEEP_DIRECTION_COUNTER_CLOCKWISE, ID2D1Bitmap, ID2D1Brush, ID2D1Factory,
-        ID2D1Geometry, ID2D1GeometrySink, ID2D1PathGeometry, ID2D1RenderTarget,
+        D2D1_FEATURE_LEVEL_DEFAULT, D2D1_GAMMA_2_2, D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES,
+        D2D1_RADIAL_GRADIENT_BRUSH_PROPERTIES, D2D1_RENDER_TARGET_PROPERTIES,
+        D2D1_RENDER_TARGET_TYPE_DEFAULT, D2D1_RENDER_TARGET_USAGE_NONE, D2D1_ROUNDED_RECT,
+        D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_SWEEP_DIRECTION_COUNTER_CLOCKWISE, ID2D1Bitmap,
+        ID2D1Brush, ID2D1Factory, ID2D1Geometry, ID2D1GeometrySink, ID2D1PathGeometry,
+        ID2D1RenderTarget,
     },
     DirectWrite::{
         DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_WEIGHT_NORMAL, IDWriteFactory, IDWriteTextLayout,
     },
-    Dxgi::Common::DXGI_FORMAT_R8G8B8A8_UNORM,
+    Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM,
+    Imaging::{
+        GUID_WICPixelFormat32bppPBGRA, IWICBitmap, WICBitmapCacheOnLoad, WICBitmapLockWrite,
+    },
 };
 use windows_core::Interface;
 use winio_primitive::{
     BrushPen, Color, Font, GradientStop, LinearGradientBrush, Point, RadialGradientBrush, Rect,
     RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform, Vector,
+    to_premultiplied_bgra8, to_straight_rgba8,
 };
 
-use crate::Result;
+use crate::{Error, Result};
 
 fn color_f(c: Color) -> D2D1_COLOR_F {
     D2D1_COLOR_F {
@@ -91,10 +98,27 @@ fn gradient_stop(s: &GradientStop) -> D2D1_GRADIENT_STOP {
     }
 }
 
-pub struct DrawingContext {
+/// The owner of a [`DrawingContext`], ending the drawing in a backend-specific
+/// way.
+pub trait ContextOwner {
+    /// Finish the drawing on `target`.
+    fn end_draw(&mut self, target: &ID2D1RenderTarget) -> Result<()>;
+}
+
+pub struct DrawingContext<'a> {
     d2d: ID2D1Factory,
     dwrite: IDWriteFactory,
     target: ID2D1RenderTarget,
+    owner: Option<&'a mut dyn ContextOwner>,
+    ended: bool,
+}
+
+impl Drop for DrawingContext<'_> {
+    fn drop(&mut self) {
+        if let Err(e) = self.end_draw() {
+            error!("EndDraw: {e:?}");
+        }
+    }
 }
 
 #[inline]
@@ -119,17 +143,42 @@ fn ellipse(rect: Rect) -> D2D1_ELLIPSE {
     }
 }
 
-impl DrawingContext {
-    pub fn new(d2d: ID2D1Factory, dwrite: IDWriteFactory, target: ID2D1RenderTarget) -> Self {
+impl<'a> DrawingContext<'a> {
+    pub fn new(
+        d2d: ID2D1Factory,
+        dwrite: IDWriteFactory,
+        target: ID2D1RenderTarget,
+        owner: Option<&'a mut dyn ContextOwner>,
+    ) -> Self {
         Self {
             d2d,
             dwrite,
             target,
+            owner,
+            ended: false,
         }
     }
 
     pub fn render_target(&self) -> &ID2D1RenderTarget {
         &self.target
+    }
+
+    fn end_draw(&mut self) -> Result<()> {
+        if self.ended {
+            return Ok(());
+        }
+        self.ended = true;
+        match self.owner.take() {
+            Some(owner) => owner.end_draw(&self.target),
+            None => {
+                unsafe { self.target.EndDraw(None, None).ok()? };
+                Ok(())
+            }
+        }
+    }
+
+    pub fn close(mut self) -> Result<()> {
+        self.end_draw()
     }
 
     #[inline]
@@ -411,7 +460,27 @@ impl DrawingContext {
     }
 
     pub fn create_image(&self, image: Cow<'_, DynamicImage>) -> Result<DrawingImage> {
-        DrawingImage::new(&self.target, image)
+        DrawingImage::new(&self.d2d, &self.dwrite, &self.target, image)
+    }
+
+    pub fn create_image_empty(&self, size: Size) -> Result<DrawingImage> {
+        DrawingImage::new_empty(&self.d2d, &self.dwrite, &self.target, size)
+    }
+
+    pub fn create_image_from_premultiplied_bgra8(
+        &self,
+        width: u32,
+        height: u32,
+        pixels: &[u8],
+    ) -> Result<DrawingImage> {
+        DrawingImage::from_premultiplied_bgra8(
+            &self.d2d,
+            &self.dwrite,
+            &self.target,
+            width,
+            height,
+            pixels,
+        )
     }
 
     pub fn draw_image(
@@ -651,101 +720,194 @@ impl<B: Brush> Pen for BrushPen<B> {
 }
 
 pub struct DrawingImage {
-    image: RgbaImage,
+    d2d: ID2D1Factory,
+    dwrite: IDWriteFactory,
+    bitmap: IWICBitmap,
     target: RefCell<ID2D1RenderTarget>,
-    bitmap: RefCell<ID2D1Bitmap>,
+    d2d_bitmap: RefCell<ID2D1Bitmap>,
+    dirty: Cell<bool>,
 }
 
 impl DrawingImage {
-    fn new(target: &ID2D1RenderTarget, image: Cow<'_, DynamicImage>) -> Result<Self> {
-        let (mut image, has_alpha) = match image {
-            Cow::Owned(image) => match image {
-                DynamicImage::ImageRgb8(_)
-                | DynamicImage::ImageRgb16(_)
-                | DynamicImage::ImageRgb32F(_) => (image.into_rgba8(), false),
-                DynamicImage::ImageRgba8(image) => (image, true),
-                _ => (image.into_rgba8(), true),
-            },
-            Cow::Borrowed(image) => {
-                let has_alpha = !matches!(
-                    image,
-                    DynamicImage::ImageRgb8(_)
-                        | DynamicImage::ImageRgb16(_)
-                        | DynamicImage::ImageRgb32F(_)
-                );
-                (image.to_rgba8(), has_alpha)
-            }
+    fn new(
+        d2d: &ID2D1Factory,
+        dwrite: &IDWriteFactory,
+        target: &ID2D1RenderTarget,
+        image: Cow<'_, DynamicImage>,
+    ) -> Result<Self> {
+        let image = match image {
+            Cow::Owned(image) => image.into_rgba8(),
+            Cow::Borrowed(image) => image.to_rgba8(),
         };
-        // alpha premultiplication
-        if has_alpha {
-            for Rgba(pixel) in image.pixels_mut() {
-                if pixel[3] == 0 {
-                    pixel[0] = 0;
-                    pixel[1] = 0;
-                    pixel[2] = 0;
-                } else if pixel[3] == 255 {
-                    // do nothing
-                } else {
-                    let a = pixel[3] as f32 / 255.0;
-                    pixel[0] = ((pixel[0] as f32) * a).round() as u8;
-                    pixel[1] = ((pixel[1] as f32) * a).round() as u8;
-                    pixel[2] = ((pixel[2] as f32) * a).round() as u8;
-                }
-            }
-        }
-        Self::from_premultiplied_rgba8(target, image)
+        let (width, height) = image.dimensions();
+        let mut pixels = image.into_raw();
+        to_premultiplied_bgra8(&mut pixels);
+        Self::from_premultiplied_bgra8(d2d, dwrite, target, width, height, &pixels)
     }
 
-    /// Create a [`DrawingImage`] from premultiplied RGBA pixels.
-    pub fn from_premultiplied_rgba8(target: &ID2D1RenderTarget, image: RgbaImage) -> Result<Self> {
-        let bitmap = Self::create_bitmap(target, &image)?;
+    /// Create a [`DrawingImage`] from premultiplied BGRA pixels.
+    pub fn from_premultiplied_bgra8(
+        d2d: &ID2D1Factory,
+        dwrite: &IDWriteFactory,
+        target: &ID2D1RenderTarget,
+        width: u32,
+        height: u32,
+        pixels: &[u8],
+    ) -> Result<Self> {
+        let bitmap = crate::runtime::with_wic_factory(|wic| unsafe {
+            wic.CreateBitmapFromMemory(
+                width,
+                height,
+                &GUID_WICPixelFormat32bppPBGRA,
+                width * 4,
+                pixels,
+            )
+        })?;
+        Self::from_bitmap(d2d, dwrite, target, bitmap)
+    }
+
+    /// Create an image filled with transparent pixels.
+    pub fn new_empty(
+        d2d: &ID2D1Factory,
+        dwrite: &IDWriteFactory,
+        target: &ID2D1RenderTarget,
+        size: Size,
+    ) -> Result<Self> {
+        let width = size.width.round().max(1.0) as u32;
+        let height = size.height.round().max(1.0) as u32;
+        let bitmap = crate::runtime::with_wic_factory(|wic| unsafe {
+            wic.CreateBitmap(
+                width,
+                height,
+                &GUID_WICPixelFormat32bppPBGRA,
+                WICBitmapCacheOnLoad,
+            )
+        })?;
+        unsafe {
+            let lock = bitmap.Lock(std::ptr::null(), WICBitmapLockWrite as u32)?;
+            let mut size = 0;
+            let mut data = std::ptr::null_mut();
+            lock.GetDataPointer(&mut size, &mut data)?;
+            std::ptr::write_bytes(data, 0, size as usize);
+        }
+        Self::from_bitmap(d2d, dwrite, target, bitmap)
+    }
+
+    fn from_bitmap(
+        d2d: &ID2D1Factory,
+        dwrite: &IDWriteFactory,
+        target: &ID2D1RenderTarget,
+        bitmap: IWICBitmap,
+    ) -> Result<Self> {
+        let d2d_bitmap = Self::create_bitmap(target, &bitmap)?;
         Ok(Self {
-            image,
+            d2d: d2d.clone(),
+            dwrite: dwrite.clone(),
+            bitmap,
             target: RefCell::new(target.clone()),
-            bitmap: RefCell::new(bitmap),
+            d2d_bitmap: RefCell::new(d2d_bitmap),
+            dirty: Cell::new(false),
         })
     }
 
-    fn create_bitmap(target: &ID2D1RenderTarget, image: &RgbaImage) -> Result<ID2D1Bitmap> {
+    fn create_bitmap(target: &ID2D1RenderTarget, bitmap: &IWICBitmap) -> Result<ID2D1Bitmap> {
         let mut dpix = 0.0;
         let mut dpiy = 0.0;
         unsafe { target.GetDpi(&mut dpix, &mut dpiy) };
         let prop = D2D1_BITMAP_PROPERTIES {
             pixelFormat: D2D1_PIXEL_FORMAT {
-                format: DXGI_FORMAT_R8G8B8A8_UNORM,
+                format: DXGI_FORMAT_B8G8R8A8_UNORM,
                 alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
             },
             dpiX: dpix,
             dpiY: dpiy,
         };
-        unsafe {
-            target.CreateBitmap(
-                D2D_SIZE_U {
-                    width: image.width(),
-                    height: image.height(),
-                },
-                Some(image.as_ptr().cast()),
-                image.width() * Rgba::<u8>::CHANNEL_COUNT as u32,
-                &prop,
-            )
-        }
+        unsafe { target.CreateBitmapFromWicBitmap(&**bitmap, Some(&prop)) }
     }
 
     fn recreate(&self, target: &ID2D1RenderTarget) -> Result<()> {
-        *self.bitmap.borrow_mut() = Self::create_bitmap(target, &self.image)?;
+        *self.d2d_bitmap.borrow_mut() = Self::create_bitmap(target, &self.bitmap)?;
         *self.target.borrow_mut() = target.clone();
         Ok(())
     }
 
     pub fn get_bitmap(&self, target: &ID2D1RenderTarget) -> Result<Ref<'_, ID2D1Bitmap>> {
-        if self.target.borrow().as_raw() != target.as_raw() {
+        if self.dirty.replace(false) || self.target.borrow().as_raw() != target.as_raw() {
             self.recreate(target)?;
         }
-        Ok(self.bitmap.borrow())
+        Ok(self.d2d_bitmap.borrow())
+    }
+
+    pub fn context(&mut self) -> Result<DrawingContext<'_>> {
+        let prop = D2D1_RENDER_TARGET_PROPERTIES {
+            r#type: D2D1_RENDER_TARGET_TYPE_DEFAULT,
+            pixelFormat: D2D1_PIXEL_FORMAT {
+                format: DXGI_FORMAT_B8G8R8A8_UNORM,
+                alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
+            },
+            dpiX: 96.0,
+            dpiY: 96.0,
+            usage: D2D1_RENDER_TARGET_USAGE_NONE,
+            minLevel: D2D1_FEATURE_LEVEL_DEFAULT,
+        };
+        let target = unsafe { self.d2d.CreateWicBitmapRenderTarget(&self.bitmap, &prop)? };
+        self.dirty.set(true);
+        Ok(DrawingContext::new(
+            self.d2d.clone(),
+            self.dwrite.clone(),
+            target,
+            None,
+        ))
+    }
+
+    /// Copy the premultiplied BGRA pixels into `buffer`.
+    pub fn copy_pixels(&self, buffer: &mut [u8]) -> Result<()> {
+        let (width, _) = self.dimensions()?;
+        unsafe {
+            self.bitmap
+                .CopyPixels(None, width * 4, buffer.len() as u32, buffer.as_mut_ptr())?;
+        }
+        Ok(())
+    }
+
+    pub fn to_dynamic_image(&self) -> Result<DynamicImage> {
+        let (width, height) = self.dimensions()?;
+        let mut pixels = vec![0; (width * height * 4) as usize];
+        unsafe {
+            self.bitmap
+                .CopyPixels(None, width * 4, pixels.len() as u32, pixels.as_mut_ptr())?;
+        }
+        to_straight_rgba8(&mut pixels);
+        Ok(DynamicImage::ImageRgba8(
+            RgbaImage::from_raw(width, height, pixels).expect("invalid image buffer"),
+        ))
     }
 
     pub fn size(&self) -> Result<Size> {
-        let size = unsafe { self.bitmap.borrow().GetSize() };
-        Ok(Size::new(size.width as _, size.height as _))
+        let (width, height) = self.dimensions()?;
+        Ok(Size::new(width as _, height as _))
+    }
+
+    fn dimensions(&self) -> Result<(u32, u32)> {
+        let mut width = 0;
+        let mut height = 0;
+        unsafe { self.bitmap.GetSize(&mut width, &mut height)? };
+        Ok((width, height))
+    }
+}
+
+impl TryFrom<&DrawingImage> for DynamicImage {
+    type Error = Error;
+
+    fn try_from(value: &DrawingImage) -> Result<Self> {
+        value.to_dynamic_image()
+    }
+}
+
+impl TryFrom<DrawingImage> for DynamicImage {
+    type Error = Error;
+
+    fn try_from(value: DrawingImage) -> Result<Self> {
+        Self::try_from(&value)
     }
 }

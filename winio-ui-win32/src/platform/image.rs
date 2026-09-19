@@ -19,7 +19,7 @@ use windows_sys::Win32::{
         },
     },
 };
-use winio_primitive::Size;
+use winio_primitive::{Size, to_premultiplied_bgra8};
 
 use super::dpi::{DpiAware, get_dpi_for_window};
 use crate::{DrawingContext, DrawingImage, Result};
@@ -144,16 +144,8 @@ impl Image {
             .resize_exact(width as _, height as _, FilterType::Triangle)
             .into_rgba8();
 
-        let mut data = Vec::with_capacity(image.len());
-        for pixel in image.pixels() {
-            let [r, g, b, a] = pixel.0;
-            data.extend_from_slice(&[
-                ((b as u32 * a as u32 + 127) / 255) as u8,
-                ((g as u32 * a as u32 + 127) / 255) as u8,
-                ((r as u32 * a as u32 + 127) / 255) as u8,
-                a,
-            ]);
-        }
+        let mut data = image.into_raw();
+        to_premultiplied_bgra8(&mut data);
 
         const PixelFormatGDI: i32 = 0x00020000;
         const PixelFormatAlpha: i32 = 0x00040000;
@@ -185,6 +177,22 @@ impl TryFrom<&DynamicImage> for Image {
 
     fn try_from(value: &DynamicImage) -> Result<Self> {
         Ok(Self(Rc::new(value.clone())))
+    }
+}
+
+impl TryFrom<&DrawingImage> for Image {
+    type Error = Error;
+
+    fn try_from(value: &DrawingImage) -> Result<Self> {
+        Ok(Self(Rc::new(value.to_dynamic_image()?)))
+    }
+}
+
+impl TryFrom<DrawingImage> for Image {
+    type Error = Error;
+
+    fn try_from(value: DrawingImage) -> Result<Self> {
+        Self::try_from(&value)
     }
 }
 
