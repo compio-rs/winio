@@ -39,6 +39,10 @@ impl Image {
         DrawingImage::from_texture(&self.texture)
     }
 
+    pub(crate) fn from_texture(texture: gdk::Texture) -> Self {
+        Self { texture }
+    }
+
     pub(crate) fn texture(&self) -> &gdk::Texture {
         &self.texture
     }

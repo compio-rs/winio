@@ -37,6 +37,9 @@ pub enum Error {
     /// Cairo error.
     #[error("Cairo error: {0}")]
     Cairo(#[from] gtk4::cairo::Error),
+    /// Cairo surface borrow error.
+    #[error("Cairo surface borrow error: {0}")]
+    Borrow(#[from] gtk4::cairo::BorrowError),
     /// Index error.
     #[error("Index error: {0}")]
     Index(usize),

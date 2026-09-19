@@ -12,15 +12,17 @@ use gtk4::{
         Content, Context, Format, ImageSurface, LinearGradient, Matrix, RadialGradient,
         RecordingSurface,
     },
-    gdk::{ScrollUnit, Texture},
-    glib::{Propagation, object::Cast},
-    pango::{FontDescription, Layout, SCALE as PANGO_SCALE, Style, Weight},
+    gdk::{MemoryFormat, MemoryTexture, ScrollUnit, Texture},
+    glib::{Bytes, Propagation, object::Cast},
+    pango::{
+        Context as PangoContext, FontDescription, Layout, SCALE as PANGO_SCALE, Style, Weight,
+    },
     prelude::{
         DrawingAreaExtManual, EventControllerExt, GestureSingleExt, TextureExt, TextureExtManual,
         WidgetExt,
     },
 };
-use image::{DynamicImage, Rgba, Rgba32FImage};
+use image::{DynamicImage, ImageBuffer, Rgb, Rgba, Rgba32FImage};
 use inherit_methods_macro::inherit_methods;
 use pangocairo::functions::show_layout;
 use winio_callback::Callback;
@@ -30,7 +32,7 @@ use winio_primitive::{
     RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform, Vector,
 };
 
-use crate::{GlobalRuntime, Result, platform::Keyboard, widgets::Widget};
+use crate::{Error, GlobalRuntime, Image, Result, platform::Keyboard, widgets::Widget};
 
 #[derive(Debug)]
 pub struct Canvas {
@@ -159,10 +161,12 @@ impl Canvas {
     pub fn context(&mut self) -> Result<DrawingContext<'_>> {
         let surface = RecordingSurface::create(Content::ColorAlpha, None)?;
         let ctx = Context::new(&surface)?;
+        let pango = self.widget.pango_context();
         Ok(DrawingContext {
             surface: Some(surface),
             ctx,
-            canvas: self,
+            pango,
+            target: ContextTarget::Canvas(self),
         })
     }
 
@@ -200,7 +204,23 @@ winio_handle::impl_as_widget!(Canvas, handle);
 pub struct DrawingContext<'a> {
     surface: Option<RecordingSurface>,
     ctx: Context,
-    canvas: &'a mut Canvas,
+    pango: PangoContext,
+    target: ContextTarget<'a>,
+}
+
+enum ContextTarget<'a> {
+    Canvas(&'a mut Canvas),
+    /// Keeps the image alive while the context is active.
+    Image(#[allow(dead_code)] &'a mut DrawingImage),
+}
+
+impl ContextTarget<'_> {
+    fn width(&self) -> i32 {
+        match self {
+            ContextTarget::Canvas(canvas) => canvas.widget.width(),
+            ContextTarget::Image(image) => image.0.width(),
+        }
+    }
 }
 
 #[inline]
@@ -405,7 +425,8 @@ impl DrawingContext<'_> {
     }
 
     fn measure_str_impl(&self, font: &Font, text: &str) -> (Size, Layout) {
-        let layout = self.canvas.widget.create_pango_layout(Some(text));
+        let layout = Layout::new(&self.pango);
+        layout.set_text(text);
         let mut desp = FontDescription::from_string(&font.family);
         desp.set_size((font.size / 1.33) as i32 * PANGO_SCALE);
         if font.italic {
@@ -415,7 +436,7 @@ impl DrawingContext<'_> {
             desp.set_weight(Weight::Bold);
         }
         layout.set_font_description(Some(&desp));
-        layout.set_width(self.canvas.widget.width() * PANGO_SCALE);
+        layout.set_width(self.target.width() * PANGO_SCALE);
 
         let (width, height) = layout.pixel_size();
         (Size::new(width as f64, height as f64), layout)
@@ -448,6 +469,10 @@ impl DrawingContext<'_> {
 
     pub fn create_image(&self, image: Cow<'_, DynamicImage>) -> Result<DrawingImage> {
         DrawingImage::new(image)
+    }
+
+    pub fn create_image_empty(&self, size: Size) -> Result<DrawingImage> {
+        DrawingImage::new_empty(size)
     }
 
     pub fn draw_image(
@@ -494,9 +519,11 @@ impl DrawingContext<'_> {
 
 impl Drop for DrawingContext<'_> {
     fn drop(&mut self) {
-        *self.canvas.surface.borrow_mut() =
-            self.surface.take().expect("DrawingContext dropped twice");
-        self.canvas.widget.queue_draw();
+        if let ContextTarget::Canvas(canvas) = &mut self.target {
+            *canvas.surface.borrow_mut() =
+                self.surface.take().expect("DrawingContext dropped twice");
+            canvas.widget.queue_draw();
+        }
     }
 }
 
@@ -746,7 +773,185 @@ impl DrawingImage {
         Ok(Self(surface))
     }
 
+    /// Create an empty image filled with transparent pixels.
+    pub(crate) fn new_empty(size: Size) -> Result<Self> {
+        const CAIRO_FORMAT_RGBA128F: Format = Format::__Unknown(7);
+
+        let width = size.width.round().max(1.0) as i32;
+        let height = size.height.round().max(1.0) as i32;
+        let stride = CAIRO_FORMAT_RGBA128F.stride_for_width(width as _)?;
+        let buffer = vec![0; stride as usize * height as usize];
+        let surface =
+            ImageSurface::create_for_data(buffer, CAIRO_FORMAT_RGBA128F, width, height, stride)?;
+        Ok(Self(surface))
+    }
+
+    pub fn context(&mut self) -> Result<DrawingContext<'_>> {
+        let ctx = Context::new(&self.0)?;
+        Ok(DrawingContext {
+            surface: None,
+            ctx,
+            pango: PangoContext::new(),
+            target: ContextTarget::Image(self),
+        })
+    }
+
+    fn to_texture(&self) -> Result<Texture> {
+        let width = self.0.width();
+        let height = self.0.height();
+        let stride = width as usize * 4;
+        let mut buffer = None;
+        self.0.with_data(|data| {
+            buffer = rgba8_from_f32(data, self.0.format(), self.0.stride() as _, width, height);
+        })?;
+        let buffer = buffer.ok_or(Error::NotSupported)?;
+        let bytes = Bytes::from_owned(buffer);
+        let texture = MemoryTexture::new(
+            width,
+            height,
+            MemoryFormat::R8g8b8a8Premultiplied,
+            &bytes,
+            stride,
+        );
+        Ok(texture.upcast())
+    }
+
+    fn to_dynamic_image(&self) -> Result<DynamicImage> {
+        let width = self.0.width() as u32;
+        let height = self.0.height() as u32;
+        let stride = self.0.stride() as usize;
+        let mut image = None;
+        self.0.with_data(|data| {
+            image = match self.0.format() {
+                CAIRO_FORMAT_RGB96F => Some(DynamicImage::ImageRgb32F(
+                    ImageBuffer::<Rgb<f32>, Vec<f32>>::from_raw(
+                        width,
+                        height,
+                        f32_rows(data, stride, width as usize * 12, height as usize),
+                    )
+                    .expect("invalid image buffer"),
+                )),
+                CAIRO_FORMAT_RGBA128F => {
+                    let mut pixels = f32_rows(data, stride, width as usize * 16, height as usize);
+                    for pixel in pixels.as_chunks_mut::<4>().0 {
+                        let a = pixel[3];
+                        if a != 0.0 && a != 1.0 {
+                            pixel[0] /= a;
+                            pixel[1] /= a;
+                            pixel[2] /= a;
+                        }
+                    }
+                    Some(DynamicImage::ImageRgba32F(
+                        ImageBuffer::<Rgba<f32>, Vec<f32>>::from_raw(width, height, pixels)
+                            .expect("invalid image buffer"),
+                    ))
+                }
+                _ => None,
+            };
+        })?;
+        image.ok_or(Error::NotSupported)
+    }
+
     pub fn size(&self) -> Result<Size> {
         Ok(Size::new(self.0.width() as _, self.0.height() as _))
+    }
+}
+
+const CAIRO_FORMAT_RGB96F: Format = Format::__Unknown(6);
+const CAIRO_FORMAT_RGBA128F: Format = Format::__Unknown(7);
+
+/// Read the rows of a premultiplied float surface as `f32`.
+fn f32_rows(data: &[u8], stride: usize, row: usize, height: usize) -> Vec<f32> {
+    let mut out = Vec::with_capacity(row / 4 * height);
+    if stride == row {
+        for chunk in data[..row * height].as_chunks::<4>().0 {
+            out.push(f32::from_ne_bytes(*chunk));
+        }
+    } else {
+        for line in data.chunks_exact(stride).take(height) {
+            for chunk in line[..row].as_chunks::<4>().0 {
+                out.push(f32::from_ne_bytes(*chunk));
+            }
+        }
+    }
+    out
+}
+
+/// Convert a premultiplied float surface to premultiplied RGBA8.
+fn rgba8_from_f32(
+    data: &[u8],
+    format: Format,
+    stride: usize,
+    width: i32,
+    height: i32,
+) -> Option<Vec<u8>> {
+    let channels = match format {
+        CAIRO_FORMAT_RGB96F => 3,
+        CAIRO_FORMAT_RGBA128F => 4,
+        _ => return None,
+    };
+    let width = width as usize;
+    let height = height as usize;
+    let row = width * channels * 4;
+    let mut out = Vec::with_capacity(width * 4 * height);
+    let mut push = |data: &[u8]| {
+        let r = f32::from_ne_bytes(data[0..4].try_into().unwrap()).clamp(0.0, 1.0);
+        let g = f32::from_ne_bytes(data[4..8].try_into().unwrap()).clamp(0.0, 1.0);
+        let b = f32::from_ne_bytes(data[8..12].try_into().unwrap()).clamp(0.0, 1.0);
+        let a = if channels == 4 {
+            f32::from_ne_bytes(data[12..16].try_into().unwrap()).clamp(0.0, 1.0)
+        } else {
+            1.0
+        };
+        out.extend_from_slice(&[
+            (r * 255.0).round() as u8,
+            (g * 255.0).round() as u8,
+            (b * 255.0).round() as u8,
+            (a * 255.0).round() as u8,
+        ]);
+    };
+    if stride == row {
+        for pixel in data[..row * height].chunks_exact(channels * 4) {
+            push(pixel);
+        }
+    } else {
+        for line in data.chunks_exact(stride).take(height) {
+            for pixel in line[..row].chunks_exact(channels * 4) {
+                push(pixel);
+            }
+        }
+    }
+    Some(out)
+}
+
+impl TryFrom<&DrawingImage> for Image {
+    type Error = Error;
+
+    fn try_from(value: &DrawingImage) -> Result<Self> {
+        Ok(Image::from_texture(value.to_texture()?))
+    }
+}
+
+impl TryFrom<DrawingImage> for Image {
+    type Error = Error;
+
+    fn try_from(value: DrawingImage) -> Result<Self> {
+        Image::try_from(&value)
+    }
+}
+
+impl TryFrom<&DrawingImage> for DynamicImage {
+    type Error = Error;
+
+    fn try_from(value: &DrawingImage) -> Result<Self> {
+        value.to_dynamic_image()
+    }
+}
+
+impl TryFrom<DrawingImage> for DynamicImage {
+    type Error = Error;
+
+    fn try_from(value: DrawingImage) -> Result<Self> {
+        value.to_dynamic_image()
     }
 }
