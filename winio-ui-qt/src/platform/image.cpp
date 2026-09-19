@@ -14,8 +14,6 @@ std::unique_ptr<QImage> image_to_rgba8(const QImage &image) {
         image.convertToFormat(QImage::Format_RGBA8888));
 }
 
-std::size_t image_format(const QImage &image) { return image.format(); }
-
 std::size_t image_bytes_per_line(const QImage &image) {
     return image.bytesPerLine();
 }

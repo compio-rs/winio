@@ -92,23 +92,23 @@ impl ImageData {
         if width == 0 || height == 0 {
             return Ok(DynamicImage::new_rgba8(0, 0));
         }
-        let stride = ffi::image_bytes_per_line(image).max(0) as usize;
+        let stride = ffi::image_bytes_per_line(image);
         let bytes = ffi::image_bytes(image);
-        let format = ffi::image_format(image);
+        let format = image.format();
 
-        if format == QImageFormat::RGB888 as i32 {
+        if format == QImageFormat::RGB888 {
             let data = pack_rows(bytes, stride, width as usize * 3, height as usize);
             return Ok(DynamicImage::ImageRgb8(
                 RgbImage::from_raw(width, height, data).expect("invalid image buffer"),
             ));
         }
-        if format == QImageFormat::RGBA8888 as i32 {
+        if format == QImageFormat::RGBA8888 {
             let data = pack_rows(bytes, stride, width as usize * 4, height as usize);
             return Ok(DynamicImage::ImageRgba8(
                 RgbaImage::from_raw(width, height, data).expect("invalid image buffer"),
             ));
         }
-        if format == QImageFormat::RGBA64 as i32 {
+        if format == QImageFormat::RGBA64 {
             let data = pack_rows(bytes, stride, width as usize * 8, height as usize)
                 .as_chunks::<2>()
                 .0
@@ -120,7 +120,7 @@ impl ImageData {
                     .expect("invalid image buffer"),
             ));
         }
-        if format == QImageFormat::RGBA32FPx4 as i32 {
+        if format == QImageFormat::RGBA32FPx4 {
             let data = pack_rows(bytes, stride, width as usize * 16, height as usize)
                 .as_chunks::<4>()
                 .0
@@ -137,7 +137,7 @@ impl ImageData {
         let size = image.size()?;
         let width = size.width.max(0) as u32;
         let height = size.height.max(0) as u32;
-        let stride = ffi::image_bytes_per_line(&image).max(0) as usize;
+        let stride = ffi::image_bytes_per_line(&image);
         let data = pack_rows(
             ffi::image_bytes(&image),
             stride,
@@ -289,9 +289,9 @@ fn qimage_format(image: &DynamicImage) -> Option<(QImageFormat, usize)> {
     }
 }
 
-pub use ffi::QImage;
+pub(crate) use ffi::QImage;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 #[non_exhaustive]
 pub(crate) enum QImageFormat {
@@ -323,11 +323,11 @@ mod ffi {
             format: QImageFormat,
         ) -> Result<UniquePtr<QImage>>;
         fn size(self: &QImage) -> Result<QSize>;
+        fn format(self: &QImage) -> QImageFormat;
 
         fn image_copy(image: &QImage) -> Result<UniquePtr<QImage>>;
         fn image_to_rgba8(image: &QImage) -> Result<UniquePtr<QImage>>;
-        fn image_format(image: &QImage) -> i32;
-        fn image_bytes_per_line(image: &QImage) -> i32;
+        fn image_bytes_per_line(image: &QImage) -> usize;
         fn image_bytes(image: &QImage) -> &[u8];
     }
 }
