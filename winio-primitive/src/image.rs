@@ -34,6 +34,38 @@ pub fn unpremultiply_rgba_f32(pixels: &mut [f32]) {
     }
 }
 
+/// Premultiply the alpha channel of RGBA pixels.
+///
+/// The length of `pixels` must be a multiple of 4.
+pub fn premultiply_rgba8(pixels: &mut [u8]) {
+    for pixel in pixels.as_chunks_mut::<4>().0 {
+        let a = pixel[3] as u16;
+        if a == 0 {
+            pixel[0] = 0;
+            pixel[1] = 0;
+            pixel[2] = 0;
+        } else if a != 255 {
+            pixel[0] = ((pixel[0] as u16 * a + 127) / 255) as u8;
+            pixel[1] = ((pixel[1] as u16 * a + 127) / 255) as u8;
+            pixel[2] = ((pixel[2] as u16 * a + 127) / 255) as u8;
+        }
+    }
+}
+
+/// Unpremultiply the alpha channel of RGBA pixels.
+///
+/// The length of `pixels` must be a multiple of 4.
+pub fn unpremultiply_rgba8(pixels: &mut [u8]) {
+    for pixel in pixels.as_chunks_mut::<4>().0 {
+        let a = pixel[3] as u16;
+        if a != 0 && a != 255 {
+            pixel[0] = ((pixel[0] as u16 * 255 + a / 2) / a).min(255) as u8;
+            pixel[1] = ((pixel[1] as u16 * 255 + a / 2) / a).min(255) as u8;
+            pixel[2] = ((pixel[2] as u16 * 255 + a / 2) / a).min(255) as u8;
+        }
+    }
+}
+
 /// Convert straight RGBA pixels to premultiplied BGRA in place.
 ///
 /// The length of `pixels` must be a multiple of 4.

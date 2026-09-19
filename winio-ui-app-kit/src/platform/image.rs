@@ -51,3 +51,19 @@ impl TryFrom<&DynamicImage> for Image {
         Self::new(Cow::Borrowed(value))
     }
 }
+
+impl TryFrom<&DrawingImage> for Image {
+    type Error = Error;
+
+    fn try_from(value: &DrawingImage) -> Result<Self> {
+        Ok(Self(value.clone()))
+    }
+}
+
+impl TryFrom<DrawingImage> for Image {
+    type Error = Error;
+
+    fn try_from(value: DrawingImage) -> Result<Self> {
+        Ok(Self(value))
+    }
+}

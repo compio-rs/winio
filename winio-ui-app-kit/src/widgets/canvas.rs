@@ -1,31 +1,20 @@
-use std::{
-    borrow::Cow,
-    cell::{Cell, RefCell},
-    ptr::{null, null_mut},
-};
+use std::cell::{Cell, RefCell};
 
 use compio_log::*;
-use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
 use objc2::{
     DeclaredClass, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
 };
 use objc2_app_kit::{NSEvent, NSEventType, NSGraphicsContext, NSView};
-use objc2_core_foundation::{CFRange, CFRetained, CGAffineTransform};
-use objc2_core_graphics::{CGAffineTransformMake, CGColor, CGMutablePath, CGPath, kCGColorWhite};
-use objc2_core_text::CTFramesetter;
-use objc2_foundation::{MainThreadMarker, NSRect, NSSize};
+use objc2_foundation::{MainThreadMarker, NSRect};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{
-    BitmapRect, Font, KeyCode, MouseButton, Point, Rect, RelativePoint, Size, Transform, Vector,
-};
+use winio_primitive::{KeyCode, MouseButton, Point, Size, Vector};
 
 use crate::{
-    Brush, DrawAction, DrawingImage, Error, GlobalRuntime, Pen, Result, Widget, catch,
-    create_attr_str, from_cgsize, platform::Keyboard, transform_cgpoint, transform_point,
-    transform_rect,
+    ContextOwner, DrawAction, DrawingContext, GlobalRuntime, Result, Widget, catch,
+    platform::Keyboard, transform_cgpoint,
 };
 
 #[derive(Debug)]
@@ -133,13 +122,9 @@ impl Canvas {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub fn context(&mut self) -> Result<DrawingContext<'_>> {
-        Ok(DrawingContext {
-            size: self.size()?,
-            actions: self.handle.view.ivars().take_buffer(),
-            canvas: self,
-            transform: Transform::identity(),
-            ended: false,
-        })
+        let size = self.size()?;
+        let actions = self.handle.view.ivars().take_buffer();
+        Ok(DrawingContext::new(size, self, actions))
     }
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
@@ -310,363 +295,18 @@ fn mouse_button(event: &NSEvent) -> MouseButton {
     }
 }
 
-pub struct DrawingContext<'a> {
-    size: Size,
-    actions: Vec<DrawAction>,
-    canvas: &'a mut Canvas,
-    transform: Transform,
-    ended: bool,
-}
-
-impl Drop for DrawingContext<'_> {
-    fn drop(&mut self) {
-        if let Err(_e) = self.end() {
-            error!("Error dropping DrawingContext: {_e:?}");
-        }
-    }
-}
-
-impl DrawingContext<'_> {
-    fn end(&mut self) -> Result<()> {
-        if !self.ended {
-            let ivars = self.canvas.handle.view.ivars();
-            ivars.swap_buffer(&mut self.actions);
-            ivars.factor.set(
-                self.canvas
-                    .handle
-                    .view
-                    .window()
-                    .map(|w| w.backingScaleFactor())
-                    .unwrap_or(1.0),
-            );
-            catch(|| self.canvas.handle.view.setNeedsDisplay(true))?;
-            self.ended = true;
-        }
-        Ok(())
-    }
-
-    pub fn close(mut self) -> Result<()> {
-        self.end()
-    }
-
-    pub fn set_transform(&mut self, transform: Transform) -> Result<()> {
-        self.transform = transform;
-        self.actions.push(DrawAction::Transform(CGAffineTransform {
-            a: transform.m11,
-            b: transform.m12,
-            c: transform.m21,
-            d: transform.m22,
-            tx: transform.m31,
-            ty: transform.m32,
-        }));
-        Ok(())
-    }
-
-    pub fn transform(&self) -> Result<Transform> {
-        Ok(self.transform)
-    }
-
-    fn draw(&mut self, pen: impl Pen, path: CFRetained<CGPath>) -> Result<()> {
-        self.actions.push(pen.create_action(path)?);
-        Ok(())
-    }
-
-    fn fill(&mut self, brush: impl Brush, path: CFRetained<CGPath>) -> Result<()> {
-        self.actions.push(brush.create_action(path)?);
-        Ok(())
-    }
-
-    pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) -> Result<()> {
-        self.draw(pen, path.0.clone())
-    }
-
-    pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) -> Result<()> {
-        self.fill(brush, path.0.clone())
-    }
-
-    pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> Result<()> {
-        let path = path_arc(self.size, rect, start, end, false);
-        self.draw(pen, unsafe { CFRetained::cast_unchecked(path) })
-    }
-
-    pub fn draw_pie(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> Result<()> {
-        let path = path_arc(self.size, rect, start, end, true);
-        self.draw(pen, unsafe { CFRetained::cast_unchecked(path) })
-    }
-
-    pub fn fill_pie(&mut self, brush: impl Brush, rect: Rect, start: f64, end: f64) -> Result<()> {
-        let path = path_arc(self.size, rect, start, end, true);
-        self.fill(brush, unsafe { CFRetained::cast_unchecked(path) })
-    }
-
-    pub fn draw_ellipse(&mut self, pen: impl Pen, rect: Rect) -> Result<()> {
-        let path = path_ellipse(self.size, rect);
-        self.draw(pen, path)
-    }
-
-    pub fn fill_ellipse(&mut self, brush: impl Brush, rect: Rect) -> Result<()> {
-        let path = path_ellipse(self.size, rect);
-        self.fill(brush, path)
-    }
-
-    pub fn draw_line(&mut self, pen: impl Pen, start: Point, end: Point) -> Result<()> {
-        let path = path_line(self.size, start, end);
-        self.draw(pen, unsafe { CFRetained::cast_unchecked(path) })
-    }
-
-    pub fn draw_rect(&mut self, pen: impl Pen, rect: Rect) -> Result<()> {
-        let path = path_rect(self.size, rect);
-        self.draw(pen, path)
-    }
-
-    pub fn fill_rect(&mut self, brush: impl Brush, rect: Rect) -> Result<()> {
-        let path = path_rect(self.size, rect);
-        self.fill(brush, path)
-    }
-
-    pub fn draw_round_rect(&mut self, pen: impl Pen, rect: Rect, round: Size) -> Result<()> {
-        let path = path_round_rect(self.size, rect, round);
-        self.draw(pen, path)
-    }
-
-    pub fn fill_round_rect(&mut self, brush: impl Brush, rect: Rect, round: Size) -> Result<()> {
-        let path = path_round_rect(self.size, rect, round);
-        self.fill(brush, path)
-    }
-
-    pub fn draw_str(
-        &mut self,
-        brush: impl Brush,
-        font: Font,
-        anchor: RelativePoint,
-        pos: Point,
-        text: &str,
-    ) -> Result<()> {
-        let color = brush.text_color()?;
-        let (framesetter, rect) = measure_str(font, &color, anchor, pos, text, self.size)?;
-        let rect = transform_rect(self.size, rect);
-        self.actions
-            .push(brush.create_text_action(framesetter, rect)?);
-        Ok(())
-    }
-
-    pub fn measure_str(&self, font: Font, text: &str) -> Result<Size> {
-        let color =
-            unsafe { CGColor::constant_color(Some(kCGColorWhite)).ok_or(Error::NullPointer) }?;
-        Ok(measure_str(
-            font,
-            &color,
-            RelativePoint::zero(),
-            Point::zero(),
-            text,
-            self.size,
-        )?
-        .1
-        .size)
-    }
-
-    pub fn create_image(&self, image: Cow<'_, DynamicImage>) -> Result<DrawingImage> {
-        DrawingImage::new(image)
-    }
-
-    pub fn draw_image(
-        &mut self,
-        image_rep: &DrawingImage,
-        rect: Rect,
-        clip: Option<BitmapRect>,
-    ) -> Result<()> {
-        let rect = transform_rect(self.size, rect);
-        let image_size = image_rep.size()?;
-        let image_size = Size::new(image_size.width as f64, image_size.height as f64);
-        let clip = clip.map(|clip| {
-            transform_rect(
-                image_size,
-                Rect::new(
-                    Point::new(clip.origin.x as f64, clip.origin.y as f64),
-                    Size::new(clip.size.width as f64, clip.size.height as f64),
-                ),
-            )
-        });
-        self.actions
-            .push(DrawAction::Image(image_rep.clone(), rect, clip));
-        Ok(())
-    }
-
-    pub fn create_path_builder(&self, start: Point) -> Result<DrawingPathBuilder> {
-        Ok(DrawingPathBuilder::new(self.size, start))
-    }
-}
-
-pub struct DrawingPath(CFRetained<CGPath>);
-
-pub struct DrawingPathBuilder {
-    size: Size,
-    path: CFRetained<CGMutablePath>,
-}
-
-impl DrawingPathBuilder {
-    fn new(size: Size, start: Point) -> Self {
-        unsafe {
-            let path = CGMutablePath::new();
-            let p = transform_point(size, start);
-            CGMutablePath::move_to_point(Some(&path), null(), p.x, p.y);
-            Self { size, path }
-        }
-    }
-
-    pub fn add_line(&mut self, p: Point) -> Result<()> {
-        let p = transform_point(self.size, p);
-        unsafe {
-            CGMutablePath::add_line_to_point(Some(&self.path), null(), p.x, p.y);
-        }
-        Ok(())
-    }
-
-    pub fn add_arc(
-        &mut self,
-        center: Point,
-        radius: Size,
-        start: f64,
-        end: f64,
-        clockwise: bool,
-    ) -> Result<()> {
-        let startp = Point::new(
-            center.x + radius.width * start.cos(),
-            center.y + radius.height * start.sin(),
+impl ContextOwner for Canvas {
+    fn end_draw(&mut self, mut actions: Vec<DrawAction>) -> Result<()> {
+        let ivars = self.handle.view.ivars();
+        ivars.swap_buffer(&mut actions);
+        ivars.factor.set(
+            self.handle
+                .view
+                .window()
+                .map(|w| w.backingScaleFactor())
+                .unwrap_or(1.0),
         );
-
-        let rate = radius.height / radius.width;
-        let transform = CGAffineTransformMake(1.0, 0.0, 0.0, rate, 0.0, 0.0);
-
-        self.add_line(startp)?;
-        let center = transform_point(self.size, center);
-        unsafe {
-            CGMutablePath::add_arc(
-                Some(&self.path),
-                &transform,
-                center.x,
-                center.y / rate,
-                radius.width,
-                -start,
-                -end,
-                clockwise,
-            );
-        }
+        catch(|| self.handle.view.setNeedsDisplay(true))?;
         Ok(())
     }
-
-    pub fn add_bezier(&mut self, p1: Point, p2: Point, p3: Point) -> Result<()> {
-        let p1 = transform_point(self.size, p1);
-        let p2 = transform_point(self.size, p2);
-        let p3 = transform_point(self.size, p3);
-        unsafe {
-            CGMutablePath::add_curve_to_point(
-                Some(&self.path),
-                null(),
-                p1.x,
-                p1.y,
-                p2.x,
-                p2.y,
-                p3.x,
-                p3.y,
-            );
-        }
-        Ok(())
-    }
-
-    pub fn build(self, close: bool) -> Result<DrawingPath> {
-        unsafe {
-            if close {
-                CGMutablePath::close_subpath(Some(&self.path));
-            }
-            Ok(DrawingPath(CFRetained::cast_unchecked(self.path)))
-        }
-    }
-}
-
-fn path_arc(s: Size, rect: Rect, start: f64, end: f64, pie: bool) -> CFRetained<CGMutablePath> {
-    let radius = rect.size / 2.0;
-    let centerp = Point::new(rect.origin.x + radius.width, rect.origin.y + radius.height);
-    let startp = Point::new(
-        centerp.x + radius.width * start.cos(),
-        centerp.y + radius.height * start.sin(),
-    );
-
-    let rate = radius.height / radius.width;
-    let transform = CGAffineTransformMake(1.0, 0.0, 0.0, rate, 0.0, 0.0);
-
-    unsafe {
-        let path = CGMutablePath::new();
-        let centerp = transform_point(s, centerp);
-        let startp = transform_point(s, startp);
-        if pie {
-            CGMutablePath::move_to_point(Some(&path), null(), centerp.x, centerp.y);
-            CGMutablePath::add_line_to_point(Some(&path), null(), startp.x, startp.y / rate);
-        } else {
-            CGMutablePath::move_to_point(Some(&path), null(), startp.x, startp.y);
-        }
-        CGMutablePath::add_arc(
-            Some(&path),
-            &transform,
-            centerp.x,
-            centerp.y / rate,
-            radius.width,
-            -start,
-            -end,
-            true,
-        );
-        if pie {
-            CGMutablePath::close_subpath(Some(&path));
-        }
-        path
-    }
-}
-
-fn path_ellipse(s: Size, rect: Rect) -> CFRetained<CGPath> {
-    let rect = transform_rect(s, rect);
-    unsafe { CGPath::with_ellipse_in_rect(rect, null()) }
-}
-
-fn path_line(s: Size, start: Point, end: Point) -> CFRetained<CGMutablePath> {
-    unsafe {
-        let path = CGMutablePath::new();
-        let p = transform_point(s, start);
-        CGMutablePath::move_to_point(Some(&path), null(), p.x, p.y);
-        let p = transform_point(s, end);
-        CGMutablePath::add_line_to_point(Some(&path), null(), p.x, p.y);
-        path
-    }
-}
-
-fn path_rect(s: Size, rect: Rect) -> CFRetained<CGPath> {
-    let rect = transform_rect(s, rect);
-    unsafe { CGPath::with_rect(rect, null()) }
-}
-
-fn path_round_rect(s: Size, rect: Rect, round: Size) -> CFRetained<CGPath> {
-    let rect = transform_rect(s, rect);
-    unsafe { CGPath::with_rounded_rect(rect, round.width, round.height, null()) }
-}
-
-fn measure_str(
-    font: Font,
-    color: &CGColor,
-    anchor: RelativePoint,
-    pos: Point,
-    text: &str,
-    bound: Size,
-) -> Result<(CFRetained<CTFramesetter>, Rect)> {
-    let astr = create_attr_str(&font, color, text)?;
-    let framesetter = unsafe { CTFramesetter::with_attributed_string(&astr) };
-    let size = from_cgsize(unsafe {
-        framesetter.suggest_frame_size_with_constraints(
-            CFRange::new(0, 0),
-            None,
-            NSSize::new(bound.width, bound.height + font.size),
-            null_mut(),
-        )
-    });
-    let x = pos.x - size.width * anchor.x;
-    let y = pos.y - size.height * anchor.y;
-    Ok((framesetter, Rect::new(Point::new(x, y), size)))
 }
