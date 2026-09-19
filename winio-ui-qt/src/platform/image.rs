@@ -2,7 +2,7 @@ use std::{borrow::Cow, fmt, rc::Rc};
 
 use cxx::{ExternType, UniquePtr, type_id};
 use image::{DynamicImage, ImageBuffer, Pixel, Rgb, RgbImage, Rgba, RgbaImage};
-use winio_primitive::Size;
+use winio_primitive::{Size, packed_rows};
 
 use crate::{DrawingContext, Error, Result};
 
@@ -61,19 +61,12 @@ impl ImageData {
 
     /// Create an image filled with transparent pixels.
     fn new_empty(size: Size) -> Result<Self> {
-        let width = size.width.round().max(1.0) as u32;
-        let height = size.height.round().max(1.0) as u32;
-        let buffer = vec![0; width as usize * height as usize * 4];
-        let image = unsafe {
-            ffi::new_image(
-                width as _,
-                height as _,
-                (width * 4) as _,
-                buffer.as_ptr(),
-                QImageFormat::RGBA8888,
-            )?
-        };
-        Ok(Self { buffer, image })
+        let width = size.width.round().max(1.0) as i32;
+        let height = size.height.round().max(1.0) as i32;
+        Ok(Self {
+            buffer: Vec::new(),
+            image: ffi::new_image_empty(width, height, QImageFormat::RGBA8888)?,
+        })
     }
 
     /// Deep copy the image data.
@@ -94,59 +87,53 @@ impl ImageData {
         }
         let stride = ffi::image_bytes_per_line(image);
         let bytes = ffi::image_bytes(image);
-        let format = image.format();
-
-        if format == QImageFormat::RGB888 {
-            let data = pack_rows(bytes, stride, width as usize * 3, height as usize);
-            return Ok(DynamicImage::ImageRgb8(
-                RgbImage::from_raw(width, height, data).expect("invalid image buffer"),
-            ));
-        }
-        if format == QImageFormat::RGBA8888 {
-            let data = pack_rows(bytes, stride, width as usize * 4, height as usize);
-            return Ok(DynamicImage::ImageRgba8(
-                RgbaImage::from_raw(width, height, data).expect("invalid image buffer"),
-            ));
-        }
-        if format == QImageFormat::RGBA64 {
-            let data = pack_rows(bytes, stride, width as usize * 8, height as usize)
-                .as_chunks::<2>()
-                .0
-                .iter()
-                .map(|c| u16::from_ne_bytes(*c))
-                .collect::<Vec<_>>();
-            return Ok(DynamicImage::ImageRgba16(
-                ImageBuffer::<Rgba<u16>, Vec<u16>>::from_raw(width, height, data)
+        let (w, h) = (width as usize, height as usize);
+        Ok(match image.format() {
+            QImageFormat::RGB888 => DynamicImage::ImageRgb8(
+                RgbImage::from_raw(width, height, packed_rows(bytes, stride, w * 3, h))
                     .expect("invalid image buffer"),
-            ));
-        }
-        if format == QImageFormat::RGBA32FPx4 {
-            let data = pack_rows(bytes, stride, width as usize * 16, height as usize)
-                .as_chunks::<4>()
-                .0
-                .iter()
-                .map(|c| f32::from_ne_bytes(*c))
-                .collect::<Vec<_>>();
-            return Ok(DynamicImage::ImageRgba32F(
-                ImageBuffer::<Rgba<f32>, Vec<f32>>::from_raw(width, height, data)
+            ),
+            QImageFormat::RGBA8888 => DynamicImage::ImageRgba8(
+                RgbaImage::from_raw(width, height, packed_rows(bytes, stride, w * 4, h))
                     .expect("invalid image buffer"),
-            ));
-        }
-
-        let image = ffi::image_to_rgba8(image)?;
-        let size = image.size()?;
-        let width = size.width.max(0) as u32;
-        let height = size.height.max(0) as u32;
-        let stride = ffi::image_bytes_per_line(&image);
-        let data = pack_rows(
-            ffi::image_bytes(&image),
-            stride,
-            width as usize * 4,
-            height as usize,
-        );
-        Ok(DynamicImage::ImageRgba8(
-            RgbaImage::from_raw(width, height, data).expect("invalid image buffer"),
-        ))
+            ),
+            QImageFormat::RGBA64 => DynamicImage::ImageRgba16(
+                ImageBuffer::<Rgba<u16>, Vec<u16>>::from_raw(
+                    width,
+                    height,
+                    packed_rows(bytes, stride, w * 8, h),
+                )
+                .expect("invalid image buffer"),
+            ),
+            QImageFormat::RGBA32FPx4 => DynamicImage::ImageRgba32F(
+                ImageBuffer::<Rgba<f32>, Vec<f32>>::from_raw(
+                    width,
+                    height,
+                    packed_rows(bytes, stride, w * 16, h),
+                )
+                .expect("invalid image buffer"),
+            ),
+            _ => {
+                let image = ffi::image_to_rgba8(image)?;
+                let size = image.size()?;
+                let width = size.width.max(0) as u32;
+                let height = size.height.max(0) as u32;
+                let stride = ffi::image_bytes_per_line(&image);
+                DynamicImage::ImageRgba8(
+                    RgbaImage::from_raw(
+                        width,
+                        height,
+                        packed_rows(
+                            ffi::image_bytes(&image),
+                            stride,
+                            width as usize * 4,
+                            height as usize,
+                        ),
+                    )
+                    .expect("invalid image buffer"),
+                )
+            }
+        })
     }
 
     fn size(&self) -> Result<Size> {
@@ -253,20 +240,6 @@ impl TryFrom<DrawingImage> for DynamicImage {
     }
 }
 
-/// Copy the rows of `bytes` into a tightly packed buffer.
-fn pack_rows(bytes: &[u8], stride: usize, row: usize, height: usize) -> Vec<u8> {
-    if stride == row {
-        bytes[..row * height].to_vec()
-    } else {
-        bytes
-            .chunks_exact(stride)
-            .take(height)
-            .flat_map(|chunk| &chunk[..row])
-            .copied()
-            .collect()
-    }
-}
-
 /// Get the [`QImage`] format of a [`DynamicImage`], if its memory layout can be
 /// used directly.
 fn qimage_format(image: &DynamicImage) -> Option<(QImageFormat, usize)> {
@@ -292,13 +265,15 @@ fn qimage_format(image: &DynamicImage) -> Option<(QImageFormat, usize)> {
 pub(crate) use ffi::QImage;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(i32)]
-#[non_exhaustive]
-pub(crate) enum QImageFormat {
-    RGB888     = 13,
-    RGBA8888   = 17,
-    RGBA64     = 26,
-    RGBA32FPx4 = 34,
+#[repr(transparent)]
+pub(crate) struct QImageFormat(pub i32);
+
+#[allow(non_upper_case_globals)]
+impl QImageFormat {
+    pub const RGB888: Self = Self(13);
+    pub const RGBA32FPx4: Self = Self(34);
+    pub const RGBA64: Self = Self(26);
+    pub const RGBA8888: Self = Self(17);
 }
 
 unsafe impl ExternType for QImageFormat {
@@ -320,6 +295,11 @@ mod ffi {
             height: i32,
             stride: i32,
             bits: *const u8,
+            format: QImageFormat,
+        ) -> Result<UniquePtr<QImage>>;
+        fn new_image_empty(
+            width: i32,
+            height: i32,
             format: QImageFormat,
         ) -> Result<UniquePtr<QImage>>;
         fn size(self: &QImage) -> Result<QSize>;

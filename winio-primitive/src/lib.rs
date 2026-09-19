@@ -9,6 +9,9 @@ pub use traits::*;
 mod drawing;
 pub use drawing::*;
 
+mod image;
+pub use image::*;
+
 mod monitor;
 pub use monitor::*;
 

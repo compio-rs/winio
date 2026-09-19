@@ -5,6 +5,13 @@ std::unique_ptr<QImage> new_image(int width, int height, int stride,
     return std::make_unique<QImage>(bits, width, height, stride, format);
 }
 
+std::unique_ptr<QImage> new_image_empty(int width, int height,
+                                        QImage::Format format) {
+    auto image = std::make_unique<QImage>(width, height, format);
+    image->fill(Qt::transparent);
+    return image;
+}
+
 std::unique_ptr<QImage> image_copy(const QImage &image) {
     return std::make_unique<QImage>(image.copy());
 }

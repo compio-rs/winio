@@ -12,17 +12,15 @@ use gtk4::{
         Content, Context, Format, ImageSurface, LinearGradient, Matrix, RadialGradient,
         RecordingSurface,
     },
-    gdk::{MemoryFormat, MemoryTexture, ScrollUnit, Texture},
-    glib::{Bytes, Propagation, object::Cast},
+    gdk::{self, ScrollUnit, Texture},
+    gdk_pixbuf::Pixbuf,
+    glib::{Propagation, object::Cast},
     pango::{
         Context as PangoContext, FontDescription, Layout, SCALE as PANGO_SCALE, Style, Weight,
     },
-    prelude::{
-        DrawingAreaExtManual, EventControllerExt, GestureSingleExt, TextureExt, TextureExtManual,
-        WidgetExt,
-    },
+    prelude::{DrawingAreaExtManual, EventControllerExt, GestureSingleExt, WidgetExt},
 };
-use image::{DynamicImage, ImageBuffer, Rgb, Rgba, Rgba32FImage};
+use image::{DynamicImage, ImageBuffer, Rgb, RgbImage, Rgba, RgbaImage};
 use inherit_methods_macro::inherit_methods;
 use pangocairo::functions::show_layout;
 use winio_callback::Callback;
@@ -30,6 +28,7 @@ use winio_handle::AsContainer;
 use winio_primitive::{
     BrushPen, Font, KeyCode, LinearGradientBrush, MouseButton, Point, RadialGradientBrush, Rect,
     RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform, Vector,
+    packed_rows, premultiply_rgba_f32, unpremultiply_rgba_f32,
 };
 
 use crate::{Error, GlobalRuntime, Image, Result, platform::Keyboard, widgets::Widget};
@@ -678,59 +677,44 @@ pub struct DrawingImage(ImageSurface);
 
 impl DrawingImage {
     fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
-        fn alpha_premultiply(mut image: Rgba32FImage) -> Rgba32FImage {
-            for Rgba(pixel) in image.pixels_mut() {
-                let a = pixel[3];
-                if a == 0.0 {
-                    pixel[0] = 0.0;
-                    pixel[1] = 0.0;
-                    pixel[2] = 0.0;
-                } else if a == 1.0 {
-                    // do nothing
-                } else {
-                    pixel[0] *= a;
-                    pixel[1] *= a;
-                    pixel[2] *= a;
-                }
-            }
-            image
-        }
-
-        let width = image.width();
-        let height = image.height();
-
         const CAIRO_FORMAT_RGB96F: Format = Format::__Unknown(6);
         const CAIRO_FORMAT_RGBA128F: Format = Format::__Unknown(7);
 
-        let (format, buffer) = match image {
+        let width = image.width();
+        let height = image.height();
+        let (format, buffer): (Format, Vec<u8>) = match image {
             Cow::Owned(image) => match image {
-                DynamicImage::ImageRgb32F(_) => (CAIRO_FORMAT_RGB96F, image.into_bytes()),
+                DynamicImage::ImageRgb32F(image) => {
+                    (CAIRO_FORMAT_RGB96F, bytemuck::cast_vec(image.into_raw()))
+                }
                 DynamicImage::ImageRgb8(_) | DynamicImage::ImageRgb16(_) => (
                     CAIRO_FORMAT_RGB96F,
-                    DynamicImage::ImageRgb32F(image.into_rgb32f()).into_bytes(),
+                    bytemuck::cast_vec(image.into_rgb32f().into_raw()),
                 ),
-                DynamicImage::ImageRgba32F(image) => (
-                    CAIRO_FORMAT_RGBA128F,
-                    DynamicImage::ImageRgba32F(alpha_premultiply(image)).into_bytes(),
-                ),
+                DynamicImage::ImageRgba32F(image) => {
+                    (CAIRO_FORMAT_RGBA128F, premultiplied(image.into_raw()))
+                }
                 _ => (
                     CAIRO_FORMAT_RGBA128F,
-                    DynamicImage::ImageRgba32F(alpha_premultiply(image.into_rgba32f()))
-                        .into_bytes(),
+                    premultiplied(image.into_rgba32f().into_raw()),
                 ),
             },
             Cow::Borrowed(image) => match image {
                 DynamicImage::ImageRgb32F(_) => (
                     CAIRO_FORMAT_RGB96F,
-                    DynamicImage::ImageRgb32F(image.to_rgb32f()).into_bytes(),
+                    bytemuck::cast_vec(image.to_rgb32f().into_raw()),
                 ),
                 DynamicImage::ImageRgb8(_) | DynamicImage::ImageRgb16(_) => (
                     CAIRO_FORMAT_RGB96F,
-                    DynamicImage::ImageRgb32F(image.to_rgb32f()).into_bytes(),
+                    bytemuck::cast_vec(image.to_rgb32f().into_raw()),
+                ),
+                DynamicImage::ImageRgba32F(_) => (
+                    CAIRO_FORMAT_RGBA128F,
+                    premultiplied(image.to_rgba32f().into_raw()),
                 ),
                 _ => (
                     CAIRO_FORMAT_RGBA128F,
-                    DynamicImage::ImageRgba32F(alpha_premultiply(image.to_rgba32f())).into_bytes(),
+                    premultiplied(image.to_rgba32f().into_raw()),
                 ),
             },
         };
@@ -740,37 +724,10 @@ impl DrawingImage {
         Ok(Self(surface))
     }
 
+    #[allow(deprecated)]
     pub(crate) fn from_texture(texture: &Texture) -> Result<Self> {
-        const CAIRO_FORMAT_RGBA128F: Format = Format::__Unknown(7);
-
-        let width = texture.width();
-        let height = texture.height();
-        let stride = width as usize * 4;
-        let mut data = vec![0; stride * height as usize];
-        texture.download(&mut data, stride);
-
-        // `download` returns premultiplied Cairo ARGB32 data (native-endian).
-        let mut buffer = Vec::with_capacity(stride * height as usize * 4);
-        for pixel in data.as_chunks::<4>().0 {
-            let value = u32::from_ne_bytes(*pixel);
-            let a = ((value >> 24) & 0xff) as f32 / 255.0;
-            let r = ((value >> 16) & 0xff) as f32 / 255.0;
-            let g = ((value >> 8) & 0xff) as f32 / 255.0;
-            let b = (value & 0xff) as f32 / 255.0;
-            for c in [r, g, b, a] {
-                buffer.extend_from_slice(&c.to_ne_bytes());
-            }
-        }
-
-        let stride = CAIRO_FORMAT_RGBA128F.stride_for_width(width as _)?;
-        let surface = ImageSurface::create_for_data(
-            buffer,
-            CAIRO_FORMAT_RGBA128F,
-            width,
-            height,
-            stride as _,
-        )?;
-        Ok(Self(surface))
+        let pixbuf = gdk::pixbuf_get_from_texture(texture).ok_or(Error::NullPointer)?;
+        Self::new(Cow::Owned(pixbuf_to_dynamic_image(&pixbuf)?))
     }
 
     /// Create an empty image filled with transparent pixels.
@@ -796,60 +753,47 @@ impl DrawingImage {
         })
     }
 
+    #[allow(deprecated)]
     fn to_texture(&self) -> Result<Texture> {
-        let width = self.0.width();
-        let height = self.0.height();
-        let stride = width as usize * 4;
-        let mut buffer = None;
-        self.0.with_data(|data| {
-            buffer = rgba8_from_f32(data, self.0.format(), self.0.stride() as _, width, height);
-        })?;
-        let buffer = buffer.ok_or(Error::NotSupported)?;
-        let bytes = Bytes::from_owned(buffer);
-        let texture = MemoryTexture::new(
-            width,
-            height,
-            MemoryFormat::R8g8b8a8Premultiplied,
-            &bytes,
-            stride,
-        );
-        Ok(texture.upcast())
+        let pixbuf = self.surface_pixbuf()?;
+        Ok(Texture::for_pixbuf(&pixbuf))
     }
 
     fn to_dynamic_image(&self) -> Result<DynamicImage> {
+        const CAIRO_FORMAT_RGB96F: Format = Format::__Unknown(6);
+        const CAIRO_FORMAT_RGBA128F: Format = Format::__Unknown(7);
+
         let width = self.0.width() as u32;
         let height = self.0.height() as u32;
         let stride = self.0.stride() as usize;
-        let mut image = None;
+        let (row, alpha) = match self.0.format() {
+            CAIRO_FORMAT_RGB96F => (width as usize * 12, false),
+            CAIRO_FORMAT_RGBA128F => (width as usize * 16, true),
+            _ => return Err(Error::NotSupported),
+        };
+        let mut pixels = None;
         self.0.with_data(|data| {
-            image = match self.0.format() {
-                CAIRO_FORMAT_RGB96F => Some(DynamicImage::ImageRgb32F(
-                    ImageBuffer::<Rgb<f32>, Vec<f32>>::from_raw(
-                        width,
-                        height,
-                        f32_rows(data, stride, width as usize * 12, height as usize),
-                    )
-                    .expect("invalid image buffer"),
-                )),
-                CAIRO_FORMAT_RGBA128F => {
-                    let mut pixels = f32_rows(data, stride, width as usize * 16, height as usize);
-                    for pixel in pixels.as_chunks_mut::<4>().0 {
-                        let a = pixel[3];
-                        if a != 0.0 && a != 1.0 {
-                            pixel[0] /= a;
-                            pixel[1] /= a;
-                            pixel[2] /= a;
-                        }
-                    }
-                    Some(DynamicImage::ImageRgba32F(
-                        ImageBuffer::<Rgba<f32>, Vec<f32>>::from_raw(width, height, pixels)
-                            .expect("invalid image buffer"),
-                    ))
-                }
-                _ => None,
-            };
+            pixels = Some(packed_rows::<f32>(data, stride, row, height as usize));
         })?;
-        image.ok_or(Error::NotSupported)
+        let mut pixels = pixels.ok_or(Error::NotSupported)?;
+        if alpha {
+            unpremultiply_rgba_f32(&mut pixels);
+            Ok(DynamicImage::ImageRgba32F(
+                ImageBuffer::<Rgba<f32>, Vec<f32>>::from_raw(width, height, pixels)
+                    .expect("invalid image buffer"),
+            ))
+        } else {
+            Ok(DynamicImage::ImageRgb32F(
+                ImageBuffer::<Rgb<f32>, Vec<f32>>::from_raw(width, height, pixels)
+                    .expect("invalid image buffer"),
+            ))
+        }
+    }
+
+    #[allow(deprecated)]
+    fn surface_pixbuf(&self) -> Result<Pixbuf> {
+        gdk::pixbuf_get_from_surface(self.0.as_ref(), 0, 0, self.0.width(), self.0.height())
+            .ok_or(Error::NullPointer)
     }
 
     pub fn size(&self) -> Result<Size> {
@@ -857,71 +801,31 @@ impl DrawingImage {
     }
 }
 
-const CAIRO_FORMAT_RGB96F: Format = Format::__Unknown(6);
-const CAIRO_FORMAT_RGBA128F: Format = Format::__Unknown(7);
-
-/// Read the rows of a premultiplied float surface as `f32`.
-fn f32_rows(data: &[u8], stride: usize, row: usize, height: usize) -> Vec<f32> {
-    let mut out = Vec::with_capacity(row / 4 * height);
-    if stride == row {
-        for chunk in data[..row * height].as_chunks::<4>().0 {
-            out.push(f32::from_ne_bytes(*chunk));
-        }
-    } else {
-        for line in data.chunks_exact(stride).take(height) {
-            for chunk in line[..row].as_chunks::<4>().0 {
-                out.push(f32::from_ne_bytes(*chunk));
-            }
-        }
-    }
-    out
+/// Premultiply the alpha channel and reinterpret the pixels as bytes.
+fn premultiplied(mut pixels: Vec<f32>) -> Vec<u8> {
+    premultiply_rgba_f32(&mut pixels);
+    bytemuck::cast_vec(pixels)
 }
 
-/// Convert a premultiplied float surface to premultiplied RGBA8.
-fn rgba8_from_f32(
-    data: &[u8],
-    format: Format,
-    stride: usize,
-    width: i32,
-    height: i32,
-) -> Option<Vec<u8>> {
-    let channels = match format {
-        CAIRO_FORMAT_RGB96F => 3,
-        CAIRO_FORMAT_RGBA128F => 4,
-        _ => return None,
-    };
-    let width = width as usize;
-    let height = height as usize;
-    let row = width * channels * 4;
-    let mut out = Vec::with_capacity(width * 4 * height);
-    let mut push = |data: &[u8]| {
-        let r = f32::from_ne_bytes(data[0..4].try_into().unwrap()).clamp(0.0, 1.0);
-        let g = f32::from_ne_bytes(data[4..8].try_into().unwrap()).clamp(0.0, 1.0);
-        let b = f32::from_ne_bytes(data[8..12].try_into().unwrap()).clamp(0.0, 1.0);
-        let a = if channels == 4 {
-            f32::from_ne_bytes(data[12..16].try_into().unwrap()).clamp(0.0, 1.0)
-        } else {
-            1.0
-        };
-        out.extend_from_slice(&[
-            (r * 255.0).round() as u8,
-            (g * 255.0).round() as u8,
-            (b * 255.0).round() as u8,
-            (a * 255.0).round() as u8,
-        ]);
-    };
-    if stride == row {
-        for pixel in data[..row * height].chunks_exact(channels * 4) {
-            push(pixel);
-        }
-    } else {
-        for line in data.chunks_exact(stride).take(height) {
-            for pixel in line[..row].chunks_exact(channels * 4) {
-                push(pixel);
-            }
-        }
-    }
-    Some(out)
+fn pixbuf_to_dynamic_image(pixbuf: &Pixbuf) -> Result<DynamicImage> {
+    let width = pixbuf.width() as u32;
+    let height = pixbuf.height() as u32;
+    let channels = pixbuf.n_channels() as usize;
+    let data = packed_rows::<u8>(
+        pixbuf.read_pixel_bytes().as_ref(),
+        pixbuf.rowstride() as usize,
+        width as usize * channels,
+        height as usize,
+    );
+    Ok(match channels {
+        3 => DynamicImage::ImageRgb8(
+            RgbImage::from_raw(width, height, data).ok_or(Error::NullPointer)?,
+        ),
+        4 => DynamicImage::ImageRgba8(
+            RgbaImage::from_raw(width, height, data).ok_or(Error::NullPointer)?,
+        ),
+        _ => return Err(Error::NotSupported),
+    })
 }
 
 impl TryFrom<&DrawingImage> for Image {

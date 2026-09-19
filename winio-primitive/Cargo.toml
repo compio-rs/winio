@@ -9,5 +9,6 @@ repository = { workspace = true }
 
 [dependencies]
 bitflags = { workspace = true }
+bytemuck = { workspace = true }
 euclid = "0.22"
 rgb = "0.8"
