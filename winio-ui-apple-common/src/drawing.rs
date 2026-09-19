@@ -20,8 +20,8 @@ use objc2_core_text::{
 };
 use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
 use winio_primitive::{
-    BrushPen, Color, Font, GradientStop, LinearGradientBrush, Point, RadialGradientBrush, Rect,
-    RelativePoint, Size, SolidColorBrush,
+    BitmapSize, BrushPen, Color, Font, GradientStop, LinearGradientBrush, Point,
+    RadialGradientBrush, Rect, RelativePoint, Size, SolidColorBrush,
 };
 
 use crate::{Error, Result, TollFreeBridge};
@@ -227,7 +227,10 @@ impl DrawAction {
                         CGContext::clip_to_rect(Some(context), *rect);
                         *clip
                     } else {
-                        to_cgrect(image.size.into())
+                        to_cgrect(Rect::from_size(Size::new(
+                            image.size.width as f64,
+                            image.size.height as f64,
+                        )))
                     };
                     let scalex = rect.size.width / clip.size.width;
                     let scaley = rect.size.height / clip.size.height;
@@ -236,7 +239,10 @@ impl DrawAction {
                             rect.origin.x - clip.origin.x * scalex,
                             rect.origin.y - clip.origin.y * scaley,
                         ),
-                        NSSize::new(image.size.width * scalex, image.size.height * scaley),
+                        NSSize::new(
+                            image.size.width as f64 * scalex,
+                            image.size.height as f64 * scaley,
+                        ),
                     );
                     CGContext::draw_image(Some(context), real_rect, Some(cg_image));
                 }
@@ -496,14 +502,14 @@ impl<B: Brush> Pen for BrushPen<B> {
 #[derive(Debug, Clone)]
 pub struct DrawingImage {
     image: CFRetained<CGImage>,
-    size: Size,
+    size: BitmapSize,
 }
 
 impl DrawingImage {
     pub fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
         let width = image.width();
         let height = image.height();
-        let size = Size::new(width as f64, height as f64);
+        let size = BitmapSize::new(width as usize, height as usize);
         let buffer: Cow<'_, [u8]> = match image {
             Cow::Owned(DynamicImage::ImageRgba8(image)) => Cow::Owned(image.into_raw()),
             Cow::Borrowed(DynamicImage::ImageRgba8(image)) => Cow::Borrowed(image.as_raw()),
@@ -530,7 +536,7 @@ impl DrawingImage {
         Ok(Self { image, size })
     }
 
-    pub fn size(&self) -> Result<Size> {
+    pub fn size(&self) -> Result<BitmapSize> {
         Ok(self.size)
     }
 

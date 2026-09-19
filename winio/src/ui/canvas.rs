@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use image::DynamicImage;
-use winio_primitive::{Font, Point, Rect, RelativePoint, Size, Transform};
+use winio_primitive::{BitmapRect, BitmapSize, Font, Point, Rect, RelativePoint, Size, Transform};
 
 use crate::{sys, sys::Result};
 
@@ -19,8 +19,8 @@ impl<P: sys::Pen> Pen for P {}
 pub struct DrawingImage(pub(crate) sys::DrawingImage);
 
 impl DrawingImage {
-    /// Size of the image.
-    pub fn size(&self) -> Result<Size> {
+    /// Size of the image, in pixels.
+    pub fn size(&self) -> Result<BitmapSize> {
         self.0.size()
     }
 
@@ -181,22 +181,25 @@ impl<'a> DrawingContext<'a> {
         Ok(DrawingImage(self.0.create_image(Cow::Borrowed(image))?))
     }
 
-    /// Create an empty [`DrawingImage`] with the specified size.
-    pub fn create_image_empty(&self, size: Size) -> Result<DrawingImage> {
-        Ok(DrawingImage(self.0.create_image_empty(fix_size(size))?))
+    /// Create an empty [`DrawingImage`] with the specified size, in pixels.
+    pub fn create_image_empty(&self, size: BitmapSize) -> Result<DrawingImage> {
+        let (width, height) = (size.width.max(1), size.height.max(1));
+        Ok(DrawingImage(
+            self.0.create_image_empty(BitmapSize::new(width, height))?,
+        ))
     }
 
     /// Draw a [`DrawingImage`].
     ///
     /// - `rect`: Destination region on the canvas where the image will be
     ///   drawn.
-    /// - `clip`: If specified, only the selected portion of the image is
-    ///   rendered.
+    /// - `clip`: If specified, only the selected portion of the image, in
+    ///   pixels, is rendered.
     pub fn draw_image(
         &mut self,
         image: &DrawingImage,
         rect: Rect,
-        clip: Option<Rect>,
+        clip: Option<BitmapRect>,
     ) -> Result<()> {
         self.0.draw_image(&image.0, fix_rect(rect), clip)
     }

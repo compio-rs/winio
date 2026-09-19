@@ -19,7 +19,7 @@ use objc2_foundation::{MainThreadMarker, NSRect, NSSize};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{
-    Font, KeyCode, MouseButton, Point, Rect, RelativePoint, Size, Transform, Vector,
+    BitmapRect, Font, KeyCode, MouseButton, Point, Rect, RelativePoint, Size, Transform, Vector,
 };
 
 use crate::{
@@ -473,11 +473,20 @@ impl DrawingContext<'_> {
         &mut self,
         image_rep: &DrawingImage,
         rect: Rect,
-        clip: Option<Rect>,
+        clip: Option<BitmapRect>,
     ) -> Result<()> {
         let rect = transform_rect(self.size, rect);
         let image_size = image_rep.size()?;
-        let clip = clip.map(|clip| transform_rect(image_size, clip));
+        let image_size = Size::new(image_size.width as f64, image_size.height as f64);
+        let clip = clip.map(|clip| {
+            transform_rect(
+                image_size,
+                Rect::new(
+                    Point::new(clip.origin.x as f64, clip.origin.y as f64),
+                    Size::new(clip.size.width as f64, clip.size.height as f64),
+                ),
+            )
+        });
         self.actions
             .push(DrawAction::Image(image_rep.clone(), rect, clip));
         Ok(())

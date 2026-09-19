@@ -24,7 +24,8 @@ use objc2_ui_kit::{
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{
-    ColorTheme, Font, KeyCode, MouseButton, Point, Rect, RelativePoint, Size, Transform, Vector,
+    BitmapRect, ColorTheme, Font, KeyCode, MouseButton, Point, Rect, RelativePoint, Size,
+    Transform, Vector,
 };
 
 use crate::{
@@ -485,10 +486,15 @@ impl DrawingContext<'_> {
         &mut self,
         image_rep: &DrawingImage,
         rect: Rect,
-        clip: Option<Rect>,
+        clip: Option<BitmapRect>,
     ) -> Result<()> {
         let rect = transform_rect(self.size, rect);
-        let clip = clip.map(to_cgrect);
+        let clip = clip.map(|clip| {
+            to_cgrect(Rect::new(
+                Point::new(clip.origin.x as f64, clip.origin.y as f64),
+                Size::new(clip.size.width as f64, clip.size.height as f64),
+            ))
+        });
         self.actions
             .push(DrawAction::Image(image_rep.clone(), rect, clip));
         Ok(())

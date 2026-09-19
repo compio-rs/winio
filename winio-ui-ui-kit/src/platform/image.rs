@@ -20,11 +20,11 @@ impl Image {
     }
 
     pub(crate) fn uiimage(&self, height: Option<f64>) -> Result<Retained<UIImage>> {
-        let size = self.0.size()?;
+        let image_height = self.0.size()?.height as f64;
         catch(|| {
             let cgimage = self.0.cgimage();
             let image = if let Some(height) = height {
-                let scale = size.height / height;
+                let scale = image_height / height;
                 UIImage::imageWithCGImage_scale_orientation(cgimage, scale, UIImageOrientation::Up)
             } else {
                 UIImage::imageWithCGImage(cgimage)

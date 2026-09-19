@@ -4,8 +4,8 @@ use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
 use winio_primitive::{
-    BrushPen, Font, KeyCode, LinearGradientBrush, MouseButton, Point, RadialGradientBrush, Rect,
-    RelativePoint, Size, SolidColorBrush, Transform, Vector,
+    BitmapRect, BitmapSize, BrushPen, Font, KeyCode, LinearGradientBrush, MouseButton, Point,
+    RadialGradientBrush, Rect, RelativePoint, Size, SolidColorBrush, Transform, Vector,
 };
 
 use crate::{Result, Widget, not_impl};
@@ -184,7 +184,7 @@ impl DrawingContext<'_> {
         not_impl()
     }
 
-    pub fn create_image_empty(&self, _size: Size) -> Result<DrawingImage> {
+    pub fn create_image_empty(&self, _size: BitmapSize) -> Result<DrawingImage> {
         not_impl()
     }
 
@@ -192,7 +192,7 @@ impl DrawingContext<'_> {
         &mut self,
         _image: &DrawingImage,
         _rect: Rect,
-        _clip: Option<Rect>,
+        _clip: Option<BitmapRect>,
     ) -> Result<()> {
         not_impl()
     }
@@ -205,7 +205,7 @@ impl DrawingContext<'_> {
 pub struct DrawingImage;
 
 impl DrawingImage {
-    pub fn size(&self) -> Result<Size> {
+    pub fn size(&self) -> Result<BitmapSize> {
         not_impl()
     }
 

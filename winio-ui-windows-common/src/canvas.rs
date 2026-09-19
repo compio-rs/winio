@@ -37,9 +37,9 @@ use windows::Win32::Graphics::{
 };
 use windows_core::Interface;
 use winio_primitive::{
-    BrushPen, Color, Font, GradientStop, LinearGradientBrush, Point, RadialGradientBrush, Rect,
-    RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform, Vector,
-    to_premultiplied_bgra8, to_straight_rgba8,
+    BitmapRect, BitmapSize, BrushPen, Color, Font, GradientStop, LinearGradientBrush, Point,
+    RadialGradientBrush, Rect, RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush,
+    Transform, Vector, to_premultiplied_bgra8, to_straight_rgba8,
 };
 
 use crate::{Error, Result};
@@ -73,6 +73,15 @@ fn rect_f(r: Rect) -> D2D_RECT_F {
         top: r.origin.y as f32,
         right: (r.origin.x + r.size.width) as f32,
         bottom: (r.origin.y + r.size.height) as f32,
+    }
+}
+
+fn bitmap_rect_f(r: BitmapRect) -> D2D_RECT_F {
+    D2D_RECT_F {
+        left: r.origin.x as f32,
+        top: r.origin.y as f32,
+        right: r.max_x() as f32,
+        bottom: r.max_y() as f32,
     }
 }
 
@@ -463,7 +472,7 @@ impl<'a> DrawingContext<'a> {
         DrawingImage::new(&self.d2d, &self.dwrite, &self.target, image)
     }
 
-    pub fn create_image_empty(&self, size: Size) -> Result<DrawingImage> {
+    pub fn create_image_empty(&self, size: BitmapSize) -> Result<DrawingImage> {
         DrawingImage::new_empty(&self.d2d, &self.dwrite, &self.target, size)
     }
 
@@ -487,10 +496,10 @@ impl<'a> DrawingContext<'a> {
         &mut self,
         image: &DrawingImage,
         rect: Rect,
-        clip: Option<Rect>,
+        clip: Option<BitmapRect>,
     ) -> Result<()> {
         unsafe {
-            let clip = clip.map(rect_f);
+            let clip = clip.map(bitmap_rect_f);
             self.target.DrawBitmap(
                 &*image.get_bitmap(&self.target)?,
                 Some(&rect_f(rect)),
@@ -771,10 +780,10 @@ impl DrawingImage {
         d2d: &ID2D1Factory,
         dwrite: &IDWriteFactory,
         target: &ID2D1RenderTarget,
-        size: Size,
+        size: BitmapSize,
     ) -> Result<Self> {
-        let width = size.width.round().max(1.0) as u32;
-        let height = size.height.round().max(1.0) as u32;
+        let width = size.width as u32;
+        let height = size.height as u32;
         let bitmap = crate::runtime::with_wic_factory(|wic| unsafe {
             wic.CreateBitmap(
                 width,
@@ -883,9 +892,9 @@ impl DrawingImage {
         ))
     }
 
-    pub fn size(&self) -> Result<Size> {
+    pub fn size(&self) -> Result<BitmapSize> {
         let (width, height) = self.dimensions()?;
-        Ok(Size::new(width as _, height as _))
+        Ok(BitmapSize::new(width as usize, height as usize))
     }
 
     fn dimensions(&self) -> Result<(u32, u32)> {

@@ -36,6 +36,16 @@ pub type RelativeSize = Size2D<f64, RelativeSpace>;
 /// Transform from the relative space to the logical space.
 pub type RelativeToLogical = Transform2D<f64, RelativeSpace, LogicalSpace>;
 
+/// The bitmap space.
+pub struct BitmapSpace;
+
+/// Bitmap point.
+pub type BitmapPoint = Point2D<usize, BitmapSpace>;
+/// Bitmap size.
+pub type BitmapSize = Size2D<usize, BitmapSpace>;
+/// Bitmap rectangle.
+pub type BitmapRect = euclid::Rect<usize, BitmapSpace>;
+
 /// Color theme of application.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[non_exhaustive]

@@ -22,13 +22,14 @@ impl Image {
 
     pub(crate) fn nsimage(&self, height: Option<f64>) -> Result<Retained<NSImage>> {
         let size = self.0.size()?;
+        let size = NSSize::new(size.width as f64, size.height as f64);
         catch(|| {
             let cgimage = self.0.cgimage();
             let size = if let Some(height) = height {
                 let scale = height / size.height;
                 NSSize::new(size.width * scale, size.height * scale)
             } else {
-                NSSize::new(size.width, size.height)
+                size
             };
             NSImage::initWithCGImage_size(NSImage::alloc(), cgimage, size)
         })

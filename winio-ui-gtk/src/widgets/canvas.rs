@@ -27,9 +27,9 @@ use pangocairo::functions::show_layout;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{
-    BrushPen, Font, KeyCode, LinearGradientBrush, MouseButton, Point, RadialGradientBrush, Rect,
-    RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform, Vector,
-    packed_rows, premultiply_rgba_f32, unpremultiply_rgba_f32,
+    BitmapRect, BitmapSize, BrushPen, Font, KeyCode, LinearGradientBrush, MouseButton, Point,
+    RadialGradientBrush, Rect, RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush,
+    Transform, Vector, packed_rows, premultiply_rgba_f32, unpremultiply_rgba_f32,
 };
 
 use crate::{Error, GlobalRuntime, Image, Result, platform::Keyboard, widgets::Widget};
@@ -471,7 +471,7 @@ impl DrawingContext<'_> {
         DrawingImage::new(image)
     }
 
-    pub fn create_image_empty(&self, size: Size) -> Result<DrawingImage> {
+    pub fn create_image_empty(&self, size: BitmapSize) -> Result<DrawingImage> {
         DrawingImage::new_empty(size)
     }
 
@@ -479,7 +479,7 @@ impl DrawingContext<'_> {
         &mut self,
         image: &DrawingImage,
         rect: Rect,
-        clip: Option<Rect>,
+        clip: Option<BitmapRect>,
     ) -> Result<()> {
         self.ctx.save()?;
 
@@ -493,16 +493,16 @@ impl DrawingContext<'_> {
             self.ctx.clip();
             clip
         } else {
-            image.size()?.into()
+            BitmapRect::from(image.size()?)
         };
 
         self.ctx.new_path();
-        let scalex = rect.width() / clip.width();
-        let scaley = rect.height() / clip.height();
+        let scalex = rect.width() / clip.width() as f64;
+        let scaley = rect.height() / clip.height() as f64;
         self.ctx.translate(rect.origin.x, rect.origin.y);
         self.ctx.scale(scalex, scaley);
         self.ctx
-            .set_source_surface(&image.0, -clip.origin.x, -clip.origin.y)?;
+            .set_source_surface(&image.0, -(clip.origin.x as f64), -(clip.origin.y as f64))?;
         self.ctx.paint()?;
         self.ctx.restore()?;
         Ok(())
@@ -730,11 +730,11 @@ impl DrawingImage {
     }
 
     /// Create an empty image filled with transparent pixels.
-    pub(crate) fn new_empty(size: Size) -> Result<Self> {
+    pub(crate) fn new_empty(size: BitmapSize) -> Result<Self> {
         const CAIRO_FORMAT_RGBA128F: Format = Format::__Unknown(7);
 
-        let width = size.width.round().max(1.0) as i32;
-        let height = size.height.round().max(1.0) as i32;
+        let width = size.width as i32;
+        let height = size.height as i32;
         let stride = CAIRO_FORMAT_RGBA128F.stride_for_width(width as _)?;
         let buffer = F32Buffer::zeroed(stride as usize * height as usize);
         let surface =
@@ -795,8 +795,11 @@ impl DrawingImage {
             .ok_or(Error::NullPointer)
     }
 
-    pub fn size(&self) -> Result<Size> {
-        Ok(Size::new(self.0.width() as _, self.0.height() as _))
+    pub fn size(&self) -> Result<BitmapSize> {
+        Ok(BitmapSize::new(
+            self.0.width() as usize,
+            self.0.height() as usize,
+        ))
     }
 }
 

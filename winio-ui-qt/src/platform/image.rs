@@ -2,7 +2,7 @@ use std::{borrow::Cow, fmt, rc::Rc};
 
 use cxx::{ExternType, UniquePtr, type_id};
 use image::{DynamicImage, ImageBuffer, Pixel, Rgb, RgbImage, Rgba, RgbaImage};
-use winio_primitive::{Size, packed_rows};
+use winio_primitive::{BitmapSize, packed_rows};
 
 use crate::{DrawingContext, Error, Result};
 
@@ -60,9 +60,9 @@ impl ImageData {
     }
 
     /// Create an image filled with transparent pixels.
-    fn new_empty(size: Size) -> Result<Self> {
-        let width = size.width.round().max(1.0) as i32;
-        let height = size.height.round().max(1.0) as i32;
+    fn new_empty(size: BitmapSize) -> Result<Self> {
+        let width = size.width as i32;
+        let height = size.height as i32;
         Ok(Self {
             buffer: Vec::new(),
             image: ffi::new_image_empty(width, height, QImageFormat::RGBA8888)?,
@@ -136,9 +136,9 @@ impl ImageData {
         })
     }
 
-    fn size(&self) -> Result<Size> {
+    fn size(&self) -> Result<BitmapSize> {
         let size = self.image.size()?;
-        Ok(Size::new(size.width as _, size.height as _))
+        Ok(BitmapSize::new(size.width as usize, size.height as usize))
     }
 
     fn as_qimage(&self) -> &ffi::QImage {
@@ -165,7 +165,7 @@ impl DrawingImage {
         Ok(Self(Rc::new(ImageData::new(image)?)))
     }
 
-    pub(crate) fn new_empty(size: Size) -> Result<Self> {
+    pub(crate) fn new_empty(size: BitmapSize) -> Result<Self> {
         Ok(Self(Rc::new(ImageData::new_empty(size)?)))
     }
 
@@ -173,7 +173,7 @@ impl DrawingImage {
         self.0.to_dynamic_image()
     }
 
-    pub fn size(&self) -> Result<Size> {
+    pub fn size(&self) -> Result<BitmapSize> {
         self.0.size()
     }
 

@@ -12,9 +12,9 @@ use jni_min_helper::{DynamicProxy, JBoolean};
 use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{
-    BrushPen, Font, GradientStop, KeyCode, LinearGradientBrush, MouseButton, Point,
-    RadialGradientBrush, Rect, RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform,
-    Vector,
+    BitmapRect, BitmapSize, BrushPen, Font, GradientStop, KeyCode, LinearGradientBrush,
+    MouseButton, Point, RadialGradientBrush, Rect, RelativePoint, RelativeToLogical, Size,
+    SolidColorBrush, Transform, Vector,
 };
 
 use crate::{
@@ -222,11 +222,11 @@ impl DrawingImage {
         Ok(self.clone())
     }
 
-    pub fn size(&self) -> Result<Size> {
+    pub fn size(&self) -> Result<BitmapSize> {
         vm_exec(|env| {
-            let width = self.bitmap.get_width(env)? as f64;
-            let height = self.bitmap.get_height(env)? as f64;
-            Ok(Size::new(width, height))
+            let width = self.bitmap.get_width(env)? as usize;
+            let height = self.bitmap.get_height(env)? as usize;
+            Ok(BitmapSize::new(width, height))
         })
     }
 
@@ -612,11 +612,11 @@ impl<'a> DrawingContext<'a> {
         &mut self,
         image: &DrawingImage,
         rect: Rect,
-        clip: Option<Rect>,
+        clip: Option<BitmapRect>,
     ) -> Result<()> {
         vm_exec(|env| {
             let size = image.size()?;
-            let clip = clip.unwrap_or_else(|| size.into()).to_box2d();
+            let clip = clip.unwrap_or_else(|| BitmapRect::from(size)).to_box2d();
             let src = ARect::new(
                 env,
                 clip.min.x as _,

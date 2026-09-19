@@ -7,8 +7,9 @@ use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{
-    BrushPen, Color, Font, KeyCode, LinearGradientBrush, MouseButton, Point, RadialGradientBrush,
-    Rect, RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform, Vector,
+    BitmapRect, BitmapSize, BrushPen, Color, Font, KeyCode, LinearGradientBrush, MouseButton,
+    Point, RadialGradientBrush, Rect, RectBox, RelativePoint, RelativeToLogical, Size,
+    SolidColorBrush, Transform, Vector,
 };
 
 use crate::{
@@ -222,9 +223,10 @@ impl<'a> DrawingContext<'a> {
         painter: UniquePtr<ffi::QPainter>,
         image: &'a mut DrawingImage,
     ) -> Result<Self> {
+        let size = image.size()?;
         Ok(Self {
             painter: RefCell::new(painter),
-            size: image.size()?,
+            size: Size::new(size.width as f64, size.height as f64),
             target: ContextTarget::Image(image),
             ended: false,
         })
@@ -446,7 +448,7 @@ impl DrawingContext<'_> {
         DrawingImage::new(image)
     }
 
-    pub fn create_image_empty(&self, size: Size) -> Result<DrawingImage> {
+    pub fn create_image_empty(&self, size: BitmapSize) -> Result<DrawingImage> {
         DrawingImage::new_empty(size)
     }
 
@@ -454,12 +456,16 @@ impl DrawingContext<'_> {
         &mut self,
         image: &DrawingImage,
         rect: Rect,
-        clip: Option<Rect>,
+        clip: Option<BitmapRect>,
     ) -> Result<()> {
         let clip = match clip {
             Some(clip) => clip,
-            None => Rect::new(Point::zero(), image.size()?),
+            None => BitmapRect::from(image.size()?),
         };
+        let clip = Rect::new(
+            Point::new(clip.origin.x as f64, clip.origin.y as f64),
+            Size::new(clip.size.width as f64, clip.size.height as f64),
+        );
         ffi::painter_draw_image(
             self.painter.get_mut().pin_mut(),
             &QRectF(rect),
