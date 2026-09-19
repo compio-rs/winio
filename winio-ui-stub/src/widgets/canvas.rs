@@ -184,6 +184,10 @@ impl DrawingContext<'_> {
         not_impl()
     }
 
+    pub fn create_image_empty(&self, _size: Size) -> Result<DrawingImage> {
+        not_impl()
+    }
+
     pub fn draw_image(
         &mut self,
         _image: &DrawingImage,
@@ -202,6 +206,10 @@ pub struct DrawingImage;
 
 impl DrawingImage {
     pub fn size(&self) -> Result<Size> {
+        not_impl()
+    }
+
+    pub fn context(&mut self) -> Result<DrawingContext<'_>> {
         not_impl()
     }
 }

@@ -23,6 +23,29 @@ impl DrawingImage {
     pub fn size(&self) -> Result<Size> {
         self.0.size()
     }
+
+    /// Get the drawing context for the image.
+    pub fn context(&mut self) -> Result<DrawingContext<'_>> {
+        Ok(DrawingContext::new(self.0.context()?))
+    }
+}
+
+impl TryFrom<&DrawingImage> for DynamicImage {
+    type Error = crate::Error;
+
+    fn try_from(value: &DrawingImage) -> Result<Self> {
+        let image = DynamicImage::try_from(&value.0)?;
+        Ok(image)
+    }
+}
+
+impl TryFrom<DrawingImage> for DynamicImage {
+    type Error = crate::Error;
+
+    fn try_from(value: DrawingImage) -> Result<Self> {
+        let image = DynamicImage::try_from(value.0)?;
+        Ok(image)
+    }
 }
 
 /// Provides the drawing operations of a [`Canvas`](crate::widgets::Canvas).
@@ -156,6 +179,11 @@ impl<'a> DrawingContext<'a> {
     /// Create a [`DrawingContext`]-compatible image from [`DynamicImage`].
     pub fn create_image_from_ref(&self, image: &DynamicImage) -> Result<DrawingImage> {
         Ok(DrawingImage(self.0.create_image(Cow::Borrowed(image))?))
+    }
+
+    /// Create an empty [`DrawingImage`] with the specified size.
+    pub fn create_image_empty(&self, size: Size) -> Result<DrawingImage> {
+        Ok(DrawingImage(self.0.create_image_empty(fix_size(size))?))
     }
 
     /// Draw a [`DrawingImage`].

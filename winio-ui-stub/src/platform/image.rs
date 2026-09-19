@@ -28,3 +28,39 @@ impl TryFrom<&DynamicImage> for Image {
         not_impl()
     }
 }
+
+#[allow(clippy::infallible_try_from)]
+impl TryFrom<&DrawingImage> for Image {
+    type Error = Error;
+
+    fn try_from(_value: &DrawingImage) -> Result<Self> {
+        not_impl()
+    }
+}
+
+#[allow(clippy::infallible_try_from)]
+impl TryFrom<DrawingImage> for Image {
+    type Error = Error;
+
+    fn try_from(_value: DrawingImage) -> Result<Self> {
+        not_impl()
+    }
+}
+
+#[allow(clippy::infallible_try_from)]
+impl TryFrom<&DrawingImage> for DynamicImage {
+    type Error = Error;
+
+    fn try_from(_value: &DrawingImage) -> Result<Self> {
+        not_impl()
+    }
+}
+
+#[allow(clippy::infallible_try_from)]
+impl TryFrom<DrawingImage> for DynamicImage {
+    type Error = Error;
+
+    fn try_from(_value: DrawingImage) -> Result<Self> {
+        not_impl()
+    }
+}

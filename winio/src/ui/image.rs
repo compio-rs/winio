@@ -34,3 +34,21 @@ impl TryFrom<DynamicImage> for Image {
         Ok(Self(image))
     }
 }
+
+impl TryFrom<&DrawingImage> for Image {
+    type Error = crate::Error;
+
+    fn try_from(value: &DrawingImage) -> Result<Self> {
+        let image = sys::Image::try_from(&value.0)?;
+        Ok(Self(image))
+    }
+}
+
+impl TryFrom<DrawingImage> for Image {
+    type Error = crate::Error;
+
+    fn try_from(value: DrawingImage) -> Result<Self> {
+        let image = sys::Image::try_from(value.0)?;
+        Ok(Self(image))
+    }
+}
