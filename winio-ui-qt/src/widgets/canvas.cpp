@@ -137,6 +137,10 @@ std::unique_ptr<QPainter> canvas_new_painter(QWidget &w) {
     return std::make_unique<QPainter>(&c.m_buffer);
 }
 
+std::unique_ptr<QPainter> image_new_painter(QImage &image) {
+    return std::make_unique<QPainter>(&image);
+}
+
 void painter_set_font(QPainter &p, rust::Str family, double size, bool italic,
                       bool bold) {
     auto font = QFont{QString::fromUtf8(family.data(), family.size()), -1,

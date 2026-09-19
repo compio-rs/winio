@@ -11,9 +11,8 @@ use winio_primitive::{
     Rect, RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform, Vector,
 };
 
-pub use crate::platform::Image as DrawingImage;
 use crate::{
-    Error, GlobalRuntime, Result,
+    DrawingImage, Error, GlobalRuntime, Result,
     common::QString,
     platform::{KeyCharCallback, key_code},
     widgets::Widget,
@@ -199,8 +198,14 @@ winio_handle::impl_as_widget!(Canvas, widget);
 pub struct DrawingContext<'a> {
     painter: RefCell<UniquePtr<ffi::QPainter>>,
     size: Size,
-    canvas: &'a mut Canvas,
+    target: ContextTarget<'a>,
     ended: bool,
+}
+
+enum ContextTarget<'a> {
+    Canvas(&'a mut Canvas),
+    /// Keeps the image alive while the painter is active.
+    Image(#[allow(dead_code)] &'a mut DrawingImage),
 }
 
 impl<'a> DrawingContext<'a> {
@@ -208,7 +213,19 @@ impl<'a> DrawingContext<'a> {
         Ok(Self {
             painter: RefCell::new(painter),
             size: canvas.size()?,
-            canvas,
+            target: ContextTarget::Canvas(canvas),
+            ended: false,
+        })
+    }
+
+    pub(crate) fn new_image(
+        painter: UniquePtr<ffi::QPainter>,
+        image: &'a mut DrawingImage,
+    ) -> Result<Self> {
+        Ok(Self {
+            painter: RefCell::new(painter),
+            size: image.size()?,
+            target: ContextTarget::Image(image),
             ended: false,
         })
     }
@@ -236,7 +253,9 @@ impl DrawingContext<'_> {
     fn end(&mut self) -> Result<()> {
         if !self.ended {
             self.painter.get_mut().pin_mut().end()?;
-            self.canvas.widget.pin_mut().update()?;
+            if let ContextTarget::Canvas(canvas) = &mut self.target {
+                canvas.widget.pin_mut().update()?;
+            }
             self.ended = true;
         }
         Ok(())
@@ -427,6 +446,10 @@ impl DrawingContext<'_> {
         DrawingImage::new(image)
     }
 
+    pub fn create_image_empty(&self, size: Size) -> Result<DrawingImage> {
+        DrawingImage::new_empty(size)
+    }
+
     pub fn draw_image(
         &mut self,
         image: &DrawingImage,
@@ -448,6 +471,13 @@ impl DrawingContext<'_> {
 
     pub fn create_path_builder(&self, start: Point) -> Result<DrawingPathBuilder> {
         DrawingPathBuilder::new(start)
+    }
+}
+
+impl DrawingImage {
+    pub fn context(&mut self) -> Result<DrawingContext<'_>> {
+        let painter = ffi::image_new_painter(self.image_mut()?.pin_mut())?;
+        DrawingContext::new_image(painter, self)
     }
 }
 
@@ -883,6 +913,7 @@ mod ffi {
         fn end(self: Pin<&mut QPainter>) -> Result<bool>;
 
         fn canvas_new_painter(w: Pin<&mut QWidget>) -> Result<UniquePtr<QPainter>>;
+        fn image_new_painter(image: Pin<&mut QImage>) -> Result<UniquePtr<QPainter>>;
         fn painter_set_font(
             p: Pin<&mut QPainter>,
             family: &str,

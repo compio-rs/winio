@@ -76,6 +76,7 @@ void canvas_register_key_char_event(
     std::uint8_t const *data);
 
 std::unique_ptr<QPainter> canvas_new_painter(QWidget &w);
+std::unique_ptr<QPainter> image_new_painter(QImage &image);
 void painter_set_font(QPainter &p, rust::Str family, double size, bool italic,
                       bool bold);
 QSizeF painter_measure_text(QPainter &p, QRectF rect, rust::Str text);
