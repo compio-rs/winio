@@ -6,8 +6,7 @@ use std::{cell::RefCell, collections::BTreeMap, mem::MaybeUninit, sync::Mutex};
 use once_cell::sync::OnceCell as OnceLock;
 use widestring::{U16CStr, U16Str};
 use windows::Win32::Graphics::DirectWrite::{
-    DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC,
-    DWRITE_FONT_STYLE_NORMAL, DWriteCreateFactory, IDWriteFactory,
+    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STYLE_NORMAL,
 };
 use windows_core::w;
 use windows_sys::Win32::{
@@ -22,7 +21,7 @@ use windows_sys::Win32::{
     },
 };
 use winio_primitive::{Font, Size};
-use winio_ui_windows_common::syscall;
+use winio_ui_windows_common::{dwrite_factory, syscall};
 
 use super::dpi::{DpiAware, get_dpi_for_window};
 use crate::{Error, Result};
@@ -105,12 +104,6 @@ pub fn default_underline_font(dpi: u32) -> Result<HFONT> {
             Ok(res)
         }
     }
-}
-
-static DWRITE_FACTORY: OnceLock<IDWriteFactory> = OnceLock::new();
-
-pub fn dwrite_factory() -> Result<&'static IDWriteFactory> {
-    DWRITE_FACTORY.get_or_try_init(|| unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED) })
 }
 
 pub fn measure_string(hwnd: HWND, s: &U16Str) -> Result<Size> {

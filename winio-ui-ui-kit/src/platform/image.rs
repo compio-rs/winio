@@ -12,7 +12,7 @@ pub struct Image(DrawingImage);
 
 impl Image {
     pub(crate) fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
-        DrawingImage::new(image).map(Self)
+        DrawingImage::from_image(image).map(Self)
     }
 
     pub fn try_to_drawing(&self, _context: &DrawingContext) -> Result<DrawingImage> {

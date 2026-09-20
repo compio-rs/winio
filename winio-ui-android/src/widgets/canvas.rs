@@ -189,7 +189,19 @@ pub struct DrawingImage {
 }
 
 impl DrawingImage {
-    pub fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
+    /// Create an empty image filled with transparent pixels.
+    pub fn new(size: BitmapSize) -> Result<Self> {
+        vm_exec(|env| {
+            let config = BitmapConfig::ARGB_8888(env)?;
+            let bitmap = Bitmap::create_bitmap(env, size.width as _, size.height as _, &config)?;
+            let bitmap = env.new_global_ref(bitmap)?;
+            Ok(Self {
+                bitmap: Rc::new(bitmap),
+            })
+        })
+    }
+
+    pub(crate) fn from_image(image: Cow<'_, DynamicImage>) -> Result<Self> {
         vm_exec(|env| {
             let rgba: Cow<'_, RgbaImage> = match image {
                 Cow::Owned(DynamicImage::ImageRgba8(image)) => Cow::Owned(image),
@@ -212,18 +224,6 @@ impl DrawingImage {
             let config = BitmapConfig::ARGB_8888(env)?;
             let bitmap = Bitmap::create_bitmap(env, width as _, height as _, &config)?;
             bitmap.set_pixels(env, &jcolors, 0, width as _, 0, 0, width as _, height as _)?;
-            let bitmap = env.new_global_ref(bitmap)?;
-            Ok(Self {
-                bitmap: Rc::new(bitmap),
-            })
-        })
-    }
-
-    /// Create an empty image filled with transparent pixels.
-    pub(crate) fn new_empty(size: BitmapSize) -> Result<Self> {
-        vm_exec(|env| {
-            let config = BitmapConfig::ARGB_8888(env)?;
-            let bitmap = Bitmap::create_bitmap(env, size.width as _, size.height as _, &config)?;
             let bitmap = env.new_global_ref(bitmap)?;
             Ok(Self {
                 bitmap: Rc::new(bitmap),
@@ -295,7 +295,7 @@ impl TryFrom<DynamicImage> for DrawingImage {
     type Error = Error;
 
     fn try_from(value: DynamicImage) -> Result<Self> {
-        Self::new(Cow::Owned(value))
+        Self::from_image(Cow::Owned(value))
     }
 }
 
@@ -303,7 +303,7 @@ impl TryFrom<&DynamicImage> for DrawingImage {
     type Error = Error;
 
     fn try_from(value: &DynamicImage) -> Result<Self> {
-        Self::new(Cow::Borrowed(value))
+        Self::from_image(Cow::Borrowed(value))
     }
 }
 
@@ -686,11 +686,7 @@ impl<'a> DrawingContext<'a> {
     }
 
     pub fn create_image(&self, image: Cow<'_, DynamicImage>) -> Result<DrawingImage> {
-        DrawingImage::new(image)
-    }
-
-    pub fn create_image_empty(&self, size: BitmapSize) -> Result<DrawingImage> {
-        DrawingImage::new_empty(size)
+        DrawingImage::from_image(image)
     }
 
     pub fn draw_image(

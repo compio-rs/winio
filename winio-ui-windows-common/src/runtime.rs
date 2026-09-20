@@ -7,6 +7,7 @@ use once_cell::{sync::OnceCell as OnceLock, unsync::OnceCell};
 use windows::Win32::{
     Graphics::{
         Direct2D::{D2D1_FACTORY_TYPE_MULTI_THREADED, D2D1CreateFactory, ID2D1Factory2},
+        DirectWrite::{DWRITE_FACTORY_TYPE_SHARED, DWriteCreateFactory, IDWriteFactory},
         Imaging::{CLSID_WICImagingFactory, IWICImagingFactory},
     },
     System::Com::{
@@ -20,6 +21,12 @@ static D2D1_FACTORY: OnceLock<ID2D1Factory2> = OnceLock::new();
 pub fn d2d1_factory() -> crate::Result<&'static ID2D1Factory2> {
     D2D1_FACTORY
         .get_or_try_init(|| unsafe { D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, None) })
+}
+
+static DWRITE_FACTORY: OnceLock<IDWriteFactory> = OnceLock::new();
+
+pub fn dwrite_factory() -> crate::Result<&'static IDWriteFactory> {
+    DWRITE_FACTORY.get_or_try_init(|| unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED) })
 }
 
 struct WICImagingFactory(IWICImagingFactory);

@@ -7,9 +7,9 @@ use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{
-    BitmapRect, BitmapSize, BrushPen, Color, Font, KeyCode, LinearGradientBrush, MouseButton,
-    Point, RadialGradientBrush, Rect, RectBox, RelativePoint, RelativeToLogical, Size,
-    SolidColorBrush, Transform, Vector,
+    BitmapRect, BrushPen, Color, Font, KeyCode, LinearGradientBrush, MouseButton, Point,
+    RadialGradientBrush, Rect, RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush,
+    Transform, Vector,
 };
 
 use crate::{
@@ -445,11 +445,7 @@ impl DrawingContext<'_> {
     }
 
     pub fn create_image(&self, image: Cow<'_, DynamicImage>) -> Result<DrawingImage> {
-        DrawingImage::new(image)
-    }
-
-    pub fn create_image_empty(&self, size: BitmapSize) -> Result<DrawingImage> {
-        DrawingImage::new_empty(size)
+        DrawingImage::from_image(image)
     }
 
     pub fn draw_image(

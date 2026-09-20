@@ -161,12 +161,12 @@ impl Image {
 }
 
 impl DrawingImage {
-    pub(crate) fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
-        Ok(Self(Rc::new(ImageData::new(image)?)))
+    pub fn new(size: BitmapSize) -> Result<Self> {
+        Ok(Self(Rc::new(ImageData::new_empty(size)?)))
     }
 
-    pub(crate) fn new_empty(size: BitmapSize) -> Result<Self> {
-        Ok(Self(Rc::new(ImageData::new_empty(size)?)))
+    pub(crate) fn from_image(image: Cow<'_, DynamicImage>) -> Result<Self> {
+        Ok(Self(Rc::new(ImageData::new(image)?)))
     }
 
     pub(crate) fn to_dynamic_image(&self) -> Result<DynamicImage> {

@@ -42,7 +42,7 @@ use winio_primitive::{
     Transform, Vector, to_premultiplied_bgra8, to_straight_rgba8,
 };
 
-use crate::{Error, Result};
+use crate::{Error, Result, d2d1_factory, dwrite_factory};
 
 fn color_f(c: Color) -> D2D1_COLOR_F {
     D2D1_COLOR_F {
@@ -469,11 +469,7 @@ impl<'a> DrawingContext<'a> {
     }
 
     pub fn create_image(&self, image: Cow<'_, DynamicImage>) -> Result<DrawingImage> {
-        DrawingImage::new(&self.d2d, &self.dwrite, &self.target, image)
-    }
-
-    pub fn create_image_empty(&self, size: BitmapSize) -> Result<DrawingImage> {
-        DrawingImage::new_empty(&self.d2d, &self.dwrite, &self.target, size)
+        DrawingImage::from_image(&self.target, image)
     }
 
     pub fn create_image_from_premultiplied_bgra8(
@@ -482,14 +478,7 @@ impl<'a> DrawingContext<'a> {
         height: u32,
         pixels: &[u8],
     ) -> Result<DrawingImage> {
-        DrawingImage::from_premultiplied_bgra8(
-            &self.d2d,
-            &self.dwrite,
-            &self.target,
-            width,
-            height,
-            pixels,
-        )
+        DrawingImage::from_premultiplied_bgra8(&self.target, width, height, pixels)
     }
 
     pub fn draw_image(
@@ -729,59 +718,19 @@ impl<B: Brush> Pen for BrushPen<B> {
 }
 
 pub struct DrawingImage {
-    d2d: ID2D1Factory,
-    dwrite: IDWriteFactory,
     bitmap: IWICBitmap,
-    target: RefCell<ID2D1RenderTarget>,
-    d2d_bitmap: RefCell<ID2D1Bitmap>,
+    cache: RefCell<Option<DrawingImageCache>>,
     dirty: Cell<bool>,
 }
 
+struct DrawingImageCache {
+    target: ID2D1RenderTarget,
+    bitmap: ID2D1Bitmap,
+}
+
 impl DrawingImage {
-    fn new(
-        d2d: &ID2D1Factory,
-        dwrite: &IDWriteFactory,
-        target: &ID2D1RenderTarget,
-        image: Cow<'_, DynamicImage>,
-    ) -> Result<Self> {
-        let image = match image {
-            Cow::Owned(image) => image.into_rgba8(),
-            Cow::Borrowed(image) => image.to_rgba8(),
-        };
-        let (width, height) = image.dimensions();
-        let mut pixels = image.into_raw();
-        to_premultiplied_bgra8(&mut pixels);
-        Self::from_premultiplied_bgra8(d2d, dwrite, target, width, height, &pixels)
-    }
-
-    /// Create a [`DrawingImage`] from premultiplied BGRA pixels.
-    pub fn from_premultiplied_bgra8(
-        d2d: &ID2D1Factory,
-        dwrite: &IDWriteFactory,
-        target: &ID2D1RenderTarget,
-        width: u32,
-        height: u32,
-        pixels: &[u8],
-    ) -> Result<Self> {
-        let bitmap = crate::runtime::with_wic_factory(|wic| unsafe {
-            wic.CreateBitmapFromMemory(
-                width,
-                height,
-                &GUID_WICPixelFormat32bppPBGRA,
-                width * 4,
-                pixels,
-            )
-        })?;
-        Self::from_bitmap(d2d, dwrite, target, bitmap)
-    }
-
     /// Create an image filled with transparent pixels.
-    pub fn new_empty(
-        d2d: &ID2D1Factory,
-        dwrite: &IDWriteFactory,
-        target: &ID2D1RenderTarget,
-        size: BitmapSize,
-    ) -> Result<Self> {
+    pub fn new(size: BitmapSize) -> Result<Self> {
         let width = size.width as u32;
         let height = size.height as u32;
         let bitmap = crate::runtime::with_wic_factory(|wic| unsafe {
@@ -799,22 +748,51 @@ impl DrawingImage {
             lock.GetDataPointer(&mut size, &mut data)?;
             std::ptr::write_bytes(data, 0, size as usize);
         }
-        Self::from_bitmap(d2d, dwrite, target, bitmap)
+        Self::from_bitmap(None, bitmap)
     }
 
-    fn from_bitmap(
-        d2d: &ID2D1Factory,
-        dwrite: &IDWriteFactory,
+    fn from_image(target: &ID2D1RenderTarget, image: Cow<'_, DynamicImage>) -> Result<Self> {
+        let image = match image {
+            Cow::Owned(image) => image.into_rgba8(),
+            Cow::Borrowed(image) => image.to_rgba8(),
+        };
+        let (width, height) = image.dimensions();
+        let mut pixels = image.into_raw();
+        to_premultiplied_bgra8(&mut pixels);
+        Self::from_premultiplied_bgra8(target, width, height, &pixels)
+    }
+
+    /// Create a [`DrawingImage`] from premultiplied BGRA pixels.
+    pub fn from_premultiplied_bgra8(
         target: &ID2D1RenderTarget,
-        bitmap: IWICBitmap,
+        width: u32,
+        height: u32,
+        pixels: &[u8],
     ) -> Result<Self> {
-        let d2d_bitmap = Self::create_bitmap(target, &bitmap)?;
+        let bitmap = crate::runtime::with_wic_factory(|wic| unsafe {
+            wic.CreateBitmapFromMemory(
+                width,
+                height,
+                &GUID_WICPixelFormat32bppPBGRA,
+                width * 4,
+                pixels,
+            )
+        })?;
+        Self::from_bitmap(Some(target), bitmap)
+    }
+
+    fn from_bitmap(target: Option<&ID2D1RenderTarget>, bitmap: IWICBitmap) -> Result<Self> {
+        let cache = target
+            .map(|target| -> Result<DrawingImageCache> {
+                Ok(DrawingImageCache {
+                    target: target.clone(),
+                    bitmap: Self::create_bitmap(target, &bitmap)?,
+                })
+            })
+            .transpose()?;
         Ok(Self {
-            d2d: d2d.clone(),
-            dwrite: dwrite.clone(),
             bitmap,
-            target: RefCell::new(target.clone()),
-            d2d_bitmap: RefCell::new(d2d_bitmap),
+            cache: RefCell::new(cache),
             dirty: Cell::new(false),
         })
     }
@@ -835,16 +813,28 @@ impl DrawingImage {
     }
 
     fn recreate(&self, target: &ID2D1RenderTarget) -> Result<()> {
-        *self.d2d_bitmap.borrow_mut() = Self::create_bitmap(target, &self.bitmap)?;
-        *self.target.borrow_mut() = target.clone();
+        let bitmap = Self::create_bitmap(target, &self.bitmap)?;
+        *self.cache.borrow_mut() = Some(DrawingImageCache {
+            target: target.clone(),
+            bitmap,
+        });
         Ok(())
     }
 
     pub fn get_bitmap(&self, target: &ID2D1RenderTarget) -> Result<Ref<'_, ID2D1Bitmap>> {
-        if self.dirty.replace(false) || self.target.borrow().as_raw() != target.as_raw() {
+        if self.dirty.replace(false)
+            || self
+                .cache
+                .borrow()
+                .as_ref()
+                .map(|cache| cache.target.as_raw())
+                != Some(target.as_raw())
+        {
             self.recreate(target)?;
         }
-        Ok(self.d2d_bitmap.borrow())
+        Ok(Ref::map(self.cache.borrow(), |cache| {
+            &cache.as_ref().expect("bitmap is created").bitmap
+        }))
     }
 
     pub fn context(&mut self) -> Result<DrawingContext<'_>> {
@@ -859,11 +849,13 @@ impl DrawingImage {
             usage: D2D1_RENDER_TARGET_USAGE_NONE,
             minLevel: D2D1_FEATURE_LEVEL_DEFAULT,
         };
-        let target = unsafe { self.d2d.CreateWicBitmapRenderTarget(&self.bitmap, &prop)? };
+        let d2d = d2d1_factory()?;
+        let dwrite = dwrite_factory()?;
+        let target = unsafe { d2d.CreateWicBitmapRenderTarget(&self.bitmap, &prop)? };
         self.dirty.set(true);
         Ok(DrawingContext::new(
-            self.d2d.clone(),
-            self.dwrite.clone(),
+            d2d.clone().into(),
+            dwrite.clone(),
             target,
             None,
         ))

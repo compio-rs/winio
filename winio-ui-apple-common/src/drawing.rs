@@ -537,7 +537,19 @@ fn create_context(data: &mut [u8], width: usize, height: usize) -> Result<CFReta
 }
 
 impl DrawingImage {
-    pub fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
+    /// Create an empty image filled with transparent pixels.
+    pub fn new(size: BitmapSize) -> Result<Self> {
+        let mut data = vec![0; size.width * size.height * 4];
+        let context = create_context(&mut data, size.width, size.height)?;
+        let image = CGBitmapContextCreateImage(Some(&context)).ok_or(Error::NullPointer)?;
+        Ok(Self {
+            image,
+            size,
+            data: Rc::new(data),
+        })
+    }
+
+    pub fn from_image(image: Cow<'_, DynamicImage>) -> Result<Self> {
         let width = image.width();
         let height = image.height();
         let size = BitmapSize::new(width as usize, height as usize);
@@ -549,18 +561,6 @@ impl DrawingImage {
         };
         premultiply_rgba8(&mut data);
         let context = create_context(&mut data, width as _, height as _)?;
-        let image = CGBitmapContextCreateImage(Some(&context)).ok_or(Error::NullPointer)?;
-        Ok(Self {
-            image,
-            size,
-            data: Rc::new(data),
-        })
-    }
-
-    /// Create an empty image filled with transparent pixels.
-    pub fn new_empty(size: BitmapSize) -> Result<Self> {
-        let mut data = vec![0; size.width * size.height * 4];
-        let context = create_context(&mut data, size.width, size.height)?;
         let image = CGBitmapContextCreateImage(Some(&context)).ok_or(Error::NullPointer)?;
         Ok(Self {
             image,
@@ -892,11 +892,7 @@ impl<'a> DrawingContext<'a> {
     }
 
     pub fn create_image(&self, image: Cow<'_, DynamicImage>) -> Result<DrawingImage> {
-        DrawingImage::new(image)
-    }
-
-    pub fn create_image_empty(&self, size: BitmapSize) -> Result<DrawingImage> {
-        DrawingImage::new_empty(size)
+        DrawingImage::from_image(image)
     }
 
     pub fn draw_image(

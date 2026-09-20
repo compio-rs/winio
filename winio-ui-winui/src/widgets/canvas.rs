@@ -20,7 +20,7 @@ use windows::Win32::{
             D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_SDK_VERSION, D3D11CreateDevice, ID3D11Device,
             ID3D11DeviceContext,
         },
-        DirectWrite::{DWRITE_FACTORY_TYPE_SHARED, DWriteCreateFactory, IDWriteFactory},
+        DirectWrite::IDWriteFactory,
         Dxgi::{
             Common::{DXGI_ALPHA_MODE_PREMULTIPLIED, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_SAMPLE_DESC},
             DXGI_ERROR_DEVICE_REMOVED, DXGI_ERROR_DEVICE_RESET, DXGI_MATRIX_3X2_F,
@@ -37,7 +37,7 @@ use winio_primitive::{ColorTheme, KeyCode, MouseButton, Point, Size, Vector};
 pub use winio_ui_windows_common::{
     Brush, DrawingContext, DrawingImage, DrawingPath, DrawingPathBuilder, Pen,
 };
-use winio_ui_windows_common::{ContextOwner, d2d1_factory};
+use winio_ui_windows_common::{ContextOwner, d2d1_factory, dwrite_factory};
 use winui3::Microsoft::UI::{
     Input::{PointerDeviceType, PointerPointProperties},
     Xaml::{Controls as MUXC, Input as MUXI, Media::DxInterop::ISwapChainPanelNative},
@@ -403,7 +403,7 @@ pub struct Canvas {
 impl Canvas {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let handle = CanvasImpl::new(parent)?;
-        let dwrite = unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED)? };
+        let dwrite = dwrite_factory()?.clone();
         let swap_chain = SwapChain::new()?;
         swap_chain.set_to_panel(&handle)?;
 

@@ -19,6 +19,14 @@ impl<P: sys::Pen> Pen for P {}
 pub struct DrawingImage(pub(crate) sys::DrawingImage);
 
 impl DrawingImage {
+    /// Create an empty [`DrawingImage`] with the specified size, in pixels.
+    pub fn new(size: BitmapSize) -> Result<Self> {
+        let (width, height) = (size.width.max(1), size.height.max(1));
+        Ok(DrawingImage(sys::DrawingImage::new(BitmapSize::new(
+            width, height,
+        ))?))
+    }
+
     /// Size of the image, in pixels.
     pub fn size(&self) -> Result<BitmapSize> {
         self.0.size()
@@ -179,14 +187,6 @@ impl<'a> DrawingContext<'a> {
     /// Create a [`DrawingContext`]-compatible image from [`DynamicImage`].
     pub fn create_image_from_ref(&self, image: &DynamicImage) -> Result<DrawingImage> {
         Ok(DrawingImage(self.0.create_image(Cow::Borrowed(image))?))
-    }
-
-    /// Create an empty [`DrawingImage`] with the specified size, in pixels.
-    pub fn create_image_empty(&self, size: BitmapSize) -> Result<DrawingImage> {
-        let (width, height) = (size.width.max(1), size.height.max(1));
-        Ok(DrawingImage(
-            self.0.create_image_empty(BitmapSize::new(width, height))?,
-        ))
     }
 
     /// Draw a [`DrawingImage`].

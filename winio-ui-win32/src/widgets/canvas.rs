@@ -33,17 +33,13 @@ use windows_sys::Win32::{
 use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{KeyCode, MouseButton, Orient, Point, Size, Vector};
 use winio_ui_windows_common::{
-    Backdrop, ContextOwner, d2d1_factory, is_dark_mode_allowed_for_app, syscall,
+    Backdrop, ContextOwner, d2d1_factory, dwrite_factory, is_dark_mode_allowed_for_app, syscall,
 };
 pub use winio_ui_windows_common::{
     Brush, DrawingContext, DrawingImage, DrawingPath, DrawingPathBuilder, Pen,
 };
 
-use crate::{
-    Result, get_backdrop,
-    platform::{font::dwrite_factory, keyboard::Keyboard},
-    widgets::Widget,
-};
+use crate::{Result, get_backdrop, platform::keyboard::Keyboard, widgets::Widget};
 
 #[derive(Debug)]
 pub(crate) struct CanvasImpl {

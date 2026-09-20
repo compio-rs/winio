@@ -468,11 +468,7 @@ impl DrawingContext<'_> {
     }
 
     pub fn create_image(&self, image: Cow<'_, DynamicImage>) -> Result<DrawingImage> {
-        DrawingImage::new(image)
-    }
-
-    pub fn create_image_empty(&self, size: BitmapSize) -> Result<DrawingImage> {
-        DrawingImage::new_empty(size)
+        DrawingImage::from_image(image)
     }
 
     pub fn draw_image(
@@ -677,7 +673,20 @@ impl<B: Brush> Pen for BrushPen<B> {
 pub struct DrawingImage(ImageSurface);
 
 impl DrawingImage {
-    fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
+    /// Create an empty image filled with transparent pixels.
+    pub fn new(size: BitmapSize) -> Result<Self> {
+        const CAIRO_FORMAT_RGBA128F: Format = Format::__Unknown(7);
+
+        let width = size.width as i32;
+        let height = size.height as i32;
+        let stride = CAIRO_FORMAT_RGBA128F.stride_for_width(width as _)?;
+        let buffer = F32Buffer::zeroed(stride as usize * height as usize);
+        let surface =
+            ImageSurface::create_for_data(buffer, CAIRO_FORMAT_RGBA128F, width, height, stride)?;
+        Ok(Self(surface))
+    }
+
+    fn from_image(image: Cow<'_, DynamicImage>) -> Result<Self> {
         const CAIRO_FORMAT_RGB96F: Format = Format::__Unknown(6);
         const CAIRO_FORMAT_RGBA128F: Format = Format::__Unknown(7);
 
@@ -726,20 +735,7 @@ impl DrawingImage {
     #[allow(deprecated)]
     pub(crate) fn from_texture(texture: &Texture) -> Result<Self> {
         let pixbuf = gdk::pixbuf_get_from_texture(texture).ok_or(Error::NullPointer)?;
-        Self::new(Cow::Owned(pixbuf_to_dynamic_image(&pixbuf)?))
-    }
-
-    /// Create an empty image filled with transparent pixels.
-    pub(crate) fn new_empty(size: BitmapSize) -> Result<Self> {
-        const CAIRO_FORMAT_RGBA128F: Format = Format::__Unknown(7);
-
-        let width = size.width as i32;
-        let height = size.height as i32;
-        let stride = CAIRO_FORMAT_RGBA128F.stride_for_width(width as _)?;
-        let buffer = F32Buffer::zeroed(stride as usize * height as usize);
-        let surface =
-            ImageSurface::create_for_data(buffer, CAIRO_FORMAT_RGBA128F, width, height, stride)?;
-        Ok(Self(surface))
+        Self::from_image(Cow::Owned(pixbuf_to_dynamic_image(&pixbuf)?))
     }
 
     pub fn context(&mut self) -> Result<DrawingContext<'_>> {
