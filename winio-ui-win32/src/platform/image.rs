@@ -19,7 +19,7 @@ use windows_sys::Win32::{
         },
     },
 };
-use winio_primitive::{BitmapSize, Size, to_premultiplied_bgra8};
+use winio_primitive::{BitmapSize, Size};
 
 use super::dpi::{DpiAware, get_dpi_for_window};
 use crate::{DrawingContext, DrawingImage, Result};
@@ -152,7 +152,11 @@ impl Image {
             .into_rgba8();
 
         let mut data = image.into_raw();
-        to_premultiplied_bgra8(&mut data);
+        // `PixelFormat32bppARGB` is straight alpha, so only reorder RGBA to the
+        // BGRA byte order expected by GDI+.
+        for pixel in data.as_chunks_mut::<4>().0 {
+            pixel.swap(0, 2);
+        }
 
         const PixelFormatGDI: i32 = 0x00020000;
         const PixelFormatAlpha: i32 = 0x00040000;
