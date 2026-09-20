@@ -4,8 +4,10 @@ use gtk4::{
     gdk,
     gdk_pixbuf::{Colorspace, Pixbuf},
     glib::Bytes,
+    prelude::TextureExt,
 };
 use image::DynamicImage;
+use winio_primitive::BitmapSize;
 
 use crate::{DrawingContext, DrawingImage, Error, Result};
 
@@ -15,6 +17,13 @@ pub struct Image {
 }
 
 impl Image {
+    pub fn size(&self) -> Result<BitmapSize> {
+        Ok(BitmapSize::new(
+            self.texture.width() as usize,
+            self.texture.height() as usize,
+        ))
+    }
+
     pub(crate) fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
         let image = match image {
             Cow::Owned(image) => image.into_rgba8(),

@@ -19,7 +19,7 @@ use windows_sys::Win32::{
         },
     },
 };
-use winio_primitive::{Size, to_premultiplied_bgra8};
+use winio_primitive::{BitmapSize, Size, to_premultiplied_bgra8};
 
 use super::dpi::{DpiAware, get_dpi_for_window};
 use crate::{DrawingContext, DrawingImage, Result};
@@ -133,6 +133,13 @@ impl Drop for GdipBitmap {
 pub struct Image(Rc<DynamicImage>);
 
 impl Image {
+    pub fn size(&self) -> Result<BitmapSize> {
+        Ok(BitmapSize::new(
+            self.0.width() as usize,
+            self.0.height() as usize,
+        ))
+    }
+
     pub fn try_to_drawing(&self, context: &DrawingContext) -> Result<DrawingImage> {
         context.create_image(Cow::Borrowed(&self.0))
     }

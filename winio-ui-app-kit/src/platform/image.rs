@@ -4,6 +4,7 @@ use image::DynamicImage;
 use objc2::{AnyThread, rc::Retained};
 use objc2_app_kit::NSImage;
 use objc2_foundation::NSSize;
+use winio_primitive::BitmapSize;
 use winio_ui_apple_common::DrawingImage;
 
 use crate::{DrawingContext, Error, Result, catch};
@@ -12,6 +13,10 @@ use crate::{DrawingContext, Error, Result, catch};
 pub struct Image(DrawingImage);
 
 impl Image {
+    pub fn size(&self) -> Result<BitmapSize> {
+        self.0.size()
+    }
+
     pub(crate) fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
         DrawingImage::from_image(image).map(Self)
     }

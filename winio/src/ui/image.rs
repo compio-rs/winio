@@ -1,4 +1,5 @@
 use image::DynamicImage;
+use winio_primitive::BitmapSize;
 
 use crate::{
     sys::{self, Result},
@@ -10,6 +11,11 @@ use crate::{
 pub struct Image(pub(crate) sys::Image);
 
 impl Image {
+    /// Size of the image, in pixels.
+    pub fn size(&self) -> Result<BitmapSize> {
+        self.0.size()
+    }
+
     /// Create a [`DrawingImage`] from the current one.
     pub fn try_to_drawing(&self, context: &DrawingContext) -> Result<DrawingImage> {
         let image = self.0.try_to_drawing(&context.0)?;

@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use image::DynamicImage;
 use windows::Win32::System::WinRT::IBufferByteAccess;
 use windows_core::Interface;
-use winio_primitive::to_premultiplied_bgra8;
+use winio_primitive::{BitmapSize, to_premultiplied_bgra8};
 use winui3::Microsoft::UI::Xaml::Media::Imaging::WriteableBitmap;
 
 use crate::{DrawingContext, DrawingImage, Error, Result};
@@ -12,6 +12,13 @@ use crate::{DrawingContext, DrawingImage, Error, Result};
 pub struct Image(WriteableBitmap);
 
 impl Image {
+    pub fn size(&self) -> Result<BitmapSize> {
+        Ok(BitmapSize::new(
+            self.0.PixelWidth()? as usize,
+            self.0.PixelHeight()? as usize,
+        ))
+    }
+
     pub(crate) fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
         let image = match image {
             Cow::Owned(image) => image.into_rgba8(),

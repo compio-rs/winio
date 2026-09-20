@@ -151,6 +151,10 @@ impl Image {
         Ok(Self(Rc::new(ImageData::new(image)?)))
     }
 
+    pub fn size(&self) -> Result<BitmapSize> {
+        self.0.size()
+    }
+
     pub fn try_to_drawing(&self, _context: &DrawingContext) -> Result<DrawingImage> {
         Ok(DrawingImage(self.0.clone()))
     }

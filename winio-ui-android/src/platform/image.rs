@@ -4,12 +4,18 @@ use std::{
 };
 
 use image::DynamicImage;
+use winio_primitive::BitmapSize;
 
 use crate::{DrawingImage, Error, Result};
 
-/// An image that can be used as an icon of widgets.
 #[derive(Debug, Clone)]
 pub struct Image(DrawingImage);
+
+impl Image {
+    pub fn size(&self) -> Result<BitmapSize> {
+        self.0.size()
+    }
+}
 
 impl Deref for Image {
     type Target = DrawingImage;
