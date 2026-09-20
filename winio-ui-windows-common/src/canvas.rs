@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    cell::{Cell, Ref, RefCell},
+    cell::{Ref, RefCell},
     mem::MaybeUninit,
 };
 
@@ -720,7 +720,6 @@ impl<B: Brush> Pen for BrushPen<B> {
 pub struct DrawingImage {
     bitmap: IWICBitmap,
     cache: RefCell<Option<DrawingImageCache>>,
-    dirty: Cell<bool>,
 }
 
 struct DrawingImageCache {
@@ -793,7 +792,6 @@ impl DrawingImage {
         Ok(Self {
             bitmap,
             cache: RefCell::new(cache),
-            dirty: Cell::new(false),
         })
     }
 
@@ -822,13 +820,12 @@ impl DrawingImage {
     }
 
     pub fn get_bitmap(&self, target: &ID2D1RenderTarget) -> Result<Ref<'_, ID2D1Bitmap>> {
-        if self.dirty.replace(false)
-            || self
-                .cache
-                .borrow()
-                .as_ref()
-                .map(|cache| cache.target.as_raw())
-                != Some(target.as_raw())
+        if self
+            .cache
+            .borrow()
+            .as_ref()
+            .map(|cache| cache.target.as_raw())
+            != Some(target.as_raw())
         {
             self.recreate(target)?;
         }
@@ -852,7 +849,8 @@ impl DrawingImage {
         let d2d = d2d1_factory()?;
         let dwrite = dwrite_factory()?;
         let target = unsafe { d2d.CreateWicBitmapRenderTarget(&self.bitmap, &prop)? };
-        self.dirty.set(true);
+        // The cached D2D bitmap no longer matches the WIC bitmap content.
+        *self.cache.borrow_mut() = None;
         Ok(DrawingContext::new(
             d2d.clone().into(),
             dwrite.clone(),
