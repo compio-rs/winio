@@ -9,6 +9,9 @@ repository = { workspace = true }
 
 [dependencies]
 bitflags = { workspace = true }
-bytemuck = { workspace = true }
+bytemuck = { workspace = true, optional = true }
 euclid = "0.22"
 rgb = "0.8"
+
+[features]
+bytemuck = ["dep:bytemuck"]

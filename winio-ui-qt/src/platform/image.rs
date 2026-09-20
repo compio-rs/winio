@@ -2,7 +2,7 @@ use std::{borrow::Cow, fmt, rc::Rc};
 
 use cxx::{ExternType, UniquePtr, type_id};
 use image::{DynamicImage, ImageBuffer, Pixel, Rgb, Rgba};
-use winio_primitive::{BitmapSize, packed_rows};
+use winio_primitive::{BitmapSize, collect_strided};
 
 use crate::{DrawingContext, Error, Result};
 
@@ -90,19 +90,19 @@ impl ImageData {
         let (w, h) = (width as usize, height as usize);
         Ok(match image.format() {
             QImageFormat::RGB888 => DynamicImage::ImageRgb8(
-                ImageBuffer::from_raw(width, height, packed_rows(bytes, stride, w * 3, h))
+                ImageBuffer::from_raw(width, height, collect_strided(bytes, stride, w * 3, h))
                     .expect("invalid image buffer"),
             ),
             QImageFormat::RGBA8888 => DynamicImage::ImageRgba8(
-                ImageBuffer::from_raw(width, height, packed_rows(bytes, stride, w * 4, h))
+                ImageBuffer::from_raw(width, height, collect_strided(bytes, stride, w * 4, h))
                     .expect("invalid image buffer"),
             ),
             QImageFormat::RGBA64 => DynamicImage::ImageRgba16(
-                ImageBuffer::from_raw(width, height, packed_rows(bytes, stride, w * 8, h))
+                ImageBuffer::from_raw(width, height, collect_strided(bytes, stride, w * 8, h))
                     .expect("invalid image buffer"),
             ),
             QImageFormat::RGBA32FPx4 => DynamicImage::ImageRgba32F(
-                ImageBuffer::from_raw(width, height, packed_rows(bytes, stride, w * 16, h))
+                ImageBuffer::from_raw(width, height, collect_strided(bytes, stride, w * 16, h))
                     .expect("invalid image buffer"),
             ),
             _ => {
@@ -115,7 +115,7 @@ impl ImageData {
                     ImageBuffer::from_raw(
                         width,
                         height,
-                        packed_rows(
+                        collect_strided(
                             ffi::image_bytes(&image),
                             stride,
                             width as usize * 4,

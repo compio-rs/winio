@@ -12,7 +12,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [target.'cfg(not(any(windows, target_vendor = "apple")))'.dependencies]
-winio-primitive = { workspace = true }
+winio-primitive = { workspace = true, features = ["bytemuck"] }
 winio-handle = { workspace = true, features = ["qt"] }
 winio-callback = { workspace = true }
 winio-pollable = { workspace = true, features = ["callback"] }

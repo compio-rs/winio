@@ -31,7 +31,7 @@ use winio_handle::AsContainer;
 use winio_primitive::{
     BitmapRect, BitmapSize, BrushPen, Font, KeyCode, LinearGradientBrush, MouseButton, Point,
     RadialGradientBrush, Rect, RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush,
-    Transform, Vector, packed_rows,
+    Transform, Vector, collect_strided,
 };
 
 use crate::{Error, GlobalRuntime, Image, Result, platform::Keyboard, widgets::Widget};
@@ -757,7 +757,7 @@ impl DrawingImage {
         with_data(&self.0, |data| match fmt {
             Format::ARgb32 => {
                 let mut pixels =
-                    packed_rows::<u8>(data, stride, width as usize * 4, height as usize);
+                    collect_strided::<u8>(data, stride, width as usize * 4, height as usize);
                 for pixel in pixels.as_chunks_mut::<4>().0 {
                     let a = pixel[0] as u16;
                     if a != 0 && a != 255 {
@@ -772,14 +772,15 @@ impl DrawingImage {
                 ))
             }
             CAIRO_FORMAT_RGB96F => {
-                let pixels = packed_rows::<f32>(data, stride, width as usize * 12, height as usize);
+                let pixels =
+                    collect_strided(data, stride, width as usize * 12, height as usize);
                 Ok(DynamicImage::ImageRgb32F(
                     ImageBuffer::from_raw(width, height, pixels).expect("invalid image buffer"),
                 ))
             }
             CAIRO_FORMAT_RGBA128F => {
                 let mut pixels =
-                    packed_rows::<f32>(data, stride, width as usize * 16, height as usize);
+                    collect_strided(data, stride, width as usize * 16, height as usize);
                 unpremultiply_rgba_f32(&mut pixels);
                 Ok(DynamicImage::ImageRgba32F(
                     ImageBuffer::from_raw(width, height, pixels).expect("invalid image buffer"),
