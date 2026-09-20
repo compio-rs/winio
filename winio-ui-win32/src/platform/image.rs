@@ -1,6 +1,6 @@
 use std::{borrow::Cow, cell::RefCell, collections::BTreeMap, mem::zeroed, ptr::null_mut, rc::Rc};
 
-use image::{DynamicImage, imageops::FilterType};
+use image::{DynamicImage, GenericImageView, imageops::FilterType};
 use windows_core::{Error, HRESULT, WIN32_ERROR};
 use windows_sys::Win32::{
     Foundation::{
@@ -19,9 +19,9 @@ use windows_sys::Win32::{
         },
     },
 };
-use winio_primitive::{BitmapSize, Size};
+use winio_primitive::BitmapSize;
 
-use super::dpi::{DpiAware, get_dpi_for_window};
+use super::dpi::get_dpi_for_window;
 use crate::{DrawingContext, DrawingImage, Result};
 
 struct WinIcon(HICON);
@@ -145,18 +145,21 @@ impl Image {
     }
 
     #[allow(non_upper_case_globals)]
-    fn to_hicon(&self, (width, height): (i32, i32)) -> Result<WinIcon> {
-        let image = self
-            .0
-            .resize_exact(width as _, height as _, FilterType::Triangle)
-            .into_rgba8();
-
-        let mut data = image.into_raw();
-        // `PixelFormat32bppARGB` is straight alpha, so only reorder RGBA to the
-        // BGRA byte order expected by GDI+.
-        for pixel in data.as_chunks_mut::<4>().0 {
-            pixel.swap(0, 2);
-        }
+    fn to_hicon(&self, resize: Option<(i32, i32)>) -> Result<WinIcon> {
+        let (data, width, height) = match resize {
+            Some((width, height)) => (
+                self.0
+                    .resize_exact(width as _, height as _, FilterType::Triangle)
+                    .into_rgba8()
+                    .into_raw_bgra(),
+                width,
+                height,
+            ),
+            None => {
+                let (width, height) = self.0.dimensions();
+                (self.0.to_rgba8().into_raw_bgra(), width as _, height as _)
+            }
+        };
 
         const PixelFormatGDI: i32 = 0x00020000;
         const PixelFormatAlpha: i32 = 0x00040000;
@@ -224,28 +227,24 @@ thread_local! {
     static HWND_ICONS: RefCell<BTreeMap<HWND, HwndIcon>> = const { RefCell::new(BTreeMap::new()) };
 }
 
-fn small_icon_size(dpi: u32) -> Size {
+fn small_icon_size(dpi: u32) -> (i32, i32) {
     let cx = unsafe { GetSystemMetricsForDpi(SM_CXSMICON, dpi) };
     let cy = unsafe { GetSystemMetricsForDpi(SM_CYSMICON, dpi) };
-    Size::new(cx as _, cy as _)
+    (cx, cy)
 }
 
-fn target_size(hwnd: HWND, image: &Image, size: IconSize) -> (i32, i32) {
+fn target_size(hwnd: HWND, size: IconSize) -> Option<(i32, i32)> {
     let dpi = get_dpi_for_window(hwnd);
-    let size = match size {
-        IconSize::Small => small_icon_size(dpi),
-        IconSize::Logical => Size::new(image.0.width() as _, image.0.height() as _).to_device(dpi),
-    };
-    (
-        size.width.round().max(1.0) as _,
-        size.height.round().max(1.0) as _,
-    )
+    match size {
+        IconSize::Small => Some(small_icon_size(dpi)),
+        IconSize::Logical => None,
+    }
 }
 
 /// Create an icon for `hwnd` and send `msg` (`BM_SETIMAGE` or `STM_SETIMAGE`)
 /// to set it, replacing any previous icon.
 pub(crate) fn set_hwnd_icon(hwnd: HWND, image: &Image, size: IconSize, msg: u32) -> Result<()> {
-    let icon = image.to_hicon(target_size(hwnd, image, size))?;
+    let icon = image.to_hicon(target_size(hwnd, size))?;
     unsafe { SendMessageW(hwnd, msg, IMAGE_ICON as _, icon.0 as _) };
     HWND_ICONS.with(|map| {
         map.borrow_mut().insert(
@@ -278,7 +277,7 @@ pub(crate) fn refresh_hwnd_icon(hwnd: HWND) -> Result<()> {
     }) else {
         return Ok(());
     };
-    let icon = image.to_hicon(target_size(hwnd, &image, size))?;
+    let icon = image.to_hicon(target_size(hwnd, size))?;
     unsafe { SendMessageW(hwnd, msg, IMAGE_ICON as _, icon.0 as _) };
     HWND_ICONS.with(|map| {
         map.borrow_mut().insert(
@@ -294,25 +293,22 @@ pub(crate) fn refresh_hwnd_icon(hwnd: HWND) -> Result<()> {
     Ok(())
 }
 
-/// Destroy and forget the icon of `hwnd`.
-pub(crate) fn remove_hwnd_icon(hwnd: HWND) {
-    HWND_ICONS.with(|map| map.borrow_mut().remove(&hwnd));
-}
-
 /// The image of the icon of `hwnd`.
 pub(crate) fn hwnd_icon_image(hwnd: HWND) -> Option<Image> {
     HWND_ICONS.with(|map| map.borrow().get(&hwnd).map(|entry| entry.image.clone()))
 }
 
 /// The logical size of the icon of `hwnd`.
-pub(crate) fn hwnd_icon_size(hwnd: HWND) -> Option<Size> {
+pub(crate) fn hwnd_icon_size(hwnd: HWND) -> Option<BitmapSize> {
     HWND_ICONS.with(|map| {
         map.borrow().get(&hwnd).map(|entry| match entry.size {
             IconSize::Small => {
-                let dpi = get_dpi_for_window(hwnd);
-                small_icon_size(dpi).to_logical(dpi)
+                let (width, height) = small_icon_size(96);
+                BitmapSize::new(width as _, height as _)
             }
-            IconSize::Logical => Size::new(entry.image.0.width() as _, entry.image.0.height() as _),
+            IconSize::Logical => {
+                BitmapSize::new(entry.image.0.width() as _, entry.image.0.height() as _)
+            }
         })
     })
 }
