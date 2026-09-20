@@ -31,7 +31,7 @@ use winio_handle::AsContainer;
 use winio_primitive::{
     BitmapRect, BitmapSize, BrushPen, Font, KeyCode, LinearGradientBrush, MouseButton, Point,
     RadialGradientBrush, Rect, RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush,
-    Transform, Vector, packed_rows, premultiply_rgba_f32, unpremultiply_rgba_f32,
+    Transform, Vector, packed_rows,
 };
 
 use crate::{Error, GlobalRuntime, Image, Result, platform::Keyboard, widgets::Widget};
@@ -804,6 +804,34 @@ fn with_data<T>(surface: &ImageSurface, f: impl FnOnce(&[u8]) -> Result<T>) -> R
         result = Some(f(data));
     })?;
     result.ok_or(Error::NotSupported).flatten()
+}
+
+/// Premultiply the alpha channel of RGBA float pixels.
+fn premultiply_rgba_f32(pixels: &mut [f32]) {
+    for pixel in pixels.as_chunks_mut::<4>().0 {
+        let a = pixel[3];
+        if a == 0.0 {
+            pixel[0] = 0.0;
+            pixel[1] = 0.0;
+            pixel[2] = 0.0;
+        } else if a != 1.0 {
+            pixel[0] *= a;
+            pixel[1] *= a;
+            pixel[2] *= a;
+        }
+    }
+}
+
+/// Unpremultiply the alpha channel of RGBA float pixels.
+fn unpremultiply_rgba_f32(pixels: &mut [f32]) {
+    for pixel in pixels.as_chunks_mut::<4>().0 {
+        let a = pixel[3];
+        if a != 0.0 && a != 1.0 {
+            pixel[0] /= a;
+            pixel[1] /= a;
+            pixel[2] /= a;
+        }
+    }
 }
 
 /// An owned buffer of `f32` pixels that Cairo reads as bytes.

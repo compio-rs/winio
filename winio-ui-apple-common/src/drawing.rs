@@ -23,8 +23,7 @@ use objc2_core_text::{
 use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
 use winio_primitive::{
     BitmapRect, BitmapSize, BrushPen, Color, Font, GradientStop, LinearGradientBrush, Point,
-    RadialGradientBrush, Rect, RelativePoint, Size, SolidColorBrush, Transform, premultiply_rgba8,
-    unpremultiply_rgba8,
+    RadialGradientBrush, Rect, RelativePoint, Size, SolidColorBrush, Transform,
 };
 
 use crate::{Error, Result, TollFreeBridge};
@@ -514,6 +513,34 @@ impl fmt::Debug for DrawingImage {
         f.debug_struct("DrawingImage")
             .field("size", &self.size)
             .finish_non_exhaustive()
+    }
+}
+
+/// Premultiply the alpha channel of RGBA pixels.
+fn premultiply_rgba8(pixels: &mut [u8]) {
+    for pixel in pixels.as_chunks_mut::<4>().0 {
+        let a = pixel[3] as u16;
+        if a == 0 {
+            pixel[0] = 0;
+            pixel[1] = 0;
+            pixel[2] = 0;
+        } else if a != 255 {
+            pixel[0] = ((pixel[0] as u16 * a + 127) / 255) as u8;
+            pixel[1] = ((pixel[1] as u16 * a + 127) / 255) as u8;
+            pixel[2] = ((pixel[2] as u16 * a + 127) / 255) as u8;
+        }
+    }
+}
+
+/// Unpremultiply the alpha channel of RGBA pixels.
+fn unpremultiply_rgba8(pixels: &mut [u8]) {
+    for pixel in pixels.as_chunks_mut::<4>().0 {
+        let a = pixel[3] as u16;
+        if a != 0 && a != 255 {
+            pixel[0] = ((pixel[0] as u16 * 255 + a / 2) / a).min(255) as u8;
+            pixel[1] = ((pixel[1] as u16 * 255 + a / 2) / a).min(255) as u8;
+            pixel[2] = ((pixel[2] as u16 * 255 + a / 2) / a).min(255) as u8;
+        }
     }
 }
 

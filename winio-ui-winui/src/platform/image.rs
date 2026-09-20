@@ -3,7 +3,8 @@ use std::borrow::Cow;
 use image::DynamicImage;
 use windows::Win32::System::WinRT::IBufferByteAccess;
 use windows_core::Interface;
-use winio_primitive::{BitmapSize, to_premultiplied_bgra8};
+use winio_primitive::BitmapSize;
+use winio_ui_windows_common::rgba8_to_pbgra8;
 use winui3::Microsoft::UI::Xaml::Media::Imaging::WriteableBitmap;
 
 use crate::{DrawingContext, DrawingImage, Error, Result};
@@ -26,7 +27,7 @@ impl Image {
         };
         let (width, height) = image.dimensions();
         let mut data = image.into_raw();
-        to_premultiplied_bgra8(&mut data);
+        rgba8_to_pbgra8(&mut data);
         let bitmap = WriteableBitmap::CreateInstanceWithDimensions(width as _, height as _)?;
         let buffer = bitmap.PixelBuffer()?;
         let access = buffer.cast::<IBufferByteAccess>()?;

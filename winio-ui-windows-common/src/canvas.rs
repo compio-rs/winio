@@ -39,7 +39,7 @@ use windows_core::Interface;
 use winio_primitive::{
     BitmapRect, BitmapSize, BrushPen, Color, Font, GradientStop, LinearGradientBrush, Point,
     RadialGradientBrush, Rect, RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush,
-    Transform, Vector, to_premultiplied_bgra8, to_straight_rgba8,
+    Transform, Vector,
 };
 
 use crate::{Error, Result, d2d1_factory, dwrite_factory};
@@ -82,6 +82,39 @@ fn bitmap_rect_f(r: BitmapRect) -> D2D_RECT_F {
         top: r.origin.y as f32,
         right: r.max_x() as f32,
         bottom: r.max_y() as f32,
+    }
+}
+
+/// Convert straight RGBA pixels to premultiplied BGRA in place.
+///
+/// The length of `pixels` must be a multiple of 4.
+pub fn rgba8_to_pbgra8(pixels: &mut [u8]) {
+    for pixel in pixels.as_chunks_mut::<4>().0 {
+        let [r, g, b, a] = [pixel[0], pixel[1], pixel[2], pixel[3]];
+        let a = a as u16;
+        pixel[0] = ((b as u16 * a + 127) / 255) as u8;
+        pixel[1] = ((g as u16 * a + 127) / 255) as u8;
+        pixel[2] = ((r as u16 * a + 127) / 255) as u8;
+    }
+}
+
+/// Convert premultiplied BGRA pixels to straight RGBA in place.
+fn pbgra8_to_rgba8(pixels: &mut [u8]) {
+    for pixel in pixels.as_chunks_mut::<4>().0 {
+        let [b, g, r, a] = [pixel[0], pixel[1], pixel[2], pixel[3]];
+        let alpha = a as u16;
+        let (r, g, b) = if a == 0 {
+            (0, 0, 0)
+        } else {
+            (
+                ((r as u16 * 255 + alpha / 2) / alpha).min(255) as u8,
+                ((g as u16 * 255 + alpha / 2) / alpha).min(255) as u8,
+                ((b as u16 * 255 + alpha / 2) / alpha).min(255) as u8,
+            )
+        };
+        pixel[0] = r;
+        pixel[1] = g;
+        pixel[2] = b;
     }
 }
 
@@ -757,7 +790,7 @@ impl DrawingImage {
         };
         let (width, height) = image.dimensions();
         let mut pixels = image.into_raw();
-        to_premultiplied_bgra8(&mut pixels);
+        rgba8_to_pbgra8(&mut pixels);
         Self::from_premultiplied_bgra8(target, width, height, &pixels)
     }
 
@@ -876,7 +909,7 @@ impl DrawingImage {
             self.bitmap
                 .CopyPixels(None, width * 4, pixels.len() as u32, pixels.as_mut_ptr())?;
         }
-        to_straight_rgba8(&mut pixels);
+        pbgra8_to_rgba8(&mut pixels);
         Ok(DynamicImage::ImageRgba8(
             RgbaImage::from_raw(width, height, pixels).expect("invalid image buffer"),
         ))
