@@ -1,8 +1,8 @@
 use std::{borrow::Cow, fmt, rc::Rc};
 
 use cxx::{ExternType, UniquePtr, type_id};
-use image::{DynamicImage, Pixel, Rgb, Rgba};
-use winio_primitive::Size;
+use image::{DynamicImage, ImageBuffer, Pixel, Rgb, Rgba};
+use winio_primitive::{BitmapSize, collect_strided};
 
 use crate::{DrawingContext, Error, Result};
 
@@ -15,14 +15,16 @@ impl fmt::Debug for Image {
     }
 }
 
+pub struct DrawingImage(Rc<ImageData>);
+
 struct ImageData {
     #[allow(dead_code)]
     buffer: Vec<u8>,
     image: UniquePtr<ffi::QImage>,
 }
 
-impl Image {
-    pub(crate) fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
+impl ImageData {
+    fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
         let width = image.width();
         let height = image.height();
         let (format, count, buffer) = match qimage_format(image.as_ref()) {
@@ -54,20 +56,135 @@ impl Image {
                 format,
             )?
         };
-        Ok(Self(Rc::new(ImageData { buffer, image })))
+        Ok(Self { buffer, image })
     }
 
-    pub fn try_to_drawing(&self, _context: &DrawingContext) -> Result<Self> {
-        Ok(self.clone())
+    /// Create an image filled with transparent pixels.
+    fn new_empty(size: BitmapSize) -> Result<Self> {
+        let width = size.width as i32;
+        let height = size.height as i32;
+        Ok(Self {
+            buffer: Vec::new(),
+            image: ffi::new_image_empty(width, height, QImageFormat::RGBA8888)?,
+        })
     }
 
-    pub fn size(&self) -> Result<Size> {
-        let size = self.0.image.size()?;
-        Ok(Size::new(size.width as _, size.height as _))
+    /// Deep copy the image data.
+    fn duplicate(&self) -> Result<Self> {
+        Ok(Self {
+            buffer: Vec::new(),
+            image: ffi::image_copy(&self.image)?,
+        })
+    }
+
+    fn to_dynamic_image(&self) -> Result<DynamicImage> {
+        let image = self.as_qimage();
+        let size = image.size()?;
+        let width = size.width.max(0) as u32;
+        let height = size.height.max(0) as u32;
+        if width == 0 || height == 0 {
+            return Ok(DynamicImage::new_rgba8(0, 0));
+        }
+        let stride = ffi::image_bytes_per_line(image);
+        let bytes = ffi::image_bytes(image);
+        let (w, h) = (width as usize, height as usize);
+        Ok(match image.format() {
+            QImageFormat::RGB888 => DynamicImage::ImageRgb8(
+                ImageBuffer::from_raw(width, height, collect_strided(bytes, stride, w * 3, h))
+                    .expect("invalid image buffer"),
+            ),
+            QImageFormat::RGBA8888 => DynamicImage::ImageRgba8(
+                ImageBuffer::from_raw(width, height, collect_strided(bytes, stride, w * 4, h))
+                    .expect("invalid image buffer"),
+            ),
+            QImageFormat::RGBA64 => DynamicImage::ImageRgba16(
+                ImageBuffer::from_raw(width, height, collect_strided(bytes, stride, w * 8, h))
+                    .expect("invalid image buffer"),
+            ),
+            QImageFormat::RGBA32FPx4 => DynamicImage::ImageRgba32F(
+                ImageBuffer::from_raw(width, height, collect_strided(bytes, stride, w * 16, h))
+                    .expect("invalid image buffer"),
+            ),
+            _ => {
+                let image = ffi::image_to_rgba8(image)?;
+                let size = image.size()?;
+                let width = size.width.max(0) as u32;
+                let height = size.height.max(0) as u32;
+                let stride = ffi::image_bytes_per_line(&image);
+                DynamicImage::ImageRgba8(
+                    ImageBuffer::from_raw(
+                        width,
+                        height,
+                        collect_strided(
+                            ffi::image_bytes(&image),
+                            stride,
+                            width as usize * 4,
+                            height as usize,
+                        ),
+                    )
+                    .expect("invalid image buffer"),
+                )
+            }
+        })
+    }
+
+    fn size(&self) -> Result<BitmapSize> {
+        let size = self.image.size()?;
+        Ok(BitmapSize::new(size.width as usize, size.height as usize))
+    }
+
+    fn as_qimage(&self) -> &ffi::QImage {
+        &self.image
+    }
+}
+
+impl Image {
+    pub(crate) fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
+        Ok(Self(Rc::new(ImageData::new(image)?)))
+    }
+
+    pub fn size(&self) -> Result<BitmapSize> {
+        self.0.size()
+    }
+
+    pub fn try_to_drawing(&self, _context: &DrawingContext) -> Result<DrawingImage> {
+        Ok(DrawingImage(self.0.clone()))
     }
 
     pub(crate) fn as_qimage(&self) -> &ffi::QImage {
-        &self.0.image
+        self.0.as_qimage()
+    }
+}
+
+impl DrawingImage {
+    pub fn new(size: BitmapSize) -> Result<Self> {
+        Ok(Self(Rc::new(ImageData::new_empty(size)?)))
+    }
+
+    pub(crate) fn from_image(image: Cow<'_, DynamicImage>) -> Result<Self> {
+        Ok(Self(Rc::new(ImageData::new(image)?)))
+    }
+
+    pub(crate) fn to_dynamic_image(&self) -> Result<DynamicImage> {
+        self.0.to_dynamic_image()
+    }
+
+    pub fn size(&self) -> Result<BitmapSize> {
+        self.0.size()
+    }
+
+    pub(crate) fn as_qimage(&self) -> &ffi::QImage {
+        self.0.as_qimage()
+    }
+
+    /// Make the image data unique (copy-on-write) and return it mutably.
+    pub(crate) fn image_mut(&mut self) -> Result<&mut UniquePtr<ffi::QImage>> {
+        if Rc::strong_count(&self.0) > 1 {
+            self.0 = Rc::new(self.0.duplicate()?);
+        }
+        Ok(&mut Rc::get_mut(&mut self.0)
+            .expect("image data is not shared")
+            .image)
     }
 }
 
@@ -84,6 +201,38 @@ impl TryFrom<&DynamicImage> for Image {
 
     fn try_from(value: &DynamicImage) -> Result<Self> {
         Self::new(Cow::Borrowed(value))
+    }
+}
+
+impl TryFrom<&DrawingImage> for Image {
+    type Error = Error;
+
+    fn try_from(value: &DrawingImage) -> Result<Self> {
+        Ok(Self(value.0.clone()))
+    }
+}
+
+impl TryFrom<DrawingImage> for Image {
+    type Error = Error;
+
+    fn try_from(value: DrawingImage) -> Result<Self> {
+        Ok(Self(value.0))
+    }
+}
+
+impl TryFrom<&DrawingImage> for DynamicImage {
+    type Error = Error;
+
+    fn try_from(value: &DrawingImage) -> Result<Self> {
+        value.to_dynamic_image()
+    }
+}
+
+impl TryFrom<DrawingImage> for DynamicImage {
+    type Error = Error;
+
+    fn try_from(value: DrawingImage) -> Result<Self> {
+        value.to_dynamic_image()
     }
 }
 
@@ -109,16 +258,18 @@ fn qimage_format(image: &DynamicImage) -> Option<(QImageFormat, usize)> {
     }
 }
 
-pub use ffi::QImage;
+pub(crate) use ffi::QImage;
 
-#[derive(Debug, Clone, Copy)]
-#[repr(i32)]
-#[non_exhaustive]
-pub(crate) enum QImageFormat {
-    RGB888     = 13,
-    RGBA8888   = 17,
-    RGBA64     = 26,
-    RGBA32FPx4 = 34,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(transparent)]
+pub(crate) struct QImageFormat(pub i32);
+
+#[allow(non_upper_case_globals)]
+impl QImageFormat {
+    pub const RGB888: Self = Self(13);
+    pub const RGBA32FPx4: Self = Self(34);
+    pub const RGBA64: Self = Self(26);
+    pub const RGBA8888: Self = Self(17);
 }
 
 unsafe impl ExternType for QImageFormat {
@@ -142,6 +293,17 @@ mod ffi {
             bits: *const u8,
             format: QImageFormat,
         ) -> Result<UniquePtr<QImage>>;
+        fn new_image_empty(
+            width: i32,
+            height: i32,
+            format: QImageFormat,
+        ) -> Result<UniquePtr<QImage>>;
         fn size(self: &QImage) -> Result<QSize>;
+        fn format(self: &QImage) -> QImageFormat;
+
+        fn image_copy(image: &QImage) -> Result<UniquePtr<QImage>>;
+        fn image_to_rgba8(image: &QImage) -> Result<UniquePtr<QImage>>;
+        fn image_bytes_per_line(image: &QImage) -> usize;
+        fn image_bytes(image: &QImage) -> &[u8];
     }
 }

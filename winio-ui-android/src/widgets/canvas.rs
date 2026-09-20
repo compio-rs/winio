@@ -12,9 +12,9 @@ use jni_min_helper::{DynamicProxy, JBoolean};
 use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{
-    BrushPen, Font, GradientStop, KeyCode, LinearGradientBrush, MouseButton, Point,
-    RadialGradientBrush, Rect, RelativePoint, RelativeToLogical, Size, SolidColorBrush, Transform,
-    Vector,
+    BitmapRect, BitmapSize, BrushPen, Font, GradientStop, KeyCode, LinearGradientBrush,
+    MouseButton, Point, RadialGradientBrush, Rect, RelativePoint, RelativeToLogical, Size,
+    SolidColorBrush, Transform, Vector,
 };
 
 use crate::{
@@ -189,7 +189,19 @@ pub struct DrawingImage {
 }
 
 impl DrawingImage {
-    pub fn new(image: Cow<'_, DynamicImage>) -> Result<Self> {
+    /// Create an empty image filled with transparent pixels.
+    pub fn new(size: BitmapSize) -> Result<Self> {
+        vm_exec(|env| {
+            let config = BitmapConfig::ARGB_8888(env)?;
+            let bitmap = Bitmap::create_bitmap(env, size.width as _, size.height as _, &config)?;
+            let bitmap = env.new_global_ref(bitmap)?;
+            Ok(Self {
+                bitmap: Rc::new(bitmap),
+            })
+        })
+    }
+
+    pub(crate) fn from_image(image: Cow<'_, DynamicImage>) -> Result<Self> {
         vm_exec(|env| {
             let rgba: Cow<'_, RgbaImage> = match image {
                 Cow::Owned(DynamicImage::ImageRgba8(image)) => Cow::Owned(image),
@@ -210,7 +222,8 @@ impl DrawingImage {
             let jcolors = env.new_int_array(pixels.len())?;
             jcolors.set_region(env, 0, &pixels)?;
             let config = BitmapConfig::ARGB_8888(env)?;
-            let bitmap = Bitmap::create_bitmap(env, &jcolors, width as _, height as _, &config)?;
+            let bitmap = Bitmap::create_bitmap(env, width as _, height as _, &config)?;
+            bitmap.set_pixels(env, &jcolors, 0, width as _, 0, 0, width as _, height as _)?;
             let bitmap = env.new_global_ref(bitmap)?;
             Ok(Self {
                 bitmap: Rc::new(bitmap),
@@ -218,15 +231,58 @@ impl DrawingImage {
         })
     }
 
+    /// Get the drawing context, copying the bitmap if it is shared.
+    pub fn context(&mut self) -> Result<DrawingContext<'_>> {
+        vm_exec(|env| {
+            if Rc::strong_count(&self.bitmap) > 1 {
+                let config = BitmapConfig::ARGB_8888(env)?;
+                let bitmap = self.bitmap.copy(env, &config, true)?;
+                self.bitmap = Rc::new(env.new_global_ref(bitmap)?);
+            }
+            let width = self.bitmap.get_width(env)? as f64;
+            let height = self.bitmap.get_height(env)? as f64;
+            let canvas = ACanvas::new(env, &*self.bitmap)?;
+            let canvas = env.new_global_ref(canvas)?;
+            Ok(DrawingContext::new_image(canvas, Size::new(width, height)))
+        })
+    }
+
+    pub(crate) fn to_dynamic_image(&self) -> Result<DynamicImage> {
+        vm_exec(|env| {
+            let width = self.bitmap.get_width(env)? as u32;
+            let height = self.bitmap.get_height(env)? as u32;
+            let count = (width * height) as usize;
+            let pixels = env.new_int_array(count)?;
+            self.bitmap
+                .get_pixels(env, &pixels, 0, width as _, 0, 0, width as _, height as _)?;
+            let mut data = vec![0; count];
+            pixels.get_region(env, 0, &mut data)?;
+            let bytes = data
+                .into_iter()
+                .flat_map(|c| {
+                    [
+                        ((c >> 16) & 0xff) as u8,
+                        ((c >> 8) & 0xff) as u8,
+                        (c & 0xff) as u8,
+                        ((c >> 24) & 0xff) as u8,
+                    ]
+                })
+                .collect::<Vec<_>>();
+            Ok(DynamicImage::ImageRgba8(
+                RgbaImage::from_raw(width, height, bytes).expect("invalid image buffer"),
+            ))
+        })
+    }
+
     pub fn try_to_drawing(&self, _context: &DrawingContext) -> Result<Self> {
         Ok(self.clone())
     }
 
-    pub fn size(&self) -> Result<Size> {
+    pub fn size(&self) -> Result<BitmapSize> {
         vm_exec(|env| {
-            let width = self.bitmap.get_width(env)? as f64;
-            let height = self.bitmap.get_height(env)? as f64;
-            Ok(Size::new(width, height))
+            let width = self.bitmap.get_width(env)? as usize;
+            let height = self.bitmap.get_height(env)? as usize;
+            Ok(BitmapSize::new(width, height))
         })
     }
 
@@ -239,7 +295,7 @@ impl TryFrom<DynamicImage> for DrawingImage {
     type Error = Error;
 
     fn try_from(value: DynamicImage) -> Result<Self> {
-        Self::new(Cow::Owned(value))
+        Self::from_image(Cow::Owned(value))
     }
 }
 
@@ -247,15 +303,32 @@ impl TryFrom<&DynamicImage> for DrawingImage {
     type Error = Error;
 
     fn try_from(value: &DynamicImage) -> Result<Self> {
-        Self::new(Cow::Borrowed(value))
+        Self::from_image(Cow::Borrowed(value))
+    }
+}
+
+impl TryFrom<&DrawingImage> for DynamicImage {
+    type Error = Error;
+
+    fn try_from(value: &DrawingImage) -> Result<Self> {
+        value.to_dynamic_image()
+    }
+}
+
+impl TryFrom<DrawingImage> for DynamicImage {
+    type Error = Error;
+
+    fn try_from(value: DrawingImage) -> Result<Self> {
+        Self::try_from(&value)
     }
 }
 
 pub struct DrawingContext<'a> {
-    picture: Global<Picture<'static>>,
+    picture: Option<Global<Picture<'static>>>,
     canvas: Global<ACanvas<'static>>,
+    size: Size,
     closed: bool,
-    parent: &'a Canvas,
+    parent: Option<&'a Canvas>,
 }
 
 impl Drop for DrawingContext<'_> {
@@ -271,27 +344,42 @@ impl<'a> DrawingContext<'a> {
         parent: &'a Canvas,
         picture: Global<Picture<'static>>,
         canvas: Global<ACanvas<'static>>,
+        size: Size,
     ) -> Self {
         Self {
-            picture,
+            picture: Some(picture),
             canvas,
+            size,
             closed: false,
-            parent,
+            parent: Some(parent),
+        }
+    }
+
+    fn new_image(canvas: Global<ACanvas<'static>>, size: Size) -> Self {
+        Self {
+            picture: None,
+            canvas,
+            size,
+            closed: false,
+            parent: None,
         }
     }
 
     fn close_impl(&mut self) -> Result<()> {
-        if !self.closed {
-            vm_exec(|env| {
-                self.picture.end_recording(env)?;
-                self.closed = true;
-                let drawable = PictureDrawable::new(env, &self.picture)?;
-                self.parent.inner.set_image_drawable(env, drawable)?;
-                Ok(())
-            })
-        } else {
-            Ok(())
+        if self.closed {
+            return Ok(());
         }
+        if let Some(parent) = self.parent {
+            let picture = self.picture.as_ref().expect("picture is missing");
+            vm_exec(|env| -> Result<()> {
+                picture.end_recording(env)?;
+                let drawable = PictureDrawable::new(env, picture)?;
+                parent.inner.set_image_drawable(env, drawable)?;
+                Ok(())
+            })?;
+        }
+        self.closed = true;
+        Ok(())
     }
 
     pub fn close(mut self) -> Result<()> {
@@ -339,8 +427,7 @@ impl<'a> DrawingContext<'a> {
     }
 
     fn logical(&self) -> RelativeToLogical {
-        let size = self.parent.latest_size;
-        RelativeToLogical::scale(size.width, size.height)
+        RelativeToLogical::scale(self.size.width, self.size.height)
     }
 
     pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) -> Result<()> {
@@ -557,14 +644,8 @@ impl<'a> DrawingContext<'a> {
         paint.as_base().set_text_size(env, font.size as f32)?;
         let text = env.new_string(text)?;
         let length = text.as_char_sequence().length(env)?;
-        let builder = StaticLayoutBuilder::obtain(
-            env,
-            text,
-            0,
-            length,
-            &paint,
-            self.parent.latest_size.width as _,
-        )?;
+        let builder =
+            StaticLayoutBuilder::obtain(env, text, 0, length, &paint, self.size.width as _)?;
         let layout = builder.build(env)?;
         let height = layout.get_height(env)? as f64;
         let mut width = 0.0f64;
@@ -605,18 +686,18 @@ impl<'a> DrawingContext<'a> {
     }
 
     pub fn create_image(&self, image: Cow<'_, DynamicImage>) -> Result<DrawingImage> {
-        DrawingImage::new(image)
+        DrawingImage::from_image(image)
     }
 
     pub fn draw_image(
         &mut self,
         image: &DrawingImage,
         rect: Rect,
-        clip: Option<Rect>,
+        clip: Option<BitmapRect>,
     ) -> Result<()> {
         vm_exec(|env| {
             let size = image.size()?;
-            let clip = clip.unwrap_or_else(|| size.into()).to_box2d();
+            let clip = clip.unwrap_or_else(|| BitmapRect::from(size)).to_box2d();
             let src = ARect::new(
                 env,
                 clip.min.x as _,
@@ -882,7 +963,7 @@ impl Canvas {
                 self.latest_size.height as _,
             )?;
             let canvas = env.new_global_ref(canvas)?;
-            Ok(DrawingContext::new(self, picture, canvas))
+            Ok(DrawingContext::new(self, picture, canvas, self.latest_size))
         })
     }
 

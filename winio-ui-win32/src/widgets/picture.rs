@@ -11,7 +11,7 @@ use winio_primitive::{Point, Size};
 
 use crate::{
     Image, Result,
-    platform::image::{IconSize, clear_hwnd_icon, hwnd_icon_size, remove_hwnd_icon, set_hwnd_icon},
+    platform::image::{IconSize, clear_hwnd_icon, hwnd_icon_size, set_hwnd_icon},
     widgets::Widget,
 };
 
@@ -37,7 +37,8 @@ impl Picture {
     pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
     pub fn preferred_size(&self) -> Result<Size> {
-        Ok(hwnd_icon_size(self.handle.as_widget().as_win32()).unwrap_or_default())
+        let size = hwnd_icon_size(self.handle.as_widget().as_win32()).unwrap_or_default();
+        Ok(Size::new(size.width as f64, size.height as f64))
     }
 
     pub fn loc(&self) -> Result<Point>;
@@ -71,6 +72,6 @@ winio_handle::impl_as_widget!(Picture, handle);
 
 impl Drop for Picture {
     fn drop(&mut self) {
-        remove_hwnd_icon(self.handle.as_widget().as_win32());
+        clear_hwnd_icon(self.handle.as_widget().as_win32());
     }
 }

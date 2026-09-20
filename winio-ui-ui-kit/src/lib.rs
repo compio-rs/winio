@@ -9,7 +9,10 @@
 pub use compio::compat::FuturesAdapter as CompioAdapter;
 pub(crate) use winio_pollable::GlobalRuntime;
 pub(crate) use winio_ui_apple_common::*;
-pub use winio_ui_apple_common::{Brush, DrawingImage, Error, Pen, Result, Timer};
+pub use winio_ui_apple_common::{
+    Brush, ContextOwner, DrawingContext, DrawingImage, DrawingPath, DrawingPathBuilder, Error, Pen,
+    Result, Timer,
+};
 
 mod runtime;
 pub use runtime::*;

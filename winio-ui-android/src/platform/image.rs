@@ -1,0 +1,64 @@
+use std::{
+    borrow::Cow,
+    ops::{Deref, DerefMut},
+};
+
+use image::DynamicImage;
+use winio_primitive::BitmapSize;
+
+use crate::{DrawingImage, Error, Result};
+
+#[derive(Debug, Clone)]
+pub struct Image(DrawingImage);
+
+impl Image {
+    pub fn size(&self) -> Result<BitmapSize> {
+        self.0.size()
+    }
+}
+
+impl Deref for Image {
+    type Target = DrawingImage;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Image {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl TryFrom<DynamicImage> for Image {
+    type Error = Error;
+
+    fn try_from(value: DynamicImage) -> Result<Self> {
+        Ok(Self(DrawingImage::from_image(Cow::Owned(value))?))
+    }
+}
+
+impl TryFrom<&DynamicImage> for Image {
+    type Error = Error;
+
+    fn try_from(value: &DynamicImage) -> Result<Self> {
+        Ok(Self(DrawingImage::from_image(Cow::Borrowed(value))?))
+    }
+}
+
+impl TryFrom<&DrawingImage> for Image {
+    type Error = Error;
+
+    fn try_from(value: &DrawingImage) -> Result<Self> {
+        Ok(Self(value.clone()))
+    }
+}
+
+impl TryFrom<DrawingImage> for Image {
+    type Error = Error;
+
+    fn try_from(value: DrawingImage) -> Result<Self> {
+        Ok(Self(value))
+    }
+}

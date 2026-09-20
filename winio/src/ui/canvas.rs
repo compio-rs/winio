@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use image::DynamicImage;
-use winio_primitive::{Font, Point, Rect, RelativePoint, Size, Transform};
+use winio_primitive::{BitmapRect, BitmapSize, Font, Point, Rect, RelativePoint, Size, Transform};
 
 use crate::{sys, sys::Result};
 
@@ -19,9 +19,40 @@ impl<P: sys::Pen> Pen for P {}
 pub struct DrawingImage(pub(crate) sys::DrawingImage);
 
 impl DrawingImage {
-    /// Size of the image.
-    pub fn size(&self) -> Result<Size> {
+    /// Create an empty [`DrawingImage`] with the specified size, in pixels.
+    pub fn new(size: BitmapSize) -> Result<Self> {
+        let (width, height) = (size.width.max(1), size.height.max(1));
+        Ok(DrawingImage(sys::DrawingImage::new(BitmapSize::new(
+            width, height,
+        ))?))
+    }
+
+    /// Size of the image, in pixels.
+    pub fn size(&self) -> Result<BitmapSize> {
         self.0.size()
+    }
+
+    /// Get the drawing context for the image.
+    pub fn context(&mut self) -> Result<DrawingContext<'_>> {
+        Ok(DrawingContext::new(self.0.context()?))
+    }
+}
+
+impl TryFrom<&DrawingImage> for DynamicImage {
+    type Error = crate::Error;
+
+    fn try_from(value: &DrawingImage) -> Result<Self> {
+        let image = DynamicImage::try_from(&value.0)?;
+        Ok(image)
+    }
+}
+
+impl TryFrom<DrawingImage> for DynamicImage {
+    type Error = crate::Error;
+
+    fn try_from(value: DrawingImage) -> Result<Self> {
+        let image = DynamicImage::try_from(value.0)?;
+        Ok(image)
     }
 }
 
@@ -162,13 +193,13 @@ impl<'a> DrawingContext<'a> {
     ///
     /// - `rect`: Destination region on the canvas where the image will be
     ///   drawn.
-    /// - `clip`: If specified, only the selected portion of the image is
-    ///   rendered.
+    /// - `clip`: If specified, only the selected portion of the image, in
+    ///   pixels, is rendered.
     pub fn draw_image(
         &mut self,
         image: &DrawingImage,
         rect: Rect,
-        clip: Option<Rect>,
+        clip: Option<BitmapRect>,
     ) -> Result<()> {
         self.0.draw_image(&image.0, fix_rect(rect), clip)
     }

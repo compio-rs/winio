@@ -313,11 +313,8 @@ impl Component for GalleryPage {
                 (images
                     .filter_map(|image| {
                         let image_size = image.as_ref()?.size().ok()?;
-                        Some(
-                            (image_size.height
-                                * (content_width / image_size.width.max(image_size.height)))
-                                as usize,
-                        )
+                        let (width, height) = (image_size.width as f64, image_size.height as f64);
+                        Some((height * (content_width / width.max(height))) as usize)
                     })
                     .max()
                     .unwrap_or_default() as f64)
@@ -327,6 +324,8 @@ impl Component for GalleryPage {
         for (i, image) in self.sel_images.values().enumerate() {
             if let Some(image) = image {
                 let image_size = image.size()?;
+                let (image_width, image_height) =
+                    (image_size.width as f64, image_size.height as f64);
                 let c = i % MAX_COLUMN;
                 let r = i / MAX_COLUMN;
                 let x = c as f64 * occupy_width + 5.0;
@@ -334,10 +333,9 @@ impl Component for GalleryPage {
                     content_heights[..r].iter().map(|h| h + 10.0).sum::<f64>() + 5.0 - pos as f64;
                 let content_height = content_heights[r];
                 let rect = Rect::new(Point::new(x, y), Size::new(content_width, content_height));
-                let rate =
-                    (content_width / image_size.width).min(content_height / image_size.height);
-                let real_width = image_size.width * rate;
-                let real_height = image_size.height * rate;
+                let rate = (content_width / image_width).min(content_height / image_height);
+                let real_width = image_width * rate;
+                let real_height = image_height * rate;
                 let real_x = (content_width - real_width) / 2.0;
                 let real_y = (content_height - real_height) / 2.0;
                 let real_rect = Rect::new(
@@ -345,9 +343,9 @@ impl Component for GalleryPage {
                     Size::new(real_width, real_height),
                 );
                 let clip = if self.clip {
-                    Some(Rect::new(
-                        Point::new(image_size.width / 4.0, image_size.height / 4.0),
-                        image_size / 2.0,
+                    Some(BitmapRect::new(
+                        BitmapPoint::new(image_size.width / 4, image_size.height / 4),
+                        BitmapSize::new(image_size.width / 2, image_size.height / 2),
                     ))
                 } else {
                     None

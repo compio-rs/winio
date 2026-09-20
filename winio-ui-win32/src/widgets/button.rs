@@ -11,9 +11,7 @@ use winio_primitive::{Point, Size};
 
 use crate::{
     Image, Result,
-    platform::image::{
-        IconSize, clear_hwnd_icon, hwnd_icon_image, hwnd_icon_size, remove_hwnd_icon, set_hwnd_icon,
-    },
+    platform::image::{IconSize, clear_hwnd_icon, hwnd_icon_image, hwnd_icon_size, set_hwnd_icon},
     runtime::WindowMessageCommand,
     widgets::Widget,
 };
@@ -58,8 +56,8 @@ impl Button {
     pub fn preferred_size(&self) -> Result<Size> {
         let mut s = self.handle.measure_text()?;
         if let Some(icon) = hwnd_icon_size(self.handle.as_widget().as_win32()) {
-            s.width += icon.width;
-            s.height = s.height.max(icon.height);
+            s.width += icon.width as f64;
+            s.height = s.height.max(icon.height as f64);
         }
         Ok(Size::new(s.width + 4.0, s.height + 4.0))
     }
@@ -127,7 +125,7 @@ impl Button {
                 BM_SETIMAGE,
             )?;
         }
-        remove_hwnd_icon(old_hwnd);
+        clear_hwnd_icon(old_hwnd);
         self.handle = new_handle;
         self.bs_icon = icon;
         Ok(())
@@ -149,6 +147,6 @@ winio_handle::impl_as_widget!(Button, handle);
 
 impl Drop for Button {
     fn drop(&mut self) {
-        remove_hwnd_icon(self.handle.as_widget().as_win32());
+        clear_hwnd_icon(self.handle.as_widget().as_win32());
     }
 }

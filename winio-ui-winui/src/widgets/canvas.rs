@@ -1,7 +1,5 @@
-use std::{borrow::Cow, cell::Cell, mem::ManuallyDrop, ops::Deref, rc::Rc};
+use std::{cell::Cell, mem::ManuallyDrop, ops::Deref, rc::Rc};
 
-use compio_log::error;
-use image::{DynamicImage, RgbaImage};
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows::Win32::{
@@ -11,6 +9,7 @@ use windows::Win32::{
             Common::{D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_COLOR_F, D2D1_PIXEL_FORMAT},
             D2D1_BITMAP_OPTIONS_CANNOT_DRAW, D2D1_BITMAP_OPTIONS_TARGET, D2D1_BITMAP_PROPERTIES1,
             D2D1_DEVICE_CONTEXT_OPTIONS_NONE, ID2D1Bitmap1, ID2D1Device, ID2D1DeviceContext,
+            ID2D1RenderTarget,
         },
         Direct3D::{
             D3D_DRIVER_TYPE_HARDWARE, D3D_FEATURE_LEVEL_9_1, D3D_FEATURE_LEVEL_9_2,
@@ -21,7 +20,7 @@ use windows::Win32::{
             D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_SDK_VERSION, D3D11CreateDevice, ID3D11Device,
             ID3D11DeviceContext,
         },
-        DirectWrite::{DWRITE_FACTORY_TYPE_SHARED, DWriteCreateFactory, IDWriteFactory},
+        DirectWrite::IDWriteFactory,
         Dxgi::{
             Common::{DXGI_ALPHA_MODE_PREMULTIPLIED, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_SAMPLE_DESC},
             DXGI_ERROR_DEVICE_REMOVED, DXGI_ERROR_DEVICE_RESET, DXGI_MATRIX_3X2_F,
@@ -34,11 +33,11 @@ use windows::Win32::{
 use windows_core::{BOOL, Interface};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{
-    ColorTheme, Font, KeyCode, MouseButton, Point, Rect, RelativePoint, Size, Transform, Vector,
+use winio_primitive::{ColorTheme, KeyCode, MouseButton, Point, Size, Vector};
+pub use winio_ui_windows_common::{
+    Brush, DrawingContext, DrawingImage, DrawingPath, DrawingPathBuilder, Pen,
 };
-use winio_ui_windows_common::d2d1_factory;
-pub use winio_ui_windows_common::{Brush, DrawingImage, DrawingPath, DrawingPathBuilder, Pen};
+use winio_ui_windows_common::{ContextOwner, d2d1_factory, dwrite_factory};
 use winui3::Microsoft::UI::{
     Input::{PointerDeviceType, PointerPointProperties},
     Xaml::{Controls as MUXC, Input as MUXI, Media::DxInterop::ISwapChainPanelNative},
@@ -404,7 +403,7 @@ pub struct Canvas {
 impl Canvas {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let handle = CanvasImpl::new(parent)?;
-        let dwrite = unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED)? };
+        let dwrite = dwrite_factory()?.clone();
         let swap_chain = SwapChain::new()?;
         swap_chain.set_to_panel(&handle)?;
 
@@ -449,7 +448,12 @@ impl Canvas {
                 Err(e) => return Err(e),
             }
         }
-        DrawingContext::new(self)
+        Ok(DrawingContext::new(
+            d2d1_factory()?.clone().into(),
+            self.dwrite.clone(),
+            self.swap_chain.d2d1_context.clone().into(),
+            Some(self),
+        ))
     }
 
     fn handle_lost(&mut self) -> Result<()> {
@@ -489,101 +493,12 @@ impl Canvas {
 
 winio_handle::impl_as_widget!(Canvas, handle);
 
-pub struct DrawingContext<'a> {
-    ctx: winio_ui_windows_common::DrawingContext,
-    canvas: &'a mut Canvas,
-    ended: bool,
-}
-
-impl Drop for DrawingContext<'_> {
-    fn drop(&mut self) {
-        if let Err(_e) = self.end_draw() {
-            error!("EndDraw: {_e:?}");
+impl ContextOwner for Canvas {
+    fn end_draw(&mut self, _target: &ID2D1RenderTarget) -> Result<()> {
+        match self.swap_chain.end_draw() {
+            Ok(()) => Ok(()),
+            Err(e) if is_lost(&e) => self.handle_lost(),
+            Err(e) => Err(e),
         }
     }
-}
-
-#[inherit_methods(from = "self.ctx")]
-impl<'a> DrawingContext<'a> {
-    fn new(canvas: &'a mut Canvas) -> Result<Self> {
-        Ok(Self {
-            ctx: winio_ui_windows_common::DrawingContext::new(
-                d2d1_factory()?.clone().into(),
-                canvas.dwrite.clone(),
-                canvas.swap_chain.d2d1_context.clone().into(),
-            ),
-            canvas,
-            ended: false,
-        })
-    }
-
-    fn end_draw(&mut self) -> Result<()> {
-        if !self.ended {
-            match self.canvas.swap_chain.end_draw() {
-                Ok(()) => {}
-                Err(e) if is_lost(&e) => self.canvas.handle_lost()?,
-                Err(e) => return Err(e),
-            }
-            self.ended = true;
-        }
-        Ok(())
-    }
-
-    pub fn close(mut self) -> Result<()> {
-        self.end_draw()
-    }
-
-    pub fn set_transform(&mut self, transform: Transform) -> Result<()>;
-
-    pub fn transform(&self) -> Result<Transform>;
-
-    pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) -> Result<()>;
-
-    pub fn fill_path(&mut self, brush: impl Brush, path: &DrawingPath) -> Result<()>;
-
-    pub fn draw_arc(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> Result<()>;
-
-    pub fn draw_pie(&mut self, pen: impl Pen, rect: Rect, start: f64, end: f64) -> Result<()>;
-
-    pub fn fill_pie(&mut self, brush: impl Brush, rect: Rect, start: f64, end: f64) -> Result<()>;
-
-    pub fn draw_ellipse(&mut self, pen: impl Pen, rect: Rect) -> Result<()>;
-
-    pub fn fill_ellipse(&mut self, brush: impl Brush, rect: Rect) -> Result<()>;
-
-    pub fn draw_line(&mut self, pen: impl Pen, start: Point, end: Point) -> Result<()>;
-
-    pub fn draw_rect(&mut self, pen: impl Pen, rect: Rect) -> Result<()>;
-
-    pub fn fill_rect(&mut self, brush: impl Brush, rect: Rect) -> Result<()>;
-
-    pub fn draw_round_rect(&mut self, pen: impl Pen, rect: Rect, round: Size) -> Result<()>;
-
-    pub fn fill_round_rect(&mut self, brush: impl Brush, rect: Rect, round: Size) -> Result<()>;
-
-    pub fn draw_str(
-        &mut self,
-        brush: impl Brush,
-        font: Font,
-        anchor: RelativePoint,
-        pos: Point,
-        text: &str,
-    ) -> Result<()>;
-
-    pub fn measure_str(&self, font: Font, text: &str) -> Result<Size>;
-
-    pub fn create_image(&self, image: Cow<'_, DynamicImage>) -> Result<DrawingImage>;
-
-    pub(crate) fn create_image_from_premultiplied(&self, image: RgbaImage) -> Result<DrawingImage> {
-        DrawingImage::from_premultiplied_rgba8(self.ctx.render_target(), image)
-    }
-
-    pub fn draw_image(
-        &mut self,
-        image: &DrawingImage,
-        rect: Rect,
-        clip: Option<Rect>,
-    ) -> Result<()>;
-
-    pub fn create_path_builder(&self, start: Point) -> Result<DrawingPathBuilder>;
 }

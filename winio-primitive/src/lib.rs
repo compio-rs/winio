@@ -9,6 +9,11 @@ pub use traits::*;
 mod drawing;
 pub use drawing::*;
 
+#[cfg(feature = "bytemuck")]
+mod image;
+#[cfg(feature = "bytemuck")]
+pub use image::*;
+
 mod monitor;
 pub use monitor::*;
 

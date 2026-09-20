@@ -13,8 +13,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [target.'cfg(not(any(windows, target_vendor = "apple", target_os = "android")))'.dependencies]
-winio-primitive = { workspace = true }
+winio-primitive = { workspace = true, features = ["bytemuck"] }
 winio-handle = { workspace = true, features = ["gtk"] }
+bytemuck = { workspace = true }
 winio-callback = { workspace = true }
 winio-pollable = { workspace = true, features = ["callback"] }
 
@@ -30,7 +31,7 @@ thiserror = { workspace = true }
 time = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true, features = ["vulkan"] }
 
-gtk4 = { workspace = true, features = ["v4_14"] }
+gtk4 = { workspace = true, features = ["v4_16"] }
 glib-unix = { workspace = true, optional = true }
 pangocairo = { workspace = true }
 webkit6 = { workspace = true, optional = true, features = ["v2_42"] }
