@@ -31,7 +31,7 @@ thiserror = { workspace = true }
 time = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true, features = ["vulkan"] }
 
-gtk4 = { workspace = true, features = ["v4_14"] }
+gtk4 = { workspace = true, features = ["v4_16"] }
 glib-unix = { workspace = true, optional = true }
 pangocairo = { workspace = true }
 webkit6 = { workspace = true, optional = true, features = ["v2_42"] }

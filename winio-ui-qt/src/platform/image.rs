@@ -1,7 +1,7 @@
 use std::{borrow::Cow, fmt, rc::Rc};
 
 use cxx::{ExternType, UniquePtr, type_id};
-use image::{DynamicImage, ImageBuffer, Pixel, Rgb, RgbImage, Rgba, RgbaImage};
+use image::{DynamicImage, ImageBuffer, Pixel, Rgb, Rgba};
 use winio_primitive::{BitmapSize, packed_rows};
 
 use crate::{DrawingContext, Error, Result};
@@ -90,28 +90,20 @@ impl ImageData {
         let (w, h) = (width as usize, height as usize);
         Ok(match image.format() {
             QImageFormat::RGB888 => DynamicImage::ImageRgb8(
-                RgbImage::from_raw(width, height, packed_rows(bytes, stride, w * 3, h))
+                ImageBuffer::from_raw(width, height, packed_rows(bytes, stride, w * 3, h))
                     .expect("invalid image buffer"),
             ),
             QImageFormat::RGBA8888 => DynamicImage::ImageRgba8(
-                RgbaImage::from_raw(width, height, packed_rows(bytes, stride, w * 4, h))
+                ImageBuffer::from_raw(width, height, packed_rows(bytes, stride, w * 4, h))
                     .expect("invalid image buffer"),
             ),
             QImageFormat::RGBA64 => DynamicImage::ImageRgba16(
-                ImageBuffer::<Rgba<u16>, Vec<u16>>::from_raw(
-                    width,
-                    height,
-                    packed_rows(bytes, stride, w * 8, h),
-                )
-                .expect("invalid image buffer"),
+                ImageBuffer::from_raw(width, height, packed_rows(bytes, stride, w * 8, h))
+                    .expect("invalid image buffer"),
             ),
             QImageFormat::RGBA32FPx4 => DynamicImage::ImageRgba32F(
-                ImageBuffer::<Rgba<f32>, Vec<f32>>::from_raw(
-                    width,
-                    height,
-                    packed_rows(bytes, stride, w * 16, h),
-                )
-                .expect("invalid image buffer"),
+                ImageBuffer::from_raw(width, height, packed_rows(bytes, stride, w * 16, h))
+                    .expect("invalid image buffer"),
             ),
             _ => {
                 let image = ffi::image_to_rgba8(image)?;
@@ -120,7 +112,7 @@ impl ImageData {
                 let height = size.height.max(0) as u32;
                 let stride = ffi::image_bytes_per_line(&image);
                 DynamicImage::ImageRgba8(
-                    RgbaImage::from_raw(
+                    ImageBuffer::from_raw(
                         width,
                         height,
                         packed_rows(
