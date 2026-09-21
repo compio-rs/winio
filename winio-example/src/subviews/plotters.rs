@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use plotters::prelude::{Color as _, *};
+use plotters::prelude::{Color as PlottersColor, *};
 use winio::prelude::*;
 
 use crate::{Error, Result};
@@ -67,8 +67,8 @@ impl Component for PlottersPage {
         chart
             .configure_mesh()
             .axis_style(fore)
-            .light_line_style(fore.mix(0.1))
-            .bold_line_style(fore.mix(0.2))
+            .light_line_style(PlottersColor::mix(&fore, 0.1))
+            .bold_line_style(PlottersColor::mix(&fore, 0.2))
             .label_style(FONT.into_font().color(&fore))
             .draw()?;
         chart
