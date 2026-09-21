@@ -91,10 +91,18 @@ fn bitmap_rect_f(r: BitmapRect) -> D2D_RECT_F {
 pub fn rgba8_to_pbgra8(pixels: &mut [u8]) {
     for pixel in pixels.as_chunks_mut::<4>().0 {
         let [r, g, b, a] = [pixel[0], pixel[1], pixel[2], pixel[3]];
-        let a = a as u16;
-        pixel[0] = ((b as u16 * a + 127) / 255) as u8;
-        pixel[1] = ((g as u16 * a + 127) / 255) as u8;
-        pixel[2] = ((r as u16 * a + 127) / 255) as u8;
+        if a == 0 {
+            pixel[0] = 0;
+            pixel[1] = 0;
+            pixel[2] = 0;
+        } else if a != 255 {
+            let a = a as u16;
+            pixel[0] = ((b as u16 * a + 127) / 255) as u8;
+            pixel[1] = ((g as u16 * a + 127) / 255) as u8;
+            pixel[2] = ((r as u16 * a + 127) / 255) as u8;
+        } else {
+            pixel.swap(0, 2);
+        }
     }
 }
 
@@ -102,19 +110,14 @@ pub fn rgba8_to_pbgra8(pixels: &mut [u8]) {
 fn pbgra8_to_rgba8(pixels: &mut [u8]) {
     for pixel in pixels.as_chunks_mut::<4>().0 {
         let [b, g, r, a] = [pixel[0], pixel[1], pixel[2], pixel[3]];
-        let alpha = a as u16;
-        let (r, g, b) = if a == 0 {
-            (0, 0, 0)
+        if a != 0 && a != 255 {
+            let alpha = a as u16;
+            pixel[0] = ((r as u16 * 255 + alpha / 2) / alpha).min(255) as u8;
+            pixel[1] = ((g as u16 * 255 + alpha / 2) / alpha).min(255) as u8;
+            pixel[2] = ((b as u16 * 255 + alpha / 2) / alpha).min(255) as u8;
         } else {
-            (
-                ((r as u16 * 255 + alpha / 2) / alpha).min(255) as u8,
-                ((g as u16 * 255 + alpha / 2) / alpha).min(255) as u8,
-                ((b as u16 * 255 + alpha / 2) / alpha).min(255) as u8,
-            )
-        };
-        pixel[0] = r;
-        pixel[1] = g;
-        pixel[2] = b;
+            pixel.swap(0, 2);
+        }
     }
 }
 

@@ -1,30 +1,63 @@
-use std::{borrow::Cow, cell::RefCell, collections::BTreeMap, mem::zeroed, ptr::null_mut, rc::Rc};
+use std::{
+    borrow::Cow,
+    cell::RefCell,
+    collections::BTreeMap,
+    ptr::{null, null_mut},
+    rc::Rc,
+};
 
 use image::{DynamicImage, GenericImageView, imageops::FilterType};
-use windows_core::{Error, HRESULT, WIN32_ERROR};
+use windows_core::Error;
 use windows_sys::Win32::{
-    Foundation::{
-        E_ABORT, E_ACCESSDENIED, E_BOUNDS, E_FAIL, E_INVALIDARG, E_NOTIMPL, E_OUTOFMEMORY,
-        E_UNEXPECTED, ERROR_BUSY, ERROR_FILE_NOT_FOUND, ERROR_INSUFFICIENT_BUFFER,
-        ERROR_INVALID_STATE, ERROR_NOT_FOUND, ERROR_NOT_SUPPORTED, HWND,
-    },
-    Graphics::GdiPlus::{
-        self as gdiplus, GdipCreateBitmapFromScan0, GdipCreateHICONFromBitmap, GdipDisposeImage,
-        GdiplusShutdown, GdiplusStartup, GdiplusStartupInput, GpBitmap, Status,
+    Foundation::HWND,
+    Graphics::Gdi::{
+        BI_BITFIELDS, BITMAPV5HEADER, CreateBitmap, CreateDIBSection, DIB_RGB_COLORS, DeleteObject,
+        GetDC, HBITMAP, HDC, ReleaseDC,
     },
     UI::{
+        ColorSystem::LCS_WINDOWS_COLOR_SPACE,
         HiDpi::GetSystemMetricsForDpi,
         WindowsAndMessaging::{
-            DestroyIcon, HICON, IMAGE_ICON, SM_CXSMICON, SM_CYSMICON, SendMessageW,
+            CreateIconIndirect, DestroyIcon, HICON, ICONINFO, IMAGE_ICON, SM_CXSMICON, SM_CYSMICON,
+            SendMessageW,
         },
     },
 };
 use winio_primitive::BitmapSize;
+use winio_ui_windows_common::rgba8_to_pbgra8;
 
 use super::dpi::get_dpi_for_window;
 use crate::{DrawingContext, DrawingImage, Result};
 
+struct WinBitmap(HBITMAP);
+
+impl WinBitmap {
+    pub fn retain(h: HBITMAP) -> Result<Self> {
+        if h.is_null() {
+            Err(Error::from_thread())
+        } else {
+            Ok(Self(h))
+        }
+    }
+}
+
+impl Drop for WinBitmap {
+    fn drop(&mut self) {
+        unsafe { DeleteObject(self.0) };
+    }
+}
+
 struct WinIcon(HICON);
+
+impl WinIcon {
+    pub fn retain(h: HICON) -> Result<Self> {
+        if h.is_null() {
+            Err(Error::from_thread())
+        } else {
+            Ok(Self(h))
+        }
+    }
+}
 
 impl Drop for WinIcon {
     fn drop(&mut self) {
@@ -32,100 +65,22 @@ impl Drop for WinIcon {
     }
 }
 
-fn gdip_status(status: Status) -> Result<()> {
-    match status {
-        gdiplus::Ok => Ok(()),
-        gdiplus::InvalidParameter => Err(Error::from_hresult(HRESULT(E_INVALIDARG))),
-        gdiplus::OutOfMemory => Err(Error::from_hresult(HRESULT(E_OUTOFMEMORY))),
-        gdiplus::ObjectBusy => Err(Error::from_hresult(WIN32_ERROR(ERROR_BUSY).to_hresult())),
-        gdiplus::InsufficientBuffer => Err(Error::from_hresult(
-            WIN32_ERROR(ERROR_INSUFFICIENT_BUFFER).to_hresult(),
-        )),
-        gdiplus::NotImplemented => Err(Error::from_hresult(HRESULT(E_NOTIMPL))),
-        gdiplus::Win32Error => Err(Error::from_thread()),
-        gdiplus::WrongState => Err(Error::from_hresult(
-            WIN32_ERROR(ERROR_INVALID_STATE).to_hresult(),
-        )),
-        gdiplus::Aborted => Err(Error::from_hresult(HRESULT(E_ABORT))),
-        gdiplus::FileNotFound => Err(Error::from_hresult(
-            WIN32_ERROR(ERROR_FILE_NOT_FOUND).to_hresult(),
-        )),
-        gdiplus::ValueOverflow => Err(Error::from_hresult(HRESULT(E_BOUNDS))),
-        gdiplus::AccessDenied => Err(Error::from_hresult(HRESULT(E_ACCESSDENIED))),
-        gdiplus::FontFamilyNotFound
-        | gdiplus::FontStyleNotFound
-        | gdiplus::PropertyNotFound
-        | gdiplus::ProfileNotFound => Err(Error::from_hresult(
-            WIN32_ERROR(ERROR_NOT_FOUND).to_hresult(),
-        )),
-        gdiplus::UnknownImageFormat
-        | gdiplus::NotTrueTypeFont
-        | gdiplus::UnsupportedGdiplusVersion
-        | gdiplus::PropertyNotSupported => Err(Error::from_hresult(
-            WIN32_ERROR(ERROR_NOT_SUPPORTED).to_hresult(),
-        )),
-        gdiplus::GdiplusNotInitialized => Err(Error::from_hresult(HRESULT(E_UNEXPECTED))),
-        _ => Err(Error::from_hresult(HRESULT(E_FAIL))),
-    }
-}
+struct WinDC(HDC, HWND);
 
-struct GdipInit {
-    token: usize,
-}
-
-impl GdipInit {
-    pub fn new() -> Result<Self> {
-        let mut token = 0;
-        let mut input: GdiplusStartupInput = unsafe { zeroed() };
-        input.GdiplusVersion = 1;
-        gdip_status(unsafe { GdiplusStartup(&mut token, &input, null_mut()) })?;
-        Ok(Self { token })
-    }
-}
-
-impl Drop for GdipInit {
-    fn drop(&mut self) {
-        unsafe { GdiplusShutdown(self.token) };
-    }
-}
-
-fn gdip_init() -> Result<()> {
-    thread_local! {
-        static GDIP_INIT: RefCell<Option<GdipInit>> = const { RefCell::new(None) };
-    }
-    GDIP_INIT.with_borrow_mut(|init| {
-        if init.is_none() {
-            *init = Some(GdipInit::new()?);
+impl WinDC {
+    pub fn new(hwnd: HWND) -> Result<Self> {
+        let hdc = unsafe { GetDC(hwnd) };
+        if hdc.is_null() {
+            Err(Error::from_thread())
+        } else {
+            Ok(Self(hdc, hwnd))
         }
-        Ok(())
-    })
-}
-
-struct GdipBitmap(*mut GpBitmap);
-
-impl GdipBitmap {
-    pub fn new(width: i32, height: i32, stride: i32, format: i32, data: *const u8) -> Result<Self> {
-        gdip_init()?;
-
-        let mut bitmap = null_mut();
-        gdip_status(unsafe {
-            GdipCreateBitmapFromScan0(width, height, stride, format, data, &mut bitmap)
-        })?;
-        Ok(Self(bitmap))
-    }
-
-    pub fn create_hicon(&self) -> Result<WinIcon> {
-        let mut icon = null_mut();
-        gdip_status(unsafe { GdipCreateHICONFromBitmap(self.0, &mut icon) })?;
-        Ok(WinIcon(icon))
     }
 }
 
-impl Drop for GdipBitmap {
+impl Drop for WinDC {
     fn drop(&mut self) {
-        unsafe {
-            GdipDisposeImage(self.0.cast());
-        }
+        unsafe { ReleaseDC(self.1, self.0) };
     }
 }
 
@@ -146,35 +101,63 @@ impl Image {
 
     #[allow(non_upper_case_globals)]
     fn to_hicon(&self, resize: Option<(i32, i32)>) -> Result<WinIcon> {
-        let (data, width, height) = match resize {
-            Some((width, height)) => (
-                self.0
+        let (mut data, width, height) = match resize {
+            Some((width, height)) => {
+                let data = self
+                    .0
                     .resize_exact(width as _, height as _, FilterType::Triangle)
                     .into_rgba8()
-                    .into_raw_bgra(),
-                width,
-                height,
-            ),
+                    .into_raw();
+                (data, width, height)
+            }
             None => {
                 let (width, height) = self.0.dimensions();
-                (self.0.to_rgba8().into_raw_bgra(), width as _, height as _)
+                (self.0.to_rgba8().into_raw(), width as _, height as _)
             }
         };
 
-        const PixelFormatGDI: i32 = 0x00020000;
-        const PixelFormatAlpha: i32 = 0x00040000;
-        const PixelFormatCanonical: i32 = 0x00200000;
-        const PixelFormat32bppARGB: i32 =
-            10 | (32 << 8) | PixelFormatAlpha | PixelFormatGDI | PixelFormatCanonical;
+        rgba8_to_pbgra8(&mut data);
 
-        let bitmap = GdipBitmap::new(
-            width,
-            height,
-            width * 4,
-            PixelFormat32bppARGB,
-            data.as_ptr(),
-        )?;
-        bitmap.create_hicon()
+        unsafe {
+            let hdc = WinDC::new(null_mut())?;
+
+            let mut header: BITMAPV5HEADER = std::mem::zeroed();
+            header.bV5Size = std::mem::size_of::<BITMAPV5HEADER>() as _;
+            header.bV5Width = width;
+            header.bV5Height = -height;
+            header.bV5Planes = 1;
+            header.bV5BitCount = 32;
+            header.bV5Compression = BI_BITFIELDS;
+            header.bV5SizeImage = (width * height * 4) as _;
+            header.bV5RedMask = 0x00FF0000;
+            header.bV5GreenMask = 0x0000FF00;
+            header.bV5BlueMask = 0x000000FF;
+            header.bV5AlphaMask = 0xFF000000;
+            header.bV5CSType = LCS_WINDOWS_COLOR_SPACE as _;
+            let mut bits = null_mut();
+
+            let bitmap = WinBitmap::retain(CreateDIBSection(
+                hdc.0,
+                &raw const header as _,
+                DIB_RGB_COLORS,
+                &mut bits,
+                null_mut(),
+                0,
+            ))?;
+
+            let slice =
+                std::slice::from_raw_parts_mut(bits.cast::<u8>(), (width * height * 4) as _);
+            slice.copy_from_slice(&data);
+
+            let mask = WinBitmap::retain(CreateBitmap(width, height, 1, 0, null()))?;
+
+            let mut info: ICONINFO = std::mem::zeroed();
+            info.fIcon = 1;
+            info.hbmColor = bitmap.0;
+            info.hbmMask = mask.0;
+
+            WinIcon::retain(CreateIconIndirect(&info))
+        }
     }
 }
 
