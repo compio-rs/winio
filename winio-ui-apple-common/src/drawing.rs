@@ -600,13 +600,8 @@ impl DrawingImage {
     pub fn context(&mut self) -> Result<DrawingContext<'_>> {
         let width = self.size.width;
         let height = self.size.height;
-        let mut data = vec![0; width * height * 4];
+        let mut data = self.data.as_ref().clone();
         let context = create_context(&mut data, width, height)?;
-        CGContext::draw_image(
-            Some(&*context),
-            NSRect::new(NSPoint::ZERO, NSSize::new(width as f64, height as f64)),
-            Some(&*self.image),
-        );
         Ok(DrawingContext::new_image(
             Size::new(width as f64, height as f64),
             self,
@@ -626,13 +621,7 @@ impl DrawingImage {
     fn to_dynamic_image(&self) -> Result<DynamicImage> {
         let width = self.size.width;
         let height = self.size.height;
-        let mut data = vec![0; width * height * 4];
-        let context = create_context(&mut data, width, height)?;
-        CGContext::draw_image(
-            Some(&*context),
-            NSRect::new(NSPoint::ZERO, NSSize::new(width as f64, height as f64)),
-            Some(&*self.image),
-        );
+        let mut data = self.data.as_ref().clone();
         unpremultiply_rgba8(&mut data);
         Ok(DynamicImage::ImageRgba8(
             RgbaImage::from_raw(width as u32, height as u32, data).expect("invalid image buffer"),
