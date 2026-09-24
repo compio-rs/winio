@@ -43,6 +43,9 @@ pub use timer::*;
 mod keyboard;
 pub use keyboard::*;
 
+mod com;
+pub use com::*;
+
 pub(crate) async fn spawn_blocking<F, R>(f: F) -> R
 where
     F: FnOnce() -> R + Send + 'static,

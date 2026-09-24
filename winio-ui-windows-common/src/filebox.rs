@@ -3,10 +3,7 @@ use std::ffi::OsString;
 use widestring::U16CString;
 use windows::Win32::{
     Foundation::HWND,
-    System::Com::{
-        CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx,
-        CoTaskMemFree, CoUninitialize,
-    },
+    System::Com::{CLSCTX_INPROC_SERVER, CoCreateInstance, CoTaskMemFree},
     UI::Shell::{
         Common::COMDLG_FILTERSPEC, FOS_ALLOWMULTISELECT, FOS_PICKFOLDERS, FileOpenDialog,
         FileSaveDialog, IFileDialog, IFileOpenDialog, SIGDN_FILESYSPATH,
@@ -16,7 +13,7 @@ use windows_core::{Interface, PCWSTR, PWSTR, WIN32_ERROR};
 use windows_sys::Win32::Foundation::ERROR_CANCELLED;
 use winio_handle::AsWindow;
 
-use crate::Result;
+use crate::{CoInit, Result};
 
 #[derive(Debug, Default, Clone)]
 pub struct FileBox {
@@ -159,7 +156,7 @@ fn filebox(
     multiple: bool,
     folder: bool,
 ) -> Result<FileBoxInner> {
-    let init = CoInitialize::init()?;
+    let init = CoInit::new()?;
 
     unsafe {
         let handle: IFileDialog = if open {
@@ -210,7 +207,7 @@ fn filebox(
     }
 }
 
-struct FileBoxInner(Option<IFileDialog>, CoInitialize);
+struct FileBoxInner(Option<IFileDialog>, CoInit);
 
 impl FileBoxInner {
     pub fn result(self) -> Result<Option<OsString>> {
@@ -279,22 +276,5 @@ impl CoTaskMemPtr<u16> {
 impl<T> Drop for CoTaskMemPtr<T> {
     fn drop(&mut self) {
         unsafe { CoTaskMemFree(Some(self.0.cast())) }
-    }
-}
-
-struct CoInitialize;
-
-impl CoInitialize {
-    pub fn init() -> Result<Self> {
-        unsafe {
-            CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok()?;
-        }
-        Ok(Self)
-    }
-}
-
-impl Drop for CoInitialize {
-    fn drop(&mut self) {
-        unsafe { CoUninitialize() };
     }
 }

@@ -11,10 +11,7 @@ use windows::Win32::{
         MF_MEDIA_ENGINE_PLAYBACK_HWND, MF_VERSION, MFCreateAttributes, MFSTARTUP_FULL, MFShutdown,
         MFStartup,
     },
-    System::Com::{
-        CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx,
-        CoUninitialize,
-    },
+    System::Com::{CLSCTX_INPROC_SERVER, CoCreateInstance},
 };
 use windows_core::{BSTR, Error, HRESULT, Interface, implement};
 use windows_sys::Win32::{
@@ -27,7 +24,7 @@ use windows_sys::Win32::{
 use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{Point, Size};
-use winio_ui_windows_common::syscall;
+use winio_ui_windows_common::{CoInit, syscall};
 
 use crate::{Result, Widget, widgets::with_u16c};
 
@@ -206,15 +203,15 @@ impl Media {
 winio_handle::impl_as_widget!(Media, handle);
 
 #[derive(Debug)]
-struct MFGuard;
+struct MFGuard(CoInit);
 
 impl MFGuard {
     pub fn init() -> Result<Self> {
+        let co_init = CoInit::new()?;
         unsafe {
-            CoInitializeEx(None, COINIT_APARTMENTTHREADED as _).ok()?;
             MFStartup(MF_VERSION, MFSTARTUP_FULL)?;
         }
-        Ok(Self)
+        Ok(Self(co_init))
     }
 }
 
@@ -224,7 +221,6 @@ impl Drop for MFGuard {
             if let Err(_e) = MFShutdown() {
                 error!("MFShutdown: {:?}", _e);
             }
-            CoUninitialize();
         }
     }
 }

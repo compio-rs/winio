@@ -10,39 +10,32 @@ use windows::Win32::{
         DirectWrite::{DWRITE_FACTORY_TYPE_SHARED, DWriteCreateFactory, IDWriteFactory},
         Imaging::{CLSID_WICImagingFactory, IWICImagingFactory},
     },
-    System::Com::{
-        CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx,
-        CoUninitialize,
-    },
+    System::Com::{CLSCTX_INPROC_SERVER, CoCreateInstance},
 };
+
+use crate::{CoInit, Result};
 
 static D2D1_FACTORY: OnceLock<ID2D1Factory2> = OnceLock::new();
 
-pub fn d2d1_factory() -> crate::Result<&'static ID2D1Factory2> {
+pub fn d2d1_factory() -> Result<&'static ID2D1Factory2> {
     D2D1_FACTORY
         .get_or_try_init(|| unsafe { D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, None) })
 }
 
 static DWRITE_FACTORY: OnceLock<IDWriteFactory> = OnceLock::new();
 
-pub fn dwrite_factory() -> crate::Result<&'static IDWriteFactory> {
+pub fn dwrite_factory() -> Result<&'static IDWriteFactory> {
     DWRITE_FACTORY.get_or_try_init(|| unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED) })
 }
 
-struct WICImagingFactory(IWICImagingFactory);
+struct WICImagingFactory(IWICImagingFactory, CoInit);
 
 impl WICImagingFactory {
-    fn new() -> crate::Result<Self> {
-        unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok()? };
+    fn new() -> Result<Self> {
+        let co_init = CoInit::new()?;
         let factory =
             unsafe { CoCreateInstance(&CLSID_WICImagingFactory, None, CLSCTX_INPROC_SERVER)? };
-        Ok(Self(factory))
-    }
-}
-
-impl Drop for WICImagingFactory {
-    fn drop(&mut self) {
-        unsafe { CoUninitialize() };
+        Ok(Self(factory, co_init))
     }
 }
 
@@ -59,9 +52,7 @@ thread_local! {
 }
 
 /// Call `f` with the thread-local WIC factory.
-pub(crate) fn with_wic_factory<R>(
-    f: impl FnOnce(&IWICImagingFactory) -> crate::Result<R>,
-) -> crate::Result<R> {
+pub(crate) fn with_wic_factory<R>(f: impl FnOnce(&IWICImagingFactory) -> Result<R>) -> Result<R> {
     WIC_FACTORY.with(|cell| {
         let factory = cell.get_or_try_init(WICImagingFactory::new)?;
         f(factory)
