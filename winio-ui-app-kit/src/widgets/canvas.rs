@@ -65,6 +65,7 @@ impl CanvasImpl {
             .window()
             .map(|w| {
                 let p = w.mouseLocationOutsideOfEventStream();
+                let p = self.view.convertPoint_fromView(p, None);
                 transform_cgpoint(self.size().unwrap_or_default(), p)
             })
             .unwrap_or_default()
