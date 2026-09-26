@@ -99,7 +99,7 @@ pub trait DrawAction: Debug {
     fn draw(&self, ctx: &mut DrawActionContext);
 }
 
-pub fn draw_rect(actions: &[Box<dyn DrawAction>], context: &CGContext, factor: f64) {
+pub(crate) fn draw_rect(actions: &[Box<dyn DrawAction>], context: &CGContext, factor: f64) {
     let mut ctx = DrawActionContext {
         context,
         transform: None,
