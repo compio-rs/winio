@@ -1,5 +1,3 @@
-use std::cell::{Cell, RefCell};
-
 use compio_log::*;
 use inherit_methods_macro::inherit_methods;
 use objc2::{
@@ -13,7 +11,7 @@ use winio_handle::AsContainer;
 use winio_primitive::{KeyCode, MouseButton, Point, Size, Vector};
 
 use crate::{
-    ContextOwner, DrawAction, DrawingContext, GlobalRuntime, Result, Widget, catch,
+    CanvasState, ContextOwner, DrawingContext, GlobalRuntime, Result, Widget, catch,
     platform::Keyboard, transform_cgpoint,
 };
 
@@ -124,8 +122,7 @@ impl Canvas {
 
     pub fn context(&mut self) -> Result<DrawingContext<'_>> {
         let size = self.size()?;
-        let actions = self.handle.view.ivars().take_buffer();
-        Ok(DrawingContext::new(size, self, actions))
+        Ok(DrawingContext::new(size, self))
     }
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
@@ -159,15 +156,6 @@ impl Canvas {
 
 winio_handle::impl_as_widget!(Canvas, handle);
 
-fn draw_rect(actions: &[DrawAction], _rect: NSRect, factor: f64) {
-    let Some(ns_context) = NSGraphicsContext::currentContext() else {
-        error!("Cannot get current NSGraphicsContext");
-        return;
-    };
-    let context = ns_context.CGContext();
-    DrawAction::draw_rect(actions, &context, factor);
-}
-
 #[derive(Debug, Default)]
 struct CanvasViewIvars {
     mouse_down: Callback<MouseButton>,
@@ -175,28 +163,7 @@ struct CanvasViewIvars {
     mouse_move: Callback,
     mouse_scroll: Callback<Vector>,
     keyboard: Keyboard,
-    actions: RefCell<Vec<DrawAction>>,
-    // A buffer for actions, to avoid frequent allocations.
-    actions_buf: RefCell<Vec<DrawAction>>,
-    factor: Cell<f64>,
-}
-
-impl CanvasViewIvars {
-    pub fn take_buffer(&self) -> Vec<DrawAction> {
-        std::mem::take(&mut self.actions_buf.borrow_mut())
-    }
-
-    pub fn swap_buffer(&self, buf: &mut Vec<DrawAction>) {
-        {
-            let mut actions = self.actions.borrow_mut();
-            std::mem::swap::<Vec<DrawAction>>(&mut actions, buf);
-        }
-        {
-            let mut actions_buf = self.actions_buf.borrow_mut();
-            std::mem::swap::<Vec<DrawAction>>(&mut actions_buf, buf);
-            actions_buf.clear();
-        }
-    }
+    canvas: CanvasState,
 }
 
 define_class! {
@@ -246,9 +213,12 @@ define_class! {
         }
 
         #[unsafe(method(drawRect:))]
-        unsafe fn drawRect(&self, rect: NSRect) {
-            let ivars = self.ivars();
-            draw_rect(&ivars.actions.borrow(), rect, ivars.factor.get())
+        unsafe fn drawRect(&self, _rect: NSRect) {
+            let Some(ns_context) = NSGraphicsContext::currentContext() else {
+                error!("Cannot get current NSGraphicsContext");
+                return;
+            };
+            self.ivars().canvas.draw_rect(&ns_context.CGContext());
         }
 
         #[unsafe(method(mouseDown:))]
@@ -297,17 +267,19 @@ fn mouse_button(event: &NSEvent) -> MouseButton {
 }
 
 impl ContextOwner for Canvas {
-    fn end_draw(&mut self, mut actions: Vec<DrawAction>) -> Result<()> {
-        let ivars = self.handle.view.ivars();
-        ivars.swap_buffer(&mut actions);
-        ivars.factor.set(
-            self.handle
-                .view
-                .window()
-                .map(|w| w.backingScaleFactor())
-                .unwrap_or(1.0),
-        );
-        catch(|| self.handle.view.setNeedsDisplay(true))?;
-        Ok(())
+    fn canvas_state(&self) -> &CanvasState {
+        &self.handle.view.ivars().canvas
+    }
+
+    fn draw_factor(&self) -> f64 {
+        self.handle
+            .view
+            .window()
+            .map(|w| w.backingScaleFactor())
+            .unwrap_or(1.0)
+    }
+
+    fn refresh(&mut self) -> Result<()> {
+        catch(|| self.handle.view.setNeedsDisplay(true))
     }
 }

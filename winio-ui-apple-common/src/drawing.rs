@@ -1,6 +1,7 @@
 use std::{
     borrow::Cow,
-    fmt, mem,
+    fmt::{self, Debug},
+    mem,
     ptr::{null, null_mut},
     rc::Rc,
 };
@@ -26,7 +27,7 @@ use winio_primitive::{
     RadialGradientBrush, Rect, RelativePoint, Size, SolidColorBrush, Transform,
 };
 
-use crate::{Error, Result, TollFreeBridge};
+use crate::{CanvasState, Error, Result, TollFreeBridge};
 
 #[inline]
 pub fn from_cgsize(size: NSSize) -> Size {
@@ -84,8 +85,71 @@ pub fn transform_cgpoint(s: Size, p: NSPoint) -> Point {
     Point::new(p.x, s.height - p.y)
 }
 
+#[doc(hidden)]
+pub struct DrawActionContext<'a> {
+    pub context: &'a CGContext,
+    pub transform: Option<CGAffineTransform>,
+    pub factor: f64,
+}
+
+#[doc(hidden)]
+pub trait DrawAction: Debug {
+    fn set_width(&mut self, width: f64) {
+        let _ = width;
+    }
+
+    fn draw(&self, ctx: &mut DrawActionContext);
+}
+
+pub(crate) fn draw_rect(actions: &[Box<dyn DrawAction>], context: &CGContext, factor: f64) {
+    let mut ctx = DrawActionContext {
+        context,
+        transform: None,
+        factor,
+    };
+    for action in actions {
+        CGContext::save_g_state(Some(ctx.context));
+        if let Some(transform) = &ctx.transform {
+            CGContext::concat_ctm(Some(ctx.context), *transform);
+        }
+        action.draw(&mut ctx);
+        CGContext::restore_g_state(Some(ctx.context));
+    }
+}
+
 #[derive(Debug)]
-pub enum DrawGradientAction {
+struct DrawActionPath {
+    path: CFRetained<CGPath>,
+    color: CFRetained<CGColor>,
+    width: Option<f64>,
+}
+
+impl DrawActionPath {
+    fn new(path: CFRetained<CGPath>, color: CFRetained<CGColor>, width: Option<f64>) -> Self {
+        Self { path, color, width }
+    }
+}
+
+impl DrawAction for DrawActionPath {
+    fn set_width(&mut self, width: f64) {
+        self.width = Some(width);
+    }
+
+    fn draw(&self, ctx: &mut DrawActionContext) {
+        CGContext::add_path(Some(ctx.context), Some(&self.path));
+        if let Some(width) = self.width {
+            CGContext::set_stroke_color_with_color(Some(ctx.context), Some(&self.color));
+            CGContext::set_line_width(Some(ctx.context), width);
+            CGContext::stroke_path(Some(ctx.context));
+        } else {
+            CGContext::set_fill_color_with_color(Some(ctx.context), Some(&self.color));
+            CGContext::fill_path(Some(ctx.context));
+        }
+    }
+}
+
+#[derive(Debug)]
+enum DrawActionGradientInner {
     Linear {
         gradient: CFRetained<CGGradient>,
         start_point: NSPoint,
@@ -100,8 +164,8 @@ pub enum DrawGradientAction {
     },
 }
 
-impl DrawGradientAction {
-    pub fn draw(&self, context: &CGContext) {
+impl DrawActionGradientInner {
+    fn draw(&self, context: &CGContext) {
         match self {
             Self::Linear {
                 gradient,
@@ -138,125 +202,167 @@ impl DrawGradientAction {
 }
 
 #[derive(Debug)]
-pub enum DrawAction {
-    Path(CFRetained<CGPath>, CFRetained<CGColor>, Option<f64>),
-    GradientPath(CFRetained<CGPath>, DrawGradientAction, Option<f64>),
-    Text(CFRetained<CTFramesetter>, NSRect),
-    GradientText(CFRetained<CTFramesetter>, DrawGradientAction, NSRect),
-    Image(DrawingImage, NSRect, Option<NSRect>),
-    Transform(CGAffineTransform),
+struct DrawActionGradient {
+    path: CFRetained<CGPath>,
+    inner: DrawActionGradientInner,
+    width: Option<f64>,
 }
 
-impl DrawAction {
-    fn with_width(self, width: f64) -> Self {
-        match self {
-            Self::Path(path, color, _) => Self::Path(path, color, Some(width)),
-            Self::GradientPath(path, gradient, _) => {
-                Self::GradientPath(path, gradient, Some(width))
-            }
-            _ => self,
-        }
+impl DrawActionGradient {
+    fn new(path: CFRetained<CGPath>, inner: DrawActionGradientInner, width: Option<f64>) -> Self {
+        Self { path, inner, width }
+    }
+}
+
+impl DrawAction for DrawActionGradient {
+    fn set_width(&mut self, width: f64) {
+        self.width = Some(width);
     }
 
-    pub fn draw_rect(actions: &[Self], context: &CGContext, factor: f64) {
-        let mut current_transform = None;
-        for action in actions {
-            CGContext::save_g_state(Some(context));
-            if let Some(transform) = &current_transform {
-                CGContext::concat_ctm(Some(context), *transform);
+    fn draw(&self, ctx: &mut DrawActionContext) {
+        CGContext::add_path(Some(ctx.context), Some(&self.path));
+        if let Some(width) = self.width {
+            CGContext::set_line_width(Some(ctx.context), width);
+            CGContext::replace_path_with_stroked_path(Some(ctx.context));
+        }
+        CGContext::clip(Some(ctx.context));
+        self.inner.draw(ctx.context);
+    }
+}
+
+#[derive(Debug)]
+struct DrawActionText {
+    framesetter: CFRetained<CTFramesetter>,
+    rect: NSRect,
+}
+
+impl DrawActionText {
+    fn new(framesetter: CFRetained<CTFramesetter>, rect: NSRect) -> Self {
+        Self { framesetter, rect }
+    }
+}
+
+impl DrawAction for DrawActionText {
+    fn draw(&self, ctx: &mut DrawActionContext) {
+        let text_path = unsafe { CGPath::with_rect(self.rect, null()) };
+        let frame = unsafe { self.framesetter.frame(CFRange::new(0, 0), &text_path, None) };
+        unsafe { frame.draw(ctx.context) };
+    }
+}
+
+#[derive(Debug)]
+struct DrawActionGradientText {
+    framesetter: CFRetained<CTFramesetter>,
+    inner: DrawActionGradientInner,
+    rect: NSRect,
+}
+
+impl DrawActionGradientText {
+    fn new(
+        framesetter: CFRetained<CTFramesetter>,
+        inner: DrawActionGradientInner,
+        rect: NSRect,
+    ) -> Self {
+        Self {
+            framesetter,
+            inner,
+            rect,
+        }
+    }
+}
+
+impl DrawAction for DrawActionGradientText {
+    fn draw(&self, ctx: &mut DrawActionContext) {
+        let colorspace = CGColorSpace::new_device_gray();
+        let mask = match unsafe {
+            CGBitmapContextCreate(
+                null_mut(),
+                (self.rect.size.width * ctx.factor) as _,
+                (self.rect.size.height * ctx.factor) as _,
+                8,
+                (self.rect.size.width * ctx.factor) as _,
+                colorspace.as_deref(),
+                0,
+            )
+        } {
+            Some(context) => context,
+            None => {
+                error!("Cannot create CGBitmapContext");
+                return;
             }
-            match action {
-                DrawAction::Path(path, color, width) => {
-                    CGContext::add_path(Some(context), Some(path));
-                    if let Some(width) = width {
-                        CGContext::set_stroke_color_with_color(Some(context), Some(color));
-                        CGContext::set_line_width(Some(context), *width);
-                        CGContext::stroke_path(Some(context));
-                    } else {
-                        CGContext::set_fill_color_with_color(Some(context), Some(color));
-                        CGContext::fill_path(Some(context));
-                    }
-                }
-                DrawAction::GradientPath(path, gradient, width) => {
-                    CGContext::add_path(Some(context), Some(path));
-                    if let Some(width) = width {
-                        CGContext::set_line_width(Some(context), *width);
-                        CGContext::replace_path_with_stroked_path(Some(context));
-                        CGContext::clip(Some(context));
-                        gradient.draw(context);
-                    } else {
-                        CGContext::clip(Some(context));
-                        gradient.draw(context);
-                    }
-                }
-                DrawAction::Text(framesetter, rect) => unsafe {
-                    let text_path = CGPath::with_rect(*rect, null());
+        };
 
-                    let frame = framesetter.frame(CFRange::new(0, 0), &text_path, None);
+        let text_path =
+            unsafe { CGPath::with_rect(NSRect::new(NSPoint::ZERO, self.rect.size), null()) };
+        let frame = unsafe { self.framesetter.frame(CFRange::new(0, 0), &text_path, None) };
 
-                    frame.draw(context);
-                },
-                DrawAction::GradientText(framesetter, gradient, rect) => unsafe {
-                    let colorspace = CGColorSpace::new_device_gray();
-                    let Some(mask) = CGBitmapContextCreate(
-                        null_mut(),
-                        (rect.size.width * factor) as _,
-                        (rect.size.height * factor) as _,
-                        8,
-                        (rect.size.width * factor) as _,
-                        colorspace.as_deref(),
-                        0,
-                    ) else {
-                        error!("Cannot create CGBitmapContext");
-                        continue;
-                    };
+        CGContext::scale_ctm(Some(&mask), ctx.factor, ctx.factor);
+        unsafe { frame.draw(&mask) };
 
-                    let text_path =
-                        CGPath::with_rect(NSRect::new(NSPoint::ZERO, rect.size), null());
+        let mask_image = CGBitmapContextCreateImage(Some(&mask));
+        CGContext::clip_to_mask(Some(ctx.context), self.rect, mask_image.as_deref());
+        self.inner.draw(ctx.context);
+    }
+}
 
-                    let frame = framesetter.frame(CFRange::new(0, 0), &text_path, None);
+#[derive(Debug)]
+struct DrawActionImage {
+    image: DrawingImage,
+    rect: NSRect,
+    clip: Option<NSRect>,
+}
 
-                    CGContext::scale_ctm(Some(&mask), factor, factor);
-                    frame.draw(&mask);
+impl DrawActionImage {
+    fn new(image: DrawingImage, rect: NSRect, clip: Option<NSRect>) -> Self {
+        Self { image, rect, clip }
+    }
+}
 
-                    let mask_image = CGBitmapContextCreateImage(Some(&mask));
-                    CGContext::clip_to_mask(Some(context), *rect, mask_image.as_deref());
-                    gradient.draw(context);
-                },
-                DrawAction::Image(image, rect, clip) => {
-                    let cg_image = image.cgimage();
-                    let clip = if let Some(clip) = clip {
-                        CGContext::clip_to_rect(Some(context), *rect);
-                        *clip
-                    } else {
-                        to_cgrect(Rect::from_size(Size::new(
-                            image.size.width as f64,
-                            image.size.height as f64,
-                        )))
-                    };
-                    let scalex = rect.size.width / clip.size.width;
-                    let scaley = rect.size.height / clip.size.height;
-                    let real_rect = NSRect::new(
-                        NSPoint::new(
-                            rect.origin.x - clip.origin.x * scalex,
-                            rect.origin.y - clip.origin.y * scaley,
-                        ),
-                        NSSize::new(
-                            image.size.width as f64 * scalex,
-                            image.size.height as f64 * scaley,
-                        ),
-                    );
-                    CGContext::draw_image(Some(context), real_rect, Some(cg_image));
-                }
-                DrawAction::Transform(transform) => {
-                    if CGAffineTransformIsIdentity(*transform) {
-                        current_transform = None;
-                    } else {
-                        current_transform = Some(*transform);
-                    }
-                }
-            }
-            CGContext::restore_g_state(Some(context));
+impl DrawAction for DrawActionImage {
+    fn draw(&self, ctx: &mut DrawActionContext) {
+        let cg_image = self.image.cgimage();
+        let clip = if let Some(clip) = self.clip {
+            CGContext::clip_to_rect(Some(ctx.context), self.rect);
+            clip
+        } else {
+            to_cgrect(Rect::from_size(Size::new(
+                self.image.size.width as f64,
+                self.image.size.height as f64,
+            )))
+        };
+        let scalex = self.rect.size.width / clip.size.width;
+        let scaley = self.rect.size.height / clip.size.height;
+        let real_rect = NSRect::new(
+            NSPoint::new(
+                self.rect.origin.x - clip.origin.x * scalex,
+                self.rect.origin.y - clip.origin.y * scaley,
+            ),
+            NSSize::new(
+                self.image.size.width as f64 * scalex,
+                self.image.size.height as f64 * scaley,
+            ),
+        );
+        CGContext::draw_image(Some(ctx.context), real_rect, Some(cg_image));
+    }
+}
+
+#[derive(Debug)]
+struct DrawActionTransform {
+    transform: CGAffineTransform,
+}
+
+impl DrawActionTransform {
+    fn new(transform: CGAffineTransform) -> Self {
+        Self { transform }
+    }
+}
+
+impl DrawAction for DrawActionTransform {
+    fn draw(&self, ctx: &mut DrawActionContext) {
+        if CGAffineTransformIsIdentity(self.transform) {
+            ctx.transform = None;
+        } else {
+            ctx.transform = Some(self.transform);
         }
     }
 }
@@ -331,7 +437,7 @@ fn real_point(p: RelativePoint, rect: NSRect) -> NSPoint {
 /// Drawing brush.
 pub trait Brush {
     #[doc(hidden)]
-    fn create_action(&self, path: CFRetained<CGPath>) -> Result<DrawAction>;
+    fn create_action(&self, path: CFRetained<CGPath>) -> Result<Box<dyn DrawAction>>;
 
     #[doc(hidden)]
     fn text_color(&self) -> Result<CFRetained<CGColor>>;
@@ -341,11 +447,11 @@ pub trait Brush {
         &self,
         framesetter: CFRetained<CTFramesetter>,
         rect: NSRect,
-    ) -> Result<DrawAction>;
+    ) -> Result<Box<dyn DrawAction>>;
 }
 
 impl<B: Brush> Brush for &'_ B {
-    fn create_action(&self, path: CFRetained<CGPath>) -> Result<DrawAction> {
+    fn create_action(&self, path: CFRetained<CGPath>) -> Result<Box<dyn DrawAction>> {
         (**self).create_action(path)
     }
 
@@ -357,14 +463,18 @@ impl<B: Brush> Brush for &'_ B {
         &self,
         framesetter: CFRetained<CTFramesetter>,
         rect: NSRect,
-    ) -> Result<DrawAction> {
+    ) -> Result<Box<dyn DrawAction>> {
         (**self).create_text_action(framesetter, rect)
     }
 }
 
 impl Brush for SolidColorBrush {
-    fn create_action(&self, path: CFRetained<CGPath>) -> Result<DrawAction> {
-        Ok(DrawAction::Path(path, to_cgcolor(self.color), None))
+    fn create_action(&self, path: CFRetained<CGPath>) -> Result<Box<dyn DrawAction>> {
+        Ok(Box::new(DrawActionPath::new(
+            path,
+            to_cgcolor(self.color),
+            None,
+        )))
     }
 
     fn text_color(&self) -> Result<CFRetained<CGColor>> {
@@ -375,8 +485,8 @@ impl Brush for SolidColorBrush {
         &self,
         framesetter: CFRetained<CTFramesetter>,
         rect: NSRect,
-    ) -> Result<DrawAction> {
-        Ok(DrawAction::Text(framesetter, rect))
+    ) -> Result<Box<dyn DrawAction>> {
+        Ok(Box::new(DrawActionText::new(framesetter, rect)))
     }
 }
 
@@ -394,9 +504,9 @@ fn create_gradient(stops: &[GradientStop]) -> Result<CFRetained<CGGradient>> {
     }
 }
 
-fn linear_gradient(b: &LinearGradientBrush, rect: NSRect) -> Result<DrawGradientAction> {
+fn linear_gradient(b: &LinearGradientBrush, rect: NSRect) -> Result<DrawActionGradientInner> {
     let gradient = create_gradient(&b.stops)?;
-    Ok(DrawGradientAction::Linear {
+    Ok(DrawActionGradientInner::Linear {
         gradient,
         start_point: real_point(b.start, rect),
         end_point: real_point(b.end, rect),
@@ -404,13 +514,13 @@ fn linear_gradient(b: &LinearGradientBrush, rect: NSRect) -> Result<DrawGradient
 }
 
 impl Brush for LinearGradientBrush {
-    fn create_action(&self, path: CFRetained<CGPath>) -> Result<DrawAction> {
+    fn create_action(&self, path: CFRetained<CGPath>) -> Result<Box<dyn DrawAction>> {
         let rect = CGPath::bounding_box(Some(&path));
-        Ok(DrawAction::GradientPath(
+        Ok(Box::new(DrawActionGradient::new(
             path,
             linear_gradient(self, rect)?,
             None,
-        ))
+        )))
     }
 
     fn text_color(&self) -> Result<CFRetained<CGColor>> {
@@ -421,18 +531,18 @@ impl Brush for LinearGradientBrush {
         &self,
         framesetter: CFRetained<CTFramesetter>,
         rect: NSRect,
-    ) -> Result<DrawAction> {
-        Ok(DrawAction::GradientText(
+    ) -> Result<Box<dyn DrawAction>> {
+        Ok(Box::new(DrawActionGradientText::new(
             framesetter,
             linear_gradient(self, rect)?,
             rect,
-        ))
+        )))
     }
 }
 
-fn radial_gradient(b: &RadialGradientBrush, rect: NSRect) -> Result<DrawGradientAction> {
+fn radial_gradient(b: &RadialGradientBrush, rect: NSRect) -> Result<DrawActionGradientInner> {
     let gradient = create_gradient(&b.stops)?;
-    Ok(DrawGradientAction::Radial {
+    Ok(DrawActionGradientInner::Radial {
         gradient,
         start_center: real_point(b.origin, rect),
         start_radius: 0.0,
@@ -442,13 +552,13 @@ fn radial_gradient(b: &RadialGradientBrush, rect: NSRect) -> Result<DrawGradient
 }
 
 impl Brush for RadialGradientBrush {
-    fn create_action(&self, path: CFRetained<CGPath>) -> Result<DrawAction> {
+    fn create_action(&self, path: CFRetained<CGPath>) -> Result<Box<dyn DrawAction>> {
         let rect = CGPath::bounding_box(Some(&path));
-        Ok(DrawAction::GradientPath(
+        Ok(Box::new(DrawActionGradient::new(
             path,
             radial_gradient(self, rect)?,
             None,
-        ))
+        )))
     }
 
     fn text_color(&self) -> Result<CFRetained<CGColor>> {
@@ -459,12 +569,12 @@ impl Brush for RadialGradientBrush {
         &self,
         framesetter: CFRetained<CTFramesetter>,
         rect: NSRect,
-    ) -> Result<DrawAction> {
-        Ok(DrawAction::GradientText(
+    ) -> Result<Box<dyn DrawAction>> {
+        Ok(Box::new(DrawActionGradientText::new(
             framesetter,
             radial_gradient(self, rect)?,
             rect,
-        ))
+        )))
     }
 }
 
@@ -476,8 +586,10 @@ pub trait Pen {
     fn width(&self) -> f64;
 
     #[doc(hidden)]
-    fn create_action(&self, path: CFRetained<CGPath>) -> Result<DrawAction> {
-        Ok(self.brush().create_action(path)?.with_width(self.width()))
+    fn create_action(&self, path: CFRetained<CGPath>) -> Result<Box<dyn DrawAction>> {
+        let mut action = self.brush().create_action(path)?;
+        action.set_width(self.width());
+        Ok(action)
     }
 }
 
@@ -703,8 +815,14 @@ pub trait ContextOwner {
         common_image_clip(image_size, clip)
     }
 
-    /// Finish the drawing with the recorded `actions`.
-    fn end_draw(&mut self, actions: Vec<DrawAction>) -> Result<()>;
+    /// The drawing state that buffers the recorded actions.
+    fn canvas_state(&self) -> &CanvasState;
+
+    /// The scale factor the recorded actions should be drawn with.
+    fn draw_factor(&self) -> f64;
+
+    /// Requests a redraw of the canvas.
+    fn refresh(&mut self) -> Result<()>;
 }
 
 enum Target<'a> {
@@ -716,7 +834,7 @@ enum Target<'a> {
     },
 }
 
-/// Provides the drawing operations of a [`Canvas`](crate::Canvas).
+/// Provides the drawing operations of a `Canvas`.
 ///
 /// All recorded geometry is transformed into a y-up space (the
 /// `transform_rect`/`transform_point` helpers flip the logical coordinates).
@@ -726,7 +844,7 @@ enum Target<'a> {
 /// Image contexts draw the actions on a raw, y-up bitmap context.
 pub struct DrawingContext<'a> {
     size: Size,
-    actions: Vec<DrawAction>,
+    actions: Vec<Box<dyn DrawAction>>,
     transform: Transform,
     ended: bool,
     target: Target<'a>,
@@ -741,7 +859,8 @@ impl Drop for DrawingContext<'_> {
 }
 
 impl<'a> DrawingContext<'a> {
-    pub fn new(size: Size, owner: &'a mut dyn ContextOwner, actions: Vec<DrawAction>) -> Self {
+    pub fn new(size: Size, owner: &'a mut dyn ContextOwner) -> Self {
+        let actions = owner.canvas_state().take_buffer();
         Self {
             size,
             actions,
@@ -776,13 +895,18 @@ impl<'a> DrawingContext<'a> {
         }
         self.ended = true;
         match &mut self.target {
-            Target::Canvas(owner) => owner.end_draw(mem::take(&mut self.actions)),
+            Target::Canvas(owner) => {
+                owner
+                    .canvas_state()
+                    .end_draw(mem::take(&mut self.actions), owner.draw_factor());
+                owner.refresh()
+            }
             Target::Image {
                 image,
                 data,
                 context,
             } => {
-                DrawAction::draw_rect(&self.actions, context, 1.0);
+                draw_rect(&self.actions, context, 1.0);
                 image.image =
                     CGBitmapContextCreateImage(Some(&*context)).ok_or(Error::NullPointer)?;
                 // The image may share the bitmap data with the context, so keep
@@ -799,14 +923,15 @@ impl<'a> DrawingContext<'a> {
 
     pub fn set_transform(&mut self, transform: Transform) -> Result<()> {
         self.transform = transform;
-        self.actions.push(DrawAction::Transform(CGAffineTransform {
-            a: transform.m11,
-            b: transform.m12,
-            c: transform.m21,
-            d: transform.m22,
-            tx: transform.m31,
-            ty: transform.m32,
-        }));
+        self.actions
+            .push(Box::new(DrawActionTransform::new(CGAffineTransform {
+                a: transform.m11,
+                b: transform.m12,
+                c: transform.m21,
+                d: transform.m22,
+                tx: transform.m31,
+                ty: transform.m32,
+            })));
         Ok(())
     }
 
@@ -927,7 +1052,7 @@ impl<'a> DrawingContext<'a> {
             None => None,
         };
         self.actions
-            .push(DrawAction::Image(image.clone(), rect, clip));
+            .push(Box::new(DrawActionImage::new(image.clone(), rect, clip)));
         Ok(())
     }
 
