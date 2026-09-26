@@ -27,7 +27,7 @@ use winio_primitive::{
     RadialGradientBrush, Rect, RelativePoint, Size, SolidColorBrush, Transform,
 };
 
-use crate::{Error, Result, TollFreeBridge};
+use crate::{CanvasState, Error, Result, TollFreeBridge};
 
 #[inline]
 pub fn from_cgsize(size: NSSize) -> Size {
@@ -85,12 +85,14 @@ pub fn transform_cgpoint(s: Size, p: NSPoint) -> Point {
     Point::new(p.x, s.height - p.y)
 }
 
+#[doc(hidden)]
 pub struct DrawActionContext<'a> {
-    context: &'a CGContext,
-    transform: Option<CGAffineTransform>,
-    factor: f64,
+    pub context: &'a CGContext,
+    pub transform: Option<CGAffineTransform>,
+    pub factor: f64,
 }
 
+#[doc(hidden)]
 pub trait DrawAction: Debug {
     fn set_width(&mut self, width: f64) {
         let _ = width;
@@ -813,8 +815,14 @@ pub trait ContextOwner {
         common_image_clip(image_size, clip)
     }
 
-    /// Finish the drawing with the recorded `actions`.
-    fn end_draw(&mut self, actions: Vec<Box<dyn DrawAction>>) -> Result<()>;
+    /// The drawing state that buffers the recorded actions.
+    fn canvas_state(&self) -> &CanvasState;
+
+    /// The scale factor the recorded actions should be drawn with.
+    fn draw_factor(&self) -> f64;
+
+    /// Requests a redraw of the canvas.
+    fn refresh(&mut self) -> Result<()>;
 }
 
 enum Target<'a> {
@@ -826,7 +834,7 @@ enum Target<'a> {
     },
 }
 
-/// Provides the drawing operations of a [`Canvas`](crate::Canvas).
+/// Provides the drawing operations of a `Canvas`.
 ///
 /// All recorded geometry is transformed into a y-up space (the
 /// `transform_rect`/`transform_point` helpers flip the logical coordinates).
@@ -851,11 +859,8 @@ impl Drop for DrawingContext<'_> {
 }
 
 impl<'a> DrawingContext<'a> {
-    pub fn new(
-        size: Size,
-        owner: &'a mut dyn ContextOwner,
-        actions: Vec<Box<dyn DrawAction>>,
-    ) -> Self {
+    pub fn new(size: Size, owner: &'a mut dyn ContextOwner) -> Self {
+        let actions = owner.canvas_state().take_buffer();
         Self {
             size,
             actions,
@@ -890,7 +895,12 @@ impl<'a> DrawingContext<'a> {
         }
         self.ended = true;
         match &mut self.target {
-            Target::Canvas(owner) => owner.end_draw(mem::take(&mut self.actions)),
+            Target::Canvas(owner) => {
+                owner
+                    .canvas_state()
+                    .end_draw(mem::take(&mut self.actions), owner.draw_factor());
+                owner.refresh()
+            }
             Target::Image {
                 image,
                 data,

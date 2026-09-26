@@ -18,7 +18,7 @@ pub struct CanvasState {
 
 impl CanvasState {
     /// Takes the buffer for recording the actions of a new frame.
-    pub fn take_buffer(&self) -> Vec<Box<dyn DrawAction>> {
+    pub(crate) fn take_buffer(&self) -> Vec<Box<dyn DrawAction>> {
         std::mem::take(&mut self.actions_buf.borrow_mut())
     }
 
@@ -29,7 +29,7 @@ impl CanvasState {
 
     /// Replaces the actions of the last frame with `actions` and stores the
     /// scale `factor` to draw them with.
-    pub fn end_draw(&self, actions: Vec<Box<dyn DrawAction>>, factor: f64) {
+    pub(crate) fn end_draw(&self, actions: Vec<Box<dyn DrawAction>>, factor: f64) {
         let old = self.actions.replace(actions);
         let mut buf = self.actions_buf.borrow_mut();
         *buf = old;

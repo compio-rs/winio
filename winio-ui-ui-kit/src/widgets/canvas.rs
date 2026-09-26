@@ -22,7 +22,7 @@ use winio_primitive::{
 };
 
 use crate::{
-    CanvasState, ContextOwner, DrawAction, DrawingContext, GlobalRuntime, Result, Widget, catch,
+    CanvasState, ContextOwner, DrawingContext, GlobalRuntime, Result, Widget, catch,
     create_attr_str, from_cgsize, platform::Keyboard, to_cgpoint, to_cgrect, transform_cgpoint,
 };
 
@@ -137,8 +137,7 @@ impl Canvas {
 
     pub fn context(&mut self) -> Result<DrawingContext<'_>> {
         let size = self.size()?;
-        let actions = self.handle.view.ivars().canvas.take_buffer();
-        Ok(DrawingContext::new(size, self, actions))
+        Ok(DrawingContext::new(size, self))
     }
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
@@ -334,17 +333,20 @@ impl ContextOwner for Canvas {
         ))
     }
 
-    fn end_draw(&mut self, actions: Vec<Box<dyn DrawAction>>) -> Result<()> {
-        let ivars = self.handle.view.ivars();
-        let factor = self
-            .handle
+    fn canvas_state(&self) -> &CanvasState {
+        &self.handle.view.ivars().canvas
+    }
+
+    fn draw_factor(&self) -> f64 {
+        self.handle
             .view
             .window()
             .map(|w| w.screen().scale())
-            .unwrap_or(1.0);
-        ivars.canvas.end_draw(actions, factor);
-        catch(|| self.handle.view.setNeedsDisplay())?;
-        Ok(())
+            .unwrap_or(1.0)
+    }
+
+    fn refresh(&mut self) -> Result<()> {
+        catch(|| self.handle.view.setNeedsDisplay())
     }
 }
 
