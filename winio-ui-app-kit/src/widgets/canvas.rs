@@ -159,13 +159,13 @@ impl Canvas {
 
 winio_handle::impl_as_widget!(Canvas, handle);
 
-fn draw_rect(actions: &[DrawAction], _rect: NSRect, factor: f64) {
+fn draw_rect(actions: &[Box<dyn DrawAction>], _rect: NSRect, factor: f64) {
     let Some(ns_context) = NSGraphicsContext::currentContext() else {
         error!("Cannot get current NSGraphicsContext");
         return;
     };
     let context = ns_context.CGContext();
-    DrawAction::draw_rect(actions, &context, factor);
+    winio_ui_apple_common::draw_rect(actions, &context, factor);
 }
 
 #[derive(Debug, Default)]
@@ -175,25 +175,25 @@ struct CanvasViewIvars {
     mouse_move: Callback,
     mouse_scroll: Callback<Vector>,
     keyboard: Keyboard,
-    actions: RefCell<Vec<DrawAction>>,
+    actions: RefCell<Vec<Box<dyn DrawAction>>>,
     // A buffer for actions, to avoid frequent allocations.
-    actions_buf: RefCell<Vec<DrawAction>>,
+    actions_buf: RefCell<Vec<Box<dyn DrawAction>>>,
     factor: Cell<f64>,
 }
 
 impl CanvasViewIvars {
-    pub fn take_buffer(&self) -> Vec<DrawAction> {
+    pub fn take_buffer(&self) -> Vec<Box<dyn DrawAction>> {
         std::mem::take(&mut self.actions_buf.borrow_mut())
     }
 
-    pub fn swap_buffer(&self, buf: &mut Vec<DrawAction>) {
+    pub fn swap_buffer(&self, buf: &mut Vec<Box<dyn DrawAction>>) {
         {
             let mut actions = self.actions.borrow_mut();
-            std::mem::swap::<Vec<DrawAction>>(&mut actions, buf);
+            std::mem::swap::<Vec<Box<dyn DrawAction>>>(&mut actions, buf);
         }
         {
             let mut actions_buf = self.actions_buf.borrow_mut();
-            std::mem::swap::<Vec<DrawAction>>(&mut actions_buf, buf);
+            std::mem::swap::<Vec<Box<dyn DrawAction>>>(&mut actions_buf, buf);
             actions_buf.clear();
         }
     }
@@ -297,7 +297,7 @@ fn mouse_button(event: &NSEvent) -> MouseButton {
 }
 
 impl ContextOwner for Canvas {
-    fn end_draw(&mut self, mut actions: Vec<DrawAction>) -> Result<()> {
+    fn end_draw(&mut self, mut actions: Vec<Box<dyn DrawAction>>) -> Result<()> {
         let ivars = self.handle.view.ivars();
         ivars.swap_buffer(&mut actions);
         ivars.factor.set(
