@@ -74,6 +74,9 @@ where
 mod drawing;
 pub use drawing::*;
 
+mod canvas;
+pub use canvas::*;
+
 mod string;
 pub use string::*;
 
