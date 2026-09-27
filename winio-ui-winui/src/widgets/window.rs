@@ -58,15 +58,15 @@ impl Window {
         ROOT_WINDOWS.with_borrow_mut(|map| map.push(handle.clone()));
 
         let hwnd = unsafe { handle.cast::<IWindowNative>()?.WindowHandle()? };
-        let app_window = AppWindow::GetFromWindowId(WindowId { Value: hwnd.0 as _ })?;
+        let app_window = AppWindow::GetFromWindowId(WindowId { Value: hwnd as _ })?;
         let titlebar = app_window.TitleBar()?;
         match titlebar.SetPreferredTheme(TitleBarTheme::UseDefaultAppMode) {
             Ok(()) => {}
             // Available since 1.7
             Err(e) if e.code() == E_NOINTERFACE => unsafe {
-                window_use_dark_mode(hwnd.0)?;
+                window_use_dark_mode(hwnd)?;
                 // Set to DWMSBT_AUTO.
-                set_backdrop(hwnd.0, Backdrop::None)?;
+                set_backdrop(hwnd, Backdrop::None)?;
             },
             Err(e) => return Err(e),
         }

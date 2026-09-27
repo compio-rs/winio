@@ -56,6 +56,7 @@ windows-sys = { workspace = true, features = [
     "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
 ] }
+windows-numerics = "0.100"
 windows-threading = "0.100"
 winui3 = { workspace = true, optional = true, features = [
     "UI_Xaml",

@@ -10,9 +10,8 @@ use widestring::U16CString;
 use windows::Win32::Graphics::{
     Direct2D::{
         Common::{
-            D2D_MATRIX_3X2_F, D2D_MATRIX_3X2_F_0, D2D_MATRIX_3X2_F_0_1, D2D_POINT_2F, D2D_RECT_F,
-            D2D_SIZE_F, D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_BEZIER_SEGMENT, D2D1_COLOR_F,
-            D2D1_FIGURE_BEGIN_HOLLOW, D2D1_FIGURE_END_CLOSED, D2D1_FIGURE_END_OPEN,
+            D2D_RECT_F, D2D_SIZE_F, D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_BEZIER_SEGMENT,
+            D2D1_COLOR_F, D2D1_FIGURE_BEGIN_HOLLOW, D2D1_FIGURE_END_CLOSED, D2D1_FIGURE_END_OPEN,
             D2D1_GRADIENT_STOP, D2D1_PIXEL_FORMAT,
         },
         D2D1_ARC_SEGMENT, D2D1_ARC_SIZE_LARGE, D2D1_ARC_SIZE_SMALL,
@@ -36,6 +35,7 @@ use windows::Win32::Graphics::{
     },
 };
 use windows_core::Interface;
+use windows_numerics::{Matrix3x2, Vector2};
 use winio_primitive::{
     BitmapRect, BitmapSize, BrushPen, Color, Font, GradientStop, LinearGradientBrush, Point,
     RadialGradientBrush, Rect, RectBox, RelativePoint, RelativeToLogical, Size, SolidColorBrush,
@@ -53,8 +53,8 @@ fn color_f(c: Color) -> D2D1_COLOR_F {
     }
 }
 
-const fn point_2f(p: Point) -> D2D_POINT_2F {
-    D2D_POINT_2F {
+const fn point_2f(p: Point) -> Vector2 {
+    Vector2 {
         x: p.x as f32,
         y: p.y as f32,
     }
@@ -121,18 +121,14 @@ fn pbgra8_to_rgba8(pixels: &mut [u8]) {
     }
 }
 
-const fn matrix_f(m: Transform) -> D2D_MATRIX_3X2_F {
-    D2D_MATRIX_3X2_F {
-        Anonymous: D2D_MATRIX_3X2_F_0 {
-            Anonymous2: D2D_MATRIX_3X2_F_0_1 {
-                _11: m.m11 as _,
-                _12: m.m12 as _,
-                _21: m.m21 as _,
-                _22: m.m22 as _,
-                _31: m.m31 as _,
-                _32: m.m32 as _,
-            },
-        },
+const fn matrix_f(m: Transform) -> Matrix3x2 {
+    Matrix3x2 {
+        m11: m.m11 as _,
+        m12: m.m12 as _,
+        m21: m.m21 as _,
+        m22: m.m22 as _,
+        m31: m.m31 as _,
+        m32: m.m32 as _,
     }
 }
 
@@ -322,16 +318,14 @@ impl<'a> DrawingContext<'a> {
             self.target.GetTransform(matrix.as_mut_ptr());
             matrix.assume_init()
         };
-        Ok(unsafe {
-            Transform::new(
-                matrix.Anonymous.Anonymous2._11 as f64,
-                matrix.Anonymous.Anonymous2._12 as f64,
-                matrix.Anonymous.Anonymous2._21 as f64,
-                matrix.Anonymous.Anonymous2._22 as f64,
-                matrix.Anonymous.Anonymous2._31 as f64,
-                matrix.Anonymous.Anonymous2._32 as f64,
-            )
-        })
+        Ok(Transform::new(
+            matrix.m11 as f64,
+            matrix.m12 as f64,
+            matrix.m21 as f64,
+            matrix.m22 as f64,
+            matrix.m31 as f64,
+            matrix.m32 as f64,
+        ))
     }
 
     pub fn draw_path(&mut self, pen: impl Pen, path: &DrawingPath) -> Result<()> {
@@ -629,7 +623,7 @@ impl DrawingPathBuilder {
     }
 }
 
-const MATRIX_IDENTITY: D2D_MATRIX_3X2_F = matrix_f(Transform::new(1.0, 0.0, 0.0, 1.0, 0.0, 0.0));
+const MATRIX_IDENTITY: Matrix3x2 = matrix_f(Transform::new(1.0, 0.0, 0.0, 1.0, 0.0, 0.0));
 
 const BRUSH_PROPERTIES_DEFAULT: D2D1_BRUSH_PROPERTIES = D2D1_BRUSH_PROPERTIES {
     opacity: 1.0,

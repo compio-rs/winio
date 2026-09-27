@@ -51,7 +51,7 @@ impl FileBox {
             .and_then(|p| p.as_window().handle().ok())
             .map(|h| h as isize);
         Ok(crate::spawn_blocking(move || {
-            let parent = parent.map(|w| HWND(w as _));
+            let parent = parent.map(|w| w as _);
             filebox(
                 parent,
                 self.title,
@@ -73,7 +73,7 @@ impl FileBox {
             .and_then(|p| p.as_window().handle().ok())
             .map(|h| h as isize);
         Ok(crate::spawn_blocking(move || {
-            let parent = parent.map(|w| HWND(w as _));
+            let parent = parent.map(|w| w as _);
             filebox(
                 parent,
                 self.title,
@@ -95,7 +95,7 @@ impl FileBox {
             .and_then(|p| p.as_window().handle().ok())
             .map(|h| h as isize);
         Ok(crate::spawn_blocking(move || {
-            let parent = parent.map(|w| HWND(w as _));
+            let parent = parent.map(|w| w as _);
             filebox(
                 parent,
                 self.title,
@@ -117,7 +117,7 @@ impl FileBox {
             .and_then(|p| p.as_window().handle().ok())
             .map(|h| h as isize);
         Ok(crate::spawn_blocking(move || {
-            let parent = parent.map(|w| HWND(w as _));
+            let parent = parent.map(|w| w as _);
             filebox(
                 parent,
                 self.title,

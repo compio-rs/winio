@@ -45,7 +45,7 @@ pub struct App {
 }
 
 fn detect_valid_winui3() -> bool {
-    unsafe { !LoadLibraryW(w!("Microsoft.UI.Xaml.dll")).0.is_null() }
+    unsafe { !LoadLibraryW(w!("Microsoft.UI.Xaml.dll")).is_null() }
 }
 
 fn init_appsdk_with(

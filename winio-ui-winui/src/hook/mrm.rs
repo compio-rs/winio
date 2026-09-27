@@ -60,7 +60,7 @@ unsafe extern "system" fn mrm_get_file_path_from_name(
 fn detour_attach() -> Result<()> {
     unsafe {
         let module = LoadLibraryW(w!("MRM.dll"));
-        if module.0.is_null() {
+        if module.is_null() {
             return Err(windows_core::Error::from_thread());
         }
         let func = GetProcAddress(module, s!("MrmGetFilePathFromName"));

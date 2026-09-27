@@ -191,7 +191,7 @@ fn create_target(handle: HWND) -> Result<ID2D1HwndRenderTarget> {
                 minLevel: D2D1_FEATURE_LEVEL_DEFAULT,
             },
             &D2D1_HWND_RENDER_TARGET_PROPERTIES {
-                hwnd: windows::Win32::Foundation::HWND(handle),
+                hwnd: handle,
                 pixelSize: D2D_SIZE_U::default(),
                 presentOptions: D2D1_PRESENT_OPTIONS_NONE,
             },

@@ -18,7 +18,7 @@ use webview2::{
     ICoreWebView2NavigationStartingEventHandler, ICoreWebView2NavigationStartingEventHandler_Impl,
     ICoreWebView2Settings2,
 };
-use windows::Win32::Foundation::{E_FAIL, E_INVALIDARG, HWND, RECT};
+use windows::Win32::Foundation::{E_FAIL, E_INVALIDARG, RECT};
 use windows_core::{HRESULT, HSTRING, Interface, PCWSTR, Ref, WIN32_ERROR, implement};
 use windows_sys::Win32::{Foundation::ERROR_CANCELLED, UI::HiDpi::GetDpiForWindow};
 use winio_callback::Callback;
@@ -45,7 +45,7 @@ impl WebView {
                 let env = env?;
                 let env = env.ok()?;
                 env.CreateCoreWebView2Controller(
-                    HWND(hwnd),
+                    hwnd,
                     &CreateControllerHandler::create(move |host| {
                         let host = host?;
                         let host = host.ok()?;
@@ -88,7 +88,7 @@ impl WebView {
     fn dpi(&self) -> Result<f64> {
         unsafe {
             let hwnd = self.host.ParentWindow()?;
-            Ok(GetDpiForWindow(hwnd.0) as f64 / 96.0)
+            Ok(GetDpiForWindow(hwnd) as f64 / 96.0)
         }
     }
 
