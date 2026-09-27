@@ -149,72 +149,19 @@ impl DrawAction for DrawActionPath {
 }
 
 #[derive(Debug)]
-enum DrawActionGradientInner {
-    Linear {
-        gradient: CFRetained<CGGradient>,
-        start_point: NSPoint,
-        end_point: NSPoint,
-    },
-    Radial {
-        gradient: CFRetained<CGGradient>,
-        start_center: NSPoint,
-        start_radius: f64,
-        end_center: NSPoint,
-        end_radius: f64,
-    },
-}
-
-impl DrawActionGradientInner {
-    fn draw(&self, context: &CGContext) {
-        match self {
-            Self::Linear {
-                gradient,
-                start_point,
-                end_point,
-            } => {
-                CGContext::draw_linear_gradient(
-                    Some(context),
-                    Some(gradient),
-                    *start_point,
-                    *end_point,
-                    CGGradientDrawingOptions::all(),
-                );
-            }
-            Self::Radial {
-                gradient,
-                start_center,
-                start_radius,
-                end_center,
-                end_radius,
-            } => {
-                CGContext::draw_radial_gradient(
-                    Some(context),
-                    Some(gradient),
-                    *start_center,
-                    *start_radius,
-                    *end_center,
-                    *end_radius,
-                    CGGradientDrawingOptions::all(),
-                );
-            }
-        }
-    }
-}
-
-#[derive(Debug)]
-struct DrawActionGradient {
+struct DrawActionGradient<G: Gradient> {
     path: CFRetained<CGPath>,
-    inner: DrawActionGradientInner,
+    inner: G,
     width: Option<f64>,
 }
 
-impl DrawActionGradient {
-    fn new(path: CFRetained<CGPath>, inner: DrawActionGradientInner, width: Option<f64>) -> Self {
+impl<G: Gradient> DrawActionGradient<G> {
+    fn new(path: CFRetained<CGPath>, inner: G, width: Option<f64>) -> Self {
         Self { path, inner, width }
     }
 }
 
-impl DrawAction for DrawActionGradient {
+impl<G: Gradient> DrawAction for DrawActionGradient<G> {
     fn set_width(&mut self, width: f64) {
         self.width = Some(width);
     }
@@ -251,18 +198,14 @@ impl DrawAction for DrawActionText {
 }
 
 #[derive(Debug)]
-struct DrawActionGradientText {
+struct DrawActionGradientText<G: Gradient> {
     framesetter: CFRetained<CTFramesetter>,
-    inner: DrawActionGradientInner,
+    inner: G,
     rect: NSRect,
 }
 
-impl DrawActionGradientText {
-    fn new(
-        framesetter: CFRetained<CTFramesetter>,
-        inner: DrawActionGradientInner,
-        rect: NSRect,
-    ) -> Self {
+impl<G: Gradient> DrawActionGradientText<G> {
+    fn new(framesetter: CFRetained<CTFramesetter>, inner: G, rect: NSRect) -> Self {
         Self {
             framesetter,
             inner,
@@ -271,7 +214,7 @@ impl DrawActionGradientText {
     }
 }
 
-impl DrawAction for DrawActionGradientText {
+impl<G: Gradient> DrawAction for DrawActionGradientText<G> {
     fn draw(&self, ctx: &mut DrawActionContext) {
         let colorspace = CGColorSpace::new_device_gray();
         let mask = match unsafe {
@@ -364,6 +307,76 @@ impl DrawAction for DrawActionTransform {
         } else {
             ctx.transform = Some(self.transform);
         }
+    }
+}
+
+trait Gradient: Debug {
+    fn draw(&self, context: &CGContext);
+}
+
+#[derive(Debug)]
+struct LinearGradient {
+    gradient: CFRetained<CGGradient>,
+    start_point: NSPoint,
+    end_point: NSPoint,
+}
+
+impl LinearGradient {
+    fn new(b: &LinearGradientBrush, rect: NSRect) -> Result<Self> {
+        let gradient = create_gradient(&b.stops)?;
+        Ok(Self {
+            gradient,
+            start_point: real_point(b.start, rect),
+            end_point: real_point(b.end, rect),
+        })
+    }
+}
+
+impl Gradient for LinearGradient {
+    fn draw(&self, context: &CGContext) {
+        CGContext::draw_linear_gradient(
+            Some(context),
+            Some(&self.gradient),
+            self.start_point,
+            self.end_point,
+            CGGradientDrawingOptions::all(),
+        );
+    }
+}
+
+#[derive(Debug)]
+struct RadialGradient {
+    gradient: CFRetained<CGGradient>,
+    start_center: NSPoint,
+    start_radius: f64,
+    end_center: NSPoint,
+    end_radius: f64,
+}
+
+impl RadialGradient {
+    fn new(b: &RadialGradientBrush, rect: NSRect) -> Result<Self> {
+        let gradient = create_gradient(&b.stops)?;
+        Ok(Self {
+            gradient,
+            start_center: real_point(b.origin, rect),
+            start_radius: 0.0,
+            end_center: real_point(b.center, rect),
+            end_radius: (b.radius.width * rect.size.width).max(b.radius.height * rect.size.height),
+        })
+    }
+}
+
+impl Gradient for RadialGradient {
+    fn draw(&self, context: &CGContext) {
+        CGContext::draw_radial_gradient(
+            Some(context),
+            Some(&self.gradient),
+            self.start_center,
+            self.start_radius,
+            self.end_center,
+            self.end_radius,
+            CGGradientDrawingOptions::all(),
+        );
     }
 }
 
@@ -504,21 +517,12 @@ fn create_gradient(stops: &[GradientStop]) -> Result<CFRetained<CGGradient>> {
     }
 }
 
-fn linear_gradient(b: &LinearGradientBrush, rect: NSRect) -> Result<DrawActionGradientInner> {
-    let gradient = create_gradient(&b.stops)?;
-    Ok(DrawActionGradientInner::Linear {
-        gradient,
-        start_point: real_point(b.start, rect),
-        end_point: real_point(b.end, rect),
-    })
-}
-
 impl Brush for LinearGradientBrush {
     fn create_action(&self, path: CFRetained<CGPath>) -> Result<Box<dyn DrawAction>> {
         let rect = CGPath::bounding_box(Some(&path));
         Ok(Box::new(DrawActionGradient::new(
             path,
-            linear_gradient(self, rect)?,
+            LinearGradient::new(self, rect)?,
             None,
         )))
     }
@@ -534,21 +538,10 @@ impl Brush for LinearGradientBrush {
     ) -> Result<Box<dyn DrawAction>> {
         Ok(Box::new(DrawActionGradientText::new(
             framesetter,
-            linear_gradient(self, rect)?,
+            LinearGradient::new(self, rect)?,
             rect,
         )))
     }
-}
-
-fn radial_gradient(b: &RadialGradientBrush, rect: NSRect) -> Result<DrawActionGradientInner> {
-    let gradient = create_gradient(&b.stops)?;
-    Ok(DrawActionGradientInner::Radial {
-        gradient,
-        start_center: real_point(b.origin, rect),
-        start_radius: 0.0,
-        end_center: real_point(b.center, rect),
-        end_radius: (b.radius.width * rect.size.width).max(b.radius.height * rect.size.height),
-    })
 }
 
 impl Brush for RadialGradientBrush {
@@ -556,7 +549,7 @@ impl Brush for RadialGradientBrush {
         let rect = CGPath::bounding_box(Some(&path));
         Ok(Box::new(DrawActionGradient::new(
             path,
-            radial_gradient(self, rect)?,
+            RadialGradient::new(self, rect)?,
             None,
         )))
     }
@@ -572,7 +565,7 @@ impl Brush for RadialGradientBrush {
     ) -> Result<Box<dyn DrawAction>> {
         Ok(Box::new(DrawActionGradientText::new(
             framesetter,
-            radial_gradient(self, rect)?,
+            RadialGradient::new(self, rect)?,
             rect,
         )))
     }
