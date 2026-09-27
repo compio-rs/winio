@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  build:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -35,6 +35,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         env:
           JAVA_HOME: ${{ env.JAVA_HOME_21_X64 }}
+      - name: Restore Cargo.lock
+        run: |
+          cd ../..
+          cargo update
       - name: Build APK
         shell: bash
         run: gradle assembleDebug
