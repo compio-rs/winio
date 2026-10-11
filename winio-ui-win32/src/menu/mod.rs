@@ -151,8 +151,8 @@ impl MenuItemImpl {
         }
     }
 
-    pub fn set_text(&mut self, s: &str) -> Result<()> {
-        with_u16c(s, |s| {
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
+        with_u16c(s.as_ref(), |s| {
             let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
             info.cbSize = size_of::<MENUITEMINFOW>() as _;
             info.fMask = MIIM_STRING;
@@ -197,12 +197,19 @@ impl MenuBarItem {
         let parent = parent.as_menu_bar().as_win32();
         let inner = OwnedMenu::new()?;
         let item = MenuItemImpl::new_with(parent, inner.0)?;
+        HMENU_PARENT_MAP.with_borrow_mut(|map| map.insert(inner.0, parent));
         Ok(Self { inner, item })
     }
 
     pub fn text(&self) -> Result<String>;
 
-    pub fn set_text(&mut self, s: &str) -> Result<()>;
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+}
+
+impl Drop for MenuBarItem {
+    fn drop(&mut self) {
+        HMENU_PARENT_MAP.with_borrow_mut(|map| map.remove(&self.inner.0));
+    }
 }
 
 winio_handle::impl_as_menu_container!(MenuBarItem, inner);
@@ -222,7 +229,7 @@ impl MenuItem {
 
     pub fn text(&self) -> Result<String>;
 
-    pub fn set_text(&mut self, s: &str) -> Result<()>;
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub async fn wait_click(&self) {
         self.item.wait_click().await;
@@ -249,7 +256,7 @@ impl PopupMenuItem {
 
     pub fn text(&self) -> Result<String>;
 
-    pub fn set_text(&mut self, s: &str) -> Result<()>;
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 impl Drop for PopupMenuItem {
@@ -276,7 +283,7 @@ impl CheckMenuItem {
 
     pub fn text(&self) -> Result<String>;
 
-    pub fn set_text(&mut self, s: &str) -> Result<()>;
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub async fn wait_click(&self) {
         self.item.wait_click().await;
@@ -305,7 +312,7 @@ impl RadioMenuItem {
 
     pub fn text(&self) -> Result<String>;
 
-    pub fn set_text(&mut self, s: &str) -> Result<()>;
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub async fn wait_click(&self) {
         self.item.wait_click().await;

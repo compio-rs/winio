@@ -55,8 +55,13 @@ pub mod ui;
 
 pub mod widgets;
 
+#[cfg(win32)]
+pub mod menu;
+
 /// For blanket imports.
 pub mod prelude {
+    #[cfg(win32)]
+    pub use crate::menu::*;
     pub use crate::{Error, Result, elm::*, handle::*, layout::*, primitive::*, ui::*, widgets::*};
 }
 
