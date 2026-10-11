@@ -12,6 +12,9 @@ pub use runtime::*;
 mod widgets;
 pub use widgets::*;
 
+mod menu;
+pub use menu::*;
+
 mod dialogs;
 pub use dialogs::*;
 
