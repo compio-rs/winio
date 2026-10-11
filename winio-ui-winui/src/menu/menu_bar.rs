@@ -1,5 +1,5 @@
 use winio_handle::{AsMenuBar, AsWindow, BorrowedMenuBar};
-use winui3::Microsoft::UI::Xaml::Controls as MUXC;
+use winui3::Microsoft::UI::Xaml::{Controls as MUXC, Visibility};
 
 use crate::Result;
 
@@ -14,6 +14,19 @@ impl MenuBar {
         let element = MUXC::MenuBar::new()?;
         crate::set_menu_bar(&window, element.clone())?;
         Ok(Self { element })
+    }
+
+    pub fn is_visible(&self) -> Result<bool> {
+        Ok(self.element.Visibility()? == Visibility::Visible)
+    }
+
+    pub fn set_visible(&mut self, visible: bool) -> Result<()> {
+        self.element.SetVisibility(if visible {
+            Visibility::Visible
+        } else {
+            Visibility::Collapsed
+        })?;
+        Ok(())
     }
 }
 

@@ -88,6 +88,29 @@ impl MenuBar {
         HMENU_HWND_MAP.with_borrow_mut(|map| map.insert(inner.0, parent));
         Ok(Self { inner })
     }
+
+    pub fn is_visible(&self) -> Result<bool> {
+        let parent_window = parent_window(self.inner.0);
+        if let Some(hwnd) = parent_window {
+            let old_mean = unsafe { GetMenu(hwnd) };
+            Ok(old_mean == self.inner.0)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn set_visible(&mut self, visible: bool) -> Result<()> {
+        let parent_window = parent_window(self.inner.0);
+        if let Some(hwnd) = parent_window {
+            if visible {
+                syscall!(BOOL, SetMenu(hwnd, self.inner.0))?;
+            } else {
+                syscall!(BOOL, SetMenu(hwnd, std::ptr::null_mut()))?;
+            }
+            syscall!(BOOL, DrawMenuBar(hwnd))?;
+        }
+        Ok(())
+    }
 }
 
 impl Drop for MenuBar {

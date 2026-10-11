@@ -1,6 +1,7 @@
+use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedWindow;
-use winio_primitive::Failable;
+use winio_primitive::{Failable, Visible};
 
 use crate::{
     sys,
@@ -19,6 +20,13 @@ pub struct MenuBar {
 
 impl Failable for MenuBar {
     type Error = Error;
+}
+
+#[inherit_methods(from = "self.inner")]
+impl Visible for MenuBar {
+    fn is_visible(&self) -> Result<bool>;
+
+    fn set_visible(&mut self, visible: bool) -> Result<()>;
 }
 
 /// Events of [`MenuBar`].
