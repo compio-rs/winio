@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedMenuContainer;
-use winio_primitive::{Failable, TextWidget};
+use winio_primitive::{Enable, Failable, TextWidget};
 
 use crate::{
     sys,
@@ -17,6 +17,13 @@ pub struct CheckMenuItem {
 
 impl Failable for CheckMenuItem {
     type Error = Error;
+}
+
+#[inherit_methods(from = "self.inner")]
+impl Enable for CheckMenuItem {
+    fn is_enabled(&self) -> Result<bool>;
+
+    fn set_enabled(&mut self, enabled: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.inner")]

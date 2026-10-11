@@ -50,6 +50,7 @@ impl Component for ExampleMenuBar {
             },
             open_file_item: MenuItem = (&file_item) => {
                 text: "Open file...",
+                enabled: cfg!(feature = "compio-compat")
             },
             widgets_item: MenuBarItem = (&menu_bar) => {
                 text: "Widgets",

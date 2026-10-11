@@ -214,6 +214,7 @@ impl Component for MainModel {
                 ExampleMenuBarEvent::Pop => MainMessage::PopFromCombo,
                 ExampleMenuBarEvent::Show => MainMessage::ShowComboSelection,
                 ExampleMenuBarEvent::ShowPassword(v) => MainMessage::SetPassword(v),
+                #[cfg(feature = "compio-compat")]
                 ExampleMenuBarEvent::OpenFile => MainMessage::ChooseFile,
             }
         }

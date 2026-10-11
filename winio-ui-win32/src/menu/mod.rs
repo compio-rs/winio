@@ -9,10 +9,10 @@ use windows_core::WIN32_ERROR;
 use windows_sys::Win32::{
     Foundation::{ERROR_INVALID_PARAMETER, HWND},
     UI::WindowsAndMessaging::{
-        CheckMenuItem, CreateMenu, DeleteMenu, DestroyMenu, DrawMenuBar, GetMenu, GetMenuItemInfoW,
-        GetMenuState, HMENU, InsertMenuItemW, MENUITEMINFOW, MF_BYCOMMAND, MF_CHECKED,
-        MF_SEPARATOR, MF_UNCHECKED, MFT_RADIOCHECK, MIIM_FTYPE, MIIM_ID, MIIM_STRING, MIIM_SUBMENU,
-        SetMenu, SetMenuItemInfoW, WM_COMMAND,
+        CheckMenuItem, CreateMenu, DeleteMenu, DestroyMenu, DrawMenuBar, EnableMenuItem, GetMenu,
+        GetMenuItemInfoW, GetMenuState, HMENU, InsertMenuItemW, MENUITEMINFOW, MF_BYCOMMAND,
+        MF_CHECKED, MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_SEPARATOR, MF_UNCHECKED, MFT_RADIOCHECK,
+        MIIM_FTYPE, MIIM_ID, MIIM_STRING, MIIM_SUBMENU, SetMenu, SetMenuItemInfoW, WM_COMMAND,
     },
 };
 use winio_handle::{
@@ -150,6 +150,27 @@ impl MenuItemImpl {
         Ok(Self { parent, id })
     }
 
+    pub fn is_enabled(&self) -> Result<bool> {
+        let state = unsafe { GetMenuState(self.parent, self.id, MF_BYCOMMAND) };
+        Ok((state & (MF_DISABLED | MF_GRAYED)) == 0)
+    }
+
+    pub fn set_enabled(&mut self, enabled: bool) -> Result<()> {
+        unsafe {
+            EnableMenuItem(
+                self.parent,
+                self.id,
+                MF_BYCOMMAND
+                    | if enabled {
+                        MF_ENABLED
+                    } else {
+                        MF_DISABLED | MF_GRAYED
+                    },
+            )
+        };
+        Ok(())
+    }
+
     pub fn text(&self) -> Result<String> {
         Ok(self.text_u16()?.to_string_lossy())
     }
@@ -195,7 +216,7 @@ impl MenuItemImpl {
             CheckMenuItem(
                 self.parent,
                 self.id,
-                MF_BYCOMMAND | { if checked { MF_CHECKED } else { MF_UNCHECKED } },
+                MF_BYCOMMAND | if checked { MF_CHECKED } else { MF_UNCHECKED },
             )
         };
     }
@@ -249,6 +270,10 @@ impl MenuBarItem {
         Ok(Self { inner, item })
     }
 
+    pub fn is_enabled(&self) -> Result<bool>;
+
+    pub fn set_enabled(&mut self, enabled: bool) -> Result<()>;
+
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
@@ -274,6 +299,10 @@ impl MenuItem {
         let item = MenuItemImpl::new(parent, 0)?;
         Ok(Self { item })
     }
+
+    pub fn is_enabled(&self) -> Result<bool>;
+
+    pub fn set_enabled(&mut self, enabled: bool) -> Result<()>;
 
     pub fn text(&self) -> Result<String>;
 
@@ -302,6 +331,10 @@ impl PopupMenuItem {
         Ok(Self { inner, item })
     }
 
+    pub fn is_enabled(&self) -> Result<bool>;
+
+    pub fn set_enabled(&mut self, enabled: bool) -> Result<()>;
+
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
@@ -328,6 +361,10 @@ impl CheckMenuItem {
         let item = MenuItemImpl::new(parent, 0)?;
         Ok(Self { item })
     }
+
+    pub fn is_enabled(&self) -> Result<bool>;
+
+    pub fn set_enabled(&mut self, enabled: bool) -> Result<()>;
 
     pub fn text(&self) -> Result<String>;
 
@@ -357,6 +394,10 @@ impl RadioMenuItem {
         let item = MenuItemImpl::new(parent, MFT_RADIOCHECK)?;
         Ok(Self { item })
     }
+
+    pub fn is_enabled(&self) -> Result<bool>;
+
+    pub fn set_enabled(&mut self, enabled: bool) -> Result<()>;
 
     pub fn text(&self) -> Result<String>;
 
