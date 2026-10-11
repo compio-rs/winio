@@ -1,26 +1,26 @@
 use winio_handle::BorrowedMenuContainer;
 use winui3::Microsoft::UI::Xaml::Controls::MenuFlyoutItemBase;
 
-mod menu_bar;
-pub use menu_bar::*;
+mod bar;
+pub use bar::*;
 
-mod menu_bar_item;
-pub use menu_bar_item::*;
+mod bar_item;
+pub use bar_item::*;
 
-mod menu_item;
-pub use menu_item::*;
+mod item;
+pub use item::*;
 
-mod popup_menu_item;
-pub use popup_menu_item::*;
+mod popup;
+pub use popup::*;
 
-mod check_menu_item;
-pub use check_menu_item::*;
+mod check;
+pub use check::*;
 
-mod radio_menu_item;
-pub use radio_menu_item::*;
+mod radio;
+pub use radio::*;
 
-mod separator_menu_item;
-pub use separator_menu_item::*;
+mod separator;
+pub use separator::*;
 
 fn append_to_container(
     container: BorrowedMenuContainer,
