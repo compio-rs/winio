@@ -111,7 +111,7 @@ impl WindowMessage {
 #[derive(Clone, Copy)]
 pub(crate) struct WindowMessageCommand {
     pub message: u32,
-    // pub id: usize,
+    pub id: u32,
     pub handle: HWND,
 }
 
@@ -148,11 +148,11 @@ impl Registry {
         let full_msg = match message {
             WM_COMMAND => WindowMessage::Command({
                 let message = (wparam as u32 >> 16) & 0xFFFF;
-                // let id = wparam as u32 & 0xFFFF;
+                let id = wparam as u32 & 0xFFFF;
                 let handle = lparam as HWND;
                 WindowMessageCommand {
                     message,
-                    // id: id as _,
+                    id,
                     handle,
                 }
             }),
