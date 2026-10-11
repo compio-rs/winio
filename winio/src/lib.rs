@@ -55,7 +55,6 @@ pub mod ui;
 
 pub mod widgets;
 
-#[cfg(win32)]
 pub mod menu;
 
 /// For blanket imports.

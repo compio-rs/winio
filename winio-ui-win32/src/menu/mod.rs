@@ -1,7 +1,6 @@
 use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
-    ptr::null,
 };
 
 use inherit_methods_macro::inherit_methods;
@@ -10,9 +9,9 @@ use windows_core::WIN32_ERROR;
 use windows_sys::Win32::{
     Foundation::{ERROR_INVALID_PARAMETER, HWND},
     UI::WindowsAndMessaging::{
-        CreateMenu, DestroyMenu, GetMenu, GetMenuItemInfoW, HMENU, InsertMenuW, MENUITEMINFOW,
-        MF_BYCOMMAND, MF_POPUP, MF_SEPARATOR, MF_UNCHECKED, MFT_RADIOCHECK, MIIM_STRING, SetMenu,
-        SetMenuItemInfoW, WM_COMMAND,
+        CreateMenu, DeleteMenu, DestroyMenu, DrawMenuBar, GetMenu, GetMenuItemInfoW, HMENU,
+        InsertMenuItemW, MENUITEMINFOW, MF_BYCOMMAND, MF_SEPARATOR, MFT_RADIOCHECK, MIIM_FTYPE,
+        MIIM_ID, MIIM_STRING, MIIM_SUBMENU, SetMenu, SetMenuItemInfoW, WM_COMMAND,
     },
 };
 use winio_handle::{
@@ -84,6 +83,7 @@ impl MenuBar {
         }
         let inner = OwnedMenu::new()?;
         syscall!(BOOL, SetMenu(parent, inner.0))?;
+        syscall!(BOOL, DrawMenuBar(parent))?;
         HMENU_HWND_MAP.with_borrow_mut(|map| map.insert(inner.0, parent));
         Ok(Self { inner })
     }
@@ -117,19 +117,35 @@ struct MenuItemImpl {
 impl MenuItemImpl {
     pub fn new(parent: HMENU, flags: u32) -> Result<Self> {
         let id = menu_id();
-        syscall!(
-            BOOL,
-            InsertMenuW(parent, id, MF_BYCOMMAND | flags, id as _, null())
-        )?;
+        let mut text = [0u16];
+        let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
+        info.cbSize = size_of::<MENUITEMINFOW>() as _;
+        info.fMask = MIIM_ID | MIIM_FTYPE | MIIM_STRING;
+        info.fType = flags;
+        info.wID = id;
+        info.dwTypeData = text.as_mut_ptr();
+        info.cch = 0;
+        syscall!(BOOL, InsertMenuItemW(parent, id, 0, &info))?;
+        if let Some(w) = parent_window(parent) {
+            syscall!(BOOL, DrawMenuBar(w))?;
+        }
         Ok(Self { parent, id })
     }
 
     pub fn new_with(parent: HMENU, item: HMENU) -> Result<Self> {
         let id = menu_id();
-        syscall!(
-            BOOL,
-            InsertMenuW(parent, id, MF_BYCOMMAND | MF_POPUP, item as _, null())
-        )?;
+        let mut text = [0u16];
+        let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
+        info.cbSize = size_of::<MENUITEMINFOW>() as _;
+        info.fMask = MIIM_ID | MIIM_SUBMENU | MIIM_STRING;
+        info.wID = id;
+        info.hSubMenu = item;
+        info.dwTypeData = text.as_mut_ptr();
+        info.cch = 0;
+        syscall!(BOOL, InsertMenuItemW(parent, id, 0, &info))?;
+        if let Some(w) = parent_window(parent) {
+            syscall!(BOOL, DrawMenuBar(w))?;
+        }
         Ok(Self { parent, id })
     }
 
@@ -160,7 +176,8 @@ impl MenuItemImpl {
             info.cch = s.len() as _;
             syscall!(BOOL, SetMenuItemInfoW(self.parent, self.id, 0, &info))?;
             Ok(())
-        })
+        })?;
+        Ok(())
     }
 
     pub async fn wait_click(&self) {
@@ -182,6 +199,12 @@ impl MenuItemImpl {
 impl AsMenuItem for MenuItemImpl {
     fn as_menu_item(&self) -> BorrowedMenuItem<'_> {
         unsafe { BorrowedMenuItem::win32(self.parent, self.id) }
+    }
+}
+
+impl Drop for MenuItemImpl {
+    fn drop(&mut self) {
+        let _ = syscall!(BOOL, DeleteMenu(self.parent, self.id, MF_BYCOMMAND));
     }
 }
 
@@ -277,7 +300,7 @@ pub struct CheckMenuItem {
 impl CheckMenuItem {
     pub fn new(parent: impl AsMenuContainer) -> Result<Self> {
         let parent = parent.as_menu_container().as_win32();
-        let item = MenuItemImpl::new(parent, MF_UNCHECKED)?;
+        let item = MenuItemImpl::new(parent, 0)?;
         Ok(Self { item })
     }
 
@@ -301,12 +324,7 @@ pub struct RadioMenuItem {
 impl RadioMenuItem {
     pub fn new(parent: impl AsMenuContainer) -> Result<Self> {
         let parent = parent.as_menu_container().as_win32();
-        let item = MenuItemImpl::new(parent, MF_UNCHECKED)?;
-        let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
-        info.cbSize = size_of::<MENUITEMINFOW>() as _;
-        syscall!(BOOL, GetMenuItemInfoW(parent, item.id, 0, &mut info))?;
-        info.fType |= MFT_RADIOCHECK;
-        syscall!(BOOL, SetMenuItemInfoW(parent, item.id, 0, &info))?;
+        let item = MenuItemImpl::new(parent, MFT_RADIOCHECK)?;
         Ok(Self { item })
     }
 

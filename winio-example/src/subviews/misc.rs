@@ -65,6 +65,7 @@ pub enum MiscPageMessage {
     KeyUp(KeyCode),
     KeyDown(KeyCode),
     KeyChar(char),
+    SetPassword(bool),
     #[cfg(windows)]
     ChooseBackdrop(Backdrop),
     #[cfg(target_os = "macos")]
@@ -324,6 +325,10 @@ impl Component for MiscPage {
                         )
                         .buttons(MessageBoxButton::Ok),
                 ));
+                Ok(false)
+            }
+            MiscPageMessage::SetPassword(v) => {
+                self.pcheck.set_checked(v)?;
                 Ok(false)
             }
             MiscPageMessage::KeyUp(c) => {

@@ -4,6 +4,9 @@ pub use scroll_view::*;
 mod misc;
 pub use misc::*;
 
+mod menu_bar;
+pub use menu_bar::*;
+
 mod bind;
 pub use bind::*;
 
