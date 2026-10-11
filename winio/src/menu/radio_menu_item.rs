@@ -26,6 +26,15 @@ impl TextWidget for RadioMenuItem {
     fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
+#[inherit_methods(from = "self.inner")]
+impl RadioMenuItem {
+    /// Gets the checked state.
+    pub fn is_checked(&self) -> Result<bool>;
+
+    /// Sets the checked state.
+    pub fn set_checked(&mut self, checked: bool) -> Result<()>;
+}
+
 /// Events of [`RadioMenuItem`].
 #[derive(Debug)]
 #[non_exhaustive]

@@ -6,15 +6,16 @@ use crate::{Error, Result};
 
 pub struct ExampleMenuBar {
     menu_bar: Child<MenuBar>,
+    file_item: Child<MenuBarItem>,
+    open_file_item: Child<MenuItem>,
     widgets_item: Child<MenuBarItem>,
     combo_control_item: Child<PopupMenuItem>,
     push_item: Child<MenuItem>,
     pop_item: Child<MenuItem>,
     show_item: Child<MenuItem>,
+    #[allow(dead_code)]
+    sep_item: Child<SeparatorMenuItem>,
     show_password_item: Child<CheckMenuItem>,
-    file_item: Child<MenuBarItem>,
-    open_file_item: Child<MenuItem>,
-    show_password: bool,
 }
 
 #[derive(Debug)]
@@ -44,6 +45,12 @@ impl Component for ExampleMenuBar {
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             menu_bar: MenuBar = (init),
+            file_item: MenuBarItem = (&menu_bar) => {
+                text: "File",
+            },
+            open_file_item: MenuItem = (&file_item) => {
+                text: "Open file...",
+            },
             widgets_item: MenuBarItem = (&menu_bar) => {
                 text: "Widgets",
             },
@@ -59,28 +66,23 @@ impl Component for ExampleMenuBar {
             show_item: MenuItem = (&combo_control_item) => {
                 text: "Show",
             },
+            sep_item: SeparatorMenuItem = (&widgets_item),
             show_password_item: CheckMenuItem = (&widgets_item) => {
                 text: "Show password",
-            },
-            file_item: MenuBarItem = (&menu_bar) => {
-                text: "File",
-            },
-            open_file_item: MenuItem = (&file_item) => {
-                text: "Open file...",
             },
         }
 
         Ok(Self {
             menu_bar,
+            file_item,
+            open_file_item,
             widgets_item,
             combo_control_item,
             push_item,
             pop_item,
             show_item,
+            sep_item,
             show_password_item,
-            file_item,
-            open_file_item,
-            show_password: false,
         })
     }
 
@@ -142,8 +144,9 @@ impl Component for ExampleMenuBar {
                 Ok(false)
             }
             ExampleMenuBarMessage::ChangeInputShowPassword => {
-                self.show_password = !self.show_password;
-                sender.output(ExampleMenuBarEvent::ShowPassword(self.show_password));
+                sender.output(ExampleMenuBarEvent::ShowPassword(
+                    self.show_password_item.is_checked()?,
+                ));
                 Ok(false)
             }
             ExampleMenuBarMessage::OpenFile => {

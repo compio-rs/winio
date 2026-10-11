@@ -9,9 +9,10 @@ use windows_core::WIN32_ERROR;
 use windows_sys::Win32::{
     Foundation::{ERROR_INVALID_PARAMETER, HWND},
     UI::WindowsAndMessaging::{
-        CreateMenu, DeleteMenu, DestroyMenu, DrawMenuBar, GetMenu, GetMenuItemInfoW, HMENU,
-        InsertMenuItemW, MENUITEMINFOW, MF_BYCOMMAND, MF_SEPARATOR, MFT_RADIOCHECK, MIIM_FTYPE,
-        MIIM_ID, MIIM_STRING, MIIM_SUBMENU, SetMenu, SetMenuItemInfoW, WM_COMMAND,
+        CheckMenuItem, CreateMenu, DeleteMenu, DestroyMenu, DrawMenuBar, GetMenu, GetMenuItemInfoW,
+        GetMenuState, HMENU, InsertMenuItemW, MENUITEMINFOW, MF_BYCOMMAND, MF_CHECKED,
+        MF_SEPARATOR, MF_UNCHECKED, MFT_RADIOCHECK, MIIM_FTYPE, MIIM_ID, MIIM_STRING, MIIM_SUBMENU,
+        SetMenu, SetMenuItemInfoW, WM_COMMAND,
     },
 };
 use winio_handle::{
@@ -180,6 +181,30 @@ impl MenuItemImpl {
         Ok(())
     }
 
+    pub fn is_checked_impl(&self) -> bool {
+        let state = unsafe { GetMenuState(self.parent, self.id, MF_BYCOMMAND) };
+        (state & MF_CHECKED) != 0
+    }
+
+    pub fn is_checked(&self) -> Result<bool> {
+        Ok(self.is_checked_impl())
+    }
+
+    pub fn set_checked_impl(&self, checked: bool) {
+        unsafe {
+            CheckMenuItem(
+                self.parent,
+                self.id,
+                MF_BYCOMMAND | { if checked { MF_CHECKED } else { MF_UNCHECKED } },
+            )
+        };
+    }
+
+    pub fn set_checked(&mut self, checked: bool) -> Result<()> {
+        self.set_checked_impl(checked);
+        Ok(())
+    }
+
     pub async fn wait_click(&self) {
         let parent_window = parent_window(self.parent);
         if let Some(hwnd) = parent_window {
@@ -308,8 +333,13 @@ impl CheckMenuItem {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
+    pub fn is_checked(&self) -> Result<bool>;
+
+    pub fn set_checked(&mut self, checked: bool) -> Result<()>;
+
     pub async fn wait_click(&self) {
         self.item.wait_click().await;
+        self.item.set_checked_impl(!self.item.is_checked_impl());
     }
 }
 
@@ -332,8 +362,13 @@ impl RadioMenuItem {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
+    pub fn is_checked(&self) -> Result<bool>;
+
+    pub fn set_checked(&mut self, checked: bool) -> Result<()>;
+
     pub async fn wait_click(&self) {
         self.item.wait_click().await;
+        self.item.set_checked_impl(true);
     }
 }
 
