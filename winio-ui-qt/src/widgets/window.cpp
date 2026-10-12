@@ -1,21 +1,12 @@
 #include "window.hpp"
 
 WinioMainWindow::WinioMainWindow(QWidget *parent)
-    : QMainWindow(parent), m_resize_callback(std::nullopt),
-      m_move_callback(std::nullopt), m_close_callback(std::nullopt),
-      m_theme_callback(std::nullopt) {
+    : QMainWindow(parent), m_move_callback(std::nullopt),
+      m_close_callback(std::nullopt), m_theme_callback(std::nullopt) {
     setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
 }
 
 WinioMainWindow::~WinioMainWindow() {}
-
-void WinioMainWindow::resizeEvent(QResizeEvent *event) {
-    if (m_resize_callback) {
-        auto &[callback, data] = *m_resize_callback;
-        auto size = event->size();
-        callback(data, size.width(), size.height());
-    }
-}
 
 void WinioMainWindow::moveEvent(QMoveEvent *event) {
     if (m_move_callback) {
@@ -47,15 +38,27 @@ void WinioMainWindow::changeEvent(QEvent *event) {
     }
 }
 
+WinioCentralWidget::WinioCentralWidget(QWidget *parent)
+    : QWidget(parent), m_resize_callback(std::nullopt) {}
+
+WinioCentralWidget::~WinioCentralWidget() {}
+
+void WinioCentralWidget::resizeEvent(QResizeEvent *event) {
+    if (m_resize_callback) {
+        auto &[callback, data] = *m_resize_callback;
+        auto size = event->size();
+        callback(data, size.width(), size.height());
+    }
+}
+
 std::unique_ptr<QMainWindow> new_main_window() {
     return std::make_unique<WinioMainWindow>(nullptr);
 }
 
-void main_window_register_resize_event(QMainWindow &w,
-                                       callback_fn_t<void(int, int)> callback,
-                                       std::uint8_t const *data) {
-    static_cast<WinioMainWindow &>(w).m_resize_callback =
-        std::make_tuple(std::move(callback), data);
+std::unique_ptr<QWidget> new_central_widget(QMainWindow &window) {
+    auto content = std::make_unique<WinioCentralWidget>(&window);
+    window.setCentralWidget(content.get());
+    return content;
 }
 
 void main_window_register_move_event(QMainWindow &w,
@@ -76,5 +79,12 @@ void main_window_register_theme_event(QMainWindow &w,
                                       callback_fn_t<void()> callback,
                                       std::uint8_t const *data) {
     static_cast<WinioMainWindow &>(w).m_theme_callback =
+        std::make_tuple(std::move(callback), data);
+}
+
+void central_widget_register_resize_event(QWidget &w,
+                                          callback_fn_t<void(int, int)> callback,
+                                          std::uint8_t const *data) {
+    static_cast<WinioCentralWidget &>(w).m_resize_callback =
         std::make_tuple(std::move(callback), data);
 }

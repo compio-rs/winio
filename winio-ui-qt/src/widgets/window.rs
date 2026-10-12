@@ -1,4 +1,4 @@
-use std::{fmt::Debug, pin::Pin};
+use std::{fmt::Debug, mem::ManuallyDrop, pin::Pin};
 
 use cxx::UniquePtr;
 use winio_callback::Callback;
@@ -13,18 +13,20 @@ pub struct Window {
     on_close: Box<Callback<()>>,
     on_theme: Box<Callback<()>>,
     widget: UniquePtr<ffi::QMainWindow>,
+    content: ManuallyDrop<UniquePtr<ffi::QWidget>>,
 }
 
 impl Window {
     pub fn new() -> Result<Self> {
         let mut widget = ffi::new_main_window()?;
+        let mut content = ffi::new_central_widget(widget.pin_mut())?;
         let on_resize = Box::new(Callback::new());
         let on_move = Box::new(Callback::new());
         let on_close = Box::new(Callback::new());
         let on_theme = Box::new(Callback::new());
         unsafe {
-            ffi::main_window_register_resize_event(
-                widget.pin_mut(),
+            ffi::central_widget_register_resize_event(
+                content.pin_mut(),
                 Self::on_resize,
                 on_resize.as_ref() as *const _ as _,
             )?;
@@ -50,6 +52,7 @@ impl Window {
             on_close,
             on_theme,
             widget,
+            content: ManuallyDrop::new(content),
         })
     }
 
@@ -59,6 +62,10 @@ impl Window {
 
     fn pin_mut_qwidget(&mut self) -> Pin<&mut ffi::QWidget> {
         self.widget.pin_mut().static_cast_mut()
+    }
+
+    fn as_ref_content(&self) -> &ffi::QWidget {
+        &self.content
     }
 
     pub fn is_visible(&self) -> Result<bool> {
@@ -94,10 +101,10 @@ impl Window {
     }
 
     pub fn client_size(&self) -> Result<Size> {
-        let geometry = self.as_ref_qwidget().geometry()?;
+        let rect = self.as_ref_content().rect()?;
         Ok(Size::new(
-            (geometry.x2 - geometry.x1) as _,
-            (geometry.y2 - geometry.y1) as _,
+            (rect.x2 - rect.x1 + 1) as _,
+            (rect.y2 - rect.y1 + 1) as _,
         ))
     }
 
@@ -165,7 +172,7 @@ impl AsWindow for Window {
 
 impl AsContainer for Window {
     fn as_container(&self) -> BorrowedContainer<'_> {
-        unsafe { BorrowedContainer::qt((self.as_ref_qwidget() as *const ffi::QWidget).cast_mut()) }
+        unsafe { BorrowedContainer::qt((self.as_ref_content() as *const ffi::QWidget).cast_mut()) }
     }
 }
 
@@ -187,8 +194,10 @@ mod ffi {
 
         fn new_main_window() -> Result<UniquePtr<QMainWindow>>;
 
-        unsafe fn main_window_register_resize_event(
-            w: Pin<&mut QMainWindow>,
+        fn new_central_widget(window: Pin<&mut QMainWindow>) -> Result<UniquePtr<QWidget>>;
+
+        unsafe fn central_widget_register_resize_event(
+            w: Pin<&mut QWidget>,
             callback: unsafe fn(*const u8, i32, i32),
             data: *const u8,
         ) -> Result<()>;
