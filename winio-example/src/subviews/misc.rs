@@ -34,7 +34,7 @@ pub struct MiscPage {
     canvas: Child<Canvas>,
     combo: Child<ComboBox>,
     list: Child<ObservableVec<String>>,
-    radios: Child<RadioButtonGroup>,
+    radios: Child<RadioGroup<RadioButton>>,
     push_button: Child<Button>,
     pop_button: Child<Button>,
     show_button: Child<Button>,
@@ -141,7 +141,7 @@ impl Component for MiscPage {
             r3: RadioButton = (&window) => {
                 text: "╠╠╠"
             },
-            radios: RadioButtonGroup = ([r1, r2, r3]) => {
+            radios: RadioGroup<RadioButton> = ([r1, r2, r3]) => {
                 selection: 0,
             },
             push_button: Button = (&window) => {

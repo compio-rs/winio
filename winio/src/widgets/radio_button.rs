@@ -1,7 +1,5 @@
-use std::ops::{Deref, DerefMut};
-
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Child, Component, ComponentSender, Prop, PropSource};
+use winio_elm::{Component, ComponentSender, Prop, PropSource, Radio, RadioEvent};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
     Enable, Failable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
@@ -12,8 +10,8 @@ use crate::{
     sys::{Error, Result},
 };
 
-/// A single-choice button. See [`RadioButtonGroup`] for making selection
-/// groups.
+/// A single-choice button. See [`RadioGroup`](winio_elm::RadioGroup) for making
+/// selection groups.
 #[derive(Debug)]
 pub struct RadioButton {
     widget: sys::RadioButton,
@@ -100,7 +98,8 @@ pub enum RadioButtonMessage {
     /// The checked state has been changed by user click.
     #[doc(hidden)]
     ChangeInputChecked,
-    /// The checked state is set externally (e.g. from [`RadioButtonGroup`]).
+    /// The checked state is set externally (e.g. from
+    /// [`RadioGroup`](winio_elm::RadioGroup)).
     SetChecked(bool),
     /// Set the rect.
     SetRect(Rect),
@@ -178,192 +177,18 @@ impl Component for RadioButton {
 
 winio_handle::impl_as_widget!(RadioButton, widget);
 
-/// A group of [`RadioButton`]s that keeps exactly one of them selected.
-pub struct RadioButtonGroup {
-    radios: Vec<Child<RadioButton>>,
-    selection: Option<usize>,
-    selection_prop: PropSource<Option<usize>>,
-}
-
-/// Events of [`RadioButtonGroup`].
-#[derive(Debug)]
-#[non_exhaustive]
-pub enum RadioButtonGroupEvent {}
-
-/// Messages of [`RadioButtonGroup`].
-#[derive(Debug)]
-#[non_exhaustive]
-pub enum RadioButtonGroupMessage {
-    /// A radio button has been selected, with its index.
-    Click(usize),
-    /// Set the selection.
-    SetSelection(Option<usize>),
-}
-
-impl RadioButtonGroup {
-    /// Get the index of the selected radio button, or `None` if none is
-    /// selected.
-    pub fn selection(&self) -> Result<Option<usize>> {
-        Ok(self.selection)
+impl Radio for RadioButton {
+    fn is_checked(&self) -> Result<bool> {
+        RadioButton::is_checked(self)
     }
 
-    /// Set the index of the selected radio button.
-    pub fn set_selection(&mut self, i: usize) -> Result<()> {
-        if Some(i) != self.selection {
-            self.selection = Some(i);
-            self.selection_prop.notify(Some(i));
-            for (idx, r) in self.radios.iter_mut().enumerate() {
-                r.set_checked(idx == i)?;
-            }
-        }
-        Ok(())
-    }
-
-    /// Property for the selected radio button index.
-    pub fn selection_prop(&mut self) -> Result<Prop<'_, Option<usize>>> {
-        Ok(self.selection_prop.as_prop(self.selection))
-    }
-
-    /// Appends a radio button to the back of the group.
-    pub fn push(&mut self, v: Child<RadioButton>) {
-        self.radios.push(v);
-        self.fix_selection();
-    }
-
-    /// Inserts a radio button at specified position.
-    pub fn insert(&mut self, i: usize, v: Child<RadioButton>) {
-        self.radios.insert(i, v);
-        self.fix_selection();
-    }
-
-    /// Removes the last radio button.
-    pub fn pop(&mut self) -> Option<Child<RadioButton>> {
-        let res = self.radios.pop();
-        self.fix_selection();
-        res
-    }
-
-    /// Removes and returns the radio button at specified position.
-    pub fn remove(&mut self, i: usize) -> Child<RadioButton> {
-        let res = self.radios.remove(i);
-        self.fix_selection();
-        res
-    }
-
-    /// Clears the group.
-    pub fn clear(&mut self) {
-        self.radios.clear();
-        self.fix_selection();
-    }
-
-    /// Length of the group.
-    pub fn len(&self) -> usize {
-        self.radios.len()
-    }
-
-    /// Checks if the group is empty.
-    pub fn is_empty(&self) -> bool {
-        self.radios.is_empty()
-    }
-
-    /// Gets the radio button at specified position.
-    pub fn get(&self, i: usize) -> Option<&Child<RadioButton>> {
-        self.radios.get(i)
-    }
-
-    /// Resets the selection if the index is out of bounds.
-    fn fix_selection(&mut self) {
-        let len = self.radios.len();
-        if let Some(i) = self.selection
-            && i >= len
-        {
-            self.selection = None;
-            self.selection_prop.notify(None);
-        }
+    fn set_checked(&mut self, v: bool) -> Result<()> {
+        RadioButton::set_checked(self, v)
     }
 }
 
-impl Component for RadioButtonGroup {
-    type Error = Error;
-    type Event = RadioButtonGroupEvent;
-    type Init<'a> = Vec<Child<RadioButton>>;
-    type Message = RadioButtonGroupMessage;
-
-    async fn init(radios: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
-        let selection_prop = PropSource::new();
-        Ok(Self {
-            radios,
-            selection: None,
-            selection_prop,
-        })
-    }
-
-    async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
-        let futures = self
-            .radios
-            .iter_mut()
-            .enumerate()
-            .map(|(i, c)| {
-                c.start(sender, move |e| match e {
-                    RadioButtonEvent::Click => Some(RadioButtonGroupMessage::Click(i)),
-                })
-            })
-            .collect::<Vec<_>>();
-        futures_util::future::join_all(futures).await;
-        std::future::pending().await
-    }
-
-    async fn update_children(&mut self) -> Result<bool> {
-        let r0 = futures_util::future::try_join_all(self.radios.iter_mut().map(|c| c.update()))
-            .await
-            .map(|v| v.into_iter().any(|b| b))?;
-        Ok(r0)
-    }
-
-    async fn update(
-        &mut self,
-        message: Self::Message,
-        _sender: &ComponentSender<Self>,
-    ) -> Result<bool> {
-        match message {
-            RadioButtonGroupMessage::Click(i) => {
-                if Some(i) != self.selection {
-                    self.selection = Some(i);
-                    self.selection_prop.notify(Some(i));
-                    for (idx, r) in self.radios.iter_mut().enumerate() {
-                        r.set_checked(idx == i)?;
-                    }
-                } else if let Some(r) = self.radios.get_mut(i) {
-                    r.set_checked(true)?;
-                }
-                Ok(false)
-            }
-            RadioButtonGroupMessage::SetSelection(selection) => {
-                if selection != self.selection {
-                    self.selection = selection;
-                    self.selection_prop.notify(selection);
-                    if let Some(i) = selection {
-                        for (idx, r) in self.radios.iter_mut().enumerate() {
-                            r.set_checked(idx == i)?;
-                        }
-                    }
-                }
-                Ok(false)
-            }
-        }
-    }
-}
-
-impl Deref for RadioButtonGroup {
-    type Target = [Child<RadioButton>];
-
-    fn deref(&self) -> &Self::Target {
-        &self.radios
-    }
-}
-
-impl DerefMut for RadioButtonGroup {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.radios
+impl RadioEvent for RadioButtonEvent {
+    fn is_click(&self) -> bool {
+        matches!(self, Self::Click)
     }
 }

@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender};
+use winio_elm::{Component, ComponentSender, Radio, RadioEvent};
 use winio_handle::BorrowedMenuContainer;
 use winio_primitive::{Enable, Failable, TextWidget};
 
@@ -91,3 +91,19 @@ impl Component for RadioMenuItem {
 }
 
 winio_handle::impl_as_menu_item!(RadioMenuItem, inner);
+
+impl Radio for RadioMenuItem {
+    fn is_checked(&self) -> Result<bool> {
+        RadioMenuItem::is_checked(self)
+    }
+
+    fn set_checked(&mut self, v: bool) -> Result<()> {
+        RadioMenuItem::set_checked(self, v)
+    }
+}
+
+impl RadioEvent for RadioMenuItemEvent {
+    fn is_click(&self) -> bool {
+        matches!(self, Self::Click)
+    }
+}

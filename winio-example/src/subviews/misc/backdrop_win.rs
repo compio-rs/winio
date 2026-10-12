@@ -5,7 +5,7 @@ use crate::{Error, Result};
 
 pub struct BackdropChooser {
     view: Child<View>,
-    radios: Child<RadioButtonGroup>,
+    radios: Child<RadioGroup<RadioButton>>,
 }
 
 #[derive(Debug)]
@@ -41,7 +41,7 @@ impl Component for BackdropChooser {
             r_mica_alt: RadioButton = (&view) => {
                 text: "Mica Alt"
             },
-            radios: RadioButtonGroup = ([r_none, r_acrylic, r_mica, r_mica_alt]) => {
+            radios: RadioGroup<RadioButton> = ([r_none, r_acrylic, r_mica, r_mica_alt]) => {
                 selection: 0,
             },
         }
