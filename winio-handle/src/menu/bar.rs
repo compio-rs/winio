@@ -19,7 +19,7 @@ cfg_if::cfg_if! {
             #[cfg(feature = "qt")]
             Qt(*mut core::ffi::c_void, std::marker::PhantomData<&'a ()>),
             #[cfg(feature = "gtk")]
-            Gtk(&'a gtk4::PopoverMenuBar),
+            Gtk(&'a gtk4::gio::Menu),
             #[cfg(not(any(feature = "qt", feature = "gtk")))]
             Dummy(std::marker::PhantomData<&'a ()>),
         }
@@ -101,7 +101,7 @@ impl<'a> BorrowedMenuBar<'a> {
 
     /// Create from Gtk `PopoverMenuBar`.
     #[cfg(feature = "gtk")]
-    pub fn gtk(menu_bar: &'a gtk4::PopoverMenuBar) -> Self {
+    pub fn gtk(menu_bar: &'a gtk4::gio::Menu) -> Self {
         Self(BorrowedMenuBarInner::Gtk(menu_bar))
     }
 
@@ -116,7 +116,7 @@ impl<'a> BorrowedMenuBar<'a> {
 
     /// Get Gtk `PopoverMenuBar`.
     #[cfg(feature = "gtk")]
-    pub fn to_gtk(&self) -> &'a gtk4::PopoverMenuBar {
+    pub fn to_gtk(&self) -> &'a gtk4::gio::Menu {
         match &self.0 {
             BorrowedMenuBarInner::Gtk(w) => w,
             _ => panic!("unsupported handle type"),
