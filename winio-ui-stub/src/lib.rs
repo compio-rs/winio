@@ -39,6 +39,9 @@ pub use dialogs::*;
 mod platform;
 pub use platform::*;
 
+mod menu;
+pub use menu::*;
+
 #[cfg(feature = "compio-compat")]
 mod compat;
 #[cfg(feature = "compio-compat")]
