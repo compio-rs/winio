@@ -80,12 +80,13 @@ impl Component for ExampleMenuBar {
             },
             wgpu_clockwise_item: RadioMenuItem = (&wgpu_item) => {
                 text: "Clockwise",
-                checked: true,
             },
             wgpu_counter_clockwise_item: RadioMenuItem = (&wgpu_item) => {
                 text: "Counter clockwise",
             },
-            wgpu_option_group: RadioGroup<RadioMenuItem> = ([wgpu_clockwise_item, wgpu_counter_clockwise_item]),
+            wgpu_option_group: RadioGroup<RadioMenuItem> = ([wgpu_clockwise_item, wgpu_counter_clockwise_item]) => {
+                selection: 0,
+            },
         }
 
         wgpu_option_group
