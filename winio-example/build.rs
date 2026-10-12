@@ -1,3 +1,5 @@
+use cfg_aliases::cfg_aliases;
+
 fn main() {
     let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     let env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
@@ -11,5 +13,8 @@ fn main() {
             }
             _ => {}
         }
+    }
+    cfg_aliases! {
+        menu: { any(windows, target_os = "macos", not(any(target_os = "android", all(target_vendor = "apple", not(target_os = "macos"))))) },
     }
 }

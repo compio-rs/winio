@@ -55,13 +55,14 @@ pub mod ui;
 
 pub mod widgets;
 
+#[cfg(menu)]
 pub mod menu;
 
 /// For blanket imports.
 pub mod prelude {
-    pub use crate::{
-        Error, Result, elm::*, handle::*, layout::*, menu::*, primitive::*, ui::*, widgets::*,
-    };
+    #[cfg(menu)]
+    pub use crate::menu::*;
+    pub use crate::{Error, Result, elm::*, handle::*, layout::*, primitive::*, ui::*, widgets::*};
 }
 
 pub use sys::{Error, Result};
