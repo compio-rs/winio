@@ -8,6 +8,7 @@ mod bindings {
         type QMenuBar;
         type QMenu;
         type QAction;
+        type QActionGroup;
 
         unsafe fn new_menu_bar(window: *mut QWidget) -> Result<*mut QMenuBar>;
 
@@ -28,7 +29,15 @@ mod bindings {
         unsafe fn menu_bar_add_menu(menu_bar: *mut QMenuBar) -> Result<*mut QMenu>;
         unsafe fn menu_add_menu(menu: *mut QMenu) -> Result<*mut QMenu>;
         unsafe fn menu_add_action(menu: *mut QMenu) -> Result<*mut QAction>;
-        fn action_set_exclusive(action: Pin<&mut QAction>) -> Result<()>;
+
+        unsafe fn new_action_group(parent: *mut QMenu) -> Result<UniquePtr<QActionGroup>>;
+        unsafe fn new_action(parent: *mut QMenu) -> Result<*mut QAction>;
+
+        fn setExclusive(self: Pin<&mut QActionGroup>, exclusive: bool) -> Result<()>;
+        unsafe fn addAction(
+            self: Pin<&mut QActionGroup>,
+            action: *mut QAction,
+        ) -> Result<*mut QAction>;
 
         unsafe fn action_connect_triggered(
             action: Pin<&mut QAction>,

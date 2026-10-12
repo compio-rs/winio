@@ -13,11 +13,11 @@ QMenu *menu_add_menu(QMenu *menu) { return menu->addMenu(QString()); }
 
 QAction *menu_add_action(QMenu *menu) { return menu->addAction(QString()); }
 
-void action_set_exclusive(QAction &action) {
-    auto *group = new QActionGroup(&action);
-    group->setExclusive(true);
-    group->addAction(&action);
+std::unique_ptr<QActionGroup> new_action_group(QMenu *parent) {
+    return std::make_unique<QActionGroup>(parent);
 }
+
+QAction *new_action(QMenu *parent) { return new QAction(parent); }
 
 void action_connect_triggered(QAction &action, callback_fn_t<void()> callback,
                               std::uint8_t const *data) {

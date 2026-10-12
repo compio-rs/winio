@@ -1,3 +1,6 @@
+use std::{fmt::Debug, mem::ManuallyDrop};
+
+use cxx::UniquePtr;
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsMenuContainer;
 
@@ -5,14 +8,22 @@ use crate::{
     Result,
     menu::{
         ActionClick, ActionHandle, RawPtr,
-        ffi::{QMenu, action_set_exclusive, menu_add_action},
+        ffi::{QAction, QActionGroup, QMenu, menu_add_action, new_action, new_action_group},
     },
 };
 
-#[derive(Debug)]
 pub struct RadioMenuItem {
     action: ActionHandle,
     click: ActionClick,
+    #[allow(dead_code)]
+    group: ManuallyDrop<UniquePtr<QActionGroup>>,
+    another_action: RawPtr<QAction>,
+}
+
+impl Debug for RadioMenuItem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RadioMenuItem").finish_non_exhaustive()
+    }
 }
 
 #[inherit_methods(from = "self.action")]
@@ -23,11 +34,23 @@ impl RadioMenuItem {
         unsafe {
             let mut action = RawPtr(action);
             action.pin_mut().setCheckable(true)?;
-            action_set_exclusive(action.pin_mut())?;
+        }
+        let another_action = unsafe { new_action(menu) }?;
+        unsafe {
+            let mut another_action = RawPtr(another_action);
+            another_action.pin_mut().setCheckable(true)?;
+        }
+        let mut group = unsafe { new_action_group(menu) }?;
+        group.pin_mut().setExclusive(true)?;
+        unsafe {
+            group.pin_mut().addAction(action)?;
+            group.pin_mut().addAction(another_action)?;
         }
         Ok(Self {
             action: ActionHandle::new(action),
             click: ActionClick::new(action)?,
+            group: ManuallyDrop::new(group),
+            another_action: RawPtr(another_action),
         })
     }
 
@@ -41,7 +64,16 @@ impl RadioMenuItem {
 
     pub fn is_checked(&self) -> Result<bool>;
 
-    pub fn set_checked(&mut self, checked: bool) -> Result<()>;
+    pub fn set_checked(&mut self, checked: bool) -> Result<()> {
+        if checked {
+            self.action.set_checked(true)?;
+        } else {
+            unsafe {
+                self.another_action.pin_mut().setChecked(true)?;
+            }
+        }
+        Ok(())
+    }
 
     pub async fn wait_click(&self) {
         self.click.wait_click().await

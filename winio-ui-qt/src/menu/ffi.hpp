@@ -7,6 +7,7 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QWidget>
+#include <memory>
 #include <utility>
 
 class MenuConnection {
@@ -29,6 +30,10 @@ QMenu *menu_bar_add_menu(QMenuBar *menu_bar);
 QMenu *menu_add_menu(QMenu *menu);
 
 QAction *menu_add_action(QMenu *menu);
+
+std::unique_ptr<QActionGroup> new_action_group(QMenu *parent);
+
+QAction *new_action(QMenu *parent);
 
 void action_set_exclusive(QAction &action);
 

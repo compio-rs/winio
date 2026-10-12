@@ -163,6 +163,7 @@ pub struct WgpuPageInner {
     timer: Child<Timer>,
     canvas: Child<WgpuCanvas>,
     angle: f32,
+    clockwise: bool,
     instance: wgpu::Instance,
     device: wgpu::Device,
     adapter: wgpu::Adapter,
@@ -198,6 +199,7 @@ pub enum WgpuPageInnerEvent {}
 #[derive(Debug)]
 pub enum WgpuPageInnerMessage {
     Tick,
+    Clockwise(bool),
 }
 
 impl Component for WgpuPageInner {
@@ -233,6 +235,7 @@ impl Component for WgpuPageInner {
             canvas,
             timer,
             angle: 0.0,
+            clockwise: true,
             instance,
             device,
             adapter,
@@ -263,9 +266,13 @@ impl Component for WgpuPageInner {
     ) -> Result<bool> {
         match message {
             WgpuPageInnerMessage::Tick => {
-                self.angle += 0.01;
+                self.angle += if self.clockwise { 0.01 } else { -0.01 };
                 self.angle %= std::f32::consts::TAU;
                 Ok(true)
+            }
+            WgpuPageInnerMessage::Clockwise(v) => {
+                self.clockwise = v;
+                Ok(false)
             }
         }
     }
@@ -446,7 +453,9 @@ pub enum WgpuPage {
 pub enum WgpuPageEvent {}
 
 #[derive(Debug)]
-pub enum WgpuPageMessage {}
+pub enum WgpuPageMessage {
+    Clockwise(bool),
+}
 
 impl Component for WgpuPage {
     type Error = Error;
@@ -488,6 +497,19 @@ impl Component for WgpuPage {
         match self {
             Self::Wgpu(wgpu) => wgpu.update().await,
             Self::Dummy { window, label } => update_children!(window, label),
+        }
+    }
+
+    async fn update(
+        &mut self,
+        message: Self::Message,
+        _sender: &ComponentSender<Self>,
+    ) -> Result<bool> {
+        match message {
+            WgpuPageMessage::Clockwise(v) => match self {
+                Self::Wgpu(wgpu) => wgpu.emit(WgpuPageInnerMessage::Clockwise(v)).await,
+                Self::Dummy { .. } => Ok(false),
+            },
         }
     }
 

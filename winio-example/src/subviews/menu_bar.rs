@@ -16,6 +16,8 @@ pub struct ExampleMenuBar {
     #[allow(dead_code)]
     sep_item: Child<SeparatorMenuItem>,
     show_password_item: Child<CheckMenuItem>,
+    wgpu_item: Child<MenuBarItem>,
+    wgpu_option_group: Child<RadioGroup<RadioMenuItem>>,
 }
 
 #[derive(Debug)]
@@ -25,6 +27,7 @@ pub enum ExampleMenuBarEvent {
     Show,
     ShowPassword(bool),
     OpenFile,
+    WgpuOption(bool),
 }
 
 #[derive(Debug)]
@@ -34,6 +37,7 @@ pub enum ExampleMenuBarMessage {
     Show,
     ChangeInputShowPassword,
     OpenFile,
+    WgpuOption(Option<usize>),
 }
 
 impl Component for ExampleMenuBar {
@@ -42,7 +46,7 @@ impl Component for ExampleMenuBar {
     type Init<'a> = BorrowedWindow<'a>;
     type Message = ExampleMenuBarMessage;
 
-    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             menu_bar: MenuBar = (init),
             file_item: MenuBarItem = (&menu_bar) => {
@@ -71,7 +75,22 @@ impl Component for ExampleMenuBar {
             show_password_item: CheckMenuItem = (&widgets_item) => {
                 text: "Show password",
             },
+            wgpu_item: MenuBarItem = (&menu_bar) => {
+                text: "WGPU",
+            },
+            wgpu_clockwise_item: RadioMenuItem = (&wgpu_item) => {
+                text: "Clockwise",
+                checked: true,
+            },
+            wgpu_counter_clockwise_item: RadioMenuItem = (&wgpu_item) => {
+                text: "Counter clockwise",
+            },
+            wgpu_option_group: RadioGroup<RadioMenuItem> = ([wgpu_clockwise_item, wgpu_counter_clockwise_item]),
         }
+
+        wgpu_option_group
+            .selection_prop()?
+            .bind(sender, ExampleMenuBarMessage::WgpuOption);
 
         Ok(Self {
             menu_bar,
@@ -84,6 +103,8 @@ impl Component for ExampleMenuBar {
             show_item,
             sep_item,
             show_password_item,
+            wgpu_item,
+            wgpu_option_group,
         })
     }
 
@@ -109,6 +130,8 @@ impl Component for ExampleMenuBar {
             self.open_file_item => {
                 MenuItemEvent::Click => ExampleMenuBarMessage::OpenFile,
             },
+            self.wgpu_item => {},
+            self.wgpu_option_group => {},
         }
     }
 
@@ -122,7 +145,9 @@ impl Component for ExampleMenuBar {
             self.show_item,
             self.show_password_item,
             self.file_item,
-            self.open_file_item
+            self.open_file_item,
+            self.wgpu_item,
+            self.wgpu_option_group
         )
     }
 
@@ -152,6 +177,10 @@ impl Component for ExampleMenuBar {
             }
             ExampleMenuBarMessage::OpenFile => {
                 sender.output(ExampleMenuBarEvent::OpenFile);
+                Ok(false)
+            }
+            ExampleMenuBarMessage::WgpuOption(v) => {
+                sender.output(ExampleMenuBarEvent::WgpuOption(v == Some(0)));
                 Ok(false)
             }
         }

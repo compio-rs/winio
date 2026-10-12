@@ -64,6 +64,8 @@ pub enum MainMessage {
     PopFromCombo,
     ShowComboSelection,
     SetPassword(bool),
+    #[cfg(feature = "wgpu")]
+    WgpuOption(bool),
 }
 
 impl Component for MainModel {
@@ -216,6 +218,8 @@ impl Component for MainModel {
                 ExampleMenuBarEvent::ShowPassword(v) => MainMessage::SetPassword(v),
                 #[cfg(feature = "compio-compat")]
                 ExampleMenuBarEvent::OpenFile => MainMessage::ChooseFile,
+                #[cfg(feature = "wgpu")]
+                ExampleMenuBarEvent::WgpuOption(v) => MainMessage::WgpuOption(v),
             }
         }
     }
@@ -377,6 +381,8 @@ impl Component for MainModel {
             MainMessage::PopFromCombo => self.misc.emit(MiscPageMessage::Pop).await,
             MainMessage::ShowComboSelection => self.misc.emit(MiscPageMessage::Show).await,
             MainMessage::SetPassword(v) => self.misc.emit(MiscPageMessage::SetPassword(v)).await,
+            #[cfg(feature = "wgpu")]
+            MainMessage::WgpuOption(v) => self.wgpu.emit(WgpuPageMessage::Clockwise(v)).await,
         }
     }
 
