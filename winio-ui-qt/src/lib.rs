@@ -19,6 +19,9 @@ pub use dialogs::*;
 mod platform;
 pub use platform::*;
 
+mod menu;
+pub use menu::*;
+
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
