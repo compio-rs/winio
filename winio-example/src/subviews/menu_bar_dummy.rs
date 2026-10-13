@@ -4,10 +4,11 @@ use winio::prelude::*;
 
 use crate::{Error, Result};
 
-pub struct DummyMenuBar;
+pub struct ExampleMenuBar;
 
 #[derive(Debug)]
-pub enum DummyMenuBarEvent {
+#[allow(unused)]
+pub enum ExampleMenuBarEvent {
     Push,
     Pop,
     Show,
@@ -17,13 +18,13 @@ pub enum DummyMenuBarEvent {
 }
 
 #[derive(Debug)]
-pub enum DummyMenuBarMessage {}
+pub enum ExampleMenuBarMessage {}
 
-impl Component for DummyMenuBar {
+impl Component for ExampleMenuBar {
     type Error = Error;
-    type Event = DummyMenuBarEvent;
+    type Event = ExampleMenuBarEvent;
     type Init<'a> = BorrowedWindow<'a>;
-    type Message = DummyMenuBarMessage;
+    type Message = ExampleMenuBarMessage;
 
     async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         Ok(Self)

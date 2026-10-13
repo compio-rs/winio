@@ -11,8 +11,6 @@ cfg_if::cfg_if! {
     } else {
         mod menu_bar_dummy;
         pub use menu_bar_dummy::*;
-
-        pub use DummyMenuBar as ExampleMenuBar;
     }
 }
 

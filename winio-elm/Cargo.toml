@@ -22,6 +22,9 @@ tuplex = { workspace = true }
 [dev-dependencies]
 compio = { workspace = true, features = ["macros"] }
 
+[build-dependencies]
+cfg_aliases = "0.2"
+
 [features]
 handle = ["dep:winio-handle"]
 primitive = ["dep:winio-primitive", "dep:inherit-methods-macro"]
