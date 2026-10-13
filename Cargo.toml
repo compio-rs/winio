@@ -57,7 +57,7 @@ cfg-if = "1"
 cookie = "0.18"
 futures-channel = "0.3"
 futures-util = "0.3"
-html-escape = "0.2"
+html-escape = "0.3"
 image = { version = "0.25", default-features = false }
 inherit-methods-macro = "0.1"
 local-sync = "0.1"
