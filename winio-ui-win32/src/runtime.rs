@@ -47,9 +47,9 @@ use windows_sys::{
     core::BOOL,
 };
 use winio_ui_windows_common::{
-    Backdrop, WM_UAHDRAWMENU, WM_UAHDRAWMENUITEM, children_refresh_dark_mode, control_color_edit,
-    control_color_link_label, control_color_static, init_dark, is_dark_mode_allowed_for_app,
-    syscall, uah_draw_menu, uah_draw_menu_item, window_use_dark_mode,
+    Backdrop, children_refresh_dark_mode, control_color_edit, control_color_link_label,
+    control_color_static, handle_wnd_proc, init_dark, is_dark_mode_allowed_for_app, syscall,
+    window_use_dark_mode,
 };
 
 #[cfg(feature = "compio-compat")]
@@ -295,9 +295,10 @@ pub(crate) unsafe extern "system" fn window_proc(
                 warn!("refresh_icon: handle: {handle:?}, error: {_e:?}");
             }
         }
-        WM_UAHDRAWMENU => return unsafe { uah_draw_menu(handle, wparam, lparam) },
-        WM_UAHDRAWMENUITEM => return unsafe { uah_draw_menu_item(handle, wparam, lparam) },
         _ => {}
+    }
+    if let Some(res) = unsafe { handle_wnd_proc(handle, msg, wparam, lparam) } {
+        return res;
     }
     let res = REGISTRY.with(|runtime| {
         let res = runtime.set_current_msg(handle, msg, wparam, lparam);

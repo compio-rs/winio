@@ -3,7 +3,7 @@ use std::sync::OnceLock;
 use std::{
     collections::BTreeMap,
     mem::MaybeUninit,
-    ptr::null,
+    ptr::{null, null_mut},
     sync::{LazyLock, Mutex, Once},
 };
 
@@ -14,13 +14,15 @@ use slim_detours_sys::{DETOUR_INLINE_HOOK, SlimDetoursInlineHooks};
 use sync_unsafe_cell::SyncUnsafeCell;
 use windows_sys::{
     Win32::{
-        Foundation::{COLORREF, E_INVALIDARG, HWND, LPARAM, LRESULT, RECT, S_OK, SIZE, WPARAM},
+        Foundation::{
+            COLORREF, E_INVALIDARG, HWND, LPARAM, LRESULT, RECT, S_OK, SIZE, SetLastError, WPARAM,
+        },
         Graphics::{
             Dwm::DwmSetWindowAttribute,
             Gdi::{
                 CreateSolidBrush, DC_BRUSH, DRAW_TEXT_FORMAT, DT_CENTER, DT_HIDEPREFIX,
-                DT_SINGLELINE, DT_VCENTER, FillRect, FrameRect, GetStockObject, HDC,
-                InvalidateRect, OffsetRect, SetDCBrushColor,
+                DT_SINGLELINE, DT_VCENTER, FillRect, FrameRect, GetStockObject, GetWindowDC, HDC,
+                InvalidateRect, MapWindowPoints, OffsetRect, ReleaseDC, SetDCBrushColor,
             },
         },
         System::SystemServices::MAX_CLASS_NAME,
@@ -48,7 +50,7 @@ use windows_sys::{
                 DefWindowProcW, ES_MULTILINE, EnumChildWindows, GWL_STYLE, GetClassNameW,
                 GetClientRect, GetMenuBarInfo, GetMenuItemInfoW, GetWindowLongPtrW, GetWindowRect,
                 HMENU, MENUBARINFO, MENUITEMINFOW, MIIM_STRING, OBJID_MENU, SPI_GETHIGHCONTRAST,
-                SystemParametersInfoW, WM_CTLCOLORDLG, WM_SETTINGCHANGE,
+                SystemParametersInfoW, WM_CTLCOLORDLG, WM_NCACTIVATE, WM_NCPAINT, WM_SETTINGCHANGE,
             },
         },
     },
@@ -57,10 +59,7 @@ use windows_sys::{
 };
 
 use super::{PreferredAppMode, WHITE, WinBrush, u16_string_eq_ignore_case};
-use crate::{
-    Error, Result, WM_UAHDRAWMENU, WM_UAHDRAWMENUITEM,
-    darkmode::u16_string_starts_with_ignore_case, get_nt_build, syscall,
-};
+use crate::{Error, Result, darkmode::u16_string_starts_with_ignore_case, get_nt_build, syscall};
 
 #[link(name = "uxtheme", kind = "raw-dylib")]
 unsafe extern "system" {
@@ -729,6 +728,46 @@ unsafe extern "system" fn task_dialog_subclass(
     unsafe { DefSubclassProc(hwnd, umsg, wparam, lparam) }
 }
 
+const WM_UAHDRAWMENU: u32 = 0x0091;
+const WM_UAHDRAWMENUITEM: u32 = 0x0092;
+
+/// # Safety
+/// `handle` should be valid.
+pub unsafe fn handle_wnd_proc(
+    handle: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> Option<LRESULT> {
+    if !is_dark_mode_allowed_for_app() {
+        return None;
+    }
+    match msg {
+        WM_NCPAINT | WM_NCACTIVATE => {
+            let ret = unsafe { DefWindowProcW(handle, msg, wparam, lparam) };
+            if let Err(e) = unsafe { paint_nc_menu(handle) } {
+                error!("WM_NCPAINT: {e:?}");
+            }
+            Some(ret)
+        }
+        WM_UAHDRAWMENU => {
+            let menu = unsafe { &*(lparam as *const UAHMENU) };
+            if let Err(e) = unsafe { paint_menu_bar(handle, menu.hdc) } {
+                error!("WM_UAHDRAWMENU: {e:?}");
+            }
+            Some(0)
+        }
+        WM_UAHDRAWMENUITEM => {
+            let udmi = unsafe { &*(lparam as *const UAHDRAWMENUITEM) };
+            if let Err(e) = unsafe { paint_menu_item(handle, udmi) } {
+                error!("WM_UAHDRAWMENUITEM: {e:?}");
+            }
+            Some(0)
+        }
+        _ => None,
+    }
+}
+
 #[repr(C)]
 #[allow(clippy::upper_case_acronyms)]
 struct UAHMENU {
@@ -742,8 +781,9 @@ unsafe fn paint_menu_bar(hwnd: HWND, hdc: HDC) -> Result<()> {
     mbi.cbSize = size_of::<MENUBARINFO>() as _;
     syscall!(BOOL, GetMenuBarInfo(hwnd, OBJID_MENU, 0, &mut mbi))?;
 
-    let mut rc_window: RECT = unsafe { std::mem::zeroed() };
-    syscall!(BOOL, GetWindowRect(hwnd, &mut rc_window))?;
+    let mut rc_window = MaybeUninit::uninit();
+    syscall!(BOOL, GetWindowRect(hwnd, rc_window.as_mut_ptr()))?;
+    let rc_window = unsafe { rc_window.assume_init() };
     let mut rcbar = mbi.rcBar;
     syscall!(
         BOOL,
@@ -752,20 +792,6 @@ unsafe fn paint_menu_bar(hwnd: HWND, hdc: HDC) -> Result<()> {
 
     syscall!(BOOL, FillRect(hdc, &rcbar, DLG_GRAY_BACK.0))?;
     Ok(())
-}
-
-/// # Safety
-/// `hwnd` should be valid.
-pub unsafe fn uah_draw_menu(hwnd: HWND, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    let menu = unsafe { &*(lparam as *const UAHMENU) };
-    if is_dark_mode_allowed_for_app() {
-        if let Err(e) = unsafe { paint_menu_bar(hwnd, menu.hdc) } {
-            error!("paint_menu_bar: {e:?}");
-        }
-        0
-    } else {
-        unsafe { DefWindowProcW(hwnd, WM_UAHDRAWMENU, wparam, lparam) }
-    }
 }
 
 #[repr(C)]
@@ -914,16 +940,48 @@ unsafe fn paint_menu_item(hwnd: HWND, udmi: &UAHDRAWMENUITEM) -> Result<()> {
     Ok(())
 }
 
-/// # Safety
-/// `hwnd` should be valid.
-pub unsafe fn uah_draw_menu_item(hwnd: HWND, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    let udmi = unsafe { &*(lparam as *const UAHDRAWMENUITEM) };
-    if is_dark_mode_allowed_for_app() {
-        if let Err(e) = unsafe { paint_menu_item(hwnd, udmi) } {
-            error!("paint_menu_item: {e:?}");
-        }
-        0
-    } else {
-        unsafe { DefSubclassProc(hwnd, WM_UAHDRAWMENUITEM, wparam, lparam) }
+unsafe fn paint_nc_menu(hwnd: HWND) -> Result<()> {
+    let mut mbi: MENUBARINFO = unsafe { std::mem::zeroed() };
+    mbi.cbSize = size_of::<MENUBARINFO>() as _;
+    let res = unsafe { GetMenuBarInfo(hwnd, OBJID_MENU, 0, &mut mbi) };
+    if res == 0 {
+        return Ok(());
     }
+    let mut rc_client = MaybeUninit::uninit();
+    syscall!(BOOL, GetClientRect(hwnd, rc_client.as_mut_ptr()))?;
+    unsafe { SetLastError(0) };
+    syscall!(
+        BOOL,
+        MapWindowPoints(hwnd, null_mut(), rc_client.as_mut_ptr().cast(), 2)
+    )?;
+
+    let mut rc_window = MaybeUninit::uninit();
+    syscall!(BOOL, GetWindowRect(hwnd, rc_window.as_mut_ptr()))?;
+    let rc_window = unsafe { rc_window.assume_init() };
+    syscall!(
+        BOOL,
+        OffsetRect(rc_client.as_mut_ptr(), -rc_window.left, -rc_window.top)
+    )?;
+
+    let mut rc_client = unsafe { rc_client.assume_init() };
+    rc_client.bottom = rc_client.top;
+    rc_client.top -= 1;
+
+    let hdc = unsafe { GetWindowDC(hwnd) };
+    if hdc.is_null() {
+        return Err(Error::from_thread());
+    }
+
+    struct DC(HDC, HWND);
+
+    impl Drop for DC {
+        fn drop(&mut self) {
+            unsafe { ReleaseDC(self.1, self.0) };
+        }
+    }
+
+    let hdc = DC(hdc, hwnd);
+
+    syscall!(BOOL, FillRect(hdc.0, &rc_client, DLG_GRAY_BACK.0))?;
+    Ok(())
 }

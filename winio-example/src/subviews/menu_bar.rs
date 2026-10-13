@@ -21,6 +21,7 @@ pub struct ExampleMenuBar {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum ExampleMenuBarEvent {
     Push,
     Pop,
