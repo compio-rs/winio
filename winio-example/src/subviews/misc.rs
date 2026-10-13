@@ -34,7 +34,7 @@ pub struct MiscPage {
     canvas: Child<Canvas>,
     combo: Child<ComboBox>,
     list: Child<ObservableVec<String>>,
-    radios: Child<RadioButtonGroup>,
+    radios: Child<RadioGroup<RadioButton>>,
     push_button: Child<Button>,
     pop_button: Child<Button>,
     show_button: Child<Button>,
@@ -65,6 +65,7 @@ pub enum MiscPageMessage {
     KeyUp(KeyCode),
     KeyDown(KeyCode),
     KeyChar(char),
+    SetPassword(bool),
     #[cfg(windows)]
     ChooseBackdrop(Backdrop),
     #[cfg(target_os = "macos")]
@@ -140,7 +141,7 @@ impl Component for MiscPage {
             r3: RadioButton = (&window) => {
                 text: "╠╠╠"
             },
-            radios: RadioButtonGroup = ([r1, r2, r3]) => {
+            radios: RadioGroup<RadioButton> = ([r1, r2, r3]) => {
                 selection: 0,
             },
             push_button: Button = (&window) => {
@@ -324,6 +325,10 @@ impl Component for MiscPage {
                         )
                         .buttons(MessageBoxButton::Ok),
                 ));
+                Ok(false)
+            }
+            MiscPageMessage::SetPassword(v) => {
+                self.pcheck.set_checked(v)?;
                 Ok(false)
             }
             MiscPageMessage::KeyUp(c) => {

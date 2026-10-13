@@ -15,6 +15,7 @@ mod icons;
 
 pub struct MainModel {
     window: Child<Window>,
+    menu_bar: Child<ExampleMenuBar>,
     tabview: Child<TabView>,
     misc: Child<MiscPage>,
     bind: Child<BindPage>,
@@ -59,6 +60,12 @@ pub enum MainMessage {
     ChooseBackdrop(Backdrop),
     #[cfg(target_os = "macos")]
     ChooseVibrancy(Option<Vibrancy>),
+    PushToCombo,
+    PopFromCombo,
+    ShowComboSelection,
+    SetPassword(bool),
+    #[cfg(feature = "wgpu")]
+    WgpuOption(bool),
 }
 
 impl Component for MainModel {
@@ -83,6 +90,7 @@ impl Component for MainModel {
                 },
             },
             tabview: TabView = (&window),
+            menu_bar: ExampleMenuBar = (&window),
             misc: MiscPage = (()),
             bind: BindPage = (()),
             #[cfg(feature = "compio-compat")]
@@ -143,6 +151,7 @@ impl Component for MainModel {
 
         Ok(Self {
             window,
+            menu_bar,
             tabview,
             misc,
             bind,
@@ -202,6 +211,16 @@ impl Component for MainModel {
                 #[cfg(all(feature = "webview", feature = "compio-compat"))]
                 MarkdownPageEvent::ChooseFile => MainMessage::ChooseMarkdown,
             },
+            self.menu_bar => {
+                ExampleMenuBarEvent::Push => MainMessage::PushToCombo,
+                ExampleMenuBarEvent::Pop => MainMessage::PopFromCombo,
+                ExampleMenuBarEvent::Show => MainMessage::ShowComboSelection,
+                ExampleMenuBarEvent::ShowPassword(v) => MainMessage::SetPassword(v),
+                #[cfg(feature = "compio-compat")]
+                ExampleMenuBarEvent::OpenFile => MainMessage::ChooseFile,
+                #[cfg(feature = "wgpu")]
+                ExampleMenuBarEvent::WgpuOption(v) => MainMessage::WgpuOption(v),
+            }
         }
     }
 
@@ -224,6 +243,7 @@ impl Component for MainModel {
             let visible_subview = subviews.remove(index);
             try_join_update!(
                 self.window.update(),
+                self.menu_bar.update(),
                 self.tabview.update(),
                 visible_subview,
                 futures_util::future::try_join_all(subviews.into_iter()).map_ok(|_| false),
@@ -231,6 +251,7 @@ impl Component for MainModel {
         } else {
             try_join_update!(
                 self.window.update(),
+                self.menu_bar.update(),
                 self.tabview.update(),
                 futures_util::future::try_join_all(subviews.into_iter()).map_ok(|_| false)
             )
@@ -356,6 +377,12 @@ impl Component for MainModel {
                 self.window.set_vibrancy(vibrancy)?;
                 Ok(true)
             }
+            MainMessage::PushToCombo => self.misc.emit(MiscPageMessage::Push).await,
+            MainMessage::PopFromCombo => self.misc.emit(MiscPageMessage::Pop).await,
+            MainMessage::ShowComboSelection => self.misc.emit(MiscPageMessage::Show).await,
+            MainMessage::SetPassword(v) => self.misc.emit(MiscPageMessage::SetPassword(v)).await,
+            #[cfg(feature = "wgpu")]
+            MainMessage::WgpuOption(v) => self.wgpu.emit(WgpuPageMessage::Clockwise(v)).await,
         }
     }
 

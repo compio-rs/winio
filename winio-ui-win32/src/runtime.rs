@@ -48,7 +48,8 @@ use windows_sys::{
 };
 use winio_ui_windows_common::{
     Backdrop, children_refresh_dark_mode, control_color_edit, control_color_link_label,
-    control_color_static, init_dark, is_dark_mode_allowed_for_app, syscall, window_use_dark_mode,
+    control_color_static, handle_wnd_proc, init_dark, is_dark_mode_allowed_for_app, syscall,
+    window_use_dark_mode,
 };
 
 #[cfg(feature = "compio-compat")]
@@ -111,7 +112,7 @@ impl WindowMessage {
 #[derive(Clone, Copy)]
 pub(crate) struct WindowMessageCommand {
     pub message: u32,
-    // pub id: usize,
+    pub id: u32,
     pub handle: HWND,
 }
 
@@ -148,11 +149,11 @@ impl Registry {
         let full_msg = match message {
             WM_COMMAND => WindowMessage::Command({
                 let message = (wparam as u32 >> 16) & 0xFFFF;
-                // let id = wparam as u32 & 0xFFFF;
+                let id = wparam as u32 & 0xFFFF;
                 let handle = lparam as HWND;
                 WindowMessageCommand {
                     message,
-                    // id: id as _,
+                    id,
                     handle,
                 }
             }),
@@ -295,6 +296,9 @@ pub(crate) unsafe extern "system" fn window_proc(
             }
         }
         _ => {}
+    }
+    if let Some(res) = unsafe { handle_wnd_proc(handle, msg, wparam, lparam) } {
+        return res;
     }
     let res = REGISTRY.with(|runtime| {
         let res = runtime.set_current_msg(handle, msg, wparam, lparam);

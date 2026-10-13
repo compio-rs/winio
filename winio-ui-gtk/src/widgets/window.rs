@@ -29,8 +29,13 @@ impl Window {
         let swindow = gtk4::ScrolledWindow::new();
         swindow.set_hscrollbar_policy(gtk4::PolicyType::External);
         swindow.set_vscrollbar_policy(gtk4::PolicyType::External);
+        swindow.set_vexpand(true);
         let fixed = gtk4::Fixed::new();
-        window.set_child(Some(&swindow));
+        // The content is a vertical box so that a menu bar can sit above the
+        // scrolled window that hosts the widgets.
+        let content = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
+        content.append(&swindow);
+        window.set_child(Some(&content));
         swindow.set_child(Some(&fixed));
 
         let on_size = Rc::new(Callback::new());

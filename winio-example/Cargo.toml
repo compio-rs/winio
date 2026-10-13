@@ -48,6 +48,9 @@ tracing_android_trace = "0.1.0"
 jni = { workspace = true }
 rustls-platform-verifier = "0.7.0"
 
+[build-dependencies]
+cfg_aliases = "0.2"
+
 [features]
 default = ["enable_log", "winio/win32", "winio/qt"]
 enable_log = ["winio/enable_log", "compio-log/enable_log"]

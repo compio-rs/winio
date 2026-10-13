@@ -1,30 +1,39 @@
+#[cfg(feature = "once_cell_try")]
+use std::sync::OnceLock;
 use std::{
     collections::BTreeMap,
     mem::MaybeUninit,
-    ptr::null,
+    ptr::{null, null_mut},
     sync::{LazyLock, Mutex, Once},
 };
 
 use compio_log::error;
+#[cfg(not(feature = "once_cell_try"))]
+use once_cell::sync::OnceCell as OnceLock;
 use slim_detours_sys::{DETOUR_INLINE_HOOK, SlimDetoursInlineHooks};
 use sync_unsafe_cell::SyncUnsafeCell;
 use windows_sys::{
     Win32::{
-        Foundation::{COLORREF, E_INVALIDARG, HWND, LPARAM, LRESULT, RECT, S_OK, WPARAM},
+        Foundation::{
+            COLORREF, E_INVALIDARG, HWND, LPARAM, LRESULT, RECT, S_OK, SIZE, SetLastError, WPARAM,
+        },
         Graphics::{
             Dwm::DwmSetWindowAttribute,
             Gdi::{
-                CreateSolidBrush, DC_BRUSH, DRAW_TEXT_FORMAT, FillRect, FrameRect, GetStockObject,
-                HDC, InvalidateRect, SetDCBrushColor,
+                CreateSolidBrush, DC_BRUSH, DRAW_TEXT_FORMAT, DT_CENTER, DT_HIDEPREFIX,
+                DT_SINGLELINE, DT_VCENTER, FillRect, FrameRect, GetStockObject, GetWindowDC, HDC,
+                InvalidateRect, MapWindowPoints, OffsetRect, ReleaseDC, SetDCBrushColor,
             },
         },
         System::SystemServices::MAX_CLASS_NAME,
         UI::{
             Accessibility::{HCF_HIGHCONTRASTON, HIGHCONTRASTW},
             Controls::{
-                BP_CHECKBOX, BP_RADIOBUTTON, CloseThemeData, DTBG_CLIPRECT, DTBGOPTS,
-                DTT_TEXTCOLOR, DTTOPTS, DrawThemeBackground, DrawThemeBackgroundEx,
+                BP_CHECKBOX, BP_RADIOBUTTON, CloseThemeData, DRAWITEMSTRUCT, DTBG_CLIPRECT,
+                DTBGOPTS, DTT_TEXTCOLOR, DTTOPTS, DrawThemeBackground, DrawThemeBackgroundEx,
                 DrawThemeParentBackground, DrawThemeText, DrawThemeTextEx, GetThemeColor, HTHEME,
+                MBI_DISABLED, MBI_DISABLEDHOT, MBI_DISABLEDPUSHED, MBI_HOT, MBI_NORMAL, MBI_PUSHED,
+                MENU_BARITEM, ODS_DISABLED, ODS_GRAYED, ODS_INACTIVE, ODS_NOACCEL, ODS_SELECTED,
                 OPEN_THEME_DATA_FLAGS, OpenThemeData, OpenThemeDataEx, PBS_DISABLED,
                 PFTASKDIALOGCALLBACK, PP_TRANSPARENTBAR, PROGRESS_CLASSW, SetWindowTheme,
                 TABP_AEROWIZARDBODY, TABP_BODY, TABP_PANE, TABP_TABITEM, TABP_TABITEMBOTHEDGE,
@@ -32,15 +41,16 @@ use windows_sys::{
                 TABP_TOPTABITEMBOTHEDGE, TABP_TOPTABITEMLEFTEDGE, TABP_TOPTABITEMRIGHTEDGE,
                 TASKDIALOG_NOTIFICATIONS, TDLG_MAININSTRUCTIONPANE, TDLG_PRIMARYPANEL,
                 TDLG_SECONDARYPANEL, TDN_CREATED, TDN_DIALOG_CONSTRUCTED, TIS_DISABLED,
-                TIS_FOCUSED, TIS_HOT, TIS_NORMAL, TIS_SELECTED, TMT_TEXTCOLOR, WC_BUTTONW,
-                WC_COMBOBOXW, WC_EDITW, WC_TABCONTROLW,
+                TIS_FOCUSED, TIS_HOT, TIS_NORMAL, TIS_SELECTED, TMT_TEXTCOLOR, VSCLASS_MENU,
+                WC_BUTTONW, WC_COMBOBOXW, WC_EDITW, WC_TABCONTROLW,
             },
             HiDpi::OpenThemeDataForDpi,
             Shell::{DefSubclassProc, SetWindowSubclass},
             WindowsAndMessaging::{
-                ES_MULTILINE, EnumChildWindows, GWL_STYLE, GetClassNameW, GetClientRect,
-                GetWindowLongPtrW, SPI_GETHIGHCONTRAST, SystemParametersInfoW, WM_CTLCOLORDLG,
-                WM_SETTINGCHANGE,
+                DefWindowProcW, ES_MULTILINE, EnumChildWindows, GWL_STYLE, GetClassNameW,
+                GetClientRect, GetMenuBarInfo, GetMenuItemInfoW, GetWindowLongPtrW, GetWindowRect,
+                HMENU, MENUBARINFO, MENUITEMINFOW, MIIM_STRING, OBJID_MENU, SPI_GETHIGHCONTRAST,
+                SystemParametersInfoW, WM_CTLCOLORDLG, WM_NCACTIVATE, WM_NCPAINT, WM_SETTINGCHANGE,
             },
         },
     },
@@ -49,7 +59,7 @@ use windows_sys::{
 };
 
 use super::{PreferredAppMode, WHITE, WinBrush, u16_string_eq_ignore_case};
-use crate::{Error, Result, darkmode::u16_string_starts_with_ignore_case, get_nt_build};
+use crate::{Error, Result, darkmode::u16_string_starts_with_ignore_case, get_nt_build, syscall};
 
 #[link(name = "uxtheme", kind = "raw-dylib")]
 unsafe extern "system" {
@@ -716,4 +726,262 @@ unsafe extern "system" fn task_dialog_subclass(
         _ => {}
     }
     unsafe { DefSubclassProc(hwnd, umsg, wparam, lparam) }
+}
+
+const WM_UAHDRAWMENU: u32 = 0x0091;
+const WM_UAHDRAWMENUITEM: u32 = 0x0092;
+
+/// # Safety
+/// `handle` should be valid.
+pub unsafe fn handle_wnd_proc(
+    handle: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> Option<LRESULT> {
+    if !is_dark_mode_allowed_for_app() {
+        return None;
+    }
+    match msg {
+        WM_NCPAINT | WM_NCACTIVATE => {
+            let ret = unsafe { DefWindowProcW(handle, msg, wparam, lparam) };
+            if let Err(e) = unsafe { paint_nc_menu(handle) } {
+                error!("WM_NCPAINT: {e:?}");
+            }
+            Some(ret)
+        }
+        WM_UAHDRAWMENU => {
+            let menu = unsafe { &*(lparam as *const UAHMENU) };
+            if let Err(e) = unsafe { paint_menu_bar(handle, menu.hdc) } {
+                error!("WM_UAHDRAWMENU: {e:?}");
+            }
+            Some(0)
+        }
+        WM_UAHDRAWMENUITEM => {
+            let udmi = unsafe { &*(lparam as *const UAHDRAWMENUITEM) };
+            if let Err(e) = unsafe { paint_menu_item(handle, udmi) } {
+                error!("WM_UAHDRAWMENUITEM: {e:?}");
+            }
+            Some(0)
+        }
+        _ => None,
+    }
+}
+
+#[repr(C)]
+#[allow(clippy::upper_case_acronyms)]
+struct UAHMENU {
+    hmenu: HMENU,
+    hdc: HDC,
+    dwflags: u32,
+}
+
+unsafe fn paint_menu_bar(hwnd: HWND, hdc: HDC) -> Result<()> {
+    let mut mbi: MENUBARINFO = unsafe { std::mem::zeroed() };
+    mbi.cbSize = size_of::<MENUBARINFO>() as _;
+    syscall!(BOOL, GetMenuBarInfo(hwnd, OBJID_MENU, 0, &mut mbi))?;
+
+    let mut rc_window = MaybeUninit::uninit();
+    syscall!(BOOL, GetWindowRect(hwnd, rc_window.as_mut_ptr()))?;
+    let rc_window = unsafe { rc_window.assume_init() };
+    let mut rcbar = mbi.rcBar;
+    syscall!(
+        BOOL,
+        OffsetRect(&mut rcbar, -rc_window.left, -rc_window.top)
+    )?;
+
+    syscall!(BOOL, FillRect(hdc, &rcbar, DLG_GRAY_BACK.0))?;
+    Ok(())
+}
+
+#[repr(C)]
+#[allow(clippy::upper_case_acronyms)]
+struct UAHMENUITEMMETRICS {
+    rgsizebar: [SIZE; 2],
+    rgsizepopup: [SIZE; 4],
+}
+
+#[repr(C)]
+#[allow(clippy::upper_case_acronyms)]
+struct UAHMENUPOPUPMETRICS {
+    rgcx: [i32; 4],
+    dummy: i32,
+}
+
+#[repr(C)]
+#[allow(clippy::upper_case_acronyms)]
+struct UAHMENUITEM {
+    position: u32,
+    umim: UAHMENUITEMMETRICS,
+    umpm: UAHMENUPOPUPMETRICS,
+}
+
+#[repr(C)]
+#[allow(clippy::upper_case_acronyms)]
+struct UAHDRAWMENUITEM {
+    dis: DRAWITEMSTRUCT,
+    um: UAHMENU,
+    umi: UAHMENUITEM,
+}
+
+struct Theme(HTHEME);
+
+impl Theme {
+    pub fn new(hwnd: HWND, pszclasslist: PCWSTR) -> Result<Self> {
+        let htheme = unsafe { OpenThemeData(hwnd, pszclasslist) };
+        if htheme == 0 {
+            return Err(Error::from_thread());
+        }
+        Ok(Self(htheme))
+    }
+}
+
+impl Drop for Theme {
+    fn drop(&mut self) {
+        unsafe { CloseThemeData(self.0) };
+    }
+}
+
+static VSCLASS_MENU_THEME: OnceLock<Theme> = OnceLock::new();
+
+unsafe fn paint_menu_item(hwnd: HWND, udmi: &UAHDRAWMENUITEM) -> Result<()> {
+    let theme = VSCLASS_MENU_THEME.get_or_try_init(|| Theme::new(hwnd, VSCLASS_MENU))?;
+
+    let mut mii: MENUITEMINFOW = unsafe { std::mem::zeroed() };
+    mii.cbSize = size_of::<MENUITEMINFOW>() as _;
+    mii.fMask = MIIM_STRING;
+    syscall!(
+        BOOL,
+        GetMenuItemInfoW(udmi.um.hmenu, udmi.umi.position, 1, &mut mii)
+    )?;
+
+    let len = mii.cch as usize;
+    let mut buf = Vec::with_capacity(len + 1);
+    mii.dwTypeData = buf.as_mut_ptr();
+    mii.cch += 1;
+    syscall!(
+        BOOL,
+        GetMenuItemInfoW(udmi.um.hmenu, udmi.umi.position, 1, &mut mii)
+    )?;
+    unsafe {
+        buf.set_len(len + 1);
+    }
+
+    const fn has_flag(flags: u32, flag: u32) -> bool {
+        (flags & flag) == flag
+    }
+
+    let mut flags = DT_CENTER | DT_SINGLELINE | DT_VCENTER;
+
+    let mut text_state_id = MBI_NORMAL;
+    let mut bkg_state_id = MBI_NORMAL;
+    if has_flag(udmi.dis.itemState, ODS_SELECTED) {
+        text_state_id = MBI_PUSHED;
+        bkg_state_id = MBI_PUSHED;
+    } else if has_flag(udmi.dis.itemState, ODS_GRAYED)
+        || has_flag(udmi.dis.itemState, ODS_DISABLED)
+        || has_flag(udmi.dis.itemState, ODS_INACTIVE)
+    {
+        text_state_id = MBI_DISABLED;
+        bkg_state_id = MBI_DISABLED;
+    }
+
+    if has_flag(udmi.dis.itemState, ODS_NOACCEL) {
+        flags |= DT_HIDEPREFIX;
+    }
+
+    match bkg_state_id {
+        MBI_NORMAL | MBI_DISABLED => unsafe {
+            FillRect(udmi.um.hdc, &udmi.dis.rcItem, DLG_GRAY_BACK.0);
+        },
+        MBI_HOT | MBI_DISABLEDHOT | MBI_PUSHED | MBI_DISABLEDPUSHED => unsafe {
+            FillRect(udmi.um.hdc, &udmi.dis.rcItem, DLG_DARK_BACK.0);
+        },
+        _ => unsafe {
+            DrawThemeBackground(
+                theme.0,
+                udmi.um.hdc,
+                MENU_BARITEM,
+                bkg_state_id,
+                &udmi.dis.rcItem,
+                null(),
+            );
+        },
+    }
+
+    let mut dttopts: DTTOPTS = unsafe { std::mem::zeroed() };
+    dttopts.dwSize = size_of::<DTTOPTS>() as _;
+    dttopts.dwFlags = DTT_TEXTCOLOR;
+    match text_state_id {
+        MBI_NORMAL | MBI_HOT | MBI_PUSHED => {
+            dttopts.crText = WHITE;
+        }
+        MBI_DISABLED | MBI_DISABLEDHOT | MBI_DISABLEDPUSHED => {
+            dttopts.crText = increase(WHITE, 150);
+        }
+        _ => {}
+    }
+
+    let mut rcitem = udmi.dis.rcItem;
+    unsafe {
+        DrawThemeTextEx(
+            theme.0,
+            udmi.um.hdc,
+            MENU_BARITEM,
+            text_state_id,
+            mii.dwTypeData,
+            mii.cch as i32,
+            flags,
+            &mut rcitem,
+            &dttopts,
+        );
+    }
+
+    Ok(())
+}
+
+unsafe fn paint_nc_menu(hwnd: HWND) -> Result<()> {
+    let mut mbi: MENUBARINFO = unsafe { std::mem::zeroed() };
+    mbi.cbSize = size_of::<MENUBARINFO>() as _;
+    let res = unsafe { GetMenuBarInfo(hwnd, OBJID_MENU, 0, &mut mbi) };
+    if res == 0 {
+        return Ok(());
+    }
+    let mut rc_client = MaybeUninit::uninit();
+    syscall!(BOOL, GetClientRect(hwnd, rc_client.as_mut_ptr()))?;
+    unsafe { SetLastError(0) };
+    syscall!(
+        BOOL,
+        MapWindowPoints(hwnd, null_mut(), rc_client.as_mut_ptr().cast(), 2)
+    )?;
+
+    let mut rc_window = MaybeUninit::uninit();
+    syscall!(BOOL, GetWindowRect(hwnd, rc_window.as_mut_ptr()))?;
+    let rc_window = unsafe { rc_window.assume_init() };
+    syscall!(
+        BOOL,
+        OffsetRect(rc_client.as_mut_ptr(), -rc_window.left, -rc_window.top)
+    )?;
+
+    let mut rc_client = unsafe { rc_client.assume_init() };
+    rc_client.bottom = rc_client.top;
+    rc_client.top -= 1;
+
+    let hdc = unsafe { GetWindowDC(hwnd) };
+    if hdc.is_null() {
+        return Err(Error::from_thread());
+    }
+
+    struct DC(HDC, HWND);
+
+    impl Drop for DC {
+        fn drop(&mut self) {
+            unsafe { ReleaseDC(self.1, self.0) };
+        }
+    }
+
+    let hdc = DC(hdc, hwnd);
+
+    syscall!(BOOL, FillRect(hdc.0, &rc_client, DLG_GRAY_BACK.0))?;
+    Ok(())
 }

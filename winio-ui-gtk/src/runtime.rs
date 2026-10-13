@@ -1,5 +1,6 @@
 use std::{
     future::Future,
+    ops::Deref,
     task::{RawWaker, RawWakerVTable, Waker},
 };
 
@@ -35,11 +36,23 @@ impl App {
     }
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        winio_pollable::block_on(future, glib_waker(self.ctx.clone()), || {
-            self.ctx.iteration(true);
+        APP.set(self, || {
+            winio_pollable::block_on(future, glib_waker(self.ctx.clone()), || {
+                self.ctx.iteration(true);
+            })
         })
     }
 }
+
+impl Deref for App {
+    type Target = gio::Application;
+
+    fn deref(&self) -> &Self::Target {
+        &self.app
+    }
+}
+
+scoped_tls::scoped_thread_local!(pub(crate) static APP: App);
 
 fn glib_waker(ctx: MainContext) -> Waker {
     unsafe { Waker::from_raw(glib_raw_waker(ctx)) }

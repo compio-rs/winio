@@ -10,6 +10,11 @@ use smallvec::SmallVec;
 use winio_handle::{
     AsContainer, AsWidget, AsWindow, BorrowedContainer, BorrowedWidget, BorrowedWindow,
 };
+#[cfg(all(feature = "handle", menu))]
+use winio_handle::{
+    AsMenuBar, AsMenuContainer, AsMenuItem, BorrowedMenuBar, BorrowedMenuContainer,
+    BorrowedMenuItem,
+};
 #[cfg(feature = "primitive")]
 use winio_primitive::{Failable, Layoutable, Point, Rect, Size};
 
@@ -264,6 +269,27 @@ impl<T: AsWidget + Component> AsWidget for Child<T> {
 impl<T: AsContainer + Component> AsContainer for Child<T> {
     fn as_container(&self) -> BorrowedContainer<'_> {
         self.model.as_container()
+    }
+}
+
+#[cfg(all(feature = "handle", menu))]
+impl<T: AsMenuBar + Component> AsMenuBar for Child<T> {
+    fn as_menu_bar(&self) -> BorrowedMenuBar<'_> {
+        self.model.as_menu_bar()
+    }
+}
+
+#[cfg(all(feature = "handle", menu))]
+impl<T: AsMenuContainer + Component> AsMenuContainer for Child<T> {
+    fn as_menu_container(&self) -> BorrowedMenuContainer<'_> {
+        self.model.as_menu_container()
+    }
+}
+
+#[cfg(all(feature = "handle", menu))]
+impl<T: AsMenuItem + Component> AsMenuItem for Child<T> {
+    fn as_menu_item(&self) -> BorrowedMenuItem<'_> {
+        self.model.as_menu_item()
     }
 }
 

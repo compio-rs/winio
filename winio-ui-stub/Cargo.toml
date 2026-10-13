@@ -23,6 +23,9 @@ wgpu = { workspace = true, optional = true }
 [target.'cfg(windows)'.dependencies]
 winio-ui-windows-common = { workspace = true }
 
+[build-dependencies]
+cfg_aliases = "0.2"
+
 [features]
 default = []
 media = []

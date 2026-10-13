@@ -2,7 +2,10 @@ use std::{cell::RefCell, mem::MaybeUninit, rc::Rc, sync::Arc};
 
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
-use windows::{UI::ViewManagement::UISettings, Win32::Foundation::E_NOINTERFACE};
+use windows::{
+    UI::ViewManagement::UISettings,
+    Win32::Foundation::{E_INVALIDARG, E_NOINTERFACE},
+};
 use windows_core::{EventRevoker, Interface};
 use windows_sys::Win32::UI::{
     HiDpi::GetDpiForWindow,
@@ -75,7 +78,34 @@ impl Window {
         canvas.SetVerticalAlignment(MUX::VerticalAlignment::Stretch)?;
         canvas.SetHorizontalAlignment(MUX::HorizontalAlignment::Stretch)?;
 
-        handle.SetContent(&canvas)?;
+        // The content is a grid so that a menu bar can sit above the canvas
+        // that hosts the widgets: row 0 is the menu bar and row 1 is
+        // the canvas.
+        let grid = MUXC::Grid::new()?;
+        grid.SetVerticalAlignment(MUX::VerticalAlignment::Stretch)?;
+        grid.SetHorizontalAlignment(MUX::HorizontalAlignment::Stretch)?;
+        {
+            let rows = grid.RowDefinitions()?;
+            {
+                let def = MUXC::RowDefinition::new()?;
+                def.SetHeight(MUX::GridLength {
+                    Value: 0.0,
+                    GridUnitType: MUX::GridUnitType::Auto,
+                })?;
+                rows.Append(&def)?;
+            }
+            {
+                let def = MUXC::RowDefinition::new()?;
+                def.SetHeight(MUX::GridLength {
+                    Value: 1.0,
+                    GridUnitType: MUX::GridUnitType::Star,
+                })?;
+                rows.Append(&def)?;
+            }
+        }
+        MUXC::Grid::SetRow(&canvas, 1)?;
+        grid.Children()?.Append(&canvas)?;
+        handle.SetContent(&grid)?;
 
         let on_close = SendWrapper::new(Rc::new(Callback::new()));
         let closing_token = {
@@ -302,6 +332,36 @@ impl Drop for Window {
 
 thread_local! {
     pub(crate) static ROOT_WINDOWS: RefCell<Vec<MUX::Window>> = const { RefCell::new(vec![]) };
+    static MENU_BARS: RefCell<Vec<(MUX::Window, MUXC::MenuBar)>> = const { RefCell::new(Vec::new()) };
+}
+
+pub(crate) fn set_menu_bar(window: &MUX::Window, menu_bar: MUXC::MenuBar) -> Result<()> {
+    if MENU_BARS.with_borrow(|bars| bars.iter().any(|(w, _)| w == window)) {
+        return Err(E_INVALIDARG.into());
+    }
+    let grid: MUXC::Grid = window.Content()?.cast()?;
+    MUXC::Grid::SetRow(&menu_bar, 0)?;
+    grid.Children()?.InsertAt(0, &menu_bar)?;
+    MENU_BARS.with_borrow_mut(|bars| bars.push((window.clone(), menu_bar)));
+    Ok(())
+}
+
+pub(crate) fn remove_menu_bar(menu_bar: &MUXC::MenuBar) {
+    let window = MENU_BARS.with_borrow_mut(|bars| {
+        let index = bars.iter().position(|(_, bar)| bar == menu_bar);
+        index.map(|i| bars.remove(i).0)
+    });
+    let Some(window) = window else {
+        return;
+    };
+    if let Ok(grid) = window.Content().and_then(|c| c.cast::<MUXC::Grid>())
+        && let Ok(children) = grid.Children()
+    {
+        let mut index = 0;
+        if children.IndexOf(menu_bar, &mut index).is_ok() {
+            children.RemoveAt(index).ok();
+        }
+    }
 }
 
 pub(crate) fn get_root_window(e: &MUX::FrameworkElement) -> Option<MUX::Window> {

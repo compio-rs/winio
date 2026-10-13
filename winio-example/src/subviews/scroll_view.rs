@@ -7,7 +7,7 @@ use crate::{Error, Result};
 pub struct ScrollViewPage {
     window: Child<TabViewItem>,
     scroll: Child<ScrollView>,
-    radios: Child<RadioButtonGroup>,
+    radios: Child<RadioGroup<RadioButton>>,
     add_btn: Child<Button>,
     del_btn: Child<Button>,
     show_btn: Child<Button>,
@@ -49,7 +49,7 @@ impl Component for ScrollViewPage {
             show_btn: Button = (&window) => {
                 text: "Show Selected",
             },
-            radios: RadioButtonGroup = ([]),
+            radios: RadioGroup<RadioButton> = ([]),
         }
 
         Ok(Self {

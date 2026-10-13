@@ -1,7 +1,7 @@
 #![allow(clippy::missing_safety_doc)]
 
 use windows_sys::Win32::{
-    Foundation::{HWND, LPARAM},
+    Foundation::{HWND, LPARAM, LRESULT, WPARAM},
     UI::Controls::PFTASKDIALOGCALLBACK,
 };
 
@@ -27,5 +27,9 @@ pub unsafe fn window_use_dark_mode(_: HWND) -> Result<()> {
 }
 
 pub unsafe fn children_refresh_dark_mode(_: HWND, _: LPARAM) {}
+
+pub unsafe fn handle_wnd_proc(_: HWND, _: u32, _: WPARAM, _: LPARAM) -> Option<LRESULT> {
+    None
+}
 
 pub fn init_dark() {}

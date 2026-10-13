@@ -13,6 +13,9 @@ pub use runtime::*;
 mod widgets;
 pub use widgets::*;
 
+mod menu;
+pub use menu::*;
+
 mod platform;
 pub use platform::image::Image;
 
