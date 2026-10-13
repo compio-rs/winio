@@ -206,6 +206,7 @@ impl MenuItemImpl {
         unsafe {
             get_u16c(info.cch as _, |buf| {
                 info.dwTypeData = buf.as_mut_ptr().cast();
+                info.cch = buf.len() as _;
                 syscall!(BOOL, GetMenuItemInfoW(self.parent, self.id, 0, &mut info))?;
                 Ok(info.cch as _)
             })

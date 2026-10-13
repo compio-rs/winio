@@ -42,6 +42,9 @@ cfg_if::cfg_if! {
     }
 }
 
+pub const WM_UAHDRAWMENU: u32 = 0x0091;
+pub const WM_UAHDRAWMENUITEM: u32 = 0x0092;
+
 #[repr(u32)]
 #[allow(dead_code)]
 #[derive(Debug, PartialEq)]

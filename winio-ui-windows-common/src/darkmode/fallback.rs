@@ -1,12 +1,12 @@
 #![allow(clippy::missing_safety_doc)]
 
 use windows_sys::Win32::{
-    Foundation::{HWND, LPARAM},
-    UI::Controls::PFTASKDIALOGCALLBACK,
+    Foundation::{HWND, LPARAM, LRESULT, WPARAM},
+    UI::{Controls::PFTASKDIALOGCALLBACK, WindowsAndMessaging::DefWindowProcW},
 };
 
 use super::PreferredAppMode;
-use crate::Result;
+use crate::{Result, WM_UAHDRAWMENU, WM_UAHDRAWMENUITEM};
 
 pub fn is_dark_mode_allowed_for_app() -> bool {
     false
@@ -27,5 +27,13 @@ pub unsafe fn window_use_dark_mode(_: HWND) -> Result<()> {
 }
 
 pub unsafe fn children_refresh_dark_mode(_: HWND, _: LPARAM) {}
+
+pub unsafe fn uah_draw_menu(hwnd: HWND, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    unsafe { DefWindowProcW(hwnd, WM_UAHDRAWMENU, wparam, lparam) }
+}
+
+pub unsafe fn uah_draw_menu_item(hwnd: HWND, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    unsafe { DefWindowProcW(hwnd, WM_UAHDRAWMENUITEM, wparam, lparam) }
+}
 
 pub fn init_dark() {}
