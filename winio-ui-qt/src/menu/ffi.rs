@@ -11,6 +11,7 @@ mod bindings {
         type QActionGroup;
 
         unsafe fn new_menu_bar(window: *mut QWidget) -> Result<*mut QMenuBar>;
+        unsafe fn menu_bar_exists(window: *mut QWidget) -> bool;
 
         fn isVisible(self: &QMenuBar) -> Result<bool>;
         fn setVisible(self: Pin<&mut QMenuBar>, visible: bool) -> Result<()>;

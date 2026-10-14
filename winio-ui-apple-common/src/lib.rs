@@ -25,6 +25,8 @@ pub enum Error {
     NullPointer,
     #[error("Called from non-main thread")]
     NotMainThread,
+    #[error("A menu bar already exists")]
+    MenuBarExists,
     #[error("Feature not supported")]
     NotSupported,
 }

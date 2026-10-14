@@ -3,10 +3,10 @@ use std::fmt::Debug;
 use winio_handle::{AsMenuBar, AsWindow, BorrowedMenuBar};
 
 use crate::{
-    Result,
+    Error, Result,
     menu::{
         RawPtr,
-        ffi::{QMenuBar, new_menu_bar},
+        ffi::{QMenuBar, menu_bar_exists, new_menu_bar},
     },
     widgets::QWidget,
 };
@@ -19,6 +19,9 @@ pub struct MenuBar {
 impl MenuBar {
     pub fn new(parent: impl AsWindow) -> Result<Self> {
         let window = parent.as_window().as_qt::<QWidget>();
+        if unsafe { menu_bar_exists(window) } {
+            return Err(Error::MenuBarExists);
+        }
         let menu_bar = unsafe { new_menu_bar(window) }?;
         Ok(Self {
             menu_bar: RawPtr(menu_bar),

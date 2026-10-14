@@ -5,6 +5,12 @@ QMenuBar *new_menu_bar(QWidget *window) {
     return main_window->menuBar();
 }
 
+bool menu_bar_exists(QWidget *window) {
+    auto *main_window = static_cast<QMainWindow *>(window);
+    return main_window->findChild<QMenuBar *>(QString(),
+                                              Qt::FindDirectChildrenOnly) != nullptr;
+}
+
 QMenu *menu_bar_add_menu(QMenuBar *menu_bar) {
     return menu_bar->addMenu(QString());
 }
