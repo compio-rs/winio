@@ -55,6 +55,9 @@ pub enum Error {
     /// Color theme is not available.
     #[error("Color theme is not available")]
     NoColorTheme,
+    /// A menu bar already exists.
+    #[error("A menu bar already exists")]
+    MenuBarExists,
     /// Feature not supported.
     #[error("Feature not supported")]
     NotSupported,

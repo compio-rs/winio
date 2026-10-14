@@ -20,6 +20,14 @@ impl MenuBar {
             .and_then(|child| child.downcast::<gtk4::Box>().ok())
             .ok_or(Error::CastFailed)?;
 
+        let mut child = content.first_child();
+        while let Some(c) = child {
+            if c.is::<gtk4::PopoverMenuBar>() {
+                return Err(Error::MenuBarExists);
+            }
+            child = c.next_sibling();
+        }
+
         let menu = gio::Menu::new();
         ACTIONS.with(|actions| window.insert_action_group(ACTION_PREFIX, Some(actions)));
 

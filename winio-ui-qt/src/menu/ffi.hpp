@@ -25,6 +25,8 @@ private:
 
 QMenuBar *new_menu_bar(QWidget *window);
 
+bool menu_bar_exists(QWidget *window);
+
 QMenu *menu_bar_add_menu(QMenuBar *menu_bar);
 
 QMenu *menu_add_menu(QMenu *menu);

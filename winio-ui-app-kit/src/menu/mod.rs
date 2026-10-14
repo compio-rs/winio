@@ -51,9 +51,14 @@ pub struct MenuBar {
 
 impl MenuBar {
     pub fn new(_parent: impl AsWindow) -> Result<Self> {
+        let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
+        let app = NSApplication::sharedApplication(mtm);
+        if catch(|| app.mainMenu().is_some())? {
+            return Err(Error::MenuBarExists);
+        }
         let inner = MenuBase::new()?;
         catch(|| {
-            NSApplication::sharedApplication(inner.inner.mtm()).setMainMenu(Some(&inner.inner));
+            app.setMainMenu(Some(&inner.inner));
         })?;
         Ok(Self { inner })
     }

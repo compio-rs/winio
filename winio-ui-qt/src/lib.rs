@@ -51,6 +51,9 @@ pub enum Error {
     /// Feature not supported.
     #[error("Feature not supported")]
     NotSupported,
+    /// A menu bar already exists.
+    #[error("A menu bar already exists")]
+    MenuBarExists,
 }
 
 /// Result type for Qt.
