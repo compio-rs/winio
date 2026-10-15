@@ -12,6 +12,7 @@ jni::bind_java_type! {
     },
     methods {
         fn set_content_view(view: &View),
+        fn find_view_by_id(id: jint) -> View,
     },
     native_methods {
         extern fn on_create_native(),

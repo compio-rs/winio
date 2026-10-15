@@ -1,4 +1,7 @@
-use jni::refs::Global;
+use jni::{
+    Env,
+    refs::{Global, Reference},
+};
 use winio_handle::{AsMenuBar, AsWindow, BorrowedMenuBar};
 
 use crate::{
@@ -8,10 +11,11 @@ use crate::{
             view::{Menu as JMenu, gravity, visibility},
             widget::{FrameLayout, FrameLayoutLayoutParams},
         },
+        custom::Activity,
         material::MaterialToolbar,
     },
     vm_exec,
-    widgets::MENU_BAR_VIEW,
+    widgets::MENU_BAR_VIEW_ID,
 };
 
 #[derive(Debug)]
@@ -22,15 +26,9 @@ pub struct MenuBar {
 }
 
 impl MenuBar {
-    pub fn new(_parent: impl AsWindow) -> Result<Self> {
+    pub fn new(parent: impl AsWindow) -> Result<Self> {
         vm_exec(|env| {
-            let strip = MENU_BAR_VIEW
-                .lock()
-                .unwrap()
-                .as_ref()
-                .map(|strip| env.new_global_ref(strip))
-                .transpose()?
-                .ok_or(Error::NoApp)?;
+            let strip = menu_bar_view(env, &parent)?;
             if strip.as_view_group().get_child_count(env)? > 0 {
                 return Err(Error::MenuBarExists);
             }
@@ -87,4 +85,18 @@ impl Drop for MenuBar {
             Ok(())
         });
     }
+}
+
+fn menu_bar_view(
+    env: &mut Env<'_>,
+    parent: &impl AsWindow,
+) -> Result<Global<FrameLayout<'static>>> {
+    let window = env.new_local_ref(parent.as_window().to_android())?;
+    let activity = unsafe { Activity::from_raw(env, window.into_raw()) };
+    let strip = activity.find_view_by_id(env, MENU_BAR_VIEW_ID)?;
+    if strip.as_raw().is_null() {
+        return Err(Error::NoApp);
+    }
+    let strip = unsafe { FrameLayout::from_raw(env, strip.into_raw()) };
+    Ok(env.new_global_ref(&strip)?)
 }

@@ -28,12 +28,13 @@ use crate::{
     vm_exec,
 };
 
-pub(crate) static MENU_BAR_VIEW: Mutex<Option<Global<FrameLayout<'static>>>> = Mutex::new(None);
+pub(crate) const MENU_BAR_VIEW_ID: i32 = 0x7769_6e69;
 
 #[derive(Debug)]
 pub struct Window {
     inner: BaseWidget<FrameLayout<'static>>,
     inner_view: BaseWidget<FrameLayout<'static>>,
+    menu_bar_view: Global<FrameLayout<'static>>,
     activity: Global<Activity<'static>>,
     on_resize: Arc<SyncCallback>,
     #[allow(unused)]
@@ -60,16 +61,14 @@ impl Window {
             )?;
 
             let menu_bar_view = FrameLayout::new(env, &act)?;
+            menu_bar_view.as_view().set_id(env, MENU_BAR_VIEW_ID)?;
             let params = FrameLayoutLayoutParams::new(env, -1, -2)?;
             params.set_gravity(env, gravity::LEFT | gravity::TOP)?;
             menu_bar_view.as_view().set_layout_params(env, &params)?;
             window
                 .as_view_group()
                 .add_view(env, menu_bar_view.as_view())?;
-            MENU_BAR_VIEW
-                .lock()
-                .unwrap()
-                .replace(env.new_global_ref(&menu_bar_view)?);
+            let menu_bar_view = env.new_global_ref(&menu_bar_view)?;
 
             let on_resize = Arc::new(SyncCallback::new());
             WINDOW_RESIZE_CALLBACK
@@ -121,6 +120,7 @@ impl Window {
             Ok(Self {
                 inner: inner.into(),
                 inner_view,
+                menu_bar_view,
                 activity: act,
                 on_resize,
                 on_resize_proxy,
@@ -151,14 +151,9 @@ impl Window {
             size.height - margin.vertical(),
         );
 
-        let bar_size = Size::new(size.width, menu_bar_height(size.width)?);
-        {
-            let menu_bar_view = MENU_BAR_VIEW.lock().unwrap();
-            if let Some(menu_bar_view) = menu_bar_view.as_ref() {
-                let view: &AView<'static> = menu_bar_view.as_ref();
-                set_bounds(view, Point::new(margin.left, margin.top), bar_size)?;
-            }
-        }
+        let bar_size = Size::new(size.width, self.menu_bar_height(size.width)?);
+        let view: &AView<'static> = self.menu_bar_view.as_ref();
+        set_bounds(view, Point::new(margin.left, margin.top), bar_size)?;
 
         self.inner_view
             .set_loc(Point::new(margin.left, margin.top + bar_size.height))?;
@@ -233,7 +228,6 @@ winio_handle::impl_as_container!(Window, inner_view);
 impl Drop for Window {
     fn drop(&mut self) {
         WINDOW_RESIZE_CALLBACK.lock().unwrap().take();
-        MENU_BAR_VIEW.lock().unwrap().take();
     }
 }
 
@@ -252,21 +246,20 @@ fn set_bounds(view: &AView<'static>, loc: Point, size: Size) -> Result<()> {
     })
 }
 
-fn menu_bar_height(width: f64) -> Result<f64> {
-    let (width, _) = physical_size(Size::new(width, 0.0))?;
-    let menu_bar_view = MENU_BAR_VIEW.lock().unwrap();
-    let Some(menu_bar_view) = menu_bar_view.as_ref() else {
-        return Ok(0.0);
-    };
-    let height = vm_exec(move |env| {
-        let view: &AView<'static> = menu_bar_view.as_ref();
-        if view.get_visibility(env)? != visibility::VISIBLE {
-            return Ok::<_, Error>(0);
-        }
-        let width_spec = MeasureSpec::make_measure_spec(env, width as i32, measure_spec::EXACTLY)?;
-        let height_spec = MeasureSpec::make_measure_spec(env, 0, measure_spec::UNSPECIFIED)?;
-        view.measure(env, width_spec, height_spec)?;
-        Ok(view.get_measured_height(env)?)
-    })?;
-    Ok(logical_size(0.0, height as f32)?.height)
+impl Window {
+    fn menu_bar_height(&self, width: f64) -> Result<f64> {
+        let (width, _) = physical_size(Size::new(width, 0.0))?;
+        let height = vm_exec(move |env| {
+            let view: &AView<'static> = self.menu_bar_view.as_ref();
+            if view.get_visibility(env)? != visibility::VISIBLE {
+                return Ok::<_, Error>(0);
+            }
+            let width_spec =
+                MeasureSpec::make_measure_spec(env, width as i32, measure_spec::EXACTLY)?;
+            let height_spec = MeasureSpec::make_measure_spec(env, 0, measure_spec::UNSPECIFIED)?;
+            view.measure(env, width_spec, height_spec)?;
+            Ok(view.get_measured_height(env)?)
+        })?;
+        Ok(logical_size(0.0, height as f32)?.height)
+    }
 }

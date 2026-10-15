@@ -56,6 +56,7 @@ jni::bind_java_type! {
         fn get_minimum_height() -> jint,
         fn get_visibility() -> jint,
         fn set_visibility(visibility: jint),
+        fn set_id(id: jint),
         fn is_enabled() -> jboolean,
         fn set_enabled(enabled: jboolean),
         fn get_parent() -> ViewParent,
