@@ -46,9 +46,6 @@ jni = { workspace = true }
 [target.'cfg(not(any(windows, target_vendor = "apple", target_os = "android")))'.dependencies]
 gtk4 = { workspace = true, optional = true }
 
-[build-dependencies]
-cfg_aliases = "0.2"
-
 [features]
 win32 = []
 winui = ["dep:winui3"]

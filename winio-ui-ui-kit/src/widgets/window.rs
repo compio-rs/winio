@@ -1,4 +1,4 @@
-use std::{ptr::NonNull, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, ptr::NonNull, rc::Rc};
 
 use block2::StackBlock;
 use inherit_methods_macro::inherit_methods;
@@ -19,6 +19,24 @@ use crate::{
     Error, MOVE_SLAB, RESIZE_SLAB, Result, catch, first_ui_window_scene, from_cgpoint, from_cgsize,
     to_cgpoint, to_cgsize,
 };
+
+thread_local! {
+    static MENU_BAR_HOSTS: RefCell<HashMap<Retained<UIWindow>, MenuBarHost>> = RefCell::new(HashMap::new());
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct MenuBarHost {
+    pub view: Retained<UIView>,
+    pub zero_height: Retained<NSLayoutConstraint>,
+}
+
+impl MenuBarHost {
+    pub fn of(wnd: &UIWindow) -> Result<Self> {
+        MENU_BAR_HOSTS
+            .with_borrow(|map| map.get(wnd).cloned())
+            .ok_or(Error::NullPointer)
+    }
+}
 
 #[derive(Debug)]
 pub struct Window {
@@ -69,25 +87,51 @@ impl Window {
             wnd.makeKeyWindow();
 
             let root_view = controller.view().ok_or(Error::NullPointer)?;
+            let safe_area = root_view.safeAreaLayoutGuide();
+
+            let menu_bar_view = UIView::new(mtm);
+            root_view.addSubview(&menu_bar_view);
+            menu_bar_view.setTranslatesAutoresizingMaskIntoConstraints(false);
+            let m1 = menu_bar_view
+                .leftAnchor()
+                .constraintEqualToAnchor(&safe_area.leftAnchor());
+            let m2 = menu_bar_view
+                .rightAnchor()
+                .constraintEqualToAnchor(&safe_area.rightAnchor());
+            let m3 = menu_bar_view
+                .topAnchor()
+                .constraintEqualToAnchor(&safe_area.topAnchor());
+            let zero_height = menu_bar_view.heightAnchor().constraintEqualToConstant(0.0);
+
             let content_view = UIView::new(mtm);
             root_view.addSubview(&content_view);
             content_view.setTranslatesAutoresizingMaskIntoConstraints(false);
             let c1 = content_view
                 .leftAnchor()
-                .constraintEqualToAnchor(&root_view.safeAreaLayoutGuide().leftAnchor());
+                .constraintEqualToAnchor(&safe_area.leftAnchor());
             let c2 = content_view
                 .rightAnchor()
-                .constraintEqualToAnchor(&root_view.safeAreaLayoutGuide().rightAnchor());
+                .constraintEqualToAnchor(&safe_area.rightAnchor());
             let c3 = content_view
                 .topAnchor()
-                .constraintEqualToAnchor(&root_view.safeAreaLayoutGuide().topAnchor());
+                .constraintEqualToAnchor(&menu_bar_view.bottomAnchor());
             let c4 = content_view
                 .bottomAnchor()
-                .constraintEqualToAnchor(&root_view.safeAreaLayoutGuide().bottomAnchor());
+                .constraintEqualToAnchor(&safe_area.bottomAnchor());
             NSLayoutConstraint::activateConstraints(
-                &NSArray::from_retained_slice(&[c1, c2, c3, c4]),
+                &NSArray::from_retained_slice(&[m1, m2, m3, zero_height.clone(), c1, c2, c3, c4]),
                 mtm,
             );
+
+            MENU_BAR_HOSTS.with_borrow_mut(|hosts| {
+                hosts.insert(
+                    wnd.clone(),
+                    MenuBarHost {
+                        view: menu_bar_view,
+                        zero_height,
+                    },
+                );
+            });
 
             Ok(Self {
                 wnd,
@@ -129,7 +173,14 @@ impl Window {
     }
 
     pub fn client_size(&self) -> Result<Size> {
-        catch(|| from_cgsize(self.content_view.frame().size))
+        catch(|| {
+            // The content view is laid out by the constraints, and the menu bar
+            // changes them. Lay out now so that the size is up-to-date.
+            if let Some(root_view) = self.content_view.superview() {
+                root_view.layoutIfNeeded();
+            }
+            from_cgsize(self.content_view.frame().size)
+        })
     }
 
     pub fn text(&self) -> Result<String> {
@@ -172,6 +223,7 @@ impl Drop for Window {
     fn drop(&mut self) {
         RESIZE_SLAB.with_borrow_mut(|s| s.remove(self.resize_index));
         MOVE_SLAB.with_borrow_mut(|s| s.remove(self.move_index));
+        MENU_BAR_HOSTS.with_borrow_mut(|hosts| hosts.remove(&self.wnd));
     }
 }
 

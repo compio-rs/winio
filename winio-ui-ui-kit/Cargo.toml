@@ -41,6 +41,7 @@ objc2-core-text = { workspace = true }
 objc2-foundation = { workspace = true }
 objc2-ui-kit = { workspace = true, features = [
     "objc2-uniform-type-identifiers",
+    "block2",
 ] }
 objc2-uniform-type-identifiers = { workspace = true }
 objc2-av-foundation = { workspace = true, features = [

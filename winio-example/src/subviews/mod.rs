@@ -4,15 +4,8 @@ pub use scroll_view::*;
 mod misc;
 pub use misc::*;
 
-cfg_if::cfg_if! {
-    if #[cfg(menu)] {
-        mod menu_bar;
-        pub use menu_bar::*;
-    } else {
-        mod menu_bar_dummy;
-        pub use menu_bar_dummy::*;
-    }
-}
+mod menu_bar;
+pub use menu_bar::*;
 
 mod bind;
 pub use bind::*;

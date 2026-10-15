@@ -78,6 +78,7 @@ impl Component for ExampleMenuBar {
             },
             wgpu_item: MenuBarItem = (&menu_bar) => {
                 text: "WGPU",
+                enabled: cfg!(feature = "wgpu"),
             },
             wgpu_clockwise_item: RadioMenuItem = (&wgpu_item) => {
                 text: "Clockwise",

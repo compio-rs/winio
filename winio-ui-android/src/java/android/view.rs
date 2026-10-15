@@ -56,6 +56,7 @@ jni::bind_java_type! {
         fn get_minimum_height() -> jint,
         fn get_visibility() -> jint,
         fn set_visibility(visibility: jint),
+        fn set_id(id: jint),
         fn is_enabled() -> jboolean,
         fn set_enabled(enabled: jboolean),
         fn get_parent() -> ViewParent,
@@ -132,6 +133,7 @@ jni::bind_java_type! {
     methods {
         fn add_view(view: &View),
         fn remove_view(view: &View),
+        fn get_child_count() -> jint,
     },
     is_instance_of = {
         view = View,
@@ -211,4 +213,87 @@ pub mod motion_event {
     pub const BUTTON_PRIMARY: i32 = 0x1;
     pub const BUTTON_SECONDARY: i32 = 0x2;
     pub const BUTTON_TERTIARY: i32 = 0x4;
+}
+
+jni::bind_java_type! {
+    pub Menu => android.view.Menu,
+    type_map {
+        MenuItem => android.view.MenuItem,
+        SubMenu => android.view.SubMenu,
+    },
+    methods {
+        fn add(group_id: jint, item_id: jint, order: jint, title: &JCharSequence) -> MenuItem,
+        fn add_sub_menu(
+            group_id: jint,
+            item_id: jint,
+            order: jint,
+            title: &JCharSequence,
+        ) -> SubMenu,
+        fn remove_item(id: jint),
+    }
+}
+
+jni::bind_java_type! {
+    pub MenuItem => android.view.MenuItem,
+    type_map {
+        MenuItemOnMenuItemClickListener => "android.view.MenuItem$OnMenuItemClickListener",
+    },
+    methods {
+        fn get_title() -> JCharSequence,
+        fn set_title(title: &JCharSequence) -> MenuItem,
+        fn is_enabled() -> jboolean,
+        fn set_enabled(enabled: jboolean) -> MenuItem,
+        fn is_checked() -> jboolean,
+        fn set_checked(checked: jboolean) -> MenuItem,
+        fn set_checkable(checkable: jboolean) -> MenuItem,
+        fn set_show_as_action(action: jint),
+        fn set_on_menu_item_click_listener(
+            listener: &MenuItemOnMenuItemClickListener,
+        ) -> MenuItem,
+    }
+}
+
+jni::bind_java_type! {
+    pub SubMenu => android.view.SubMenu,
+    type_map {
+        Menu => android.view.Menu,
+        MenuItem => android.view.MenuItem,
+    },
+    methods {
+        fn get_item() -> MenuItem,
+    },
+    is_instance_of = {
+        menu = Menu,
+    }
+}
+
+jni::bind_java_type! {
+    pub MenuItemOnMenuItemClickListener => "android.view.MenuItem$OnMenuItemClickListener",
+}
+
+impl_listener!(MenuItemOnMenuItemClickListener);
+
+jni::bind_java_type! {
+    pub MeasureSpec => "android.view.View$MeasureSpec",
+    methods {
+        static fn make_measure_spec(size: jint, mode: jint) -> jint,
+    }
+}
+
+pub mod menu {
+    pub const NONE: i32 = 0;
+}
+
+pub mod menu_item {
+    pub const SHOW_AS_ACTION_ALWAYS: i32 = 0x2;
+}
+
+pub mod measure_spec {
+    pub const UNSPECIFIED: i32 = 0x0 << 30;
+    pub const EXACTLY: i32 = 0x1 << 30;
+}
+
+pub mod visibility {
+    pub const VISIBLE: i32 = 0x0;
+    pub const GONE: i32 = 0x8;
 }

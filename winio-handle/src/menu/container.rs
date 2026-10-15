@@ -15,6 +15,13 @@ cfg_if::cfg_if! {
         use objc2::rc::Retained;
 
         type BorrowedMenuContainerInner<'a> = &'a Retained<objc2_app_kit::NSMenu>;
+    } else if #[cfg(target_os = "ios")] {
+        #[derive(Clone, Copy)]
+        struct BorrowedMenuContainerInner<'a>(usize, std::marker::PhantomData<&'a ()>);
+    } else if #[cfg(target_os = "android")] {
+        use jni::objects::JObject;
+
+        type BorrowedMenuContainerInner<'a> = &'a JObject<'static>;
     } else {
         #[derive(Clone, Copy)]
         enum BorrowedMenuContainerInner<'a> {
@@ -107,6 +114,36 @@ impl<'a> BorrowedMenuContainer<'a> {
 
     /// Get `NSMenu`.
     pub fn as_app_kit(&self) -> &'a Retained<objc2_app_kit::NSMenu> {
+        self.0
+    }
+}
+
+#[cfg(target_os = "ios")]
+impl<'a> BorrowedMenuContainer<'a> {
+    /// Create from the key of a node of the UIKit menu tree.
+    pub fn ui_kit(key: usize) -> Self {
+        Self(BorrowedMenuContainerInner(key, std::marker::PhantomData))
+    }
+
+    /// Get the key of the node of the UIKit menu tree.
+    pub fn as_ui_kit(&self) -> usize {
+        self.0.0
+    }
+}
+
+#[cfg(target_os = "android")]
+impl<'a> BorrowedMenuContainer<'a> {
+    /// Create from Android `Menu`.
+    ///
+    /// # Safety
+    ///
+    /// `j_obj` must be a valid `android.view.Menu`.
+    pub unsafe fn android(j_obj: &'a JObject<'static>) -> Self {
+        Self(j_obj)
+    }
+
+    /// Get Android `Menu`.
+    pub fn to_android(&self) -> &'a JObject<'static> {
         self.0
     }
 }

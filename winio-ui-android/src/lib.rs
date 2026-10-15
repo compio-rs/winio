@@ -23,6 +23,9 @@ pub use dialogs::*;
 mod platform;
 pub use platform::*;
 
+mod menu;
+pub use menu::*;
+
 mod java;
 
 #[derive(Debug, thiserror::Error)]
@@ -36,6 +39,9 @@ pub enum Error {
     /// No application available.
     #[error("No application available")]
     NoApp,
+    /// A menu bar already exists.
+    #[error("A menu bar already exists")]
+    MenuBarExists,
     /// Feature not supported.
     #[error("Feature not supported")]
     NotSupported,
