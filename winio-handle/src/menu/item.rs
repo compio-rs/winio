@@ -16,6 +16,10 @@ cfg_if::cfg_if! {
     } else if #[cfg(target_os = "ios")] {
         #[derive(Clone, Copy)]
         struct BorrowedMenuItemInner<'a>(usize, std::marker::PhantomData<&'a ()>);
+    } else if #[cfg(target_os = "android")] {
+        use jni::objects::JObject;
+
+        type BorrowedMenuItemInner<'a> = &'a JObject<'static>;
     } else {
         #[derive(Clone, Copy)]
         enum BorrowedMenuItemInner<'a> {
@@ -103,6 +107,23 @@ impl<'a> BorrowedMenuItem<'a> {
     /// Get the key of the node of the UIKit menu tree.
     pub fn as_ui_kit(&self) -> usize {
         self.0.0
+    }
+}
+
+#[cfg(target_os = "android")]
+impl<'a> BorrowedMenuItem<'a> {
+    /// Create from Android `MenuItem`.
+    ///
+    /// # Safety
+    ///
+    /// `j_obj` must be a valid `android.view.MenuItem`.
+    pub unsafe fn android(j_obj: &'a JObject<'static>) -> Self {
+        Self(j_obj)
+    }
+
+    /// Get Android `MenuItem`.
+    pub fn to_android(&self) -> &'a JObject<'static> {
+        self.0
     }
 }
 

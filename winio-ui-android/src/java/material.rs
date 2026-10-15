@@ -4,12 +4,30 @@ use crate::{
         android::{
             content::{Context, res::ColorStateList},
             graphics::drawable::Drawable,
-            view::View,
+            view::{Menu, View},
             widget::{Button, CompoundButton, TextView},
         },
         androidx::viewpager2::ViewPager2,
     },
 };
+
+jni::bind_java_type! {
+    pub MaterialToolbar => com.google.android.material.appbar.MaterialToolbar,
+    type_map {
+        View => android.view.View,
+        Context => android.content.Context,
+        Menu => android.view.Menu,
+    },
+    constructors {
+        fn new(context: &Context),
+    },
+    methods {
+        fn get_menu() -> Menu,
+    },
+    is_instance_of = {
+        view = View,
+    }
+}
 
 jni::bind_java_type! {
     pub MaterialButton => com.google.android.material.button.MaterialButton,

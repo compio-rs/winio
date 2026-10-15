@@ -13,17 +13,22 @@ use winio_handle::{AsWindow, BorrowedContainer, BorrowedWindow};
 use winio_primitive::{Point, Size};
 
 use crate::{
-    BaseWidget, Result, current_activity,
+    BaseWidget, Error, Result, current_activity,
     java::{
         android::{
-            view::{ViewOnLayoutChangeListener, WindowInsetsType},
+            view::{
+                MeasureSpec, View as AView, ViewOnLayoutChangeListener, WindowInsetsType, gravity,
+                measure_spec, visibility,
+            },
             widget::{FrameLayout, FrameLayoutLayoutParams},
         },
         custom::Activity,
     },
-    platform::dpi::{logical_margin, logical_size},
+    platform::dpi::{logical_margin, logical_size, physical_point, physical_size},
     vm_exec,
 };
+
+pub(crate) static MENU_BAR_VIEW: Mutex<Option<Global<FrameLayout<'static>>>> = Mutex::new(None);
 
 #[derive(Debug)]
 pub struct Window {
@@ -53,6 +58,18 @@ impl Window {
                 unsafe { BorrowedContainer::android(&inner) },
                 inner_view,
             )?;
+
+            let menu_bar_view = FrameLayout::new(env, &act)?;
+            let params = FrameLayoutLayoutParams::new(env, -1, -2)?;
+            params.set_gravity(env, gravity::LEFT | gravity::TOP)?;
+            menu_bar_view.as_view().set_layout_params(env, &params)?;
+            window
+                .as_view_group()
+                .add_view(env, menu_bar_view.as_view())?;
+            MENU_BAR_VIEW
+                .lock()
+                .unwrap()
+                .replace(env.new_global_ref(&menu_bar_view)?);
 
             let on_resize = Arc::new(SyncCallback::new());
             WINDOW_RESIZE_CALLBACK
@@ -133,8 +150,19 @@ impl Window {
             size.width - margin.horizontal(),
             size.height - margin.vertical(),
         );
+
+        let bar_size = Size::new(size.width, menu_bar_height(size.width)?);
+        {
+            let menu_bar_view = MENU_BAR_VIEW.lock().unwrap();
+            if let Some(menu_bar_view) = menu_bar_view.as_ref() {
+                let view: &AView<'static> = menu_bar_view.as_ref();
+                set_bounds(view, Point::new(margin.left, margin.top), bar_size)?;
+            }
+        }
+
         self.inner_view
-            .set_loc(Point::new(margin.left, margin.top))?;
+            .set_loc(Point::new(margin.left, margin.top + bar_size.height))?;
+        let size = Size::new(size.width, size.height - bar_size.height);
         self.inner_view.set_size(size)?;
         Ok(size)
     }
@@ -205,7 +233,40 @@ winio_handle::impl_as_container!(Window, inner_view);
 impl Drop for Window {
     fn drop(&mut self) {
         WINDOW_RESIZE_CALLBACK.lock().unwrap().take();
+        MENU_BAR_VIEW.lock().unwrap().take();
     }
 }
 
 pub(crate) static WINDOW_RESIZE_CALLBACK: Mutex<Option<Arc<SyncCallback>>> = Mutex::new(None);
+
+fn set_bounds(view: &AView<'static>, loc: Point, size: Size) -> Result<()> {
+    let (x, y) = physical_point(loc)?;
+    let (width, height) = physical_size(size)?;
+    vm_exec(move |env| {
+        let params = FrameLayoutLayoutParams::new(env, width as i32, height as i32)?;
+        params.set_gravity(env, gravity::LEFT | gravity::TOP)?;
+        params.as_margin().set_left_margin(env, x as i32)?;
+        params.as_margin().set_top_margin(env, y as i32)?;
+        view.set_layout_params(env, params)?;
+        Ok(())
+    })
+}
+
+fn menu_bar_height(width: f64) -> Result<f64> {
+    let (width, _) = physical_size(Size::new(width, 0.0))?;
+    let menu_bar_view = MENU_BAR_VIEW.lock().unwrap();
+    let Some(menu_bar_view) = menu_bar_view.as_ref() else {
+        return Ok(0.0);
+    };
+    let height = vm_exec(move |env| {
+        let view: &AView<'static> = menu_bar_view.as_ref();
+        if view.get_visibility(env)? != visibility::VISIBLE {
+            return Ok::<_, Error>(0);
+        }
+        let width_spec = MeasureSpec::make_measure_spec(env, width as i32, measure_spec::EXACTLY)?;
+        let height_spec = MeasureSpec::make_measure_spec(env, 0, measure_spec::UNSPECIFIED)?;
+        view.measure(env, width_spec, height_spec)?;
+        Ok(view.get_measured_height(env)?)
+    })?;
+    Ok(logical_size(0.0, height as f32)?.height)
+}

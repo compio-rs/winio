@@ -17,6 +17,10 @@ cfg_if::cfg_if! {
         use objc2::rc::Retained;
 
         type BorrowedMenuBarInner<'a> = &'a Retained<objc2_ui_kit::UIStackView>;
+    } else if #[cfg(target_os = "android")] {
+        use jni::objects::JObject;
+
+        type BorrowedMenuBarInner<'a> = &'a JObject<'static>;
     } else {
         #[derive(Clone, Copy)]
         enum BorrowedMenuBarInner<'a> {
@@ -96,6 +100,23 @@ impl<'a> BorrowedMenuBar<'a> {
 
     /// Get the `UIStackView` that arranges the buttons of the menu bar.
     pub fn as_ui_kit(&self) -> &'a Retained<objc2_ui_kit::UIStackView> {
+        self.0
+    }
+}
+
+#[cfg(target_os = "android")]
+impl<'a> BorrowedMenuBar<'a> {
+    /// Create from Android `Menu`.
+    ///
+    /// # Safety
+    ///
+    /// `j_obj` must be a valid `android.view.Menu`.
+    pub unsafe fn android(j_obj: &'a JObject<'static>) -> Self {
+        Self(j_obj)
+    }
+
+    /// Get Android `Menu`.
+    pub fn to_android(&self) -> &'a JObject<'static> {
         self.0
     }
 }
