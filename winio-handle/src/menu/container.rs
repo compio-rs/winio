@@ -15,6 +15,9 @@ cfg_if::cfg_if! {
         use objc2::rc::Retained;
 
         type BorrowedMenuContainerInner<'a> = &'a Retained<objc2_app_kit::NSMenu>;
+    } else if #[cfg(target_os = "ios")] {
+        #[derive(Clone, Copy)]
+        struct BorrowedMenuContainerInner<'a>(usize, std::marker::PhantomData<&'a ()>);
     } else {
         #[derive(Clone, Copy)]
         enum BorrowedMenuContainerInner<'a> {
@@ -108,6 +111,19 @@ impl<'a> BorrowedMenuContainer<'a> {
     /// Get `NSMenu`.
     pub fn as_app_kit(&self) -> &'a Retained<objc2_app_kit::NSMenu> {
         self.0
+    }
+}
+
+#[cfg(target_os = "ios")]
+impl<'a> BorrowedMenuContainer<'a> {
+    /// Create from the key of a node of the UIKit menu tree.
+    pub fn ui_kit(key: usize) -> Self {
+        Self(BorrowedMenuContainerInner(key, std::marker::PhantomData))
+    }
+
+    /// Get the key of the node of the UIKit menu tree.
+    pub fn as_ui_kit(&self) -> usize {
+        self.0.0
     }
 }
 

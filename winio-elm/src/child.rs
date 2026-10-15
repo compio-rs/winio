@@ -8,12 +8,8 @@ use inherit_methods_macro::inherit_methods;
 use smallvec::SmallVec;
 #[cfg(feature = "handle")]
 use winio_handle::{
-    AsContainer, AsWidget, AsWindow, BorrowedContainer, BorrowedWidget, BorrowedWindow,
-};
-#[cfg(all(feature = "handle", menu))]
-use winio_handle::{
-    AsMenuBar, AsMenuContainer, AsMenuItem, BorrowedMenuBar, BorrowedMenuContainer,
-    BorrowedMenuItem,
+    AsContainer, AsMenuBar, AsMenuContainer, AsMenuItem, AsWidget, AsWindow, BorrowedContainer,
+    BorrowedMenuBar, BorrowedMenuContainer, BorrowedMenuItem, BorrowedWidget, BorrowedWindow,
 };
 #[cfg(feature = "primitive")]
 use winio_primitive::{Failable, Layoutable, Point, Rect, Size};
@@ -272,21 +268,21 @@ impl<T: AsContainer + Component> AsContainer for Child<T> {
     }
 }
 
-#[cfg(all(feature = "handle", menu))]
+#[cfg(feature = "handle")]
 impl<T: AsMenuBar + Component> AsMenuBar for Child<T> {
     fn as_menu_bar(&self) -> BorrowedMenuBar<'_> {
         self.model.as_menu_bar()
     }
 }
 
-#[cfg(all(feature = "handle", menu))]
+#[cfg(feature = "handle")]
 impl<T: AsMenuContainer + Component> AsMenuContainer for Child<T> {
     fn as_menu_container(&self) -> BorrowedMenuContainer<'_> {
         self.model.as_menu_container()
     }
 }
 
-#[cfg(all(feature = "handle", menu))]
+#[cfg(feature = "handle")]
 impl<T: AsMenuItem + Component> AsMenuItem for Child<T> {
     fn as_menu_item(&self) -> BorrowedMenuItem<'_> {
         self.model.as_menu_item()
