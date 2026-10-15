@@ -1,6 +1,9 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicI32, Ordering},
+use std::{
+    cell::Cell,
+    sync::{
+        Arc,
+        atomic::{AtomicI32, Ordering},
+    },
 };
 
 use jni::{
@@ -73,11 +76,20 @@ fn click_listener(env: &mut Env<'_>, on_click: &Arc<SyncCallback>) -> Result<Dyn
     )?)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LeafKind {
+    Plain,
+    Check,
+    Radio,
+}
+
 #[derive(Debug)]
 pub(crate) struct LeafItem {
     menu: Global<JMenu<'static>>,
     item: Global<JMenuItem<'static>>,
     id: i32,
+    group: Option<i32>,
+    checked: Cell<bool>,
     on_click: Arc<SyncCallback>,
     #[allow(dead_code)]
     click_proxy: DynamicProxy,
@@ -87,22 +99,34 @@ impl LeafItem {
     pub fn new(
         env: &mut Env<'_>,
         parent: BorrowedMenuContainer<'_>,
-        checkable: bool,
+        kind: LeafKind,
     ) -> Result<Self> {
         let menu = container_menu(env, parent)?;
         let on_click = Arc::new(SyncCallback::new());
         let click_proxy = click_listener(env, &on_click)?;
         let id = next_id();
+        let group = match kind {
+            LeafKind::Radio => next_id(),
+            LeafKind::Plain | LeafKind::Check => menu::NONE,
+        };
         let title = env.new_string("")?;
-        let item = menu.add(env, menu::NONE, id, id, title)?;
-        if checkable {
-            item.set_checkable(env, true)?;
+        let item = menu.add(env, group, id, id, title)?;
+        match kind {
+            LeafKind::Plain => {}
+            LeafKind::Check => {
+                item.set_checkable(env, true)?;
+            }
+            LeafKind::Radio => {
+                menu.set_group_checkable(env, group, true, true)?;
+            }
         }
         item.set_on_menu_item_click_listener(env, &click_proxy)?;
         Ok(Self {
             menu: env.new_global_ref(&menu)?,
             item: env.new_global_ref(&item)?,
             id,
+            checked: Cell::new(false),
+            group: (kind == LeafKind::Radio).then_some(group),
             on_click,
             click_proxy,
         })
@@ -127,12 +151,28 @@ impl LeafItem {
         Ok(())
     }
 
-    pub fn is_checked(&self, env: &mut Env<'_>) -> Result<bool> {
-        Ok(self.item.is_checked(env)?)
+    pub fn is_checked(&self, _env: &mut Env<'_>) -> Result<bool> {
+        Ok(self.checked.get())
     }
 
     pub fn set_checked(&self, env: &mut Env<'_>, checked: bool) -> Result<()> {
-        self.item.set_checked(env, checked)?;
+        self.checked.set(checked);
+        match self.group {
+            // `MenuItem.setChecked(false)` of the item of an exclusive group
+            // checks it instead: the framework throws the argument away and
+            // asks the menu to check the item and uncheck its group. So the
+            // exclusivity is dropped for that single call and put back right
+            // after. The message is drawn when the item is bound, from the flag
+            // that is already restored by then.
+            Some(group) if !checked => {
+                self.menu.set_group_checkable(env, group, true, false)?;
+                self.item.set_checked(env, false)?;
+                self.menu.set_group_checkable(env, group, true, true)?;
+            }
+            _ => {
+                self.item.set_checked(env, checked)?;
+            }
+        }
         Ok(())
     }
 

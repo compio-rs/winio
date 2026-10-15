@@ -1,6 +1,10 @@
 use winio_handle::AsMenuContainer;
 
-use crate::{Result, menu::LeafItem, vm_exec};
+use crate::{
+    Result,
+    menu::{LeafItem, LeafKind},
+    vm_exec,
+};
 
 #[derive(Debug)]
 pub struct MenuItem {
@@ -11,7 +15,7 @@ impl MenuItem {
     pub fn new(parent: impl AsMenuContainer) -> Result<Self> {
         vm_exec(|env| {
             Ok(Self {
-                inner: LeafItem::new(env, parent.as_menu_container(), false)?,
+                inner: LeafItem::new(env, parent.as_menu_container(), LeafKind::Plain)?,
             })
         })
     }

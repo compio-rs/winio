@@ -230,6 +230,7 @@ jni::bind_java_type! {
             title: &JCharSequence,
         ) -> SubMenu,
         fn remove_item(id: jint),
+        fn set_group_checkable(group: jint, checkable: jboolean, exclusive: jboolean),
     }
 }
 
