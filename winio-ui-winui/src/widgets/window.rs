@@ -217,7 +217,14 @@ impl Window {
             }
             Err(e) => return Err(e),
         };
-        Ok(size / self.scale())
+        let size = size / self.scale();
+        let menu_height = self.menu_bar_height()?;
+        Ok(Size::new(size.width, (size.height - menu_height).max(0.0)))
+    }
+
+    fn menu_bar_height(&self) -> Result<f64> {
+        let grid = self.handle.Content()?.cast::<MUXC::Grid>()?;
+        grid.RowDefinitions()?.GetAt(0)?.ActualHeight()
     }
 
     pub fn text(&self) -> Result<String> {

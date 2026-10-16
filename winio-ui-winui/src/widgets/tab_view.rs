@@ -71,8 +71,8 @@ impl TabView {
 
     pub async fn wait_select(&self) {
         self.on_select.wait().await;
-        // Measure here to fix a weird issue where the TabView doesn't update its
-        // measurement after selection changes.
+        // Measure here to fix a weird issue where the TabView doesn't update
+        // its measurement after selection changes.
         if let Err(_e) = self
             .view
             .Measure(Size::new(f64::INFINITY, f64::INFINITY).to_native())
@@ -164,9 +164,10 @@ impl TabViewItem {
 
     pub fn size(&self) -> Result<Size> {
         if let Some(parent) = self.inner.parent.borrow().as_ref() {
+            parent.UpdateLayout()?;
             Ok(Size::new(
-                parent.Width()?,
-                (parent.Height()? - 40.0).max(0.0),
+                self.inner.canvas.ActualWidth()?,
+                self.inner.canvas.ActualHeight()?,
             ))
         } else {
             Ok(Size::zero())
