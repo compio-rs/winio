@@ -20,8 +20,7 @@ use crate::{
 /// * Android: Vulkan
 ///
 /// ## Platform specific
-/// * iOS: Simulator do not support [`wgpu`].
-/// * Android: Simulator might not work correctly; real devices work fine.
+/// * iOS: Simulator does not support [`wgpu`].
 /// * Qt & GTK: Might not work correctly.
 #[derive(Debug)]
 pub struct WgpuCanvas {

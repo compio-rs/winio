@@ -25,7 +25,6 @@ All IO requests could be issued in the same thread as GUI, without blocking the 
 > [!WARNING]
 > WGPU canvas doesn't work well on some platforms:
 > * iOS simulator
-> * Android simulator
 > * Qt
 > * GTK
 
