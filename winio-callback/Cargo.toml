@@ -1,6 +1,6 @@
 [package]
 name = "winio-callback"
-version = "0.1.2"
+version = "0.2.0-beta.1"
 description = "Callback helper for winio."
 edition = { workspace = true }
 readme = { workspace = true }

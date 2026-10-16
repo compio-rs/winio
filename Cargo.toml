@@ -29,23 +29,23 @@ license = "MIT"
 repository = "https://github.com/compio-rs/winio"
 
 [workspace.dependencies]
-winio-primitive = { path = "winio-primitive", version = "0.2.0" }
-winio-callback = { path = "winio-callback", version = "0.1.2" }
-winio-layout = { path = "winio-layout", version = "0.3.0" }
-winio-handle = { path = "winio-handle", version = "0.7.0" }
-winio-elm = { path = "winio-elm", version = "0.6.0" }
-winio-pollable = { path = "winio-pollable", version = "0.5.0" }
-winio-ui-windows-common = { path = "winio-ui-windows-common", version = "0.7.0" }
-winio-ui-win32 = { path = "winio-ui-win32", version = "0.6.0" }
-winio-ui-winui = { path = "winio-ui-winui", version = "0.6.0" }
-winio-ui-gtk = { path = "winio-ui-gtk", version = "0.6.0" }
-winio-ui-qt = { path = "winio-ui-qt", version = "0.6.0" }
-winio-ui-app-kit = { path = "winio-ui-app-kit", version = "0.6.0" }
-winio-ui-android = { path = "winio-ui-android", version = "0.1.0" }
-winio-ui-ui-kit = { path = "winio-ui-ui-kit", version = "0.1.0" }
-winio-ui-apple-common = { path = "winio-ui-apple-common", version = "0.1.0" }
-winio-ui-stub = { path = "winio-ui-stub", version = "0.1.0" }
-winio = { path = "winio", version = "0.12.0", default-features = false }
+winio-primitive = { path = "winio-primitive", version = "0.3.0-beta.1" }
+winio-callback = { path = "winio-callback", version = "0.2.0-beta.1" }
+winio-layout = { path = "winio-layout", version = "0.4.0-beta.1" }
+winio-handle = { path = "winio-handle", version = "0.8.0-beta.1" }
+winio-elm = { path = "winio-elm", version = "0.7.0-beta.1" }
+winio-pollable = { path = "winio-pollable", version = "0.6.0-beta.1" }
+winio-ui-windows-common = { path = "winio-ui-windows-common", version = "0.8.0-beta.1" }
+winio-ui-win32 = { path = "winio-ui-win32", version = "0.7.0-beta.1" }
+winio-ui-winui = { path = "winio-ui-winui", version = "0.7.0-beta.1" }
+winio-ui-gtk = { path = "winio-ui-gtk", version = "0.7.0-beta.1" }
+winio-ui-qt = { path = "winio-ui-qt", version = "0.7.0-beta.1" }
+winio-ui-app-kit = { path = "winio-ui-app-kit", version = "0.7.0-beta.1" }
+winio-ui-android = { path = "winio-ui-android", version = "0.2.0-beta.1" }
+winio-ui-ui-kit = { path = "winio-ui-ui-kit", version = "0.2.0-beta.1" }
+winio-ui-apple-common = { path = "winio-ui-apple-common", version = "0.2.0-beta.1" }
+winio-ui-stub = { path = "winio-ui-stub", version = "0.2.0-beta.1" }
+winio = { path = "winio", version = "0.13.0-beta.1", default-features = false }
 
 compio = { version = "0.20.0-beta.1", default-features = false }
 compio-log = "0.3.0-beta.1"
