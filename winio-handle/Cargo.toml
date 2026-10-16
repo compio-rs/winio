@@ -23,7 +23,10 @@ cfg-if = { workspace = true }
 raw-window-handle = { workspace = true, optional = true }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { workspace = true, features = ["Win32_Foundation"] }
+windows-sys = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+] }
 winui3 = { workspace = true, optional = true, features = [
     "UI_Composition",
     "UI_Xaml",
