@@ -182,8 +182,8 @@ where
             let height = self.as_view().get_measured_height(env)?;
             Result::Ok((width as f32, height as f32))
         })?;
-        // A little hack to make the preferred size a little bigger than the measured
-        // size, so that the widget is not too small.
+        // A little hack to make the preferred size a little bigger than the
+        // measured size, so that the widget is not too small.
         logical_size(width + 4.0, height)
     }
 

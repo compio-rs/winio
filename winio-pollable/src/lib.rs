@@ -99,8 +99,8 @@ impl MainTask {
         let mut cx = Context::from_waker(&self.waker);
         if let Ok(mut fut) = self.future.try_borrow_mut() {
             if let Poll::Ready(()) = fut.as_mut().poll(&mut cx) {
-                // The future has completed, so we should not wait for the driver to wake us up
-                // anymore.
+                // The future has completed, so we should not wait for the
+                // driver to wake us up anymore.
                 true
             } else {
                 false

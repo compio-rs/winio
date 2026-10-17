@@ -772,8 +772,7 @@ impl DrawingImage {
                 ))
             }
             CAIRO_FORMAT_RGB96F => {
-                let pixels =
-                    collect_strided(data, stride, width as usize * 12, height as usize);
+                let pixels = collect_strided(data, stride, width as usize * 12, height as usize);
                 Ok(DynamicImage::ImageRgb32F(
                     ImageBuffer::from_raw(width, height, pixels).expect("invalid image buffer"),
                 ))

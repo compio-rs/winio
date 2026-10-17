@@ -117,7 +117,8 @@ impl Keyboard {
                     } else {
                         key_up.signal(code);
                     }
-                    // Let Android handle device/system keys outside our portable set.
+                    // Let Android handle device/system keys outside our
+                    // portable set.
                     Ok(JBoolean::new(env, handled)?.into())
                 }
             },

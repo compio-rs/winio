@@ -58,7 +58,8 @@ impl WebView {
                         false,
                     )
                     .ok()?;
-                    // It's allowed to call `PathCchCombineEx` with a inplace buffer.
+                    // It's allowed to call `PathCchCombineEx` with a inplace
+                    // buffer.
                     let input = PCWSTR(buffer.as_ptr());
                     PathCchCombineEx(
                         PWSTR(buffer.as_mut_ptr()),
