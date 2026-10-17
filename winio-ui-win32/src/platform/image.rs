@@ -11,11 +11,10 @@ use windows_core::Error;
 use windows_sys::Win32::{
     Foundation::HWND,
     Graphics::Gdi::{
-        BI_BITFIELDS, BITMAPV5HEADER, CreateBitmap, CreateDIBSection, DIB_RGB_COLORS, DeleteObject,
-        GetDC, HBITMAP, HDC, ReleaseDC,
+        BI_RGB, BITMAPINFO, BITMAPINFOHEADER, CreateBitmap, CreateDIBSection, DIB_RGB_COLORS,
+        DeleteObject, GetDC, HBITMAP, HDC, ReleaseDC,
     },
     UI::{
-        ColorSystem::LCS_WINDOWS_COLOR_SPACE,
         HiDpi::GetSystemMetricsForDpi,
         WindowsAndMessaging::{
             CreateIconIndirect, DestroyIcon, HICON, ICONINFO, IMAGE_ICON, SM_CXSMICON, SM_CYSMICON,
@@ -99,7 +98,6 @@ impl Image {
         context.create_image(Cow::Borrowed(&self.0))
     }
 
-    #[allow(non_upper_case_globals)]
     fn create_dib(&self, resize: Option<(i32, i32)>) -> Result<(WinBitmap, i32, i32)> {
         let (mut data, width, height) = match resize {
             Some((width, height)) => {
@@ -121,24 +119,18 @@ impl Image {
         unsafe {
             let hdc = WinDC::new(null_mut())?;
 
-            let mut header: BITMAPV5HEADER = std::mem::zeroed();
-            header.bV5Size = std::mem::size_of::<BITMAPV5HEADER>() as _;
-            header.bV5Width = width;
-            header.bV5Height = -height;
-            header.bV5Planes = 1;
-            header.bV5BitCount = 32;
-            header.bV5Compression = BI_BITFIELDS;
-            header.bV5SizeImage = (width * height * 4) as _;
-            header.bV5RedMask = 0x00FF0000;
-            header.bV5GreenMask = 0x0000FF00;
-            header.bV5BlueMask = 0x000000FF;
-            header.bV5AlphaMask = 0xFF000000;
-            header.bV5CSType = LCS_WINDOWS_COLOR_SPACE as _;
+            let mut header: BITMAPINFO = std::mem::zeroed();
+            header.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as _;
+            header.bmiHeader.biWidth = width;
+            header.bmiHeader.biHeight = -height;
+            header.bmiHeader.biPlanes = 1;
+            header.bmiHeader.biBitCount = 32;
+            header.bmiHeader.biCompression = BI_RGB;
             let mut bits = null_mut();
 
             let bitmap = WinBitmap::retain(CreateDIBSection(
                 hdc.0,
-                &raw const header as _,
+                &raw const header,
                 DIB_RGB_COLORS,
                 &mut bits,
                 null_mut(),
