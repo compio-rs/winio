@@ -2,10 +2,10 @@ use winio_callback::Callback;
 use winio_handle::{AsMenuItem, BorrowedMenuItem};
 
 use crate::{
-    GlobalRuntime, Result,
+    GlobalRuntime, Image, Result,
     menu::{
         RawPtr,
-        ffi::{QAction, action_connect_triggered},
+        ffi::{QAction, action_clear_icon, action_connect_triggered, action_set_icon},
     },
 };
 
@@ -36,6 +36,17 @@ impl ActionHandle {
 
     pub(crate) fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         unsafe { self.action.pin_mut() }.setText(&s.as_ref().try_into()?)?;
+        Ok(())
+    }
+
+    pub(crate) fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
+        unsafe {
+            let action = self.action.pin_mut();
+            match icon {
+                Some(icon) => action_set_icon(action, icon.as_qimage())?,
+                None => action_clear_icon(action)?,
+            }
+        }
         Ok(())
     }
 

@@ -1,4 +1,6 @@
 #include "ffi.hpp"
+#include <QIcon>
+#include <QPixmap>
 
 QMenuBar *new_menu_bar(QWidget *window) {
     auto *main_window = static_cast<QMainWindow *>(window);
@@ -24,6 +26,12 @@ std::unique_ptr<QActionGroup> new_action_group(QMenu *parent) {
 }
 
 QAction *new_action(QMenu *parent) { return new QAction(parent); }
+
+void action_set_icon(QAction &action, QImage const &icon) {
+    action.setIcon(QIcon(QPixmap::fromImage(icon)));
+}
+
+void action_clear_icon(QAction &action) { action.setIcon(QIcon()); }
 
 void action_connect_triggered(QAction &action, callback_fn_t<void()> callback,
                               std::uint8_t const *data) {

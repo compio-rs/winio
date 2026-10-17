@@ -3,6 +3,7 @@
 #include "../common.hpp"
 #include <QAction>
 #include <QActionGroup>
+#include <QImage>
 #include <QMainWindow>
 #include <QMenu>
 #include <QMenuBar>
@@ -38,6 +39,10 @@ std::unique_ptr<QActionGroup> new_action_group(QMenu *parent);
 QAction *new_action(QMenu *parent);
 
 void action_set_exclusive(QAction &action);
+
+void action_set_icon(QAction &action, QImage const &icon);
+
+void action_clear_icon(QAction &action);
 
 void action_connect_triggered(QAction &action, callback_fn_t<void()> callback,
                               std::uint8_t const *data);

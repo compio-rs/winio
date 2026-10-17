@@ -2,7 +2,7 @@ use inherit_methods_macro::inherit_methods;
 use winio_handle::AsMenuContainer;
 
 use crate::{
-    Result,
+    Image, Result,
     menu::{
         ActionClick, ActionHandle,
         ffi::{QMenu, menu_add_action},
@@ -33,6 +33,8 @@ impl MenuItem {
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()>;
 
     pub async fn wait_click(&self) {
         self.click.wait_click().await
