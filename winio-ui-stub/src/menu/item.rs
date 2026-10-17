@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsMenuContainer;
 
-use crate::{Result, menu::MenuHandle, not_impl};
+use crate::{Image, Result, menu::MenuHandle, not_impl};
 
 #[derive(Debug)]
 pub struct MenuItem {
@@ -21,6 +21,8 @@ impl MenuItem {
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()>;
 
     pub async fn wait_click(&self) {
         not_impl()

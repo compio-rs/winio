@@ -55,6 +55,7 @@ impl Component for ExampleMenuBar {
             },
             open_file_item: MenuItem = (&file_item) => {
                 text: "Open file...",
+                icon: Some(&crate::icons::open()?),
                 enabled: cfg!(feature = "compio-compat")
             },
             widgets_item: MenuBarItem = (&menu_bar) => {

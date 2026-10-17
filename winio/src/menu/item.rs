@@ -6,6 +6,7 @@ use winio_primitive::{Enable, Failable, TextWidget};
 use crate::{
     sys,
     sys::{Error, Result},
+    ui::Image,
 };
 
 /// A plain item of a menu, which triggers an event when the user selects it.
@@ -30,6 +31,15 @@ impl TextWidget for MenuItem {
     fn text(&self) -> Result<String>;
 
     fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+}
+
+impl MenuItem {
+    /// Set the icon of the menu item.
+    ///
+    /// If `icon` is `None`, the icon is removed.
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
+        self.inner.set_icon(icon.map(|icon| &icon.0))
+    }
 }
 
 /// Events of [`MenuItem`].
