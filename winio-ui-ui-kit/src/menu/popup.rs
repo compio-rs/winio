@@ -1,7 +1,7 @@
 use winio_handle::AsMenuContainer;
 
 use crate::{
-    Result,
+    Image, Result,
     menu::{MenuNodeRef, NodeKind},
 };
 
@@ -34,6 +34,10 @@ impl PopupMenuItem {
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         self.node.set_text(s);
         Ok(())
+    }
+
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
+        self.node.set_icon(icon)
     }
 }
 

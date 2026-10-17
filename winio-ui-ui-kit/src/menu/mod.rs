@@ -9,11 +9,11 @@
 use std::{cell::RefCell, ptr::NonNull, rc::Rc};
 
 use block2::{DynBlock, RcBlock};
-use objc2::{MainThreadMarker, rc::Retained};
-use objc2_foundation::{NSArray, NSString, ns_string};
+use objc2::{MainThreadMarker, available, msg_send, rc::Retained};
+use objc2_foundation::{NSArray, NSInteger, NSString, ns_string};
 use objc2_ui_kit::{
-    UIAction, UIDeferredMenuElement, UIMenu, UIMenuElement, UIMenuElementAttributes,
-    UIMenuElementState, UIMenuOptions, UIStackView,
+    UIAction, UIDeferredMenuElement, UIFont, UIImage, UIMenu, UIMenuElement,
+    UIMenuElementAttributes, UIMenuElementState, UIMenuOptions, UIStackView,
 };
 use slab::Slab;
 use winio_callback::Callback;
@@ -22,7 +22,7 @@ use winio_handle::{
     BorrowedMenuItem,
 };
 
-use crate::GlobalRuntime;
+use crate::{GlobalRuntime, Image, Result, catch};
 
 mod bar;
 pub use bar::*;
@@ -63,6 +63,7 @@ pub(crate) enum NodeKind {
 struct MenuNode {
     kind: NodeKind,
     text: String,
+    icon: Option<Retained<UIImage>>,
     enabled: bool,
     checked: bool,
     click: Rc<Callback>,
@@ -105,6 +106,18 @@ impl MenuNodeRef {
 
     pub fn set_text(&self, s: impl AsRef<str>) {
         self.with_mut(|node| node.text = s.as_ref().to_string());
+    }
+
+    pub fn set_icon(&self, icon: Option<&Image>) -> Result<()> {
+        catch(|| {
+            let icon = match icon {
+                Some(icon) => Some(icon.uiimage(Some(UIFont::systemFontSize()))?),
+                None => None,
+            };
+            self.with_mut(|node| node.icon = icon);
+            Ok(())
+        })
+        .flatten()
     }
 
     pub fn is_enabled(&self) -> bool {
@@ -160,6 +173,7 @@ fn insert_node(kind: NodeKind, parent: Option<usize>) -> usize {
         let key = nodes.insert(MenuNode {
             kind,
             text: String::new(),
+            icon: None,
             enabled: true,
             checked: false,
             click: Rc::new(Callback::new()),
@@ -199,6 +213,17 @@ fn signal_click(key: usize) {
 
 fn node_kind(key: usize) -> Option<NodeKind> {
     NODES.with_borrow(|nodes| nodes.get(key).map(|node| node.kind))
+}
+
+fn show_menu_element_image(element: &UIMenuElement) {
+    #[allow(non_upper_case_globals)]
+    const UIMenuElementImageVisibilityVisible: NSInteger = 1;
+
+    if available!(ios = 27.0) {
+        unsafe {
+            let () = msg_send![element, setPreferredImageVisibility: UIMenuElementImageVisibilityVisible];
+        }
+    }
 }
 
 pub(crate) fn build_children(key: usize, mtm: MainThreadMarker) -> Vec<Retained<UIMenuElement>> {
@@ -243,18 +268,30 @@ pub(crate) fn build_children(key: usize, mtm: MainThreadMarker) -> Vec<Retained<
 }
 
 fn build_element(key: usize, mtm: MainThreadMarker) -> Option<Retained<UIMenuElement>> {
-    let (kind, text, enabled, checked) = NODES.with_borrow(|nodes| {
+    let (kind, text, icon, enabled, checked) = NODES.with_borrow(|nodes| {
         let node = nodes.get(key)?;
-        Some((node.kind, node.text.clone(), node.enabled, node.checked))
+        Some((
+            node.kind,
+            node.text.clone(),
+            node.icon.clone(),
+            node.enabled,
+            node.checked,
+        ))
     })?;
 
     match kind {
         NodeKind::Popup => {
-            let submenu = UIMenu::menuWithTitle_children(
+            let submenu = UIMenu::menuWithTitle_image_identifier_options_children(
                 &NSString::from_str(&text),
+                icon.as_deref(),
+                None,
+                UIMenuOptions::empty(),
                 &NSArray::from_retained_slice(&build_children(key, mtm)),
                 mtm,
             );
+            if icon.is_some() {
+                show_menu_element_image(&submenu);
+            }
             // SAFETY: `UIMenu` is a subclass of `UIMenuElement`.
             Some(unsafe { Retained::cast_unchecked::<UIMenuElement>(submenu) })
         }
@@ -263,6 +300,10 @@ fn build_element(key: usize, mtm: MainThreadMarker) -> Option<Retained<UIMenuEle
             // SAFETY: `UIAction` copies the block.
             let action = unsafe { UIAction::actionWithHandler(RcBlock::as_ptr(&handler), mtm) };
             action.setTitle(&NSString::from_str(&text));
+            action.setImage(icon.as_deref());
+            if icon.is_some() {
+                show_menu_element_image(&action);
+            }
             action.setAttributes(if enabled {
                 UIMenuElementAttributes::empty()
             } else {
