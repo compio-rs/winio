@@ -491,6 +491,12 @@ impl Component for MiscPage {
     }
 }
 
+impl MiscPage {
+    pub fn show_password_prop(&mut self) -> Result<Prop<'_, bool>> {
+        Ok(self.pcheck.checked_prop()?)
+    }
+}
+
 impl Deref for MiscPage {
     type Target = TabViewItem;
 

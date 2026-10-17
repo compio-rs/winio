@@ -3,7 +3,7 @@ use winio_handle::{
     BorrowedMenuItem,
 };
 
-use crate::{Result, not_impl};
+use crate::{Image, Result, not_impl};
 
 mod bar;
 pub use bar::*;
@@ -51,6 +51,10 @@ impl MenuHandle {
     }
 
     pub fn set_text(&mut self, _s: impl AsRef<str>) -> Result<()> {
+        not_impl()
+    }
+
+    pub fn set_icon(&mut self, _icon: Option<&Image>) -> Result<()> {
         not_impl()
     }
 

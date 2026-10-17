@@ -5,6 +5,7 @@ mod bindings {
 
         type QWidget = crate::widgets::QWidget;
         type QString = crate::common::QString;
+        type QImage = crate::platform::QImage;
         type QMenuBar;
         type QMenu;
         type QAction;
@@ -26,6 +27,9 @@ mod bindings {
         fn setEnabled(self: Pin<&mut QAction>, enabled: bool) -> Result<()>;
         fn isChecked(self: &QAction) -> Result<bool>;
         fn setChecked(self: Pin<&mut QAction>, checked: bool) -> Result<()>;
+
+        fn action_set_icon(action: Pin<&mut QAction>, icon: &QImage) -> Result<()>;
+        fn action_clear_icon(action: Pin<&mut QAction>) -> Result<()>;
 
         unsafe fn menu_bar_add_menu(menu_bar: *mut QMenuBar) -> Result<*mut QMenu>;
         unsafe fn menu_add_menu(menu: *mut QMenu) -> Result<*mut QMenu>;

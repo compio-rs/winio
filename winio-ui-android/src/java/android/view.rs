@@ -1,6 +1,6 @@
 use super::{
     content::{Context, res::Resources},
-    graphics::{Insets, Rect},
+    graphics::{Insets, Rect, drawable::Drawable},
 };
 use crate::impl_listener;
 
@@ -237,6 +237,7 @@ jni::bind_java_type! {
 jni::bind_java_type! {
     pub MenuItem => android.view.MenuItem,
     type_map {
+        Drawable => android.graphics.drawable.Drawable,
         MenuItemOnMenuItemClickListener => "android.view.MenuItem$OnMenuItemClickListener",
     },
     methods {
@@ -247,6 +248,7 @@ jni::bind_java_type! {
         fn is_checked() -> jboolean,
         fn set_checked(checked: jboolean) -> MenuItem,
         fn set_checkable(checkable: jboolean) -> MenuItem,
+        fn set_icon(icon: &Drawable) -> MenuItem,
         fn set_show_as_action(action: jint),
         fn set_on_menu_item_click_listener(
             listener: &MenuItemOnMenuItemClickListener,

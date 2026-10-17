@@ -294,6 +294,9 @@ pub(crate) unsafe extern "system" fn window_proc(
             if let Err(_e) = unsafe { refresh_icon(handle) } {
                 warn!("refresh_icon: handle: {handle:?}, error: {_e:?}");
             }
+            if let Err(_e) = crate::menu::refresh_menu_icons(handle) {
+                warn!("refresh_menu_icons: handle: {handle:?}, error: {_e:?}");
+            }
         }
         _ => {}
     }

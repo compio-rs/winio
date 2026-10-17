@@ -26,7 +26,6 @@ pub enum ExampleMenuBarEvent {
     Push,
     Pop,
     Show,
-    ShowPassword(bool),
     OpenFile,
     WgpuOption(bool),
 }
@@ -36,7 +35,7 @@ pub enum ExampleMenuBarMessage {
     Push,
     Pop,
     Show,
-    ChangeInputShowPassword,
+    SetShowPassword(bool),
     OpenFile,
     WgpuOption(Option<usize>),
 }
@@ -55,6 +54,7 @@ impl Component for ExampleMenuBar {
             },
             open_file_item: MenuItem = (&file_item) => {
                 text: "Open file...",
+                icon: Some(&crate::icons::open()?),
                 enabled: cfg!(feature = "compio-compat")
             },
             widgets_item: MenuBarItem = (&menu_bar) => {
@@ -126,9 +126,7 @@ impl Component for ExampleMenuBar {
             self.show_item => {
                 MenuItemEvent::Click => ExampleMenuBarMessage::Show,
             },
-            self.show_password_item => {
-                CheckMenuItemEvent::Click => ExampleMenuBarMessage::ChangeInputShowPassword,
-            },
+            self.show_password_item => {},
             self.file_item => {},
             self.open_file_item => {
                 MenuItemEvent::Click => ExampleMenuBarMessage::OpenFile,
@@ -172,10 +170,8 @@ impl Component for ExampleMenuBar {
                 sender.output(ExampleMenuBarEvent::Show);
                 Ok(false)
             }
-            ExampleMenuBarMessage::ChangeInputShowPassword => {
-                sender.output(ExampleMenuBarEvent::ShowPassword(
-                    self.show_password_item.is_checked()?,
-                ));
+            ExampleMenuBarMessage::SetShowPassword(v) => {
+                self.show_password_item.set_checked(v)?;
                 Ok(false)
             }
             ExampleMenuBarMessage::OpenFile => {
@@ -187,5 +183,11 @@ impl Component for ExampleMenuBar {
                 Ok(false)
             }
         }
+    }
+}
+
+impl ExampleMenuBar {
+    pub fn show_password_prop(&mut self) -> Result<Prop<'_, bool>> {
+        Ok(self.show_password_item.checked_prop()?)
     }
 }

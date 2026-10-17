@@ -15,6 +15,10 @@ pub fn github_white() -> Result<Image> {
     load(include_bytes!("../assets/icons/github_white.png"))
 }
 
+pub fn open() -> Result<Image> {
+    load(include_bytes!("../assets/icons/open.png"))
+}
+
 #[cfg(feature = "media")]
 pub fn play() -> Result<Image> {
     load(include_bytes!("../assets/icons/play.png"))

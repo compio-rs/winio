@@ -1,13 +1,13 @@
 use inherit_methods_macro::inherit_methods;
 use objc2::{
-    DefinedClass, MainThreadMarker, MainThreadOnly, define_class, msg_send,
+    DefinedClass, MainThreadMarker, MainThreadOnly, available, define_class, msg_send,
     rc::{Allocated, Retained},
     sel,
 };
 use objc2_app_kit::{
     NSApplication, NSControlStateValueOff, NSControlStateValueOn, NSMenu, NSMenuItem,
 };
-use objc2_foundation::{NSObject, NSString};
+use objc2_foundation::{NSInteger, NSObject, NSString};
 use winio_callback::Callback;
 use winio_handle::{
     AsMenuBar, AsMenuContainer, AsMenuItem, AsWindow, BorrowedMenuBar, BorrowedMenuContainer,
@@ -15,7 +15,7 @@ use winio_handle::{
 };
 use winio_pollable::GlobalRuntime;
 
-use crate::{Error, Result, catch, from_nsstring};
+use crate::{Error, Image, Result, catch, from_nsstring};
 
 #[derive(Debug)]
 struct MenuBase {
@@ -128,6 +128,28 @@ impl MenuItemBase {
         })
     }
 
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
+        catch(|| {
+            if let Some(icon) = icon {
+                let image = icon.nsimage(Some(16.0))?;
+                self.inner.setImage(Some(&image));
+
+                #[allow(non_upper_case_globals)]
+                const NSMenuItemImageVisibilityVisible: NSInteger = 1;
+
+                if available!(macos = 27.0) {
+                    unsafe {
+                        let () = msg_send![&self.inner, setPreferredImageVisibility: NSMenuItemImageVisibilityVisible];
+                    }
+                }
+            } else {
+                self.inner.setImage(None);
+            }
+            Ok(())
+        })
+        .flatten()
+    }
+
     pub fn is_checked(&self) -> Result<bool> {
         catch(|| self.inner.state() == NSControlStateValueOn)
     }
@@ -238,6 +260,8 @@ impl MenuItem {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()>;
+
     pub async fn wait_click(&self) {
         self.inner.wait_click().await
     }
@@ -270,6 +294,8 @@ impl PopupMenuItem {
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()>;
 }
 
 winio_handle::impl_as_menu_container!(PopupMenuItem, menu);

@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use winio_elm::{Component, ComponentSender};
+use winio_elm::{Component, ComponentSender, Prop, PropSource};
 use winio_handle::BorrowedMenuContainer;
 use winio_primitive::{Enable, Failable, TextWidget};
 
@@ -13,6 +13,7 @@ use crate::{
 #[derive(Debug)]
 pub struct CheckMenuItem {
     inner: sys::CheckMenuItem,
+    checked_prop: PropSource<bool>,
 }
 
 impl Failable for CheckMenuItem {
@@ -39,7 +40,18 @@ impl CheckMenuItem {
     pub fn is_checked(&self) -> Result<bool>;
 
     /// Sets the checked state.
-    pub fn set_checked(&mut self, checked: bool) -> Result<()>;
+    pub fn set_checked(&mut self, checked: bool) -> Result<()> {
+        if checked != self.is_checked()? {
+            self.inner.set_checked(checked)?;
+            self.checked_prop.notify(checked);
+        }
+        Ok(())
+    }
+
+    /// Property for [`CheckMenuItem::is_checked`].
+    pub fn checked_prop(&mut self) -> Result<Prop<'_, bool>> {
+        Ok(self.checked_prop.as_prop(self.is_checked()?))
+    }
 }
 
 /// Events of [`CheckMenuItem`].
@@ -54,6 +66,11 @@ pub enum CheckMenuItemEvent {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum CheckMenuItemMessage {
+    /// The checked state has been changed by user click.
+    #[doc(hidden)]
+    ChangeInputChecked,
+    /// Set the checked state.
+    SetChecked(bool),
     /// The text has been changed.
     SetText(String),
 }
@@ -66,22 +83,36 @@ impl Component for CheckMenuItem {
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let inner = sys::CheckMenuItem::new(init)?;
-        Ok(Self { inner })
+        let checked_prop = PropSource::new();
+        Ok(Self {
+            inner,
+            checked_prop,
+        })
     }
 
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         loop {
             self.inner.wait_click().await;
-            sender.output(CheckMenuItemEvent::Click);
+            sender.post(CheckMenuItemMessage::ChangeInputChecked);
         }
     }
 
     async fn update(
         &mut self,
         message: Self::Message,
-        _sender: &ComponentSender<Self>,
+        sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
+            CheckMenuItemMessage::ChangeInputChecked => {
+                let checked = self.is_checked()?;
+                self.checked_prop.notify(checked);
+                sender.output(CheckMenuItemEvent::Click);
+                Ok(false)
+            }
+            CheckMenuItemMessage::SetChecked(checked) => {
+                self.set_checked(checked)?;
+                Ok(true)
+            }
             CheckMenuItemMessage::SetText(text) => {
                 self.set_text(text)?;
                 Ok(true)

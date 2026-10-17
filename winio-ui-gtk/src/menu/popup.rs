@@ -2,7 +2,7 @@ use gtk4::gio;
 use inherit_methods_macro::inherit_methods;
 use winio_handle::{AsMenuContainer, BorrowedMenuContainer};
 
-use crate::{Result, menu::ItemBase};
+use crate::{Image, Result, menu::ItemBase};
 
 #[derive(Debug)]
 pub(crate) struct PopupMenuItemBase {
@@ -30,6 +30,8 @@ impl PopupMenuItemBase {
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()>;
 }
 
 impl AsMenuContainer for PopupMenuItemBase {
@@ -60,6 +62,8 @@ impl PopupMenuItem {
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()>;
 }
 
 winio_handle::impl_as_menu_container!(PopupMenuItem, base);

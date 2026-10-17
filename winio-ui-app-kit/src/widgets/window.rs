@@ -1,15 +1,14 @@
 use inherit_methods_macro::inherit_methods;
 use objc2::{
-    DeclaredClass, MainThreadOnly, define_class, msg_send,
+    DeclaredClass, MainThreadOnly, available, define_class, msg_send,
     rc::{Allocated, Retained, Weak},
     runtime::ProtocolObject,
     sel,
 };
 use objc2_app_kit::{
-    NSAppKitVersionNumber, NSAppKitVersionNumber10_10, NSAppKitVersionNumber10_11,
-    NSAppKitVersionNumber10_14, NSAutoresizingMaskOptions, NSBackingStoreType, NSControl, NSScreen,
-    NSView, NSVisualEffectBlendingMode, NSVisualEffectMaterial, NSVisualEffectState,
-    NSVisualEffectView, NSWindow, NSWindowDelegate, NSWindowOrderingMode, NSWindowStyleMask,
+    NSAutoresizingMaskOptions, NSBackingStoreType, NSControl, NSScreen, NSView,
+    NSVisualEffectBlendingMode, NSVisualEffectMaterial, NSVisualEffectState, NSVisualEffectView,
+    NSWindow, NSWindowDelegate, NSWindowOrderingMode, NSWindowStyleMask,
 };
 use objc2_foundation::{
     MainThreadMarker, NSDistributedNotificationCenter, NSNotification, NSObject, NSObjectProtocol,
@@ -151,49 +150,47 @@ impl Window {
     }
 
     pub fn set_vibrancy(&mut self, v: Option<Vibrancy>) -> Result<()> {
-        unsafe {
-            if self.vibrancy == v {
-                return Ok(());
-            }
-            if NSAppKitVersionNumber < NSAppKitVersionNumber10_10 {
-                return Err(Error::NotSupported);
-            }
-            self.vibrancy = v;
+        if self.vibrancy == v {
+            return Ok(());
+        }
+        if !available!(macos = 10.10) {
+            return Err(Error::NotSupported);
+        }
+        self.vibrancy = v;
 
-            catch(|| {
-                if let Some(v) = v {
-                    let view = &self.content_view;
-                    let bounds = view.bounds();
-                    let vev: Retained<NSVisualEffectView> = NSVisualEffectView::initWithFrame(
-                        self.wnd.mtm().alloc::<NSVisualEffectView>(),
-                        bounds,
-                    );
-                    #[allow(deprecated)]
-                    let m = if (v as u32 > 9 && NSAppKitVersionNumber < NSAppKitVersionNumber10_14)
-                        || (v as u32 > 4 && NSAppKitVersionNumber < NSAppKitVersionNumber10_11)
-                    {
-                        NSVisualEffectMaterial::AppearanceBased
-                    } else {
-                        NSVisualEffectMaterial(v as u64 as _)
-                    };
-                    vev.setMaterial(m);
-                    vev.setBlendingMode(NSVisualEffectBlendingMode::BehindWindow);
-                    vev.setState(NSVisualEffectState::FollowsWindowActiveState);
-                    vev.setAutoresizingMask(
-                        NSAutoresizingMaskOptions::ViewWidthSizable
-                            | NSAutoresizingMaskOptions::ViewHeightSizable,
-                    );
-                    view.addSubview_positioned_relativeTo(&vev, NSWindowOrderingMode::Below, None);
-                    if let Some(vv) = self.vibrancy_view.replace(vev) {
-                        vv.removeFromSuperview();
-                    }
-                } else if let Some(vv) = self.vibrancy_view.take() {
+        catch(|| {
+            if let Some(v) = v {
+                let view = &self.content_view;
+                let bounds = view.bounds();
+                let vev: Retained<NSVisualEffectView> = NSVisualEffectView::initWithFrame(
+                    self.wnd.mtm().alloc::<NSVisualEffectView>(),
+                    bounds,
+                );
+                #[allow(deprecated)]
+                let m = if (v as u32 > 9 && !available!(macos = 10.14))
+                    || (v as u32 > 4 && !available!(macos = 10.11))
+                {
+                    NSVisualEffectMaterial::AppearanceBased
+                } else {
+                    NSVisualEffectMaterial(v as u64 as _)
+                };
+                vev.setMaterial(m);
+                vev.setBlendingMode(NSVisualEffectBlendingMode::BehindWindow);
+                vev.setState(NSVisualEffectState::FollowsWindowActiveState);
+                vev.setAutoresizingMask(
+                    NSAutoresizingMaskOptions::ViewWidthSizable
+                        | NSAutoresizingMaskOptions::ViewHeightSizable,
+                );
+                view.addSubview_positioned_relativeTo(&vev, NSWindowOrderingMode::Below, None);
+                if let Some(vv) = self.vibrancy_view.replace(vev) {
                     vv.removeFromSuperview();
                 }
-                Ok(())
-            })
-            .flatten()
-        }
+            } else if let Some(vv) = self.vibrancy_view.take() {
+                vv.removeFromSuperview();
+            }
+            Ok(())
+        })
+        .flatten()
     }
 
     pub async fn wait_size(&self) {
