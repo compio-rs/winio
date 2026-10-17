@@ -2,7 +2,7 @@ use windows_core::{HSTRING, Interface};
 use winio_handle::{AsMenuContainer, AsMenuItem, BorrowedMenuContainer, BorrowedMenuItem};
 use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
-use crate::{Result, menu::append_to_container};
+use crate::{Image, Result, menu::append_to_container};
 
 #[derive(Debug)]
 pub struct PopupMenuItem {
@@ -33,6 +33,19 @@ impl PopupMenuItem {
 
     pub fn set_text(&mut self, text: impl AsRef<str>) -> Result<()> {
         self.element.SetText(&HSTRING::from(text.as_ref()))?;
+        Ok(())
+    }
+
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
+        let icon = match icon {
+            Some(icon) => {
+                let image_icon = MUXC::ImageIcon::new()?;
+                image_icon.SetSource(icon.as_ref())?;
+                Some(image_icon.cast::<MUXC::IconElement>()?)
+            }
+            None => None,
+        };
+        self.element.SetIcon(icon.as_ref())?;
         Ok(())
     }
 }
