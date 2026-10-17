@@ -1,6 +1,7 @@
 use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
+    ptr::null_mut,
 };
 
 use inherit_methods_macro::inherit_methods;
@@ -8,11 +9,16 @@ use widestring::U16CString;
 use windows_core::WIN32_ERROR;
 use windows_sys::Win32::{
     Foundation::{ERROR_INVALID_PARAMETER, HWND},
-    UI::WindowsAndMessaging::{
-        CheckMenuItem, CreateMenu, DeleteMenu, DestroyMenu, DrawMenuBar, EnableMenuItem, GetMenu,
-        GetMenuItemInfoW, GetMenuState, HMENU, InsertMenuItemW, MENUITEMINFOW, MF_BYCOMMAND,
-        MF_CHECKED, MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_SEPARATOR, MF_UNCHECKED, MFT_RADIOCHECK,
-        MIIM_FTYPE, MIIM_ID, MIIM_STRING, MIIM_SUBMENU, SetMenu, SetMenuItemInfoW, WM_COMMAND,
+    Graphics::Gdi::HBITMAP,
+    UI::{
+        HiDpi::GetSystemMetricsForDpi,
+        WindowsAndMessaging::{
+            CheckMenuItem, CreateMenu, DeleteMenu, DestroyMenu, DrawMenuBar, EnableMenuItem,
+            GetMenu, GetMenuItemInfoW, GetMenuState, HMENU, InsertMenuItemW, MENUITEMINFOW,
+            MF_BYCOMMAND, MF_CHECKED, MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_SEPARATOR,
+            MF_UNCHECKED, MFT_RADIOCHECK, MIIM_BITMAP, MIIM_FTYPE, MIIM_ID, MIIM_STRING,
+            MIIM_SUBMENU, SM_CXMENUCHECK, SM_CYMENUCHECK, SetMenu, SetMenuItemInfoW, WM_COMMAND,
+        },
     },
 };
 use winio_handle::{
@@ -21,7 +27,14 @@ use winio_handle::{
 };
 use winio_ui_windows_common::syscall;
 
-use crate::{Error, Result, WindowMessageCommand, get_u16c, with_u16c};
+use crate::{
+    Error, Result, WindowMessageCommand, get_u16c,
+    platform::{
+        dpi::get_dpi_for_window,
+        image::{Image, WinBitmap},
+    },
+    with_u16c,
+};
 
 #[derive(Debug)]
 pub(crate) struct OwnedMenu(HMENU);
@@ -66,6 +79,74 @@ fn parent_window(mut m: HMENU) -> Option<HWND> {
         }
     });
     HMENU_HWND_MAP.with_borrow(|map| map.get(&m).copied())
+}
+
+struct MenuIcon {
+    _bitmap: WinBitmap,
+    image: Image,
+    size: (i32, i32),
+}
+
+thread_local! {
+    static HMENU_ICONS: RefCell<HashMap<(HMENU, u32), MenuIcon>> = RefCell::new(HashMap::new());
+}
+
+fn menu_icon_size(parent: HMENU) -> (i32, i32) {
+    let dpi = get_dpi_for_window(parent_window(parent).unwrap_or_default());
+    unsafe {
+        (
+            GetSystemMetricsForDpi(SM_CXMENUCHECK, dpi),
+            GetSystemMetricsForDpi(SM_CYMENUCHECK, dpi),
+        )
+    }
+}
+
+fn set_item_bitmap(parent: HMENU, id: u32, bitmap: HBITMAP) -> Result<()> {
+    let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
+    info.cbSize = size_of::<MENUITEMINFOW>() as _;
+    info.fMask = MIIM_BITMAP;
+    info.hbmpItem = bitmap;
+    syscall!(BOOL, SetMenuItemInfoW(parent, id, 0, &info))?;
+    Ok(())
+}
+
+pub(crate) fn refresh_menu_icons(hwnd: HWND) -> Result<()> {
+    let keys = HMENU_ICONS.with_borrow(|icons| {
+        icons
+            .keys()
+            .copied()
+            .filter(|&(parent, _)| parent_window(parent) == Some(hwnd))
+            .collect::<Vec<_>>()
+    });
+
+    for key in keys {
+        let Some((image, old_size)) = HMENU_ICONS
+            .with_borrow(|icons| icons.get(&key).map(|icon| (icon.image.clone(), icon.size)))
+        else {
+            continue;
+        };
+
+        let size = menu_icon_size(key.0);
+        if size == old_size {
+            continue;
+        }
+
+        let bitmap = image.to_hbitmap(size)?;
+        set_item_bitmap(key.0, key.1, bitmap.0)?;
+        HMENU_ICONS.with_borrow_mut(|icons| {
+            icons.insert(
+                key,
+                MenuIcon {
+                    _bitmap: bitmap,
+                    image,
+                    size,
+                },
+            )
+        });
+    }
+
+    syscall!(BOOL, DrawMenuBar(hwnd))?;
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -226,6 +307,37 @@ impl MenuItemImpl {
         Ok(())
     }
 
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
+        let key = (self.parent, self.id);
+
+        let icon = match icon {
+            Some(image) => {
+                let size = menu_icon_size(self.parent);
+                let bitmap = image.to_hbitmap(size)?;
+                set_item_bitmap(self.parent, self.id, bitmap.0)?;
+                Some(MenuIcon {
+                    _bitmap: bitmap,
+                    image: image.clone(),
+                    size,
+                })
+            }
+            None => {
+                set_item_bitmap(self.parent, self.id, null_mut())?;
+                None
+            }
+        };
+
+        HMENU_ICONS.with_borrow_mut(|icons| match icon {
+            Some(icon) => icons.insert(key, icon),
+            None => icons.remove(&key),
+        });
+
+        if let Some(hwnd) = parent_window(self.parent) {
+            syscall!(BOOL, DrawMenuBar(hwnd))?;
+        }
+        Ok(())
+    }
+
     pub fn is_checked_impl(&self) -> bool {
         let state = unsafe { GetMenuState(self.parent, self.id, MF_BYCOMMAND) };
         (state & MF_CHECKED) != 0
@@ -275,6 +387,7 @@ impl AsMenuItem for MenuItemImpl {
 impl Drop for MenuItemImpl {
     fn drop(&mut self) {
         let _ = syscall!(BOOL, DeleteMenu(self.parent, self.id, MF_BYCOMMAND));
+        HMENU_ICONS.with_borrow_mut(|icons| icons.remove(&(self.parent, self.id)));
     }
 }
 
@@ -332,6 +445,8 @@ impl MenuItem {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()>;
+
     pub async fn wait_click(&self) {
         self.item.wait_click().await;
     }
@@ -362,6 +477,8 @@ impl PopupMenuItem {
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()>;
 }
 
 impl Drop for PopupMenuItem {

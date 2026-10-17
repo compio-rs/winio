@@ -29,7 +29,7 @@ use winio_ui_windows_common::rgba8_to_pbgra8;
 use super::dpi::get_dpi_for_window;
 use crate::{DrawingContext, DrawingImage, Result};
 
-struct WinBitmap(HBITMAP);
+pub(crate) struct WinBitmap(pub HBITMAP);
 
 impl WinBitmap {
     pub fn retain(h: HBITMAP) -> Result<Self> {
@@ -100,7 +100,7 @@ impl Image {
     }
 
     #[allow(non_upper_case_globals)]
-    fn to_hicon(&self, resize: Option<(i32, i32)>) -> Result<WinIcon> {
+    fn create_dib(&self, resize: Option<(i32, i32)>) -> Result<(WinBitmap, i32, i32)> {
         let (mut data, width, height) = match resize {
             Some((width, height)) => {
                 let data = self
@@ -149,6 +149,14 @@ impl Image {
                 std::slice::from_raw_parts_mut(bits.cast::<u8>(), (width * height * 4) as _);
             slice.copy_from_slice(&data);
 
+            Ok((bitmap, width, height))
+        }
+    }
+
+    fn to_hicon(&self, resize: Option<(i32, i32)>) -> Result<WinIcon> {
+        let (bitmap, width, height) = self.create_dib(resize)?;
+
+        unsafe {
             let mask = WinBitmap::retain(CreateBitmap(width, height, 1, 0, null()))?;
 
             let mut info: ICONINFO = std::mem::zeroed();
@@ -158,6 +166,10 @@ impl Image {
 
             WinIcon::retain(CreateIconIndirect(&info))
         }
+    }
+
+    pub(crate) fn to_hbitmap(&self, size: (i32, i32)) -> Result<WinBitmap> {
+        Ok(self.create_dib(Some(size))?.0)
     }
 }
 
