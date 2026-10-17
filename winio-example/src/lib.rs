@@ -63,7 +63,6 @@ pub enum MainMessage {
     PushToCombo,
     PopFromCombo,
     ShowComboSelection,
-    SetPassword(bool),
     #[cfg(feature = "wgpu")]
     WgpuOption(bool),
 }
@@ -127,6 +126,12 @@ impl Component for MainModel {
             #[cfg(not(all(feature = "webview", feature = "compio-compat")))]
             markdown: DummyPage = (("Markdown", "webview,compio-compat")),
         }
+
+        misc.show_password_prop()?
+            .bind(menu_bar.sender(), ExampleMenuBarMessage::SetShowPassword);
+        menu_bar
+            .show_password_prop()?
+            .bind(misc.sender(), MiscPageMessage::SetPassword);
 
         tabview.push(&misc)?;
         tabview.push(&bind)?;
@@ -215,7 +220,6 @@ impl Component for MainModel {
                 ExampleMenuBarEvent::Push => MainMessage::PushToCombo,
                 ExampleMenuBarEvent::Pop => MainMessage::PopFromCombo,
                 ExampleMenuBarEvent::Show => MainMessage::ShowComboSelection,
-                ExampleMenuBarEvent::ShowPassword(v) => MainMessage::SetPassword(v),
                 #[cfg(feature = "compio-compat")]
                 ExampleMenuBarEvent::OpenFile => MainMessage::ChooseFile,
                 #[cfg(feature = "wgpu")]
@@ -380,7 +384,6 @@ impl Component for MainModel {
             MainMessage::PushToCombo => self.misc.emit(MiscPageMessage::Push).await,
             MainMessage::PopFromCombo => self.misc.emit(MiscPageMessage::Pop).await,
             MainMessage::ShowComboSelection => self.misc.emit(MiscPageMessage::Show).await,
-            MainMessage::SetPassword(v) => self.misc.emit(MiscPageMessage::SetPassword(v)).await,
             #[cfg(feature = "wgpu")]
             MainMessage::WgpuOption(v) => self.wgpu.emit(WgpuPageMessage::Clockwise(v)).await,
         }
