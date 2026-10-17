@@ -9,8 +9,8 @@ use winio_callback::Callback;
 use winio_handle::{AsMenuContainer, AsMenuItem, BorrowedMenuItem};
 
 use crate::{
-    GlobalRuntime, Result,
-    menu::{ACTION_PREFIX, ACTIONS, SECTION_DATA, alloc_action_name},
+    GlobalRuntime, Image, Result,
+    menu::{ACTION_PREFIX, ACTIONS, SECTION_DATA, alloc_action_name, refresh_menu_icons},
 };
 
 #[derive(Debug)]
@@ -42,6 +42,7 @@ impl ItemBase {
         };
         let item_index = parent.n_items();
         parent.append_item(&item);
+        refresh_menu_icons();
 
         Ok(Self {
             label: String::new(),
@@ -59,9 +60,23 @@ impl ItemBase {
         let s = s.as_ref();
         self.label = s.to_string();
         self.item.set_label(Some(s));
+        self.refresh();
+        Ok(())
+    }
+
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
+        match icon {
+            Some(icon) => self.item.set_icon(icon.texture()),
+            None => self.item.set_attribute_value("icon", None),
+        }
+        self.refresh();
+        Ok(())
+    }
+
+    fn refresh(&self) {
         self.parent.remove(self.item_index);
         self.parent.insert_item(self.item_index, &self.item);
-        Ok(())
+        refresh_menu_icons();
     }
 }
 
@@ -116,6 +131,8 @@ impl MenuItem {
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()>;
 
     pub async fn wait_click(&self) {
         self.on_click.wait().await
