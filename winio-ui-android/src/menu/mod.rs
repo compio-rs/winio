@@ -17,10 +17,13 @@ use winio_handle::{
 };
 
 use crate::{
-    JCharSequenceExt, Result,
-    java::android::view::{
-        Menu as JMenu, MenuItem as JMenuItem, MenuItemOnMenuItemClickListener, SubMenu as JSubMenu,
-        menu, menu_item,
+    Image, JCharSequenceExt, Result,
+    java::android::{
+        graphics::drawable::Drawable,
+        view::{
+            Menu as JMenu, MenuItem as JMenuItem, MenuItemOnMenuItemClickListener,
+            SubMenu as JSubMenu, menu, menu_item,
+        },
     },
 };
 
@@ -142,6 +145,19 @@ impl LeafItem {
         Ok(())
     }
 
+    pub fn set_icon(&self, env: &mut Env<'_>, icon: Option<&Image>) -> Result<()> {
+        match icon {
+            Some(icon) => {
+                let drawable = icon.drawable(env)?;
+                self.item.set_icon(env, drawable)?;
+            }
+            None => {
+                self.item.set_icon(env, Drawable::null())?;
+            }
+        }
+        Ok(())
+    }
+
     pub fn is_enabled(&self, env: &mut Env<'_>) -> Result<bool> {
         Ok(self.item.is_enabled(env)?)
     }
@@ -233,6 +249,19 @@ impl SubMenuItem {
     pub fn set_text(&self, env: &mut Env<'_>, s: impl AsRef<str>) -> Result<()> {
         let title = env.new_string(s.as_ref())?;
         self.item.set_title(env, title)?;
+        Ok(())
+    }
+
+    pub fn set_icon(&self, env: &mut Env<'_>, icon: Option<&Image>) -> Result<()> {
+        match icon {
+            Some(icon) => {
+                let drawable = icon.drawable(env)?;
+                self.item.set_icon(env, drawable)?;
+            }
+            None => {
+                self.item.set_icon(env, Drawable::null())?;
+            }
+        }
         Ok(())
     }
 

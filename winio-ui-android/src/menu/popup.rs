@@ -1,6 +1,6 @@
 use winio_handle::AsMenuContainer;
 
-use crate::{Result, menu::SubMenuItem, vm_exec};
+use crate::{Image, Result, menu::SubMenuItem, vm_exec};
 
 #[derive(Debug)]
 pub struct PopupMenuItem {
@@ -31,6 +31,10 @@ impl PopupMenuItem {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         vm_exec(|env| self.inner.set_text(env, s))
+    }
+
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
+        vm_exec(|env| self.inner.set_icon(env, icon))
     }
 }
 

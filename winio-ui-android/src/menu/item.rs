@@ -1,7 +1,7 @@
 use winio_handle::AsMenuContainer;
 
 use crate::{
-    Result,
+    Image, Result,
     menu::{LeafItem, LeafKind},
     vm_exec,
 };
@@ -34,6 +34,10 @@ impl MenuItem {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         vm_exec(|env| self.inner.set_text(env, s))
+    }
+
+    pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
+        vm_exec(|env| self.inner.set_icon(env, icon))
     }
 
     pub async fn wait_click(&self) {
