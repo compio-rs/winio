@@ -34,6 +34,12 @@ impl TextWidget for GroupBox {
 }
 
 #[inherit_methods(from = "self.widget")]
+impl GroupBox {
+    /// Get the size of the area inside the border.
+    pub fn client_size(&self) -> Result<Size>;
+}
+
+#[inherit_methods(from = "self.widget")]
 impl Layoutable for GroupBox {
     fn loc(&self) -> Result<Point>;
 

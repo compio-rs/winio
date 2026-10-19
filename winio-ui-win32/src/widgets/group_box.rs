@@ -52,6 +52,10 @@ impl GroupBox {
         self.handle.measure_text()
     }
 
+    pub fn client_size(&self) -> Result<Size> {
+        self.view.size()
+    }
+
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
