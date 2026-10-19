@@ -6,6 +6,7 @@ use std::{
 };
 
 use android_activity::ndk::looper::{FdEvent, ForeignLooper};
+use compio_log::warn;
 use rustix::{
     fs::Timespec,
     time::{
@@ -54,7 +55,19 @@ impl Timer {
     pub fn start(&mut self) -> Result<()> {
         let callback = self.callback.clone();
         self.looper
-            .add_fd_with_callback(self.timer.as_fd(), FdEvent::INPUT, move |_, _| {
+            .add_fd_with_callback(self.timer.as_fd(), FdEvent::INPUT, move |fd, _| {
+                let mut expirations = [0u8; size_of::<u64>()];
+                loop {
+                    match rustix::io::read(fd, &mut expirations) {
+                        Ok(_) => break,
+                        Err(rustix::io::Errno::INTR) => continue,
+                        Err(rustix::io::Errno::AGAIN) => break,
+                        Err(e) => {
+                            warn!("Cannot read timerfd: {e}");
+                            break;
+                        }
+                    }
+                }
                 callback.signal(());
                 true
             })
