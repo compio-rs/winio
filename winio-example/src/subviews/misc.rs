@@ -19,6 +19,9 @@ cfg_if::cfg_if! {
 
 use backdrop::*;
 
+mod bind;
+use bind::*;
+
 pub struct MiscPage {
     window: Child<TabViewItem>,
     github: Child<Picture>,
@@ -41,6 +44,7 @@ pub struct MiscPage {
     progress: Child<Progress>,
     mltext: Child<TextBox>,
     backdrop: Child<BackdropChooser>,
+    bind_page: Child<BindPage>,
 }
 
 #[derive(Debug)]
@@ -162,6 +166,7 @@ impl Component for MiscPage {
                 text: "This is an example of\nmulti-line text box.",
             },
             backdrop: BackdropChooser = (&window),
+            bind_page: BindPage = (&*window),
         }
 
         sender.post(MiscPageMessage::RSelect(0));
@@ -204,6 +209,7 @@ impl Component for MiscPage {
             progress,
             mltext,
             backdrop,
+            bind_page,
         })
     }
 
@@ -245,7 +251,8 @@ impl Component for MiscPage {
                 BackdropChooserEvent::ChooseBackdrop(b) => MiscPageMessage::ChooseBackdrop(b),
                 #[cfg(target_os = "macos")]
                 BackdropChooserEvent::ChooseVibrancy(v) => MiscPageMessage::ChooseVibrancy(v),
-            }
+            },
+            self.bind_page => {},
         }
     }
 
@@ -268,7 +275,8 @@ impl Component for MiscPage {
             self.show_button,
             self.progress,
             self.mltext,
-            self.backdrop
+            self.backdrop,
+            self.bind_page
         )
     }
 
@@ -389,34 +397,35 @@ impl Component for MiscPage {
 
             let mut root_panel = if csize.width < csize.height {
                 layout! {
-                    Grid::from_str("1*", "auto,1*,1*,auto,auto,1*,auto,1*,1*").unwrap(),
-                    self.backdrop => { column: 0, row: 0, halign: HAlign::Stretch, margin: Margin::new_all_same(8.0) },
-                    cred_panel    => { column: 0, row: 1 },
+                    Grid::from_str("1*,1*", "auto,1*,1*,auto,auto,1*,auto,1*,1*").unwrap(),
+                    self.backdrop => { column: 0, row: 0, column_span: 2, halign: HAlign::Stretch, margin: Margin::new_all_same(8.0) },
+                    cred_panel    => { column: 0, row: 1, column_span: 2 },
                     rgroup_panel  => { column: 0, row: 2, halign: HAlign::Center },
                     self.combo    => { column: 0, row: 3, halign: HAlign::Center },
                     self.progress => { column: 0, row: 4 },
                     self.canvas   => { column: 0, row: 5 },
-                    self.klabel   => { column: 0, row: 6, halign: HAlign::Center },
-                    self.mltext   => { column: 0, row: 7, margin: Margin::new_all_same(8.0) },
-                    buttons_panel => { column: 0, row: 8 },
+                    self.bind_page => { column: 1, row: 2, row_span: 4, halign: HAlign::Stretch, valign: VAlign::Stretch, margin: Margin::new_all_same(8.0) },
+                    self.klabel   => { column: 0, row: 6, column_span: 2, halign: HAlign::Center },
+                    self.mltext   => { column: 0, row: 7, column_span: 2, margin: Margin::new_all_same(8.0) },
+                    buttons_panel => { column: 0, row: 8, column_span: 2 },
                 }
             } else {
                 layout! {
-                    Grid::from_str("1*,1*,1*", "1*,auto,1*").unwrap(),
+                    Grid::from_str("1*,1*,1*", "1*,auto,1*,1*").unwrap(),
                     self.backdrop => { column: 0, row: 0, halign: HAlign::Stretch, valign: VAlign::Center, margin: Margin::new_all_same(8.0) },
                     cred_panel    => { column: 1, row: 0 },
                     rgroup_panel  => { column: 2, row: 0, halign: HAlign::Center },
                     self.klabel   => { column: 0, row: 1, halign: HAlign::Center },
-                    self.canvas   => { column: 0, row: 2 },
+                    self.canvas   => { column: 0, row: 2, row_span: 2 },
                     self.combo    => { column: 1, row: 1, halign: HAlign::Center },
                     self.progress => { column: 2, row: 1 },
-                    self.mltext   => { column: 1, row: 2, margin: Margin::new_all_same(8.0) },
-                    buttons_panel => { column: 2, row: 2 },
+                    self.bind_page => { column: 1, row: 2, column_span: 2, halign: HAlign::Stretch, valign: VAlign::Stretch, margin: Margin::new_all_same(8.0) },
+                    self.mltext   => { column: 1, row: 3, margin: Margin::new_all_same(8.0) },
+                    buttons_panel => { column: 2, row: 3 },
                 }
             };
 
             root_panel.set_size(csize)?;
-            self.backdrop.render()?;
         }
 
         let size = self.canvas.size()?;
@@ -487,6 +496,12 @@ impl Component for MiscPage {
             Point::new(cx, cy),
             "Hello world!",
         )?;
+        Ok(())
+    }
+
+    fn render_children(&mut self) -> Result<()> {
+        self.backdrop.render()?;
+        self.bind_page.render()?;
         Ok(())
     }
 }

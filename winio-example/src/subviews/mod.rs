@@ -7,9 +7,6 @@ pub use misc::*;
 mod menu_bar;
 pub use menu_bar::*;
 
-mod bind;
-pub use bind::*;
-
 cfg_if::cfg_if! {
     if #[cfg(feature = "compio-compat")] {
         mod fs;

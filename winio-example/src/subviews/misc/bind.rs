@@ -1,11 +1,12 @@
 use std::ops::Deref;
 
-use winio::prelude::*;
+use inherit_methods_macro::inherit_methods;
+use winio::prelude::{Error as SysError, Result as SysResult, *};
 
 use crate::{Error, Result};
 
 pub struct BindPage {
-    window: Child<TabViewItem>,
+    window: Child<View>,
     label_edit1: Child<Label>,
     label_edit2: Child<Label>,
     label_label: Child<Label>,
@@ -32,14 +33,12 @@ pub enum BindPageMessage {
 impl Component for BindPage {
     type Error = Error;
     type Event = BindPageEvent;
-    type Init<'a> = ();
+    type Init<'a> = &'a TabViewItem;
     type Message = BindPageMessage;
 
-    async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
-            window: TabViewItem = (()) => {
-                text: "Bind",
-            },
+            window: View = (init),
             label_edit1: Label = (&window) => {
                 text: "Edit 1:",
                 halign: HAlign::Right,
@@ -62,7 +61,7 @@ impl Component for BindPage {
                 text: "Bind back"
             },
             chk_1_label: CheckBox = (&window) => {
-                text: "Bind"
+                text: "Bind label"
             },
         }
 
@@ -164,17 +163,32 @@ impl Component for BindPage {
     fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
         let csize = self.window.size()?;
         let margin = Margin::new_all_same(4.0);
-        let mut grid = layout! {
-            Grid::from_str("1*,auto,1*,auto,auto,1*", "1*,auto,auto,auto,1*").unwrap(),
-            self.label_edit1 => { margin: margin, column: 1, row: 1, valign: VAlign::Center },
-            self.label_edit2 => { margin: margin, column: 1, row: 2, valign: VAlign::Center },
-            self.label_label => { margin: margin, column: 1, row: 3, valign: VAlign::Center },
-            self.edit1 => { margin: margin, column: 2, row: 1 },
-            self.edit2 => { margin: margin, column: 2, row: 2 },
-            self.label => { margin: margin, column: 2, row: 3 },
-            self.chk_1_2 => { margin: margin, column: 3, row: 2 },
-            self.chk_2_1 => { margin: margin, column: 4, row: 2 },
-            self.chk_1_label => { margin: margin, column: 3, row: 3 },
+        let mut grid = if csize.width >= csize.height * 2.0 {
+            layout! {
+                Grid::from_str("1*,auto,1*,auto,auto,1*", "1*,auto,auto,auto,1*").unwrap(),
+                self.label_edit1 => { margin: margin, column: 1, row: 1, valign: VAlign::Center },
+                self.label_edit2 => { margin: margin, column: 1, row: 2, valign: VAlign::Center },
+                self.label_label => { margin: margin, column: 1, row: 3, valign: VAlign::Center },
+                self.edit1 => { margin: margin, column: 2, row: 1 },
+                self.edit2 => { margin: margin, column: 2, row: 2 },
+                self.label => { margin: margin, column: 2, row: 3 },
+                self.chk_1_2 => { margin: margin, column: 3, row: 2 },
+                self.chk_2_1 => { margin: margin, column: 4, row: 2 },
+                self.chk_1_label => { margin: margin, column: 3, row: 3 },
+            }
+        } else {
+            layout! {
+                Grid::from_str("1*,auto,1*,1*", "1*,auto,auto,auto,auto,auto,auto,1*").unwrap(),
+                self.label_edit1 => { margin: margin, column: 1, row: 1, valign: VAlign::Center },
+                self.label_edit2 => { margin: margin, column: 1, row: 2, valign: VAlign::Center },
+                self.label_label => { margin: margin, column: 1, row: 3, valign: VAlign::Center },
+                self.edit1 => { margin: margin, column: 2, row: 1 },
+                self.edit2 => { margin: margin, column: 2, row: 2 },
+                self.label => { margin: margin, column: 2, row: 3 },
+                self.chk_1_2 => { margin: margin, column: 1, column_span: 2, row: 4 },
+                self.chk_2_1 => { margin: margin, column: 1, column_span: 2, row: 5 },
+                self.chk_1_label => { margin: margin, column: 1, column_span: 2, row: 6 },
+            }
         };
         grid.set_size(csize)?;
         Ok(())
@@ -182,9 +196,28 @@ impl Component for BindPage {
 }
 
 impl Deref for BindPage {
-    type Target = TabViewItem;
+    type Target = View;
 
     fn deref(&self) -> &Self::Target {
         &self.window
     }
+}
+
+impl Failable for BindPage {
+    type Error = SysError;
+}
+
+#[inherit_methods(from = "self.window")]
+impl Layoutable for BindPage {
+    fn loc(&self) -> SysResult<Point>;
+
+    fn set_loc(&mut self, p: Point) -> SysResult<()>;
+
+    fn size(&self) -> SysResult<Size>;
+
+    fn set_size(&mut self, s: Size) -> SysResult<()>;
+
+    fn preferred_size(&self) -> SysResult<Size>;
+
+    fn min_size(&self) -> SysResult<Size>;
 }
