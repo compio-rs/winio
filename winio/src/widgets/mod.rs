@@ -71,3 +71,6 @@ pub use wgpu::*;
 
 mod timer;
 pub use timer::*;
+
+mod group_box;
+pub use group_box::*;
