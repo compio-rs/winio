@@ -123,7 +123,7 @@ impl MessageBox {
         self,
         parent: Option<impl AsWindow>,
     ) -> Result<impl Future<Output = Result<MessageBoxResponse>> + 'static> {
-        let (mut rx, _proxy) = vm_exec(|env| {
+        let (mut rx, proxy) = vm_exec(|env| {
             let activity = if let Some(parent) = parent {
                 let act = env.new_local_ref(parent.as_window().to_android())?;
                 unsafe { Activity::from_raw(env, act.into_raw()) }
@@ -191,6 +191,7 @@ impl MessageBox {
             Result::Ok((rx, proxy))
         })?;
         Ok(async move {
+            let _proxy = proxy;
             rx.recv()
                 .await
                 .map_err(|e| Error::Io(std::io::Error::other(e)))
