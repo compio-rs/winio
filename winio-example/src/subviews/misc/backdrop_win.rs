@@ -91,17 +91,35 @@ impl Component for BackdropChooser {
     fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
         let csize = self.view.size()?;
 
-        let mut panel = StackPanel::new(Orient::Vertical);
-        for r in &mut self.radios[..] {
-            panel.push(r).finish();
+        if csize.width <= csize.height {
+            let mut panel = StackPanel::new(Orient::Vertical);
+            for r in &mut self.radios[..] {
+                panel.push(r).finish();
+            }
+
+            let mut grid = layout! {
+                Grid::from_str("1*,auto,1*", "auto").unwrap(),
+                panel => { column: 1, row: 0 }
+            };
+            grid.set_size(csize)?;
+        } else {
+            let mut panel1 = StackPanel::new(Orient::Vertical);
+            let (radios1, radios2) = self.radios.split_at_mut(2);
+            for r in radios1 {
+                panel1.push(r).finish();
+            }
+            let mut panel2 = StackPanel::new(Orient::Vertical);
+            for r in radios2 {
+                panel2.push(r).finish();
+            }
+            let mut grid = layout! {
+                Grid::from_str("1*,auto,auto,1*", "auto").unwrap(),
+                panel1 => { column: 1, row: 0 },
+                panel2 => { column: 2, row: 0 }
+            };
+            grid.set_size(csize)?;
         }
 
-        let mut grid = layout! {
-            Grid::from_str("1*,auto,1*", "auto").unwrap(),
-            panel => { column: 1, row: 0 }
-        };
-
-        grid.set_size(csize)?;
         Ok(())
     }
 
@@ -127,9 +145,15 @@ impl Layoutable for BackdropChooser {
     fn set_size(&mut self, s: Size) -> SysResult<()>;
 
     fn preferred_size(&self) -> SysResult<Size> {
+        let csize = self.size()?;
         let mut width = 0.0f64;
         let mut height = 0.0f64;
-        for rb in &self.radios[..] {
+        let len = if csize.width <= csize.height {
+            self.radios.len()
+        } else {
+            2
+        };
+        for rb in &self.radios[..len] {
             let ps = rb.preferred_size()?;
             width = width.max(ps.width);
             height += ps.height;
