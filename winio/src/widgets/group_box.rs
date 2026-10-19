@@ -42,6 +42,8 @@ impl Layoutable for GroupBox {
     fn size(&self) -> Result<Size>;
 
     fn set_size(&mut self, s: Size) -> Result<()>;
+
+    fn preferred_size(&self) -> Result<Size>;
 }
 
 /// Events of [`GroupBox`].

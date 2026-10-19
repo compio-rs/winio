@@ -202,7 +202,7 @@ impl Widget {
                 Err(e) if e.code().is_ok() => {}
                 Err(e) => return Err(e),
             }
-            Ok((rect.left, rect.right))
+            Ok((rect.left, rect.top))
         }
     }
 
