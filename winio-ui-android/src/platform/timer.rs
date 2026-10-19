@@ -30,14 +30,15 @@ impl Timer {
     pub fn new(interval: Duration) -> Result<Self> {
         let looper = ForeignLooper::for_thread()
             .ok_or_else(|| io::Error::other("looper not initialized"))?;
+        let interval = Timespec::try_from(interval)
+            .map_err(io::Error::other)?
+            .max(Timespec {
+                tv_sec: 0,
+                tv_nsec: 1,
+            });
         let interval = Itimerspec {
-            it_interval: Timespec::default(),
-            it_value: Timespec::try_from(interval)
-                .map_err(io::Error::other)?
-                .max(Timespec {
-                    tv_sec: 0,
-                    tv_nsec: 1,
-                }),
+            it_interval: interval,
+            it_value: interval,
         };
         let timer = timerfd_create(
             TimerfdClockId::Monotonic,
