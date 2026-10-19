@@ -24,26 +24,13 @@ pub struct App {
 
 impl App {
     pub fn new(app: AndroidApp) -> Result<Self> {
-        let vm = unsafe { JavaVM::from_raw(app.vm_as_ptr().cast()) };
-        let activity = vm.attach_current_thread(|env| Self::activity(&app, env))?;
-        ACTIVITY.lock().unwrap().replace(activity);
+        let _vm = unsafe { JavaVM::from_raw(app.vm_as_ptr().cast()) };
+        APP.lock().unwrap().replace(app.clone());
         Ok(Self { app })
     }
 
-    pub(crate) fn activity(app: &AndroidApp, env: &Env<'_>) -> Result<Global<JObject<'static>>> {
-        let activity = app.activity_as_ptr() as jni::sys::jobject;
-        let activity = unsafe { env.as_cast_raw::<Global<JObject>>(&activity)? };
-        Ok(env.new_global_ref(&activity)?)
-    }
-
     fn run_current_task(&self) {
-        self.app.run_on_java_main_thread(Box::new(|| {
-            MAIN_TASK.with_borrow(|task| {
-                if let Some(task) = task.as_ref() {
-                    task.poll();
-                }
-            });
-        }))
+        wake_main_task();
     }
 
     pub fn block_on<F: Future<Output = ()>>(
@@ -82,10 +69,39 @@ impl App {
     }
 }
 
-static ACTIVITY: Mutex<Option<Global<JObject<'static>>>> = Mutex::new(None);
+static APP: Mutex<Option<AndroidApp>> = Mutex::new(None);
 
 thread_local! {
     static MAIN_TASK: RefCell<Option<MainTask>> = const { RefCell::new(None) };
+}
+
+fn poll_main_task() {
+    MAIN_TASK.with_borrow(|task| {
+        if let Some(task) = task.as_ref() {
+            task.poll();
+        }
+    });
+}
+
+fn wake_main_task() {
+    let app = APP.lock().unwrap().clone();
+    if let Some(app) = app {
+        app.run_on_java_main_thread(Box::new(poll_main_task));
+    }
+}
+
+pub(crate) struct AndroidRuntime;
+
+impl winio_callback::Runnable for AndroidRuntime {
+    fn run() {
+        poll_main_task();
+    }
+}
+
+impl winio_callback::SyncRunnable for AndroidRuntime {
+    fn run() {
+        wake_main_task();
+    }
 }
 
 fn looper_waker() -> Waker {
@@ -134,8 +150,11 @@ where
 }
 
 pub(crate) fn current_activity<'local>(env: &mut Env<'local>) -> Result<Activity<'local>> {
-    let act = ACTIVITY.lock().unwrap();
-    let obj = env.new_local_ref(act.as_ref().ok_or(Error::NoApp)?.as_obj())?;
+    let app = APP.lock().unwrap();
+    let app = app.as_ref().ok_or(Error::NoApp)?;
+    let activity = app.activity_as_ptr() as jni::sys::jobject;
+    let activity = unsafe { env.as_cast_raw::<Global<JObject>>(&activity)? };
+    let obj = env.new_local_ref(activity)?;
     Ok(unsafe { Activity::from_raw(env, obj.into_raw()) })
 }
 

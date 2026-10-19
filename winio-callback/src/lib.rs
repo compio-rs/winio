@@ -13,6 +13,8 @@ use std::{
 };
 
 /// An abstract for global runtime.
+///
+/// It is always called from the main thread.
 pub trait Runnable {
     /// It will be called if the callback is signaled, and there's a waker to be
     /// waked.
@@ -20,6 +22,19 @@ pub trait Runnable {
 }
 
 impl Runnable for () {
+    fn run() {}
+}
+
+/// An abstract for a runtime that may be run from any thread.
+///
+/// Unlike [`Runnable`], which is always called from the main thread and may
+/// poll the main task directly, this may be called from any thread.
+pub trait SyncRunnable: Send + Sync {
+    /// It will be called if the callback is signaled.
+    fn run();
+}
+
+impl SyncRunnable for () {
     fn run() {}
 }
 
@@ -134,19 +149,25 @@ impl<T> SyncCallback<T> {
 
     /// Signal the callback and try to run the runtime if there's a waker
     /// waiting.
-    pub fn signal(&self, v: T) {
+    pub fn signal<R: SyncRunnable>(&self, v: T) {
         let mut state = self.0.lock().unwrap();
-        match &*state {
-            WakerState::Inactive => {}
+        let need_run = match &*state {
+            WakerState::Inactive => false,
             WakerState::Signaled(_) => {
                 // If a state is signaled again, the runtime might be too busy
                 // to wake the waker. Just try to run it again.
+                true
             }
             WakerState::Active(waker) => {
                 waker.wake_by_ref();
+                true
             }
-        }
+        };
         *state = WakerState::Signaled(v);
+        drop(state);
+        if need_run {
+            R::run();
+        }
     }
 
     pub(crate) fn register(&self, waker: &Waker) -> Poll<T> {

@@ -25,6 +25,7 @@ use crate::{
         custom::Activity,
     },
     platform::dpi::{logical_margin, logical_size, physical_point, physical_size},
+    runtime::AndroidRuntime,
     vm_exec,
 };
 
@@ -107,7 +108,7 @@ impl Window {
                                 || bottom != old_bottom
                             {
                                 *size_update.lock().unwrap() = (right - left, bottom - top);
-                                on_resize.signal(());
+                                on_resize.signal::<AndroidRuntime>(());
                             }
                         }
                         Ok(JObject::null())

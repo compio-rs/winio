@@ -15,6 +15,7 @@ use winio_primitive::KeyCode;
 use crate::{
     Result,
     java::android::view::{KeyEvent, View, ViewOnKeyListener},
+    runtime::AndroidRuntime,
 };
 
 pub(crate) fn key_code(env: &mut Env<'_>, event: &KeyEvent<'_>) -> jni::errors::Result<KeyCode> {
@@ -106,7 +107,7 @@ impl Keyboard {
                     let code = key_code(env, &event)?;
                     let mut handled = code != KeyCode::Unidentified;
                     if action == ndk::AKEY_EVENT_ACTION_DOWN {
-                        key_down.signal(code);
+                        key_down.signal::<AndroidRuntime>(code);
                         let modifiers = event.get_meta_state(env)?;
                         if modifiers as u32 & ndk::AMETA_META_ON == 0
                             && let Some(c) = unicode_char(event.get_unicode_char(env, modifiers)?)
@@ -115,7 +116,7 @@ impl Keyboard {
                             handled = true;
                         }
                     } else {
-                        key_up.signal(code);
+                        key_up.signal::<AndroidRuntime>(code);
                     }
                     // Let Android handle device/system keys outside our
                     // portable set.
@@ -155,7 +156,7 @@ struct KeyCharCallback {
 impl KeyCharCallback {
     fn signal(&self, c: char) {
         self.pending.lock().unwrap().push_back(c);
-        self.ready.signal(());
+        self.ready.signal::<AndroidRuntime>(());
     }
 
     async fn wait(&self) -> char {

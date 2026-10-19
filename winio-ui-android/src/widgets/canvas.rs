@@ -31,6 +31,7 @@ use crate::{
         widget::ImageView,
     },
     platform::Keyboard,
+    runtime::AndroidRuntime,
     vm_exec,
 };
 
@@ -863,23 +864,23 @@ pub(crate) fn view_touch_proxy(
                     let view = unsafe { AView::from_raw(env, view.into_raw()) };
                     view.request_focus(env)?;
                     let btn = event.get_action_button(env)?;
-                    on_down.signal(button(btn));
+                    on_down.signal::<AndroidRuntime>(button(btn));
                 }
                 ACTION_UP => {
                     let btn = event.get_action_button(env)?;
-                    on_up.signal(button(btn));
+                    on_up.signal::<AndroidRuntime>(button(btn));
                 }
                 ACTION_MOVE | ACTION_HOVER_MOVE => {
                     let x = event.get_x(env)?;
                     let y = event.get_y(env)?;
                     let point = Point::new(x as f64, y as f64);
-                    on_move.signal(point);
+                    on_move.signal::<AndroidRuntime>(point);
                 }
                 ACTION_SCROLL => {
                     let h = event.get_axis_value(env, AXIS_HSCROLL)?;
                     let v = event.get_axis_value(env, AXIS_VSCROLL)?;
                     let vector = Vector::new(h as f64, v as f64);
-                    on_scroll.signal(vector);
+                    on_scroll.signal::<AndroidRuntime>(vector);
                 }
                 _ => {}
             }

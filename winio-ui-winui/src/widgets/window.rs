@@ -400,7 +400,7 @@ impl ColorThemeWatcher {
         let token = {
             let notify = notify.clone();
             settings.ColorValuesChanged(move |_, _| {
-                notify.signal(());
+                notify.signal::<()>(());
                 Ok(())
             })?
         };

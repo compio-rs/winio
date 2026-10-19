@@ -24,6 +24,7 @@ use crate::{
         custom::WinioClickableSpan,
         lang::JRunnable,
     },
+    runtime::AndroidRuntime,
     vm_exec,
     widgets::{font_to_text_view, text_view_to_font},
 };
@@ -56,7 +57,7 @@ impl LinkLabel {
                 DynamicProxy::build(env, &LoaderContext::None, [JRunnable::class_name()], {
                     let on_click = on_click.clone();
                     move |_env, _method, _args| {
-                        on_click.signal(());
+                        on_click.signal::<AndroidRuntime>(());
                         Ok(JObject::null())
                     }
                 })?;

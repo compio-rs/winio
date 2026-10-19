@@ -17,6 +17,7 @@ use crate::{
         view::gravity,
         widget::{EditText as AEditText, TextView as ATextView},
     },
+    runtime::AndroidRuntime,
     vm_exec,
 };
 
@@ -41,7 +42,7 @@ impl Edit {
                     let on_change = on_change.clone();
                     move |env, method, _args| {
                         if method.get_name(env)?.try_to_string(env)? == "onTextChanged" {
-                            on_change.signal(());
+                            on_change.signal::<AndroidRuntime>(());
                         }
                         Ok(JObject::null())
                     }

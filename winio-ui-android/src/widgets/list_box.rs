@@ -23,6 +23,7 @@ use crate::{
         },
         util::ArrayList,
     },
+    runtime::AndroidRuntime,
     vm_exec,
 };
 
@@ -50,7 +51,7 @@ impl ListBox {
                 {
                     let on_select = on_select.clone();
                     move |_env, _method, _args| {
-                        on_select.signal(());
+                        on_select.signal::<AndroidRuntime>(());
                         Ok(JObject::null())
                     }
                 },

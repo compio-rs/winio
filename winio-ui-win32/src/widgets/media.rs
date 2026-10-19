@@ -244,7 +244,7 @@ impl IMFMediaEngineNotify_Impl for MediaNotify_Impl {
             _ => None,
         };
         if let Some(msg) = msg {
-            self.notify.signal(msg);
+            self.notify.signal::<()>(msg);
         }
         Ok(())
     }

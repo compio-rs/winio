@@ -24,6 +24,7 @@ use crate::{
             TabLayoutOnTabSelectedListener, TabLayoutTab,
         },
     },
+    runtime::AndroidRuntime,
     vm_exec,
 };
 
@@ -64,7 +65,7 @@ impl TabView {
                 {
                     let on_select = on_select.clone();
                     move |_env, _method, _args| {
-                        on_select.signal(());
+                        on_select.signal::<AndroidRuntime>(());
                         Ok(JObject::null())
                     }
                 },
@@ -250,7 +251,7 @@ impl TabViewItem {
                             {
                                 let callback = WINDOW_RESIZE_CALLBACK.lock().unwrap();
                                 if let Some(callback) = callback.as_ref() {
-                                    callback.signal(());
+                                    callback.signal::<AndroidRuntime>(());
                                 }
                             }
                         }

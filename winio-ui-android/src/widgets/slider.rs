@@ -16,6 +16,7 @@ use crate::{
         Slider as ASlider, SliderOnChangeListener,
         slider::{HORIZONTAL, TICK_VISIBILITY_AUTO_LIMIT, TICK_VISIBILITY_HIDDEN, VERTICAL},
     },
+    runtime::AndroidRuntime,
     vm_exec,
 };
 
@@ -42,7 +43,7 @@ impl Slider {
                 {
                     let on_change = on_change.clone();
                     move |_env, _this, _args| {
-                        on_change.signal(());
+                        on_change.signal::<AndroidRuntime>(());
                         Ok(JObject::null())
                     }
                 },

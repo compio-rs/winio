@@ -22,6 +22,7 @@ use crate::{
         },
         material::{CheckBox as ACheckBox, MaterialButton, RadioButton as ARadioButton},
     },
+    runtime::AndroidRuntime,
     vm_exec,
 };
 
@@ -67,7 +68,7 @@ where
             {
                 let on_click = on_click.clone();
                 move |_env, _method, _args| {
-                    on_click.signal(());
+                    on_click.signal::<AndroidRuntime>(());
                     Ok(JObject::null())
                 }
             },

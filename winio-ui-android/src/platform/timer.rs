@@ -16,7 +16,7 @@ use rustix::{
 };
 use winio_callback::SyncCallback;
 
-use crate::Result;
+use crate::{Result, runtime::AndroidRuntime};
 
 #[derive(Debug)]
 pub struct Timer {
@@ -69,7 +69,7 @@ impl Timer {
                         }
                     }
                 }
-                callback.signal(());
+                callback.signal::<AndroidRuntime>(());
                 true
             })
             .map_err(io::Error::other)?;

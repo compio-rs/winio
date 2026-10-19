@@ -21,6 +21,7 @@ use crate::{
         },
         util::ArrayList,
     },
+    runtime::AndroidRuntime,
     vm_exec,
 };
 
@@ -49,7 +50,7 @@ impl ComboBox {
                     let on_select = on_select.clone();
                     move |env, method, _args| {
                         if method.get_name(env)?.try_to_string(env)? == "onItemSelected" {
-                            on_select.signal(());
+                            on_select.signal::<AndroidRuntime>(());
                         }
                         Ok(JObject::null())
                     }

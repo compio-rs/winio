@@ -21,6 +21,7 @@ use crate::{
         custom::WinioWebViewClient,
         lang::JRunnable,
     },
+    runtime::AndroidRuntime,
     vm_exec,
 };
 
@@ -57,7 +58,7 @@ impl WebView {
                 DynamicProxy::build(env, &LoaderContext::None, [JRunnable::class_name()], {
                     let on_started = on_started.clone();
                     move |_env, _method, _args| {
-                        on_started.signal(());
+                        on_started.signal::<AndroidRuntime>(());
                         Ok(JObject::null())
                     }
                 })?;
@@ -68,7 +69,7 @@ impl WebView {
                 DynamicProxy::build(env, &LoaderContext::None, [JRunnable::class_name()], {
                     let on_finished = on_finished.clone();
                     move |_env, _method, _args| {
-                        on_finished.signal(());
+                        on_finished.signal::<AndroidRuntime>(());
                         Ok(JObject::null())
                     }
                 })?;

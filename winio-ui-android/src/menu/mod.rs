@@ -25,6 +25,7 @@ use crate::{
             SubMenu as JSubMenu, menu, menu_item,
         },
     },
+    runtime::AndroidRuntime,
 };
 
 mod bar;
@@ -73,7 +74,7 @@ fn click_listener(env: &mut Env<'_>, on_click: &Arc<SyncCallback>) -> Result<Dyn
         &LoaderContext::None,
         [MenuItemOnMenuItemClickListener::class_name()],
         move |env, _method, _args| {
-            on_click.signal(());
+            on_click.signal::<AndroidRuntime>(());
             Ok(JBoolean::new(env, true)?.into())
         },
     )?)
