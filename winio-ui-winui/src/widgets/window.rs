@@ -25,7 +25,7 @@ use winui3::Microsoft::UI::{
     Windowing::{AppWindow, TitleBarTheme},
     Xaml::{
         self as MUX, Controls as MUXC, IWindowNative,
-        Media::{MicaBackdrop, SystemBackdrop},
+        Media::{MicaBackdrop, RectangleGeometry, SystemBackdrop},
     },
 };
 
@@ -436,15 +436,19 @@ fn mica_alt_backdrop() -> Result<MicaBackdrop> {
 pub struct View {
     handle: Widget,
     canvas: MUXC::Canvas,
+    clip: RectangleGeometry,
 }
 
 #[inherit_methods(from = "self.handle")]
 impl View {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let canvas = MUXC::Canvas::new()?;
+        let clip = RectangleGeometry::new()?;
+        canvas.SetClip(&clip)?;
         Ok(Self {
             handle: Widget::new(parent, canvas.cast()?)?,
             canvas,
+            clip,
         })
     }
 
@@ -462,7 +466,16 @@ impl View {
 
     pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) -> Result<()>;
+    pub fn set_size(&mut self, v: Size) -> Result<()> {
+        self.handle.set_size(v)?;
+        self.clip.SetRect(windows::Foundation::Rect {
+            X: 0.0,
+            Y: 0.0,
+            Width: v.width as f32,
+            Height: v.height as f32,
+        })?;
+        Ok(())
+    }
 }
 
 winio_handle::impl_as_widget!(View, handle);

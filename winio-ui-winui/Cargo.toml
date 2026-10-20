@@ -46,6 +46,7 @@ winui3 = { workspace = true, features = [
     "UI_Xaml_Media",
     "UI_Xaml_Media_DxInterop",
     "UI_Xaml_Media_Imaging",
+    "UI_Xaml_Shapes",
     "UI_Xaml_XamlTypeInfo",
 ] }
 windows-sys = { workspace = true, features = [
