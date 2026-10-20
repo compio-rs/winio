@@ -508,6 +508,7 @@ impl View {
                 let mtm = parent.as_app_kit().mtm();
 
                 let view = NSView::new(mtm);
+                view.setClipsToBounds(true);
                 let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()))?;
 
                 Ok(Self { handle })
