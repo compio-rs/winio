@@ -57,6 +57,7 @@ fn main() {
             "src/widgets/scroll_bar",
             "src/widgets/scroll_view",
             "src/widgets/tab_view",
+            "src/widgets/group_box",
             #[cfg(feature = "media")]
             "src/widgets/media",
             #[cfg(feature = "webview")]
