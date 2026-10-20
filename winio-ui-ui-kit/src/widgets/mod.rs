@@ -54,6 +54,9 @@ pub use webview::*;
 mod tab_view;
 pub use tab_view::*;
 
+mod group_box;
+pub use group_box::*;
+
 #[cfg(feature = "wgpu")]
 mod wgpu;
 #[cfg(feature = "wgpu")]

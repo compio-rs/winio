@@ -29,20 +29,21 @@ use windows_sys::{
         UI::{
             Accessibility::{HCF_HIGHCONTRASTON, HIGHCONTRASTW},
             Controls::{
-                BP_CHECKBOX, BP_RADIOBUTTON, CloseThemeData, DRAWITEMSTRUCT, DTBG_CLIPRECT,
-                DTBGOPTS, DTT_TEXTCOLOR, DTTOPTS, DrawThemeBackground, DrawThemeBackgroundEx,
-                DrawThemeParentBackground, DrawThemeText, DrawThemeTextEx, GetThemeColor, HTHEME,
-                MBI_DISABLED, MBI_DISABLEDHOT, MBI_DISABLEDPUSHED, MBI_HOT, MBI_NORMAL, MBI_PUSHED,
-                MENU_BARITEM, ODS_DISABLED, ODS_GRAYED, ODS_INACTIVE, ODS_NOACCEL, ODS_SELECTED,
-                OPEN_THEME_DATA_FLAGS, OpenThemeData, OpenThemeDataEx, PBS_DISABLED,
-                PFTASKDIALOGCALLBACK, PP_TRANSPARENTBAR, PROGRESS_CLASSW, SetWindowTheme,
-                TABP_AEROWIZARDBODY, TABP_BODY, TABP_PANE, TABP_TABITEM, TABP_TABITEMBOTHEDGE,
-                TABP_TABITEMLEFTEDGE, TABP_TABITEMRIGHTEDGE, TABP_TOPTABITEM,
-                TABP_TOPTABITEMBOTHEDGE, TABP_TOPTABITEMLEFTEDGE, TABP_TOPTABITEMRIGHTEDGE,
-                TASKDIALOG_NOTIFICATIONS, TDLG_MAININSTRUCTIONPANE, TDLG_PRIMARYPANEL,
-                TDLG_SECONDARYPANEL, TDN_CREATED, TDN_DIALOG_CONSTRUCTED, TIS_DISABLED,
-                TIS_FOCUSED, TIS_HOT, TIS_NORMAL, TIS_SELECTED, TMT_TEXTCOLOR, VSCLASS_MENU,
-                WC_BUTTONW, WC_COMBOBOXW, WC_EDITW, WC_TABCONTROLW,
+                BP_CHECKBOX, BP_GROUPBOX, BP_RADIOBUTTON, CloseThemeData, DRAWITEMSTRUCT,
+                DTBG_CLIPRECT, DTBGOPTS, DTT_TEXTCOLOR, DTTOPTS, DrawThemeBackground,
+                DrawThemeBackgroundEx, DrawThemeParentBackground, DrawThemeText, DrawThemeTextEx,
+                GBS_DISABLED, GetThemeColor, HTHEME, MBI_DISABLED, MBI_DISABLEDHOT,
+                MBI_DISABLEDPUSHED, MBI_HOT, MBI_NORMAL, MBI_PUSHED, MENU_BARITEM, ODS_DISABLED,
+                ODS_GRAYED, ODS_INACTIVE, ODS_NOACCEL, ODS_SELECTED, OPEN_THEME_DATA_FLAGS,
+                OpenThemeData, OpenThemeDataEx, PBS_DISABLED, PFTASKDIALOGCALLBACK,
+                PP_TRANSPARENTBAR, PROGRESS_CLASSW, SetWindowTheme, TABP_AEROWIZARDBODY, TABP_BODY,
+                TABP_PANE, TABP_TABITEM, TABP_TABITEMBOTHEDGE, TABP_TABITEMLEFTEDGE,
+                TABP_TABITEMRIGHTEDGE, TABP_TOPTABITEM, TABP_TOPTABITEMBOTHEDGE,
+                TABP_TOPTABITEMLEFTEDGE, TABP_TOPTABITEMRIGHTEDGE, TASKDIALOG_NOTIFICATIONS,
+                TDLG_MAININSTRUCTIONPANE, TDLG_PRIMARYPANEL, TDLG_SECONDARYPANEL, TDN_CREATED,
+                TDN_DIALOG_CONSTRUCTED, TIS_DISABLED, TIS_FOCUSED, TIS_HOT, TIS_NORMAL,
+                TIS_SELECTED, TMT_TEXTCOLOR, VSCLASS_MENU, WC_BUTTONW, WC_COMBOBOXW, WC_EDITW,
+                WC_TABCONTROLW,
             },
             HiDpi::OpenThemeDataForDpi,
             Shell::{DefSubclassProc, SetWindowSubclass},
@@ -408,7 +409,9 @@ unsafe extern "system" fn dark_draw_theme_text(
     if is_dark_mode_allowed_for_app()
         && let Some((_, ty)) = HTHEME_MAP.lock().unwrap().get(&htheme)
         && ((ty == &ThemeType::Button
-            && ((ipartid == BP_CHECKBOX || ipartid == BP_RADIOBUTTON) && istateid != PBS_DISABLED))
+            && ((ipartid == BP_GROUPBOX && istateid != GBS_DISABLED)
+                || ((ipartid == BP_CHECKBOX || ipartid == BP_RADIOBUTTON)
+                    && istateid != PBS_DISABLED)))
             || (ty == &ThemeType::Tab))
     {
         let mut options: DTTOPTS = unsafe { std::mem::zeroed() };

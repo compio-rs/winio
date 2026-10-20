@@ -3,6 +3,7 @@
 -keep, includedescriptorclasses class com.google.android.material.appbar.** { *; }
 -keep, includedescriptorclasses class com.google.android.material.button.** { *; }
 -keep, includedescriptorclasses class com.google.android.material.checkbox.** { *; }
+-keep, includedescriptorclasses class com.google.android.material.card.** { *; }
 -keep, includedescriptorclasses class com.google.android.material.radiobutton.** { *; }
 -keep, includedescriptorclasses class com.google.android.material.progressindicator.** { *; }
 -keep, includedescriptorclasses class com.google.android.material.slider.** { *; }

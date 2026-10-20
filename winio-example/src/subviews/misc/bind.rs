@@ -6,7 +6,7 @@ use winio::prelude::{Error as SysError, Result as SysResult, *};
 use crate::{Error, Result};
 
 pub struct BindPage {
-    window: Child<View>,
+    window: Child<GroupBox>,
     label_edit1: Child<Label>,
     label_edit2: Child<Label>,
     label_label: Child<Label>,
@@ -38,7 +38,9 @@ impl Component for BindPage {
 
     async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
-            window: View = (init),
+            window: GroupBox = (init) => {
+                text: "Bind"
+            },
             label_edit1: Label = (&window) => {
                 text: "Edit 1:",
                 halign: HAlign::Right,
@@ -161,7 +163,7 @@ impl Component for BindPage {
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
-        let csize = self.window.size()?;
+        let csize = self.window.client_size()?;
         let margin = Margin::new_all_same(4.0);
         let mut grid = if csize.width >= csize.height * 2.0 {
             layout! {
@@ -196,7 +198,7 @@ impl Component for BindPage {
 }
 
 impl Deref for BindPage {
-    type Target = View;
+    type Target = GroupBox;
 
     fn deref(&self) -> &Self::Target {
         &self.window

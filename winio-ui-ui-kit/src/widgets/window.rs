@@ -346,6 +346,7 @@ impl View {
             let mtm = parent.as_ui_kit().mtm();
 
             let view = UIView::new(mtm);
+            view.setClipsToBounds(true);
             let handle =
                 Widget::from_uiview(parent, unsafe { Retained::cast_unchecked(view.clone()) })?;
 

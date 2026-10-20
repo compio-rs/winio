@@ -4,12 +4,34 @@ use crate::{
         android::{
             content::{Context, res::ColorStateList},
             graphics::drawable::Drawable,
-            view::{Menu, View},
-            widget::{Button, CompoundButton, TextView},
+            view::{Menu, View, ViewGroup},
+            widget::{Button, CompoundButton, FrameLayout, TextView},
         },
         androidx::viewpager2::ViewPager2,
     },
 };
+
+jni::bind_java_type! {
+    pub MaterialCardView => com.google.android.material.card.MaterialCardView,
+    type_map {
+        View => android.view.View,
+        ViewGroup => android.view.ViewGroup,
+        FrameLayout => android.widget.FrameLayout,
+        Context => android.content.Context,
+    },
+    constructors {
+        fn new(context: &Context),
+    },
+    methods {
+        fn set_content_padding(left: jint, top: jint, right: jint, bottom: jint),
+        fn set_card_elevation(elevation: jfloat),
+    },
+    is_instance_of = {
+        view = View,
+        view_group = ViewGroup,
+        frame_layout = FrameLayout,
+    }
+}
 
 jni::bind_java_type! {
     pub MaterialToolbar => com.google.android.material.appbar.MaterialToolbar,
