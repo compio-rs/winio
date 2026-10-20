@@ -56,6 +56,9 @@ jni::bind_java_type! {
         },
         fn get_typeface() -> Typeface,
         fn get_text_size() -> jfloat,
+        fn get_line_height() -> jint,
+        fn set_single_line(single_line: jboolean),
+        fn set_include_font_padding(include_font_padding: jboolean),
     },
     is_instance_of = {
         view = View,

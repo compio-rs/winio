@@ -134,6 +134,7 @@ jni::bind_java_type! {
         fn add_view(view: &View),
         fn remove_view(view: &View),
         fn get_child_count() -> jint,
+        fn set_clip_children(clip_children: jboolean),
     },
     is_instance_of = {
         view = View,

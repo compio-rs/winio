@@ -41,6 +41,9 @@ pub use slider::*;
 mod tab_view;
 pub use tab_view::*;
 
+mod group_box;
+pub use group_box::*;
+
 mod view;
 pub use view::*;
 
