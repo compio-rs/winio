@@ -141,18 +141,18 @@ fn build_border_geometry(size: Size, heading: Size) -> Result<MUXM::PathGeometry
     let height = size.height;
     let half = STROKE / 2.0;
 
-    let max_radius = ((width.min(height) - STROKE) / 2.0).max(0.0);
-    let radius = RADIUS.min(max_radius);
-    let top_start = radius + half;
-    let top_end = width - radius - half;
-
     let has_heading = heading.width > 0.0 && heading.height > 0.0;
     let line_y = if has_heading {
-        (heading.height * HEADING_BASELINE)
-            .clamp(top_start, (height - radius - half).max(top_start))
+        (heading.height * HEADING_BASELINE).clamp(half, (height - half).max(half))
     } else {
         half
     };
+
+    let vertical_space = (height - half - line_y).max(0.0);
+    let max_radius = (vertical_space / 2.0).min((width - STROKE) / 2.0).max(0.0);
+    let radius = RADIUS.min(max_radius);
+    let top_start = radius + half;
+    let top_end = (width - radius - half).max(top_start);
 
     let figure = MUXM::PathFigure::new()?;
     figure.SetIsFilled(false)?;
