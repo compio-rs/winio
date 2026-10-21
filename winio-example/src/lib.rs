@@ -418,7 +418,7 @@ impl Component for MainModel {
             let mut root_panel = layout! {
                 Grid::from_str("1*", "1*").unwrap(),
                 self.tabview => {
-                    margin: Margin::new_all_same(4.0),
+                    margin: Margin::new(0.0, 4.0, 4.0, 4.0),
                     halign: HAlign::Stretch,
                     valign: VAlign::Stretch
                 }
