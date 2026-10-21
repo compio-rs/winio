@@ -377,6 +377,16 @@ pub struct ToolBar {
     data: Rc<ToolBarData>,
 }
 
+impl Drop for ToolBar {
+    fn drop(&mut self) {
+        let _ = TOOLBARS.try_with(|toolbars| {
+            toolbars
+                .borrow_mut()
+                .retain(|toolbar| !Rc::ptr_eq(toolbar, &self.data));
+        });
+    }
+}
+
 impl ToolBar {
     pub fn new(parent: impl AsWindow) -> Result<Self> {
         let parent = parent.as_window().as_win32();
