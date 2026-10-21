@@ -17,8 +17,8 @@ use windows_sys::Win32::{
             CW_USEDEFAULT, CreateWindowExW, DestroyWindow, GWL_EXSTYLE, GWL_STYLE, GetClientRect,
             GetParent, GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
             HICON, HWND_DESKTOP, ICON_BIG, IDC_ARROW, IMAGE_ICON, LR_DEFAULTCOLOR, LR_DEFAULTSIZE,
-            LR_SHARED, LoadCursorW, LoadImageW, RegisterClassExW, SW_HIDE, SW_SHOW, SWP_NOMOVE,
-            SWP_NOSIZE, SWP_NOZORDER, SendMessageW, SetWindowLongPtrW, SetWindowPos,
+            LR_SHARED, LoadCursorW, LoadImageW, RegisterClassExW, SW_HIDE, SW_SHOW, SWP_NOACTIVATE,
+            SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SendMessageW, SetWindowLongPtrW, SetWindowPos,
             SetWindowTextW, ShowWindow, WM_CLOSE, WM_MOVE, WM_SETICON, WM_SETTINGCHANGE, WM_SIZE,
             WM_THEMECHANGED, WM_WINDOWPOSCHANGED, WNDCLASSEXW, WS_CHILDWINDOW, WS_CLIPCHILDREN,
             WS_EX_CONTROLPARENT, WS_EX_TRANSPARENT, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
@@ -115,7 +115,11 @@ impl Widget {
     }
 
     pub async fn wait_parent(&self, msg: u32) -> WindowMessage {
-        unsafe { wait(GetParent(self.as_window().as_win32()), msg) }.await
+        unsafe { wait(self.parent(), msg) }.await
+    }
+
+    pub fn parent(&self) -> HWND {
+        unsafe { GetParent(self.as_window().as_win32()) }
     }
 
     pub fn measure(&self, s: &U16Str) -> Result<Size> {
@@ -196,7 +200,7 @@ impl Widget {
             SetLastError(0);
             match syscall!(
                 BOOL,
-                MapWindowPoints(HWND_DESKTOP, GetParent(handle), &mut rect as *mut _ as _, 2)
+                MapWindowPoints(HWND_DESKTOP, self.parent(), &mut rect as *mut _ as _, 2)
             ) {
                 Ok(_) => {}
                 Err(e) if e.code().is_ok() => {}
@@ -237,7 +241,7 @@ impl Widget {
         Ok((self.style()? & WS_VISIBLE) != 0)
     }
 
-    pub fn set_visible(&mut self, v: bool) -> Result<()> {
+    pub fn set_visible(&self, v: bool) -> Result<()> {
         unsafe {
             ShowWindow(
                 self.as_window().as_win32(),
@@ -419,6 +423,7 @@ pub(crate) fn window_class_name() -> *const u16 {
 #[derive(Debug)]
 pub struct Window {
     handle: Widget,
+    view: View,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -434,7 +439,10 @@ impl Window {
             window_use_dark_mode(handle.as_window().as_win32())?;
             refresh_background(handle.as_window().as_win32())?;
         }
-        Ok(Self { handle })
+        let view = View::new(&handle)?;
+        let this = Self { handle, view };
+        this.update_view()?;
+        Ok(this)
     }
 
     pub fn is_visible(&self) -> Result<bool>;
@@ -447,16 +455,48 @@ impl Window {
 
     pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) -> Result<()>;
-
     pub fn client_size(&self) -> Result<Size> {
+        self.update_view()?;
+        self.view.size()
+    }
+
+    pub fn set_size(&mut self, v: Size) -> Result<()> {
+        self.handle.set_size(v)?;
+        self.update_view()
+    }
+
+    fn update_view(&self) -> Result<()> {
         let handle = self.as_window().as_win32();
         let mut rect = MaybeUninit::uninit();
         syscall!(BOOL, unsafe { GetClientRect(handle, rect.as_mut_ptr()) })?;
         let rect = unsafe { rect.assume_init() };
-        Ok(self
-            .handle
-            .size_d2l((rect.right - rect.left, rect.bottom - rect.top)))
+        let inset = crate::tool_bar::visible_toolbar_height(handle);
+        let width = rect.right - rect.left;
+        let height = (rect.bottom - rect.top - inset).max(0);
+
+        let (view_hwnd, old_loc, old_size) = {
+            (
+                self.view.as_widget().as_win32(),
+                self.view.loc()?,
+                self.view.size()?,
+            )
+        };
+        let loc = self.handle.point_d2l((0, inset));
+        let size = self.handle.size_d2l((width, height));
+        if loc != old_loc || size != old_size {
+            syscall!(BOOL, unsafe {
+                SetWindowPos(
+                    view_hwnd,
+                    null_mut(),
+                    0,
+                    inset,
+                    width,
+                    height,
+                    SWP_NOZORDER | SWP_NOACTIVATE,
+                )
+            })?;
+        }
+        Ok(())
     }
 
     pub fn text(&self) -> Result<String>;
@@ -524,7 +564,12 @@ impl Window {
 }
 
 winio_handle::impl_as_window!(Window, handle);
-winio_handle::impl_as_container!(Window, handle);
+
+impl AsContainer for Window {
+    fn as_container(&self) -> BorrowedContainer<'_> {
+        unsafe { BorrowedContainer::win32(self.view.as_widget().as_win32()) }
+    }
+}
 
 #[derive(Debug)]
 pub struct View {

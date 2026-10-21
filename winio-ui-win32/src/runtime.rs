@@ -32,7 +32,7 @@ use windows_sys::{
         },
         System::Threading::{GetCurrentThread, INFINITE},
         UI::{
-            Controls::{MARGINS, NMHDR},
+            Controls::{MARGINS, NMHDR, NMTOOLBARW, TBN_DROPDOWN},
             Shell::GetWindowSubclass,
             WindowsAndMessaging::{
                 DefWindowProcW, DispatchMessageW, EnumChildWindows, GA_ROOT, GCLP_HBRBACKGROUND,
@@ -119,8 +119,8 @@ pub(crate) struct WindowMessageCommand {
 #[derive(Clone, Copy)]
 pub(crate) struct WindowMessageNotify {
     pub hwnd_from: HWND,
-    // pub id_from: usize,
     pub code: u32,
+    pub item: i32,
 }
 
 pub(crate) enum FutureState {
@@ -159,10 +159,16 @@ impl Registry {
             }),
             WM_NOTIFY => WindowMessage::Notify(unsafe {
                 let header = &*(lparam as *const NMHDR);
+                let item = if header.code == TBN_DROPDOWN {
+                    let toolbar = &*(lparam as *const NMTOOLBARW);
+                    toolbar.iItem
+                } else {
+                    0
+                };
                 WindowMessageNotify {
                     hwnd_from: header.hwndFrom,
-                    // id_from: header.idFrom,
                     code: header.code,
+                    item,
                 }
             }),
             _ => WindowMessage::General { wparam, lparam },
@@ -296,6 +302,9 @@ pub(crate) unsafe extern "system" fn window_proc(
             }
             if let Err(_e) = crate::menu::refresh_menu_icons(handle) {
                 warn!("refresh_menu_icons: handle: {handle:?}, error: {_e:?}");
+            }
+            if let Err(_e) = crate::tool_bar::refresh_toolbar_icons(handle) {
+                warn!("refresh_toolbar_icons: handle: {handle:?}, error: {_e:?}");
             }
         }
         _ => {}
