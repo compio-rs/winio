@@ -1,6 +1,6 @@
 use crate::{
     Result,
-    menu::{MenuBar, SubMenuItem, bar_menu},
+    menu::{MenuBar, SubMenuItem},
     vm_exec,
 };
 
