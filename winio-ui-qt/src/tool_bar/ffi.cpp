@@ -1,5 +1,27 @@
 #include "ffi.hpp"
 
+static void update_tool_button_style(QToolBar *toolbar, QAction *action) {
+    auto *button = static_cast<QToolButton *>(toolbar->widgetForAction(action));
+    if (!button)
+        return;
+
+    Qt::ToolButtonStyle style;
+    if (!action->icon().isNull() && !action->text().isEmpty())
+        style = Qt::ToolButtonTextBesideIcon;
+    else if (!action->text().isEmpty())
+        style = Qt::ToolButtonTextOnly;
+    else
+        style = Qt::ToolButtonIconOnly;
+    button->setToolButtonStyle(style);
+}
+
+static void setup_tool_button(QToolBar *toolbar, QAction *action) {
+    update_tool_button_style(toolbar, action);
+    QObject::connect(action, &QAction::changed, toolbar, [toolbar, action] {
+        update_tool_button_style(toolbar, action);
+    });
+}
+
 std::unique_ptr<QToolBar> new_tool_bar(QWidget *window) {
     auto *main_window = static_cast<QMainWindow *>(window);
     auto toolbar = std::make_unique<QToolBar>(main_window);
@@ -13,12 +35,14 @@ std::unique_ptr<QToolBar> new_tool_bar(QWidget *window) {
 
 bool tool_bar_exists(QWidget *window) {
     auto *main_window = static_cast<QMainWindow *>(window);
-    return main_window->findChild<QToolBar *>(QString(),
-                                              Qt::FindDirectChildrenOnly) != nullptr;
+    return main_window->findChild<QToolBar *>(
+               QString(), Qt::FindDirectChildrenOnly) != nullptr;
 }
 
 QAction *tool_bar_add_action(QToolBar *toolbar) {
-    return toolbar->addAction(QString());
+    auto *action = toolbar->addAction(QString());
+    setup_tool_button(toolbar, action);
+    return action;
 }
 
 QAction *tool_bar_add_separator(QToolBar *toolbar) {
@@ -30,9 +54,10 @@ QAction *tool_bar_add_menu_action(QToolBar *toolbar) {
     action->setMenu(new QMenu(toolbar));
     toolbar->addAction(action);
     if (auto *button =
-            qobject_cast<QToolButton *>(toolbar->widgetForAction(action))) {
+            static_cast<QToolButton *>(toolbar->widgetForAction(action))) {
         button->setPopupMode(QToolButton::InstantPopup);
     }
+    setup_tool_button(toolbar, action);
     return action;
 }
 
