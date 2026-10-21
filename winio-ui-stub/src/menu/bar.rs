@@ -18,5 +18,3 @@ impl MenuBar {
 
     pub fn set_visible(&mut self, v: bool) -> Result<()>;
 }
-
-winio_handle::impl_as_menu_bar!(MenuBar, handle);

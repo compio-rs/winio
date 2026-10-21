@@ -29,6 +29,12 @@ impl Visible for MenuBar {
     fn set_visible(&mut self, visible: bool) -> Result<()>;
 }
 
+impl MenuBar {
+    pub(crate) fn as_sys(&self) -> &sys::MenuBar {
+        &self.inner
+    }
+}
+
 /// Events of [`MenuBar`].
 #[derive(Debug)]
 #[non_exhaustive]
@@ -58,5 +64,3 @@ impl Component for MenuBar {
         match message {}
     }
 }
-
-winio_handle::impl_as_menu_bar!(MenuBar, inner);

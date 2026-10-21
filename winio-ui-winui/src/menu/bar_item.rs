@@ -1,8 +1,8 @@
 use windows_core::HSTRING;
-use winio_handle::{AsMenuBar, AsMenuContainer, BorrowedMenuContainer};
+use winio_handle::{AsMenuContainer, BorrowedMenuContainer};
 use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
-use crate::Result;
+use crate::{Result, menu::MenuBar};
 
 #[derive(Debug)]
 pub struct MenuBarItem {
@@ -10,10 +10,9 @@ pub struct MenuBarItem {
 }
 
 impl MenuBarItem {
-    pub fn new(parent: impl AsMenuBar) -> Result<Self> {
-        let bar = parent.as_menu_bar().as_winui();
+    pub fn new(parent: &MenuBar) -> Result<Self> {
         let element = MUXC::MenuBarItem::new()?;
-        bar.Items()?.Append(&element)?;
+        parent.element().Items()?.Append(&element)?;
         Ok(Self { element })
     }
 

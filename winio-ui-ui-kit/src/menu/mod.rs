@@ -13,14 +13,11 @@ use objc2::{MainThreadMarker, available, msg_send, rc::Retained};
 use objc2_foundation::{NSArray, NSInteger, NSString, ns_string};
 use objc2_ui_kit::{
     UIAction, UIDeferredMenuElement, UIFont, UIImage, UIMenu, UIMenuElement,
-    UIMenuElementAttributes, UIMenuElementState, UIMenuOptions, UIStackView,
+    UIMenuElementAttributes, UIMenuElementState, UIMenuOptions,
 };
 use slab::Slab;
 use winio_callback::Callback;
-use winio_handle::{
-    AsMenuBar, AsMenuContainer, AsMenuItem, BorrowedMenuBar, BorrowedMenuContainer,
-    BorrowedMenuItem,
-};
+use winio_handle::{AsMenuContainer, AsMenuItem, BorrowedMenuContainer, BorrowedMenuItem};
 
 use crate::{GlobalRuntime, Image, Result, catch};
 
@@ -337,19 +334,4 @@ pub(crate) fn build_bar_menu(key: usize, mtm: MainThreadMarker) -> Retained<UIMe
     // SAFETY: `UIDeferredMenuElement` is a subclass of `UIMenuElement`.
     let deferred = unsafe { Retained::cast_unchecked::<UIMenuElement>(deferred) };
     UIMenu::menuWithChildren(&NSArray::from_retained_slice(&[deferred]), mtm)
-}
-
-#[derive(Debug)]
-pub(crate) struct MenuBarRef(Retained<UIStackView>);
-
-impl MenuBarRef {
-    pub fn new(stack: Retained<UIStackView>) -> Self {
-        Self(stack)
-    }
-}
-
-impl AsMenuBar for MenuBarRef {
-    fn as_menu_bar(&self) -> BorrowedMenuBar<'_> {
-        BorrowedMenuBar::ui_kit(&self.0)
-    }
 }

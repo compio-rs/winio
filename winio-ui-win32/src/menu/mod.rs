@@ -22,8 +22,7 @@ use windows_sys::Win32::{
     },
 };
 use winio_handle::{
-    AsMenuBar, AsMenuContainer, AsMenuItem, AsWindow, BorrowedMenuBar, BorrowedMenuContainer,
-    BorrowedMenuItem,
+    AsMenuContainer, AsMenuItem, AsWindow, BorrowedMenuContainer, BorrowedMenuItem,
 };
 use winio_ui_windows_common::syscall;
 
@@ -52,12 +51,6 @@ impl OwnedMenu {
 impl Drop for OwnedMenu {
     fn drop(&mut self) {
         unsafe { DestroyMenu(self.0) };
-    }
-}
-
-impl AsMenuBar for OwnedMenu {
-    fn as_menu_bar(&self) -> BorrowedMenuBar<'_> {
-        unsafe { BorrowedMenuBar::win32(self.0) }
     }
 }
 
@@ -199,8 +192,6 @@ impl Drop for MenuBar {
         HMENU_HWND_MAP.with_borrow_mut(|map| map.remove(&self.inner.0));
     }
 }
-
-winio_handle::impl_as_menu_bar!(MenuBar, inner);
 
 fn menu_id() -> u32 {
     thread_local! {
@@ -399,8 +390,8 @@ pub struct MenuBarItem {
 
 #[inherit_methods(from = "self.item")]
 impl MenuBarItem {
-    pub fn new(parent: impl AsMenuBar) -> Result<Self> {
-        let parent = parent.as_menu_bar().as_win32();
+    pub fn new(parent: &MenuBar) -> Result<Self> {
+        let parent = parent.inner.0;
         let inner = OwnedMenu::new()?;
         let item = MenuItemImpl::new_with(parent, inner.0)?;
         HMENU_PARENT_MAP.with_borrow_mut(|map| map.insert(inner.0, parent));

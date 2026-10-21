@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use winio_handle::{AsMenuBar, AsWindow, BorrowedMenuBar};
+use winio_handle::AsWindow;
 
 use crate::{
     Error, Result,
@@ -36,10 +36,8 @@ impl MenuBar {
         unsafe { self.menu_bar.pin_mut() }.setVisible(visible)?;
         Ok(())
     }
-}
 
-impl AsMenuBar for MenuBar {
-    fn as_menu_bar(&self) -> BorrowedMenuBar<'_> {
-        unsafe { BorrowedMenuBar::qt(self.menu_bar.0) }
+    pub(crate) fn menu_bar(&self) -> *mut QMenuBar {
+        self.menu_bar.0
     }
 }
