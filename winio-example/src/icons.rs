@@ -19,6 +19,32 @@ pub fn open() -> Result<Image> {
     load(include_bytes!("../assets/icons/open.png"))
 }
 
+pub fn eye() -> Result<Image> {
+    load(include_bytes!("../assets/icons/eye.png"))
+}
+
+pub fn eye_white() -> Result<Image> {
+    load(include_bytes!("../assets/icons/eye_white.png"))
+}
+
+pub fn clockwise() -> Result<Image> {
+    load(include_bytes!("../assets/icons/clockwise.png"))
+}
+
+pub fn clockwise_white() -> Result<Image> {
+    load(include_bytes!("../assets/icons/clockwise_white.png"))
+}
+
+pub fn counter_clockwise() -> Result<Image> {
+    load(include_bytes!("../assets/icons/counter_clockwise.png"))
+}
+
+pub fn counter_clockwise_white() -> Result<Image> {
+    load(include_bytes!(
+        "../assets/icons/counter_clockwise_white.png"
+    ))
+}
+
 #[cfg(feature = "media")]
 pub fn play() -> Result<Image> {
     load(include_bytes!("../assets/icons/play.png"))
