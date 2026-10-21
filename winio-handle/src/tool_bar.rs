@@ -15,7 +15,12 @@ cfg_if::cfg_if! {
         }
     } else {
         #[derive(Clone, Copy)]
-        struct BorrowedToolBarItemInner<'a>(std::marker::PhantomData<&'a ()>);
+        enum BorrowedToolBarItemInner<'a> {
+            #[cfg(feature = "qt")]
+            Qt(*mut core::ffi::c_void, std::marker::PhantomData<&'a ()>),
+            #[cfg(not(feature = "qt"))]
+            Dummy(std::marker::PhantomData<&'a ()>),
+        }
     }
 }
 
@@ -63,6 +68,33 @@ impl<'a> BorrowedToolBarItem<'a> {
     pub fn as_winui(&self) -> &'a winui3::Microsoft::UI::Xaml::Controls::ICommandBarElement {
         match self.0 {
             BorrowedToolBarItemInner::WinUI(element) => element,
+            _ => panic!("unsupported handle type"),
+        }
+    }
+}
+
+#[allow(unreachable_patterns)]
+#[cfg(not(any(windows, target_vendor = "apple", target_os = "android")))]
+impl<'a> BorrowedToolBarItem<'a> {
+    /// Create from Qt `QAction`.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that `action` is a valid pointer for the lifetime
+    /// `'a`.
+    #[cfg(feature = "qt")]
+    pub unsafe fn qt<T>(action: *mut T) -> Self {
+        Self(BorrowedToolBarItemInner::Qt(
+            action.cast(),
+            std::marker::PhantomData,
+        ))
+    }
+
+    /// Get Qt `QAction`. Panic if the handle is not Qt.
+    #[cfg(feature = "qt")]
+    pub fn as_qt<T>(&self) -> *mut T {
+        match &self.0 {
+            BorrowedToolBarItemInner::Qt(a, ..) => (*a).cast(),
             _ => panic!("unsupported handle type"),
         }
     }

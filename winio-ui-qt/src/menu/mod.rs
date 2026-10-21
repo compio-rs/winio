@@ -2,6 +2,7 @@ mod action;
 pub(crate) use action::*;
 
 mod ffi;
+pub(crate) use ffi::{QAction, QMenu};
 
 mod bar;
 pub use bar::*;
