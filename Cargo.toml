@@ -115,3 +115,8 @@ wgpu = { version = "30", default-features = false }
 [profile.release]
 lto = true
 codegen-units = 1
+
+[patch.crates-io]
+winio-windows-subset = { path = "../winui3-rs/windows-subset" }
+winio-winui3 = { path = "../winui3-rs/winui3" }
+winio-webview2 = { path = "../winui3-rs/webview2" }

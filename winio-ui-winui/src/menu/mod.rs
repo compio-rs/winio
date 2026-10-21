@@ -30,6 +30,8 @@ fn append_to_container(
         item.Items()?.Append(element)?;
     } else if let Some(bar) = container.as_winui_menu_bar() {
         bar.Items()?.Append(element)?;
+    } else if let Some(flyout) = container.as_winui_menu_flyout() {
+        flyout.Items()?.Append(element)?;
     } else {
         unreachable!("unsupported menu container type");
     }

@@ -31,6 +31,7 @@ winui3 = { workspace = true, optional = true, features = [
     "UI_Composition",
     "UI_Xaml",
     "UI_Xaml_Controls",
+    "UI_Xaml_Controls_Primitives",
 ] }
 windows-core = { workspace = true }
 
