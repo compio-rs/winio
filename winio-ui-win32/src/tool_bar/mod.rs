@@ -16,9 +16,9 @@ use windows_sys::Win32::{
             CCS_TOP, HIMAGELIST, I_IMAGENONE, ILC_COLOR32, ImageList_Add, ImageList_Create,
             ImageList_Destroy, TB_ADDBUTTONS, TB_AUTOSIZE, TB_BUTTONSTRUCTSIZE, TB_GETBUTTONTEXTW,
             TB_GETRECT, TB_GETSTATE, TB_SETBITMAPSIZE, TB_SETBUTTONINFOW, TB_SETEXTENDEDSTYLE,
-            TB_SETIMAGELIST, TB_SETSTATE, TBBUTTON, TBBUTTONINFOW, TBIF_IMAGE, TBIF_TEXT,
-            TBN_DROPDOWN, TBSTATE_CHECKED, TBSTATE_ENABLED, TBSTYLE_EX_MIXEDBUTTONS, TBSTYLE_FLAT,
-            TBSTYLE_LIST, TBSTYLE_TRANSPARENT, TOOLBARCLASSNAMEW,
+            TB_SETIMAGELIST, TB_SETSTATE, TBBUTTON, TBBUTTONINFOW, TBIF_IMAGE, TBIF_SIZE,
+            TBIF_TEXT, TBN_DROPDOWN, TBSTATE_CHECKED, TBSTATE_ENABLED, TBSTYLE_EX_MIXEDBUTTONS,
+            TBSTYLE_FLAT, TBSTYLE_LIST, TBSTYLE_TRANSPARENT, TOOLBARCLASSNAMEW,
         },
         HiDpi::GetSystemMetricsForDpi,
         WindowsAndMessaging::{
@@ -81,6 +81,7 @@ impl Drop for WinImageList {
 struct ItemState {
     id: u32,
     icon: Option<Image>,
+    has_text: bool,
 }
 
 #[derive(Debug)]
@@ -158,7 +159,11 @@ impl ToolBarData {
         if res == 0 {
             return Err(Error::from_thread());
         }
-        self.items.borrow_mut().push(ItemState { id, icon: None });
+        self.items.borrow_mut().push(ItemState {
+            id,
+            icon: None,
+            has_text: false,
+        });
         self.autosize();
         Ok(id)
     }
@@ -178,12 +183,20 @@ impl ToolBarData {
                 .handle
                 .send_message(TB_SETBUTTONINFOW, id as _, &raw mut info as _);
             if res == 0 {
-                Err(Error::from_thread())
-            } else {
-                self.autosize();
-                Ok(())
+                return Err(Error::from_thread());
             }
-        })
+            Ok(())
+        })?;
+        if let Some(item) = self
+            .items
+            .borrow_mut()
+            .iter_mut()
+            .find(|item| item.id == id)
+        {
+            item.has_text = !text.is_empty();
+        }
+        self.autosize();
+        Ok(())
     }
 
     fn text(&self, id: u32) -> Result<String> {
@@ -272,14 +285,36 @@ impl ToolBarData {
     }
 
     fn set_icon(&self, id: u32, icon: Option<&Image>) -> Result<()> {
-        {
+        let has_text = {
             let mut items = self.items.borrow_mut();
             let Some(item) = items.iter_mut().find(|item| item.id == id) else {
                 return Ok(());
             };
             item.icon = icon.cloned();
+            item.has_text
+        };
+        self.rebuild_image_list()?;
+        if icon.is_some() && !has_text {
+            let dpi = self.handle.dpi();
+            let (cx, _) = small_icon_size(dpi);
+            self.set_width(id, cx as u16)?;
         }
-        self.rebuild_image_list()
+        Ok(())
+    }
+
+    fn set_width(&self, id: u32, cx: u16) -> Result<()> {
+        let mut info: TBBUTTONINFOW = unsafe { zeroed() };
+        info.cbSize = size_of::<TBBUTTONINFOW>() as _;
+        info.dwMask = TBIF_SIZE;
+        info.cx = cx;
+        let res =
+            self.handle
+                .send_message(TB_SETBUTTONINFOW, id as WPARAM, &raw mut info as LPARAM);
+        if res == 0 {
+            Err(Error::from_thread())
+        } else {
+            Ok(())
+        }
     }
 
     fn rebuild_image_list(&self) -> Result<()> {
