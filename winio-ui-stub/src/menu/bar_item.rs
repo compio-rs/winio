@@ -1,7 +1,10 @@
 use inherit_methods_macro::inherit_methods;
-use winio_handle::AsMenuBar;
 
-use crate::{Result, menu::MenuHandle, not_impl};
+use crate::{
+    Result,
+    menu::{MenuBar, MenuHandle},
+    not_impl,
+};
 
 #[derive(Debug)]
 pub struct MenuBarItem {
@@ -10,7 +13,7 @@ pub struct MenuBarItem {
 
 #[inherit_methods(from = "self.handle")]
 impl MenuBarItem {
-    pub fn new(_parent: impl AsMenuBar) -> Result<Self> {
+    pub fn new(_parent: &MenuBar) -> Result<Self> {
         not_impl()
     }
 

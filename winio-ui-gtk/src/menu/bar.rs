@@ -1,5 +1,5 @@
 use gtk4::{gio, prelude::*};
-use winio_handle::{AsMenuBar, AsWindow, BorrowedMenuBar};
+use winio_handle::AsWindow;
 
 use crate::{
     Error, Result,
@@ -45,16 +45,14 @@ impl MenuBar {
         self.widget.set_visible(visible);
         Ok(())
     }
+
+    pub(crate) fn menu(&self) -> &gio::Menu {
+        &self.menu
+    }
 }
 
 impl Drop for MenuBar {
     fn drop(&mut self) {
         self.widget.unparent();
-    }
-}
-
-impl AsMenuBar for MenuBar {
-    fn as_menu_bar(&self) -> BorrowedMenuBar<'_> {
-        BorrowedMenuBar::gtk(&self.menu)
     }
 }

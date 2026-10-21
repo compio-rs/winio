@@ -10,8 +10,7 @@ use objc2_app_kit::{
 use objc2_foundation::{NSInteger, NSObject, NSString};
 use winio_callback::Callback;
 use winio_handle::{
-    AsMenuBar, AsMenuContainer, AsMenuItem, AsWindow, BorrowedMenuBar, BorrowedMenuContainer,
-    BorrowedMenuItem,
+    AsMenuContainer, AsMenuItem, AsWindow, BorrowedMenuContainer, BorrowedMenuItem,
 };
 use winio_pollable::GlobalRuntime;
 
@@ -29,12 +28,6 @@ impl MenuBase {
             let inner = NSMenu::new(mtm);
             Self { inner }
         })
-    }
-}
-
-impl AsMenuBar for MenuBase {
-    fn as_menu_bar(&self) -> BorrowedMenuBar<'_> {
-        BorrowedMenuBar::app_kit(&self.inner)
     }
 }
 
@@ -85,8 +78,6 @@ impl MenuBar {
         })
     }
 }
-
-winio_handle::impl_as_menu_bar!(MenuBar, inner);
 
 #[derive(Debug)]
 struct MenuItemBase {
@@ -218,9 +209,8 @@ pub struct MenuBarItem {
 
 #[inherit_methods(from = "self.inner")]
 impl MenuBarItem {
-    pub fn new(parent: impl AsMenuBar) -> Result<Self> {
-        let parent = parent.as_menu_bar().as_app_kit();
-        let inner = MenuItemBase::new(parent)?;
+    pub fn new(parent: &MenuBar) -> Result<Self> {
+        let inner = MenuItemBase::new(&parent.inner.inner)?;
         let menu = MenuBase::new()?;
         catch(|| {
             inner.inner.setSubmenu(Some(&menu.inner));

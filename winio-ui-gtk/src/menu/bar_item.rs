@@ -1,7 +1,9 @@
 use inherit_methods_macro::inherit_methods;
-use winio_handle::AsMenuBar;
 
-use crate::{Result, menu::PopupMenuItemBase};
+use crate::{
+    Result,
+    menu::{MenuBar, PopupMenuItemBase},
+};
 
 #[derive(Debug)]
 pub struct MenuBarItem {
@@ -10,10 +12,8 @@ pub struct MenuBarItem {
 
 #[inherit_methods(from = "self.base")]
 impl MenuBarItem {
-    pub fn new(parent: impl AsMenuBar) -> Result<Self> {
-        let parent = parent.as_menu_bar().to_gtk();
-
-        let base = PopupMenuItemBase::new(parent)?;
+    pub fn new(parent: &MenuBar) -> Result<Self> {
+        let base = PopupMenuItemBase::new(parent.menu())?;
         Ok(Self { base })
     }
 

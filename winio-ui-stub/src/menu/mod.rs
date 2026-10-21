@@ -1,7 +1,4 @@
-use winio_handle::{
-    AsMenuBar, AsMenuContainer, AsMenuItem, BorrowedMenuBar, BorrowedMenuContainer,
-    BorrowedMenuItem,
-};
+use winio_handle::{AsMenuContainer, AsMenuItem, BorrowedMenuContainer, BorrowedMenuItem};
 
 use crate::{Image, Result, not_impl};
 
@@ -63,12 +60,6 @@ impl MenuHandle {
     }
 
     pub fn set_checked(&mut self, _v: bool) -> Result<()> {
-        not_impl()
-    }
-}
-
-impl AsMenuBar for MenuHandle {
-    fn as_menu_bar(&self) -> BorrowedMenuBar<'_> {
         not_impl()
     }
 }

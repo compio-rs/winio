@@ -1,13 +1,13 @@
 use std::fmt::Debug;
 
 use inherit_methods_macro::inherit_methods;
-use winio_handle::{AsMenuBar, AsMenuContainer, BorrowedMenuContainer};
+use winio_handle::{AsMenuContainer, BorrowedMenuContainer};
 
 use crate::{
     Result,
     menu::{
-        ActionHandle, RawPtr,
-        ffi::{QMenu, QMenuBar, menu_bar_add_menu},
+        ActionHandle, MenuBar, RawPtr,
+        ffi::{QMenu, menu_bar_add_menu},
     },
 };
 
@@ -19,9 +19,8 @@ pub struct MenuBarItem {
 
 #[inherit_methods(from = "self.action")]
 impl MenuBarItem {
-    pub fn new(parent: impl AsMenuBar) -> Result<Self> {
-        let menu_bar = parent.as_menu_bar().as_qt::<QMenuBar>();
-        let menu = unsafe { menu_bar_add_menu(menu_bar)? };
+    pub fn new(parent: &MenuBar) -> Result<Self> {
+        let menu = unsafe { menu_bar_add_menu(parent.menu_bar())? };
         let mut menu = RawPtr(menu);
         let action = unsafe { menu.pin_mut() }.menuAction()?;
         Ok(Self {

@@ -3,11 +3,11 @@ use objc2_foundation::{MainThreadMarker, NSArray};
 use objc2_ui_kit::{NSLayoutConstraint, UILayoutConstraintAxis, UIScrollView, UIStackView};
 use winio_handle::AsWindow;
 
-use crate::{Error, Result, catch, menu::MenuBarRef, widgets::MenuBarHost};
+use crate::{Error, Result, catch, widgets::MenuBarHost};
 
 #[derive(Debug)]
 pub struct MenuBar {
-    bar: MenuBarRef,
+    stack: Retained<UIStackView>,
     host: MenuBarHost,
     scroll: Retained<UIScrollView>,
     grow: Retained<NSLayoutConstraint>,
@@ -74,7 +74,7 @@ impl MenuBar {
             grow.setActive(true);
 
             Ok(Self {
-                bar: MenuBarRef::new(stack),
+                stack,
                 host,
                 scroll,
                 grow,
@@ -94,6 +94,10 @@ impl MenuBar {
             self.host.zero_height.setActive(!visible);
         })
     }
+
+    pub(crate) fn stack(&self) -> &Retained<UIStackView> {
+        &self.stack
+    }
 }
 
 impl Drop for MenuBar {
@@ -103,5 +107,3 @@ impl Drop for MenuBar {
         self.scroll.removeFromSuperview();
     }
 }
-
-winio_handle::impl_as_menu_bar!(MenuBar, bar);

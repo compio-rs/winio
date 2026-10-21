@@ -12,9 +12,7 @@ use jni::{
 };
 use jni_min_helper::{DynamicProxy, JBoolean};
 use winio_callback::SyncCallback;
-use winio_handle::{
-    AsMenuContainer, AsMenuItem, BorrowedMenuBar, BorrowedMenuContainer, BorrowedMenuItem,
-};
+use winio_handle::{AsMenuContainer, AsMenuItem, BorrowedMenuContainer, BorrowedMenuItem};
 
 use crate::{
     Image, JCharSequenceExt, Result,
@@ -52,11 +50,6 @@ pub use separator::*;
 fn next_id() -> i32 {
     static NEXT: AtomicI32 = AtomicI32::new(1);
     NEXT.fetch_add(1, Ordering::Relaxed)
-}
-
-fn bar_menu<'local>(env: &mut Env<'local>, bar: BorrowedMenuBar<'_>) -> Result<JMenu<'local>> {
-    let menu = env.new_local_ref(bar.to_android())?;
-    Ok(unsafe { JMenu::from_raw(env, menu.into_raw()) })
 }
 
 fn container_menu<'local>(

@@ -8,8 +8,8 @@ use inherit_methods_macro::inherit_methods;
 use smallvec::SmallVec;
 #[cfg(feature = "handle")]
 use winio_handle::{
-    AsContainer, AsMenuBar, AsMenuContainer, AsMenuItem, AsWidget, AsWindow, BorrowedContainer,
-    BorrowedMenuBar, BorrowedMenuContainer, BorrowedMenuItem, BorrowedWidget, BorrowedWindow,
+    AsContainer, AsMenuContainer, AsMenuItem, AsWidget, AsWindow, BorrowedContainer,
+    BorrowedMenuContainer, BorrowedMenuItem, BorrowedWidget, BorrowedWindow,
 };
 #[cfg(feature = "primitive")]
 use winio_primitive::{Failable, Layoutable, Point, Rect, Size};
@@ -265,13 +265,6 @@ impl<T: AsWidget + Component> AsWidget for Child<T> {
 impl<T: AsContainer + Component> AsContainer for Child<T> {
     fn as_container(&self) -> BorrowedContainer<'_> {
         self.model.as_container()
-    }
-}
-
-#[cfg(feature = "handle")]
-impl<T: AsMenuBar + Component> AsMenuBar for Child<T> {
-    fn as_menu_bar(&self) -> BorrowedMenuBar<'_> {
-        self.model.as_menu_bar()
     }
 }
 

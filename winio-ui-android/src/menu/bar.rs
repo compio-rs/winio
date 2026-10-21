@@ -2,7 +2,7 @@ use jni::{
     Env,
     refs::{Global, Reference},
 };
-use winio_handle::{AsMenuBar, AsWindow, BorrowedMenuBar};
+use winio_handle::AsWindow;
 
 use crate::{
     Error, Result, current_activity,
@@ -67,12 +67,9 @@ impl MenuBar {
             Ok(())
         })
     }
-}
 
-impl AsMenuBar for MenuBar {
-    fn as_menu_bar(&self) -> BorrowedMenuBar<'_> {
-        // SAFETY: the menu is a valid `android.view.Menu`.
-        unsafe { BorrowedMenuBar::android(&self.menu) }
+    pub(crate) fn menu(&self) -> &Global<JMenu<'static>> {
+        &self.menu
     }
 }
 

@@ -49,7 +49,7 @@ impl Component for ExampleMenuBar {
     async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
             menu_bar: MenuBar = (init),
-            file_item: MenuBarItem = (&menu_bar) => {
+            file_item: MenuBarItem = (&*menu_bar) => {
                 text: "File",
             },
             open_file_item: MenuItem = (&file_item) => {
@@ -57,7 +57,7 @@ impl Component for ExampleMenuBar {
                 icon: Some(&crate::icons::open()?),
                 enabled: cfg!(feature = "compio-compat")
             },
-            widgets_item: MenuBarItem = (&menu_bar) => {
+            widgets_item: MenuBarItem = (&*menu_bar) => {
                 text: "Widgets",
             },
             combo_control_item: PopupMenuItem = (&widgets_item) => {
@@ -76,7 +76,7 @@ impl Component for ExampleMenuBar {
             show_password_item: CheckMenuItem = (&widgets_item) => {
                 text: "Show password",
             },
-            wgpu_item: MenuBarItem = (&menu_bar) => {
+            wgpu_item: MenuBarItem = (&*menu_bar) => {
                 text: "WGPU",
                 enabled: cfg!(feature = "wgpu"),
             },

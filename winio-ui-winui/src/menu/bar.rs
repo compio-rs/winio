@@ -1,4 +1,4 @@
-use winio_handle::{AsMenuBar, AsWindow, BorrowedMenuBar};
+use winio_handle::AsWindow;
 use winui3::Microsoft::UI::Xaml::{Controls as MUXC, Visibility};
 
 use crate::Result;
@@ -28,16 +28,14 @@ impl MenuBar {
         })?;
         Ok(())
     }
+
+    pub(crate) fn element(&self) -> &MUXC::MenuBar {
+        &self.element
+    }
 }
 
 impl Drop for MenuBar {
     fn drop(&mut self) {
         crate::remove_menu_bar(&self.element);
-    }
-}
-
-impl AsMenuBar for MenuBar {
-    fn as_menu_bar(&self) -> BorrowedMenuBar<'_> {
-        BorrowedMenuBar::winui(&self.element)
     }
 }

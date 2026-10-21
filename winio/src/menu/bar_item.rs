@@ -1,9 +1,9 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
-use winio_handle::BorrowedMenuBar;
 use winio_primitive::{Enable, Failable, TextWidget};
 
 use crate::{
+    menu::MenuBar,
     sys,
     sys::{Error, Result},
 };
@@ -49,11 +49,11 @@ pub enum MenuBarItemMessage {
 impl Component for MenuBarItem {
     type Error = Error;
     type Event = MenuBarItemEvent;
-    type Init<'a> = BorrowedMenuBar<'a>;
+    type Init<'a> = &'a MenuBar;
     type Message = MenuBarItemMessage;
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
-        let inner = sys::MenuBarItem::new(init)?;
+        let inner = sys::MenuBarItem::new(init.as_sys())?;
         Ok(Self { inner })
     }
 

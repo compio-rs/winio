@@ -1,8 +1,6 @@
-use winio_handle::AsMenuBar;
-
 use crate::{
     Result,
-    menu::{SubMenuItem, bar_menu},
+    menu::{MenuBar, SubMenuItem},
     vm_exec,
 };
 
@@ -12,10 +10,9 @@ pub struct MenuBarItem {
 }
 
 impl MenuBarItem {
-    pub fn new(parent: impl AsMenuBar) -> Result<Self> {
+    pub fn new(parent: &MenuBar) -> Result<Self> {
         vm_exec(|env| {
-            let menu = bar_menu(env, parent.as_menu_bar())?;
-            let inner = SubMenuItem::new(env, &menu)?;
+            let inner = SubMenuItem::new(env, parent.menu())?;
             inner.set_show_as_action(env)?;
             Ok(Self { inner })
         })

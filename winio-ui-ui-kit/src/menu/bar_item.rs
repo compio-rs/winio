@@ -1,11 +1,10 @@
 use objc2::{MainThreadOnly, rc::Retained};
 use objc2_foundation::NSString;
 use objc2_ui_kit::{UIButton, UIButtonType, UIControlState};
-use winio_handle::AsMenuBar;
 
 use crate::{
     Result, catch, from_nsstring,
-    menu::{MenuNodeRef, build_bar_menu},
+    menu::{MenuBar, MenuNodeRef, build_bar_menu},
 };
 
 #[derive(Debug)]
@@ -15,8 +14,8 @@ pub struct MenuBarItem {
 }
 
 impl MenuBarItem {
-    pub fn new(parent: impl AsMenuBar) -> Result<Self> {
-        let stack = parent.as_menu_bar().as_ui_kit();
+    pub fn new(parent: &MenuBar) -> Result<Self> {
+        let stack = parent.stack();
         let mtm = stack.mtm();
         catch(|| {
             let node = MenuNodeRef::root();
