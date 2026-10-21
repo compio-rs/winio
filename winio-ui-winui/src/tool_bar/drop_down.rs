@@ -1,28 +1,33 @@
 use std::rc::Rc;
 
+use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows_core::{HSTRING, Interface};
 use winio_callback::Callback;
-use winio_handle::{AsMenuContainer, AsToolBarItem, BorrowedMenuContainer, BorrowedToolBarItem};
+use winio_handle::{AsMenuContainer, BorrowedMenuContainer};
 use winui3::Microsoft::UI::Xaml::{Controls as MUXC, Controls::Primitives as MUXCP};
 
-use crate::{GlobalRuntime, Image, Result, tool_bar::ToolBar};
+use crate::{
+    GlobalRuntime, Image, Result,
+    tool_bar::{ToolBar, ToolBarItem},
+};
 
 #[derive(Debug)]
 pub struct ToolBarDropDownButton {
     button: MUXC::AppBarButton,
-    handle: MUXC::ICommandBarElement,
+    item: ToolBarItem,
     flyout: MUXC::MenuFlyout,
     on_click: SendWrapper<Rc<Callback>>,
 }
 
+#[inherit_methods(from = "self.item")]
 impl ToolBarDropDownButton {
     pub fn new(parent: &ToolBar) -> Result<Self> {
         let button = MUXC::AppBarButton::new()?;
         let flyout = MUXC::MenuFlyout::new()?;
         button.SetFlyout(&flyout.cast::<MUXCP::FlyoutBase>()?)?;
         parent.element().PrimaryCommands()?.Append(&button)?;
-        let handle = button.cast()?;
+        let item = ToolBarItem::new(button.cast()?)?;
         let on_click = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_click = on_click.clone();
@@ -42,20 +47,15 @@ impl ToolBarDropDownButton {
         }
         Ok(Self {
             button,
-            handle,
+            item,
             flyout,
             on_click,
         })
     }
 
-    pub fn is_enabled(&self) -> Result<bool> {
-        self.button.IsEnabled()
-    }
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&self, enabled: bool) -> Result<()> {
-        self.button.SetIsEnabled(enabled)?;
-        Ok(())
-    }
+    pub fn set_enabled(&self, enabled: bool) -> Result<()>;
 
     pub fn text(&self) -> Result<String> {
         Ok(self.button.Label()?.to_string_lossy())
@@ -96,8 +96,4 @@ impl AsMenuContainer for ToolBarDropDownButton {
     }
 }
 
-impl AsToolBarItem for ToolBarDropDownButton {
-    fn as_tool_bar_item(&self) -> BorrowedToolBarItem<'_> {
-        BorrowedToolBarItem::winui(&self.handle)
-    }
-}
+winio_handle::impl_as_tool_bar_item!(ToolBarDropDownButton, item);

@@ -1,26 +1,30 @@
 use std::rc::Rc;
 
+use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows_core::{HSTRING, Interface};
 use winio_callback::Callback;
-use winio_handle::{AsToolBarItem, BorrowedToolBarItem};
 use winui3::Microsoft::UI::Xaml::{Controls as MUXC, Controls::Primitives as MUXCP};
 
-use crate::{GlobalRuntime, Image, Result, tool_bar::ToolBar};
+use crate::{
+    GlobalRuntime, Image, Result,
+    tool_bar::{ToolBar, ToolBarItem},
+};
 
 #[derive(Debug)]
 pub struct ToolBarRadioButton {
     element: MUXC::AppBarToggleButton,
-    handle: MUXC::ICommandBarElement,
+    item: ToolBarItem,
     toggle: MUXCP::ToggleButton,
     on_click: SendWrapper<Rc<Callback>>,
 }
 
+#[inherit_methods(from = "self.item")]
 impl ToolBarRadioButton {
     pub fn new(parent: &ToolBar) -> Result<Self> {
         let element = MUXC::AppBarToggleButton::new()?;
         parent.element().PrimaryCommands()?.Append(&element)?;
-        let handle = element.cast()?;
+        let item = ToolBarItem::new(element.cast()?)?;
         let toggle = element.cast()?;
         let on_click = SendWrapper::new(Rc::new(Callback::new()));
         {
@@ -34,20 +38,15 @@ impl ToolBarRadioButton {
         }
         Ok(Self {
             element,
-            handle,
+            item,
             toggle,
             on_click,
         })
     }
 
-    pub fn is_enabled(&self) -> Result<bool> {
-        self.element.IsEnabled()
-    }
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&self, enabled: bool) -> Result<()> {
-        self.element.SetIsEnabled(enabled)?;
-        Ok(())
-    }
+    pub fn set_enabled(&self, enabled: bool) -> Result<()>;
 
     pub fn text(&self) -> Result<String> {
         Ok(self.element.Label()?.to_string_lossy())
@@ -92,8 +91,4 @@ impl ToolBarRadioButton {
     }
 }
 
-impl AsToolBarItem for ToolBarRadioButton {
-    fn as_tool_bar_item(&self) -> BorrowedToolBarItem<'_> {
-        BorrowedToolBarItem::winui(&self.handle)
-    }
-}
+winio_handle::impl_as_tool_bar_item!(ToolBarRadioButton, item);

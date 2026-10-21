@@ -1,25 +1,23 @@
 use windows_core::Interface;
-use winio_handle::{AsToolBarItem, BorrowedToolBarItem};
 use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
-use crate::{Result, tool_bar::ToolBar};
+use crate::{
+    Result,
+    tool_bar::{ToolBar, ToolBarItem},
+};
 
 #[derive(Debug)]
 pub struct ToolBarSeparator {
-    handle: MUXC::ICommandBarElement,
+    item: ToolBarItem,
 }
 
 impl ToolBarSeparator {
     pub fn new(parent: &ToolBar) -> Result<Self> {
         let element = MUXC::AppBarSeparator::new()?;
         parent.element().PrimaryCommands()?.Append(&element)?;
-        let handle = element.cast()?;
-        Ok(Self { handle })
+        let item = ToolBarItem::new(element.cast()?)?;
+        Ok(Self { item })
     }
 }
 
-impl AsToolBarItem for ToolBarSeparator {
-    fn as_tool_bar_item(&self) -> BorrowedToolBarItem<'_> {
-        BorrowedToolBarItem::winui(&self.handle)
-    }
-}
+winio_handle::impl_as_tool_bar_item!(ToolBarSeparator, item);
