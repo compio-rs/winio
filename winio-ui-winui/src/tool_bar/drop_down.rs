@@ -3,7 +3,7 @@ use std::rc::Rc;
 use send_wrapper::SendWrapper;
 use windows_core::{HSTRING, Interface};
 use winio_callback::Callback;
-use winio_handle::{AsMenuContainer, BorrowedMenuContainer};
+use winio_handle::{AsMenuContainer, AsToolBarItem, BorrowedMenuContainer, BorrowedToolBarItem};
 use winui3::Microsoft::UI::Xaml::{Controls as MUXC, Controls::Primitives as MUXCP};
 
 use crate::{GlobalRuntime, Image, Result, tool_bar::ToolBar};
@@ -11,6 +11,7 @@ use crate::{GlobalRuntime, Image, Result, tool_bar::ToolBar};
 #[derive(Debug)]
 pub struct ToolBarDropDownButton {
     button: MUXC::AppBarButton,
+    handle: MUXC::ICommandBarElement,
     flyout: MUXC::MenuFlyout,
     on_click: SendWrapper<Rc<Callback>>,
 }
@@ -21,6 +22,7 @@ impl ToolBarDropDownButton {
         let flyout = MUXC::MenuFlyout::new()?;
         button.SetFlyout(&flyout.cast::<MUXCP::FlyoutBase>()?)?;
         parent.element().PrimaryCommands()?.Append(&button)?;
+        let handle = button.cast()?;
         let on_click = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_click = on_click.clone();
@@ -40,6 +42,7 @@ impl ToolBarDropDownButton {
         }
         Ok(Self {
             button,
+            handle,
             flyout,
             on_click,
         })
@@ -90,5 +93,11 @@ impl ToolBarDropDownButton {
 impl AsMenuContainer for ToolBarDropDownButton {
     fn as_menu_container(&self) -> BorrowedMenuContainer<'_> {
         BorrowedMenuContainer::winui_menu_flyout(&self.flyout)
+    }
+}
+
+impl AsToolBarItem for ToolBarDropDownButton {
+    fn as_tool_bar_item(&self) -> BorrowedToolBarItem<'_> {
+        BorrowedToolBarItem::winui(&self.handle)
     }
 }

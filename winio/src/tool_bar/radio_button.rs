@@ -130,3 +130,5 @@ impl RadioEvent for ToolBarRadioButtonEvent {
         matches!(self, Self::Click)
     }
 }
+
+winio_handle::impl_as_tool_bar_item!(ToolBarRadioButton, inner);

@@ -75,3 +75,4 @@ impl Component for ToolBarDropDownButton {
 }
 
 winio_handle::impl_as_menu_container!(ToolBarDropDownButton, inner);
+winio_handle::impl_as_tool_bar_item!(ToolBarDropDownButton, inner);

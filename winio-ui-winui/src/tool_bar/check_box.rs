@@ -3,6 +3,7 @@ use std::rc::Rc;
 use send_wrapper::SendWrapper;
 use windows_core::{HSTRING, Interface};
 use winio_callback::Callback;
+use winio_handle::{AsToolBarItem, BorrowedToolBarItem};
 use winui3::Microsoft::UI::Xaml::{Controls as MUXC, Controls::Primitives as MUXCP};
 
 use crate::{GlobalRuntime, Image, Result, tool_bar::ToolBar};
@@ -10,6 +11,7 @@ use crate::{GlobalRuntime, Image, Result, tool_bar::ToolBar};
 #[derive(Debug)]
 pub struct ToolBarCheckBox {
     element: MUXC::AppBarToggleButton,
+    handle: MUXC::ICommandBarElement,
     toggle: MUXCP::ToggleButton,
     on_click: SendWrapper<Rc<Callback>>,
 }
@@ -18,6 +20,7 @@ impl ToolBarCheckBox {
     pub fn new(parent: &ToolBar) -> Result<Self> {
         let element = MUXC::AppBarToggleButton::new()?;
         parent.element().PrimaryCommands()?.Append(&element)?;
+        let handle = element.cast()?;
         let toggle = element.cast()?;
         let on_click = SendWrapper::new(Rc::new(Callback::new()));
         {
@@ -31,6 +34,7 @@ impl ToolBarCheckBox {
         }
         Ok(Self {
             element,
+            handle,
             toggle,
             on_click,
         })
@@ -84,5 +88,11 @@ impl ToolBarCheckBox {
 
     pub async fn wait_click(&self) {
         self.on_click.wait().await
+    }
+}
+
+impl AsToolBarItem for ToolBarCheckBox {
+    fn as_tool_bar_item(&self) -> BorrowedToolBarItem<'_> {
+        BorrowedToolBarItem::winui(&self.handle)
     }
 }

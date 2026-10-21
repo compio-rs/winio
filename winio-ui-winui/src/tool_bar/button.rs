@@ -3,6 +3,7 @@ use std::rc::Rc;
 use send_wrapper::SendWrapper;
 use windows_core::{HSTRING, Interface};
 use winio_callback::Callback;
+use winio_handle::{AsToolBarItem, BorrowedToolBarItem};
 use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
 use crate::{GlobalRuntime, Image, Result, tool_bar::ToolBar};
@@ -10,6 +11,7 @@ use crate::{GlobalRuntime, Image, Result, tool_bar::ToolBar};
 #[derive(Debug)]
 pub struct ToolBarButton {
     button: MUXC::AppBarButton,
+    handle: MUXC::ICommandBarElement,
     on_click: SendWrapper<Rc<Callback>>,
 }
 
@@ -17,6 +19,7 @@ impl ToolBarButton {
     pub fn new(parent: &ToolBar) -> Result<Self> {
         let button = MUXC::AppBarButton::new()?;
         parent.element().PrimaryCommands()?.Append(&button)?;
+        let handle = button.cast()?;
         let on_click = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_click = on_click.clone();
@@ -27,7 +30,11 @@ impl ToolBarButton {
                 })?
                 .forget();
         }
-        Ok(Self { button, on_click })
+        Ok(Self {
+            button,
+            handle,
+            on_click,
+        })
     }
 
     pub fn is_enabled(&self) -> Result<bool> {
@@ -69,5 +76,11 @@ impl ToolBarButton {
 
     pub async fn wait_click(&self) {
         self.on_click.wait().await
+    }
+}
+
+impl AsToolBarItem for ToolBarButton {
+    fn as_tool_bar_item(&self) -> BorrowedToolBarItem<'_> {
+        BorrowedToolBarItem::winui(&self.handle)
     }
 }

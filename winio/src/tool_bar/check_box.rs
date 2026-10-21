@@ -125,3 +125,5 @@ impl Component for ToolBarCheckBox {
         }
     }
 }
+
+winio_handle::impl_as_tool_bar_item!(ToolBarCheckBox, inner);

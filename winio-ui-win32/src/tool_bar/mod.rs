@@ -29,7 +29,7 @@ use windows_sys::Win32::{
         },
     },
 };
-use winio_handle::AsWindow;
+use winio_handle::{AsToolBarItem, AsWindow, BorrowedToolBarItem};
 
 use crate::{
     Error, Image, Result, Widget, get_u16c,
@@ -466,6 +466,12 @@ struct ToolBarItem {
     id: u32,
 }
 
+impl AsToolBarItem for ToolBarItem {
+    fn as_tool_bar_item(&self) -> BorrowedToolBarItem<'_> {
+        unsafe { BorrowedToolBarItem::win32(self.data.handle.as_window().as_win32(), self.id) }
+    }
+}
+
 impl ToolBarItem {
     fn new(parent: &ToolBar, kind: ItemKind) -> Result<Self> {
         Ok(Self {
@@ -585,7 +591,6 @@ impl ToolBarButton {
 
 #[derive(Debug)]
 pub struct ToolBarSeparator {
-    #[allow(dead_code)]
     item: ToolBarItem,
 }
 
@@ -739,3 +744,8 @@ impl ToolBarDropDownButton {
 }
 
 winio_handle::impl_as_menu_container!(ToolBarDropDownButton, menu);
+winio_handle::impl_as_tool_bar_item!(ToolBarButton, item);
+winio_handle::impl_as_tool_bar_item!(ToolBarSeparator, item);
+winio_handle::impl_as_tool_bar_item!(ToolBarCheckBox, item);
+winio_handle::impl_as_tool_bar_item!(ToolBarRadioButton, item);
+winio_handle::impl_as_tool_bar_item!(ToolBarDropDownButton, item);

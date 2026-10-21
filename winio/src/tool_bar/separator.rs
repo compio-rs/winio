@@ -9,7 +9,6 @@ use crate::{
 /// A vertical separator in a [`ToolBar`].
 #[derive(Debug)]
 pub struct ToolBarSeparator {
-    #[allow(dead_code)]
     inner: sys::ToolBarSeparator,
 }
 
@@ -46,3 +45,5 @@ impl Component for ToolBarSeparator {
         match message {}
     }
 }
+
+winio_handle::impl_as_tool_bar_item!(ToolBarSeparator, inner);
