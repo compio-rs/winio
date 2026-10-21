@@ -76,7 +76,7 @@ windows-sys = "0.61"
 windows-core = "0.100"
 
 windows = { version = "0.3.0-alpha.1", package = "winio-windows-subset" }
-winui3 = { version = "0.7.0-alpha.4", package = "winio-winui3" }
+winui3 = { version = "0.7.0-alpha.5", package = "winio-winui3" }
 webview2 = { version = "0.4.0-alpha.1", package = "winio-webview2" }
 
 send_wrapper = "0.6"
@@ -115,8 +115,3 @@ wgpu = { version = "30", default-features = false }
 [profile.release]
 lto = true
 codegen-units = 1
-
-[patch.crates-io]
-winio-windows-subset = { path = "../winui3-rs/windows-subset" }
-winio-winui3 = { path = "../winui3-rs/winui3" }
-winio-webview2 = { path = "../winui3-rs/webview2" }
