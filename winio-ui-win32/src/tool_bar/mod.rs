@@ -34,12 +34,11 @@ use winio_handle::AsWindow;
 use crate::{
     Error, Image, Result, Widget, get_u16c,
     menu::{OwnedMenu, set_menu_owner},
-    platform::dpi::DpiAware,
     with_u16c,
 };
 
 const TOOLBAR_ID_BASE: u32 = 0x8000;
-const SEPARATOR_WIDTH: f64 = 8.0;
+const SEPARATOR_WIDTH: i32 = 8;
 
 thread_local! {
     static TOOLBARS: RefCell<Vec<Rc<ToolBarData>>> = const { RefCell::new(Vec::new()) };
@@ -139,7 +138,7 @@ impl ToolBarData {
             self.alloc_id()
         };
         let i_bitmap = match kind {
-            ItemKind::Separator => SEPARATOR_WIDTH.to_device(self.handle.dpi()) as i32,
+            ItemKind::Separator => SEPARATOR_WIDTH,
             _ => I_IMAGENONE,
         };
         let state = if kind == ItemKind::Separator {
