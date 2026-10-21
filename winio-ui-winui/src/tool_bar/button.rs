@@ -23,6 +23,7 @@ impl ToolBarButton {
     pub fn new(parent: &ToolBar) -> Result<Self> {
         let button = MUXC::AppBarButton::new()?;
         parent.element().PrimaryCommands()?.Append(&button)?;
+        button.SetLabelPosition(MUXC::CommandBarLabelPosition::Collapsed)?;
         let item = ToolBarItem::new(button.cast()?)?;
         let on_click = SendWrapper::new(Rc::new(Callback::new()));
         {

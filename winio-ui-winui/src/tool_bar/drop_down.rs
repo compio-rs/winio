@@ -5,7 +5,7 @@ use send_wrapper::SendWrapper;
 use windows_core::{HSTRING, Interface};
 use winio_callback::Callback;
 use winio_handle::{AsMenuContainer, BorrowedMenuContainer};
-use winui3::Microsoft::UI::Xaml::{Controls as MUXC, Controls::Primitives as MUXCP};
+use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
 use crate::{
     GlobalRuntime, Image, Result,
@@ -25,8 +25,9 @@ impl ToolBarDropDownButton {
     pub fn new(parent: &ToolBar) -> Result<Self> {
         let button = MUXC::AppBarButton::new()?;
         let flyout = MUXC::MenuFlyout::new()?;
-        button.SetFlyout(&flyout.cast::<MUXCP::FlyoutBase>()?)?;
+        button.SetFlyout(&flyout)?;
         parent.element().PrimaryCommands()?.Append(&button)?;
+        button.SetLabelPosition(MUXC::CommandBarLabelPosition::Collapsed)?;
         let item = ToolBarItem::new(button.cast()?)?;
         let on_click = SendWrapper::new(Rc::new(Callback::new()));
         {
