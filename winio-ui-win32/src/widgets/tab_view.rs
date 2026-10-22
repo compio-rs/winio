@@ -4,10 +4,11 @@ use std::{
     rc::{Rc, Weak},
 };
 
+use inherit_methods_macro::inherit_methods;
 use windows_core::WIN32_ERROR;
 use windows_sys::{
     Win32::{
-        Foundation::{ERROR_ALREADY_EXISTS, LPARAM, WPARAM},
+        Foundation::ERROR_ALREADY_EXISTS,
         UI::{
             Controls::{
                 TCIF_TEXT, TCITEMW, TCM_ADJUSTRECT, TCM_DELETEALLITEMS, TCM_DELETEITEM,
@@ -40,13 +41,10 @@ struct TabViewData {
     views: RefCell<Vec<TabViewItem>>,
 }
 
+#[inherit_methods(from = "self.data.handle")]
 impl TabView {
-    fn data_mut(&mut self) -> &mut TabViewData {
-        Rc::get_mut(&mut self.data).expect("TabViewData is exclusively owned by TabView")
-    }
-
     pub fn new(parent: impl AsContainer) -> Result<Self> {
-        let mut handle = Widget::new(
+        let handle = Widget::new(
             WC_TABCONTROLW,
             WS_TABSTOP | WS_CLIPCHILDREN | WS_VISIBLE | WS_CHILD | TCS_TABS,
             WS_EX_CONTROLPARENT,
@@ -81,36 +79,22 @@ impl TabView {
         Ok(Self { data })
     }
 
-    pub fn is_visible(&self) -> Result<bool> {
-        self.data.handle.is_visible()
-    }
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, v: bool) -> Result<()> {
-        self.data_mut().handle.set_visible(v)
-    }
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn is_enabled(&self) -> Result<bool> {
-        self.data.handle.is_enabled()
-    }
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, v: bool) -> Result<()> {
-        self.data_mut().handle.set_enabled(v)
-    }
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn loc(&self) -> Result<Point> {
-        self.data.handle.loc()
-    }
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, p: Point) -> Result<()> {
-        self.data_mut().handle.set_loc(p)
-    }
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
 
-    pub fn size(&self) -> Result<Size> {
-        self.data.handle.size()
-    }
+    pub fn size(&self) -> Result<Size>;
 
     pub fn set_size(&mut self, v: Size) -> Result<()> {
-        let data = self.data_mut();
+        let data = &self.data;
         data.handle.set_size(v)?;
         let mut rect = MaybeUninit::uninit();
         syscall!(
@@ -141,7 +125,7 @@ impl TabView {
     }
 
     pub fn set_selection(&mut self, i: usize) -> Result<()> {
-        self.data.send_message(TCM_SETCURSEL, i as _, 0);
+        self.data.handle.send_message(TCM_SETCURSEL, i as _, 0);
         Ok(())
     }
 
@@ -165,12 +149,8 @@ impl TabView {
 }
 
 impl TabViewData {
-    fn send_message(&self, msg: u32, wparam: WPARAM, lparam: LPARAM) -> isize {
-        self.handle.send_message(msg, wparam, lparam)
-    }
-
     fn selection(&self) -> Option<usize> {
-        let i = self.send_message(TCM_GETCURSEL, 0, 0);
+        let i = self.handle.send_message(TCM_GETCURSEL, 0, 0);
         if i < 0 { None } else { Some(i as _) }
     }
 
@@ -218,7 +198,8 @@ impl TabViewData {
                     iImage: 0,
                     lParam: 0,
                 };
-                self.send_message(TCM_INSERTITEMW, i, std::ptr::addr_of_mut!(item) as _);
+                self.handle
+                    .send_message(TCM_INSERTITEMW, i, std::ptr::addr_of_mut!(item) as _);
                 Ok(())
             })?;
         }
@@ -242,17 +223,14 @@ impl TabViewData {
         };
         {
             let mut inner = item.inner.borrow_mut();
-            if inner.parent.take().is_none() {
-                return;
-            }
             inner.index = None;
             unsafe { SetParent(inner.view.as_widget().as_win32(), HWND_MESSAGE) };
         }
-        self.send_message(TCM_DELETEITEM, index, 0);
+        self.handle.send_message(TCM_DELETEITEM, index, 0);
         self.views.borrow_mut().remove(index);
         self.reset_indices();
         if self.selection().is_none() && !self.views.borrow().is_empty() {
-            self.send_message(TCM_SETCURSEL, 0, 0);
+            self.handle.send_message(TCM_SETCURSEL, 0, 0);
         }
         self.show_current_view();
     }
@@ -269,7 +247,7 @@ struct TabViewItemInner {
     view: View,
     title: String,
     index: Option<usize>,
-    parent: Option<Weak<TabViewData>>,
+    parent: Weak<TabViewData>,
 }
 
 #[derive(Debug, Clone)]
@@ -284,7 +262,7 @@ impl TabViewItem {
                 view: View::new_hidden(HWND_MESSAGE)?,
                 title: String::new(),
                 index: None,
-                parent: Some(Rc::downgrade(&parent.data)),
+                parent: Rc::downgrade(&parent.data),
             })),
         };
         parent.append(&item)?;
@@ -333,7 +311,7 @@ impl TabViewItem {
 
 impl Drop for TabViewItem {
     fn drop(&mut self) {
-        let parent = self.inner.borrow().parent.as_ref().and_then(Weak::upgrade);
+        let parent = self.inner.borrow().parent.upgrade();
         if let Some(parent) = parent {
             parent.remove(self);
         }

@@ -164,7 +164,7 @@ impl Widget {
         Ok((rect.right - rect.left, rect.bottom - rect.top))
     }
 
-    fn set_sized(&mut self, v: (i32, i32)) -> Result<()> {
+    fn set_sized(&self, v: (i32, i32)) -> Result<()> {
         let handle = self.as_window().as_win32();
         if v != self.sized()? {
             syscall!(
@@ -187,7 +187,7 @@ impl Widget {
         Ok(self.size_d2l(self.sized()?))
     }
 
-    pub fn set_size(&mut self, v: Size) -> Result<()> {
+    pub fn set_size(&self, v: Size) -> Result<()> {
         self.set_sized(self.size_l2d(v))
     }
 
@@ -210,7 +210,7 @@ impl Widget {
         }
     }
 
-    fn set_locd(&mut self, p: (i32, i32)) -> Result<()> {
+    fn set_locd(&self, p: (i32, i32)) -> Result<()> {
         let handle = self.as_window().as_win32();
         if p != self.locd()? {
             syscall!(
@@ -233,7 +233,7 @@ impl Widget {
         Ok(self.point_d2l(self.locd()?))
     }
 
-    pub fn set_loc(&mut self, p: Point) -> Result<()> {
+    pub fn set_loc(&self, p: Point) -> Result<()> {
         self.set_locd(self.point_l2d(p))
     }
 
@@ -255,7 +255,7 @@ impl Widget {
         Ok(unsafe { IsWindowEnabled(self.as_window().as_win32()) != 0 })
     }
 
-    pub fn set_enabled(&mut self, v: bool) -> Result<()> {
+    pub fn set_enabled(&self, v: bool) -> Result<()> {
         unsafe {
             EnableWindow(self.as_window().as_win32(), if v { 1 } else { 0 });
         }
@@ -266,7 +266,7 @@ impl Widget {
         Ok(get_tooltip(self.as_window().as_win32()).unwrap_or_default())
     }
 
-    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()> {
+    pub fn set_tooltip(&self, s: impl AsRef<str>) -> Result<()> {
         set_tooltip(self.as_window().as_win32(), s)
     }
 
@@ -274,7 +274,7 @@ impl Widget {
         Ok(self.text_u16()?.to_string_lossy())
     }
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
+    pub fn set_text(&self, s: impl AsRef<str>) -> Result<()> {
         let handle = self.as_window().as_win32();
         with_u16c(s.as_ref(), |s| {
             syscall!(BOOL, unsafe { SetWindowTextW(handle, s.as_ptr()) })?;
@@ -315,7 +315,7 @@ impl Widget {
         )?)
     }
 
-    pub fn set_style(&mut self, style: u32) -> Result<()> {
+    pub fn set_style(&self, style: u32) -> Result<()> {
         unsafe { SetLastError(0) };
         let res = syscall!(
             BOOL,
@@ -335,7 +335,7 @@ impl Widget {
         )?)
     }
 
-    pub fn set_ex_style(&mut self, style: u32) -> Result<()> {
+    pub fn set_ex_style(&self, style: u32) -> Result<()> {
         unsafe { SetLastError(0) };
         let res = syscall!(
             BOOL,
@@ -357,7 +357,7 @@ impl Widget {
         unsafe { SendMessageW(self.as_window().as_win32(), msg, wparam as _, lparam) }
     }
 
-    pub fn set_icon(&mut self, icon: HICON) {
+    pub fn set_icon(&self, icon: HICON) {
         self.send_message(WM_SETICON, ICON_BIG as _, icon as _);
     }
 }
