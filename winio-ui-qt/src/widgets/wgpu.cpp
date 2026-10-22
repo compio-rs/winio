@@ -129,8 +129,13 @@ WaylandDescriptor wgpu_canvas_wayland_descriptor(QWidget const &w) {
     auto interface = QGuiApplication::platformNativeInterface();
     auto display = static_cast<wl_display *>(
         interface->nativeResourceForIntegration("wl_display"));
+    // The native window (and its platform surface) may not have been created
+    // yet when the surface is requested during initialization. `winId()`
+    // forces its creation; the canvas is marked as a native window.
+    auto *widget = const_cast<QWidget *>(&w);
+    widget->winId();
     auto surface = static_cast<wl_surface *>(
-        interface->nativeResourceForWindow("surface", w.windowHandle()));
+        interface->nativeResourceForWindow("surface", widget->windowHandle()));
     return {display, surface};
 }
 

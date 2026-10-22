@@ -201,11 +201,10 @@ impl WgpuCanvas {
     fn xcb(&self) -> Option<WindowHandleWrapper> {
         let desc = ffi::wgpu_canvas_xcb_descriptor(self.widget.as_ref()).ok()?;
         let window = NonZero::new(desc.window)?;
+        let connection = NonNull::new(desc.connection)?;
         let handle = RawWindowHandle::Xcb(XcbWindowHandle::new(window));
-        let display_handle = RawDisplayHandle::Xcb(XcbDisplayHandle::new(
-            NonNull::new(desc.connection).map(|p| p.cast()),
-            desc.screen,
-        ));
+        let display_handle =
+            RawDisplayHandle::Xcb(XcbDisplayHandle::new(Some(connection.cast()), desc.screen));
         Some(WindowHandleWrapper(handle, display_handle))
     }
 
