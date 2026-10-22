@@ -32,6 +32,9 @@ pub use bar::*;
 mod bar_item;
 pub use bar_item::*;
 
+mod sub_menu_button;
+pub(crate) use sub_menu_button::*;
+
 mod item;
 pub use item::*;
 

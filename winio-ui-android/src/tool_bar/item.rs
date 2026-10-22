@@ -2,7 +2,7 @@ use winio_handle::{AsToolBarItem, BorrowedMenuContainer, BorrowedToolBarItem};
 
 use crate::{
     Image, Result,
-    menu::{LeafItem, LeafKind, SubMenuItem},
+    menu::{LeafItem, LeafKind},
     tool_bar::ToolBar,
     vm_exec,
 };
@@ -85,12 +85,5 @@ impl AsToolBarItem for ToolBarItem {
     fn as_tool_bar_item(&self) -> BorrowedToolBarItem<'_> {
         // SAFETY: the menu item is valid for the lifetime of `self`.
         unsafe { BorrowedToolBarItem::android(self.item.item()) }
-    }
-}
-
-impl AsToolBarItem for SubMenuItem {
-    fn as_tool_bar_item(&self) -> BorrowedToolBarItem<'_> {
-        // SAFETY: the menu item is valid for the lifetime of `self`.
-        unsafe { BorrowedToolBarItem::android(self.item()) }
     }
 }

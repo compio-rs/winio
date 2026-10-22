@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use inherit_methods_macro::inherit_methods;
 use jni::{
+    Env,
     objects::JObject,
     refs::{Global, LoaderContext, Reference},
 };
@@ -63,25 +64,8 @@ impl Window {
                 inner_view,
             )?;
 
-            let menu_bar_view = FrameLayout::new(env, &act)?;
-            menu_bar_view.as_view().set_id(env, MENU_BAR_VIEW_ID)?;
-            let params = FrameLayoutLayoutParams::new(env, -1, -2)?;
-            params.set_gravity(env, gravity::LEFT | gravity::TOP)?;
-            menu_bar_view.as_view().set_layout_params(env, &params)?;
-            window
-                .as_view_group()
-                .add_view(env, menu_bar_view.as_view())?;
-            let menu_bar_view = env.new_global_ref(&menu_bar_view)?;
-
-            let tool_bar_view = FrameLayout::new(env, &act)?;
-            tool_bar_view.as_view().set_id(env, TOOL_BAR_VIEW_ID)?;
-            let params = FrameLayoutLayoutParams::new(env, -1, -2)?;
-            params.set_gravity(env, gravity::LEFT | gravity::TOP)?;
-            tool_bar_view.as_view().set_layout_params(env, &params)?;
-            window
-                .as_view_group()
-                .add_view(env, tool_bar_view.as_view())?;
-            let tool_bar_view = env.new_global_ref(&tool_bar_view)?;
+            let menu_bar_view = add_bar_host(env, &window, &act, MENU_BAR_VIEW_ID)?;
+            let tool_bar_view = add_bar_host(env, &window, &act, TOOL_BAR_VIEW_ID)?;
 
             let on_resize = Arc::new(SyncCallback::new());
             WINDOW_RESIZE_CALLBACK
@@ -263,6 +247,21 @@ pub(crate) fn notify_layout_changed() {
     if let Some(callback) = WINDOW_RESIZE_CALLBACK.lock().unwrap().as_ref() {
         callback.signal::<AndroidRuntime>(());
     }
+}
+
+fn add_bar_host(
+    env: &mut Env<'_>,
+    window: &FrameLayout<'_>,
+    act: &Global<Activity<'static>>,
+    id: i32,
+) -> Result<Global<FrameLayout<'static>>> {
+    let bar = FrameLayout::new(env, act)?;
+    bar.as_view().set_id(env, id)?;
+    let params = FrameLayoutLayoutParams::new(env, -1, -2)?;
+    params.set_gravity(env, gravity::LEFT | gravity::TOP)?;
+    bar.as_view().set_layout_params(env, &params)?;
+    window.as_view_group().add_view(env, bar.as_view())?;
+    Ok(env.new_global_ref(&bar)?)
 }
 
 fn set_bounds(view: &AView<'static>, loc: Point, size: Size) -> Result<()> {
