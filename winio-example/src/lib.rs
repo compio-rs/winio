@@ -77,7 +77,7 @@ impl Component for MainModel {
         init! {
             window: Window = (()) => {
                 text: "Widgets example",
-                size: Size::new(800.0, 600.0),
+                size: Size::new(800.0, 700.0),
                 loc: {
                     let monitors = Monitor::all()?;
                     if let Some(monitor) = monitors.first() {
