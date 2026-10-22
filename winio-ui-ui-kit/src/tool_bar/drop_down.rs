@@ -1,10 +1,10 @@
-use objc2::{MainThreadMarker, rc::Retained};
+use objc2::rc::Retained;
 use objc2_foundation::NSString;
 use objc2_ui_kit::{UIBarButtonItem, UIButton, UIButtonType, UIControlState, UIImageRenderingMode};
 use winio_handle::{AsMenuContainer, BorrowedMenuContainer};
 
 use crate::{
-    Error, Image, Result, catch, from_nsstring,
+    Image, Result, catch, from_nsstring,
     menu::{MenuNodeRef, build_bar_menu},
     tool_bar::{ToolBar, ToolBarItem},
 };
@@ -19,7 +19,7 @@ pub struct ToolBarDropDownButton {
 
 impl ToolBarDropDownButton {
     pub fn new(parent: &ToolBar) -> Result<Self> {
-        let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
+        let mtm = parent.data().mtm();
 
         catch(|| {
             let menu = MenuNodeRef::root();

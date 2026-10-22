@@ -1,8 +1,7 @@
-use objc2::MainThreadMarker;
 use objc2_ui_kit::{NSLayoutConstraint, UIBarButtonItem, UIColor, UIView};
 
 use crate::{
-    Error, Result, catch,
+    Result, catch,
     tool_bar::{ToolBar, ToolBarItem},
 };
 
@@ -14,7 +13,7 @@ pub struct ToolBarSeparator {
 
 impl ToolBarSeparator {
     pub fn new(parent: &ToolBar) -> Result<Self> {
-        let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
+        let mtm = parent.data().mtm();
 
         catch(|| {
             let line = UIView::new(mtm);

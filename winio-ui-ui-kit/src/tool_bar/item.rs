@@ -132,7 +132,7 @@ pub(crate) struct ToolBarButtonBase {
 
 impl ToolBarButtonBase {
     pub(crate) fn new(parent: &ToolBar, toggle: bool, auto_toggle: bool) -> Result<Self> {
-        let mtm = MainThreadMarker::new().ok_or(crate::Error::NotMainThread)?;
+        let mtm = parent.data().mtm();
 
         catch(|| {
             let button = UIButton::buttonWithType(UIButtonType::System, mtm);

@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use objc2::{MainThreadMarker, rc::Retained};
+use objc2::{MainThreadMarker, MainThreadOnly, rc::Retained};
 use objc2_foundation::NSArray;
 use objc2_ui_kit::{NSLayoutConstraint, UIBarButtonItem, UIToolbar};
 use winio_handle::AsWindow;
@@ -38,6 +38,10 @@ impl ToolBarData {
         self.toolbar
             .setItems(Some(&NSArray::from_retained_slice(&items)));
     }
+
+    pub(crate) fn mtm(&self) -> MainThreadMarker {
+        self.toolbar.mtm()
+    }
 }
 
 /// A toolbar docked below the menu bar of a window.
@@ -48,8 +52,8 @@ pub struct ToolBar {
 
 impl ToolBar {
     pub fn new(parent: impl AsWindow) -> Result<Self> {
-        let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
         let wnd = parent.as_window().as_ui_kit();
+        let mtm = wnd.mtm();
         let host = ToolBarHost::of(wnd)?;
         if !host.view.subviews().is_empty() {
             return Err(Error::ToolBarExists);
