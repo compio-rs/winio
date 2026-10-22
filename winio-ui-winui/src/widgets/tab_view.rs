@@ -1,9 +1,9 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{fmt::Debug, rc::Rc};
 
 use compio_log::error;
 use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
-use windows_core::{HSTRING, Interface};
+use windows_core::{HSTRING, Interface, Weak};
 use winio_callback::Callback;
 use winio_handle::{AsContainer, BorrowedContainer};
 use winio_primitive::{Point, Size};
@@ -82,12 +82,21 @@ impl TabView {
 
 winio_handle::impl_as_widget!(TabView, handle);
 
-#[derive(Debug)]
 struct TabViewItemInner {
-    parent: RefCell<Option<MUXC::TabView>>,
+    parent: Weak<MUXC::TabView>,
     item: MUXC::TabViewItem,
     canvas: MUXC::Canvas,
     text: MUXC::TextBlock,
+}
+
+impl Debug for TabViewItemInner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TabViewItemInner")
+            .field("item", &self.item)
+            .field("canvas", &self.canvas)
+            .field("text", &self.text)
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -109,7 +118,7 @@ impl TabViewItem {
         item.SetContent(&canvas)?;
         let item = Self {
             inner: Rc::new(TabViewItemInner {
-                parent: RefCell::new(Some(parent.view.clone())),
+                parent: parent.view.downgrade()?,
                 item,
                 canvas,
                 text,
@@ -136,7 +145,7 @@ impl TabViewItem {
     }
 
     pub fn size(&self) -> Result<Size> {
-        if let Some(parent) = self.inner.parent.borrow().as_ref() {
+        if let Some(parent) = self.inner.parent.upgrade() {
             parent.UpdateLayout()?;
             Ok(Size::new(
                 self.inner.canvas.ActualWidth()?,
@@ -150,7 +159,7 @@ impl TabViewItem {
 
 impl Drop for TabViewItem {
     fn drop(&mut self) {
-        let parent = self.inner.parent.borrow_mut().take();
+        let parent = self.inner.parent.upgrade();
         let Some(parent) = parent else {
             return;
         };
