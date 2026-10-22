@@ -23,7 +23,6 @@ use crate::{
 
 static ITEM_ID: AtomicUsize = AtomicUsize::new(0);
 
-/// Common lifecycle for a single toolbar item.
 #[derive(Debug)]
 pub(crate) struct ToolBarItem {
     data: Rc<ToolBarData>,

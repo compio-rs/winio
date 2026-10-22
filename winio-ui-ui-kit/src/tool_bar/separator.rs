@@ -5,7 +5,6 @@ use crate::{
     tool_bar::{ToolBar, ToolBarItem},
 };
 
-/// A vertical separator in a [`ToolBar`].
 #[derive(Debug)]
 pub struct ToolBarSeparator {
     item: ToolBarItem,

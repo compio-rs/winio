@@ -44,7 +44,6 @@ impl ToolBarData {
     }
 }
 
-/// A toolbar docked below the menu bar of a window.
 #[derive(Debug)]
 pub struct ToolBar {
     data: Rc<ToolBarData>,

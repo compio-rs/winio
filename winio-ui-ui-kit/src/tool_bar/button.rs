@@ -5,7 +5,6 @@ use crate::{
     tool_bar::{ToolBar, ToolBarButtonBase},
 };
 
-/// A plain button in a [`ToolBar`].
 #[derive(Debug)]
 pub struct ToolBarButton {
     item: ToolBarButtonBase,

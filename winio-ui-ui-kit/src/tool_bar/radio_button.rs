@@ -5,7 +5,6 @@ use crate::{
     tool_bar::{ToolBar, ToolBarButtonBase},
 };
 
-/// A radio button in a [`ToolBar`].
 #[derive(Debug)]
 pub struct ToolBarRadioButton {
     item: ToolBarButtonBase,

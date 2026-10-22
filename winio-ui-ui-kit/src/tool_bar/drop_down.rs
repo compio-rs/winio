@@ -9,7 +9,6 @@ use crate::{
     tool_bar::{ToolBar, ToolBarItem},
 };
 
-/// A drop-down button in a [`ToolBar`].
 #[derive(Debug)]
 pub struct ToolBarDropDownButton {
     item: ToolBarItem,

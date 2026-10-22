@@ -5,7 +5,6 @@ use crate::{
     tool_bar::{ToolBar, ToolBarButtonBase},
 };
 
-/// A check box in a [`ToolBar`].
 #[derive(Debug)]
 pub struct ToolBarCheckBox {
     item: ToolBarButtonBase,
