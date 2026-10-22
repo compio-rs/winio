@@ -25,7 +25,7 @@ impl ToolBarCheckBox {
         let element = MUXC::AppBarToggleButton::new()?;
         parent.element().PrimaryCommands()?.Append(&element)?;
         element.SetLabelPosition(MUXC::CommandBarLabelPosition::Collapsed)?;
-        let item = ToolBarItem::new(element.cast()?)?;
+        let item = ToolBarItem::new(parent, element.cast()?)?;
         let toggle = element.cast()?;
         let on_click = SendWrapper::new(Rc::new(Callback::new()));
         {

@@ -20,6 +20,13 @@ use crate::{Image, Result, menu::OwnedMenu};
 pub(crate) struct ToolBarItem {
     data: Rc<ToolBarData>,
     id: u32,
+    key: usize,
+}
+
+impl Drop for ToolBarItem {
+    fn drop(&mut self) {
+        self.data.remove_item(self.key);
+    }
 }
 
 impl AsToolBarItem for ToolBarItem {
@@ -30,10 +37,9 @@ impl AsToolBarItem for ToolBarItem {
 
 impl ToolBarItem {
     pub(crate) fn new(parent: &ToolBar, kind: ItemKind) -> Result<Self> {
-        Ok(Self {
-            data: parent.data().clone(),
-            id: parent.data().add_item(kind)?,
-        })
+        let data = parent.data().clone();
+        let (id, key) = data.add_item(kind)?;
+        Ok(Self { data, id, key })
     }
 
     pub(crate) fn is_enabled(&self) -> Result<bool> {

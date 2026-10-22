@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use objc2::{
     DefinedClass, MainThreadOnly, define_class, msg_send,
-    rc::{Allocated, Retained},
+    rc::{Allocated, Retained, Weak},
     runtime::ProtocolObject,
 };
 use objc2_app_kit::{NSTabView, NSTabViewDelegate, NSTabViewItem, NSView};
@@ -10,7 +10,7 @@ use winio_callback::Callback;
 use winio_handle::{AsContainer, BorrowedContainer};
 use winio_primitive::{Point, Size};
 
-use crate::{Error, GlobalRuntime, Result, catch, from_cgsize, from_nsstring, widgets::Widget};
+use crate::{GlobalRuntime, Result, catch, from_cgsize, from_nsstring, widgets::Widget};
 
 #[derive(Debug)]
 pub struct TabView {
@@ -73,34 +73,6 @@ impl TabView {
     pub async fn wait_select(&self) {
         self.delegate.ivars().did_select.wait().await
     }
-
-    pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
-        catch(|| self.view.insertTabViewItem_atIndex(&item.item, i as _))
-    }
-
-    pub fn remove(&mut self, i: usize) -> Result<()> {
-        catch(|| {
-            self.view
-                .removeTabViewItem(&self.view.tabViewItemAtIndex(i as _))
-        })
-    }
-
-    pub fn len(&self) -> Result<usize> {
-        catch(|| self.view.numberOfTabViewItems() as _)
-    }
-
-    pub fn is_empty(&self) -> Result<bool> {
-        Ok(self.len()? == 0)
-    }
-
-    pub fn clear(&mut self) -> Result<()> {
-        catch(|| {
-            while self.view.numberOfTabViewItems() > 0 {
-                self.view
-                    .removeTabViewItem(&self.view.tabViewItemAtIndex(0));
-            }
-        })
-    }
 }
 
 winio_handle::impl_as_widget!(TabView, handle);
@@ -149,18 +121,26 @@ impl TabViewDelegate {
 
 #[derive(Debug)]
 pub struct TabViewItem {
+    parent: Weak<NSTabView>,
     item: Retained<NSTabViewItem>,
     view: Retained<NSView>,
 }
 
 impl TabViewItem {
-    pub fn new() -> Result<Self> {
-        let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
+    pub fn new(parent: &TabView) -> Result<Self> {
+        let mtm = parent.view.mtm();
         catch(|| {
             let item = NSTabViewItem::new();
             let view = NSView::new(mtm);
             item.setView(Some(&view));
-            Self { item, view }
+            parent
+                .view
+                .insertTabViewItem_atIndex(&item, parent.view.numberOfTabViewItems() as _);
+            Self {
+                parent: Weak::from_retained(&parent.view),
+                item,
+                view,
+            }
         })
     }
 
@@ -178,6 +158,14 @@ impl TabViewItem {
             Ok(from_cgsize(frame))
         })
         .flatten()
+    }
+}
+
+impl Drop for TabViewItem {
+    fn drop(&mut self) {
+        if let Some(parent) = self.parent.load() {
+            let _ = catch(|| parent.removeTabViewItem(&self.item));
+        }
     }
 }
 

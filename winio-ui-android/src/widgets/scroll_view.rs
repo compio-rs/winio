@@ -4,15 +4,17 @@ use winio_primitive::{Point, Size};
 
 use crate::{
     BaseWidget, Result, current_activity,
-    java::android::widget::{
-        FrameLayout, HorizontalScrollView as AHorizontalScrollView, ScrollView as AScrollView,
+    java::android::{
+        view::ViewGroup as AViewGroup,
+        widget::{
+            FrameLayout, HorizontalScrollView as AHorizontalScrollView, ScrollView as AScrollView,
+        },
     },
     vm_exec,
 };
 
 #[derive(Debug)]
 pub struct ScrollView {
-    parent: Global<FrameLayout<'static>>,
     vertical: BaseWidget<AScrollView<'static>>,
     horizontal: BaseWidget<AHorizontalScrollView<'static>>,
     inner_view: BaseWidget<FrameLayout<'static>>,
@@ -29,15 +31,10 @@ impl ScrollView {
             let inner_view = FrameLayout::new(env, &context)?;
             vertical.as_view_group().add_view(env, &horizontal)?;
             horizontal.as_view_group().add_view(env, &inner_view)?;
-            let p = parent.as_container();
-            let parent = env.new_local_ref(p.to_android())?;
-            let parent =
-                env.new_global_ref(unsafe { FrameLayout::from_raw(env, parent.into_raw()) })?;
-            let vertical = BaseWidget::new_with_env(env, p, vertical)?;
+            let vertical = BaseWidget::new_with_env(env, parent.as_container(), vertical)?;
             let horizontal = env.new_global_ref(horizontal)?.into();
             let inner_view = env.new_global_ref(inner_view)?.into();
             Ok(Self {
-                parent,
                 vertical,
                 horizontal,
                 inner_view,
@@ -111,12 +108,23 @@ impl ScrollView {
         Ok(())
     }
 
-    fn detach(&mut self) -> Result<()> {
+    fn detach(&mut self) -> Result<Option<Global<AViewGroup<'static>>>> {
         vm_exec(|env| {
+            let root = if self.enable_vertical {
+                self.vertical.as_view()
+            } else if self.enable_horizontal {
+                self.horizontal.as_view()
+            } else {
+                self.inner_view.as_view()
+            };
+            let parent = root.get_parent(env)?;
+            if parent.is_null() {
+                return Ok(None);
+            }
+            let parent = unsafe { AViewGroup::from_raw(env, parent.into_raw()) };
+            let parent = env.new_global_ref(&parent)?;
+            parent.remove_view(env, root)?;
             if self.enable_vertical {
-                self.parent
-                    .as_view_group()
-                    .remove_view(env, self.vertical.as_view())?;
                 if self.enable_horizontal {
                     // V > H > I
                     self.vertical
@@ -131,32 +139,20 @@ impl ScrollView {
                         .as_view_group()
                         .remove_view(env, self.inner_view.as_view())?;
                 }
-            } else {
-                if self.enable_horizontal {
-                    // H > I
-                    self.parent
-                        .as_view_group()
-                        .remove_view(env, self.horizontal.as_view())?;
-                    self.horizontal
-                        .as_view_group()
-                        .remove_view(env, self.inner_view.as_view())?;
-                } else {
-                    // I
-                    self.parent
-                        .as_view_group()
-                        .remove_view(env, self.inner_view.as_view())?;
-                }
+            } else if self.enable_horizontal {
+                // H > I
+                self.horizontal
+                    .as_view_group()
+                    .remove_view(env, self.inner_view.as_view())?;
             }
-            Ok(())
+            Ok(Some(parent))
         })
     }
 
-    fn attach(&mut self) -> Result<()> {
+    fn attach(&mut self, parent: &Global<AViewGroup<'static>>) -> Result<()> {
         vm_exec(|env| {
             if self.enable_vertical {
-                self.parent
-                    .as_view_group()
-                    .add_view(env, self.vertical.as_view())?;
+                parent.add_view(env, self.vertical.as_view())?;
                 if self.enable_horizontal {
                     // V > H > I
                     self.vertical
@@ -171,21 +167,15 @@ impl ScrollView {
                         .as_view_group()
                         .add_view(env, self.inner_view.as_view())?;
                 }
+            } else if self.enable_horizontal {
+                // H > I
+                parent.add_view(env, self.horizontal.as_view())?;
+                self.horizontal
+                    .as_view_group()
+                    .add_view(env, self.inner_view.as_view())?;
             } else {
-                if self.enable_horizontal {
-                    // H > I
-                    self.parent
-                        .as_view_group()
-                        .add_view(env, self.horizontal.as_view())?;
-                    self.horizontal
-                        .as_view_group()
-                        .add_view(env, self.inner_view.as_view())?;
-                } else {
-                    // I
-                    self.parent
-                        .as_view_group()
-                        .add_view(env, self.inner_view.as_view())?;
-                }
+                // I
+                parent.add_view(env, self.inner_view.as_view())?;
             }
             Ok(())
         })
@@ -197,9 +187,11 @@ impl ScrollView {
 
     pub fn set_hscroll(&mut self, v: bool) -> Result<()> {
         if self.enable_horizontal != v {
-            self.detach()?;
+            let parent = self.detach()?;
             self.enable_horizontal = v;
-            self.attach()?;
+            if let Some(parent) = &parent {
+                self.attach(parent)?;
+            }
         }
         Ok(())
     }
@@ -210,9 +202,11 @@ impl ScrollView {
 
     pub fn set_vscroll(&mut self, v: bool) -> Result<()> {
         if self.enable_vertical != v {
-            self.detach()?;
+            let parent = self.detach()?;
             self.enable_vertical = v;
-            self.attach()?;
+            if let Some(parent) = &parent {
+                self.attach(parent)?;
+            }
         }
         Ok(())
     }

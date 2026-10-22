@@ -7,6 +7,7 @@
 #include <QMainWindow>
 #include <QMenu>
 #include <QMenuBar>
+#include <QPointer>
 #include <QWidget>
 #include <memory>
 #include <utility>
@@ -23,6 +24,16 @@ public:
 private:
     QMetaObject::Connection connection;
 };
+
+using QActionPointer = QPointer<QAction>;
+
+namespace rust {
+template <> struct IsRelocatable<QActionPointer> : std::true_type {};
+} // namespace rust
+
+static_assert(sizeof(QActionPointer) == 2 * sizeof(std::size_t));
+
+QActionPointer action_weak(QAction *action);
 
 QMenuBar *new_menu_bar(QWidget *window);
 
@@ -46,3 +57,5 @@ void action_clear_icon(QAction &action);
 
 void action_connect_triggered(QAction &action, callback_fn_t<void()> callback,
                               std::uint8_t const *data);
+
+void action_remove_from_parent(QAction *action);

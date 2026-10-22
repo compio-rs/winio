@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use inherit_methods_macro::inherit_methods;
 use jni::{
+    Env,
     objects::{JObject, JString},
     refs::{Global, LoaderContext, Reference},
 };
@@ -32,14 +33,14 @@ use crate::{
 #[allow(dead_code)]
 pub struct TabView {
     handle: BaseWidget<LinearLayout<'static>>,
-    tab: Global<TabLayout<'static>>,
+    tab: Arc<Global<TabLayout<'static>>>,
     pager: Global<ViewPager2<'static>>,
     mediator: Global<TabLayoutMediator<'static>>,
     tab_titles: Arc<Mutex<Vec<Global<JString<'static>>>>>,
     tab_proxy: DynamicProxy,
     on_select: Arc<SyncCallback>,
     select_proxy: DynamicProxy,
-    adapter: Global<WinioTabViewAdapter<'static>>,
+    adapter: Arc<Global<WinioTabViewAdapter<'static>>>,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -111,14 +112,14 @@ impl TabView {
 
             Ok(Self {
                 handle: layout,
-                tab,
+                tab: Arc::new(tab),
                 pager,
                 mediator,
                 tab_titles,
                 tab_proxy,
                 on_select,
                 select_proxy,
-                adapter,
+                adapter: Arc::new(adapter),
             })
         })
     }
@@ -158,50 +159,6 @@ impl TabView {
         })
     }
 
-    pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
-        vm_exec(|env| {
-            let pages = self.adapter.get_pages(env)?;
-            pages.add(env, item.handle.as_widget().to_android())?;
-            let title = env.new_string(item.text()?)?;
-            self.tab_titles
-                .lock()
-                .unwrap()
-                .insert(i, env.new_global_ref(title)?);
-            self.adapter.notify_item_inserted(env, i as _)?;
-            Ok(())
-        })
-    }
-
-    pub fn remove(&mut self, i: usize) -> Result<()> {
-        vm_exec(|env| {
-            let pages = self.adapter.get_pages(env)?;
-            pages.remove(env, i as _)?;
-            self.adapter.notify_item_removed(env, i as _)?;
-            Ok(())
-        })
-    }
-
-    pub fn len(&self) -> Result<usize> {
-        vm_exec(|env| {
-            let pages = self.adapter.get_pages(env)?;
-            Ok(pages.size(env)? as usize)
-        })
-    }
-
-    pub fn is_empty(&self) -> Result<bool> {
-        Ok(self.len()? == 0)
-    }
-
-    pub fn clear(&mut self) -> Result<()> {
-        vm_exec(|env| {
-            let pages = self.adapter.get_pages(env)?;
-            let len = pages.size(env)?;
-            pages.clear(env)?;
-            self.adapter.notify_item_range_removed(env, 0, len)?;
-            Ok(())
-        })
-    }
-
     pub async fn wait_select(&self) {
         self.on_select.wait().await;
     }
@@ -213,14 +170,17 @@ winio_handle::impl_as_widget!(TabView, handle);
 pub struct TabViewItem {
     handle: View,
     text: String,
+    tab: Arc<Global<TabLayout<'static>>>,
+    tab_titles: Arc<Mutex<Vec<Global<JString<'static>>>>>,
+    adapter: Arc<Global<WinioTabViewAdapter<'static>>>,
     #[allow(unused)]
     on_resize_proxy: DynamicProxy,
 }
 
 impl TabViewItem {
-    pub fn new() -> Result<Self> {
+    pub fn new(parent: &TabView) -> Result<Self> {
         let handle = View::new_standalone()?;
-        vm_exec(|env| {
+        let on_resize_proxy = vm_exec(|env| {
             let on_resize_proxy = DynamicProxy::build(
                 env,
                 &LoaderContext::None,
@@ -263,12 +223,42 @@ impl TabViewItem {
             let view = env.new_local_ref(view)?;
             let view = unsafe { AView::from_raw(env, view.into_raw()) };
             view.add_on_layout_change_listener(env, &on_resize_proxy)?;
-            Ok(Self {
-                handle,
-                text: String::new(),
-                on_resize_proxy,
-            })
+
+            let index = {
+                let pages = parent.adapter.get_pages(env)?;
+                let index = pages.size(env)? as usize;
+                pages.add(env, handle.as_widget().to_android())?;
+                index
+            };
+            let title = env.new_string("")?;
+            let title = env.new_global_ref(title)?;
+            parent.tab_titles.lock().unwrap().insert(index, title);
+            parent.adapter.notify_item_inserted(env, index as _)?;
+
+            Ok::<_, crate::Error>(on_resize_proxy)
+        })?;
+
+        Ok(Self {
+            handle,
+            text: String::new(),
+            tab: parent.tab.clone(),
+            tab_titles: parent.tab_titles.clone(),
+            adapter: parent.adapter.clone(),
+            on_resize_proxy,
         })
+    }
+
+    fn page_index(&self, env: &mut Env<'_>) -> Result<Option<usize>> {
+        let pages = self.adapter.get_pages(env)?;
+        let target = self.handle.as_widget().to_android();
+        let size = pages.size(env)?;
+        for i in 0..size {
+            let item = pages.get(env, i)?;
+            if env.is_same_object(&item, target)? {
+                return Ok(Some(i as usize));
+            }
+        }
+        Ok(None)
     }
 
     pub fn text(&self) -> Result<String> {
@@ -277,11 +267,44 @@ impl TabViewItem {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         self.text = s.as_ref().into();
-        Ok(())
+        vm_exec(|env| {
+            let Some(index) = self.page_index(env)? else {
+                return Ok(());
+            };
+            let title = env.new_string(&self.text)?;
+            let tab = self.tab.get_tab_at(env, index as _)?;
+            tab.set_text(env, &title)?;
+            let title = env.new_global_ref(title)?;
+            let mut titles = self.tab_titles.lock().unwrap();
+            if let Some(slot) = titles.get_mut(index) {
+                *slot = title;
+            }
+            Ok(())
+        })
     }
 
     pub fn size(&self) -> Result<Size> {
         self.handle.size()
+    }
+}
+
+impl Drop for TabViewItem {
+    fn drop(&mut self) {
+        let _ = vm_exec(|env| -> Result<()> {
+            let Some(index) = self.page_index(env)? else {
+                return Ok(());
+            };
+            let pages = self.adapter.get_pages(env)?;
+            pages.remove(env, index as _)?;
+            {
+                let mut titles = self.tab_titles.lock().unwrap();
+                if index < titles.len() {
+                    titles.remove(index);
+                }
+            }
+            self.adapter.notify_item_removed(env, index as _)?;
+            Ok(())
+        });
     }
 }
 

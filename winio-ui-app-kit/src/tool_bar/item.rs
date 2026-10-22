@@ -1,5 +1,5 @@
 use std::{
-    rc::Rc,
+    rc::{Rc, Weak},
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -51,7 +51,7 @@ fn set_item_label(item: &NSToolbarItem, label: &str) {
 
 #[derive(Debug)]
 pub(crate) struct ToolBarItem {
-    data: Rc<ToolBarData>,
+    data: Weak<ToolBarData>,
     identifier: Retained<NSString>,
     item: Retained<NSToolbarItem>,
 }
@@ -77,7 +77,7 @@ impl ToolBarItem {
                 .insertItemWithItemIdentifier_atIndex(&identifier, index);
 
             Ok(Self {
-                data: data.clone(),
+                data: Rc::downgrade(data),
                 identifier,
                 item,
             })
@@ -96,10 +96,12 @@ impl ToolBarItem {
 
 impl Drop for ToolBarItem {
     fn drop(&mut self) {
-        self.data
-            .toolbar()
+        let Some(data) = self.data.upgrade() else {
+            return;
+        };
+        data.toolbar()
             .removeItemWithItemIdentifier(&self.identifier);
-        self.data.unregister_item(&self.identifier);
+        data.unregister_item(&self.identifier);
     }
 }
 

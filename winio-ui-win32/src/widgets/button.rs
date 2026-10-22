@@ -110,7 +110,7 @@ impl Button {
         let old_hwnd = self.handle.as_widget().as_win32();
         let image = hwnd_icon_image(old_hwnd);
         let parent = unsafe { GetParent(old_hwnd) };
-        let mut new_handle = Widget::new(WC_BUTTONW, button_style(icon), 0, parent)?;
+        let new_handle = Widget::new(WC_BUTTONW, button_style(icon), 0, parent)?;
         new_handle.set_visible(self.handle.is_visible()?)?;
         new_handle.set_enabled(self.handle.is_enabled()?)?;
         new_handle.set_loc(self.handle.loc()?)?;

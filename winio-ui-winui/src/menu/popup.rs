@@ -2,20 +2,34 @@ use windows_core::{HSTRING, Interface};
 use winio_handle::{AsMenuContainer, AsMenuItem, BorrowedMenuContainer, BorrowedMenuItem};
 use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
-use crate::{Image, Result, menu::append_to_container};
+use crate::{
+    Image, Result,
+    menu::{MenuParent, append_to_container},
+};
 
 #[derive(Debug)]
 pub struct PopupMenuItem {
     element: MUXC::MenuFlyoutSubItem,
     base: MUXC::MenuFlyoutItemBase,
+    parent: MenuParent,
+}
+
+impl Drop for PopupMenuItem {
+    fn drop(&mut self) {
+        let _ = self.parent.remove(&self.base);
+    }
 }
 
 impl PopupMenuItem {
     pub fn new(parent: impl AsMenuContainer) -> Result<Self> {
         let element = MUXC::MenuFlyoutSubItem::new()?;
         let base = element.cast()?;
-        append_to_container(parent.as_menu_container(), &base)?;
-        Ok(Self { element, base })
+        let parent = append_to_container(parent.as_menu_container(), &base)?;
+        Ok(Self {
+            element,
+            base,
+            parent,
+        })
     }
 
     pub fn is_enabled(&self) -> Result<bool> {

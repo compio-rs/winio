@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use gtk4::{
     gio::{self, prelude::*},
-    glib::{SignalHandlerId, Variant},
+    glib::{SignalHandlerId, Variant, WeakRef},
 };
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
@@ -10,15 +10,26 @@ use winio_handle::{AsMenuContainer, AsMenuItem, BorrowedMenuItem};
 
 use crate::{
     GlobalRuntime, Image, Result,
-    menu::{ACTION_PREFIX, ACTIONS, SECTION_DATA, alloc_action_name, refresh_menu_icons},
+    menu::{
+        ACTION_PREFIX, ACTIONS, SECTION_DATA, alloc_action_name, menu_item_position, menu_key,
+        refresh_menu_icons, register_menu_item, unregister_menu_item, unregister_menu_item_by_key,
+    },
 };
 
-#[derive(Debug)]
 pub(crate) struct ItemBase {
     label: String,
-    item_index: i32,
-    parent: gio::Menu,
+    parent: WeakRef<gio::Menu>,
+    parent_key: usize,
     item: gio::MenuItem,
+}
+
+impl std::fmt::Debug for ItemBase {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ItemBase")
+            .field("label", &self.label)
+            .field("item", &self.item)
+            .finish_non_exhaustive()
+    }
 }
 
 impl ItemBase {
@@ -40,14 +51,17 @@ impl ItemBase {
             Some(section) => unsafe { section.as_ref() }.clone(),
             None => parent.clone(),
         };
-        let item_index = parent.n_items();
+        let parent_key = menu_key(&parent);
         parent.append_item(&item);
+        register_menu_item(&parent, &item);
         refresh_menu_icons();
 
+        let parent_weak = WeakRef::new();
+        parent_weak.set(Some(&parent));
         Ok(Self {
             label: String::new(),
-            item_index,
-            parent,
+            parent: parent_weak,
+            parent_key,
             item,
         })
     }
@@ -74,9 +88,27 @@ impl ItemBase {
     }
 
     fn refresh(&self) {
-        self.parent.remove(self.item_index);
-        self.parent.insert_item(self.item_index, &self.item);
-        refresh_menu_icons();
+        let Some(parent) = self.parent.upgrade() else {
+            return;
+        };
+        if let Some(index) = menu_item_position(&parent, &self.item) {
+            parent.remove(index as _);
+            parent.insert_item(index as _, &self.item);
+            refresh_menu_icons();
+        }
+    }
+}
+
+impl Drop for ItemBase {
+    fn drop(&mut self) {
+        if let Some(parent) = self.parent.upgrade() {
+            if let Some(index) = menu_item_position(&parent, &self.item) {
+                parent.remove(index as _);
+            }
+            unregister_menu_item(&parent, &self.item);
+        } else {
+            unregister_menu_item_by_key(self.parent_key, &self.item);
+        }
     }
 }
 

@@ -108,10 +108,6 @@ impl AsWidget for Widget {
 
 impl Drop for Widget {
     fn drop(&mut self) {
-        if let Some(parent) = self.widget.parent()
-            && let Ok(fixed) = parent.downcast::<gtk4::Fixed>()
-        {
-            fixed.remove(&self.widget);
-        }
+        self.widget.unparent();
     }
 }

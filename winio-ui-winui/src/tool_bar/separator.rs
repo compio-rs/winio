@@ -15,7 +15,7 @@ impl ToolBarSeparator {
     pub fn new(parent: &ToolBar) -> Result<Self> {
         let element = MUXC::AppBarSeparator::new()?;
         parent.element().PrimaryCommands()?.Append(&element)?;
-        let item = ToolBarItem::new(element.cast()?)?;
+        let item = ToolBarItem::new(parent, element.cast()?)?;
         Ok(Self { item })
     }
 }

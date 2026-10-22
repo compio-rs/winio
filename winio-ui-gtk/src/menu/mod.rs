@@ -1,4 +1,7 @@
-use std::cell::{Cell, RefCell};
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashMap,
+};
 
 use gtk4::{gio, glib, prelude::*};
 
@@ -41,6 +44,60 @@ thread_local! {
     // popover is opened.
     static MENUS: RefCell<Vec<glib::WeakRef<gtk4::Widget>>> =
         const { RefCell::new(Vec::new()) };
+
+    // The items of every menu model, in model order. `gio::Menu` has no way to
+    // look up the position of a `gio::MenuItem`, so keep track of it here to
+    // support removing an item when it is dropped.
+    static MENU_ITEMS: RefCell<HashMap<usize, Vec<usize>>> = RefCell::new(HashMap::new());
+}
+
+pub(crate) fn menu_key(menu: &gio::Menu) -> usize {
+    menu.as_ptr() as usize
+}
+
+fn menu_item_key(item: &gio::MenuItem) -> usize {
+    item.as_ptr() as usize
+}
+
+pub(crate) fn register_menu_item(parent: &gio::Menu, item: &gio::MenuItem) {
+    MENU_ITEMS.with_borrow_mut(|items| {
+        items
+            .entry(menu_key(parent))
+            .or_default()
+            .push(menu_item_key(item));
+    });
+}
+
+pub(crate) fn menu_item_position(parent: &gio::Menu, item: &gio::MenuItem) -> Option<usize> {
+    MENU_ITEMS.with_borrow(|items| {
+        items
+            .get(&menu_key(parent))?
+            .iter()
+            .position(|value| *value == menu_item_key(item))
+    })
+}
+
+pub(crate) fn unregister_menu_item(parent: &gio::Menu, item: &gio::MenuItem) {
+    unregister_menu_item_by_key(menu_key(parent), item);
+}
+
+pub(crate) fn unregister_menu_item_by_key(key: usize, item: &gio::MenuItem) {
+    MENU_ITEMS.with_borrow_mut(|items| {
+        let empty = if let Some(entries) = items.get_mut(&key) {
+            if let Some(index) = entries
+                .iter()
+                .position(|value| *value == menu_item_key(item))
+            {
+                entries.remove(index);
+            }
+            entries.is_empty()
+        } else {
+            false
+        };
+        if empty {
+            items.remove(&key);
+        }
+    });
 }
 
 pub(crate) fn register_actions(window: &gtk4::Window) {

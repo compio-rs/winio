@@ -1,3 +1,23 @@
+use std::mem::MaybeUninit;
+
+use cxx::{ExternType, type_id};
+
+#[repr(C)]
+pub(crate) struct QActionPointer {
+    _data: MaybeUninit<[usize; 2]>,
+}
+
+unsafe impl ExternType for QActionPointer {
+    type Id = type_id!("QActionPointer");
+    type Kind = cxx::kind::Trivial;
+}
+
+impl std::fmt::Debug for QActionPointer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("QActionPointer").finish_non_exhaustive()
+    }
+}
+
 #[cxx::bridge]
 mod bindings {
     unsafe extern "C++-unwind" {
@@ -10,6 +30,10 @@ mod bindings {
         type QMenu;
         type QAction;
         type QActionGroup;
+        type QActionPointer = super::QActionPointer;
+
+        unsafe fn action_weak(action: *mut QAction) -> QActionPointer;
+        fn isNull(self: &QActionPointer) -> bool;
 
         unsafe fn new_menu_bar(window: *mut QWidget) -> Result<*mut QMenuBar>;
         unsafe fn menu_bar_exists(window: *mut QWidget) -> bool;
@@ -49,6 +73,8 @@ mod bindings {
             callback: unsafe fn(*const u8),
             data: *const u8,
         ) -> Result<()>;
+
+        unsafe fn action_remove_from_parent(action: *mut QAction);
     }
 }
 

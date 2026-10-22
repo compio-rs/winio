@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, rc::Rc};
 
 use inherit_methods_macro::inherit_methods;
 use objc2::{
@@ -13,7 +13,7 @@ use winio_callback::Callback;
 use winio_handle::{AsContainer, BorrowedContainer};
 use winio_primitive::{Point, Size};
 
-use crate::{Error, GlobalRuntime, Result, catch, from_cgsize, from_nsstring, widgets::Widget};
+use crate::{GlobalRuntime, Result, catch, from_cgsize, from_nsstring, widgets::Widget};
 
 const TAB_HEIGHT: f64 = 30.0;
 
@@ -23,7 +23,7 @@ pub struct TabView {
     view: Retained<UIView>,
     segment: Retained<UISegmentedControl>,
     delegate: Retained<TabViewDelegate>,
-    views: RefCell<Vec<Retained<UIView>>>,
+    views: Rc<RefCell<Vec<Retained<UIView>>>>,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -54,7 +54,7 @@ impl TabView {
                 view,
                 segment,
                 delegate,
-                views: RefCell::new(Vec::new()),
+                views: Rc::new(RefCell::new(Vec::new())),
             })
         })
         .flatten()
@@ -96,7 +96,7 @@ impl TabView {
         })
     }
 
-    pub fn set_selection(&mut self, i: usize) -> Result<()> {
+    pub fn set_selection(&self, i: usize) -> Result<()> {
         catch(|| {
             self.segment.setSelectedSegmentIndex(i as isize);
             for (idx, vw) in self.views.borrow().iter().enumerate() {
@@ -118,56 +118,6 @@ impl TabView {
     pub async fn wait_select(&self) {
         self.delegate.ivars().did_select.wait().await;
         self.update_visible();
-    }
-
-    pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
-        catch(|| {
-            self.segment
-                .insertSegmentWithTitle_atIndex_animated(Some(&item.label), i, false);
-            let mut size = self.size()?;
-            size.height = size.height.max(TAB_HEIGHT);
-            item.view.setFrame(CGRect::new(
-                CGPoint::new(0.0, TAB_HEIGHT),
-                CGSize::new(size.width, size.height - TAB_HEIGHT),
-            ));
-            item.view.setHidden(true);
-            self.view.addSubview(&item.view);
-            self.views.borrow_mut().insert(i, item.view.clone());
-            Ok(())
-        })
-        .flatten()?;
-        if self.len()? == 1 {
-            self.set_selection(0)?;
-        }
-        Ok(())
-    }
-
-    pub fn remove(&mut self, i: usize) -> Result<()> {
-        catch(|| {
-            self.segment.removeSegmentAtIndex_animated(i, false);
-            if let Some(vw) = self.views.borrow().get(i) {
-                vw.removeFromSuperview();
-            }
-            self.views.borrow_mut().remove(i);
-        })
-    }
-
-    pub fn len(&self) -> Result<usize> {
-        catch(|| self.segment.numberOfSegments() as _)
-    }
-
-    pub fn is_empty(&self) -> Result<bool> {
-        Ok(self.len()? == 0)
-    }
-
-    pub fn clear(&mut self) -> Result<()> {
-        catch(|| {
-            self.segment.removeAllSegments();
-            for vw in self.views.borrow().iter() {
-                vw.removeFromSuperview();
-            }
-            self.views.borrow_mut().clear();
-        })
     }
 }
 
@@ -211,18 +161,51 @@ impl TabViewDelegate {
 pub struct TabViewItem {
     label: Retained<NSString>,
     view: Retained<UIView>,
+    segment: Retained<UISegmentedControl>,
+    views: Rc<RefCell<Vec<Retained<UIView>>>>,
 }
 
 impl TabViewItem {
-    pub fn new() -> Result<Self> {
-        let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
-        catch(|| {
+    pub fn new(parent: &TabView) -> Result<Self> {
+        let mtm = parent.view.mtm();
+        let (item, index) = catch(|| -> Result<(Self, usize)> {
             let view = UIView::new(mtm);
-            Self {
-                label: NSString::from_str(""),
+            let label = NSString::from_str("");
+            let index = parent.views.borrow().len();
+            let mut size = parent.size()?;
+            size.height = size.height.max(TAB_HEIGHT);
+            let item = Self {
+                label,
                 view,
-            }
+                segment: parent.segment.clone(),
+                views: parent.views.clone(),
+            };
+            parent.segment.insertSegmentWithTitle_atIndex_animated(
+                Some(&item.label),
+                index as _,
+                false,
+            );
+            item.view.setFrame(CGRect::new(
+                CGPoint::new(0.0, TAB_HEIGHT),
+                CGSize::new(size.width, size.height - TAB_HEIGHT),
+            ));
+            item.view.setHidden(true);
+            parent.view.addSubview(&item.view);
+            parent.views.borrow_mut().insert(index, item.view.clone());
+            Ok((item, index))
         })
+        .flatten()?;
+        if index == 0 {
+            parent.set_selection(0)?;
+        }
+        Ok(item)
+    }
+
+    fn index(&self) -> Option<usize> {
+        self.views
+            .borrow()
+            .iter()
+            .position(|view| std::ptr::eq(&**view, &*self.view))
     }
 
     pub fn text(&self) -> Result<String> {
@@ -231,11 +214,48 @@ impl TabViewItem {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         self.label = NSString::from_str(s.as_ref());
+        if let Some(index) = self.index() {
+            catch(|| {
+                self.segment
+                    .setTitle_forSegmentAtIndex(Some(&self.label), index)
+            })?;
+        }
         Ok(())
     }
 
     pub fn size(&self) -> Result<Size> {
         catch(|| from_cgsize(self.view.frame().size))
+    }
+}
+
+impl Drop for TabViewItem {
+    fn drop(&mut self) {
+        let Some(index) = self.index() else {
+            return;
+        };
+        let _ = catch(|| {
+            self.segment
+                .removeSegmentAtIndex_animated(index as _, false)
+        });
+        self.view.removeFromSuperview();
+        self.views.borrow_mut().remove(index);
+
+        let count = self.views.borrow().len();
+        if count == 0 {
+            let _ = catch(|| self.segment.setSelectedSegmentIndex(-1));
+            return;
+        }
+        let selected = self.segment.selectedSegmentIndex();
+        let selected = if selected < 0 || selected as usize >= count {
+            let next = index.min(count - 1);
+            let _ = catch(|| self.segment.setSelectedSegmentIndex(next as isize));
+            next
+        } else {
+            selected as usize
+        };
+        for (i, view) in self.views.borrow().iter().enumerate() {
+            view.setHidden(i != selected);
+        }
     }
 }
 

@@ -7,20 +7,30 @@ use winio_handle::{AsMenuContainer, AsMenuItem, BorrowedMenuItem};
 use winio_pollable::GlobalRuntime;
 use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
-use crate::{Image, Result, menu::append_to_container};
+use crate::{
+    Image, Result,
+    menu::{MenuParent, append_to_container},
+};
 
 #[derive(Debug)]
 pub struct MenuItem {
     on_click: SendWrapper<Rc<Callback>>,
     element: MUXC::MenuFlyoutItem,
     base: MUXC::MenuFlyoutItemBase,
+    parent: MenuParent,
+}
+
+impl Drop for MenuItem {
+    fn drop(&mut self) {
+        let _ = self.parent.remove(&self.base);
+    }
 }
 
 impl MenuItem {
     pub fn new(parent: impl AsMenuContainer) -> Result<Self> {
         let element = MUXC::MenuFlyoutItem::new()?;
         let base = element.cast()?;
-        append_to_container(parent.as_menu_container(), &base)?;
+        let parent = append_to_container(parent.as_menu_container(), &base)?;
         let on_click = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_click = on_click.clone();
@@ -35,6 +45,7 @@ impl MenuItem {
             on_click,
             element,
             base,
+            parent,
         })
     }
 

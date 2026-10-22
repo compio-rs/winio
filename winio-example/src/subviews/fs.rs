@@ -47,13 +47,13 @@ pub enum FsPageMessage {
 impl Component for FsPage {
     type Error = Error;
     type Event = FsPageEvent;
-    type Init<'a> = ();
+    type Init<'a> = &'a TabView;
     type Message = FsPageMessage;
 
-    async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let path = "Cargo.toml";
         init! {
-            window: TabViewItem = (()) => {
+            window: TabViewItem = (init) => {
                 text: "File IO",
             },
             canvas: Canvas = (&window),

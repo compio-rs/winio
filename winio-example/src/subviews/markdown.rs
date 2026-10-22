@@ -50,17 +50,17 @@ pub enum MarkdownPageMessage {
 impl Component for MarkdownPage {
     type Error = Error;
     type Event = MarkdownPageEvent;
-    type Init<'a> = ();
+    type Init<'a> = &'a TabView;
     type Message = MarkdownPageMessage;
 
-    async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let path = if cfg!(any(target_os = "android", target_os = "ios")) {
             ""
         } else {
             "README.md"
         };
         init! {
-            window: TabViewItem = (()) => {
+            window: TabViewItem = (init) => {
                 text: "Markdown",
             },
             webview: FailableWebView = (&window),

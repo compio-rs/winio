@@ -8,7 +8,7 @@ use std::{
 
 use jni::{
     Env,
-    refs::{Global, LoaderContext, Reference},
+    refs::{Global, LoaderContext, Reference, Weak},
 };
 use jni_min_helper::{DynamicProxy, JBoolean};
 use winio_callback::SyncCallback;
@@ -85,7 +85,7 @@ pub(crate) enum LeafKind {
 
 #[derive(Debug)]
 pub(crate) struct LeafItem {
-    menu: Global<JMenu<'static>>,
+    menu: Weak<JMenu<'static>>,
     item: Global<JMenuItem<'static>>,
     id: i32,
     group: Option<i32>,
@@ -122,7 +122,7 @@ impl LeafItem {
         }
         item.set_on_menu_item_click_listener(env, &click_proxy)?;
         Ok(Self {
-            menu: env.new_global_ref(&menu)?,
+            menu: env.new_weak_ref(&menu)?,
             item: env.new_global_ref(&item)?,
             id,
             checked: Cell::new(false),
@@ -178,9 +178,13 @@ impl LeafItem {
             // after. The message is drawn when the item is bound, from the flag
             // that is already restored by then.
             Some(group) if !checked => {
-                self.menu.set_group_checkable(env, group, true, false)?;
-                self.item.set_checked(env, false)?;
-                self.menu.set_group_checkable(env, group, true, true)?;
+                if let Some(menu) = self.menu.upgrade_global(env)? {
+                    menu.set_group_checkable(env, group, true, false)?;
+                    self.item.set_checked(env, false)?;
+                    menu.set_group_checkable(env, group, true, true)?;
+                } else {
+                    self.item.set_checked(env, false)?;
+                }
             }
             _ => {
                 self.item.set_checked(env, checked)?;
@@ -215,7 +219,9 @@ impl Drop for LeafItem {
     fn drop(&mut self) {
         let id = self.id;
         let _ = crate::vm_exec(move |env| -> Result<()> {
-            self.menu.remove_item(env, id)?;
+            if let Some(menu) = self.menu.upgrade_global(env)? {
+                menu.remove_item(env, id)?;
+            }
             Ok(())
         });
     }
@@ -230,7 +236,7 @@ impl AsMenuItem for LeafItem {
 
 #[derive(Debug)]
 pub(crate) struct SubMenuItem {
-    menu: Global<JMenu<'static>>,
+    menu: Weak<JMenu<'static>>,
     submenu: Global<JSubMenu<'static>>,
     item: Global<JMenuItem<'static>>,
     id: i32,
@@ -244,7 +250,7 @@ impl SubMenuItem {
         let submenu = menu.add_sub_menu(env, menu::NONE, id, id, title)?;
         let item = submenu.get_item(env)?;
         Ok(Self {
-            menu: env.new_global_ref(menu)?,
+            menu: env.new_weak_ref(menu)?,
             submenu: env.new_global_ref(&submenu)?,
             item: env.new_global_ref(&item)?,
             id,
@@ -301,7 +307,9 @@ impl Drop for SubMenuItem {
     fn drop(&mut self) {
         let id = self.id;
         let _ = crate::vm_exec(move |env| -> Result<()> {
-            self.menu.remove_item(env, id)?;
+            if let Some(menu) = self.menu.upgrade_global(env)? {
+                menu.remove_item(env, id)?;
+            }
             Ok(())
         });
     }

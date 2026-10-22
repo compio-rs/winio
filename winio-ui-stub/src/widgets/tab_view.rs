@@ -39,26 +39,6 @@ impl TabView {
         not_impl()
     }
 
-    pub fn insert(&mut self, _i: usize, _item: &TabViewItem) -> Result<()> {
-        not_impl()
-    }
-
-    pub fn remove(&mut self, _i: usize) -> Result<()> {
-        not_impl()
-    }
-
-    pub fn len(&self) -> Result<usize> {
-        not_impl()
-    }
-
-    pub fn is_empty(&self) -> Result<bool> {
-        not_impl()
-    }
-
-    pub fn clear(&mut self) -> Result<()> {
-        not_impl()
-    }
-
     pub async fn wait_select(&self) {
         not_impl()
     }
@@ -73,7 +53,7 @@ pub struct TabViewItem {
 
 #[inherit_methods(from = "self.handle")]
 impl TabViewItem {
-    pub fn new() -> Result<Self> {
+    pub fn new(_parent: &TabView) -> Result<Self> {
         not_impl()
     }
 

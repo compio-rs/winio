@@ -52,6 +52,10 @@ where
         self.widget.pin_mut()
     }
 
+    pub(crate) fn weak(&self) -> Result<QWidgetPointer> {
+        Ok(unsafe { ffi::widget_weak(self.as_ref_qwidget() as *const _ as *mut _) }?)
+    }
+
     fn as_ref_qwidget(&self) -> &ffi::QWidget {
         self.as_ref().static_cast()
     }
