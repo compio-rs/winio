@@ -3,7 +3,7 @@ use winio_handle::AsWindow;
 
 use crate::{
     Error, Result,
-    menu::{ACTION_PREFIX, ACTIONS, register_menu_bar},
+    menu::{register_actions, register_menu_bar},
 };
 
 #[derive(Debug)]
@@ -29,7 +29,7 @@ impl MenuBar {
         }
 
         let menu = gio::Menu::new();
-        ACTIONS.with(|actions| window.insert_action_group(ACTION_PREFIX, Some(actions)));
+        register_actions(window);
 
         let widget = gtk4::PopoverMenuBar::from_model(Some(&menu));
         register_menu_bar(&widget);

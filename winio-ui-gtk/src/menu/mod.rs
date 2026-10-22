@@ -30,8 +30,9 @@ pub(crate) const ACTION_PREFIX: &str = "app";
 pub(crate) const SECTION_DATA: &str = "winio-menu-section";
 
 thread_local! {
-    // Actions of all the menu items of this thread. The menu bar inserts the
-    // group into its window so that the `app.` prefixed actions are resolvable.
+    // Actions of all the menu items of this thread. The menu bar or tool bar
+    // inserts the group into its window so that the `app.` prefixed actions are
+    // resolvable.
     pub(crate) static ACTIONS: gio::SimpleActionGroup = gio::SimpleActionGroup::new();
 
     // Menu bars of this thread. GTK creates an image for every menu item icon
@@ -39,6 +40,10 @@ thread_local! {
     // visible again after the model changes.
     static MENU_BARS: RefCell<Vec<glib::WeakRef<gtk4::PopoverMenuBar>>> =
         const { RefCell::new(Vec::new()) };
+}
+
+pub(crate) fn register_actions(window: &gtk4::Window) {
+    ACTIONS.with(|actions| window.insert_action_group(ACTION_PREFIX, Some(actions)));
 }
 
 pub(crate) fn register_menu_bar(bar: &gtk4::PopoverMenuBar) {

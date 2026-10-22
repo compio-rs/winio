@@ -18,7 +18,9 @@ cfg_if::cfg_if! {
         enum BorrowedToolBarItemInner<'a> {
             #[cfg(feature = "qt")]
             Qt(*mut core::ffi::c_void, std::marker::PhantomData<&'a ()>),
-            #[cfg(not(feature = "qt"))]
+            #[cfg(feature = "gtk")]
+            Gtk(&'a gtk4::Widget),
+            #[cfg(not(any(feature = "qt", feature = "gtk")))]
             Dummy(std::marker::PhantomData<&'a ()>),
         }
     }
@@ -95,6 +97,21 @@ impl<'a> BorrowedToolBarItem<'a> {
     pub fn as_qt<T>(&self) -> *mut T {
         match &self.0 {
             BorrowedToolBarItemInner::Qt(a, ..) => (*a).cast(),
+            _ => panic!("unsupported handle type"),
+        }
+    }
+
+    /// Create from a Gtk widget.
+    #[cfg(feature = "gtk")]
+    pub fn gtk(widget: &'a gtk4::Widget) -> Self {
+        Self(BorrowedToolBarItemInner::Gtk(widget))
+    }
+
+    /// Get the Gtk widget. Panic if the handle is not Gtk.
+    #[cfg(feature = "gtk")]
+    pub fn to_gtk(&self) -> &'a gtk4::Widget {
+        match self.0 {
+            BorrowedToolBarItemInner::Gtk(widget) => widget,
             _ => panic!("unsupported handle type"),
         }
     }
