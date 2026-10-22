@@ -5,19 +5,25 @@ use crate::{
     GlobalRuntime, Image, Result,
     menu::{
         RawPtr,
-        ffi::{QAction, action_clear_icon, action_connect_triggered, action_set_icon},
+        ffi::{
+            QAction, QActionPointer, action_clear_icon, action_connect_triggered,
+            action_remove_from_parent, action_set_icon, action_weak,
+        },
     },
 };
 
 #[derive(Debug)]
 pub(crate) struct ActionHandle {
     action: RawPtr<QAction>,
+    weak: QActionPointer,
 }
 
 impl ActionHandle {
     pub(crate) fn new(action: *mut QAction) -> Self {
+        let weak = unsafe { action_weak(action) };
         Self {
             action: RawPtr(action),
+            weak,
         }
     }
 
@@ -66,6 +72,14 @@ impl ActionHandle {
     pub(crate) fn set_checked(&mut self, checked: bool) -> Result<()> {
         unsafe { self.action.pin_mut() }.setChecked(checked)?;
         Ok(())
+    }
+}
+
+impl Drop for ActionHandle {
+    fn drop(&mut self) {
+        if !self.weak.isNull() {
+            unsafe { action_remove_from_parent(self.action.0) };
+        }
     }
 }
 

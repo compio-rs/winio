@@ -1,5 +1,5 @@
 use std::{
-    rc::Rc,
+    rc::{Rc, Weak},
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -25,7 +25,7 @@ static ITEM_ID: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Debug)]
 pub(crate) struct ToolBarItem {
-    data: Rc<ToolBarData>,
+    data: Weak<ToolBarData>,
     id: usize,
     item: Retained<UIBarButtonItem>,
 }
@@ -33,15 +33,21 @@ pub(crate) struct ToolBarItem {
 impl ToolBarItem {
     pub(crate) fn new(parent: &ToolBar, item: Retained<UIBarButtonItem>) -> Result<Self> {
         let id = ITEM_ID.fetch_add(1, Ordering::Relaxed);
-        let data = parent.data().clone();
+        let data = parent.data();
         data.add_item(id, item.clone());
-        Ok(Self { data, id, item })
+        Ok(Self {
+            data: Rc::downgrade(data),
+            id,
+            item,
+        })
     }
 }
 
 impl Drop for ToolBarItem {
     fn drop(&mut self) {
-        self.data.remove_item(self.id);
+        if let Some(data) = self.data.upgrade() {
+            data.remove_item(self.id);
+        }
     }
 }
 

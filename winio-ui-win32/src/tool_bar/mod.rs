@@ -12,10 +12,10 @@ use windows_sys::Win32::{
         Controls::{
             BTNS_AUTOSIZE, BTNS_CHECK, BTNS_DROPDOWN, BTNS_SEP, BTNS_SHOWTEXT, BTNS_WHOLEDROPDOWN,
             HIMAGELIST, I_IMAGENONE, ILC_COLOR32, ImageList_Add, ImageList_Create,
-            ImageList_Destroy, TB_ADDBUTTONS, TB_AUTOSIZE, TB_BUTTONSTRUCTSIZE, TB_GETBUTTONTEXTW,
-            TB_GETSTATE, TB_SETBITMAPSIZE, TB_SETBUTTONINFOW, TB_SETEXTENDEDSTYLE, TB_SETIMAGELIST,
-            TB_SETSTATE, TBBUTTON, TBBUTTONINFOW, TBIF_IMAGE, TBIF_SIZE, TBIF_TEXT,
-            TBSTATE_CHECKED, TBSTATE_ENABLED, TBSTYLE_EX_MIXEDBUTTONS,
+            ImageList_Destroy, TB_ADDBUTTONS, TB_AUTOSIZE, TB_BUTTONSTRUCTSIZE, TB_DELETEBUTTON,
+            TB_GETBUTTONTEXTW, TB_GETSTATE, TB_SETBITMAPSIZE, TB_SETBUTTONINFOW,
+            TB_SETEXTENDEDSTYLE, TB_SETIMAGELIST, TB_SETSTATE, TBBUTTON, TBBUTTONINFOW, TBIF_IMAGE,
+            TBIF_SIZE, TBIF_TEXT, TBSTATE_CHECKED, TBSTATE_ENABLED, TBSTYLE_EX_MIXEDBUTTONS,
         },
         HiDpi::GetSystemMetricsForDpi,
         WindowsAndMessaging::{GetWindowRect, IsChild, SM_CXSMICON, SM_CYSMICON},
@@ -88,6 +88,7 @@ impl Drop for WinImageList {
 
 #[derive(Debug)]
 struct ItemState {
+    key: usize,
     id: u32,
     icon: Option<Image>,
     has_text: bool,
@@ -99,6 +100,7 @@ pub(crate) struct ToolBarData {
     items: RefCell<Vec<ItemState>>,
     image_list: RefCell<Option<WinImageList>>,
     next_id: Cell<u32>,
+    next_key: Cell<usize>,
 }
 
 fn small_icon_size(dpi: u32) -> (i32, i32) {
@@ -121,6 +123,7 @@ impl ToolBarData {
             items: RefCell::new(vec![]),
             image_list: RefCell::new(None),
             next_id: Cell::new(TOOLBAR_ID_BASE),
+            next_key: Cell::new(0),
         }
     }
 
@@ -140,12 +143,14 @@ impl ToolBarData {
         id
     }
 
-    fn add_item(&self, kind: ItemKind) -> Result<u32> {
+    fn add_item(&self, kind: ItemKind) -> Result<(u32, usize)> {
         let id = if kind == ItemKind::Separator {
             0
         } else {
             self.alloc_id()
         };
+        let key = self.next_key.get();
+        self.next_key.set(key + 1);
         let i_bitmap = match kind {
             ItemKind::Separator => SEPARATOR_WIDTH,
             _ => I_IMAGENONE,
@@ -169,12 +174,24 @@ impl ToolBarData {
             return Err(Error::from_thread());
         }
         self.items.borrow_mut().push(ItemState {
+            key,
             id,
             icon: None,
             has_text: false,
         });
         self.autosize();
-        Ok(id)
+        Ok((id, key))
+    }
+
+    fn remove_item(&self, key: usize) {
+        let index = self.items.borrow().iter().position(|item| item.key == key);
+        let Some(index) = index else {
+            return;
+        };
+        self.handle.send_message(TB_DELETEBUTTON, index, 0);
+        self.items.borrow_mut().remove(index);
+        let _ = self.rebuild_image_list();
+        self.autosize();
     }
 
     fn autosize(&self) {

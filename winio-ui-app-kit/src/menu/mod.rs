@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use objc2::{
     DefinedClass, MainThreadMarker, MainThreadOnly, available, define_class, msg_send,
-    rc::{Allocated, Retained},
+    rc::{Allocated, Retained, Weak},
     sel,
 };
 use objc2_app_kit::{
@@ -81,6 +81,7 @@ impl MenuBar {
 
 #[derive(Debug)]
 struct MenuItemBase {
+    parent: Weak<NSMenu>,
     inner: Retained<NSMenuItem>,
     delegate: Retained<MenuItemDelegate>,
 }
@@ -97,7 +98,11 @@ impl MenuItemBase {
             }
 
             parent.addItem(&inner);
-            Self { inner, delegate }
+            Self {
+                parent: Weak::new(parent),
+                inner,
+                delegate,
+            }
         })
     }
 
@@ -158,6 +163,14 @@ impl MenuItemBase {
 
     pub async fn wait_click(&self) {
         self.delegate.ivars().action.wait().await;
+    }
+}
+
+impl Drop for MenuItemBase {
+    fn drop(&mut self) {
+        if let Some(parent) = self.parent.load() {
+            let _ = catch(|| parent.removeItem(&self.inner));
+        }
     }
 }
 
@@ -361,6 +374,7 @@ winio_handle::impl_as_menu_item!(RadioMenuItem, inner);
 
 #[derive(Debug)]
 pub struct SeparatorMenuItem {
+    parent: Weak<NSMenu>,
     inner: Retained<NSMenuItem>,
 }
 
@@ -370,8 +384,19 @@ impl SeparatorMenuItem {
             let parent = parent.as_menu_container().as_app_kit();
             let inner = NSMenuItem::separatorItem(parent.mtm());
             parent.addItem(&inner);
-            Self { inner }
+            Self {
+                parent: Weak::new(parent),
+                inner,
+            }
         })
+    }
+}
+
+impl Drop for SeparatorMenuItem {
+    fn drop(&mut self) {
+        if let Some(parent) = self.parent.load() {
+            let _ = catch(|| parent.removeItem(&self.inner));
+        }
     }
 }
 

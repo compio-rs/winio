@@ -8,7 +8,7 @@ use crate::{
     Result,
     menu::{
         ActionClick, ActionHandle, RawPtr,
-        ffi::{QAction, QActionGroup, QMenu, menu_add_action, new_action, new_action_group},
+        ffi::{QActionGroup, QMenu, menu_add_action, new_action, new_action_group},
     },
 };
 
@@ -17,7 +17,7 @@ pub struct RadioMenuItem {
     click: ActionClick,
     #[allow(dead_code)]
     group: ManuallyDrop<UniquePtr<QActionGroup>>,
-    another_action: RawPtr<QAction>,
+    another_action: ActionHandle,
 }
 
 impl Debug for RadioMenuItem {
@@ -36,10 +36,8 @@ impl RadioMenuItem {
             action.pin_mut().setCheckable(true)?;
         }
         let another_action = unsafe { new_action(menu) }?;
-        unsafe {
-            let mut another_action = RawPtr(another_action);
-            another_action.pin_mut().setCheckable(true)?;
-        }
+        let mut another_action_handle = ActionHandle::new(another_action);
+        another_action_handle.set_checkable(true)?;
         let mut group = unsafe { new_action_group(menu) }?;
         group.pin_mut().setExclusive(true)?;
         unsafe {
@@ -50,7 +48,7 @@ impl RadioMenuItem {
             action: ActionHandle::new(action),
             click: ActionClick::new(action)?,
             group: ManuallyDrop::new(group),
-            another_action: RawPtr(another_action),
+            another_action: another_action_handle,
         })
     }
 
@@ -68,9 +66,7 @@ impl RadioMenuItem {
         if checked {
             self.action.set_checked(true)?;
         } else {
-            unsafe {
-                self.another_action.pin_mut().setChecked(true)?;
-            }
+            self.another_action.set_checked(true)?;
         }
         Ok(())
     }

@@ -7,13 +7,23 @@ use winio_handle::{AsMenuContainer, AsMenuItem, BorrowedMenuItem};
 use winio_pollable::GlobalRuntime;
 use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
-use crate::{Result, menu::append_to_container};
+use crate::{
+    Result,
+    menu::{MenuParent, append_to_container},
+};
 
 #[derive(Debug)]
 pub struct RadioMenuItem {
     on_click: SendWrapper<Rc<Callback>>,
     element: MUXC::RadioMenuFlyoutItem,
     base: MUXC::MenuFlyoutItemBase,
+    parent: MenuParent,
+}
+
+impl Drop for RadioMenuItem {
+    fn drop(&mut self) {
+        let _ = self.parent.remove(&self.base);
+    }
 }
 
 impl RadioMenuItem {
@@ -29,7 +39,7 @@ impl RadioMenuItem {
             unreachable!("unsupported menu container type");
         };
         element.SetGroupName(&HSTRING::from(format!("winio-radio-{group}")))?;
-        append_to_container(container, &base)?;
+        let parent = append_to_container(container, &base)?;
         let on_click = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_click = on_click.clone();
@@ -44,6 +54,7 @@ impl RadioMenuItem {
             on_click,
             element,
             base,
+            parent,
         })
     }
 

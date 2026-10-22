@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use objc2::{
     DeclaredClass, MainThreadOnly, available, define_class, msg_send,
-    rc::{Allocated, Retained, Weak},
+    rc::{Allocated, Retained},
     runtime::ProtocolObject,
     sel,
 };
@@ -340,7 +340,6 @@ pub enum Vibrancy {
 
 #[derive(Debug)]
 pub(crate) struct Widget {
-    parent: Weak<NSView>,
     view: Retained<NSView>,
 }
 
@@ -349,17 +348,14 @@ impl Widget {
         let mut this = catch(|| {
             let parent = parent.as_container().as_app_kit();
             parent.addSubview(&view);
-            Self {
-                parent: Weak::from_retained(parent),
-                view,
-            }
+            Self { view }
         })?;
         this.set_loc(Point::zero())?;
         Ok(this)
     }
 
     pub fn parent(&self) -> Result<Retained<NSView>> {
-        catch(|| self.parent.load())?.ok_or(Error::NullPointer)
+        catch(|| unsafe { self.view.superview() })?.ok_or(Error::NullPointer)
     }
 
     pub fn is_visible(&self) -> Result<bool> {

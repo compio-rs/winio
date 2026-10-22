@@ -141,6 +141,12 @@ impl ToolBarItem {
     }
 }
 
+impl Drop for ToolBarItem {
+    fn drop(&mut self) {
+        self.widget.unparent();
+    }
+}
+
 impl AsToolBarItem for ToolBarItem {
     fn as_tool_bar_item(&self) -> BorrowedToolBarItem<'_> {
         BorrowedToolBarItem::gtk(&self.widget)
