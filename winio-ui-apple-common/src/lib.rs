@@ -27,6 +27,8 @@ pub enum Error {
     NotMainThread,
     #[error("A menu bar already exists")]
     MenuBarExists,
+    #[error("A tool bar already exists")]
+    ToolBarExists,
     #[error("Feature not supported")]
     NotSupported,
 }

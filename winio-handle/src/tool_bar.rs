@@ -13,6 +13,10 @@ cfg_if::cfg_if! {
             #[cfg(not(any(feature = "win32", feature = "winui")))]
             Dummy(std::marker::PhantomData<&'a ()>),
         }
+    } else if #[cfg(target_os = "macos")] {
+        use objc2::rc::Retained;
+
+        type BorrowedToolBarItemInner<'a> = &'a Retained<objc2_app_kit::NSToolbarItem>;
     } else {
         #[derive(Clone, Copy)]
         enum BorrowedToolBarItemInner<'a> {
@@ -72,6 +76,19 @@ impl<'a> BorrowedToolBarItem<'a> {
             BorrowedToolBarItemInner::WinUI(element) => element,
             _ => panic!("unsupported handle type"),
         }
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl<'a> BorrowedToolBarItem<'a> {
+    /// Create from an AppKit `NSToolbarItem`.
+    pub fn app_kit(item: &'a objc2::rc::Retained<objc2_app_kit::NSToolbarItem>) -> Self {
+        Self(item)
+    }
+
+    /// Get the AppKit `NSToolbarItem`. Panic if the handle is not AppKit.
+    pub fn as_app_kit(&self) -> &'a objc2::rc::Retained<objc2_app_kit::NSToolbarItem> {
+        self.0
     }
 }
 
