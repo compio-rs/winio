@@ -1,38 +1,33 @@
+use inherit_methods_macro::inherit_methods;
+
 use crate::{
     Result,
-    menu::{MenuBar, SubMenuItem},
+    menu::{MenuBar, SubMenuButton},
     vm_exec,
 };
 
 #[derive(Debug)]
 pub struct MenuBarItem {
-    inner: SubMenuItem,
+    inner: SubMenuButton,
 }
 
+#[inherit_methods(from = "self.inner")]
 impl MenuBarItem {
     pub fn new(parent: &MenuBar) -> Result<Self> {
         vm_exec(|env| {
-            let inner = SubMenuItem::new(env, parent.menu())?;
-            inner.set_show_as_action(env)?;
-            Ok(Self { inner })
+            Ok(Self {
+                inner: SubMenuButton::new(env, parent.menu())?,
+            })
         })
     }
 
-    pub fn is_enabled(&self) -> Result<bool> {
-        vm_exec(|env| self.inner.is_enabled(env))
-    }
+    pub fn is_enabled(&self) -> Result<bool>;
 
-    pub fn set_enabled(&mut self, enabled: bool) -> Result<()> {
-        vm_exec(|env| self.inner.set_enabled(env, enabled))
-    }
+    pub fn set_enabled(&mut self, enabled: bool) -> Result<()>;
 
-    pub fn text(&self) -> Result<String> {
-        vm_exec(|env| self.inner.text(env))
-    }
+    pub fn text(&self) -> Result<String>;
 
-    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
-        vm_exec(|env| self.inner.set_text(env, s))
-    }
+    pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 winio_handle::impl_as_menu_container!(MenuBarItem, inner);

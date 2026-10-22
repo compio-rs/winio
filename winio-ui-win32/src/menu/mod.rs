@@ -13,11 +13,12 @@ use windows_sys::Win32::{
     UI::{
         HiDpi::GetSystemMetricsForDpi,
         WindowsAndMessaging::{
-            CheckMenuItem, CreateMenu, DeleteMenu, DestroyMenu, DrawMenuBar, EnableMenuItem,
-            GetMenu, GetMenuItemInfoW, GetMenuState, HMENU, InsertMenuItemW, MENUITEMINFOW,
-            MF_BYCOMMAND, MF_CHECKED, MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_SEPARATOR,
-            MF_UNCHECKED, MFT_RADIOCHECK, MIIM_BITMAP, MIIM_FTYPE, MIIM_ID, MIIM_STRING,
-            MIIM_SUBMENU, SM_CXMENUCHECK, SM_CYMENUCHECK, SetMenu, SetMenuItemInfoW, WM_COMMAND,
+            CheckMenuItem, CreateMenu, CreatePopupMenu, DeleteMenu, DestroyMenu, DrawMenuBar,
+            EnableMenuItem, GetMenu, GetMenuItemInfoW, GetMenuState, HMENU, InsertMenuItemW,
+            MENUITEMINFOW, MF_BYCOMMAND, MF_CHECKED, MF_DISABLED, MF_ENABLED, MF_GRAYED,
+            MF_SEPARATOR, MF_UNCHECKED, MFT_RADIOCHECK, MIIM_BITMAP, MIIM_FTYPE, MIIM_ID,
+            MIIM_STRING, MIIM_SUBMENU, SM_CXMENUCHECK, SM_CYMENUCHECK, SetMenu, SetMenuItemInfoW,
+            WM_COMMAND,
         },
     },
 };
@@ -36,11 +37,19 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(crate) struct OwnedMenu(HMENU);
+pub(crate) struct OwnedMenu(pub HMENU);
 
 impl OwnedMenu {
     pub fn new() -> Result<Self> {
         let hmenu = unsafe { CreateMenu() };
+        if hmenu.is_null() {
+            return Err(Error::from_thread());
+        }
+        Ok(Self(hmenu))
+    }
+
+    pub fn new_popup() -> Result<Self> {
+        let hmenu = unsafe { CreatePopupMenu() };
         if hmenu.is_null() {
             return Err(Error::from_thread());
         }
@@ -63,6 +72,12 @@ impl AsMenuContainer for OwnedMenu {
 thread_local! {
     static HMENU_HWND_MAP: RefCell<HashMap<HMENU, HWND>> = RefCell::new(HashMap::new());
     static HMENU_PARENT_MAP: RefCell<HashMap<HMENU, HMENU>> = RefCell::new(HashMap::new());
+}
+
+pub(crate) fn set_menu_owner(menu: &OwnedMenu, owner: HWND) {
+    HMENU_HWND_MAP.with_borrow_mut(|map| {
+        map.insert(menu.0, owner);
+    });
 }
 
 fn parent_window(mut m: HMENU) -> Option<HWND> {
@@ -159,7 +174,7 @@ impl MenuBar {
         let inner = OwnedMenu::new()?;
         syscall!(BOOL, SetMenu(parent, inner.0))?;
         syscall!(BOOL, DrawMenuBar(parent))?;
-        HMENU_HWND_MAP.with_borrow_mut(|map| map.insert(inner.0, parent));
+        set_menu_owner(&inner, parent);
         Ok(Self { inner })
     }
 

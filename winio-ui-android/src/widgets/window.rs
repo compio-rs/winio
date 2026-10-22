@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use inherit_methods_macro::inherit_methods;
 use jni::{
+    Env,
     objects::JObject,
     refs::{Global, LoaderContext, Reference},
 };
@@ -30,12 +31,14 @@ use crate::{
 };
 
 pub(crate) const MENU_BAR_VIEW_ID: i32 = 0x7769_6e69;
+pub(crate) const TOOL_BAR_VIEW_ID: i32 = 0x7769_6e6a;
 
 #[derive(Debug)]
 pub struct Window {
     inner: BaseWidget<FrameLayout<'static>>,
     inner_view: BaseWidget<FrameLayout<'static>>,
     menu_bar_view: Global<FrameLayout<'static>>,
+    tool_bar_view: Global<FrameLayout<'static>>,
     activity: Global<Activity<'static>>,
     on_resize: Arc<SyncCallback>,
     #[allow(unused)]
@@ -61,15 +64,8 @@ impl Window {
                 inner_view,
             )?;
 
-            let menu_bar_view = FrameLayout::new(env, &act)?;
-            menu_bar_view.as_view().set_id(env, MENU_BAR_VIEW_ID)?;
-            let params = FrameLayoutLayoutParams::new(env, -1, -2)?;
-            params.set_gravity(env, gravity::LEFT | gravity::TOP)?;
-            menu_bar_view.as_view().set_layout_params(env, &params)?;
-            window
-                .as_view_group()
-                .add_view(env, menu_bar_view.as_view())?;
-            let menu_bar_view = env.new_global_ref(&menu_bar_view)?;
+            let menu_bar_view = add_bar_host(env, &window, &act, MENU_BAR_VIEW_ID)?;
+            let tool_bar_view = add_bar_host(env, &window, &act, TOOL_BAR_VIEW_ID)?;
 
             let on_resize = Arc::new(SyncCallback::new());
             WINDOW_RESIZE_CALLBACK
@@ -122,6 +118,7 @@ impl Window {
                 inner: inner.into(),
                 inner_view,
                 menu_bar_view,
+                tool_bar_view,
                 activity: act,
                 on_resize,
                 on_resize_proxy,
@@ -152,13 +149,25 @@ impl Window {
             size.height - margin.vertical(),
         );
 
-        let bar_size = Size::new(size.width, self.menu_bar_height(size.width)?);
+        let menu_bar_size = Size::new(size.width, self.menu_bar_height(size.width)?);
         let view: &AView<'static> = self.menu_bar_view.as_ref();
-        set_bounds(view, Point::new(margin.left, margin.top), bar_size)?;
+        set_bounds(view, Point::new(margin.left, margin.top), menu_bar_size)?;
 
+        let tool_bar_size = Size::new(size.width, self.tool_bar_height(size.width)?);
+        let view: &AView<'static> = self.tool_bar_view.as_ref();
+        set_bounds(
+            view,
+            Point::new(margin.left, margin.top + menu_bar_size.height),
+            tool_bar_size,
+        )?;
+
+        let content_top = margin.top + menu_bar_size.height + tool_bar_size.height;
         self.inner_view
-            .set_loc(Point::new(margin.left, margin.top + bar_size.height))?;
-        let size = Size::new(size.width, size.height - bar_size.height);
+            .set_loc(Point::new(margin.left, content_top))?;
+        let size = Size::new(
+            size.width,
+            size.height - menu_bar_size.height - tool_bar_size.height,
+        );
         self.inner_view.set_size(size)?;
         Ok(size)
     }
@@ -234,6 +243,27 @@ impl Drop for Window {
 
 pub(crate) static WINDOW_RESIZE_CALLBACK: Mutex<Option<Arc<SyncCallback>>> = Mutex::new(None);
 
+pub(crate) fn notify_layout_changed() {
+    if let Some(callback) = WINDOW_RESIZE_CALLBACK.lock().unwrap().as_ref() {
+        callback.signal::<AndroidRuntime>(());
+    }
+}
+
+fn add_bar_host(
+    env: &mut Env<'_>,
+    window: &FrameLayout<'_>,
+    act: &Global<Activity<'static>>,
+    id: i32,
+) -> Result<Global<FrameLayout<'static>>> {
+    let bar = FrameLayout::new(env, act)?;
+    bar.as_view().set_id(env, id)?;
+    let params = FrameLayoutLayoutParams::new(env, -1, -2)?;
+    params.set_gravity(env, gravity::LEFT | gravity::TOP)?;
+    bar.as_view().set_layout_params(env, &params)?;
+    window.as_view_group().add_view(env, bar.as_view())?;
+    Ok(env.new_global_ref(&bar)?)
+}
+
 fn set_bounds(view: &AView<'static>, loc: Point, size: Size) -> Result<()> {
     let (x, y) = physical_point(loc)?;
     let (width, height) = physical_size(size)?;
@@ -249,9 +279,16 @@ fn set_bounds(view: &AView<'static>, loc: Point, size: Size) -> Result<()> {
 
 impl Window {
     fn menu_bar_height(&self, width: f64) -> Result<f64> {
+        self.bar_height(self.menu_bar_view.as_ref(), width)
+    }
+
+    fn tool_bar_height(&self, width: f64) -> Result<f64> {
+        self.bar_height(self.tool_bar_view.as_ref(), width)
+    }
+
+    fn bar_height(&self, view: &AView<'static>, width: f64) -> Result<f64> {
         let (width, _) = physical_size(Size::new(width, 0.0))?;
         let height = vm_exec(move |env| {
-            let view: &AView<'static> = self.menu_bar_view.as_ref();
             if view.get_visibility(env)? != visibility::VISIBLE {
                 return Ok::<_, Error>(0);
             }

@@ -90,3 +90,6 @@ pub use container::*;
 
 mod menu;
 pub use menu::*;
+
+mod tool_bar;
+pub use tool_bar::*;

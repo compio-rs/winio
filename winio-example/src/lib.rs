@@ -16,6 +16,7 @@ mod icons;
 pub struct MainModel {
     window: Child<Window>,
     menu_bar: Child<ExampleMenuBar>,
+    tool_bar: Child<ExampleToolBar>,
     tabview: Child<TabView>,
     misc: Child<MiscPage>,
     fs: Child<FsPage>,
@@ -76,7 +77,7 @@ impl Component for MainModel {
         init! {
             window: Window = (()) => {
                 text: "Widgets example",
-                size: Size::new(800.0, 600.0),
+                size: Size::new(800.0, 700.0),
                 loc: {
                     let monitors = Monitor::all()?;
                     if let Some(monitor) = monitors.first() {
@@ -89,6 +90,7 @@ impl Component for MainModel {
             },
             tabview: TabView = (&window),
             menu_bar: ExampleMenuBar = (&window),
+            tool_bar: ExampleToolBar = (&window),
             misc: MiscPage = (()),
             #[cfg(feature = "compio-compat")]
             fs: FsPage = (()),
@@ -127,9 +129,20 @@ impl Component for MainModel {
 
         misc.show_password_prop()?
             .bind(menu_bar.sender(), ExampleMenuBarMessage::SetShowPassword);
+        misc.show_password_prop()?
+            .bind(tool_bar.sender(), ExampleToolBarMessage::SetShowPassword);
         menu_bar
             .show_password_prop()?
             .bind(misc.sender(), MiscPageMessage::SetPassword);
+        tool_bar
+            .show_password_prop()?
+            .bind(misc.sender(), MiscPageMessage::SetPassword);
+        menu_bar
+            .wgpu_option_prop()?
+            .bind(tool_bar.sender(), ExampleToolBarMessage::SetWgpuOption);
+        tool_bar
+            .wgpu_option_prop()?
+            .bind(menu_bar.sender(), ExampleMenuBarMessage::SetWgpuOption);
 
         tabview.push(&misc)?;
         tabview.push(&fs)?;
@@ -154,6 +167,7 @@ impl Component for MainModel {
         Ok(Self {
             window,
             menu_bar,
+            tool_bar,
             tabview,
             misc,
             fs,
@@ -219,6 +233,15 @@ impl Component for MainModel {
                 ExampleMenuBarEvent::OpenFile => MainMessage::ChooseFile,
                 #[cfg(feature = "wgpu")]
                 ExampleMenuBarEvent::WgpuOption(v) => MainMessage::WgpuOption(v),
+            },
+            self.tool_bar => {
+                ExampleToolBarEvent::Push => MainMessage::PushToCombo,
+                ExampleToolBarEvent::Pop => MainMessage::PopFromCombo,
+                ExampleToolBarEvent::Show => MainMessage::ShowComboSelection,
+                #[cfg(feature = "compio-compat")]
+                ExampleToolBarEvent::OpenFile => MainMessage::ChooseFile,
+                #[cfg(feature = "wgpu")]
+                ExampleToolBarEvent::WgpuOption(v) => MainMessage::WgpuOption(v),
             }
         }
     }
@@ -242,6 +265,7 @@ impl Component for MainModel {
             try_join_update!(
                 self.window.update(),
                 self.menu_bar.update(),
+                self.tool_bar.update(),
                 self.tabview.update(),
                 visible_subview,
                 futures_util::future::try_join_all(subviews.into_iter()).map_ok(|_| false),
@@ -250,6 +274,7 @@ impl Component for MainModel {
             try_join_update!(
                 self.window.update(),
                 self.menu_bar.update(),
+                self.tool_bar.update(),
                 self.tabview.update(),
                 futures_util::future::try_join_all(subviews.into_iter()).map_ok(|_| false)
             )
@@ -285,7 +310,11 @@ impl Component for MainModel {
                 Ok(false)
             }
             MainMessage::Redraw => Ok(true),
-            MainMessage::ThemeChanged => self.misc.emit(MiscPageMessage::Redraw).await,
+            MainMessage::ThemeChanged => {
+                let misc = self.misc.emit(MiscPageMessage::Redraw).await?;
+                let tool_bar = self.tool_bar.emit(ExampleToolBarMessage::Redraw).await?;
+                Ok(misc || tool_bar)
+            }
             #[cfg(feature = "compio-compat")]
             MainMessage::ChooseFile => {
                 if let Some(p) = FileBox::new()
@@ -389,7 +418,7 @@ impl Component for MainModel {
             let mut root_panel = layout! {
                 Grid::from_str("1*", "1*").unwrap(),
                 self.tabview => {
-                    margin: Margin::new_all_same(4.0),
+                    margin: Margin::new(0.0, 4.0, 4.0, 4.0),
                     halign: HAlign::Stretch,
                     valign: VAlign::Stretch
                 }

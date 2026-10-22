@@ -21,6 +21,15 @@ impl ActionHandle {
         }
     }
 
+    pub(crate) fn action_ptr(&self) -> *mut QAction {
+        self.action.0
+    }
+
+    pub(crate) fn set_checkable(&mut self, checkable: bool) -> Result<()> {
+        unsafe { self.action.pin_mut() }.setCheckable(checkable)?;
+        Ok(())
+    }
+
     pub(crate) fn is_enabled(&self) -> Result<bool> {
         Ok(unsafe { self.action.as_ref() }.isEnabled()?)
     }

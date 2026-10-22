@@ -1,11 +1,14 @@
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
         #[derive(Clone, Copy)]
+        #[allow(clippy::enum_variant_names)]
         enum BorrowedMenuContainerInner<'a> {
             #[cfg(feature = "win32")]
             Win32(windows_sys::Win32::UI::WindowsAndMessaging::HMENU, std::marker::PhantomData<&'a ()>),
             #[cfg(feature = "winui")]
             WinUIMenuBar(&'a winui3::Microsoft::UI::Xaml::Controls::MenuBarItem),
+            #[cfg(feature = "winui")]
+            WinUIMenuFlyout(&'a winui3::Microsoft::UI::Xaml::Controls::MenuFlyout),
             #[cfg(feature = "winui")]
             WinUIMenuItem(&'a winui3::Microsoft::UI::Xaml::Controls::MenuFlyoutSubItem),
             #[cfg(not(any(feature = "win32", feature = "winui")))]
@@ -65,6 +68,14 @@ impl<'a> BorrowedMenuContainer<'a> {
         Self(BorrowedMenuContainerInner::WinUIMenuBar(menu_item))
     }
 
+    /// Create from WinUI `MenuFlyout`.
+    #[cfg(feature = "winui")]
+    pub fn winui_menu_flyout(
+        menu_flyout: &'a winui3::Microsoft::UI::Xaml::Controls::MenuFlyout,
+    ) -> Self {
+        Self(BorrowedMenuContainerInner::WinUIMenuFlyout(menu_flyout))
+    }
+
     /// Create from WinUI `MenuItem`.
     #[cfg(feature = "winui")]
     pub fn winui_menu_item(
@@ -89,6 +100,17 @@ impl<'a> BorrowedMenuContainer<'a> {
     ) -> Option<&'a winui3::Microsoft::UI::Xaml::Controls::MenuBarItem> {
         match self.0 {
             BorrowedMenuContainerInner::WinUIMenuBar(menu_item) => Some(menu_item),
+            _ => None,
+        }
+    }
+
+    /// Get the WinUI `MenuFlyout`. Panic if the handle is not WinUI.
+    #[cfg(feature = "winui")]
+    pub fn as_winui_menu_flyout(
+        &self,
+    ) -> Option<&'a winui3::Microsoft::UI::Xaml::Controls::MenuFlyout> {
+        match self.0 {
+            BorrowedMenuContainerInner::WinUIMenuFlyout(menu_flyout) => Some(menu_flyout),
             _ => None,
         }
     }

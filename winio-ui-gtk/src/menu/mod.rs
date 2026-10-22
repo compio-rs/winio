@@ -30,31 +30,65 @@ pub(crate) const ACTION_PREFIX: &str = "app";
 pub(crate) const SECTION_DATA: &str = "winio-menu-section";
 
 thread_local! {
-    // Actions of all the menu items of this thread. The menu bar inserts the
-    // group into its window so that the `app.` prefixed actions are resolvable.
+    // Actions of all the menu items of this thread. The menu bar or tool bar
+    // inserts the group into its window so that the `app.` prefixed actions are
+    // resolvable.
     pub(crate) static ACTIONS: gio::SimpleActionGroup = gio::SimpleActionGroup::new();
 
-    // Menu bars of this thread. GTK creates an image for every menu item icon
-    // but hides it when the item also has a label, so the icon has to be made
-    // visible again after the model changes.
-    static MENU_BARS: RefCell<Vec<glib::WeakRef<gtk4::PopoverMenuBar>>> =
+    // Menu bars and popovers of this thread. GTK creates an image for every
+    // menu item icon but hides it when the item also has a label, so the icon
+    // has to be made visible again after the model changes and whenever a
+    // popover is opened.
+    static MENUS: RefCell<Vec<glib::WeakRef<gtk4::Widget>>> =
         const { RefCell::new(Vec::new()) };
 }
 
+pub(crate) fn register_actions(window: &gtk4::Window) {
+    ACTIONS.with(|actions| window.insert_action_group(ACTION_PREFIX, Some(actions)));
+}
+
 pub(crate) fn register_menu_bar(bar: &gtk4::PopoverMenuBar) {
-    MENU_BARS.with_borrow_mut(|bars| {
-        bars.retain(|weak| weak.upgrade().is_some());
+    register_menu(bar.upcast_ref());
+}
+
+pub(crate) fn register_menu_popover(popover: &gtk4::PopoverMenu) {
+    if register_menu(popover.upcast_ref()) {
         let weak = glib::WeakRef::new();
-        weak.set(Some(bar));
-        bars.push(weak);
+        weak.set(Some(popover));
+        popover.connect_show(move |_| {
+            if let Some(popover) = weak.upgrade() {
+                glib::idle_add_local_once(move || show_menu_icons(popover.upcast_ref()));
+            }
+        });
+    }
+}
+
+fn register_menu(menu: &gtk4::Widget) -> bool {
+    let added = MENUS.with_borrow_mut(|menus| {
+        menus.retain(|weak| weak.upgrade().is_some());
+        if menus
+            .iter()
+            .filter_map(|weak| weak.upgrade())
+            .any(|w| w == *menu)
+        {
+            return false;
+        }
+        let weak = glib::WeakRef::new();
+        weak.set(Some(menu));
+        menus.push(weak);
+        true
     });
+    if added {
+        show_menu_icons(menu);
+    }
+    added
 }
 
 pub(crate) fn refresh_menu_icons() {
-    MENU_BARS.with_borrow_mut(|bars| {
-        bars.retain(|weak| match weak.upgrade() {
-            Some(bar) => {
-                show_menu_icons(bar.upcast_ref());
+    MENUS.with_borrow_mut(|menus| {
+        menus.retain(|weak| match weak.upgrade() {
+            Some(menu) => {
+                show_menu_icons(&menu);
                 true
             }
             None => false,

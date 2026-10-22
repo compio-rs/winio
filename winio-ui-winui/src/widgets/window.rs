@@ -78,32 +78,28 @@ impl Window {
         canvas.SetVerticalAlignment(MUX::VerticalAlignment::Stretch)?;
         canvas.SetHorizontalAlignment(MUX::HorizontalAlignment::Stretch)?;
 
-        // The content is a grid so that a menu bar can sit above the canvas
-        // that hosts the widgets: row 0 is the menu bar and row 1 is
-        // the canvas.
+        // The content is a grid so that a menu bar and a tool bar can sit
+        // above the canvas that hosts the widgets: row 0 is the menu bar,
+        // row 1 is the tool bar and row 2 is the canvas.
         let grid = MUXC::Grid::new()?;
         grid.SetVerticalAlignment(MUX::VerticalAlignment::Stretch)?;
         grid.SetHorizontalAlignment(MUX::HorizontalAlignment::Stretch)?;
         {
             let rows = grid.RowDefinitions()?;
-            {
+            for (value, kind) in [
+                (0.0, MUX::GridUnitType::Auto),
+                (0.0, MUX::GridUnitType::Auto),
+                (1.0, MUX::GridUnitType::Star),
+            ] {
                 let def = MUXC::RowDefinition::new()?;
                 def.SetHeight(MUX::GridLength {
-                    Value: 0.0,
-                    GridUnitType: MUX::GridUnitType::Auto,
-                })?;
-                rows.Append(&def)?;
-            }
-            {
-                let def = MUXC::RowDefinition::new()?;
-                def.SetHeight(MUX::GridLength {
-                    Value: 1.0,
-                    GridUnitType: MUX::GridUnitType::Star,
+                    Value: value,
+                    GridUnitType: kind,
                 })?;
                 rows.Append(&def)?;
             }
         }
-        MUXC::Grid::SetRow(&canvas, 1)?;
+        MUXC::Grid::SetRow(&canvas, 2)?;
         grid.Children()?.Append(&canvas)?;
         handle.SetContent(&grid)?;
 
@@ -219,12 +215,21 @@ impl Window {
         };
         let size = size / self.scale();
         let menu_height = self.menu_bar_height()?;
-        Ok(Size::new(size.width, (size.height - menu_height).max(0.0)))
+        let toolbar_height = self.toolbar_height()?;
+        Ok(Size::new(
+            size.width,
+            (size.height - menu_height - toolbar_height).max(0.0),
+        ))
     }
 
     fn menu_bar_height(&self) -> Result<f64> {
         let grid = self.handle.Content()?.cast::<MUXC::Grid>()?;
         grid.RowDefinitions()?.GetAt(0)?.ActualHeight()
+    }
+
+    fn toolbar_height(&self) -> Result<f64> {
+        let grid = self.handle.Content()?.cast::<MUXC::Grid>()?;
+        grid.RowDefinitions()?.GetAt(1)?.ActualHeight()
     }
 
     pub fn text(&self) -> Result<String> {
@@ -340,6 +345,7 @@ impl Drop for Window {
 thread_local! {
     pub(crate) static ROOT_WINDOWS: RefCell<Vec<MUX::Window>> = const { RefCell::new(vec![]) };
     static MENU_BARS: RefCell<Vec<(MUX::Window, MUXC::MenuBar)>> = const { RefCell::new(Vec::new()) };
+    static TOOLBARS: RefCell<Vec<(MUX::Window, MUXC::CommandBar)>> = const { RefCell::new(Vec::new()) };
 }
 
 pub(crate) fn set_menu_bar(window: &MUX::Window, menu_bar: MUXC::MenuBar) -> Result<()> {
@@ -366,6 +372,35 @@ pub(crate) fn remove_menu_bar(menu_bar: &MUXC::MenuBar) {
     {
         let mut index = 0;
         if children.IndexOf(menu_bar, &mut index).is_ok() {
+            children.RemoveAt(index).ok();
+        }
+    }
+}
+
+pub(crate) fn set_toolbar(window: &MUX::Window, toolbar: MUXC::CommandBar) -> Result<()> {
+    if TOOLBARS.with_borrow(|bars| bars.iter().any(|(w, _)| w == window)) {
+        return Err(E_INVALIDARG.into());
+    }
+    let grid: MUXC::Grid = window.Content()?.cast()?;
+    MUXC::Grid::SetRow(&toolbar, 1)?;
+    grid.Children()?.Append(&toolbar)?;
+    TOOLBARS.with_borrow_mut(|bars| bars.push((window.clone(), toolbar)));
+    Ok(())
+}
+
+pub(crate) fn remove_toolbar(toolbar: &MUXC::CommandBar) {
+    let window = TOOLBARS.with_borrow_mut(|bars| {
+        let index = bars.iter().position(|(_, bar)| bar == toolbar);
+        index.map(|i| bars.remove(i).0)
+    });
+    let Some(window) = window else {
+        return;
+    };
+    if let Ok(grid) = window.Content().and_then(|c| c.cast::<MUXC::Grid>())
+        && let Ok(children) = grid.Children()
+    {
+        let mut index = 0;
+        if children.IndexOf(toolbar, &mut index).is_ok() {
             children.RemoveAt(index).ok();
         }
     }

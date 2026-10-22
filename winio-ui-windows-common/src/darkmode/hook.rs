@@ -23,27 +23,30 @@ use windows_sys::{
                 CreateSolidBrush, DC_BRUSH, DRAW_TEXT_FORMAT, DT_CENTER, DT_HIDEPREFIX,
                 DT_SINGLELINE, DT_VCENTER, FillRect, FrameRect, GetStockObject, GetWindowDC, HDC,
                 InvalidateRect, MapWindowPoints, OffsetRect, ReleaseDC, SetDCBrushColor,
+                TRANSPARENT,
             },
         },
         System::SystemServices::MAX_CLASS_NAME,
         UI::{
             Accessibility::{HCF_HIGHCONTRASTON, HIGHCONTRASTW},
             Controls::{
-                BP_CHECKBOX, BP_GROUPBOX, BP_RADIOBUTTON, CloseThemeData, DRAWITEMSTRUCT,
-                DTBG_CLIPRECT, DTBGOPTS, DTT_TEXTCOLOR, DTTOPTS, DrawThemeBackground,
-                DrawThemeBackgroundEx, DrawThemeParentBackground, DrawThemeText, DrawThemeTextEx,
-                GBS_DISABLED, GetThemeColor, HTHEME, MBI_DISABLED, MBI_DISABLEDHOT,
-                MBI_DISABLEDPUSHED, MBI_HOT, MBI_NORMAL, MBI_PUSHED, MENU_BARITEM, ODS_DISABLED,
-                ODS_GRAYED, ODS_INACTIVE, ODS_NOACCEL, ODS_SELECTED, OPEN_THEME_DATA_FLAGS,
-                OpenThemeData, OpenThemeDataEx, PBS_DISABLED, PFTASKDIALOGCALLBACK,
-                PP_TRANSPARENTBAR, PROGRESS_CLASSW, SetWindowTheme, TABP_AEROWIZARDBODY, TABP_BODY,
-                TABP_PANE, TABP_TABITEM, TABP_TABITEMBOTHEDGE, TABP_TABITEMLEFTEDGE,
-                TABP_TABITEMRIGHTEDGE, TABP_TOPTABITEM, TABP_TOPTABITEMBOTHEDGE,
-                TABP_TOPTABITEMLEFTEDGE, TABP_TOPTABITEMRIGHTEDGE, TASKDIALOG_NOTIFICATIONS,
-                TDLG_MAININSTRUCTIONPANE, TDLG_PRIMARYPANEL, TDLG_SECONDARYPANEL, TDN_CREATED,
-                TDN_DIALOG_CONSTRUCTED, TIS_DISABLED, TIS_FOCUSED, TIS_HOT, TIS_NORMAL,
-                TIS_SELECTED, TMT_TEXTCOLOR, VSCLASS_MENU, WC_BUTTONW, WC_COMBOBOXW, WC_EDITW,
-                WC_TABCONTROLW,
+                BP_CHECKBOX, BP_GROUPBOX, BP_RADIOBUTTON, CDDS_ITEMPREPAINT, CDDS_PREPAINT,
+                CDIS_CHECKED, CDIS_DISABLED, CDIS_HOT, CDIS_SELECTED, CDRF_NOTIFYITEMDRAW,
+                CloseThemeData, DRAWITEMSTRUCT, DTBG_CLIPRECT, DTBGOPTS, DTT_TEXTCOLOR, DTTOPTS,
+                DrawThemeBackground, DrawThemeBackgroundEx, DrawThemeParentBackground,
+                DrawThemeText, DrawThemeTextEx, GBS_DISABLED, GetThemeColor, HTHEME, MBI_DISABLED,
+                MBI_DISABLEDHOT, MBI_DISABLEDPUSHED, MBI_HOT, MBI_NORMAL, MBI_PUSHED, MENU_BARITEM,
+                NM_CUSTOMDRAW, NMHDR, NMTBCUSTOMDRAW, ODS_DISABLED, ODS_GRAYED, ODS_INACTIVE,
+                ODS_NOACCEL, ODS_SELECTED, OPEN_THEME_DATA_FLAGS, OpenThemeData, OpenThemeDataEx,
+                PBS_DISABLED, PFTASKDIALOGCALLBACK, PP_TRANSPARENTBAR, PROGRESS_CLASSW,
+                SetWindowTheme, TABP_AEROWIZARDBODY, TABP_BODY, TABP_PANE, TABP_TABITEM,
+                TABP_TABITEMBOTHEDGE, TABP_TABITEMLEFTEDGE, TABP_TABITEMRIGHTEDGE, TABP_TOPTABITEM,
+                TABP_TOPTABITEMBOTHEDGE, TABP_TOPTABITEMLEFTEDGE, TABP_TOPTABITEMRIGHTEDGE,
+                TASKDIALOG_NOTIFICATIONS, TBCDRF_HILITEHOTTRACK, TBCDRF_NOBACKGROUND,
+                TBCDRF_USECDCOLORS, TDLG_MAININSTRUCTIONPANE, TDLG_PRIMARYPANEL,
+                TDLG_SECONDARYPANEL, TDN_CREATED, TDN_DIALOG_CONSTRUCTED, TIS_DISABLED,
+                TIS_FOCUSED, TIS_HOT, TIS_NORMAL, TIS_SELECTED, TMT_TEXTCOLOR, TOOLBARCLASSNAMEW,
+                VSCLASS_MENU, WC_BUTTONW, WC_COMBOBOXW, WC_EDITW, WC_TABCONTROLW,
             },
             HiDpi::OpenThemeDataForDpi,
             Shell::{DefSubclassProc, SetWindowSubclass},
@@ -51,7 +54,8 @@ use windows_sys::{
                 DefWindowProcW, ES_MULTILINE, EnumChildWindows, GWL_STYLE, GetClassNameW,
                 GetClientRect, GetMenuBarInfo, GetMenuItemInfoW, GetWindowLongPtrW, GetWindowRect,
                 HMENU, MENUBARINFO, MENUITEMINFOW, MIIM_STRING, OBJID_MENU, SPI_GETHIGHCONTRAST,
-                SystemParametersInfoW, WM_CTLCOLORDLG, WM_NCACTIVATE, WM_NCPAINT, WM_SETTINGCHANGE,
+                SystemParametersInfoW, WM_CTLCOLORDLG, WM_NCACTIVATE, WM_NCPAINT, WM_NOTIFY,
+                WM_SETTINGCHANGE,
             },
         },
     },
@@ -607,6 +611,17 @@ static DLG_DARK_BACK: LazyLock<WinBrush> =
 static DLG_GRAY_BACK: LazyLock<WinBrush> =
     LazyLock::new(|| WinBrush(unsafe { CreateSolidBrush(0x00333333) }));
 
+static TOOLBAR_CHECKED_BACK: LazyLock<WinBrush> =
+    LazyLock::new(|| WinBrush(unsafe { CreateSolidBrush(TOOLBAR_CHECKED_COLOR) }));
+
+static TOOLBAR_HOT_BACK: LazyLock<WinBrush> =
+    LazyLock::new(|| WinBrush(unsafe { CreateSolidBrush(TOOLBAR_HOT_COLOR) }));
+
+const TOOLBAR_TEXT: COLORREF = 0x00FFFFFF;
+const TOOLBAR_DISABLED_TEXT: COLORREF = 0x00808080;
+const TOOLBAR_CHECKED_COLOR: COLORREF = 0x002A2A2A;
+const TOOLBAR_HOT_COLOR: COLORREF = 0x00343434;
+
 fn increase(c: COLORREF, inc: u32) -> COLORREF {
     let r = c & 0xFF;
     let r = (r + inc).min(0xFF);
@@ -746,6 +761,7 @@ pub unsafe fn handle_wnd_proc(
         return None;
     }
     match msg {
+        WM_NOTIFY => unsafe { toolbar_custom_draw(lparam) },
         WM_NCPAINT | WM_NCACTIVATE => {
             let ret = unsafe { DefWindowProcW(handle, msg, wparam, lparam) };
             if let Err(e) = unsafe { paint_nc_menu(handle) } {
@@ -766,6 +782,71 @@ pub unsafe fn handle_wnd_proc(
                 error!("WM_UAHDRAWMENUITEM: {e:?}");
             }
             Some(0)
+        }
+        _ => None,
+    }
+}
+
+/// Paint toolbar items with dark colors.
+///
+/// # Safety
+/// `lparam` must be the `lParam` of a `WM_NOTIFY` message.
+unsafe fn toolbar_custom_draw(lparam: LPARAM) -> Option<LRESULT> {
+    let header = unsafe { &*(lparam as *const NMHDR) };
+    if header.code != NM_CUSTOMDRAW {
+        return None;
+    }
+
+    let mut class = [0u16; MAX_CLASS_NAME as usize];
+    if unsafe { GetClassNameW(header.hwndFrom, class.as_mut_ptr(), MAX_CLASS_NAME) } == 0 {
+        return None;
+    }
+    if !unsafe { u16_string_eq_ignore_case(class.as_ptr(), TOOLBARCLASSNAMEW) } {
+        return None;
+    }
+
+    let nm = unsafe { &mut *(lparam as *mut NMTBCUSTOMDRAW) };
+    match nm.nmcd.dwDrawStage {
+        CDDS_PREPAINT => Some(CDRF_NOTIFYITEMDRAW as LRESULT),
+        CDDS_ITEMPREPAINT => {
+            let state = nm.nmcd.uItemState;
+            let disabled = state & CDIS_DISABLED != 0;
+            let checked = state & (CDIS_CHECKED | CDIS_SELECTED) != 0;
+            let hot = state & CDIS_HOT != 0;
+
+            nm.clrText = if disabled {
+                TOOLBAR_DISABLED_TEXT
+            } else {
+                TOOLBAR_TEXT
+            };
+            nm.clrTextHighlight = nm.clrText;
+            nm.nStringBkMode = TRANSPARENT as _;
+            nm.nHLStringBkMode = TRANSPARENT as _;
+
+            let brush = if checked {
+                Some(TOOLBAR_CHECKED_BACK.0)
+            } else if hot {
+                Some(TOOLBAR_HOT_BACK.0)
+            } else {
+                None
+            };
+
+            if let Some(brush) = brush {
+                nm.clrBtnFace = if checked {
+                    TOOLBAR_CHECKED_COLOR
+                } else {
+                    TOOLBAR_HOT_COLOR
+                };
+                nm.clrBtnHighlight = nm.clrBtnFace;
+                nm.clrHighlightHotTrack = nm.clrBtnFace;
+                unsafe { FillRect(nm.nmcd.hdc, &nm.nmcd.rc, brush) };
+            }
+
+            let mut flags = TBCDRF_NOBACKGROUND | TBCDRF_USECDCOLORS;
+            if hot {
+                flags |= TBCDRF_HILITEHOTTRACK;
+            }
+            Some(flags as LRESULT)
         }
         _ => None,
     }

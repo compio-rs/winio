@@ -22,6 +22,9 @@ pub use platform::*;
 mod menu;
 pub use menu::*;
 
+mod tool_bar;
+pub use tool_bar::*;
+
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
@@ -54,6 +57,9 @@ pub enum Error {
     /// A menu bar already exists.
     #[error("A menu bar already exists")]
     MenuBarExists,
+    /// A tool bar already exists.
+    #[error("A tool bar already exists")]
+    ToolBarExists,
 }
 
 /// Result type for Qt.

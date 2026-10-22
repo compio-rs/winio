@@ -46,6 +46,7 @@ fn main() {
             "src/dialogs/msgbox",
             "src/dialogs/filebox",
             "src/menu/ffi",
+            "src/tool_bar/ffi",
             "src/widgets/window",
             "src/widgets/button",
             "src/widgets/canvas",

@@ -290,6 +290,7 @@ pub mod menu {
 
 pub mod menu_item {
     pub const SHOW_AS_ACTION_ALWAYS: i32 = 0x2;
+    pub const SHOW_AS_ACTION_WITH_TEXT: i32 = 0x4;
 }
 
 pub mod measure_spec {

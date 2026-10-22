@@ -57,10 +57,13 @@ pub mod widgets;
 
 pub mod menu;
 
+pub mod tool_bar;
+
 /// For blanket imports.
 pub mod prelude {
     pub use crate::{
-        Error, Result, elm::*, handle::*, layout::*, menu::*, primitive::*, ui::*, widgets::*,
+        Error, Result, elm::*, handle::*, layout::*, menu::*, primitive::*, tool_bar::*, ui::*,
+        widgets::*,
     };
 }
 

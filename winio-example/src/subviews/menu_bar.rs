@@ -36,6 +36,7 @@ pub enum ExampleMenuBarMessage {
     Pop,
     Show,
     SetShowPassword(bool),
+    SetWgpuOption(Option<usize>),
     OpenFile,
     WgpuOption(Option<usize>),
 }
@@ -174,6 +175,12 @@ impl Component for ExampleMenuBar {
                 self.show_password_item.set_checked(v)?;
                 Ok(false)
             }
+            ExampleMenuBarMessage::SetWgpuOption(selection) => {
+                if let Some(index) = selection {
+                    self.wgpu_option_group.set_selection(index)?;
+                }
+                Ok(false)
+            }
             ExampleMenuBarMessage::OpenFile => {
                 sender.output(ExampleMenuBarEvent::OpenFile);
                 Ok(false)
@@ -189,5 +196,9 @@ impl Component for ExampleMenuBar {
 impl ExampleMenuBar {
     pub fn show_password_prop(&mut self) -> Result<Prop<'_, bool>> {
         Ok(self.show_password_item.checked_prop()?)
+    }
+
+    pub fn wgpu_option_prop(&mut self) -> Result<Prop<'_, Option<usize>>> {
+        Ok(self.wgpu_option_group.selection_prop()?)
     }
 }

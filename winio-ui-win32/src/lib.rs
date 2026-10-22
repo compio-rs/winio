@@ -16,6 +16,9 @@ pub use widgets::*;
 mod menu;
 pub use menu::*;
 
+mod tool_bar;
+pub use tool_bar::*;
+
 mod platform;
 pub use platform::image::Image;
 

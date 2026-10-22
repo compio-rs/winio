@@ -69,30 +69,25 @@ struct MenuNode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct MenuNodeRef(usize);
+pub(crate) struct MenuNodeRef(usize);
 
 impl MenuNodeRef {
-    /// Create a node which belongs to no container.
     pub fn root() -> Self {
         Self(insert_node(NodeKind::Root, None))
     }
 
-    /// Create a node as the last child of `parent`.
     pub fn child(parent: usize, kind: NodeKind) -> Self {
         Self(insert_node(kind, Some(parent)))
     }
 
-    /// Get the key of this node.
     pub fn key(&self) -> usize {
         self.0
     }
 
-    /// Run `f` on the node, or return [`None`] if it has been removed.
     fn with<R>(&self, f: impl FnOnce(&MenuNode) -> R) -> Option<R> {
         NODES.with_borrow(|nodes| nodes.get(self.0).map(f))
     }
 
-    /// Run `f` on the node mutably, or do nothing if it has been removed.
     fn with_mut<R>(&self, f: impl FnOnce(&mut MenuNode) -> R) -> Option<R> {
         NODES.with_borrow_mut(|nodes| nodes.get_mut(self.0).map(f))
     }
@@ -319,7 +314,6 @@ fn build_element(key: usize, mtm: MainThreadMarker) -> Option<Retained<UIMenuEle
 }
 
 pub(crate) fn build_bar_menu(key: usize, mtm: MainThreadMarker) -> Retained<UIMenu> {
-    /// The completion block handed to a deferred menu element provider.
     type Completion = DynBlock<dyn Fn(NonNull<NSArray<UIMenuElement>>)>;
 
     let provider = RcBlock::new(move |completion: NonNull<Completion>| {

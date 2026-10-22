@@ -24,6 +24,9 @@ pub use platform::*;
 mod menu;
 pub use menu::*;
 
+mod tool_bar;
+pub use tool_bar::*;
+
 #[cfg(feature = "compio-compat")]
 mod compat;
 #[cfg(feature = "compio-compat")]
