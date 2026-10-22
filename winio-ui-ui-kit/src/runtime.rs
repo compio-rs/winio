@@ -85,7 +85,7 @@ thread_local! {
     pub(crate) static MOVE_SLAB: RefCell<Slab<Rc<Callback>>> = const { RefCell::new(Slab::new()) };
 }
 
-fn signal_resize<R: Runnable>() -> bool {
+pub(crate) fn signal_resize<R: Runnable>() -> bool {
     RESIZE_SLAB.with_borrow(|s| {
         for (_, callback) in s.iter() {
             callback.signal::<R>(());

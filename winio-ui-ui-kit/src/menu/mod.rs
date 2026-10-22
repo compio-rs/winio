@@ -69,7 +69,7 @@ struct MenuNode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct MenuNodeRef(usize);
+pub(crate) struct MenuNodeRef(usize);
 
 impl MenuNodeRef {
     /// Create a node which belongs to no container.

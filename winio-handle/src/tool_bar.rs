@@ -17,6 +17,10 @@ cfg_if::cfg_if! {
         use objc2::rc::Retained;
 
         type BorrowedToolBarItemInner<'a> = &'a Retained<objc2_app_kit::NSToolbarItem>;
+    } else if #[cfg(target_os = "ios")] {
+        use objc2::rc::Retained;
+
+        type BorrowedToolBarItemInner<'a> = &'a Retained<objc2_ui_kit::UIBarButtonItem>;
     } else {
         #[derive(Clone, Copy)]
         enum BorrowedToolBarItemInner<'a> {
@@ -88,6 +92,19 @@ impl<'a> BorrowedToolBarItem<'a> {
 
     /// Get the AppKit `NSToolbarItem`. Panic if the handle is not AppKit.
     pub fn as_app_kit(&self) -> &'a objc2::rc::Retained<objc2_app_kit::NSToolbarItem> {
+        self.0
+    }
+}
+
+#[cfg(target_os = "ios")]
+impl<'a> BorrowedToolBarItem<'a> {
+    /// Create from a UIKit `UIBarButtonItem`.
+    pub fn ui_kit(item: &'a objc2::rc::Retained<objc2_ui_kit::UIBarButtonItem>) -> Self {
+        Self(item)
+    }
+
+    /// Get the UIKit `UIBarButtonItem`. Panic if the handle is not UIKit.
+    pub fn as_ui_kit(&self) -> &'a objc2::rc::Retained<objc2_ui_kit::UIBarButtonItem> {
         self.0
     }
 }
