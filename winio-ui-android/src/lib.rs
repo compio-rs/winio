@@ -23,6 +23,8 @@ pub use dialogs::*;
 mod platform;
 pub use platform::*;
 
+mod bar;
+
 mod menu;
 pub use menu::*;
 
