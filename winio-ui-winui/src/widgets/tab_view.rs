@@ -16,7 +16,6 @@ pub struct TabView {
     on_select: SendWrapper<Rc<Callback>>,
     handle: Widget,
     view: MUXC::TabView,
-    views: Vec<TabViewItem>,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -39,7 +38,6 @@ impl TabView {
             on_select,
             handle: Widget::new(parent, view.cast()?)?,
             view,
-            views: vec![],
         })
     }
 
@@ -80,40 +78,6 @@ impl TabView {
             error!("Measure: {_e:?}");
         }
     }
-
-    pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
-        self.view.TabItems()?.InsertAt(i as _, &item.inner.item)?;
-        item.inner.parent.replace(Some(self.view.clone()));
-        self.views.insert(i, item.clone());
-        self.view
-            .Measure(Size::new(f64::INFINITY, f64::INFINITY).to_native())?;
-        if self.len()? == 1 && self.selection()?.is_none() {
-            self.set_selection(0)?;
-        }
-        Ok(())
-    }
-
-    pub fn remove(&mut self, i: usize) -> Result<()> {
-        self.view.TabItems()?.RemoveAt(i as _)?;
-        self.views.remove(i).inner.parent.replace(None);
-        Ok(())
-    }
-
-    pub fn len(&self) -> Result<usize> {
-        Ok(self.view.TabItems()?.Size()? as _)
-    }
-
-    pub fn is_empty(&self) -> Result<bool> {
-        Ok(self.len()? == 0)
-    }
-
-    pub fn clear(&mut self) -> Result<()> {
-        self.view.TabItems()?.Clear()?;
-        for item in self.views.drain(..) {
-            item.inner.parent.replace(None);
-        }
-        Ok(())
-    }
 }
 
 winio_handle::impl_as_widget!(TabView, handle);
@@ -132,7 +96,7 @@ pub struct TabViewItem {
 }
 
 impl TabViewItem {
-    pub fn new() -> Result<Self> {
+    pub fn new(parent: &TabView) -> Result<Self> {
         let item = MUXC::TabViewItem::new()?;
         item.SetHorizontalAlignment(HorizontalAlignment::Stretch)?;
         item.SetVerticalAlignment(VerticalAlignment::Stretch)?;
@@ -143,14 +107,23 @@ impl TabViewItem {
         canvas.SetHorizontalAlignment(HorizontalAlignment::Stretch)?;
         canvas.SetVerticalAlignment(VerticalAlignment::Stretch)?;
         item.SetContent(&canvas)?;
-        Ok(Self {
+        let item = Self {
             inner: Rc::new(TabViewItemInner {
-                parent: RefCell::new(None),
+                parent: RefCell::new(Some(parent.view.clone())),
                 item,
                 canvas,
                 text,
             }),
-        })
+        };
+        let items = parent.view.TabItems()?;
+        items.InsertAt(items.Size()? as _, &item.inner.item)?;
+        parent
+            .view
+            .Measure(Size::new(f64::INFINITY, f64::INFINITY).to_native())?;
+        if items.Size()? == 1 && parent.selection()?.is_none() {
+            parent.view.SetSelectedIndex(0)?;
+        }
+        Ok(item)
     }
 
     pub fn text(&self) -> Result<String> {
@@ -171,6 +144,22 @@ impl TabViewItem {
             ))
         } else {
             Ok(Size::zero())
+        }
+    }
+}
+
+impl Drop for TabViewItem {
+    fn drop(&mut self) {
+        let parent = self.inner.parent.borrow_mut().take();
+        let Some(parent) = parent else {
+            return;
+        };
+        let Ok(items) = parent.TabItems() else {
+            return;
+        };
+        let mut index = 0;
+        if let Ok(true) = items.IndexOf(&self.inner.item, &mut index) {
+            let _ = items.RemoveAt(index);
         }
     }
 }

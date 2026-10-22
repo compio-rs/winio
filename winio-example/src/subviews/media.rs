@@ -51,14 +51,14 @@ pub enum MediaPageMessage {
 impl Component for MediaPage {
     type Error = Error;
     type Event = MediaPageEvent;
-    type Init<'a> = ();
+    type Init<'a> = &'a TabView;
     type Message = MediaPageMessage;
 
-    async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         let play_icon = icons::play()?;
         let pause_icon = icons::pause()?;
         init! {
-            window: TabViewItem = (()) => {
+            window: TabViewItem = (init) => {
                 text: "Media",
             },
             media: Media = (&window),

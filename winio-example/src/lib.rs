@@ -91,40 +91,40 @@ impl Component for MainModel {
             tabview: TabView = (&window),
             menu_bar: ExampleMenuBar = (&window),
             tool_bar: ExampleToolBar = (&window),
-            misc: MiscPage = (()),
+            misc: MiscPage = (&*tabview),
             #[cfg(feature = "compio-compat")]
-            fs: FsPage = (()),
+            fs: FsPage = (&*tabview),
             #[cfg(not(feature = "compio-compat"))]
-            fs: DummyPage = (("File IO", "compio-compat")),
+            fs: DummyPage = ((&*tabview, "File IO", "compio-compat")),
             #[cfg(feature = "compio-compat")]
-            net: NetPage = (()),
+            net: NetPage = (&*tabview),
             #[cfg(not(feature = "compio-compat"))]
-            net: DummyPage = (("Networking", "compio-compat")),
+            net: DummyPage = ((&*tabview, "Networking", "compio-compat")),
             #[cfg(feature = "compio-compat")]
-            gallery: GalleryPage = (()),
+            gallery: GalleryPage = (&*tabview),
             #[cfg(not(feature = "compio-compat"))]
-            gallery: DummyPage = (("Images", "compio-compat")),
-            scroll: ScrollViewPage = (()),
+            gallery: DummyPage = ((&*tabview, "Images", "compio-compat")),
+            scroll: ScrollViewPage = (&*tabview),
             #[cfg(feature = "plotters")]
-            plotters: PlottersPage = (()),
+            plotters: PlottersPage = (&*tabview),
             #[cfg(not(feature = "plotters"))]
-            plotters: DummyPage = (("Plotters", "plotters")),
+            plotters: DummyPage = ((&*tabview, "Plotters", "plotters")),
             #[cfg(feature = "wgpu")]
-            wgpu: WgpuPage = (()),
+            wgpu: WgpuPage = (&*tabview),
             #[cfg(not(feature = "wgpu"))]
-            wgpu: DummyPage = (("WGPU", "wgpu")),
+            wgpu: DummyPage = ((&*tabview, "WGPU", "wgpu")),
             #[cfg(feature = "media")]
-            media: MediaPage = (()),
+            media: MediaPage = (&*tabview),
             #[cfg(not(feature = "media"))]
-            media: DummyPage = (("Media", "media")),
+            media: DummyPage = ((&*tabview, "Media", "media")),
             #[cfg(feature = "webview")]
-            webview: WebViewPage = (()),
+            webview: WebViewPage = (&*tabview),
             #[cfg(not(feature = "webview"))]
-            webview: DummyPage = (("WebView", "webview")),
+            webview: DummyPage = ((&*tabview, "WebView", "webview")),
             #[cfg(all(feature = "webview", feature = "compio-compat"))]
-            markdown: MarkdownPage = (()),
+            markdown: MarkdownPage = (&*tabview),
             #[cfg(not(all(feature = "webview", feature = "compio-compat")))]
-            markdown: DummyPage = (("Markdown", "webview,compio-compat")),
+            markdown: DummyPage = ((&*tabview, "Markdown", "webview,compio-compat")),
         }
 
         misc.show_password_prop()?
@@ -143,17 +143,6 @@ impl Component for MainModel {
         tool_bar
             .wgpu_option_prop()?
             .bind(menu_bar.sender(), ExampleMenuBarMessage::SetWgpuOption);
-
-        tabview.push(&misc)?;
-        tabview.push(&fs)?;
-        tabview.push(&net)?;
-        tabview.push(&gallery)?;
-        tabview.push(&scroll)?;
-        tabview.push(&plotters)?;
-        tabview.push(&wgpu)?;
-        tabview.push(&media)?;
-        tabview.push(&webview)?;
-        tabview.push(&markdown)?;
 
         tabview
             .selection_prop()?

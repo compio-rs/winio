@@ -79,10 +79,10 @@ pub enum MiscPageMessage {
 impl Component for MiscPage {
     type Error = Error;
     type Event = MiscPageEvent;
-    type Init<'a> = ();
+    type Init<'a> = &'a TabView;
     type Message = MiscPageMessage;
 
-    async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let github_icon = icons::github()?;
         let github_white_icon = icons::github_white()?;
         let dark = ColorTheme::current()? == ColorTheme::Dark;
@@ -92,7 +92,7 @@ impl Component for MiscPage {
             &github_icon
         };
         init! {
-            window: TabViewItem = (()) => {
+            window: TabViewItem = (init) => {
                 text: "Widgets",
             },
             canvas: Canvas = (&window),

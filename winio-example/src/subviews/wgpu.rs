@@ -205,12 +205,20 @@ pub enum WgpuPageInnerMessage {
 impl Component for WgpuPageInner {
     type Error = Error;
     type Event = WgpuPageInnerEvent;
-    type Init<'a> = ();
+    type Init<'a> = &'a TabView;
     type Message = WgpuPageInnerMessage;
 
-    async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions::default())
+            .await?;
+        let (device, queue) = adapter
+            .request_device(&wgpu::DeviceDescriptor::default())
+            .await?;
+
         init! {
-            window: TabViewItem = (()) => {
+            window: TabViewItem = (init) => {
                 text: "WGPU",
             },
             canvas: WgpuCanvas = (&window),
@@ -219,13 +227,6 @@ impl Component for WgpuPageInner {
             }
         }
 
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor::default())
-            .await?;
         let surface = canvas
             .create_surface(&instance)
             .ok()
@@ -460,15 +461,15 @@ pub enum WgpuPageMessage {
 impl Component for WgpuPage {
     type Error = Error;
     type Event = WgpuPageEvent;
-    type Init<'a> = ();
+    type Init<'a> = &'a TabView;
     type Message = WgpuPageMessage;
 
-    async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
-        match Child::<WgpuPageInner>::init(()).await {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        match Child::<WgpuPageInner>::init(init).await {
             Ok(wgpu) => Ok(Self::Wgpu(wgpu)),
             Err(e) => {
                 init! {
-                    window: TabViewItem = (()) => {
+                    window: TabViewItem = (init) => {
                         text: "WGPU",
                     },
                     label: Label = (&window) => {

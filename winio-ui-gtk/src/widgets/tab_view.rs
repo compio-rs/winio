@@ -64,52 +64,31 @@ impl TabView {
     pub async fn wait_select(&self) {
         self.on_select.wait().await
     }
-
-    pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
-        self.view
-            .insert_page(&item.swindow, Some(&item.label), Some(i as _));
-        Ok(())
-    }
-
-    pub fn remove(&mut self, i: usize) -> Result<()> {
-        self.view.remove_page(Some(i as _));
-        Ok(())
-    }
-
-    pub fn len(&self) -> Result<usize> {
-        Ok(self.view.n_pages() as _)
-    }
-
-    pub fn is_empty(&self) -> Result<bool> {
-        Ok(self.len()? == 0)
-    }
-
-    pub fn clear(&mut self) -> Result<()> {
-        while !self.is_empty()? {
-            self.remove(0)?;
-        }
-        Ok(())
-    }
 }
 
 winio_handle::impl_as_widget!(TabView, handle);
 
 #[derive(Debug)]
 pub struct TabViewItem {
+    parent: gtk4::glib::WeakRef<gtk4::Notebook>,
     swindow: gtk4::ScrolledWindow,
     fixed: gtk4::Fixed,
     label: gtk4::Label,
 }
 
 impl TabViewItem {
-    pub fn new() -> Result<Self> {
+    pub fn new(parent: &TabView) -> Result<Self> {
         let swindow = gtk4::ScrolledWindow::new();
         swindow.set_hscrollbar_policy(gtk4::PolicyType::External);
         swindow.set_vscrollbar_policy(gtk4::PolicyType::External);
         let fixed = gtk4::Fixed::new();
         swindow.set_child(Some(&fixed));
         let label = gtk4::Label::new(None);
+        parent.view.append_page(&swindow, Some(&label));
+        let parent_weak = gtk4::glib::WeakRef::new();
+        parent_weak.set(Some(&parent.view));
         Ok(Self {
+            parent: parent_weak,
             swindow,
             fixed,
             label,
@@ -129,6 +108,17 @@ impl TabViewItem {
         let width = self.swindow.width();
         let height = self.swindow.height();
         Ok(Size::new(width as _, height as _))
+    }
+}
+
+impl Drop for TabViewItem {
+    fn drop(&mut self) {
+        let Some(parent) = self.parent.upgrade() else {
+            return;
+        };
+        if let Some(index) = parent.page_num(&self.swindow) {
+            parent.remove_page(Some(index));
+        }
     }
 }
 

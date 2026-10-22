@@ -34,28 +34,6 @@ impl TabView {
         Ok(())
     }
 
-    /// Insert a new tab item.
-    pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
-        self.widget.insert(i, &item.widget)
-    }
-
-    /// Push a new tab item to the end.
-    pub fn push(&mut self, item: &TabViewItem) -> Result<()> {
-        self.insert(self.len()?, item)
-    }
-
-    /// Remove a tab by index.
-    pub fn remove(&mut self, i: usize) -> Result<()>;
-
-    /// The length of the tabs.
-    pub fn len(&self) -> Result<usize>;
-
-    /// If the tab collection is empty.
-    pub fn is_empty(&self) -> Result<bool>;
-
-    /// Clear the tabs.
-    pub fn clear(&mut self) -> Result<()>;
-
     /// Property for [`TabView::selection`].
     pub fn selection_prop(&mut self) -> Result<Prop<'_, Option<usize>>> {
         Ok(self.selection_prop.as_prop(self.selection()?))
@@ -209,11 +187,11 @@ pub enum TabViewItemMessage {
 impl Component for TabViewItem {
     type Error = Error;
     type Event = TabViewItemEvent;
-    type Init<'a> = ();
+    type Init<'a> = &'a TabView;
     type Message = TabViewItemMessage;
 
-    async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
-        let widget = sys::TabViewItem::new()?;
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+        let widget = sys::TabViewItem::new(&init.widget)?;
         Ok(Self { widget })
     }
 

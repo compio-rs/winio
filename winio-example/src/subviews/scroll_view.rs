@@ -28,12 +28,12 @@ pub enum ScrollViewPageMessage {
 impl Component for ScrollViewPage {
     type Error = Error;
     type Event = ScrollViewPageEvent;
-    type Init<'a> = ();
+    type Init<'a> = &'a TabView;
     type Message = ScrollViewPageMessage;
 
-    async fn init(_init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
         init! {
-            window: TabViewItem = (()) => {
+            window: TabViewItem = (init) => {
                 text: "ScrollView",
             },
             scroll: ScrollView = (&window) => {

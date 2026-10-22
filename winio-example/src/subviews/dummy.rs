@@ -18,15 +18,15 @@ pub enum DummyPageMessage {}
 impl Component for DummyPage {
     type Error = Error;
     type Event = DummyPageEvent;
-    type Init<'a> = (&'static str, &'static str);
+    type Init<'a> = (&'a TabView, &'static str, &'static str);
     type Message = DummyPageMessage;
 
     async fn init(
-        (name, feature): Self::Init<'_>,
+        (parent, name, feature): Self::Init<'_>,
         _sender: &ComponentSender<Self>,
     ) -> Result<Self> {
         init! {
-            window: TabViewItem = (()) => {
+            window: TabViewItem = (parent) => {
                 text: name,
             },
             label: Label = (&window) => {

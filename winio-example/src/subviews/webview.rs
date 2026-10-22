@@ -49,15 +49,15 @@ pub enum WebViewPageMessage {
 impl Component for WebViewPage {
     type Error = Error;
     type Event = WebViewPageEvent;
-    type Init<'a> = ();
+    type Init<'a> = &'a TabView;
     type Message = WebViewPageMessage;
 
-    async fn init(_init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
+    async fn init(init: Self::Init<'_>, sender: &ComponentSender<Self>) -> Result<Self> {
         let url = "https://compio.rs/";
         let reload_icon = icons::reload()?;
         let stop_icon = icons::stop()?;
         init! {
-            window: TabViewItem = (()) => {
+            window: TabViewItem = (init) => {
                 text: "WebView",
             },
             webview: FailableWebView = (&window) => {

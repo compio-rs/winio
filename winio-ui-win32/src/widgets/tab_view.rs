@@ -1,19 +1,18 @@
 use std::{
-    cell::{Cell, RefCell},
+    cell::RefCell,
     mem::MaybeUninit,
-    rc::Rc,
+    rc::{Rc, Weak},
 };
 
-use inherit_methods_macro::inherit_methods;
 use windows_core::WIN32_ERROR;
 use windows_sys::{
     Win32::{
-        Foundation::ERROR_ALREADY_EXISTS,
+        Foundation::{ERROR_ALREADY_EXISTS, LPARAM, WPARAM},
         UI::{
             Controls::{
                 TCIF_TEXT, TCITEMW, TCM_ADJUSTRECT, TCM_DELETEALLITEMS, TCM_DELETEITEM,
-                TCM_GETCURSEL, TCM_GETITEMCOUNT, TCM_INSERTITEMW, TCM_SETCURSEL, TCM_SETITEMW,
-                TCN_SELCHANGE, TCS_TABS, WC_TABCONTROLW,
+                TCM_GETCURSEL, TCM_INSERTITEMW, TCM_SETCURSEL, TCM_SETITEMW, TCN_SELCHANGE,
+                TCS_TABS, WC_TABCONTROLW,
             },
             WindowsAndMessaging::{
                 GetClientRect, GetParent, HWND_MESSAGE, MoveWindow, SW_HIDE, SW_SHOW, SendMessageW,
@@ -24,7 +23,7 @@ use windows_sys::{
     },
     w,
 };
-use winio_handle::{AsContainer, AsWidget, BorrowedContainer};
+use winio_handle::{AsContainer, AsWidget, BorrowedContainer, BorrowedWidget};
 use winio_primitive::{Point, Size};
 use winio_ui_windows_common::{children_refresh_dark_mode, syscall};
 
@@ -32,13 +31,20 @@ use crate::{Result, View, Widget, WindowMessageNotify, widgets::with_u16c};
 
 #[derive(Debug)]
 pub struct TabView {
-    handle: Widget,
-    current_view: Cell<Option<usize>>,
-    views: Vec<TabViewItem>,
+    data: Rc<TabViewData>,
 }
 
-#[inherit_methods(from = "self.handle")]
+#[derive(Debug)]
+struct TabViewData {
+    handle: Widget,
+    views: RefCell<Vec<TabViewItem>>,
+}
+
 impl TabView {
+    fn data_mut(&mut self) -> &mut TabViewData {
+        Rc::get_mut(&mut self.data).expect("TabViewData is exclusively owned by TabView")
+    }
+
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let mut handle = Widget::new(
             WC_TABCONTROLW,
@@ -68,38 +74,53 @@ impl TabView {
         unsafe { children_refresh_dark_mode(handle.as_widget().as_win32(), 0) };
         handle.send_message(TCM_DELETEALLITEMS, 0, 0);
 
-        Ok(Self {
+        let data = Rc::new(TabViewData {
             handle,
-            current_view: Cell::new(None),
-            views: vec![],
-        })
+            views: RefCell::new(vec![]),
+        });
+        Ok(Self { data })
     }
 
-    pub fn is_visible(&self) -> Result<bool>;
+    pub fn is_visible(&self) -> Result<bool> {
+        self.data.handle.is_visible()
+    }
 
-    pub fn set_visible(&mut self, v: bool) -> Result<()>;
+    pub fn set_visible(&mut self, v: bool) -> Result<()> {
+        self.data_mut().handle.set_visible(v)
+    }
 
-    pub fn is_enabled(&self) -> Result<bool>;
+    pub fn is_enabled(&self) -> Result<bool> {
+        self.data.handle.is_enabled()
+    }
 
-    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
+    pub fn set_enabled(&mut self, v: bool) -> Result<()> {
+        self.data_mut().handle.set_enabled(v)
+    }
 
-    pub fn loc(&self) -> Result<Point>;
+    pub fn loc(&self) -> Result<Point> {
+        self.data.handle.loc()
+    }
 
-    pub fn set_loc(&mut self, p: Point) -> Result<()>;
+    pub fn set_loc(&mut self, p: Point) -> Result<()> {
+        self.data_mut().handle.set_loc(p)
+    }
 
-    pub fn size(&self) -> Result<Size>;
+    pub fn size(&self) -> Result<Size> {
+        self.data.handle.size()
+    }
 
     pub fn set_size(&mut self, v: Size) -> Result<()> {
-        self.handle.set_size(v)?;
+        let data = self.data_mut();
+        data.handle.set_size(v)?;
         let mut rect = MaybeUninit::uninit();
         syscall!(
             BOOL,
-            GetClientRect(self.handle.as_widget().as_win32(), rect.as_mut_ptr())
+            GetClientRect(data.handle.as_widget().as_win32(), rect.as_mut_ptr())
         )?;
-        self.handle
+        data.handle
             .send_message(TCM_ADJUSTRECT, 0, rect.as_mut_ptr() as _);
         let rect = unsafe { rect.assume_init() };
-        for item in self.views.iter() {
+        for item in data.views.borrow().iter() {
             syscall!(
                 BOOL,
                 MoveWindow(
@@ -115,17 +136,12 @@ impl TabView {
         Ok(())
     }
 
-    fn selection_impl(&self) -> Option<usize> {
-        let i = self.handle.send_message(TCM_GETCURSEL, 0, 0);
-        if i < 0 { None } else { Some(i as _) }
-    }
-
     pub fn selection(&self) -> Result<Option<usize>> {
-        Ok(self.selection_impl())
+        Ok(self.data.selection())
     }
 
     pub fn set_selection(&mut self, i: usize) -> Result<()> {
-        self.handle.send_message(TCM_SETCURSEL, i as _, 0);
+        self.data.send_message(TCM_SETCURSEL, i as _, 0);
         Ok(())
     }
 
@@ -133,53 +149,62 @@ impl TabView {
         loop {
             let WindowMessageNotify {
                 hwnd_from, code, ..
-            } = self.handle.wait_parent(WM_NOTIFY).await.notify();
-            if std::ptr::eq(hwnd_from, self.handle.as_widget().as_win32())
+            } = self.data.handle.wait_parent(WM_NOTIFY).await.notify();
+            if std::ptr::eq(hwnd_from, self.data.handle.as_widget().as_win32())
                 && (code == TCN_SELCHANGE)
             {
-                self.show_current_view();
+                self.data.show_current_view();
                 return;
             }
         }
     }
 
+    fn append(&self, item: &TabViewItem) -> Result<()> {
+        self.data.append(item)
+    }
+}
+
+impl TabViewData {
+    fn send_message(&self, msg: u32, wparam: WPARAM, lparam: LPARAM) -> isize {
+        self.handle.send_message(msg, wparam, lparam)
+    }
+
+    fn selection(&self) -> Option<usize> {
+        let i = self.send_message(TCM_GETCURSEL, 0, 0);
+        if i < 0 { None } else { Some(i as _) }
+    }
+
     fn show_current_view(&self) {
-        unsafe {
-            let current_view = self.current_view.get();
-            if let Some(index) = current_view
-                && let Some(view) = self.views.get(index)
-            {
-                ShowWindow(view.inner.borrow().view.as_widget().as_win32(), SW_HIDE);
-            }
-            let sel = self.selection_impl();
-            self.current_view.set(sel);
-            if let Some(sel) = sel
-                && let Some(view) = self.views.get(sel)
-            {
-                ShowWindow(view.inner.borrow().view.as_widget().as_win32(), SW_SHOW);
+        let sel = self.selection();
+        let views = self.views.borrow();
+        for (i, item) in views.iter().enumerate() {
+            let hwnd = item.inner.borrow().view.as_widget().as_win32();
+            unsafe {
+                ShowWindow(hwnd, if Some(i) == sel { SW_SHOW } else { SW_HIDE });
             }
         }
     }
 
-    fn reset_indices(&mut self) {
-        for (i, item) in self.views.iter().enumerate() {
+    fn reset_indices(&self) {
+        for (i, item) in self.views.borrow().iter().enumerate() {
             item.inner.borrow_mut().index = Some(i);
         }
     }
 
-    pub fn insert(&mut self, i: usize, item: &TabViewItem) -> Result<()> {
+    fn append(&self, item: &TabViewItem) -> Result<()> {
         if item.inner.borrow().index.is_some() {
             return Err(WIN32_ERROR(ERROR_ALREADY_EXISTS).to_hresult().into());
         }
         let item_hwnd = item.as_container().as_win32();
+        let tab_hwnd = self.handle.as_widget().as_win32();
         let previous_parent = unsafe { GetParent(item_hwnd) };
-        let new_parent = self.as_widget().as_win32();
-        if previous_parent == new_parent {
+        if previous_parent == tab_hwnd {
             return Err(WIN32_ERROR(ERROR_ALREADY_EXISTS).to_hresult().into());
         }
-        unsafe { SetParent(item_hwnd, new_parent) };
+        unsafe { SetParent(item_hwnd, tab_hwnd) };
 
-        self.views.insert(i, item.clone());
+        let i = self.views.borrow().len();
+        self.views.borrow_mut().push(item.clone());
         {
             let mut inner = item.inner.borrow_mut();
             inner.index = Some(i);
@@ -193,59 +218,58 @@ impl TabView {
                     iImage: 0,
                     lParam: 0,
                 };
-                self.handle
-                    .send_message(TCM_INSERTITEMW, i, std::ptr::addr_of_mut!(item) as _);
+                self.send_message(TCM_INSERTITEMW, i, std::ptr::addr_of_mut!(item) as _);
                 Ok(())
             })?;
         }
         self.reset_indices();
-        if self.len()? == 1 {
+        if i == 0 {
             self.show_current_view();
         }
         Ok(())
     }
 
-    pub fn remove(&mut self, i: usize) -> Result<()> {
-        let cur = self.selection()?;
-        let need_reselect = cur == Some(i);
-        self.handle.send_message(TCM_DELETEITEM, i, 0);
-        let item = self.views.remove(i);
-        let mut inner = item.inner.borrow_mut();
-        unsafe { SetParent(inner.view.as_widget().as_win32(), HWND_MESSAGE) };
-        inner.index = None;
-        self.reset_indices();
-        if need_reselect {
-            self.set_selection(0)?;
-        }
-        Ok(())
-    }
-
-    pub fn len(&self) -> Result<usize> {
-        Ok(self.handle.send_message(TCM_GETITEMCOUNT, 0, 0) as _)
-    }
-
-    pub fn is_empty(&self) -> Result<bool> {
-        Ok(self.len()? == 0)
-    }
-
-    pub fn clear(&mut self) -> Result<()> {
-        self.handle.send_message(TCM_DELETEALLITEMS, 0, 0);
-        for item in self.views.drain(..) {
+    fn remove(&self, item: &TabViewItem) {
+        let index = {
+            let views = self.views.borrow();
+            let Some(index) = views
+                .iter()
+                .position(|view| Rc::ptr_eq(&view.inner, &item.inner))
+            else {
+                return;
+            };
+            index
+        };
+        {
             let mut inner = item.inner.borrow_mut();
-            unsafe { SetParent(inner.view.as_widget().as_win32(), HWND_MESSAGE) };
+            if inner.parent.take().is_none() {
+                return;
+            }
             inner.index = None;
+            unsafe { SetParent(inner.view.as_widget().as_win32(), HWND_MESSAGE) };
         }
-        Ok(())
+        self.send_message(TCM_DELETEITEM, index, 0);
+        self.views.borrow_mut().remove(index);
+        self.reset_indices();
+        if self.selection().is_none() && !self.views.borrow().is_empty() {
+            self.send_message(TCM_SETCURSEL, 0, 0);
+        }
+        self.show_current_view();
     }
 }
 
-winio_handle::impl_as_widget!(TabView, handle);
+impl AsWidget for TabView {
+    fn as_widget(&self) -> BorrowedWidget<'_> {
+        self.data.handle.as_widget()
+    }
+}
 
 #[derive(Debug)]
 struct TabViewItemInner {
     view: View,
     title: String,
     index: Option<usize>,
+    parent: Option<Weak<TabViewData>>,
 }
 
 #[derive(Debug, Clone)]
@@ -254,14 +278,17 @@ pub struct TabViewItem {
 }
 
 impl TabViewItem {
-    pub fn new() -> Result<Self> {
-        Ok(Self {
+    pub fn new(parent: &TabView) -> Result<Self> {
+        let item = Self {
             inner: Rc::new(RefCell::new(TabViewItemInner {
                 view: View::new_hidden(HWND_MESSAGE)?,
                 title: String::new(),
                 index: None,
+                parent: Some(Rc::downgrade(&parent.data)),
             })),
-        })
+        };
+        parent.append(&item)?;
+        Ok(item)
     }
 
     pub fn text(&self) -> Result<String> {
@@ -301,6 +328,15 @@ impl TabViewItem {
 
     pub fn size(&self) -> Result<Size> {
         self.inner.borrow().view.size()
+    }
+}
+
+impl Drop for TabViewItem {
+    fn drop(&mut self) {
+        let parent = self.inner.borrow().parent.as_ref().and_then(Weak::upgrade);
+        if let Some(parent) = parent {
+            parent.remove(self);
+        }
     }
 }
 
