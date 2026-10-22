@@ -11,8 +11,8 @@ QMenuBar *new_menu_bar(QWidget *window) {
 
 bool menu_bar_exists(QWidget *window) {
     auto *main_window = static_cast<QMainWindow *>(window);
-    return main_window->findChild<QMenuBar *>(QString(),
-                                              Qt::FindDirectChildrenOnly) != nullptr;
+    return main_window->findChild<QMenuBar *>(
+               QString(), Qt::FindDirectChildrenOnly) != nullptr;
 }
 
 QMenu *menu_bar_add_menu(QMenuBar *menu_bar) {
@@ -42,10 +42,17 @@ void action_connect_triggered(QAction &action, callback_fn_t<void()> callback,
 }
 
 void action_remove_from_parent(QAction *action) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     const auto objects = action->associatedObjects();
     for (auto *object : objects) {
         if (auto *widget = qobject_cast<QWidget *>(object)) {
             widget->removeAction(action);
         }
     }
+#else
+    const auto objects = action->associatedWidgets();
+    for (auto *widget : objects) {
+        widget->removeAction(action);
+    }
+#endif
 }
