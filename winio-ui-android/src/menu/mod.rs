@@ -191,6 +191,18 @@ impl LeafItem {
         self.set_checked(env, !checked)
     }
 
+    pub fn set_show_as_action(&self, env: &mut Env<'_>) -> Result<()> {
+        self.item.set_show_as_action(
+            env,
+            menu_item::SHOW_AS_ACTION_ALWAYS | menu_item::SHOW_AS_ACTION_WITH_TEXT,
+        )?;
+        Ok(())
+    }
+
+    pub(crate) fn item(&self) -> &Global<JMenuItem<'static>> {
+        &self.item
+    }
+
     pub async fn wait_click(&self) {
         self.on_click.wait().await;
     }
@@ -270,9 +282,15 @@ impl SubMenuItem {
 
     /// Show this submenu as an action of the toolbar.
     pub fn set_show_as_action(&self, env: &mut Env<'_>) -> Result<()> {
-        self.item
-            .set_show_as_action(env, menu_item::SHOW_AS_ACTION_ALWAYS)?;
+        self.item.set_show_as_action(
+            env,
+            menu_item::SHOW_AS_ACTION_ALWAYS | menu_item::SHOW_AS_ACTION_WITH_TEXT,
+        )?;
         Ok(())
+    }
+
+    pub(crate) fn item(&self) -> &Global<JMenuItem<'static>> {
+        &self.item
     }
 }
 

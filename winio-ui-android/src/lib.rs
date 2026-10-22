@@ -26,6 +26,9 @@ pub use platform::*;
 mod menu;
 pub use menu::*;
 
+mod tool_bar;
+pub use tool_bar::*;
+
 mod java;
 
 #[derive(Debug, thiserror::Error)]
@@ -42,6 +45,9 @@ pub enum Error {
     /// A menu bar already exists.
     #[error("A menu bar already exists")]
     MenuBarExists,
+    /// A tool bar already exists.
+    #[error("A tool bar already exists")]
+    ToolBarExists,
     /// Feature not supported.
     #[error("Feature not supported")]
     NotSupported,

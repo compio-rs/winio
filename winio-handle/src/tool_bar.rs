@@ -21,6 +21,8 @@ cfg_if::cfg_if! {
         use objc2::rc::Retained;
 
         type BorrowedToolBarItemInner<'a> = &'a Retained<objc2_ui_kit::UIBarButtonItem>;
+    } else if #[cfg(target_os = "android")] {
+        type BorrowedToolBarItemInner<'a> = &'a jni::objects::JObject<'static>;
     } else {
         #[derive(Clone, Copy)]
         enum BorrowedToolBarItemInner<'a> {
@@ -105,6 +107,23 @@ impl<'a> BorrowedToolBarItem<'a> {
 
     /// Get the UIKit `UIBarButtonItem`. Panic if the handle is not UIKit.
     pub fn as_ui_kit(&self) -> &'a objc2::rc::Retained<objc2_ui_kit::UIBarButtonItem> {
+        self.0
+    }
+}
+
+#[cfg(target_os = "android")]
+impl<'a> BorrowedToolBarItem<'a> {
+    /// Create from an Android `android.view.MenuItem`.
+    ///
+    /// # Safety
+    ///
+    /// `item` must be a valid `android.view.MenuItem` for the lifetime `'a`.
+    pub unsafe fn android(item: &'a jni::objects::JObject<'static>) -> Self {
+        Self(item)
+    }
+
+    /// Get the Android `MenuItem`, or `None` for a no-op item.
+    pub fn to_android(&self) -> &'a jni::objects::JObject<'static> {
         self.0
     }
 }
