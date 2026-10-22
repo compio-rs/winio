@@ -49,7 +49,9 @@ impl ToolBarItem {
         let widget = gtk4::MenuButton::new();
         widget.set_has_frame(false);
         widget.set_always_show_arrow(true);
-        widget.set_menu_model(Some(menu));
+        let popover = gtk4::PopoverMenu::from_model(Some(menu));
+        widget.set_popover(Some(&popover));
+        crate::menu::register_menu_popover(&popover);
         let on_click = Rc::new(Callback::new());
         widget.connect_activate({
             let on_click = on_click.clone();
