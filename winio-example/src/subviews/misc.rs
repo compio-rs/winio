@@ -36,6 +36,10 @@ pub struct MiscPage {
     klabel: Child<Label>,
     canvas: Child<Canvas>,
     combo: Child<ComboBox>,
+    control: Child<MenuButton>,
+    control_push: Child<MenuItem>,
+    control_pop: Child<MenuItem>,
+    control_show: Child<MenuItem>,
     list: Child<ObservableVec<String>>,
     radios: Child<RadioGroup<RadioButton>>,
     push_button: Child<Button>,
@@ -126,6 +130,18 @@ impl Component for MiscPage {
                 checked: false,
             },
             combo: ComboBox = (&window),
+            control: MenuButton = (&window) => {
+                text: "Control",
+            },
+            control_push: MenuItem = (&control) => {
+                text: "Push",
+            },
+            control_pop: MenuItem = (&control) => {
+                text: "Pop",
+            },
+            control_show: MenuItem = (&control) => {
+                text: "Show",
+            },
             list: ObservableVec<String> = ([]) => {
                 // https://www.zhihu.com/question/23600507/answer/140640887
                 items: [
@@ -201,6 +217,10 @@ impl Component for MiscPage {
             klabel,
             canvas,
             combo,
+            control,
+            control_push,
+            control_pop,
+            control_show,
             list,
             radios,
             push_button,
@@ -231,6 +251,16 @@ impl Component for MiscPage {
             },
             self.klabel => {},
             self.combo => {},
+            self.control => {},
+            self.control_push => {
+                MenuItemEvent::Click => MiscPageMessage::Push,
+            },
+            self.control_pop => {
+                MenuItemEvent::Click => MiscPageMessage::Pop,
+            },
+            self.control_show => {
+                MenuItemEvent::Click => MiscPageMessage::Show,
+            },
             self.push_button => {
                 ButtonEvent::Click => MiscPageMessage::Push,
             },
@@ -268,6 +298,10 @@ impl Component for MiscPage {
             self.pcheck,
             self.canvas,
             self.combo,
+            self.control,
+            self.control_push,
+            self.control_pop,
+            self.control_show,
             self.list,
             self.radios,
             self.push_button,
@@ -297,7 +331,9 @@ impl Component for MiscPage {
                 Ok(true)
             }
             MiscPageMessage::List(e) => {
-                self.pop_button.set_enabled(!self.list.is_empty())?;
+                let empty = self.list.is_empty();
+                self.pop_button.set_enabled(!empty)?;
+                self.control_pop.set_enabled(!empty)?;
                 Ok(self
                     .combo
                     .emit(ComboBoxMessage::from_observable_vec_event(e))
@@ -395,13 +431,19 @@ impl Component for MiscPage {
                 self.show_button => { margin: Margin::new_all_same(4.0) },
             };
 
+            let mut combo_panel = layout! {
+                StackPanel::new(Orient::Horizontal),
+                self.combo   => { margin: Margin::new_all_same(4.0) },
+                self.control => { margin: Margin::new_all_same(4.0) },
+            };
+
             let mut root_panel = if csize.width < csize.height {
                 layout! {
                     Grid::from_str("1*,1*", "auto,1*,1*,auto,auto,1*,auto,1*,1*").unwrap(),
                     self.backdrop => { column: 0, row: 0, column_span: 2, halign: HAlign::Stretch, margin: Margin::new_all_same(8.0) },
                     cred_panel    => { column: 0, row: 1, column_span: 2 },
                     rgroup_panel  => { column: 0, row: 2, halign: HAlign::Center },
-                    self.combo    => { column: 0, row: 3, halign: HAlign::Center },
+                    combo_panel   => { column: 0, row: 3, halign: HAlign::Center },
                     self.progress => { column: 0, row: 4 },
                     self.canvas   => { column: 0, row: 5 },
                     self.bind_page => { column: 1, row: 2, row_span: 4, halign: HAlign::Stretch, valign: VAlign::Stretch, margin: Margin::new_all_same(8.0) },
@@ -417,7 +459,7 @@ impl Component for MiscPage {
                     rgroup_panel  => { column: 2, row: 0, halign: HAlign::Center },
                     self.klabel   => { column: 0, row: 1, halign: HAlign::Center },
                     self.canvas   => { column: 0, row: 2, row_span: 2 },
-                    self.combo    => { column: 1, row: 1, halign: HAlign::Center },
+                    combo_panel   => { column: 1, row: 1, halign: HAlign::Center },
                     self.progress => { column: 2, row: 1 },
                     self.bind_page => { column: 1, row: 2, column_span: 2, halign: HAlign::Stretch, valign: VAlign::Stretch, margin: Margin::new_all_same(8.0) },
                     self.mltext   => { column: 1, row: 3, margin: Margin::new_all_same(8.0) },
