@@ -27,7 +27,7 @@ impl ToolBarDropDownButton {
 
     pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()>;
 
-    pub async fn wait_click(&self) {
+    pub async fn start(&self) -> ! {
         std::future::pending().await
     }
 }

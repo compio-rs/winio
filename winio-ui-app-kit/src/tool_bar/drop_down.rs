@@ -5,7 +5,7 @@ use winio_handle::{AsMenuContainer, BorrowedMenuContainer};
 
 use crate::{
     Image, Result, catch, from_nsstring,
-    tool_bar::{ToolBar, ToolBarClick, ToolBarItem, refresh_image_position},
+    tool_bar::{ToolBar, ToolBarItem, refresh_image_position},
 };
 
 #[derive(Debug)]
@@ -13,7 +13,6 @@ pub struct ToolBarDropDownButton {
     item: ToolBarItem,
     button: Retained<NSPopUpButton>,
     menu: Retained<NSMenu>,
-    click: ToolBarClick,
 }
 
 impl ToolBarDropDownButton {
@@ -32,16 +31,9 @@ impl ToolBarDropDownButton {
             button.setBezelStyle(NSBezelStyle::Toolbar);
             button.setImageScaling(NSImageScaling::ScaleProportionallyDown);
 
-            let click = ToolBarClick::new(mtm, &button);
-
             button.sizeToFit();
             let item = ToolBarItem::new(parent, &button, "")?;
-            Ok(Self {
-                item,
-                button,
-                menu,
-                click,
-            })
+            Ok(Self { item, button, menu })
         })
         .flatten()
     }
@@ -98,8 +90,8 @@ impl ToolBarDropDownButton {
         self.refresh_appearance()
     }
 
-    pub async fn wait_click(&self) {
-        self.click.wait().await;
+    pub async fn start(&self) -> ! {
+        std::future::pending().await
     }
 
     fn refresh_appearance(&self) -> Result<()> {

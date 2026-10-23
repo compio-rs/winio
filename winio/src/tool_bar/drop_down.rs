@@ -60,9 +60,7 @@ impl Component for ToolBarDropDownButton {
     }
 
     async fn start(&mut self, _sender: &ComponentSender<Self>) -> ! {
-        loop {
-            self.inner.wait_click().await;
-        }
+        self.inner.start().await
     }
 
     async fn update(

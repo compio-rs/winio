@@ -75,7 +75,7 @@ impl ToolBarDropDownButton {
         .flatten()
     }
 
-    pub async fn wait_click(&self) {
+    pub async fn start(&self) -> ! {
         std::future::pending().await
     }
 }

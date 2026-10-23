@@ -31,9 +31,11 @@ impl ToolBarDropDownButton {
 
     pub fn set_icon(&self, icon: Option<&Image>) -> Result<()>;
 
-    pub async fn wait_click(&self) {
-        self.item.wait_drop_down().await;
-        self.item.show_drop_down(&self.menu);
+    pub async fn start(&self) -> ! {
+        loop {
+            self.item.wait_drop_down().await;
+            self.item.show_drop_down(&self.menu);
+        }
     }
 }
 
