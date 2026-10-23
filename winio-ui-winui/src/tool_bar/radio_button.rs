@@ -4,7 +4,7 @@ use inherit_methods_macro::inherit_methods;
 use send_wrapper::SendWrapper;
 use windows_core::{HSTRING, Interface};
 use winio_callback::Callback;
-use winui3::Microsoft::UI::Xaml::{Controls as MUXC, Controls::Primitives as MUXCP};
+use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
 use crate::{
     GlobalRuntime, Image, Result,
@@ -15,7 +15,6 @@ use crate::{
 pub struct ToolBarRadioButton {
     element: MUXC::AppBarToggleButton,
     item: ToolBarItem,
-    toggle: MUXCP::ToggleButton,
     on_click: SendWrapper<Rc<Callback>>,
 }
 
@@ -26,7 +25,6 @@ impl ToolBarRadioButton {
         parent.element().PrimaryCommands()?.Append(&element)?;
         element.SetLabelPosition(MUXC::CommandBarLabelPosition::Collapsed)?;
         let item = ToolBarItem::new(parent, element.cast()?)?;
-        let toggle = element.cast()?;
         let on_click = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_click = on_click.clone();
@@ -40,7 +38,6 @@ impl ToolBarRadioButton {
         Ok(Self {
             element,
             item,
-            toggle,
             on_click,
         })
     }
@@ -65,11 +62,11 @@ impl ToolBarRadioButton {
     }
 
     pub fn is_checked(&self) -> Result<bool> {
-        self.toggle.IsChecked()
+        self.element.IsChecked()
     }
 
     pub fn set_checked(&self, checked: bool) -> Result<()> {
-        self.toggle.SetIsChecked(Some(checked))?;
+        self.element.SetIsChecked(Some(checked))?;
         Ok(())
     }
 
