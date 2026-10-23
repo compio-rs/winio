@@ -40,7 +40,6 @@ Read the [example](winio-example) and learn more!
 | GTK 4                | ![GTK Light](assets/gtk.light.png)           | ![GTK Dark](assets/gtk.dark.png)           |
 | AppKit               | ![macOS Light](assets/mac.light.png)         | ![macOS Dark](assets/mac.dark.png)         |
 | UIKit (Mac Catalyst) | ![Catalyst Light](assets/catalyst.light.png) | ![Catalyst Dark](assets/catalyst.dark.png) |
-| UIKit (iOS)          | ![iOS Light](assets/ios.light.png)           | ![iOS Dark](assets/ios.dark.png)           |
 | Android View         | ![Android Light](assets/android.light.png)   | ![Android Dark](assets/android.dark.png)   |
 
 ## Quick start
