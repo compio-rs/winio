@@ -13,29 +13,29 @@ use crate::{
 
 /// A button that opens a menu when clicked.
 #[derive(Debug)]
-pub struct DropDownButton {
-    widget: sys::DropDownButton,
+pub struct MenuButton {
+    widget: sys::MenuButton,
 }
 
-impl Failable for DropDownButton {
+impl Failable for MenuButton {
     type Error = Error;
 }
 
 #[inherit_methods(from = "self.widget")]
-impl ToolTip for DropDownButton {
+impl ToolTip for MenuButton {
     fn tooltip(&self) -> Result<String>;
 
     fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
-impl TextWidget for DropDownButton {
+impl TextWidget for MenuButton {
     fn text(&self) -> Result<String>;
 
     fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
-impl DropDownButton {
+impl MenuButton {
     /// Set the icon of the button.
     ///
     /// If `icon` is `None`, the icon is removed.
@@ -45,21 +45,21 @@ impl DropDownButton {
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Visible for DropDownButton {
+impl Visible for MenuButton {
     fn is_visible(&self) -> Result<bool>;
 
     fn set_visible(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Enable for DropDownButton {
+impl Enable for MenuButton {
     fn is_enabled(&self) -> Result<bool>;
 
     fn set_enabled(&mut self, v: bool) -> Result<()>;
 }
 
 #[inherit_methods(from = "self.widget")]
-impl Layoutable for DropDownButton {
+impl Layoutable for MenuButton {
     fn loc(&self) -> Result<Point>;
 
     fn set_loc(&mut self, p: Point) -> Result<()>;
@@ -71,15 +71,15 @@ impl Layoutable for DropDownButton {
     fn preferred_size(&self) -> Result<Size>;
 }
 
-/// Events of [`DropDownButton`].
+/// Events of [`MenuButton`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum DropDownButtonEvent {}
+pub enum MenuButtonEvent {}
 
-/// Messages of [`DropDownButton`].
+/// Messages of [`MenuButton`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum DropDownButtonMessage {
+pub enum MenuButtonMessage {
     /// Set the rect.
     SetRect(Rect),
     /// Set the enabled state.
@@ -92,14 +92,14 @@ pub enum DropDownButtonMessage {
     SetText(String),
 }
 
-impl Component for DropDownButton {
+impl Component for MenuButton {
     type Error = Error;
-    type Event = DropDownButtonEvent;
+    type Event = MenuButtonEvent;
     type Init<'a> = BorrowedContainer<'a>;
-    type Message = DropDownButtonMessage;
+    type Message = MenuButtonMessage;
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
-        let widget = sys::DropDownButton::new(init)?;
+        let widget = sys::MenuButton::new(init)?;
         Ok(Self { widget })
     }
 
@@ -113,23 +113,23 @@ impl Component for DropDownButton {
         _sender: &ComponentSender<Self>,
     ) -> Result<bool> {
         match message {
-            DropDownButtonMessage::SetRect(rect) => {
+            MenuButtonMessage::SetRect(rect) => {
                 self.set_rect(rect)?;
                 Ok(true)
             }
-            DropDownButtonMessage::SetEnabled(enabled) => {
+            MenuButtonMessage::SetEnabled(enabled) => {
                 self.set_enabled(enabled)?;
                 Ok(false)
             }
-            DropDownButtonMessage::SetVisible(visible) => {
+            MenuButtonMessage::SetVisible(visible) => {
                 self.set_visible(visible)?;
                 Ok(true)
             }
-            DropDownButtonMessage::SetTooltip(tooltip) => {
+            MenuButtonMessage::SetTooltip(tooltip) => {
                 self.set_tooltip(tooltip)?;
                 Ok(false)
             }
-            DropDownButtonMessage::SetText(text) => {
+            MenuButtonMessage::SetText(text) => {
                 self.set_text(text)?;
                 Ok(true)
             }
@@ -137,5 +137,5 @@ impl Component for DropDownButton {
     }
 }
 
-winio_handle::impl_as_widget!(DropDownButton, widget);
-winio_handle::impl_as_menu_container!(DropDownButton, widget);
+winio_handle::impl_as_widget!(MenuButton, widget);
+winio_handle::impl_as_menu_container!(MenuButton, widget);
