@@ -21,22 +21,7 @@ use crate::{
 };
 
 thread_local! {
-    static MENU_BAR_HOSTS: RefCell<HashMap<Retained<UIWindow>, MenuBarHost>> = RefCell::new(HashMap::new());
     static TOOL_BAR_HOSTS: RefCell<HashMap<Retained<UIWindow>, ToolBarHost>> = RefCell::new(HashMap::new());
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct MenuBarHost {
-    pub view: Retained<UIView>,
-    pub zero_height: Retained<NSLayoutConstraint>,
-}
-
-impl MenuBarHost {
-    pub fn of(wnd: &UIWindow) -> Result<Self> {
-        MENU_BAR_HOSTS
-            .with_borrow(|map| map.get(wnd).cloned())
-            .ok_or(Error::NullPointer)
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -104,20 +89,6 @@ impl Window {
             let root_view = controller.view().ok_or(Error::NullPointer)?;
             let safe_area = root_view.safeAreaLayoutGuide();
 
-            let menu_bar_view = UIView::new(mtm);
-            root_view.addSubview(&menu_bar_view);
-            menu_bar_view.setTranslatesAutoresizingMaskIntoConstraints(false);
-            let m1 = menu_bar_view
-                .leftAnchor()
-                .constraintEqualToAnchor(&safe_area.leftAnchor());
-            let m2 = menu_bar_view
-                .rightAnchor()
-                .constraintEqualToAnchor(&safe_area.rightAnchor());
-            let m3 = menu_bar_view
-                .topAnchor()
-                .constraintEqualToAnchor(&safe_area.topAnchor());
-            let zero_height = menu_bar_view.heightAnchor().constraintEqualToConstant(0.0);
-
             let tool_bar_view = UIView::new(mtm);
             root_view.addSubview(&tool_bar_view);
             tool_bar_view.setTranslatesAutoresizingMaskIntoConstraints(false);
@@ -129,7 +100,7 @@ impl Window {
                 .constraintEqualToAnchor(&safe_area.rightAnchor());
             let t3 = tool_bar_view
                 .topAnchor()
-                .constraintEqualToAnchor(&menu_bar_view.bottomAnchor());
+                .constraintEqualToAnchor(&safe_area.topAnchor());
             let tool_bar_zero_height = tool_bar_view.heightAnchor().constraintEqualToConstant(0.0);
 
             let content_view = UIView::new(mtm);
@@ -149,10 +120,6 @@ impl Window {
                 .constraintEqualToAnchor(&safe_area.bottomAnchor());
             NSLayoutConstraint::activateConstraints(
                 &NSArray::from_retained_slice(&[
-                    m1,
-                    m2,
-                    m3,
-                    zero_height.clone(),
                     t1,
                     t2,
                     t3,
@@ -165,15 +132,6 @@ impl Window {
                 mtm,
             );
 
-            MENU_BAR_HOSTS.with_borrow_mut(|hosts| {
-                hosts.insert(
-                    wnd.clone(),
-                    MenuBarHost {
-                        view: menu_bar_view,
-                        zero_height,
-                    },
-                );
-            });
             TOOL_BAR_HOSTS.with_borrow_mut(|hosts| {
                 hosts.insert(
                     wnd.clone(),
@@ -275,7 +233,6 @@ impl Drop for Window {
     fn drop(&mut self) {
         RESIZE_SLAB.with_borrow_mut(|s| s.remove(self.resize_index));
         MOVE_SLAB.with_borrow_mut(|s| s.remove(self.move_index));
-        MENU_BAR_HOSTS.with_borrow_mut(|hosts| hosts.remove(&self.wnd));
         TOOL_BAR_HOSTS.with_borrow_mut(|hosts| hosts.remove(&self.wnd));
     }
 }

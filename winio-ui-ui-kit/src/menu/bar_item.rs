@@ -1,64 +1,46 @@
-use objc2::{MainThreadOnly, rc::Retained};
-use objc2_foundation::NSString;
-use objc2_ui_kit::{UIButton, UIButtonType, UIControlState};
+use std::rc::Rc;
 
 use crate::{
-    Result, catch, from_nsstring,
-    menu::{MenuBar, MenuNodeRef, build_bar_menu},
+    Result,
+    menu::{MenuBar, MenuNodeRef, system::MenuBarData},
 };
 
 #[derive(Debug)]
 pub struct MenuBarItem {
     node: MenuNodeRef,
-    button: Retained<UIButton>,
+    data: Rc<MenuBarData>,
 }
 
 impl MenuBarItem {
     pub fn new(parent: &MenuBar) -> Result<Self> {
-        let stack = parent.stack();
-        let mtm = stack.mtm();
-        catch(|| {
-            let node = MenuNodeRef::root();
-            let button = UIButton::buttonWithType(UIButtonType::System, mtm);
-            button.setShowsMenuAsPrimaryAction(true);
-            button.setMenu(Some(&build_bar_menu(node.key(), mtm)));
-            stack.addArrangedSubview(&button);
-
-            Ok(Self { node, button })
-        })
-        .flatten()
+        let data = parent.data().clone();
+        let node = MenuNodeRef::root();
+        data.add_item(node.key());
+        Ok(Self { node, data })
     }
 
     pub fn is_enabled(&self) -> Result<bool> {
-        catch(|| self.button.isEnabled())
+        Ok(self.node.is_enabled())
     }
 
     pub fn set_enabled(&mut self, enabled: bool) -> Result<()> {
-        catch(|| self.button.setEnabled(enabled))
+        self.node.set_enabled(enabled);
+        Ok(())
     }
 
     pub fn text(&self) -> Result<String> {
-        catch(|| {
-            self.button
-                .titleForState(UIControlState::Normal)
-                .as_deref()
-                .map(from_nsstring)
-                .unwrap_or_default()
-        })
+        Ok(self.node.text())
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
-        let title = NSString::from_str(s.as_ref());
-        catch(|| {
-            self.button
-                .setTitle_forState(Some(&title), UIControlState::Normal)
-        })
+        self.node.set_text(s);
+        Ok(())
     }
 }
 
 impl Drop for MenuBarItem {
     fn drop(&mut self) {
-        self.button.removeFromSuperview();
+        self.data.remove_item(self.node.key());
     }
 }
 

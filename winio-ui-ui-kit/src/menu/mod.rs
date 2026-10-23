@@ -24,6 +24,8 @@ use crate::{GlobalRuntime, Image, Result, catch};
 mod bar;
 pub use bar::*;
 
+pub(crate) mod system;
+
 mod bar_item;
 pub use bar_item::*;
 
@@ -98,6 +100,7 @@ impl MenuNodeRef {
 
     pub fn set_text(&self, s: impl AsRef<str>) {
         self.with_mut(|node| node.text = s.as_ref().to_string());
+        system::rebuild();
     }
 
     pub fn set_icon(&self, icon: Option<&Image>) -> Result<()> {
@@ -107,6 +110,7 @@ impl MenuNodeRef {
                 None => None,
             };
             self.with_mut(|node| node.icon = icon);
+            system::rebuild();
             Ok(())
         })
         .flatten()
@@ -118,6 +122,7 @@ impl MenuNodeRef {
 
     pub fn set_enabled(&self, enabled: bool) {
         self.with_mut(|node| node.enabled = enabled);
+        system::rebuild();
     }
 
     pub fn is_checked(&self) -> bool {
@@ -126,10 +131,12 @@ impl MenuNodeRef {
 
     pub fn set_checked(&self, checked: bool) {
         self.with_mut(|node| node.checked = checked);
+        system::rebuild();
     }
 
     pub fn toggle_checked(&self) {
         self.with_mut(|node| node.checked = !node.checked);
+        system::rebuild();
     }
 
     pub async fn wait_click(&self) {
@@ -161,7 +168,7 @@ impl AsMenuItem for MenuNodeRef {
 }
 
 fn insert_node(kind: NodeKind, parent: Option<usize>) -> usize {
-    NODES.with_borrow_mut(|nodes| {
+    let key = NODES.with_borrow_mut(|nodes| {
         let key = nodes.insert(MenuNode {
             kind,
             text: String::new(),
@@ -178,20 +185,26 @@ fn insert_node(kind: NodeKind, parent: Option<usize>) -> usize {
             node.children.push(key);
         }
         key
-    })
+    });
+    system::rebuild();
+    key
 }
 
 fn remove_node(key: usize) {
-    NODES.with_borrow_mut(|nodes| {
+    let removed = NODES.with_borrow_mut(|nodes| {
         let Some(node) = nodes.try_remove(key) else {
-            return;
+            return false;
         };
         if let Some(parent) = node.parent
             && let Some(parent) = nodes.get_mut(parent)
         {
             parent.children.retain(|child| *child != key);
         }
+        true
     });
+    if removed {
+        system::rebuild();
+    }
 }
 
 fn signal_click(key: usize) {
@@ -219,6 +232,21 @@ fn show_menu_element_image(element: &UIMenuElement) {
 }
 
 pub(crate) fn build_children(key: usize, mtm: MainThreadMarker) -> Vec<Retained<UIMenuElement>> {
+    build_children_impl(key, mtm, false)
+}
+
+pub(crate) fn build_children_disabled(
+    key: usize,
+    mtm: MainThreadMarker,
+) -> Vec<Retained<UIMenuElement>> {
+    build_children_impl(key, mtm, true)
+}
+
+fn build_children_impl(
+    key: usize,
+    mtm: MainThreadMarker,
+    force_disabled: bool,
+) -> Vec<Retained<UIMenuElement>> {
     let children = NODES.with_borrow(|nodes| {
         nodes
             .get(key)
@@ -231,7 +259,7 @@ pub(crate) fn build_children(key: usize, mtm: MainThreadMarker) -> Vec<Retained<
         match node_kind(child) {
             Some(NodeKind::Separator) => groups.push(Vec::new()),
             Some(_) => {
-                if let Some(element) = build_element(child, mtm) {
+                if let Some(element) = build_element(child, mtm, force_disabled) {
                     groups.last_mut().unwrap().push(element);
                 }
             }
@@ -259,7 +287,11 @@ pub(crate) fn build_children(key: usize, mtm: MainThreadMarker) -> Vec<Retained<
         .collect()
 }
 
-fn build_element(key: usize, mtm: MainThreadMarker) -> Option<Retained<UIMenuElement>> {
+fn build_element(
+    key: usize,
+    mtm: MainThreadMarker,
+    force_disabled: bool,
+) -> Option<Retained<UIMenuElement>> {
     let (kind, text, icon, enabled, checked) = NODES.with_borrow(|nodes| {
         let node = nodes.get(key)?;
         Some((
@@ -278,7 +310,7 @@ fn build_element(key: usize, mtm: MainThreadMarker) -> Option<Retained<UIMenuEle
                 icon.as_deref(),
                 None,
                 UIMenuOptions::empty(),
-                &NSArray::from_retained_slice(&build_children(key, mtm)),
+                &NSArray::from_retained_slice(&build_children_impl(key, mtm, force_disabled)),
                 mtm,
             );
             if icon.is_some() {
@@ -296,7 +328,7 @@ fn build_element(key: usize, mtm: MainThreadMarker) -> Option<Retained<UIMenuEle
             if icon.is_some() {
                 show_menu_element_image(&action);
             }
-            action.setAttributes(if enabled {
+            action.setAttributes(if enabled && !force_disabled {
                 UIMenuElementAttributes::empty()
             } else {
                 UIMenuElementAttributes::Disabled

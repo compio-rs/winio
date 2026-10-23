@@ -9,11 +9,12 @@ use futures_util::FutureExt;
 use objc2::{
     ClassType, MainThreadMarker, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
+    runtime::ProtocolObject,
 };
 use objc2_foundation::{NSObject, NSObjectProtocol, NSString, ns_string};
 use objc2_ui_kit::{
-    UIApplication, UIApplicationDelegate, UICoordinateSpace, UIScene, UISceneConfiguration,
-    UISceneConnectionOptions, UISceneDelegate, UISceneSession, UIWindowScene,
+    UIApplication, UIApplicationDelegate, UICoordinateSpace, UIMenuBuilder, UIResponder, UIScene,
+    UISceneConfiguration, UISceneConnectionOptions, UISceneDelegate, UISceneSession, UIWindowScene,
     UIWindowSceneDelegate, UIWindowSceneGeometry,
 };
 use slab::Slab;
@@ -107,7 +108,7 @@ fn signal_move<R: Runnable>() -> bool {
 struct AppDelegateIvars {}
 
 define_class! {
-    #[unsafe(super(NSObject))]
+    #[unsafe(super(UIResponder))]
     #[name = "AppDelegate"]
     #[ivars = AppDelegateIvars]
     #[thread_kind = MainThreadOnly]
@@ -119,6 +120,12 @@ define_class! {
         fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
             let this = this.set_ivars(AppDelegateIvars::default());
             unsafe { msg_send![super(this), init] }
+        }
+
+        #[allow(non_snake_case)]
+        #[unsafe(method(buildMenuWithBuilder:))]
+        fn buildMenuWithBuilder(&self, builder: &ProtocolObject<dyn UIMenuBuilder>) {
+            crate::menu::system::build(builder);
         }
     }
 
