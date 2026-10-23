@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use objc2::rc::Retained;
+use objc2::{available, rc::Retained};
 use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy, NSEventMask};
 use objc2_core_foundation::{CFRetained, CFRunLoop, kCFRunLoopDefaultMode};
 use objc2_foundation::{MainThreadMarker, NSDate, NSDefaultRunLoopMode};
@@ -31,7 +31,11 @@ impl App {
             let ns_app = NSApplication::sharedApplication(mtm);
             ns_app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
             #[allow(deprecated)]
-            ns_app.activateIgnoringOtherApps(true);
+            if available!(macos = 14.0) {
+                ns_app.activate();
+            } else {
+                ns_app.activateIgnoringOtherApps(true);
+            }
             ns_app
         })?;
         let waker = run_loop_waker(CFRunLoop::current().ok_or(Error::NullPointer)?);

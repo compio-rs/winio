@@ -1,11 +1,11 @@
 use objc2::rc::Retained;
-use objc2_app_kit::{NSImageScaling, NSMenu, NSPopUpButton};
+use objc2_app_kit::{NSBezelStyle, NSImageScaling, NSMenu, NSPopUpButton};
 use objc2_foundation::{NSPoint, NSRect, NSSize, NSString, ns_string};
 use winio_handle::{AsMenuContainer, BorrowedMenuContainer};
 
 use crate::{
     Image, Result, catch, from_nsstring,
-    tool_bar::{ToolBar, ToolBarClick, ToolBarItem, refresh_image_position, toolbar_bezel_style},
+    tool_bar::{ToolBar, ToolBarClick, ToolBarItem, refresh_image_position},
 };
 
 #[derive(Debug)]
@@ -29,7 +29,7 @@ impl ToolBarDropDownButton {
             );
             button.setMenu(Some(&menu));
             button.addItemWithTitle(ns_string!(""));
-            button.setBezelStyle(toolbar_bezel_style());
+            button.setBezelStyle(NSBezelStyle::Toolbar);
             button.setImageScaling(NSImageScaling::ScaleProportionallyDown);
 
             let click = ToolBarClick::new(mtm, &button);

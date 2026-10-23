@@ -4,7 +4,7 @@ use std::{
 };
 
 use objc2::{
-    DeclaredClass, MainThreadMarker, MainThreadOnly, available, define_class, msg_send,
+    DeclaredClass, MainThreadMarker, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
     sel,
 };
@@ -22,15 +22,6 @@ use crate::{
 };
 
 static ITEM_ID: AtomicUsize = AtomicUsize::new(0);
-
-#[allow(deprecated)]
-pub(crate) fn toolbar_bezel_style() -> NSBezelStyle {
-    if available!(macos = 11.0) {
-        NSBezelStyle::Toolbar
-    } else {
-        NSBezelStyle::TexturedRounded
-    }
-}
 
 pub(crate) fn refresh_image_position(button: &NSButton) {
     let has_image = button.image().is_some();
@@ -185,7 +176,7 @@ impl ToolBarButtonBase {
         catch(|| {
             let button = NSButton::new(mtm);
             button.setTitle(ns_string!(""));
-            button.setBezelStyle(toolbar_bezel_style());
+            button.setBezelStyle(NSBezelStyle::Toolbar);
             button.setButtonType(button_type);
             button.setImageScaling(NSImageScaling::ScaleProportionallyDown);
 

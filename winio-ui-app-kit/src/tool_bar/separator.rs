@@ -1,4 +1,3 @@
-use objc2::available;
 use objc2_app_kit::{NSBox, NSBoxType, NSColor, NSTitlePosition};
 use objc2_foundation::NSSize;
 
@@ -23,12 +22,7 @@ impl ToolBarSeparator {
             separator.setTitlePosition(NSTitlePosition::NoTitle);
             separator.setBorderWidth(0.0);
             separator.setTransparent(false);
-            #[allow(deprecated)]
-            let color = if available!(macos = 10.14) {
-                NSColor::separatorColor()
-            } else {
-                NSColor::gridColor()
-            };
+            let color = NSColor::separatorColor();
             separator.setFillColor(&color);
             separator.setFrameSize(NSSize::new(1.0, 20.0));
 

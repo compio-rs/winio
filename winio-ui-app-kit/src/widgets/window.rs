@@ -1,6 +1,6 @@
 use inherit_methods_macro::inherit_methods;
 use objc2::{
-    DeclaredClass, MainThreadOnly, available, define_class, msg_send,
+    DeclaredClass, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
     runtime::ProtocolObject,
     sel,
@@ -153,9 +153,6 @@ impl Window {
         if self.vibrancy == v {
             return Ok(());
         }
-        if !available!(macos = 10.10) {
-            return Err(Error::NotSupported);
-        }
         self.vibrancy = v;
 
         catch(|| {
@@ -166,14 +163,7 @@ impl Window {
                     self.wnd.mtm().alloc::<NSVisualEffectView>(),
                     bounds,
                 );
-                #[allow(deprecated)]
-                let m = if (v as u32 > 9 && !available!(macos = 10.14))
-                    || (v as u32 > 4 && !available!(macos = 10.11))
-                {
-                    NSVisualEffectMaterial::AppearanceBased
-                } else {
-                    NSVisualEffectMaterial(v as u64 as _)
-                };
+                let m = NSVisualEffectMaterial(v as u64 as _);
                 vev.setMaterial(m);
                 vev.setBlendingMode(NSVisualEffectBlendingMode::BehindWindow);
                 vev.setState(NSVisualEffectState::FollowsWindowActiveState);
