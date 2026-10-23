@@ -199,7 +199,7 @@ impl Component for BindPage {
             }
         };
         grid.set_size(csize)?;
-        self.view.set_size(csize)?;
+        self.view.set_rect(csize.into())?;
         Ok(())
     }
 }

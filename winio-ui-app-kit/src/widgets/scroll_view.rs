@@ -84,9 +84,8 @@ impl ScrollView {
             let mut rect = rect.to_box2d();
             rect.min = rect.min.min(Point::zero());
             let mut rect = rect.to_rect();
-            if rect.height() < v.height {
-                rect.size.height = v.height;
-            }
+            rect.size.height = rect.size.height.max(v.height);
+            rect.size.width = rect.size.width.max(v.width);
             let frame = transform_rect(v, rect);
             self.inner_view.setFrame(frame);
             let inner_size = from_cgsize(frame.size);
