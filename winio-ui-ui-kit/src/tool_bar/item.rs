@@ -190,11 +190,21 @@ impl ToolBarButtonBase {
         catch(|| {
             if let Some(icon) = icon {
                 let image = icon.uiimage(Some(24.0))?;
-                let image = image.imageWithRenderingMode(UIImageRenderingMode::AlwaysTemplate);
                 self.button
                     .setImage_forState(Some(&image), UIControlState::Normal);
+                if self.toggle {
+                    let selected =
+                        image.imageWithRenderingMode(UIImageRenderingMode::AlwaysTemplate);
+                    self.button
+                        .setImage_forState(Some(&selected), UIControlState::Selected);
+                } else {
+                    self.button
+                        .setImage_forState(None, UIControlState::Selected);
+                }
             } else {
                 self.button.setImage_forState(None, UIControlState::Normal);
+                self.button
+                    .setImage_forState(None, UIControlState::Selected);
             }
             self.button.invalidateIntrinsicContentSize();
             Ok(())

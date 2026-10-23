@@ -1,6 +1,6 @@
 use objc2::rc::Retained;
 use objc2_foundation::NSString;
-use objc2_ui_kit::{UIBarButtonItem, UIButton, UIButtonType, UIControlState, UIImageRenderingMode};
+use objc2_ui_kit::{UIBarButtonItem, UIButton, UIButtonType, UIControlState};
 use winio_handle::{AsMenuContainer, BorrowedMenuContainer};
 
 use crate::{
@@ -64,7 +64,6 @@ impl ToolBarDropDownButton {
         catch(|| {
             if let Some(icon) = icon {
                 let image = icon.uiimage(Some(24.0))?;
-                let image = image.imageWithRenderingMode(UIImageRenderingMode::AlwaysTemplate);
                 self.button
                     .setImage_forState(Some(&image), UIControlState::Normal);
             } else {
