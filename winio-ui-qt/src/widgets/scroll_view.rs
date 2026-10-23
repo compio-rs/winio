@@ -46,10 +46,8 @@ impl ScrollView {
     pub fn set_size(&mut self, s: Size) -> Result<()> {
         self.widget.set_size(s)?;
         let rect = self.view.widget.as_ref().childrenRect()?;
-        self.view.set_size(Size::new(
-            (rect.x2 - rect.x1) as f64,
-            (rect.y2 - rect.y1) as f64,
-        ))
+        self.view
+            .set_size(Size::new((rect.x2 + 1) as f64, (rect.y2 + 1) as f64))
     }
 
     pub fn hscroll(&self) -> Result<bool> {

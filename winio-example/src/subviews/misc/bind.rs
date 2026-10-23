@@ -170,7 +170,6 @@ impl Component for BindPage {
 
     fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
         let csize = self.window.client_size()?;
-        self.view.set_size(csize)?;
         let margin = Margin::new_all_same(4.0);
         let mut grid = if csize.width >= csize.height * 2.0 {
             layout! {
@@ -200,6 +199,7 @@ impl Component for BindPage {
             }
         };
         grid.set_size(csize)?;
+        self.view.set_size(csize)?;
         Ok(())
     }
 }
