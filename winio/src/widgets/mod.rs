@@ -9,6 +9,9 @@ pub use view::*;
 mod button;
 pub use button::*;
 
+mod drop_down_button;
+pub use drop_down_button::*;
+
 mod edit;
 pub use edit::*;
 
