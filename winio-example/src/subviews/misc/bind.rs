@@ -7,6 +7,7 @@ use crate::{Error, Result};
 
 pub struct BindPage {
     window: Child<GroupBox>,
+    view: Child<ScrollView>,
     label_edit1: Child<Label>,
     label_edit2: Child<Label>,
     label_label: Child<Label>,
@@ -41,28 +42,32 @@ impl Component for BindPage {
             window: GroupBox = (init) => {
                 text: "Bind"
             },
-            label_edit1: Label = (&window) => {
+            view: ScrollView = (&window) => {
+                vscroll: true,
+                hscroll: true,
+            },
+            label_edit1: Label = (&view) => {
                 text: "Edit 1:",
                 halign: HAlign::Right,
             },
-            label_edit2: Label = (&window) => {
+            label_edit2: Label = (&view) => {
                 text: "Edit 2:",
                 halign: HAlign::Right,
             },
-            label_label: Label = (&window) => {
+            label_label: Label = (&view) => {
                 text: "Label:",
                 halign: HAlign::Right,
             },
-            edit1: Edit = (&window),
-            edit2: Edit = (&window),
-            label: Label = (&window),
-            chk_1_2: CheckBox = (&window) => {
+            edit1: Edit = (&view),
+            edit2: Edit = (&view),
+            label: Label = (&view),
+            chk_1_2: CheckBox = (&view) => {
                 text: "Bind"
             },
-            chk_2_1: CheckBox = (&window) => {
+            chk_2_1: CheckBox = (&view) => {
                 text: "Bind back"
             },
-            chk_1_label: CheckBox = (&window) => {
+            chk_1_label: CheckBox = (&view) => {
                 text: "Bind label"
             },
         }
@@ -79,6 +84,7 @@ impl Component for BindPage {
 
         Ok(Self {
             window,
+            view,
             label_edit1,
             label_edit2,
             label_label,
@@ -164,6 +170,7 @@ impl Component for BindPage {
 
     fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
         let csize = self.window.client_size()?;
+        self.view.set_size(csize)?;
         let margin = Margin::new_all_same(4.0);
         let mut grid = if csize.width >= csize.height * 2.0 {
             layout! {
