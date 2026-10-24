@@ -372,9 +372,9 @@ impl MenuItemImpl {
         let parent_window = parent_window(self.parent);
         if let Some(hwnd) = parent_window {
             loop {
-                let WindowMessageCommand { id, .. } =
+                let WindowMessageCommand { id, handle, .. } =
                     unsafe { crate::wait(hwnd, WM_COMMAND).await.command() };
-                if id == self.id {
+                if handle.is_null() && id == self.id {
                     break;
                 }
             }

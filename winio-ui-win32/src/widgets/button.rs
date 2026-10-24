@@ -1,6 +1,6 @@
 use inherit_methods_macro::inherit_methods;
 use windows_sys::Win32::UI::{
-    Controls::WC_BUTTONW,
+    Controls::{BS_SPLITBUTTON, WC_BUTTONW},
     WindowsAndMessaging::{
         BM_SETIMAGE, BN_CLICKED, BS_ICON, BS_PUSHBUTTON, GetParent, WM_COMMAND, WS_CHILD,
         WS_TABSTOP, WS_VISIBLE,
@@ -12,7 +12,7 @@ use winio_primitive::{Point, Size};
 use crate::{
     Image, Result,
     platform::image::{IconSize, clear_hwnd_icon, hwnd_icon_image, hwnd_icon_size, set_hwnd_icon},
-    runtime::WindowMessageCommand,
+    runtime::{WindowMessage, WindowMessageCommand},
     widgets::Widget,
 };
 
@@ -20,28 +20,42 @@ use crate::{
 pub struct Button {
     handle: Widget,
     bs_icon: bool,
+    split: bool,
 }
 
-const fn button_style(icon: bool) -> u32 {
+const fn button_style(icon: bool, split: bool) -> u32 {
     WS_TABSTOP
         | WS_VISIBLE
         | WS_CHILD
-        | BS_PUSHBUTTON as u32
-        | if icon { BS_ICON as u32 } else { 0 }
+        | (if split {
+            BS_SPLITBUTTON as u32
+        } else {
+            BS_PUSHBUTTON as u32
+        })
+        | (if icon { BS_ICON as u32 } else { 0 })
 }
 
 #[inherit_methods(from = "self.handle")]
 impl Button {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
+        Self::new_impl(parent, false)
+    }
+
+    pub(crate) fn new_split(parent: impl AsContainer) -> Result<Self> {
+        Self::new_impl(parent, true)
+    }
+
+    fn new_impl(parent: impl AsContainer, split: bool) -> Result<Self> {
         let handle = Widget::new(
             WC_BUTTONW,
-            button_style(false),
+            button_style(false, split),
             0,
             parent.as_container().as_win32(),
         )?;
         Ok(Self {
             handle,
             bs_icon: false,
+            split,
         })
     }
 
@@ -59,7 +73,9 @@ impl Button {
             s.width += icon.width as f64;
             s.height = s.height.max(icon.height as f64);
         }
-        Ok(Size::new(s.width + 4.0, s.height + 4.0))
+        // Reserve extra space for the drop-down arrow of a split button.
+        let extra = if self.split { 16.0 } else { 0.0 };
+        Ok(Size::new(s.width + 4.0 + extra, s.height + 4.0))
     }
 
     pub fn loc(&self) -> Result<Point>;
@@ -110,7 +126,7 @@ impl Button {
         let old_hwnd = self.handle.as_widget().as_win32();
         let image = hwnd_icon_image(old_hwnd);
         let parent = unsafe { GetParent(old_hwnd) };
-        let new_handle = Widget::new(WC_BUTTONW, button_style(icon), 0, parent)?;
+        let new_handle = Widget::new(WC_BUTTONW, button_style(icon, self.split), 0, parent)?;
         new_handle.set_visible(self.handle.is_visible()?)?;
         new_handle.set_enabled(self.handle.is_enabled()?)?;
         new_handle.set_loc(self.handle.loc()?)?;
@@ -140,6 +156,10 @@ impl Button {
                 break;
             }
         }
+    }
+
+    pub(crate) async fn wait_parent(&self, msg: u32) -> WindowMessage {
+        self.handle.wait_parent(msg).await
     }
 }
 

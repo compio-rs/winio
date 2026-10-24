@@ -11,6 +11,9 @@ pub(crate) use widget::*;
 mod button;
 pub use button::*;
 
+mod menu_button;
+pub use menu_button::*;
+
 mod edit;
 pub use edit::*;
 

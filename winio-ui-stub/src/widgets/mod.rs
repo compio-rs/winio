@@ -58,6 +58,9 @@ pub use tab_view::*;
 mod group_box;
 pub use group_box::*;
 
+mod menu_button;
+pub use menu_button::*;
+
 #[cfg(feature = "media")]
 mod media;
 #[cfg(feature = "media")]
