@@ -1,14 +1,10 @@
-use std::rc::Rc;
-
 use inherit_methods_macro::inherit_methods;
-use send_wrapper::SendWrapper;
 use windows_core::{HSTRING, Interface};
-use winio_callback::Callback;
 use winio_handle::{AsMenuContainer, BorrowedMenuContainer};
 use winui3::Microsoft::UI::Xaml::Controls as MUXC;
 
 use crate::{
-    GlobalRuntime, Image, Result,
+    Image, Result,
     tool_bar::{ToolBar, ToolBarItem},
 };
 
@@ -17,7 +13,6 @@ pub struct ToolBarDropDownButton {
     button: MUXC::AppBarButton,
     item: ToolBarItem,
     flyout: MUXC::MenuFlyout,
-    on_click: SendWrapper<Rc<Callback>>,
 }
 
 #[inherit_methods(from = "self.item")]
@@ -29,9 +24,7 @@ impl ToolBarDropDownButton {
         parent.element().PrimaryCommands()?.Append(&button)?;
         button.SetLabelPosition(MUXC::CommandBarLabelPosition::Collapsed)?;
         let item = ToolBarItem::new(parent, button.cast()?)?;
-        let on_click = SendWrapper::new(Rc::new(Callback::new()));
         {
-            let on_click = on_click.clone();
             let flyout = flyout.clone();
             let button_for_click = button.clone();
             button
@@ -41,7 +34,6 @@ impl ToolBarDropDownButton {
                         Y: button_for_click.ActualHeight()? as f32,
                     };
                     flyout.ShowAt2(&button_for_click, point)?;
-                    on_click.signal::<GlobalRuntime>(());
                     Ok(())
                 })?
                 .forget();
@@ -50,7 +42,6 @@ impl ToolBarDropDownButton {
             button,
             item,
             flyout,
-            on_click,
         })
     }
 
@@ -86,8 +77,8 @@ impl ToolBarDropDownButton {
         Ok(())
     }
 
-    pub async fn wait_click(&self) {
-        self.on_click.wait().await
+    pub async fn start(&self) -> ! {
+        std::future::pending().await
     }
 }
 
