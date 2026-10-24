@@ -8,13 +8,13 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct ToolBarDropDownButton {
+pub struct ToolBarMenuButton {
     item: ToolBarItem,
     menu: gio::Menu,
 }
 
 #[inherit_methods(from = "self.item")]
-impl ToolBarDropDownButton {
+impl ToolBarMenuButton {
     pub fn new(parent: &ToolBar) -> Result<Self> {
         let menu = gio::Menu::new();
         let item = ToolBarItem::new_menu_button(parent, &menu)?;
@@ -36,10 +36,10 @@ impl ToolBarDropDownButton {
     }
 }
 
-impl AsMenuContainer for ToolBarDropDownButton {
+impl AsMenuContainer for ToolBarMenuButton {
     fn as_menu_container(&self) -> BorrowedMenuContainer<'_> {
         BorrowedMenuContainer::gtk(&self.menu)
     }
 }
 
-winio_handle::impl_as_tool_bar_item!(ToolBarDropDownButton, item);
+winio_handle::impl_as_tool_bar_item!(ToolBarMenuButton, item);

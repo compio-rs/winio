@@ -180,12 +180,12 @@ impl ToolBarSeparator {
 winio_handle::impl_as_tool_bar_item!(ToolBarSeparator, handle);
 
 #[derive(Debug)]
-pub struct ToolBarDropDownButton {
+pub struct ToolBarMenuButton {
     handle: ToolBarHandle,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl ToolBarDropDownButton {
+impl ToolBarMenuButton {
     pub fn new(_parent: &ToolBar) -> Result<Self> {
         not_impl()
     }
@@ -205,5 +205,5 @@ impl ToolBarDropDownButton {
     }
 }
 
-winio_handle::impl_as_menu_container!(ToolBarDropDownButton, handle);
-winio_handle::impl_as_tool_bar_item!(ToolBarDropDownButton, handle);
+winio_handle::impl_as_menu_container!(ToolBarMenuButton, handle);
+winio_handle::impl_as_tool_bar_item!(ToolBarMenuButton, handle);

@@ -9,13 +9,13 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct ToolBarDropDownButton {
+pub struct ToolBarMenuButton {
     item: ToolBarItem,
     button: Retained<NSPopUpButton>,
     menu: Retained<NSMenu>,
 }
 
-impl ToolBarDropDownButton {
+impl ToolBarMenuButton {
     pub fn new(parent: &ToolBar) -> Result<Self> {
         let mtm = parent.data().mtm();
 
@@ -104,10 +104,10 @@ impl ToolBarDropDownButton {
     }
 }
 
-impl AsMenuContainer for ToolBarDropDownButton {
+impl AsMenuContainer for ToolBarMenuButton {
     fn as_menu_container(&self) -> BorrowedMenuContainer<'_> {
         BorrowedMenuContainer::app_kit(&self.menu)
     }
 }
 
-winio_handle::impl_as_tool_bar_item!(ToolBarDropDownButton, item);
+winio_handle::impl_as_tool_bar_item!(ToolBarMenuButton, item);

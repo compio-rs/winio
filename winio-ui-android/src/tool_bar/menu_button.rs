@@ -3,12 +3,12 @@ use inherit_methods_macro::inherit_methods;
 use crate::{Image, Result, menu::SubMenuButton, tool_bar::ToolBar, vm_exec};
 
 #[derive(Debug)]
-pub struct ToolBarDropDownButton {
+pub struct ToolBarMenuButton {
     inner: SubMenuButton,
 }
 
 #[inherit_methods(from = "self.inner")]
-impl ToolBarDropDownButton {
+impl ToolBarMenuButton {
     pub fn new(parent: &ToolBar) -> Result<Self> {
         vm_exec(|env| {
             Ok(Self {
@@ -32,5 +32,5 @@ impl ToolBarDropDownButton {
     }
 }
 
-winio_handle::impl_as_menu_container!(ToolBarDropDownButton, inner);
-winio_handle::impl_as_tool_bar_item!(ToolBarDropDownButton, inner);
+winio_handle::impl_as_menu_container!(ToolBarMenuButton, inner);
+winio_handle::impl_as_tool_bar_item!(ToolBarMenuButton, inner);

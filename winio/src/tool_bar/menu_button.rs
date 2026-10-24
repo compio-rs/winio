@@ -9,53 +9,53 @@ use crate::{
 
 /// A drop-down button in a [`ToolBar`].
 #[derive(Debug)]
-pub struct ToolBarDropDownButton {
-    inner: sys::ToolBarDropDownButton,
+pub struct ToolBarMenuButton {
+    inner: sys::ToolBarMenuButton,
 }
 
-impl Failable for ToolBarDropDownButton {
+impl Failable for ToolBarMenuButton {
     type Error = Error;
 }
 
 #[inherit_methods_macro::inherit_methods(from = "self.inner")]
-impl Enable for ToolBarDropDownButton {
+impl Enable for ToolBarMenuButton {
     fn is_enabled(&self) -> Result<bool>;
 
     fn set_enabled(&mut self, enabled: bool) -> Result<()>;
 }
 
 #[inherit_methods_macro::inherit_methods(from = "self.inner")]
-impl TextWidget for ToolBarDropDownButton {
+impl TextWidget for ToolBarMenuButton {
     fn text(&self) -> Result<String>;
 
     fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 }
 
-impl ToolBarDropDownButton {
+impl ToolBarMenuButton {
     /// Set the icon of the drop-down button.
     pub fn set_icon(&mut self, icon: Option<&Image>) -> Result<()> {
         self.inner.set_icon(icon.map(|icon| &icon.0))
     }
 }
 
-/// Events of [`ToolBarDropDownButton`].
+/// Events of [`ToolBarMenuButton`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum ToolBarDropDownButtonEvent {}
+pub enum ToolBarMenuButtonEvent {}
 
-/// Messages of [`ToolBarDropDownButton`].
+/// Messages of [`ToolBarMenuButton`].
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum ToolBarDropDownButtonMessage {}
+pub enum ToolBarMenuButtonMessage {}
 
-impl Component for ToolBarDropDownButton {
+impl Component for ToolBarMenuButton {
     type Error = Error;
-    type Event = ToolBarDropDownButtonEvent;
+    type Event = ToolBarMenuButtonEvent;
     type Init<'a> = &'a ToolBar;
-    type Message = ToolBarDropDownButtonMessage;
+    type Message = ToolBarMenuButtonMessage;
 
     async fn init(init: Self::Init<'_>, _sender: &ComponentSender<Self>) -> Result<Self> {
-        let inner = sys::ToolBarDropDownButton::new(init.as_sys())?;
+        let inner = sys::ToolBarMenuButton::new(init.as_sys())?;
         Ok(Self { inner })
     }
 
@@ -72,5 +72,5 @@ impl Component for ToolBarDropDownButton {
     }
 }
 
-winio_handle::impl_as_menu_container!(ToolBarDropDownButton, inner);
-winio_handle::impl_as_tool_bar_item!(ToolBarDropDownButton, inner);
+winio_handle::impl_as_menu_container!(ToolBarMenuButton, inner);
+winio_handle::impl_as_tool_bar_item!(ToolBarMenuButton, inner);
