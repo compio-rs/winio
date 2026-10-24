@@ -1,7 +1,4 @@
-//! A pollable runtime based on [`compio`]. It is just a compio runtime except
-//! Linux, where there is also an eventfd if the driver is io-uring. This crate
-//! ensures that the raw fd returned by [`RawFd::as_raw_fd`] is always actively
-//! pollable.
+//! A global, single-threaded async executor for GUI event loops.
 
 #![warn(missing_docs)]
 
