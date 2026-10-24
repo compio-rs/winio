@@ -8,7 +8,7 @@ use dispatch2::DispatchQueue;
 use futures_util::FutureExt;
 use objc2::{
     ClassType, MainThreadMarker, MainThreadOnly, define_class, msg_send,
-    rc::{Allocated, Retained},
+    rc::{Allocated, Retained, autoreleasepool},
     runtime::ProtocolObject,
 };
 use objc2_foundation::{NSObject, NSObjectProtocol, NSString, ns_string};
@@ -36,6 +36,9 @@ impl App {
         let future = future.map(|_| {
             std::process::exit(0);
         });
+        let mut future = std::pin::pin!(future);
+        let future = std::future::poll_fn(move |cx| autoreleasepool(|_| future.as_mut().poll(cx)));
+
         winio_pollable::enter_block_on(future, dispatcher_waker(), || {
             crate::catch(|| {
                 UIApplication::main(

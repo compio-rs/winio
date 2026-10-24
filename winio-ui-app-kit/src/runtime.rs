@@ -46,14 +46,17 @@ impl App {
     }
 
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
+        let mut future = std::pin::pin!(future);
+        let future = std::future::poll_fn(move |cx| autoreleasepool(|_| future.as_mut().poll(cx)));
+
         winio_pollable::block_on(future, self.waker.clone(), || {
-            let (timeout, waker) = get_context();
-            CFRunLoop::run_in_mode(
-                unsafe { kCFRunLoopDefaultMode },
-                timeout.unwrap_or(Duration::MAX).as_secs_f64(),
-                true,
-            );
             autoreleasepool(|_| {
+                let (timeout, waker) = get_context();
+                CFRunLoop::run_in_mode(
+                    unsafe { kCFRunLoopDefaultMode },
+                    timeout.unwrap_or(Duration::MAX).as_secs_f64(),
+                    true,
+                );
                 if let Some(waker) = waker {
                     waker.wake();
                 }
