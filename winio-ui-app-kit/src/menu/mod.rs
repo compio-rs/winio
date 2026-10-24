@@ -17,7 +17,7 @@ use winio_pollable::GlobalRuntime;
 use crate::{Error, Image, Result, catch, from_nsstring};
 
 #[derive(Debug)]
-struct MenuBase {
+pub(crate) struct MenuBase {
     inner: Retained<NSMenu>,
 }
 
