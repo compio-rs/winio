@@ -8,13 +8,13 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct ToolBarDropDownButton {
+pub struct ToolBarMenuButton {
     item: ToolBarItem,
     menu: *mut QMenu,
 }
 
 #[inherit_methods(from = "self.item")]
-impl ToolBarDropDownButton {
+impl ToolBarMenuButton {
     pub fn new(parent: &ToolBar) -> Result<Self> {
         let item = ToolBarItem::new(parent, ItemKind::DropDownButton)?;
         let menu = unsafe { ffi::tool_bar_action_menu(item.action())? };
@@ -36,10 +36,10 @@ impl ToolBarDropDownButton {
     }
 }
 
-impl AsMenuContainer for ToolBarDropDownButton {
+impl AsMenuContainer for ToolBarMenuButton {
     fn as_menu_container(&self) -> BorrowedMenuContainer<'_> {
         unsafe { BorrowedMenuContainer::qt(self.menu) }
     }
 }
 
-winio_handle::impl_as_tool_bar_item!(ToolBarDropDownButton, item);
+winio_handle::impl_as_tool_bar_item!(ToolBarMenuButton, item);

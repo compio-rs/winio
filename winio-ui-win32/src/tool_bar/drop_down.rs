@@ -7,13 +7,13 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct ToolBarDropDownButton {
+pub struct ToolBarMenuButton {
     item: ToolBarItem,
     menu: OwnedMenu,
 }
 
 #[inherit_methods(from = "self.item")]
-impl ToolBarDropDownButton {
+impl ToolBarMenuButton {
     pub fn new(parent: &ToolBar) -> Result<Self> {
         let item = ToolBarItem::new(parent, ItemKind::DropDownButton)?;
         let menu = OwnedMenu::new_popup()?;
@@ -39,5 +39,5 @@ impl ToolBarDropDownButton {
     }
 }
 
-winio_handle::impl_as_menu_container!(ToolBarDropDownButton, menu);
-winio_handle::impl_as_tool_bar_item!(ToolBarDropDownButton, item);
+winio_handle::impl_as_menu_container!(ToolBarMenuButton, menu);
+winio_handle::impl_as_tool_bar_item!(ToolBarMenuButton, item);

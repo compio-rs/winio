@@ -5,7 +5,7 @@ use crate::{Error, Result};
 pub struct ExampleToolBar {
     tool_bar: Child<ToolBar>,
     open_file: Child<ToolBarButton>,
-    combo: Child<ToolBarDropDownButton>,
+    combo: Child<ToolBarMenuButton>,
     combo_push: Child<MenuItem>,
     combo_pop: Child<MenuItem>,
     combo_show: Child<MenuItem>,
@@ -74,7 +74,7 @@ impl Component for ExampleToolBar {
                 icon: Some(&crate::icons::open()?),
                 enabled: cfg!(feature = "compio-compat"),
             },
-            combo: ToolBarDropDownButton = (&*tool_bar) => {
+            combo: ToolBarMenuButton = (&*tool_bar) => {
                 text: "Combo",
             },
             combo_push: MenuItem = (&combo) => {
