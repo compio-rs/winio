@@ -49,6 +49,7 @@ fn main() {
             "src/tool_bar/ffi",
             "src/widgets/window",
             "src/widgets/button",
+            "src/widgets/menu_button",
             "src/widgets/canvas",
             "src/widgets/edit",
             "src/widgets/label",

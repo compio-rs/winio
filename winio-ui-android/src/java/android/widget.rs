@@ -7,7 +7,8 @@ use super::{
     },
     util::SparseBooleanArray,
     view::{
-        View, ViewGroup, ViewGroupLayoutParams, ViewGroupMarginLayoutParams, ViewOnClickListener,
+        Menu, View, ViewGroup, ViewGroupLayoutParams, ViewGroupMarginLayoutParams,
+        ViewOnClickListener,
     },
 };
 use crate::impl_listener;
@@ -299,6 +300,22 @@ jni::bind_java_type! {
 
 jni::bind_java_type! {
     pub SpinnerAdapter => android.widget.SpinnerAdapter,
+}
+
+jni::bind_java_type! {
+    pub PopupMenu => android.widget.PopupMenu,
+    type_map {
+        Context => android.content.Context,
+        View => android.view.View,
+        Menu => android.view.Menu,
+    },
+    constructors {
+        fn new(context: &Context, anchor: &View),
+    },
+    methods {
+        fn get_menu() -> Menu,
+        fn show(),
+    },
 }
 
 jni::bind_java_type! {

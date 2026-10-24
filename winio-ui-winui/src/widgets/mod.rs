@@ -146,6 +146,9 @@ pub(crate) use widget::*;
 mod button;
 pub use button::*;
 
+mod menu_button;
+pub use menu_button::*;
+
 mod group_box;
 pub use group_box::*;
 
