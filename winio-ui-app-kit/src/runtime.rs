@@ -5,7 +5,10 @@ use std::{
     time::Duration,
 };
 
-use objc2::{available, rc::Retained};
+use objc2::{
+    available,
+    rc::{Retained, autoreleasepool},
+};
 use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy, NSEventMask};
 use objc2_core_foundation::{CFRetained, CFRunLoop, kCFRunLoopDefaultMode};
 use objc2_foundation::{MainThreadMarker, NSDate, NSDefaultRunLoopMode};
@@ -50,24 +53,23 @@ impl App {
                 timeout.unwrap_or(Duration::MAX).as_secs_f64(),
                 true,
             );
-            if let Some(waker) = waker {
-                waker.wake();
-            }
-            unsafe {
-                loop {
-                    let event = self.ns_app.nextEventMatchingMask_untilDate_inMode_dequeue(
-                        NSEventMask::Any,
-                        Some(&NSDate::distantPast()),
-                        NSDefaultRunLoopMode,
-                        true,
-                    );
-                    if let Some(event) = event {
+            autoreleasepool(|_| {
+                if let Some(waker) = waker {
+                    waker.wake();
+                }
+                unsafe {
+                    while let Some(event) =
+                        self.ns_app.nextEventMatchingMask_untilDate_inMode_dequeue(
+                            NSEventMask::Any,
+                            Some(&NSDate::distantPast()),
+                            NSDefaultRunLoopMode,
+                            true,
+                        )
+                    {
                         self.ns_app.sendEvent(&event);
-                    } else {
-                        break;
                     }
                 }
-            }
+            });
         })
     }
 }
