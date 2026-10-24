@@ -58,15 +58,23 @@ impl CanvasImpl {
     }
 
     pub async fn wait_mouse_move(&self) -> Point {
-        self.view.ivars().mouse_move.wait().await;
-        self.view
-            .window()
-            .map(|w| {
-                let p = w.mouseLocationOutsideOfEventStream();
-                let p = self.view.convertPoint_fromView(p, None);
-                transform_cgpoint(self.size().unwrap_or_default(), p)
-            })
-            .unwrap_or_default()
+        loop {
+            self.view.ivars().mouse_move.wait().await;
+
+            let Some(window) = self.view.window() else {
+                continue;
+            };
+            let p = window.mouseLocationOutsideOfEventStream();
+            let p = self.view.convertPoint_fromView(p, None);
+            let bounds = self.view.bounds();
+            if p.x >= bounds.origin.x
+                && p.x <= bounds.origin.x + bounds.size.width
+                && p.y >= bounds.origin.y
+                && p.y <= bounds.origin.y + bounds.size.height
+            {
+                return transform_cgpoint(self.size().unwrap_or_default(), p);
+            }
+        }
     }
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
