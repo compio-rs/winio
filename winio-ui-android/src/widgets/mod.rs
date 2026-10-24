@@ -3,6 +3,9 @@
 mod button;
 pub use button::*;
 
+mod menu_button;
+pub use menu_button::*;
+
 mod canvas;
 pub use canvas::*;
 
