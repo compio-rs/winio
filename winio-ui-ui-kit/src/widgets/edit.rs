@@ -87,6 +87,15 @@ impl Edit {
         catch(|| self.view.setText(Some(&ns)))
     }
 
+    pub fn hint(&self) -> Result<String> {
+        catch(|| crate::from_nsstring(&self.view.placeholder().unwrap_or_default()))
+    }
+
+    pub fn set_hint(&mut self, s: impl AsRef<str>) -> Result<()> {
+        let ns = NSString::from_str(s.as_ref());
+        catch(|| self.view.setPlaceholder(Some(&ns)))
+    }
+
     pub fn halign(&self) -> Result<HAlign> {
         catch(|| {
             let raw = self.view.textAlignment();

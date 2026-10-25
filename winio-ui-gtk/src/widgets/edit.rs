@@ -69,6 +69,19 @@ impl Edit {
         Ok(())
     }
 
+    pub fn hint(&self) -> Result<String> {
+        Ok(self
+            .widget
+            .placeholder_text()
+            .map(|s| s.to_string())
+            .unwrap_or_default())
+    }
+
+    pub fn set_hint(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.widget.set_placeholder_text(Some(s.as_ref()));
+        Ok(())
+    }
+
     pub fn is_password(&self) -> Result<bool> {
         Ok(!self.widget.is_visible())
     }

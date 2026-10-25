@@ -115,6 +115,8 @@ jni::bind_java_type! {
     },
     methods {
         fn get_text() -> Editable,
+        fn get_hint() -> JCharSequence,
+        fn set_hint(hint: &JCharSequence),
         fn get_input_type() -> jint,
         fn set_input_type(ty: jint),
         fn add_text_changed_listener(listener: &TextWatcher),

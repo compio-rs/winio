@@ -11,7 +11,7 @@ use winio_handle::{AsContainer, impl_as_widget};
 use winio_primitive::{HAlign, Point, Size};
 
 use crate::{
-    BaseWidget, Result,
+    BaseWidget, JCharSequenceExt, Result,
     java::android::{
         text::{TextWatcher, input_type, method::KeyListener as AKeyListener},
         view::gravity,
@@ -103,6 +103,25 @@ impl Edit {
         vm_exec(move |env| {
             let text = env.new_string(&text)?;
             self.as_text_view().set_text(env, text)?;
+            Ok(())
+        })
+    }
+
+    pub fn hint(&self) -> Result<String> {
+        vm_exec(|env| {
+            let hint = self.inner.get_hint(env)?;
+            if hint.is_null() {
+                Ok(String::new())
+            } else {
+                Ok(hint.try_to_string(env)?)
+            }
+        })
+    }
+
+    pub fn set_hint(&mut self, text: impl AsRef<str>) -> Result<()> {
+        vm_exec(move |env| {
+            let text = env.new_string(&text)?;
+            self.inner.set_hint(env, text)?;
             Ok(())
         })
     }

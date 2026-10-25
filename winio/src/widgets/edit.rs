@@ -50,6 +50,12 @@ impl Edit {
     /// Set if the text input is password.
     pub fn set_password(&mut self, v: bool) -> Result<()>;
 
+    /// The hint text displayed when the text input is empty.
+    pub fn hint(&self) -> Result<String>;
+
+    /// Set the hint text displayed when the text input is empty.
+    pub fn set_hint(&mut self, s: impl AsRef<str>) -> Result<()>;
+
     /// The horizontal alignment.
     pub fn halign(&self) -> Result<HAlign>;
 
@@ -122,6 +128,8 @@ pub enum EditMessage {
     SetTooltip(String),
     /// Set the text.
     SetText(String),
+    /// Set the hint text.
+    SetHint(String),
     /// Set the password state.
     SetPassword(bool),
     /// Set the halign.
@@ -180,6 +188,10 @@ impl Component for Edit {
             EditMessage::SetText(text) => {
                 self.set_text(text)?;
                 Ok(true)
+            }
+            EditMessage::SetHint(hint) => {
+                self.set_hint(hint)?;
+                Ok(false)
             }
             EditMessage::SetPassword(password) => {
                 self.set_password(password)?;
