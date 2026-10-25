@@ -1,6 +1,6 @@
 #[cfg(not(feature = "gen_blocks"))]
 use async_stream::stream;
-use futures_util::{FutureExt, Stream};
+use futures_util::Stream;
 
 #[cfg(feature = "gen_blocks")]
 use crate::stream::stream;
@@ -118,11 +118,19 @@ fn run_events_impl<'a, T: Component>(
             yield RunEvent::RenderErr(e);
         }
         loop {
-            let fut_start = model.start(sender);
-            let fut_recv = sender.wait();
-            futures_util::select! {
-                x = fut_start.fuse() => match x {},
-                _ = fut_recv.fuse() => {}
+            {
+                let fut_start = model.start(sender);
+                let fut_recv = sender.wait();
+                let mut fut_start = std::pin::pin!(fut_start);
+                let mut fut_recv = std::pin::pin!(fut_recv);
+                std::future::poll_fn(|cx| {
+                    // `start` will never be ready.
+                    if let std::task::Poll::Ready(x) = fut_start.as_mut().poll(cx) {
+                        match x {}
+                    }
+                    fut_recv.as_mut().poll(cx)
+                })
+                .await;
             }
             let mut need_render = false;
             let mut children_need_render = match model.update_children().await {
