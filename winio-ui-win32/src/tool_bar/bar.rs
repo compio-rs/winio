@@ -55,7 +55,7 @@ impl ToolBar {
             parent,
         )?;
         let data = Rc::new(ToolBarData::new(handle));
-        data.init_control();
+        data.init_control()?;
         TOOLBARS.with(|toolbars| toolbars.borrow_mut().push(data.clone()));
         Ok(Self { data })
     }

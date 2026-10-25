@@ -5,9 +5,10 @@ use std::{
     rc::Rc,
 };
 
+use compio_log::warn;
 use widestring::U16CString;
 use windows_sys::Win32::{
-    Foundation::{HWND, LPARAM, RECT, WPARAM},
+    Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM},
     UI::{
         Controls::{
             BTNS_AUTOSIZE, BTNS_CHECK, BTNS_DROPDOWN, BTNS_SEP, BTNS_SHOWTEXT, BTNS_WHOLEDROPDOWN,
@@ -18,10 +19,14 @@ use windows_sys::Win32::{
             TBIF_SIZE, TBIF_TEXT, TBSTATE_CHECKED, TBSTATE_ENABLED, TBSTYLE_EX_MIXEDBUTTONS,
         },
         HiDpi::GetSystemMetricsForDpi,
-        WindowsAndMessaging::{GetWindowRect, IsChild, SM_CXSMICON, SM_CYSMICON},
+        Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
+        WindowsAndMessaging::{
+            GetWindowRect, IsChild, SM_CXSMICON, SM_CYSMICON, WM_DPICHANGED_AFTERPARENT,
+        },
     },
 };
 use winio_handle::AsWindow;
+use winio_ui_windows_common::syscall;
 
 use crate::{Error, Image, Result, Widget, get_u16c, with_u16c};
 
@@ -48,6 +53,7 @@ pub use separator::*;
 
 const TOOLBAR_ID_BASE: u32 = 0x8000;
 const SEPARATOR_WIDTH: i32 = 8;
+const TOOLBAR_SUBCLASS_ID: usize = 0;
 
 thread_local! {
     static TOOLBARS: RefCell<Vec<Rc<ToolBarData>>> = const { RefCell::new(Vec::new()) };
@@ -127,7 +133,16 @@ impl ToolBarData {
         }
     }
 
-    fn init_control(&self) {
+    fn init_control(&self) -> Result<()> {
+        syscall!(
+            BOOL,
+            SetWindowSubclass(
+                self.handle.as_window().as_win32(),
+                Some(toolbar_wnd_proc),
+                TOOLBAR_SUBCLASS_ID,
+                0
+            )
+        )?;
         self.handle
             .send_message(TB_BUTTONSTRUCTSIZE, size_of::<TBBUTTON>(), 0);
         self.handle
@@ -135,6 +150,7 @@ impl ToolBarData {
         let (cx, cy) = small_icon_size(self.handle.dpi());
         self.handle
             .send_message(TB_SETBITMAPSIZE, 0, make_long(cx, cy));
+        Ok(())
     }
 
     fn alloc_id(&self) -> u32 {
@@ -409,6 +425,18 @@ impl ToolBarData {
     }
 }
 
+impl Drop for ToolBarData {
+    fn drop(&mut self) {
+        unsafe {
+            RemoveWindowSubclass(
+                self.handle.as_window().as_win32(),
+                Some(toolbar_wnd_proc),
+                TOOLBAR_SUBCLASS_ID,
+            )
+        };
+    }
+}
+
 pub(crate) fn visible_toolbar_height(parent: HWND) -> i32 {
     TOOLBARS.with_borrow(|toolbars| {
         toolbars
@@ -421,14 +449,34 @@ pub(crate) fn visible_toolbar_height(parent: HWND) -> i32 {
     })
 }
 
-pub(crate) fn refresh_toolbar_icons(root: HWND) -> Result<()> {
-    TOOLBARS.with_borrow(|toolbars| {
-        for data in toolbars
+fn refresh_toolbar_icons(handle: HWND) -> Result<()> {
+    let data = TOOLBARS.with_borrow(|toolbars| {
+        toolbars
             .iter()
-            .filter(|data| unsafe { IsChild(root, data.handle.as_window().as_win32()) != 0 })
-        {
-            data.rebuild_image_list()?;
+            .find(|data| std::ptr::eq(data.handle.as_window().as_win32(), handle))
+            .cloned()
+    });
+    if let Some(data) = data {
+        data.rebuild_image_list()?;
+    }
+    Ok(())
+}
+
+unsafe extern "system" fn toolbar_wnd_proc(
+    hwnd: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+    _id: usize,
+    _data: usize,
+) -> LRESULT {
+    match msg {
+        WM_DPICHANGED_AFTERPARENT => {
+            if let Err(e) = refresh_toolbar_icons(hwnd) {
+                warn!("refresh_toolbar_icons: handle: {hwnd:?}, error: {e:?}");
+            }
+            0
         }
-        Ok(())
-    })
+        _ => unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) },
+    }
 }
