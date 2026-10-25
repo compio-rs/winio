@@ -120,9 +120,11 @@ impl Component for MiscPage {
             },
             uentry: Edit = (&window) => {
                 text: "AAA",
+                hint: "Username",
             },
             pentry: Edit = (&window) => {
                 text: "123456",
+                hint: "Password",
                 password: true,
             },
             pcheck: CheckBox = (&window) => {

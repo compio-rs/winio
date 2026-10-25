@@ -63,6 +63,17 @@ impl Edit {
         Ok(())
     }
 
+    pub fn hint(&self) -> Result<String> {
+        Ok(self.widget.as_ref().placeholderText()?.try_into()?)
+    }
+
+    pub fn set_hint(&mut self, s: impl AsRef<str>) -> Result<()> {
+        self.widget
+            .pin_mut()
+            .setPlaceholderText(&s.as_ref().try_into()?)?;
+        Ok(())
+    }
+
     pub fn is_password(&self) -> Result<bool> {
         Ok(self.widget.as_ref().echoMode()? != QLineEditEchoMode::Normal)
     }
@@ -300,6 +311,8 @@ mod ffi {
         fn setAlignment(self: Pin<&mut QLineEdit>, flag: QtAlignmentFlag) -> Result<()>;
         fn text(self: &QLineEdit) -> Result<QString>;
         fn setText(self: Pin<&mut QLineEdit>, s: &QString) -> Result<()>;
+        fn placeholderText(self: &QLineEdit) -> Result<QString>;
+        fn setPlaceholderText(self: Pin<&mut QLineEdit>, s: &QString) -> Result<()>;
         fn echoMode(self: &QLineEdit) -> Result<QLineEditEchoMode>;
         fn setEchoMode(self: Pin<&mut QLineEdit>, m: QLineEditEchoMode) -> Result<()>;
         fn isReadOnly(self: &QLineEdit) -> Result<bool>;

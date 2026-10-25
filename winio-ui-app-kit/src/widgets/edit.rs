@@ -8,12 +8,12 @@ use objc2_app_kit::{
     NSControlTextEditingDelegate, NSSecureTextField, NSTextAlignment, NSTextField,
     NSTextFieldDelegate,
 };
-use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol};
+use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString};
 use winio_callback::Callback;
 use winio_handle::{AsContainer, BorrowedContainer};
 use winio_primitive::{HAlign, Point, Size};
 
-use crate::{GlobalRuntime, Result, catch, widgets::Widget};
+use crate::{GlobalRuntime, Result, catch, from_nsstring, widgets::Widget};
 
 #[derive(Debug)]
 struct EditImpl {
@@ -73,6 +73,20 @@ impl EditImpl {
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn hint(&self) -> Result<String> {
+        catch(|| {
+            self.view
+                .placeholderString()
+                .map(|s| from_nsstring(&s))
+                .unwrap_or_default()
+        })
+    }
+
+    pub fn set_hint(&mut self, s: impl AsRef<str>) -> Result<()> {
+        let ns = NSString::from_str(s.as_ref());
+        catch(|| self.view.setPlaceholderString(Some(&ns)))
+    }
 
     pub fn halign(&self) -> Result<HAlign> {
         let align = catch(|| self.view.alignment())?;
@@ -153,6 +167,7 @@ impl Edit {
         new_handle.set_loc(self.handle.loc()?)?;
         new_handle.set_size(self.handle.size()?)?;
         new_handle.set_text(self.handle.text()?)?;
+        new_handle.set_hint(self.handle.hint()?)?;
         new_handle.set_halign(self.handle.halign()?)?;
         self.handle = new_handle;
         Ok(())
@@ -183,6 +198,10 @@ impl Edit {
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn hint(&self) -> Result<String>;
+
+    pub fn set_hint(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub fn is_password(&self) -> Result<bool> {
         Ok(self.password)

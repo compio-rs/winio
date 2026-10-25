@@ -1,11 +1,12 @@
 use inherit_methods_macro::inherit_methods;
+use widestring::U16CString;
 use windows_sys::{
     Win32::{
         Foundation::{HWND, LPARAM, LRESULT, WPARAM},
         UI::{
             Controls::{
-                EM_GETPASSWORDCHAR, EM_REPLACESEL, EM_SETPASSWORDCHAR, EM_SETREADONLY,
-                ShowScrollBar, WC_EDITW,
+                EM_GETCUEBANNER, EM_GETPASSWORDCHAR, EM_REPLACESEL, EM_SETCUEBANNER,
+                EM_SETPASSWORDCHAR, EM_SETREADONLY, ShowScrollBar, WC_EDITW,
             },
             Input::KeyboardAndMouse::VK_RETURN,
             Shell::{DefSubclassProc, SetWindowSubclass},
@@ -23,14 +24,15 @@ use winio_primitive::{HAlign, Point, Size};
 use winio_ui_windows_common::syscall;
 
 use crate::{
-    Result,
+    Error, Result, get_u16c,
     runtime::WindowMessageCommand,
-    widgets::{Widget, fix_crlf},
+    widgets::{Widget, fix_crlf, with_u16c},
 };
 
 #[derive(Debug)]
 struct EditImpl {
     handle: Widget,
+    banner_len: usize,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -42,7 +44,10 @@ impl EditImpl {
             WS_EX_CLIENTEDGE,
             parent.as_container().as_win32(),
         )?;
-        Ok(Self { handle })
+        Ok(Self {
+            handle,
+            banner_len: 0,
+        })
     }
 
     pub fn is_visible(&self) -> Result<bool>;
@@ -73,6 +78,34 @@ impl EditImpl {
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn hint(&self) -> Result<String> {
+        self.hint_u16().map(|s| s.to_string_lossy())
+    }
+
+    fn hint_u16(&self) -> Result<U16CString> {
+        unsafe {
+            get_u16c(self.banner_len, |buf| {
+                let res =
+                    self.handle
+                        .send_message(EM_GETCUEBANNER, buf.len(), buf.as_mut_ptr() as _);
+                if res == 0 {
+                    Err(Error::from_thread())
+                } else {
+                    Ok(self.banner_len)
+                }
+            })
+        }
+    }
+
+    pub fn set_hint(&mut self, s: impl AsRef<str>) -> Result<()> {
+        with_u16c(s.as_ref(), |s| {
+            self.handle
+                .send_message(EM_SETCUEBANNER, 0, s.as_ptr() as _);
+            self.banner_len = s.len();
+            Ok(())
+        })
+    }
 
     pub fn halign(&self) -> Result<HAlign> {
         let style = self.handle.style()? as i32;
@@ -173,6 +206,10 @@ impl Edit {
     pub fn text(&self) -> Result<String>;
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn hint(&self) -> Result<String>;
+
+    pub fn set_hint(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub fn halign(&self) -> Result<HAlign>;
 

@@ -62,6 +62,7 @@ impl Edit {
             let password_box = MUXC::PasswordBox::new()?;
             let text_box = self.handle.as_widget().as_winui().cast::<MUXC::TextBox>()?;
             password_box.SetPassword(&text_box.Text()?)?;
+            password_box.SetPlaceholderText(&text_box.PlaceholderText()?)?;
             Widget::new(BorrowedContainer::winui(&parent), password_box.cast()?)?
         } else {
             let text_box = MUXC::TextBox::new()?;
@@ -71,6 +72,7 @@ impl Edit {
                 .as_winui()
                 .cast::<MUXC::PasswordBox>()?;
             text_box.SetText(&password_box.Password()?)?;
+            text_box.SetPlaceholderText(&password_box.PlaceholderText()?)?;
             text_box.SetTextAlignment(self.halign.to_native())?;
             Widget::new(BorrowedContainer::winui(&parent), text_box.cast()?)?
         };
@@ -136,6 +138,41 @@ impl Edit {
         } else {
             let text_box = self.handle.as_widget().as_winui().cast::<MUXC::TextBox>()?;
             text_box.SetText(&s)?;
+        }
+        Ok(())
+    }
+
+    pub fn hint(&self) -> Result<String> {
+        let hint = if self.password {
+            self.handle
+                .as_widget()
+                .as_winui()
+                .cast::<MUXC::PasswordBox>()?
+                .PlaceholderText()?
+                .to_string_lossy()
+        } else {
+            self.handle
+                .as_widget()
+                .as_winui()
+                .cast::<MUXC::TextBox>()?
+                .PlaceholderText()?
+                .to_string_lossy()
+        };
+        Ok(hint)
+    }
+
+    pub fn set_hint(&mut self, s: impl AsRef<str>) -> Result<()> {
+        let s = HSTRING::from(s.as_ref());
+        if self.password {
+            let password_box = self
+                .handle
+                .as_widget()
+                .as_winui()
+                .cast::<MUXC::PasswordBox>()?;
+            password_box.SetPlaceholderText(&s)?;
+        } else {
+            let text_box = self.handle.as_widget().as_winui().cast::<MUXC::TextBox>()?;
+            text_box.SetPlaceholderText(&s)?;
         }
         Ok(())
     }

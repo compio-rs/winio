@@ -41,6 +41,14 @@ impl Edit {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
+    pub fn hint(&self) -> Result<String> {
+        not_impl()
+    }
+
+    pub fn set_hint(&mut self, _s: impl AsRef<str>) -> Result<()> {
+        not_impl()
+    }
+
     pub fn is_password(&self) -> Result<bool> {
         not_impl()
     }
