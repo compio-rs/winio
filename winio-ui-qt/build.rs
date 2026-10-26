@@ -52,6 +52,7 @@ fn main() {
             "src/widgets/menu_button",
             "src/widgets/canvas",
             "src/widgets/edit",
+            "src/widgets/up_down_edit",
             "src/widgets/label",
             "src/widgets/progress",
             "src/widgets/combo_box",

@@ -114,6 +114,9 @@ pub use tab_view::*;
 mod group_box;
 pub use group_box::*;
 
+mod up_down_edit;
+pub use up_down_edit::*;
+
 mod menu_button;
 pub use menu_button::*;
 

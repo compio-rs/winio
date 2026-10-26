@@ -330,6 +330,37 @@ jni::bind_java_type! {
     pub AdapterViewOnItemSelectedListener => "android.widget.AdapterView$OnItemSelectedListener",
 }
 
+jni::bind_java_type! {
+    pub NumberPickerOnValueChangeListener => "android.widget.NumberPicker$OnValueChangeListener",
+}
+
+impl_listener!(NumberPickerOnValueChangeListener);
+
+jni::bind_java_type! {
+    pub NumberPicker => android.widget.NumberPicker,
+    type_map {
+        View => android.view.View,
+        Context => android.content.Context,
+        NumberPickerOnValueChangeListener => "android.widget.NumberPicker$OnValueChangeListener",
+    },
+    constructors {
+        fn new(context: &Context),
+    },
+    methods {
+        fn get_value() -> jint,
+        fn set_value(value: jint),
+        fn get_min_value() -> jint,
+        fn set_min_value(min_value: jint),
+        fn get_max_value() -> jint,
+        fn set_max_value(max_value: jint),
+        fn set_wrap_selector_wheel(wrap: jboolean),
+        fn set_on_value_changed_listener(listener: &NumberPickerOnValueChangeListener),
+    },
+    is_instance_of = {
+        view = View,
+    }
+}
+
 pub mod abs_list_view {
     pub const CHOICE_MODE_MULTIPLE: i32 = 2;
     pub const CHOICE_MODE_SINGLE: i32 = 1;

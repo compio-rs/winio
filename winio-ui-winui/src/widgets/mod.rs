@@ -191,6 +191,9 @@ pub use scroll_view::*;
 mod slider;
 pub use slider::*;
 
+mod up_down_edit;
+pub use up_down_edit::*;
+
 #[cfg(feature = "media")]
 mod media;
 #[cfg(feature = "media")]
