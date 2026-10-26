@@ -12,7 +12,9 @@ use winio_primitive::{Point, Size};
 
 use crate::{
     BaseWidget, Result, current_activity,
-    java::android::widget::{NumberPicker as ANumberPicker, NumberPickerOnValueChangeListener},
+    java::{
+        android::widget::NumberPickerOnValueChangeListener, custom::NumberPicker as ANumberPicker,
+    },
     runtime::AndroidRuntime,
     vm_exec,
 };
@@ -23,7 +25,6 @@ pub struct UpDownEdit {
     on_change: Arc<SyncCallback>,
     #[allow(dead_code)]
     change_proxy: DynamicProxy,
-    step: usize,
 }
 
 #[inherit_methods(from = "self.inner")]
@@ -32,7 +33,6 @@ impl UpDownEdit {
         vm_exec(|env| {
             let act = current_activity(env)?;
             let widget = ANumberPicker::new(env, &act)?;
-            widget.set_wrap_selector_wheel(env, false)?;
             let on_change = Arc::new(SyncCallback::new());
             let change_proxy = DynamicProxy::build(
                 env,
@@ -52,7 +52,6 @@ impl UpDownEdit {
                 inner,
                 on_change,
                 change_proxy,
-                step: 1,
             })
         })
     }
@@ -80,43 +79,45 @@ impl UpDownEdit {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub fn minimum(&self) -> Result<usize> {
-        vm_exec(|env| Ok(self.inner.get_min_value(env)? as _))
+        vm_exec(|env| Ok(self.inner.get_real_min_value(env)? as _))
     }
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
         vm_exec(|env| {
-            self.inner.set_min_value(env, v as _)?;
+            self.inner.set_real_min_value(env, v as _)?;
             Ok(())
         })
     }
 
     pub fn maximum(&self) -> Result<usize> {
-        vm_exec(|env| Ok(self.inner.get_max_value(env)? as _))
+        vm_exec(|env| Ok(self.inner.get_real_max_value(env)? as _))
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
         vm_exec(|env| {
-            self.inner.set_max_value(env, v as _)?;
+            self.inner.set_real_max_value(env, v as _)?;
             Ok(())
         })
     }
 
     pub fn step(&self) -> Result<usize> {
-        Ok(self.step)
+        vm_exec(|env| Ok(self.inner.get_step(env)? as _))
     }
 
     pub fn set_step(&mut self, v: usize) -> Result<()> {
-        self.step = v;
-        Ok(())
+        vm_exec(|env| {
+            self.inner.set_step(env, v as _)?;
+            Ok(())
+        })
     }
 
     pub fn value(&self) -> Result<usize> {
-        vm_exec(|env| Ok(self.inner.get_value(env)? as _))
+        vm_exec(|env| Ok(self.inner.get_real_value(env)? as _))
     }
 
     pub fn set_value(&mut self, v: usize) -> Result<()> {
         vm_exec(|env| {
-            self.inner.set_value(env, v as _)?;
+            self.inner.set_real_value(env, v as _)?;
             Ok(())
         })
     }
