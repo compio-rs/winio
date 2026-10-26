@@ -51,6 +51,7 @@ compio = { version = "0.20.0-beta.1", default-features = false }
 compio-log = "0.3.0-beta.1"
 
 arrayvec = "0.7"
+ash = "0.38"
 bitflags = "2"
 bytemuck = { version = "1", features = ["extern_crate_alloc"] }
 cfg-if = "1"
@@ -98,8 +99,6 @@ objc2-uniform-type-identifiers = "0.3"
 objc2-web-kit = "0.3"
 
 gtk4 = "0.11"
-gdk4-wayland = "0.11"
-gdk4-x11 = "0.11"
 glib-unix = "0.22"
 pangocairo = "0.22"
 webkit6 = "0.6"

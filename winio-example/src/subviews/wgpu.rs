@@ -7,8 +7,7 @@ use winio::prelude::*;
 use crate::{Error, Result};
 
 struct SurfaceData {
-    surface: wgpu::Surface<'static>,
-    surface_format: wgpu::TextureFormat,
+    format: wgpu::TextureFormat,
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     uniform_buffer: wgpu::Buffer,
@@ -17,13 +16,7 @@ struct SurfaceData {
 }
 
 impl SurfaceData {
-    fn new(
-        device: &wgpu::Device,
-        adapter: &wgpu::Adapter,
-        surface: wgpu::Surface<'static>,
-    ) -> Self {
-        let surface_format = surface.get_capabilities(adapter).formats[0];
-
+    fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Cube Vertex Buffer"),
             contents: bytemuck::cast_slice(VERTICES),
@@ -86,7 +79,7 @@ impl SurfaceData {
                 module: &shader,
                 entry_point: Some("fs_main"),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: surface_format,
+                    format,
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -103,8 +96,7 @@ impl SurfaceData {
             cache: None,
         });
         Self {
-            surface,
-            surface_format,
+            format,
             vertex_buffer,
             index_buffer,
             uniform_buffer,
@@ -131,31 +123,6 @@ impl SurfaceData {
             }]),
         );
     }
-
-    fn configure(&self, device: &wgpu::Device, size: Size) -> Result<()> {
-        let width = (size.width as u32).max(1);
-        let height = (size.height as u32).max(1);
-        let needs_update = self
-            .surface
-            .get_configuration()
-            .map(|c| c.width != width || c.height != height)
-            .unwrap_or(true);
-        if needs_update {
-            let surface_config = wgpu::SurfaceConfiguration {
-                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                format: self.surface_format,
-                color_space: wgpu::SurfaceColorSpace::Auto,
-                view_formats: vec![self.surface_format.add_srgb_suffix()],
-                alpha_mode: wgpu::CompositeAlphaMode::Auto,
-                width,
-                height,
-                desired_maximum_frame_latency: 2,
-                present_mode: wgpu::PresentMode::AutoVsync,
-            };
-            self.surface.configure(device, &surface_config);
-        }
-        Ok(())
-    }
 }
 
 pub struct WgpuPageInner {
@@ -164,32 +131,45 @@ pub struct WgpuPageInner {
     canvas: Child<WgpuCanvas>,
     angle: f32,
     clockwise: bool,
-    instance: wgpu::Instance,
     device: wgpu::Device,
-    adapter: wgpu::Adapter,
     queue: wgpu::Queue,
-    surface: Option<SurfaceData>,
+    data: Option<SurfaceData>,
 }
 
 impl WgpuPageInner {
-    fn configure(&mut self, size: Size) -> Result<()> {
-        if self.surface.is_none() {
-            self.surface = self
-                .canvas
-                .create_surface(&self.instance)
-                .ok()
-                .map(|s| SurfaceData::new(&self.device, &self.adapter, s));
+    fn rotate(&self, angle: f32, aspect_ratio: f32) {
+        if let Some(data) = &self.data {
+            data.rotate(&self.queue, angle, aspect_ratio);
         }
-        if let Some(surface) = &self.surface {
-            surface.configure(&self.device, size)?;
-        }
-        Ok(())
     }
 
-    fn rotate(&mut self, angle: f32, aspect_ratio: f32) {
-        if let Some(surface) = &self.surface {
-            surface.rotate(&self.queue, angle, aspect_ratio);
+    fn draw(&self, data: &SurfaceData, view: &wgpu::TextureView) {
+        let mut encoder = self.device.create_command_encoder(&Default::default());
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: None,
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view,
+                    depth_slice: None,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+
+            render_pass.set_pipeline(&data.render_pipeline);
+            render_pass.set_bind_group(0, &data.bind_group, &[]);
+            render_pass.set_vertex_buffer(0, data.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(data.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..INDICES.len() as u32, 0, 0..1);
         }
+        self.queue.submit([encoder.finish()]);
     }
 }
 
@@ -227,21 +207,15 @@ impl Component for WgpuPageInner {
             }
         }
 
-        let surface = canvas
-            .create_surface(&instance)
-            .ok()
-            .map(|s| SurfaceData::new(&device, &adapter, s));
         Ok(Self {
             window,
             canvas,
             timer,
             angle: 0.0,
             clockwise: true,
-            instance,
             device,
-            adapter,
             queue,
-            surface,
+            data: None,
         })
     }
 
@@ -279,75 +253,25 @@ impl Component for WgpuPageInner {
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
-        let prev_size = self.canvas.size()?;
         let size = self.window.size()?;
-        if prev_size != size || self.surface.is_none() {
+        if self.canvas.size()? != size {
             self.canvas.set_rect(size.into())?;
-            self.configure(size)?;
         }
-
         if size == Size::zero() {
             return Ok(());
         }
 
         self.rotate(self.angle, size.width as f32 / size.height as f32);
 
-        let Some(data) = &self.surface else {
+        let Some(frame) = self.canvas.acquire(&self.device) else {
             return Ok(());
         };
-        let surface_texture = match data.surface.get_current_texture() {
-            wgpu::CurrentSurfaceTexture::Success(texture) => texture,
-            wgpu::CurrentSurfaceTexture::Occluded | wgpu::CurrentSurfaceTexture::Timeout => {
-                return Ok(());
-            }
-            wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Suboptimal(_) => {
-                self.configure(size)?;
-                return Ok(());
-            }
-            wgpu::CurrentSurfaceTexture::Validation => {
-                unreachable!("No error scope registered, so validation errors will panic")
-            }
-            wgpu::CurrentSurfaceTexture::Lost => {
-                self.surface.take();
-                self.configure(size)?;
-                return Ok(());
-            }
-        };
-        let texture_view = surface_texture
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor {
-                format: Some(data.surface_format.add_srgb_suffix()),
-                ..Default::default()
-            });
-
-        let mut encoder = self.device.create_command_encoder(&Default::default());
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: None,
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &texture_view,
-                    depth_slice: None,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-                multiview_mask: None,
-            });
-
-            render_pass.set_pipeline(&data.render_pipeline);
-            render_pass.set_bind_group(0, &data.bind_group, &[]);
-            render_pass.set_vertex_buffer(0, data.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(data.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..INDICES.len() as u32, 0, 0..1);
+        if self.data.as_ref().map(|d| d.format) != Some(frame.format) {
+            self.data = Some(SurfaceData::new(&self.device, frame.format));
         }
-
-        self.queue.submit([encoder.finish()]);
-        self.queue.present(surface_texture);
+        let data = self.data.as_ref().expect("just created");
+        self.draw(data, &frame.view);
+        self.canvas.present(&self.queue)?;
 
         Ok(())
     }

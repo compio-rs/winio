@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use wgpu::{CreateSurfaceError, Instance, Surface};
+use wgpu::{Device, Queue, Texture, TextureFormat, TextureView};
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
@@ -27,16 +27,44 @@ pub struct WgpuCanvas {
     widget: sys::WgpuCanvas,
 }
 
-#[inherit_methods(from = "self.widget")]
+/// A frame acquired from a [`WgpuCanvas`].
+#[derive(Debug)]
+pub struct WgpuCanvasFrame {
+    /// The texture to render into.
+    pub texture: Texture,
+    /// A view of [`Self::texture`], to be used as the render target.
+    pub view: TextureView,
+    /// The format of [`Self::view`].
+    pub format: TextureFormat,
+    /// The size of [`Self::texture`], in physical pixels.
+    pub size: (u32, u32),
+}
+
 impl WgpuCanvas {
-    /// Create [`Surface`] to render on this canvas.
+    /// Acquire a frame to render into.
     ///
-    /// This method returns an error if the canvas is not yet ready to create a
-    /// surface, e.g. it is not yet visible.
-    pub fn create_surface(
-        &self,
-        instance: &Instance,
-    ) -> std::result::Result<Surface<'static>, CreateSurfaceError>;
+    /// The texture is owned by the canvas: it is recreated when the canvas is
+    /// resized, and [`Self::present`] hands it over to the widget.
+    ///
+    /// Returns `None` if the backend cannot provide a canvas-owned texture,
+    /// e.g. it still renders through a native surface.
+    pub fn acquire(&self, device: &Device) -> Option<WgpuCanvasFrame> {
+        let (texture, view, format, size) = self.widget.acquire(device)?;
+        return Some(WgpuCanvasFrame {
+            texture,
+            view,
+            format,
+            size,
+        });
+    }
+
+    /// Present the frame acquired by [`Self::acquire`].
+    ///
+    /// It must be called after the queue submission that renders into the
+    /// frame is recorded.
+    pub fn present(&self, queue: &Queue) -> Result<()> {
+        return self.widget.present(queue);
+    }
 }
 
 impl Failable for WgpuCanvas {

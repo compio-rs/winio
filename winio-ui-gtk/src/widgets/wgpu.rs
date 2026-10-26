@@ -1,35 +1,61 @@
-use std::ptr::NonNull;
+use std::cell::{Cell, RefCell};
 
-use gdk4_wayland::{WaylandDisplay, WaylandSurface, prelude::*, wayland_client::Proxy};
-use gdk4_x11::{X11Display, X11Surface};
+use compio_log::error;
 use gtk4::{
-    glib::object::Cast,
-    prelude::{NativeExt, WidgetExt},
+    ContentFit, GraphicsOffload, GraphicsOffloadEnabled, Overlay, Picture, glib::object::Cast,
+    prelude::*,
 };
 use inherit_methods_macro::inherit_methods;
-use wgpu::{
-    CreateSurfaceError, Instance, Surface, SurfaceTarget,
-    rwh::{
-        DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
-        RawWindowHandle, WaylandDisplayHandle, WaylandWindowHandle, WindowHandle,
-        XlibDisplayHandle, XlibWindowHandle,
-    },
-};
 use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{KeyCode, MouseButton, Point, Size, Vector};
 
-use crate::{Canvas, Result};
+use crate::{CanvasImpl, Result};
 
+mod target;
+
+/// A GPU canvas composited by GTK.
 #[derive(Debug)]
 pub struct WgpuCanvas {
-    widget: Canvas,
+    handle: CanvasImpl,
+    picture: Picture,
+    target: RefCell<Option<target::Target>>,
+    /// Size of the last failed attempt, to avoid retrying every frame.
+    failed: Cell<Option<(u32, u32)>>,
+    /// Whether a presentation error has already been reported.
+    present_failed: Cell<bool>,
 }
 
-#[inherit_methods(from = "self.widget")]
+#[inherit_methods(from = "self.handle")]
 impl WgpuCanvas {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
-        let canvas = Canvas::new(parent)?;
-        Ok(Self { widget: canvas })
+        let area = gtk4::DrawingArea::new();
+        area.set_hexpand(true);
+        area.set_vexpand(true);
+
+        let picture = Picture::new();
+        picture.set_content_fit(ContentFit::Fill);
+
+        let offload = GraphicsOffload::new(Some(&picture));
+        offload.set_enabled(GraphicsOffloadEnabled::Enabled);
+        offload.set_can_target(false);
+        offload.set_hexpand(true);
+        offload.set_vexpand(true);
+        offload.set_halign(gtk4::Align::Fill);
+        offload.set_valign(gtk4::Align::Fill);
+
+        let overlay = Overlay::new();
+        overlay.set_child(Some(&area));
+        overlay.add_overlay(&offload);
+
+        let handle = CanvasImpl::new(parent, area, overlay.upcast())?;
+
+        Ok(Self {
+            handle,
+            picture,
+            target: RefCell::new(None),
+            failed: Cell::new(None),
+            present_failed: Cell::new(false),
+        })
     }
 
     pub fn is_visible(&self) -> Result<bool>;
@@ -53,97 +79,84 @@ impl WgpuCanvas {
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
-        self.widget.wait_mouse_down().await
+        self.handle.wait_mouse_down().await
     }
 
     pub async fn wait_mouse_up(&self) -> MouseButton {
-        self.widget.wait_mouse_up().await
+        self.handle.wait_mouse_up().await
     }
 
     pub async fn wait_mouse_move(&self) -> Point {
-        self.widget.wait_mouse_move().await
+        self.handle.wait_mouse_move().await
     }
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
-        self.widget.wait_mouse_wheel().await
+        self.handle.wait_mouse_wheel().await
     }
 
     pub async fn wait_key_down(&self) -> KeyCode {
-        self.widget.wait_key_down().await
+        self.handle.wait_key_down().await
     }
 
     pub async fn wait_key_up(&self) -> KeyCode {
-        self.widget.wait_key_up().await
+        self.handle.wait_key_up().await
     }
 
     pub async fn wait_key_char(&self) -> char {
-        self.widget.wait_key_char().await
+        self.handle.wait_key_char().await
     }
 
-    fn wayland(&self) -> Option<WindowHandleWrapper> {
-        let native = self.as_widget().to_gtk().native()?;
-        let surface = native
-            .surface()?
-            .dynamic_cast::<WaylandSurface>()
-            .ok()?
-            .wl_surface()?;
-        let display = native
-            .display()
-            .dynamic_cast::<WaylandDisplay>()
-            .ok()?
-            .wl_display()?;
-        let surface = RawWindowHandle::Wayland(WaylandWindowHandle::new(NonNull::new(
-            surface.id().as_ptr().cast(),
-        )?));
-        let display = RawDisplayHandle::Wayland(WaylandDisplayHandle::new(NonNull::new(
-            display.id().as_ptr().cast(),
-        )?));
-        Some(WindowHandleWrapper(surface, display))
-    }
-
-    fn xcb(&self) -> Option<WindowHandleWrapper> {
-        let native = self.as_widget().to_gtk().native()?;
-        let window = native.surface()?.dynamic_cast::<X11Surface>().ok()?.xid();
-        let display = native.display().dynamic_cast::<X11Display>().ok()?;
-        let screen = display.screen().screen_number();
-        let display = unsafe { display.xdisplay() };
-        let handle = RawWindowHandle::Xlib(XlibWindowHandle::new(window));
-        let display =
-            RawDisplayHandle::Xlib(XlibDisplayHandle::new(NonNull::new(display.cast()), screen));
-        Some(WindowHandleWrapper(handle, display))
-    }
-
-    pub fn create_surface(
+    pub fn acquire(
         &self,
-        instance: &Instance,
-    ) -> std::result::Result<Surface<'static>, CreateSurfaceError> {
-        let handle = self
-            .wayland()
-            .or_else(|| self.xcb())
-            .ok_or_else(|| wgpu::wgc::instance::CreateSurfaceError::MissingDisplayHandle)?;
+        device: &wgpu::Device,
+    ) -> Option<(
+        wgpu::Texture,
+        wgpu::TextureView,
+        wgpu::TextureFormat,
+        (u32, u32),
+    )> {
+        let size = self.handle.size().ok()?;
+        let scale = self.handle.as_widget().to_gtk().scale_factor() as f64;
+        let width = ((size.width * scale).round() as u32).max(1);
+        let height = ((size.height * scale).round() as u32).max(1);
+        let wanted = (width, height);
 
-        let target = SurfaceTarget::from(handle);
+        if self.failed.get() == Some(wanted) {
+            return None;
+        }
 
-        instance.create_surface(target)
+        let mut target = self.target.borrow_mut();
+        if target.as_ref().map(|t| t.size()) != Some(wanted) {
+            *target = None;
+            match target::Target::new(device, wanted) {
+                Ok(t) => *target = Some(t),
+                Err(e) => {
+                    error!("WGPU canvas: cannot create a render target: {e}");
+                    self.failed.set(Some(wanted));
+                    return None;
+                }
+            }
+        }
+        let target = target.as_ref()?;
+        Some((
+            target.texture().clone(),
+            target.view().clone(),
+            target.format(),
+            target.size(),
+        ))
+    }
+
+    pub fn present(&self, queue: &wgpu::Queue) -> Result<()> {
+        let target = self.target.borrow();
+        if let Some(target) = target.as_ref() {
+            if let Err(e) = target.present(&self.picture, queue) {
+                if !self.present_failed.replace(true) {
+                    error!("WGPU canvas: cannot present a frame: {e}");
+                }
+            }
+        }
+        Ok(())
     }
 }
 
-winio_handle::impl_as_widget!(WgpuCanvas, widget);
-
-#[derive(Debug)]
-struct WindowHandleWrapper(RawWindowHandle, RawDisplayHandle);
-
-unsafe impl Send for WindowHandleWrapper {}
-unsafe impl Sync for WindowHandleWrapper {}
-
-impl HasWindowHandle for WindowHandleWrapper {
-    fn window_handle(&self) -> std::result::Result<WindowHandle<'_>, HandleError> {
-        Ok(unsafe { WindowHandle::borrow_raw(self.0) })
-    }
-}
-
-impl HasDisplayHandle for WindowHandleWrapper {
-    fn display_handle(&self) -> std::result::Result<DisplayHandle<'_>, HandleError> {
-        Ok(unsafe { DisplayHandle::borrow_raw(self.1) })
-    }
-}
+winio_handle::impl_as_widget!(WgpuCanvas, handle);
