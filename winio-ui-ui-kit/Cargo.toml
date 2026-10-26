@@ -34,7 +34,10 @@ wgpu = { workspace = true, optional = true, features = ["metal"] }
 
 block2 = { workspace = true }
 dispatch2 = "0.3"
-objc2 = { workspace = true, features = ["exception"] }
+objc2 = { workspace = true, features = [
+    "exception",
+    "disable-encoding-assertions",
+] }
 objc2-core-foundation = { workspace = true }
 objc2-core-graphics = { workspace = true }
 objc2-core-text = { workspace = true }
