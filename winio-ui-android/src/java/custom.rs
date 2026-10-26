@@ -1,5 +1,8 @@
 use crate::java::{
-    android::{content::Context, text::style::ClickableSpan, view::View, webkit::WebViewClient},
+    android::{
+        content::Context, text::style::ClickableSpan, view::View, webkit::WebViewClient,
+        widget::NumberPickerOnValueChangeListener,
+    },
     androidx::recyclerview::RecyclerViewAdapter,
     lang::JRunnable,
 };
@@ -19,6 +22,32 @@ jni::bind_java_type! {
     },
     is_instance_of = {
         context = Context,
+    }
+}
+
+jni::bind_java_type! {
+    pub NumberPicker => rs.compio.winio.NumberPicker,
+    type_map {
+        View => android.view.View,
+        Context => android.content.Context,
+        NumberPickerOnValueChangeListener => "android.widget.NumberPicker$OnValueChangeListener",
+    },
+    constructors {
+        fn new(context: &Context),
+    },
+    methods {
+        fn get_real_value() -> jint,
+        fn set_real_value(value: jint),
+        fn get_real_min_value() -> jint,
+        fn set_real_min_value(min_value: jint),
+        fn get_real_max_value() -> jint,
+        fn set_real_max_value(max_value: jint),
+        fn get_step() -> jint,
+        fn set_step(step: jint),
+        fn set_on_value_changed_listener(listener: &NumberPickerOnValueChangeListener),
+    },
+    is_instance_of = {
+        view = View,
     }
 }
 

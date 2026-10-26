@@ -60,6 +60,9 @@ pub use tab_view::*;
 mod group_box;
 pub use group_box::*;
 
+mod up_down_edit;
+pub use up_down_edit::*;
+
 #[cfg(feature = "wgpu")]
 mod wgpu;
 #[cfg(feature = "wgpu")]

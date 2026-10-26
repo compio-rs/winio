@@ -330,6 +330,14 @@ jni::bind_java_type! {
     pub AdapterViewOnItemSelectedListener => "android.widget.AdapterView$OnItemSelectedListener",
 }
 
+impl_listener!(AdapterViewOnItemSelectedListener);
+
+jni::bind_java_type! {
+    pub NumberPickerOnValueChangeListener => "android.widget.NumberPicker$OnValueChangeListener",
+}
+
+impl_listener!(NumberPickerOnValueChangeListener);
+
 pub mod abs_list_view {
     pub const CHOICE_MODE_MULTIPLE: i32 = 2;
     pub const CHOICE_MODE_SINGLE: i32 = 1;
@@ -338,5 +346,3 @@ pub mod abs_list_view {
 pub mod linear_layout {
     pub const VERTICAL: i32 = 1;
 }
-
-impl_listener!(AdapterViewOnItemSelectedListener);

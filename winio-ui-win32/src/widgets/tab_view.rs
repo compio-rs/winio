@@ -227,7 +227,11 @@ impl TabViewData {
             unsafe { SetParent(inner.view.as_widget().as_win32(), HWND_MESSAGE) };
         }
         self.handle.send_message(TCM_DELETEITEM, index, 0);
-        self.views.borrow_mut().remove(index);
+        let removed = {
+            let mut views = self.views.borrow_mut();
+            views.remove(index)
+        };
+        drop(removed);
         self.reset_indices();
         if self.selection().is_none() && !self.views.borrow().is_empty() {
             self.handle.send_message(TCM_SETCURSEL, 0, 0);
