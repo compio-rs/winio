@@ -81,11 +81,8 @@ impl UpDownEdit {
     }
 
     pub fn preferred_size(&self) -> Result<Size> {
-        let text = catch(|| self.text.sizeThatFits(CGSize::new(1000.0, 1000.0)))?;
-        Ok(Size::new(
-            text.width.max(60.0) + 94.0,
-            text.height.max(34.0),
-        ))
+        let text = catch(|| self.text.sizeThatFits(CGSize::ZERO))?;
+        Ok(Size::new(text.width + 94.0, text.height))
     }
 
     pub fn loc(&self) -> Result<Point>;

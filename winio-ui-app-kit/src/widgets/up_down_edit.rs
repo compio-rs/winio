@@ -81,8 +81,8 @@ impl UpDownEdit {
     pub fn preferred_size(&self) -> Result<Size> {
         let text = catch(|| self.text.fittingSize())?;
         let stepper = catch(|| self.stepper.fittingSize())?;
-        let width = text.width.max(60.0) + stepper.width.max(19.0);
-        let height = text.height.max(stepper.height).max(24.0);
+        let width = text.width + stepper.width;
+        let height = text.height.max(stepper.height);
         Ok(Size::new(width, height))
     }
 

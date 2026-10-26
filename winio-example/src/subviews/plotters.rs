@@ -94,7 +94,7 @@ impl Component for PlottersPage {
             let mut grid = layout! {
                 Grid::from_str("1*, 1*", "auto, 1*").unwrap(),
                 self.label => { column: 0, row: 0, halign: HAlign::Right, valign: VAlign::Center },
-                self.up_down => { column: 1, row: 0, halign: HAlign::Left },
+                self.up_down => { column: 1, row: 0, halign: HAlign::Left, min_width: 60.0 },
                 self.canvas => { column: 0, row: 1, column_span: 2, valign: VAlign::Stretch, halign: HAlign::Stretch },
             };
             grid.set_size(size)?;
