@@ -35,7 +35,9 @@ impl UpDownEdit {
             let container = UIView::new(mtm);
             let text = UITextField::new(mtm);
             text.setBorderStyle(UITextBorderStyle::RoundedRect);
-            text.setKeyboardType(UIKeyboardType::NumberPad);
+            if !cfg!(debug_assertions) {
+                text.setKeyboardType(UIKeyboardType::NumberPad);
+            }
             text.setText(Some(&NSString::from_str("0")));
 
             let stepper = UIStepper::new(mtm);
