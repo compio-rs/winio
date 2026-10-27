@@ -53,13 +53,16 @@ impl UpDownEdit {
     pub fn value(&self) -> Result<usize>;
 
     /// Set the value.
+    ///
+    /// The current value can be unreadable before the control is initialized,
+    /// for example when the Windows up-down control has an empty buddy edit.
+    /// In that case the value is still applied.
     pub fn set_value(&mut self, v: usize) -> Result<()> {
-        if let Ok(oldv) = self.value()
-            && v != oldv
-        {
-            self.widget.set_value(v)?;
-            self.value_prop.notify(v);
+        if self.value().is_ok_and(|oldv| v == oldv) {
+            return Ok(());
         }
+        self.widget.set_value(v)?;
+        self.value_prop.notify(v);
         Ok(())
     }
 
