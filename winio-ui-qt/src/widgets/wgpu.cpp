@@ -12,10 +12,7 @@
 #include <QtGui/qopenglcontext_platform.h>
 #endif
 
-#if __has_include(<EGL/egl.h>) && __has_include(<EGL/eglext.h>)
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-#else
+// EGL constants
 #define EGL_NONE 0x3038
 #define EGL_WIDTH 0x3057
 #define EGL_HEIGHT 0x3056
@@ -24,7 +21,6 @@
 #define EGL_DMA_BUF_PLANE0_FD_EXT 0x3272
 #define EGL_DMA_BUF_PLANE0_OFFSET_EXT 0x3273
 #define EGL_DMA_BUF_PLANE0_PITCH_EXT 0x3274
-#endif
 
 // A triangle strip covering the widget, with the matching texture coordinates.
 const char *const VERTEX_SHADER = R"(#version 120
