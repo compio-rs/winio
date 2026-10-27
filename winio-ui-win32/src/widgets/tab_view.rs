@@ -126,6 +126,7 @@ impl TabView {
 
     pub fn set_selection(&mut self, i: usize) -> Result<()> {
         self.data.handle.send_message(TCM_SETCURSEL, i as _, 0);
+        self.data.show_current_view();
         Ok(())
     }
 
