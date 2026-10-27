@@ -38,14 +38,9 @@ void main() {
 
 const char *const FRAGMENT_SHADER = R"(#version 120
 uniform sampler2D tex;
-uniform int bgr;
 varying vec2 v_uv;
 void main() {
-    vec4 color = texture2D(tex, v_uv);
-    if (bgr == 1) {
-        color = vec4(color.b, color.g, color.r, color.a);
-    }
-    gl_FragColor = color;
+    gl_FragColor = texture2D(tex, v_uv);
 })";
 
 // A triangle strip covering the widget, with the matching texture coordinates.
@@ -65,7 +60,6 @@ struct WinioWgpuCanvas::GlState {
     bool initialized = false;
     bool dmabuf_supported = false;
     bool dmabuf_ready = false;
-    bool bgr = false;
     unsigned texture = 0;
     unsigned buffer = 0;
     std::unique_ptr<QOpenGLShaderProgram> program;
@@ -168,7 +162,6 @@ void WinioWgpuCanvas::paintGL() {
         functions->glActiveTexture(GL_TEXTURE0);
         functions->glBindTexture(GL_TEXTURE_2D, m_gl->texture);
         m_gl->program->setUniformValue("tex", 0);
-        m_gl->program->setUniformValue("bgr", m_gl->bgr ? 1 : 0);
         functions->glBindBuffer(GL_ARRAY_BUFFER, m_gl->buffer);
         m_gl->program->enableAttributeArray(0);
         m_gl->program->setAttributeBuffer(0, GL_FLOAT, 0, 2, 4 * sizeof(float));
@@ -227,8 +220,6 @@ bool WinioWgpuCanvas::set_dmabuf(int fd, int width, int height, int stride,
     auto *functions = QOpenGLContext::currentContext()->functions();
     functions->glBindTexture(GL_TEXTURE_2D, m_gl->texture);
     m_gl->image_target_texture(GL_TEXTURE_2D, m_gl->egl_image);
-    // The import knows the fourcc, so the samples are already RGBA: no swap.
-    m_gl->bgr = false;
     functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
