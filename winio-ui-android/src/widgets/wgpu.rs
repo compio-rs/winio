@@ -19,6 +19,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct WgpuCanvas {
+    surface: SurfaceCanvas,
     inner: BaseWidget<SurfaceView<'static>>,
     on_down: Arc<SyncCallback<MouseButton>>,
     on_up: Arc<SyncCallback<MouseButton>>,
@@ -27,7 +28,6 @@ pub struct WgpuCanvas {
     keyboard: Keyboard,
     #[allow(dead_code)]
     touch_proxy: DynamicProxy,
-    surface: SurfaceCanvas,
 }
 
 #[inherit_methods(from = "self.inner")]
@@ -51,6 +51,7 @@ impl WgpuCanvas {
                 on_scroll.clone(),
             )?;
             Ok(Self {
+                surface: SurfaceCanvas::new(),
                 inner,
                 on_down,
                 on_up,
@@ -58,7 +59,6 @@ impl WgpuCanvas {
                 on_scroll,
                 keyboard,
                 touch_proxy,
-                surface: SurfaceCanvas::new(),
             })
         })
     }
@@ -141,8 +141,12 @@ impl WgpuCanvas {
         let window =
             RawWindowHandle::AndroidNdk(AndroidNdkWindowHandle::new(native_window.ptr().cast()));
         let display = RawDisplayHandle::Android(AndroidDisplayHandle::new());
-        self.surface
-            .acquire(device, window, display, (width, height))
+        // SAFETY: `surface` is declared before `inner`, so it is dropped before
+        // the view that owns the native window.
+        unsafe {
+            self.surface
+                .acquire(device, window, display, (width, height))
+        }
     }
 
     pub fn bind(&mut self, instance: &Instance, adapter: &Adapter) {

@@ -22,10 +22,10 @@ pub struct SurfaceCanvas {
 struct State {
     instance: Instance,
     adapter: Adapter,
+    frame: Option<SurfaceTexture>,
     surface: Option<Surface<'static>>,
     format: TextureFormat,
     configured: (u32, u32),
-    frame: Option<SurfaceTexture>,
 }
 
 impl SurfaceCanvas {
@@ -47,10 +47,10 @@ impl SurfaceCanvas {
         self.state = Some(State {
             instance: instance.clone(),
             adapter: adapter.clone(),
+            frame: None,
             surface: None,
             format: TextureFormat::Bgra8Unorm,
             configured: (0, 0),
-            frame: None,
         });
     }
 
@@ -65,24 +65,36 @@ impl SurfaceCanvas {
     /// `window` is the native handle of the widget, used to create the surface.
     /// Returns `None` when the canvas is not bound yet, or when no frame is
     /// available (the surface is occluded, out of date or lost).
-    pub fn acquire(
+    ///
+    /// # Safety
+    ///
+    /// `window` and the object behind `display` must remain valid until this
+    /// canvas, and the surface it creates, is dropped.
+    pub unsafe fn acquire(
         &mut self,
         device: &Device,
         window: RawWindowHandle,
         display: RawDisplayHandle,
         size: (u32, u32),
     ) -> Option<(Texture, TextureView, TextureFormat)> {
-        self.acquire_with(device, size, |instance| {
-            instance
-                .create_surface(SurfaceTarget::from(WindowHandleWrapper(window, display)))
-                .ok()
-        })
+        unsafe {
+            self.acquire_with(device, size, |instance| {
+                instance
+                    .create_surface(SurfaceTarget::from(WindowHandleWrapper(window, display)))
+                    .ok()
+            })
+        }
     }
 
     /// Like [`acquire`](Self::acquire), but the surface is created by `create`.
     ///
     /// This is for backends that need a specialized surface target.
-    pub fn acquire_with(
+    ///
+    /// # Safety
+    ///
+    /// The surface returned by `create` must only reference native handles
+    /// that remain valid until this canvas, and the surface, is dropped.
+    pub unsafe fn acquire_with(
         &mut self,
         device: &Device,
         size: (u32, u32),

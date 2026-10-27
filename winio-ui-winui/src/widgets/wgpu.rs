@@ -12,9 +12,9 @@ use crate::{CanvasImpl, Error, Result};
 
 #[derive(Debug)]
 pub struct WgpuCanvas {
-    handle: CanvasImpl,
-    native: ISwapChainPanelNative,
     surface: SurfaceCanvas,
+    native: ISwapChainPanelNative,
+    handle: CanvasImpl,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -23,9 +23,9 @@ impl WgpuCanvas {
         let handle = CanvasImpl::new(parent)?;
         let native = handle.cast::<ISwapChainPanelNative>()?;
         Ok(Self {
-            handle,
-            native,
             surface: SurfaceCanvas::new(),
+            native,
+            handle,
         })
     }
 
@@ -86,13 +86,16 @@ impl WgpuCanvas {
         let width = (size.width as f32 * scalex).max(1.0) as u32;
         let height = (size.height as f32 * scaley).max(1.0) as u32;
         let native = self.native.clone();
-        let frame = self
-            .surface
-            .acquire_with(device, (width, height), move |instance| unsafe {
-                instance
-                    .create_surface_unsafe(SurfaceTargetUnsafe::SwapChainPanel(native.as_raw()))
-                    .ok()
-            })?;
+        // SAFETY: `surface` is declared before `native` and `handle`, so it is
+        // dropped before the panel that owns the native handle.
+        let frame = unsafe {
+            self.surface
+                .acquire_with(device, (width, height), move |instance| {
+                    instance
+                        .create_surface_unsafe(SurfaceTargetUnsafe::SwapChainPanel(native.as_raw()))
+                        .ok()
+                })
+        }?;
         if let Err(e) = self.apply_composition_scale(scalex, scaley) {
             error!("Failed to apply composition scale: {e:?}");
         }

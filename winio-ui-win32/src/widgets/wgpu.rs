@@ -16,8 +16,8 @@ use crate::{
 
 #[derive(Debug)]
 pub struct WgpuCanvas {
-    handle: CanvasImpl,
     surface: SurfaceCanvas,
+    handle: CanvasImpl,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -25,8 +25,8 @@ impl WgpuCanvas {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let handle = CanvasImpl::new(parent)?;
         Ok(Self {
-            handle,
             surface: SurfaceCanvas::new(),
+            handle,
         })
     }
 
@@ -93,8 +93,12 @@ impl WgpuCanvas {
         let height = size.height.to_device(dpi).max(1.0) as u32;
         let window = RawWindowHandle::Win32(Win32WindowHandle::new(NonZero::new(hwnd as _)?));
         let display = RawDisplayHandle::Windows(WindowsDisplayHandle::new());
-        self.surface
-            .acquire(device, window, display, (width, height))
+        // SAFETY: `surface` is declared before `handle`, so it is dropped
+        // before the window that owns `hwnd`.
+        unsafe {
+            self.surface
+                .acquire(device, window, display, (width, height))
+        }
     }
 
     pub fn present(&mut self, queue: &Queue) -> Result<()> {

@@ -14,8 +14,8 @@ use crate::{CanvasImpl, Result};
 
 #[derive(Debug)]
 pub struct WgpuCanvas {
-    handle: CanvasImpl,
     surface: SurfaceCanvas,
+    handle: CanvasImpl,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -23,8 +23,8 @@ impl WgpuCanvas {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let handle = CanvasImpl::new(parent)?;
         Ok(Self {
-            handle,
             surface: SurfaceCanvas::new(),
+            handle,
         })
     }
 
@@ -90,8 +90,12 @@ impl WgpuCanvas {
                 .cast(),
         )?));
         let display = RawDisplayHandle::AppKit(AppKitDisplayHandle::new());
-        self.surface
-            .acquire(device, window, display, (width, height))
+        // SAFETY: `surface` is declared before `handle`, so it is dropped
+        // before the view that the native handle belongs to.
+        unsafe {
+            self.surface
+                .acquire(device, window, display, (width, height))
+        }
     }
 
     pub fn bind(&mut self, instance: &Instance, adapter: &Adapter) {
