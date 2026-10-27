@@ -7,16 +7,14 @@
 use std::{
     fmt,
     os::fd::{AsRawFd, FromRawFd, OwnedFd},
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 use ash::vk;
 use compio_log::warn;
 use gtk4::{Picture, gdk, glib};
 use wgpu::hal::{self, vulkan::TextureMemory};
+use winio_wgpu::MemoryCanvas;
 
 use crate::{Error, Result};
 
@@ -41,7 +39,7 @@ pub(super) enum Target {
     Dmabuf(DmabufTarget),
     /// The texture is copied back to the CPU and wrapped in a
     /// [`gdk::MemoryTexture`].
-    Memory(MemoryTarget),
+    Memory(MemoryCanvas),
 }
 
 /// Set once DMA-BUF export is known to be unsupported, so that resizing the
@@ -51,7 +49,7 @@ static DMABUF_UNAVAILABLE: AtomicBool = AtomicBool::new(false);
 impl Target {
     pub fn new(device: &wgpu::Device, size: (u32, u32)) -> std::result::Result<Self, String> {
         if DMABUF_UNAVAILABLE.load(Ordering::Relaxed) {
-            return MemoryTarget::new(device, size).map(Self::Memory);
+            return Ok(Self::Memory(MemoryCanvas::new()));
         }
         match DmabufTarget::new(device, size) {
             Ok(target) => Ok(Self::Dmabuf(target)),
@@ -60,40 +58,56 @@ impl Target {
                     "WGPU canvas: cannot export a DMA-BUF ({e}), falling back to a memory texture"
                 );
                 DMABUF_UNAVAILABLE.store(true, Ordering::Relaxed);
-                MemoryTarget::new(device, size).map(Self::Memory)
+                Ok(Self::Memory(MemoryCanvas::new()))
             }
         }
     }
 
-    pub fn view(&self) -> &wgpu::TextureView {
+    pub fn size(&self) -> Option<(u32, u32)> {
         match self {
-            Self::Dmabuf(t) => &t.view,
-            Self::Memory(t) => &t.view,
+            Self::Dmabuf(t) => Some(t.size),
+            Self::Memory(t) => t.size(),
         }
     }
 
-    pub fn texture(&self) -> &wgpu::Texture {
+    pub fn acquire(
+        &mut self,
+        device: &wgpu::Device,
+        size: (u32, u32),
+    ) -> (
+        wgpu::Texture,
+        wgpu::TextureView,
+        wgpu::TextureFormat,
+        (u32, u32),
+    ) {
         match self {
-            Self::Dmabuf(t) => &t.texture,
-            Self::Memory(t) => &t.texture,
+            Self::Dmabuf(t) => (t.texture.clone(), t.view.clone(), FORMAT_SRGB, t.size),
+            Self::Memory(t) => t.acquire(device, size),
         }
     }
 
-    pub fn format(&self) -> wgpu::TextureFormat {
-        FORMAT_SRGB
-    }
-
-    pub fn size(&self) -> (u32, u32) {
-        match self {
-            Self::Dmabuf(t) => t.size,
-            Self::Memory(t) => t.size,
-        }
-    }
-
-    pub fn present(&self, picture: &Picture, queue: &wgpu::Queue) -> Result<()> {
+    pub fn present(&mut self, picture: &Picture, queue: &wgpu::Queue) -> Result<()> {
         match self {
             Self::Dmabuf(t) => t.present(picture, queue),
-            Self::Memory(t) => t.present(picture, queue),
+            Self::Memory(t) => {
+                let Some(size) = t.size() else {
+                    return Ok(());
+                };
+                let Some(pixels) = t.present(queue) else {
+                    return Ok(());
+                };
+                let bytes_per_row = (size.0 * 4) as usize;
+                let bytes = glib::Bytes::from(pixels);
+                let texture = gdk::MemoryTexture::new(
+                    size.0 as i32,
+                    size.1 as i32,
+                    gdk::MemoryFormat::B8g8r8a8,
+                    &bytes,
+                    bytes_per_row,
+                );
+                picture.set_paintable(Some(&texture));
+                Ok(())
+            }
         }
     }
 }
@@ -276,121 +290,6 @@ impl fmt::Debug for DmabufTarget {
             .field("stride", &self.stride)
             .field("fourcc", &self.fourcc)
             .field("modifier", &self.modifier)
-            .finish_non_exhaustive()
-    }
-}
-
-/// A texture that is copied back to the CPU before being handed to GTK.
-pub(super) struct MemoryTarget {
-    texture: wgpu::Texture,
-    view: wgpu::TextureView,
-    buffer: wgpu::Buffer,
-    size: (u32, u32),
-    padded_bytes_per_row: u32,
-    device: wgpu::Device,
-}
-
-impl MemoryTarget {
-    fn new(
-        device: &wgpu::Device,
-        (width, height): (u32, u32),
-    ) -> std::result::Result<Self, String> {
-        let texture = device.create_texture(&texture_descriptor(
-            width,
-            height,
-            wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
-        ));
-        let bytes_per_row = width * 4;
-        let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
-        let padded_bytes_per_row = bytes_per_row.div_ceil(align) * align;
-        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("winio canvas read-back"),
-            size: padded_bytes_per_row as u64 * height as u64,
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-            mapped_at_creation: false,
-        });
-        let view = texture.create_view(&wgpu::TextureViewDescriptor {
-            format: Some(FORMAT_SRGB),
-            ..Default::default()
-        });
-        Ok(Self {
-            texture,
-            view,
-            buffer,
-            size: (width, height),
-            padded_bytes_per_row,
-            device: device.clone(),
-        })
-    }
-
-    fn present(&self, picture: &Picture, queue: &wgpu::Queue) -> Result<()> {
-        let (width, height) = self.size;
-        let mut encoder = self.device.create_command_encoder(&Default::default());
-        encoder.copy_texture_to_buffer(
-            wgpu::TexelCopyTextureInfo {
-                texture: &self.texture,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            wgpu::TexelCopyBufferInfo {
-                buffer: &self.buffer,
-                layout: wgpu::TexelCopyBufferLayout {
-                    offset: 0,
-                    bytes_per_row: Some(self.padded_bytes_per_row),
-                    rows_per_image: Some(height),
-                },
-            },
-            wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-        );
-        queue.submit([encoder.finish()]);
-
-        let slice = self.buffer.slice(..);
-        let mapped = Arc::new(AtomicBool::new(false));
-        let mapped_cb = mapped.clone();
-        slice.map_async(wgpu::MapMode::Read, move |result| {
-            mapped_cb.store(result.is_ok(), Ordering::Release);
-        });
-        let _ = self.device.poll(wgpu::PollType::Wait {
-            submission_index: None,
-            timeout: None,
-        });
-        if !mapped.load(Ordering::Acquire) {
-            return Err(Error::NotSupported);
-        }
-
-        let view = slice.get_mapped_range().map_err(|_| Error::NotSupported)?;
-        let bytes_per_row = (width * 4) as usize;
-        let mut pixels = Vec::with_capacity(bytes_per_row * height as usize);
-        for row in 0..height as usize {
-            let start = row * self.padded_bytes_per_row as usize;
-            pixels.extend_from_slice(&view[start..start + bytes_per_row]);
-        }
-        drop(view);
-        self.buffer.unmap();
-
-        let bytes = glib::Bytes::from(&pixels);
-        let texture = gdk::MemoryTexture::new(
-            width as i32,
-            height as i32,
-            gdk::MemoryFormat::B8g8r8a8,
-            &bytes,
-            bytes_per_row,
-        );
-        picture.set_paintable(Some(&texture));
-        Ok(())
-    }
-}
-
-impl fmt::Debug for MemoryTarget {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("MemoryTarget")
-            .field("size", &self.size)
-            .field("padded_bytes_per_row", &self.padded_bytes_per_row)
             .finish_non_exhaustive()
     }
 }

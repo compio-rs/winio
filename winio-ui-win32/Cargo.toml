@@ -18,6 +18,7 @@ winio-handle = { workspace = true, features = ["win32"] }
 winio-callback = { workspace = true }
 winio-pollable = { workspace = true, features = ["callback"] }
 winio-ui-windows-common = { workspace = true, features = ["win32"] }
+winio-wgpu = { workspace = true, optional = true, features = ["surface"] }
 
 compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
@@ -64,7 +65,7 @@ webview2 = { workspace = true, optional = true }
 media = ["dep:percent-encoding", "windows/Win32_Media_MediaFoundation"]
 webview = ["dep:webview2", "dep:local-sync", "dep:cookie", "dep:time"]
 compio-compat = ["compio/runtime", "compio/compat"]
-wgpu = ["dep:wgpu"]
+wgpu = ["dep:wgpu", "dep:winio-wgpu"]
 
 dark-mode = ["winio-ui-windows-common/dark-mode"]
 

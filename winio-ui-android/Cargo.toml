@@ -24,6 +24,7 @@ winio-primitive = { workspace = true }
 winio-callback = { workspace = true }
 winio-handle = { workspace = true }
 winio-pollable = { workspace = true }
+winio-wgpu = { workspace = true, optional = true, features = ["surface"] }
 
 compio = { workspace = true, default-features = false }
 compio-log = { workspace = true }
@@ -48,5 +49,5 @@ wgpu = { workspace = true, optional = true, features = ["vulkan"] }
 [features]
 media = []
 webview = ["dep:cookie", "dep:time", "dep:base64"]
-wgpu = ["dep:wgpu"]
+wgpu = ["dep:wgpu", "dep:winio-wgpu"]
 compio-compat = ["compio/compat", "compio/fs"]

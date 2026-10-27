@@ -1,5 +1,3 @@
-use std::cell::{Cell, RefCell};
-
 use compio_log::error;
 use gtk4::{
     ContentFit, GraphicsOffload, GraphicsOffloadEnabled, Overlay, Picture, glib::object::Cast,
@@ -18,11 +16,11 @@ mod target;
 pub struct WgpuCanvas {
     handle: CanvasImpl,
     picture: Picture,
-    target: RefCell<Option<target::Target>>,
+    target: Option<target::Target>,
     /// Size of the last failed attempt, to avoid retrying every frame.
-    failed: Cell<Option<(u32, u32)>>,
+    failed: Option<(u32, u32)>,
     /// Whether a presentation error has already been reported.
-    present_failed: Cell<bool>,
+    present_failed: bool,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -52,9 +50,9 @@ impl WgpuCanvas {
         Ok(Self {
             handle,
             picture,
-            target: RefCell::new(None),
-            failed: Cell::new(None),
-            present_failed: Cell::new(false),
+            target: None,
+            failed: None,
+            present_failed: false,
         })
     }
 
@@ -107,7 +105,7 @@ impl WgpuCanvas {
     }
 
     pub fn acquire(
-        &self,
+        &mut self,
         device: &wgpu::Device,
     ) -> Option<(
         wgpu::Texture,
@@ -121,42 +119,38 @@ impl WgpuCanvas {
         let height = ((size.height * scale).round() as u32).max(1);
         let wanted = (width, height);
 
-        if self.failed.get() == Some(wanted) {
+        if self.failed == Some(wanted) {
             return None;
         }
 
-        let mut target = self.target.borrow_mut();
-        if target.as_ref().map(|t| t.size()) != Some(wanted) {
-            *target = None;
+        if self.target.as_ref().and_then(|t| t.size()) != Some(wanted) {
+            self.target = None;
             match target::Target::new(device, wanted) {
-                Ok(t) => *target = Some(t),
+                Ok(t) => self.target = Some(t),
                 Err(e) => {
                     error!("WGPU canvas: cannot create a render target: {e}");
-                    self.failed.set(Some(wanted));
+                    self.failed = Some(wanted);
                     return None;
                 }
             }
         }
-        let target = target.as_ref()?;
-        Some((
-            target.texture().clone(),
-            target.view().clone(),
-            target.format(),
-            target.size(),
-        ))
+        Some(self.target.as_mut()?.acquire(device, wanted))
     }
 
-    pub fn present(&self, queue: &wgpu::Queue) -> Result<()> {
-        let target = self.target.borrow();
-        if let Some(target) = target.as_ref() {
+    pub fn present(&mut self, queue: &wgpu::Queue) -> Result<()> {
+        if let Some(target) = self.target.as_mut() {
             if let Err(e) = target.present(&self.picture, queue) {
-                if !self.present_failed.replace(true) {
+                if !std::mem::replace(&mut self.present_failed, true) {
                     error!("WGPU canvas: cannot present a frame: {e}");
                 }
             }
         }
         Ok(())
     }
+}
+
+impl WgpuCanvas {
+    pub fn bind(&mut self, _instance: &wgpu::Instance, _adapter: &wgpu::Adapter) {}
 }
 
 winio_handle::impl_as_widget!(WgpuCanvas, handle);

@@ -15,13 +15,14 @@ targets = ["x86_64-unknown-linux-gnu"]
 [target.'cfg(not(any(windows, target_vendor = "apple", target_os = "android")))'.dependencies]
 winio-primitive = { workspace = true, features = ["bytemuck"] }
 winio-handle = { workspace = true, features = ["gtk"] }
-bytemuck = { workspace = true }
 winio-callback = { workspace = true }
 winio-pollable = { workspace = true, features = ["callback"] }
+winio-wgpu = { workspace = true, optional = true, features = ["memory"] }
 
 compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
 
+bytemuck = { workspace = true }
 cookie = { workspace = true, optional = true }
 futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
@@ -41,7 +42,7 @@ webkit6 = { workspace = true, optional = true, features = ["v2_42"] }
 [features]
 media = []
 webview = ["dep:webkit6", "dep:cookie", "dep:time"]
-wgpu = ["dep:wgpu", "dep:ash"]
+wgpu = ["dep:wgpu", "dep:ash", "dep:winio-wgpu"]
 compio-compat = [
     "compio/runtime",
     "compio/compat",

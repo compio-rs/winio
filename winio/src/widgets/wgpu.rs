@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use wgpu::{Device, Queue, Texture, TextureFormat, TextureView};
+use wgpu::{Adapter, Device, Instance, Queue, Texture, TextureFormat, TextureView};
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
@@ -21,7 +21,6 @@ use crate::{
 ///
 /// ## Platform specific
 /// * iOS: Simulator does not support [`wgpu`].
-/// * Qt & GTK: Might not work correctly.
 #[derive(Debug)]
 pub struct WgpuCanvas {
     widget: sys::WgpuCanvas,
@@ -41,6 +40,16 @@ pub struct WgpuCanvasFrame {
 }
 
 impl WgpuCanvas {
+    /// Hand the GPU stack over to the canvas.
+    ///
+    /// Call it once, after the `device` has been created and before the first
+    /// [`Self::acquire`]. Backends that composite the canvas themselves (Qt,
+    /// GTK) ignore the arguments; backends that render to a native surface need
+    /// it to create and configure that surface.
+    pub fn bind(&mut self, instance: &Instance, adapter: &Adapter) {
+        self.widget.bind(instance, adapter)
+    }
+
     /// Acquire a frame to render into.
     ///
     /// The texture is owned by the canvas: it is recreated when the canvas is
@@ -48,22 +57,22 @@ impl WgpuCanvas {
     ///
     /// Returns `None` if the backend cannot provide a canvas-owned texture,
     /// e.g. it still renders through a native surface.
-    pub fn acquire(&self, device: &Device) -> Option<WgpuCanvasFrame> {
+    pub fn acquire(&mut self, device: &Device) -> Option<WgpuCanvasFrame> {
         let (texture, view, format, size) = self.widget.acquire(device)?;
-        return Some(WgpuCanvasFrame {
+        Some(WgpuCanvasFrame {
             texture,
             view,
             format,
             size,
-        });
+        })
     }
 
     /// Present the frame acquired by [`Self::acquire`].
     ///
     /// It must be called after the queue submission that renders into the
     /// frame is recorded.
-    pub fn present(&self, queue: &Queue) -> Result<()> {
-        return self.widget.present(queue);
+    pub fn present(&mut self, queue: &Queue) -> Result<()> {
+        self.widget.present(queue)
     }
 }
 

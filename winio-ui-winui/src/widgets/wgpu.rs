@@ -1,9 +1,10 @@
 use compio_log::error;
 use inherit_methods_macro::inherit_methods;
-use wgpu::{CreateSurfaceError, Instance, Surface, SurfaceTargetUnsafe};
+use wgpu::{Adapter, Instance, SurfaceTargetUnsafe};
 use windows_core::Interface;
 use winio_handle::AsContainer;
 use winio_primitive::{KeyCode, MouseButton, Point, Size, Vector};
+use winio_wgpu::SurfaceCanvas;
 use winui3::Microsoft::UI::Xaml::Media::DxInterop::ISwapChainPanelNative;
 
 use crate::{CanvasImpl, Result};
@@ -12,6 +13,7 @@ use crate::{CanvasImpl, Result};
 pub struct WgpuCanvas {
     handle: CanvasImpl,
     native: ISwapChainPanelNative,
+    surface: SurfaceCanvas,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -19,7 +21,11 @@ impl WgpuCanvas {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let handle = CanvasImpl::new(parent)?;
         let native = handle.cast::<ISwapChainPanelNative>()?;
-        Ok(Self { handle, native })
+        Ok(Self {
+            handle,
+            native,
+            surface: SurfaceCanvas::new(),
+        })
     }
 
     pub fn is_visible(&self) -> Result<bool>;
@@ -70,14 +76,34 @@ impl WgpuCanvas {
         self.handle.wait_key_char().await
     }
 
-    pub fn create_surface(
-        &self,
-        instance: &Instance,
-    ) -> std::result::Result<Surface<'static>, CreateSurfaceError> {
-        unsafe {
-            instance
-                .create_surface_unsafe(SurfaceTargetUnsafe::SwapChainPanel(self.native.as_raw()))
-        }
+    pub fn acquire(
+        &mut self,
+        device: &wgpu::Device,
+    ) -> Option<(
+        wgpu::Texture,
+        wgpu::TextureView,
+        wgpu::TextureFormat,
+        (u32, u32),
+    )> {
+        let size = self.handle.size().ok()?;
+        let width = size.width as u32;
+        let height = size.height as u32;
+        let native = self.native.clone();
+        self.surface
+            .acquire_with(device, (width, height), move |instance| unsafe {
+                instance
+                    .create_surface_unsafe(SurfaceTargetUnsafe::SwapChainPanel(native.as_raw()))
+                    .ok()
+            })
+    }
+
+    pub fn bind(&mut self, instance: &Instance, adapter: &Adapter) {
+        self.surface.bind(instance, adapter);
+    }
+
+    pub fn present(&mut self, queue: &wgpu::Queue) -> Result<()> {
+        self.surface.present(queue);
+        Ok(())
     }
 }
 

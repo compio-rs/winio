@@ -3,27 +3,29 @@ use std::ptr::NonNull;
 use inherit_methods_macro::inherit_methods;
 use objc2::rc::Retained;
 use wgpu::{
-    CreateSurfaceError, Instance, Surface, SurfaceTarget,
-    rwh::{
-        AppKitWindowHandle, DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle,
-        RawWindowHandle, WindowHandle,
-    },
+    Adapter, Instance, Queue, Texture, TextureFormat, TextureView,
+    rwh::{AppKitDisplayHandle, AppKitWindowHandle, RawDisplayHandle, RawWindowHandle},
 };
 use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{KeyCode, MouseButton, Point, Size, Vector};
+use winio_wgpu::SurfaceCanvas;
 
 use crate::{CanvasImpl, Result};
 
 #[derive(Debug)]
 pub struct WgpuCanvas {
     handle: CanvasImpl,
+    surface: SurfaceCanvas,
 }
 
 #[inherit_methods(from = "self.handle")]
 impl WgpuCanvas {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let handle = CanvasImpl::new(parent)?;
-        Ok(Self { handle })
+        Ok(Self {
+            handle,
+            surface: SurfaceCanvas::new(),
+        })
     }
 
     pub fn is_visible(&self) -> Result<bool>;
@@ -74,39 +76,31 @@ impl WgpuCanvas {
         self.handle.wait_key_char().await
     }
 
-    pub fn create_surface(
-        &self,
-        instance: &Instance,
-    ) -> std::result::Result<Surface<'static>, CreateSurfaceError> {
-        let handle = RawWindowHandle::AppKit(AppKitWindowHandle::new(
-            NonNull::new(
-                Retained::as_ptr(self.handle.as_widget().as_app_kit())
-                    .cast_mut()
-                    .cast(),
-            )
-            .unwrap(),
-        ));
+    pub fn acquire(
+        &mut self,
+        device: &wgpu::Device,
+    ) -> Option<(Texture, TextureView, TextureFormat, (u32, u32))> {
+        let size = self.handle.size().ok()?;
+        let scale = self.handle.scale_factor();
+        let width = (size.width * scale).max(1.0) as u32;
+        let height = (size.height * scale).max(1.0) as u32;
+        let window = RawWindowHandle::AppKit(AppKitWindowHandle::new(NonNull::new(
+            Retained::as_ptr(self.handle.as_widget().as_app_kit())
+                .cast_mut()
+                .cast(),
+        )?));
+        let display = RawDisplayHandle::AppKit(AppKitDisplayHandle::new());
+        self.surface
+            .acquire(device, window, display, (width, height))
+    }
 
-        struct WindowHandleWrapper(RawWindowHandle);
+    pub fn bind(&mut self, instance: &Instance, adapter: &Adapter) {
+        self.surface.bind(instance, adapter);
+    }
 
-        unsafe impl Send for WindowHandleWrapper {}
-        unsafe impl Sync for WindowHandleWrapper {}
-
-        impl HasWindowHandle for WindowHandleWrapper {
-            fn window_handle(&self) -> std::result::Result<WindowHandle<'_>, HandleError> {
-                Ok(unsafe { WindowHandle::borrow_raw(self.0) })
-            }
-        }
-
-        impl HasDisplayHandle for WindowHandleWrapper {
-            fn display_handle(&self) -> std::result::Result<DisplayHandle<'_>, HandleError> {
-                Ok(DisplayHandle::appkit())
-            }
-        }
-
-        let target = SurfaceTarget::from(WindowHandleWrapper(handle));
-
-        instance.create_surface(target)
+    pub fn present(&mut self, queue: &Queue) -> Result<()> {
+        self.surface.present(queue);
+        Ok(())
     }
 }
 

@@ -207,6 +207,8 @@ impl Component for WgpuPageInner {
             }
         }
 
+        canvas.bind(&instance, &adapter);
+
         Ok(Self {
             window,
             canvas,
