@@ -85,7 +85,7 @@ impl WgpuCanvas {
     pub fn acquire(
         &mut self,
         device: &wgpu::Device,
-    ) -> Option<(Texture, TextureView, TextureFormat, (u32, u32))> {
+    ) -> Option<(Texture, TextureView, TextureFormat)> {
         let hwnd = self.handle.as_widget().as_win32();
         let dpi = get_dpi_for_window(hwnd);
         let size = self.handle.size().ok()?;

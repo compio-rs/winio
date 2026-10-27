@@ -41,17 +41,12 @@ impl MemoryCanvas {
         &mut self,
         device: &Device,
         size: (u32, u32),
-    ) -> (Texture, TextureView, TextureFormat, (u32, u32)) {
+    ) -> (Texture, TextureView, TextureFormat) {
         if self.frame.as_ref().map(|frame| frame.size) != Some(size) {
             self.frame = Some(Frame::new(device, size));
         }
         let frame = self.frame.as_ref().expect("just created");
-        (
-            frame.texture.clone(),
-            frame.view.clone(),
-            FORMAT_SRGB,
-            frame.size,
-        )
+        (frame.texture.clone(), frame.view.clone(), FORMAT_SRGB)
     }
 
     /// Copy the last acquired frame back to the CPU.

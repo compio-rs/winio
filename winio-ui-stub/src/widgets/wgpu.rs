@@ -74,12 +74,7 @@ impl WgpuCanvas {
     pub fn acquire(
         &self,
         _device: &wgpu::Device,
-    ) -> Option<(
-        wgpu::Texture,
-        wgpu::TextureView,
-        wgpu::TextureFormat,
-        (u32, u32),
-    )> {
+    ) -> Option<(wgpu::Texture, wgpu::TextureView, wgpu::TextureFormat)> {
         not_impl()
     }
 

@@ -65,7 +65,7 @@ impl SurfaceCanvas {
         window: RawWindowHandle,
         display: RawDisplayHandle,
         size: (u32, u32),
-    ) -> Option<(Texture, TextureView, TextureFormat, (u32, u32))> {
+    ) -> Option<(Texture, TextureView, TextureFormat)> {
         self.acquire_with(device, size, |instance| {
             instance
                 .create_surface(SurfaceTarget::from(WindowHandleWrapper(window, display)))
@@ -81,7 +81,7 @@ impl SurfaceCanvas {
         device: &Device,
         size: (u32, u32),
         create: impl FnOnce(&Instance) -> Option<Surface<'static>>,
-    ) -> Option<(Texture, TextureView, TextureFormat, (u32, u32))> {
+    ) -> Option<(Texture, TextureView, TextureFormat)> {
         let state = self.state.as_mut()?;
 
         if state.surface.is_none() {
@@ -139,7 +139,7 @@ impl SurfaceCanvas {
         });
         let texture = frame.texture.clone();
         state.frame = Some(frame);
-        Some((texture, view, format, size))
+        Some((texture, view, format))
     }
 
     /// Present the frame acquired by [`acquire`](Self::acquire).

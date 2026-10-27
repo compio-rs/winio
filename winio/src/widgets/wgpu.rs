@@ -17,7 +17,7 @@ use crate::{
 /// ## Recommended backends
 /// * Windows: DirectX 12
 /// * macOS & iOS: Metal
-/// * Android: Vulkan
+/// * Android & Qt & GTK: Vulkan
 ///
 /// ## Platform specific
 /// * iOS: Simulator does not support [`wgpu`].
@@ -28,24 +28,21 @@ pub struct WgpuCanvas {
 
 /// A frame acquired from a [`WgpuCanvas`].
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct WgpuCanvasFrame {
     /// The texture to render into.
     pub texture: Texture,
-    /// A view of [`Self::texture`], to be used as the render target.
+    /// A view of [`texture`][Self::texture], to be used as the render target.
     pub view: TextureView,
-    /// The format of [`Self::view`].
+    /// The format of [`view`][Self::view].
     pub format: TextureFormat,
-    /// The size of [`Self::texture`], in physical pixels.
-    pub size: (u32, u32),
 }
 
 impl WgpuCanvas {
     /// Hand the GPU stack over to the canvas.
     ///
     /// Call it once, after the `device` has been created and before the first
-    /// [`Self::acquire`]. Backends that composite the canvas themselves (Qt,
-    /// GTK) ignore the arguments; backends that render to a native surface need
-    /// it to create and configure that surface.
+    /// [`WgpuCanvas::acquire`].
     pub fn bind(&mut self, instance: &Instance, adapter: &Adapter) {
         self.widget.bind(instance, adapter)
     }
@@ -53,21 +50,19 @@ impl WgpuCanvas {
     /// Acquire a frame to render into.
     ///
     /// The texture is owned by the canvas: it is recreated when the canvas is
-    /// resized, and [`Self::present`] hands it over to the widget.
+    /// resized, and [`WgpuCanvas::present`] hands it over to the widget.
     ///
-    /// Returns `None` if the backend cannot provide a canvas-owned texture,
-    /// e.g. it still renders through a native surface.
+    /// Returns `None` if the backend cannot provide a canvas-owned texture.
     pub fn acquire(&mut self, device: &Device) -> Option<WgpuCanvasFrame> {
-        let (texture, view, format, size) = self.widget.acquire(device)?;
+        let (texture, view, format) = self.widget.acquire(device)?;
         Some(WgpuCanvasFrame {
             texture,
             view,
             format,
-            size,
         })
     }
 
-    /// Present the frame acquired by [`Self::acquire`].
+    /// Present the frame acquired by [`WgpuCanvas::acquire`].
     ///
     /// It must be called after the queue submission that renders into the
     /// frame is recorded.

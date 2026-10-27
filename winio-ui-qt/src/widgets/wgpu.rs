@@ -110,7 +110,7 @@ impl WgpuCanvas {
     pub fn acquire(
         &mut self,
         device: &wgpu::Device,
-    ) -> Option<(Texture, TextureView, TextureFormat, (u32, u32))> {
+    ) -> Option<(Texture, TextureView, TextureFormat)> {
         let size = self.widget.size().ok()?;
         let ratio = ffi::wgpu_canvas_pixel_ratio(self.widget.as_ref());
         let width = ((size.width * ratio).round() as u32).max(1);

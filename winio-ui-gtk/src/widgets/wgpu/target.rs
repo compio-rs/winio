@@ -77,14 +77,9 @@ impl Target {
         &mut self,
         device: &wgpu::Device,
         size: (u32, u32),
-    ) -> (
-        wgpu::Texture,
-        wgpu::TextureView,
-        wgpu::TextureFormat,
-        (u32, u32),
-    ) {
+    ) -> (wgpu::Texture, wgpu::TextureView, wgpu::TextureFormat) {
         match self {
-            Self::Dmabuf(t) => (t.texture.clone(), t.view.clone(), FORMAT_SRGB, t.size),
+            Self::Dmabuf(t) => (t.texture.clone(), t.view.clone(), FORMAT_SRGB),
             Self::Memory(t) => t.acquire(device, size),
         }
     }
