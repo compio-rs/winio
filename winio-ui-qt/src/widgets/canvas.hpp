@@ -13,22 +13,12 @@
 #include <QWidget>
 #include <memory>
 
-#ifdef WINIO_UI_QT_OPENGL
-#include <QOpenGLWidget>
-#endif
-
 #include <winio-ui-qt/src/widgets/canvas.rs.h>
 
 using QtMouseButton = Qt::MouseButton;
 using QtSizeMode = Qt::SizeMode;
 
-struct WinioCanvas :
-#ifdef WINIO_UI_QT_OPENGL
-    public QOpenGLWidget
-#else
-    public QWidget
-#endif
-{
+struct WinioCanvas : public QWidget {
     callback_t<void()> m_paint_callback;
     callback_t<void(int, int)> m_move_callback;
     callback_t<void(QtMouseButton)> m_press_callback;
