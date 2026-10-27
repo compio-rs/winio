@@ -20,15 +20,15 @@ jobs:
         toolchain: ['nightly']
         setup:
           - os: 'ubuntu-26.04'
-            # all + qt-opengl + qt5
+            # all + qt5
             deps: 'qtbase5-dev qtbase5-private-dev qtmultimedia5-dev qtwebengine5-dev qt5-qmake libgtk-4-dev libwebkitgtk-6.0-dev'
-            features: 'all,qt-opengl'
+            features: 'all'
           - os: 'ubuntu-26.04'
             # no features + qt6
             deps: 'qt6-base-dev libgtk-4-dev'
           - os: 'ubuntu-26.04'
-            # all + qt-opengl + qt6
-            features: 'all,qt-opengl'
+            # all + qt6
+            features: 'all'
             deps: 'qt6-base-dev qt6-base-private-dev qt6-multimedia-dev qt6-webengine-dev qmake6 libgtk-4-dev libwebkitgtk-6.0-dev'
           - os: 'ubuntu-26.04'
             # gtk4
