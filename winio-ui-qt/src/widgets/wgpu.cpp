@@ -12,36 +12,21 @@
 #include <QtGui/qopenglcontext_platform.h>
 #endif
 
-namespace {
+#if __has_include(<EGL/egl.h>) && __has_include(<EGL/eglext.h>)
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#else
+#define EGL_NONE 0x3038
+#define EGL_WIDTH 0x3057
+#define EGL_HEIGHT 0x3056
+#define EGL_LINUX_DMA_BUF_EXT 0x3270
+#define EGL_LINUX_DRM_FOURCC_EXT 0x3271
+#define EGL_DMA_BUF_PLANE0_FD_EXT 0x3272
+#define EGL_DMA_BUF_PLANE0_OFFSET_EXT 0x3273
+#define EGL_DMA_BUF_PLANE0_PITCH_EXT 0x3274
+#endif
 
-// The dmabuf import of OpenGL is an EGL extension, but libEGL is never linked
-// nor loaded by name: Qt already hands out the EGL display of its own context
-// and resolves the extension entry points.
-constexpr unsigned EGL_NONE_ = 0x3038;
-constexpr int EGL_WIDTH_ = 0x3057;
-constexpr int EGL_HEIGHT_ = 0x3056;
-constexpr unsigned EGL_LINUX_DMA_BUF_EXT_ = 0x3270;
-constexpr int EGL_LINUX_DRM_FOURCC_EXT_ = 0x3271;
-constexpr int EGL_DMA_BUF_PLANE0_FD_EXT_ = 0x3272;
-constexpr int EGL_DMA_BUF_PLANE0_OFFSET_EXT_ = 0x3273;
-constexpr int EGL_DMA_BUF_PLANE0_PITCH_EXT_ = 0x3274;
-
-constexpr unsigned GL_ARRAY_BUFFER_ = 0x8892;
-constexpr unsigned GL_CLAMP_TO_EDGE_ = 0x812F;
-constexpr unsigned GL_COLOR_BUFFER_BIT_ = 0x4000;
-constexpr unsigned GL_FLOAT_ = 0x1406;
-constexpr unsigned GL_LINEAR_ = 0x2601;
-constexpr unsigned GL_STATIC_DRAW_ = 0x88E4;
-constexpr unsigned GL_TEXTURE0_ = 0x84C0;
-constexpr unsigned GL_TEXTURE_2D_ = 0x0DE1;
-constexpr unsigned GL_TEXTURE_MAG_FILTER_ = 0x2800;
-constexpr unsigned GL_TEXTURE_MIN_FILTER_ = 0x2801;
-constexpr unsigned GL_TEXTURE_WRAP_S_ = 0x2802;
-constexpr unsigned GL_TEXTURE_WRAP_T_ = 0x2803;
-constexpr unsigned GL_HANDLE_TYPE_OPAQUE_FD_EXT_ = 0x9586;
-constexpr int GL_RGBA8_ = 0x8058;
-constexpr unsigned GL_TRIANGLE_STRIP_ = 0x0005;
-
+// A triangle strip covering the widget, with the matching texture coordinates.
 const char *const VERTEX_SHADER = R"(#version 120
 attribute vec2 pos;
 attribute vec2 uv;
@@ -68,8 +53,6 @@ const float QUAD[] = {
     -1.0f, -1.0f, 0.0f, 1.0f, 1.0f, -1.0f, 1.0f, 1.0f,
     -1.0f, 1.0f,  0.0f, 0.0f, 1.0f, 1.0f,  1.0f, 0.0f,
 };
-
-} // namespace
 
 struct WinioWgpuCanvas::GlState {
     void *egl_display = nullptr;
@@ -159,10 +142,10 @@ void WinioWgpuCanvas::initializeGL() {
     m_gl->initialized = true;
 
     functions->glGenBuffers(1, &m_gl->buffer);
-    functions->glBindBuffer(GL_ARRAY_BUFFER_, m_gl->buffer);
-    functions->glBufferData(GL_ARRAY_BUFFER_, sizeof(QUAD), QUAD,
-                            GL_STATIC_DRAW_);
-    functions->glBindBuffer(GL_ARRAY_BUFFER_, 0);
+    functions->glBindBuffer(GL_ARRAY_BUFFER, m_gl->buffer);
+    functions->glBufferData(GL_ARRAY_BUFFER, sizeof(QUAD), QUAD,
+                            GL_STATIC_DRAW);
+    functions->glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void WinioWgpuCanvas::paintEvent(QPaintEvent *event) {
@@ -180,24 +163,23 @@ void WinioWgpuCanvas::paintGL() {
 
     if (m_gl->dmabuf_ready && m_gl->texture && m_gl->program) {
         functions->glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        functions->glClear(GL_COLOR_BUFFER_BIT_);
+        functions->glClear(GL_COLOR_BUFFER_BIT);
         m_gl->program->bind();
-        functions->glActiveTexture(GL_TEXTURE0_);
-        functions->glBindTexture(GL_TEXTURE_2D_, m_gl->texture);
+        functions->glActiveTexture(GL_TEXTURE0);
+        functions->glBindTexture(GL_TEXTURE_2D, m_gl->texture);
         m_gl->program->setUniformValue("tex", 0);
         m_gl->program->setUniformValue("bgr", m_gl->bgr ? 1 : 0);
-        functions->glBindBuffer(GL_ARRAY_BUFFER_, m_gl->buffer);
+        functions->glBindBuffer(GL_ARRAY_BUFFER, m_gl->buffer);
         m_gl->program->enableAttributeArray(0);
-        m_gl->program->setAttributeBuffer(0, GL_FLOAT_, 0, 2,
-                                          4 * sizeof(float));
+        m_gl->program->setAttributeBuffer(0, GL_FLOAT, 0, 2, 4 * sizeof(float));
         m_gl->program->enableAttributeArray(1);
-        m_gl->program->setAttributeBuffer(1, GL_FLOAT_, 2 * sizeof(float), 2,
+        m_gl->program->setAttributeBuffer(1, GL_FLOAT, 2 * sizeof(float), 2,
                                           4 * sizeof(float));
-        functions->glDrawArrays(GL_TRIANGLE_STRIP_, 0, 4);
+        functions->glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         m_gl->program->disableAttributeArray(0);
         m_gl->program->disableAttributeArray(1);
-        functions->glBindBuffer(GL_ARRAY_BUFFER_, 0);
-        functions->glBindTexture(GL_TEXTURE_2D_, 0);
+        functions->glBindBuffer(GL_ARRAY_BUFFER, 0);
+        functions->glBindTexture(GL_TEXTURE_2D, 0);
         m_gl->program->release();
         return;
     }
@@ -219,22 +201,22 @@ bool WinioWgpuCanvas::set_dmabuf(int fd, int width, int height, int stride,
     }
 
     const int attribs[] = {
-        EGL_WIDTH_,
+        EGL_WIDTH,
         width,
-        EGL_HEIGHT_,
+        EGL_HEIGHT,
         height,
-        EGL_LINUX_DRM_FOURCC_EXT_,
+        EGL_LINUX_DRM_FOURCC_EXT,
         static_cast<int>(fourcc),
-        EGL_DMA_BUF_PLANE0_FD_EXT_,
+        EGL_DMA_BUF_PLANE0_FD_EXT,
         fd,
-        EGL_DMA_BUF_PLANE0_OFFSET_EXT_,
+        EGL_DMA_BUF_PLANE0_OFFSET_EXT,
         0,
-        EGL_DMA_BUF_PLANE0_PITCH_EXT_,
+        EGL_DMA_BUF_PLANE0_PITCH_EXT,
         stride,
-        static_cast<int>(EGL_NONE_),
+        EGL_NONE,
     };
     m_gl->egl_image = m_gl->create_image(
-        m_gl->egl_display, nullptr, EGL_LINUX_DMA_BUF_EXT_, nullptr, attribs);
+        m_gl->egl_display, nullptr, EGL_LINUX_DMA_BUF_EXT, nullptr, attribs);
     if (!m_gl->egl_image) {
         m_gl->dmabuf_supported = false;
         m_gl->dmabuf_ready = false;
@@ -243,19 +225,17 @@ bool WinioWgpuCanvas::set_dmabuf(int fd, int width, int height, int stride,
     }
 
     auto *functions = QOpenGLContext::currentContext()->functions();
-    functions->glBindTexture(GL_TEXTURE_2D_, m_gl->texture);
-    m_gl->image_target_texture(GL_TEXTURE_2D_, m_gl->egl_image);
+    functions->glBindTexture(GL_TEXTURE_2D, m_gl->texture);
+    m_gl->image_target_texture(GL_TEXTURE_2D, m_gl->egl_image);
     // The import knows the fourcc, so the samples are already RGBA: no swap.
     m_gl->bgr = false;
-    functions->glTexParameteri(GL_TEXTURE_2D_, GL_TEXTURE_MIN_FILTER_,
-                               int(GL_LINEAR_));
-    functions->glTexParameteri(GL_TEXTURE_2D_, GL_TEXTURE_MAG_FILTER_,
-                               int(GL_LINEAR_));
-    functions->glTexParameteri(GL_TEXTURE_2D_, GL_TEXTURE_WRAP_S_,
-                               int(GL_CLAMP_TO_EDGE_));
-    functions->glTexParameteri(GL_TEXTURE_2D_, GL_TEXTURE_WRAP_T_,
-                               int(GL_CLAMP_TO_EDGE_));
-    functions->glBindTexture(GL_TEXTURE_2D_, 0);
+    functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
+                               GL_CLAMP_TO_EDGE);
+    functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,
+                               GL_CLAMP_TO_EDGE);
+    functions->glBindTexture(GL_TEXTURE_2D, 0);
     doneCurrent();
 
     m_gl->dmabuf_ready = true;
