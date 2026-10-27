@@ -1,13 +1,14 @@
 use compio_log::error;
 use inherit_methods_macro::inherit_methods;
 use wgpu::{Adapter, Instance, SurfaceTargetUnsafe};
-use windows_core::Interface;
+use windows::Win32::Graphics::Dxgi::DXGI_MATRIX_3X2_F;
+use windows_core::{HRESULT, Interface};
 use winio_handle::AsContainer;
 use winio_primitive::{KeyCode, MouseButton, Point, Size, Vector};
 use winio_wgpu::SurfaceCanvas;
 use winui3::Microsoft::UI::Xaml::Media::DxInterop::ISwapChainPanelNative;
 
-use crate::{CanvasImpl, Result};
+use crate::{CanvasImpl, Error, Result};
 
 #[derive(Debug)]
 pub struct WgpuCanvas {
@@ -80,16 +81,48 @@ impl WgpuCanvas {
         &mut self,
         device: &wgpu::Device,
     ) -> Option<(wgpu::Texture, wgpu::TextureView, wgpu::TextureFormat)> {
+        let (scalex, scaley) = self.handle.composition_scale();
         let size = self.handle.size().ok()?;
-        let width = size.width as u32;
-        let height = size.height as u32;
+        let width = (size.width as f32 * scalex).max(1.0) as u32;
+        let height = (size.height as f32 * scaley).max(1.0) as u32;
         let native = self.native.clone();
-        self.surface
+        let frame = self
+            .surface
             .acquire_with(device, (width, height), move |instance| unsafe {
                 instance
                     .create_surface_unsafe(SurfaceTargetUnsafe::SwapChainPanel(native.as_raw()))
                     .ok()
-            })
+            })?;
+        if let Err(e) = self.apply_composition_scale(scalex, scaley) {
+            error!("Failed to apply composition scale: {e:?}");
+        }
+        Some(frame)
+    }
+
+    fn apply_composition_scale(&self, scalex: f32, scaley: f32) -> Result<()> {
+        if scalex <= 0.0 || scaley <= 0.0 {
+            return Ok(());
+        }
+        let Some(surface) = self.surface.surface() else {
+            return Ok(());
+        };
+        let hal = unsafe { surface.as_hal::<wgpu::hal::dx12::Api>() };
+        let Some(hal) = hal else { return Ok(()) };
+        let Some(swap_chain) = hal.swap_chain() else {
+            return Ok(());
+        };
+        let matrix = DXGI_MATRIX_3X2_F {
+            _11: 1.0 / scalex,
+            _12: 0.0,
+            _21: 0.0,
+            _22: 1.0 / scaley,
+            _31: 0.0,
+            _32: 0.0,
+        };
+        // Convert across versions of `windows` crate
+        unsafe { swap_chain.SetMatrixTransform(&raw const matrix as _) }
+            .map_err(|e| Error::from_hresult(HRESULT(e.code().0)))?;
+        Ok(())
     }
 
     pub fn bind(&mut self, instance: &Instance, adapter: &Adapter) {

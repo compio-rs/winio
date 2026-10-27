@@ -54,6 +54,12 @@ impl SurfaceCanvas {
         });
     }
 
+    /// Get the underlying surface, if it has been created by
+    /// [`acquire`](Self::acquire) or [`acquire_with`](Self::acquire_with).
+    pub fn surface(&self) -> Option<&wgpu::Surface<'static>> {
+        self.state.as_ref()?.surface.as_ref()
+    }
+
     /// Acquire the next frame of `size` physical pixels.
     ///
     /// `window` is the native handle of the widget, used to create the surface.
