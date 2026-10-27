@@ -1,0 +1,19 @@
+[package]
+name = "winio-wgpu"
+version = "0.1.0"
+description = "Shared wgpu helpers for winio backends."
+edition = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+wgpu = { workspace = true }
+
+[features]
+surface = []
+memory = []

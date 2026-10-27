@@ -4,15 +4,13 @@ use android_activity::ndk::native_window::NativeWindow;
 use inherit_methods_macro::inherit_methods;
 use jni_min_helper::DynamicProxy;
 use wgpu::{
-    CreateSurfaceError, Instance, Surface, SurfaceTarget,
-    rwh::{
-        AndroidNdkWindowHandle, DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle,
-        RawWindowHandle, WindowHandle,
-    },
+    Adapter, Instance,
+    rwh::{AndroidDisplayHandle, AndroidNdkWindowHandle, RawDisplayHandle, RawWindowHandle},
 };
 use winio_callback::SyncCallback;
 use winio_handle::AsContainer;
 use winio_primitive::{KeyCode, MouseButton, Point, Size, Vector};
+use winio_wgpu::SurfaceCanvas;
 
 use crate::{
     BaseWidget, Result, current_activity, java::android::view::SurfaceView, platform::Keyboard,
@@ -21,6 +19,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct WgpuCanvas {
+    surface: SurfaceCanvas,
     inner: BaseWidget<SurfaceView<'static>>,
     on_down: Arc<SyncCallback<MouseButton>>,
     on_up: Arc<SyncCallback<MouseButton>>,
@@ -52,6 +51,7 @@ impl WgpuCanvas {
                 on_scroll.clone(),
             )?;
             Ok(Self {
+                surface: SurfaceCanvas::new(),
                 inner,
                 on_down,
                 on_up,
@@ -129,37 +129,33 @@ impl WgpuCanvas {
         .flatten()
     }
 
-    pub fn create_surface(
-        &self,
-        instance: &Instance,
-    ) -> std::result::Result<Surface<'static>, CreateSurfaceError> {
-        let native_window = self
-            .native_window()
-            .ok_or_else(|| wgpu::wgc::instance::CreateSurfaceError::MissingDisplayHandle)?;
-
-        let handle =
+    pub fn acquire(
+        &mut self,
+        device: &wgpu::Device,
+    ) -> Option<(wgpu::Texture, wgpu::TextureView, wgpu::TextureFormat)> {
+        let size = self.inner.size().ok()?;
+        let (width, height) = crate::platform::dpi::physical_size(size).ok()?;
+        let width = (width as u32).max(1);
+        let height = (height as u32).max(1);
+        let native_window = self.native_window()?;
+        let window =
             RawWindowHandle::AndroidNdk(AndroidNdkWindowHandle::new(native_window.ptr().cast()));
-
-        struct WindowHandleWrapper(RawWindowHandle);
-
-        unsafe impl Send for WindowHandleWrapper {}
-        unsafe impl Sync for WindowHandleWrapper {}
-
-        impl HasWindowHandle for WindowHandleWrapper {
-            fn window_handle(&self) -> std::result::Result<WindowHandle<'_>, HandleError> {
-                Ok(unsafe { WindowHandle::borrow_raw(self.0) })
-            }
+        let display = RawDisplayHandle::Android(AndroidDisplayHandle::new());
+        // SAFETY: `surface` is declared before `inner`, so it is dropped before
+        // the view that owns the native window.
+        unsafe {
+            self.surface
+                .acquire(device, window, display, (width, height))
         }
+    }
 
-        impl HasDisplayHandle for WindowHandleWrapper {
-            fn display_handle(&self) -> std::result::Result<DisplayHandle<'_>, HandleError> {
-                Ok(DisplayHandle::android())
-            }
-        }
+    pub fn bind(&mut self, instance: &Instance, adapter: &Adapter) {
+        self.surface.bind(instance, adapter);
+    }
 
-        let target = SurfaceTarget::from(WindowHandleWrapper(handle));
-
-        instance.create_surface(target)
+    pub fn present(&mut self, queue: &wgpu::Queue) -> Result<()> {
+        self.surface.present(queue);
+        Ok(())
     }
 }
 

@@ -1,15 +1,11 @@
 #pragma once
 
 #include "../common.hpp"
+#include <QImage>
 #include <QKeyEvent>
+#include <QMouseEvent>
 #include <QWidget>
 #include <memory>
-
-struct wl_display;
-struct wl_surface;
-struct xcb_connection_t;
-
-#include <winio-ui-qt/src/widgets/wgpu.rs.h>
 
 using QtMouseButton = Qt::MouseButton;
 
@@ -21,13 +17,13 @@ struct WinioWgpuCanvas : public QWidget {
     callback_t<void(int)> m_key_down_callback;
     callback_t<void(int)> m_key_up_callback;
     callback_t<void(QString const &)> m_key_char_callback;
+    QImage m_image;
 
     WinioWgpuCanvas(QWidget *parent);
     ~WinioWgpuCanvas() override;
 
-    QPaintEngine *paintEngine() const override;
-
 protected:
+    void paintEvent(QPaintEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
@@ -37,6 +33,12 @@ protected:
 };
 
 std::unique_ptr<QWidget> new_wgpu_canvas(QWidget *parent);
+double wgpu_canvas_pixel_ratio(QWidget const &w);
+void wgpu_canvas_set_image(QWidget const &w,
+                           rust::Slice<std::uint8_t const> data,
+                           std::uint32_t width, std::uint32_t height,
+                           std::uint32_t stride);
+
 void wgpu_canvas_register_move_event(QWidget &w,
                                      callback_fn_t<void(int, int)> callback,
                                      std::uint8_t const *data);
@@ -58,6 +60,3 @@ void wgpu_canvas_register_key_up_event(QWidget &w,
 void wgpu_canvas_register_key_char_event(
     QWidget &w, callback_fn_t<void(QString const &)> callback,
     std::uint8_t const *data);
-
-WaylandDescriptor wgpu_canvas_wayland_descriptor(QWidget const &w);
-XcbDescriptor wgpu_canvas_xcb_descriptor(QWidget const &w);

@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use wgpu::{CreateSurfaceError, Instance, Surface};
+use wgpu::{Adapter, Device, Instance, Queue, Texture, TextureFormat, TextureView};
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
@@ -17,26 +17,58 @@ use crate::{
 /// ## Recommended backends
 /// * Windows: DirectX 12
 /// * macOS & iOS: Metal
-/// * Android: Vulkan
+/// * Android & Qt & GTK: Vulkan
 ///
 /// ## Platform specific
 /// * iOS: Simulator does not support [`wgpu`].
-/// * Qt & GTK: Might not work correctly.
 #[derive(Debug)]
 pub struct WgpuCanvas {
     widget: sys::WgpuCanvas,
 }
 
-#[inherit_methods(from = "self.widget")]
+/// A frame acquired from a [`WgpuCanvas`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub struct WgpuCanvasFrame {
+    /// The texture to render into.
+    pub texture: Texture,
+    /// A view of [`texture`][Self::texture], to be used as the render target.
+    pub view: TextureView,
+    /// The format of [`view`][Self::view].
+    pub format: TextureFormat,
+}
+
 impl WgpuCanvas {
-    /// Create [`Surface`] to render on this canvas.
+    /// Hand the GPU stack over to the canvas.
     ///
-    /// This method returns an error if the canvas is not yet ready to create a
-    /// surface, e.g. it is not yet visible.
-    pub fn create_surface(
-        &self,
-        instance: &Instance,
-    ) -> std::result::Result<Surface<'static>, CreateSurfaceError>;
+    /// Call it once, after the `device` has been created and before the first
+    /// [`WgpuCanvas::acquire`].
+    pub fn bind(&mut self, instance: &Instance, adapter: &Adapter) {
+        self.widget.bind(instance, adapter)
+    }
+
+    /// Acquire a frame to render into.
+    ///
+    /// The texture is owned by the canvas: it is recreated when the canvas is
+    /// resized, and [`WgpuCanvas::present`] hands it over to the widget.
+    ///
+    /// Returns `None` if the backend cannot provide a canvas-owned texture.
+    pub fn acquire(&mut self, device: &Device) -> Option<WgpuCanvasFrame> {
+        let (texture, view, format) = self.widget.acquire(device)?;
+        Some(WgpuCanvasFrame {
+            texture,
+            view,
+            format,
+        })
+    }
+
+    /// Present the frame acquired by [`WgpuCanvas::acquire`].
+    ///
+    /// It must be called after the queue submission that renders into the
+    /// frame is recorded.
+    pub fn present(&mut self, queue: &Queue) -> Result<()> {
+        self.widget.present(queue)
+    }
 }
 
 impl Failable for WgpuCanvas {

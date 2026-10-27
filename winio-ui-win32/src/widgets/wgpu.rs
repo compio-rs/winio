@@ -2,19 +2,21 @@ use std::num::NonZero;
 
 use inherit_methods_macro::inherit_methods;
 use wgpu::{
-    CreateSurfaceError, Instance, Surface, SurfaceTarget,
-    rwh::{
-        DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawWindowHandle,
-        Win32WindowHandle, WindowHandle,
-    },
+    Adapter, Instance, Queue, Texture, TextureFormat, TextureView,
+    rwh::{RawDisplayHandle, RawWindowHandle, Win32WindowHandle, WindowsDisplayHandle},
 };
 use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{KeyCode, MouseButton, Point, Size, Vector};
+use winio_wgpu::SurfaceCanvas;
 
-use crate::{CanvasImpl, Result};
+use crate::{
+    CanvasImpl, Result,
+    platform::dpi::{DpiAware, get_dpi_for_window},
+};
 
 #[derive(Debug)]
 pub struct WgpuCanvas {
+    surface: SurfaceCanvas,
     handle: CanvasImpl,
 }
 
@@ -22,7 +24,10 @@ pub struct WgpuCanvas {
 impl WgpuCanvas {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let handle = CanvasImpl::new(parent)?;
-        Ok(Self { handle })
+        Ok(Self {
+            surface: SurfaceCanvas::new(),
+            handle,
+        })
     }
 
     pub fn is_visible(&self) -> Result<bool>;
@@ -73,34 +78,32 @@ impl WgpuCanvas {
         self.handle.wait_key_char().await
     }
 
-    pub fn create_surface(
-        &self,
-        instance: &Instance,
-    ) -> std::result::Result<Surface<'static>, CreateSurfaceError> {
-        let handle = RawWindowHandle::Win32(Win32WindowHandle::new(
-            NonZero::new(self.handle.as_widget().as_win32() as _).unwrap(),
-        ));
+    pub fn bind(&mut self, instance: &Instance, adapter: &Adapter) {
+        self.surface.bind(instance, adapter);
+    }
 
-        struct WindowHandleWrapper(RawWindowHandle);
-
-        unsafe impl Send for WindowHandleWrapper {}
-        unsafe impl Sync for WindowHandleWrapper {}
-
-        impl HasWindowHandle for WindowHandleWrapper {
-            fn window_handle(&self) -> std::result::Result<WindowHandle<'_>, HandleError> {
-                Ok(unsafe { WindowHandle::borrow_raw(self.0) })
-            }
+    pub fn acquire(
+        &mut self,
+        device: &wgpu::Device,
+    ) -> Option<(Texture, TextureView, TextureFormat)> {
+        let hwnd = self.handle.as_widget().as_win32();
+        let dpi = get_dpi_for_window(hwnd);
+        let size = self.handle.size().ok()?;
+        let width = size.width.to_device(dpi).max(1.0) as u32;
+        let height = size.height.to_device(dpi).max(1.0) as u32;
+        let window = RawWindowHandle::Win32(Win32WindowHandle::new(NonZero::new(hwnd as _)?));
+        let display = RawDisplayHandle::Windows(WindowsDisplayHandle::new());
+        // SAFETY: `surface` is declared before `handle`, so it is dropped
+        // before the window that owns `hwnd`.
+        unsafe {
+            self.surface
+                .acquire(device, window, display, (width, height))
         }
+    }
 
-        impl HasDisplayHandle for WindowHandleWrapper {
-            fn display_handle(&self) -> std::result::Result<DisplayHandle<'_>, HandleError> {
-                Ok(DisplayHandle::windows())
-            }
-        }
-
-        let target = SurfaceTarget::from(WindowHandleWrapper(handle));
-
-        instance.create_surface(target)
+    pub fn present(&mut self, queue: &Queue) -> Result<()> {
+        self.surface.present(queue);
+        Ok(())
     }
 }
 

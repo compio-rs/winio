@@ -18,6 +18,7 @@ winio-handle = { workspace = true }
 winio-callback = { workspace = true }
 winio-pollable = { workspace = true, features = ["callback"] }
 winio-ui-apple-common = { workspace = true }
+winio-wgpu = { workspace = true, optional = true, features = ["surface"] }
 
 compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
@@ -61,7 +62,7 @@ webview = [
     "dep:time",
     "winio-ui-apple-common/webview",
 ]
-wgpu = ["dep:wgpu"]
+wgpu = ["dep:wgpu", "dep:winio-wgpu"]
 compio-compat = ["compio/compat-futures", "compio/fs"]
 
 objc-static = ["winio-ui-apple-common/objc-static"]

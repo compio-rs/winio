@@ -77,26 +77,7 @@ fn main() {
             }
         }
 
-        let mut inc = qbuild.include_paths();
-        if cfg!(feature = "wgpu") {
-            let qmake_program = if major == 5 { "qmake" } else { "qmake6" };
-
-            let output = std::process::Command::new(qmake_program)
-                .args(["-query", "QT_INSTALL_HEADERS"])
-                .output()
-                .unwrap();
-            let qt_headers = String::from_utf8(output.stdout).unwrap().trim().to_string();
-            let output = std::process::Command::new(qmake_program)
-                .args(["-query", "QT_VERSION"])
-                .output()
-                .unwrap();
-            let qt_version = String::from_utf8(output.stdout).unwrap().trim().to_string();
-            inc.push(PathBuf::from(format!(
-                "{}/QtGui/{}/QtGui",
-                qt_headers, qt_version
-            )));
-        }
-
+        let inc = qbuild.include_paths();
         let mut build = cxx_build::bridges(sources.map(|s| format!("{s}.rs")));
         build
             .std("c++17")

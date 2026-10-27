@@ -67,10 +67,18 @@ impl WgpuCanvas {
         not_impl()
     }
 
-    pub fn create_surface(
+    pub fn bind(&self, _instance: &wgpu::Instance, _adapter: &wgpu::Adapter) {
+        not_impl()
+    }
+
+    pub fn acquire(
         &self,
-        _instance: &wgpu::Instance,
-    ) -> std::result::Result<wgpu::Surface<'static>, wgpu::CreateSurfaceError> {
+        _device: &wgpu::Device,
+    ) -> Option<(wgpu::Texture, wgpu::TextureView, wgpu::TextureFormat)> {
+        not_impl()
+    }
+
+    pub fn present(&self, _queue: &wgpu::Queue) -> Result<()> {
         not_impl()
     }
 }

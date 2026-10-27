@@ -36,55 +36,50 @@ use winio_primitive::{
 
 use crate::{Error, GlobalRuntime, Image, Result, platform::Keyboard, widgets::Widget};
 
+/// Shared implementation of the canvases.
+///
+/// It owns the widget that receives the input events and the handle that
+/// controls the geometry, so that [`Canvas`] and [`WgpuCanvas`] do not have to
+/// duplicate any of it.
 #[derive(Debug)]
-pub struct Canvas {
-    on_motion: Rc<Callback<Point>>,
+pub(crate) struct CanvasImpl {
+    on_move: Rc<Callback<Point>>,
     on_pressed: Rc<Callback<MouseButton>>,
     on_released: Rc<Callback<MouseButton>>,
     on_scroll: Rc<Callback<Vector>>,
     keyboard: Keyboard,
-    widget: gtk4::DrawingArea,
+    area: gtk4::DrawingArea,
     handle: Widget,
-    surface: Rc<RefCell<RecordingSurface>>,
 }
 
 #[inherit_methods(from = "self.handle")]
-impl Canvas {
-    pub fn new(parent: impl AsContainer) -> Result<Self> {
-        let widget = gtk4::DrawingArea::new();
-        let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() })?;
-        let keyboard = Keyboard::new(&widget);
+impl CanvasImpl {
+    /// Create the input sink inside `parent`.
+    ///
+    /// `area` receives the input events, while `outer` is the widget that
+    /// occupies space in the layout. Both are the same widget for [`Canvas`],
+    /// whereas [`WgpuCanvas`] wraps the area into an overlay.
+    pub fn new(
+        parent: impl AsContainer,
+        area: gtk4::DrawingArea,
+        outer: gtk4::Widget,
+    ) -> Result<Self> {
+        let handle = Widget::new(parent, outer)?;
+        let keyboard = Keyboard::new(&area);
 
-        let on_motion = Rc::new(Callback::new());
+        let on_move = Rc::new(Callback::new());
         let on_pressed = Rc::new(Callback::new());
         let on_released = Rc::new(Callback::new());
         let on_scroll = Rc::new(Callback::new());
 
-        let surface = Rc::new(RefCell::new(RecordingSurface::create(
-            Content::ColorAlpha,
-            None,
-        )?));
-
-        widget.set_draw_func({
-            let surface = surface.clone();
-            move |_, ctx, _, _| {
-                if let Err(_e) = (|| {
-                    ctx.set_source_surface(&*surface.borrow(), 0.0, 0.0)?;
-                    ctx.paint()
-                })() {
-                    error!("Canvas draw error: {_e:?}");
-                }
-            }
-        });
-
         let controller = EventControllerMotion::new();
         controller.connect_motion({
-            let on_motion = on_motion.clone();
+            let on_move = on_move.clone();
             move |_, x, y| {
-                on_motion.signal::<GlobalRuntime>(Point::new(x, y));
+                on_move.signal::<GlobalRuntime>(Point::new(x, y));
             }
         });
-        widget.add_controller(controller);
+        area.add_controller(controller);
 
         const fn gtk_current_button(b: u32) -> MouseButton {
             match b {
@@ -112,7 +107,7 @@ impl Canvas {
                     .signal::<GlobalRuntime>(gtk_current_button(controller.current_button()));
             }
         });
-        widget.add_controller(controller);
+        area.add_controller(controller);
 
         let controller = EventControllerScroll::new(EventControllerScrollFlags::BOTH_AXES);
         controller.connect_scroll({
@@ -126,18 +121,105 @@ impl Canvas {
                 Propagation::Stop
             }
         });
-        widget.add_controller(controller);
+        area.add_controller(controller);
 
         Ok(Self {
-            on_motion,
+            on_move,
             on_pressed,
             on_released,
             on_scroll,
             keyboard,
-            widget,
+            area,
             handle,
-            surface,
         })
+    }
+
+    pub fn is_visible(&self) -> Result<bool>;
+
+    pub fn set_visible(&mut self, v: bool) -> Result<()>;
+
+    pub fn is_enabled(&self) -> Result<bool>;
+
+    pub fn set_enabled(&mut self, v: bool) -> Result<()>;
+
+    pub fn loc(&self) -> Result<Point>;
+
+    pub fn set_loc(&mut self, p: Point) -> Result<()>;
+
+    pub fn size(&self) -> Result<Size>;
+
+    pub fn set_size(&mut self, s: Size) -> Result<()>;
+
+    pub fn tooltip(&self) -> Result<String>;
+
+    pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    /// The widget that receives the input events.
+    pub fn area(&self) -> &gtk4::DrawingArea {
+        &self.area
+    }
+
+    pub async fn wait_mouse_down(&self) -> MouseButton {
+        self.on_pressed.wait().await
+    }
+
+    pub async fn wait_mouse_up(&self) -> MouseButton {
+        self.on_released.wait().await
+    }
+
+    pub async fn wait_mouse_move(&self) -> Point {
+        self.on_move.wait().await
+    }
+
+    pub async fn wait_mouse_wheel(&self) -> Vector {
+        self.on_scroll.wait().await
+    }
+
+    pub async fn wait_key_down(&self) -> KeyCode {
+        self.keyboard.wait_key_down().await
+    }
+
+    pub async fn wait_key_up(&self) -> KeyCode {
+        self.keyboard.wait_key_up().await
+    }
+
+    pub async fn wait_key_char(&self) -> char {
+        self.keyboard.wait_key_char().await
+    }
+}
+
+winio_handle::impl_as_widget!(CanvasImpl, handle);
+
+#[derive(Debug)]
+pub struct Canvas {
+    handle: CanvasImpl,
+    surface: Rc<RefCell<RecordingSurface>>,
+}
+
+#[inherit_methods(from = "self.handle")]
+impl Canvas {
+    pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let area = gtk4::DrawingArea::new();
+        let handle = CanvasImpl::new(parent, area.clone(), area.clone().upcast())?;
+
+        let surface = Rc::new(RefCell::new(RecordingSurface::create(
+            Content::ColorAlpha,
+            None,
+        )?));
+
+        area.set_draw_func({
+            let surface = surface.clone();
+            move |_, ctx, _, _| {
+                if let Err(_e) = (|| {
+                    ctx.set_source_surface(&*surface.borrow(), 0.0, 0.0)?;
+                    ctx.paint()
+                })() {
+                    error!("Canvas draw error: {_e:?}");
+                }
+            }
+        });
+
+        Ok(Self { handle, surface })
     }
 
     pub fn is_visible(&self) -> Result<bool>;
@@ -163,7 +245,7 @@ impl Canvas {
     pub fn context(&mut self) -> Result<DrawingContext<'_>> {
         let surface = RecordingSurface::create(Content::ColorAlpha, None)?;
         let ctx = Context::new(&surface)?;
-        let pango = self.widget.pango_context();
+        let pango = self.handle.area().pango_context();
         Ok(DrawingContext {
             surface: Some(surface),
             ctx,
@@ -173,31 +255,31 @@ impl Canvas {
     }
 
     pub async fn wait_mouse_down(&self) -> MouseButton {
-        self.on_pressed.wait().await
+        self.handle.wait_mouse_down().await
     }
 
     pub async fn wait_mouse_up(&self) -> MouseButton {
-        self.on_released.wait().await
+        self.handle.wait_mouse_up().await
     }
 
     pub async fn wait_mouse_move(&self) -> Point {
-        self.on_motion.wait().await
+        self.handle.wait_mouse_move().await
     }
 
     pub async fn wait_mouse_wheel(&self) -> Vector {
-        self.on_scroll.wait().await
+        self.handle.wait_mouse_wheel().await
     }
 
     pub async fn wait_key_down(&self) -> KeyCode {
-        self.keyboard.wait_key_down().await
+        self.handle.wait_key_down().await
     }
 
     pub async fn wait_key_up(&self) -> KeyCode {
-        self.keyboard.wait_key_up().await
+        self.handle.wait_key_up().await
     }
 
     pub async fn wait_key_char(&self) -> char {
-        self.keyboard.wait_key_char().await
+        self.handle.wait_key_char().await
     }
 }
 
@@ -219,7 +301,7 @@ enum ContextTarget<'a> {
 impl ContextTarget<'_> {
     fn width(&self) -> i32 {
         match self {
-            ContextTarget::Canvas(canvas) => canvas.widget.width(),
+            ContextTarget::Canvas(canvas) => canvas.handle.area().width(),
             ContextTarget::Image(image) => image.0.width(),
         }
     }
@@ -520,7 +602,7 @@ impl Drop for DrawingContext<'_> {
         if let ContextTarget::Canvas(canvas) = &mut self.target {
             *canvas.surface.borrow_mut() =
                 self.surface.take().expect("DrawingContext dropped twice");
-            canvas.widget.queue_draw();
+            canvas.handle.area().queue_draw();
         }
     }
 }

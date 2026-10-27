@@ -1,10 +1,8 @@
 #include "wgpu.hpp"
-#include <QGuiApplication>
-#include <QMouseEvent>
-#include <QPointer>
-#include <QWheelEvent>
 
-#include <qpa/qplatformnativeinterface.h>
+#include <QMouseEvent>
+#include <QPainter>
+#include <QWheelEvent>
 
 WinioWgpuCanvas::WinioWgpuCanvas(QWidget *parent)
     : QWidget(parent), m_move_callback(std::nullopt),
@@ -13,15 +11,20 @@ WinioWgpuCanvas::WinioWgpuCanvas(QWidget *parent)
       m_key_up_callback(std::nullopt), m_key_char_callback(std::nullopt) {
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
-    QCoreApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
-    setAttribute(Qt::WA_DontCreateNativeAncestors);
-    setAttribute(Qt::WA_NativeWindow);
-    setAttribute(Qt::WA_PaintOnScreen);
+    // The whole area is covered by the frame.
+    setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
 WinioWgpuCanvas::~WinioWgpuCanvas() {}
 
-QPaintEngine *WinioWgpuCanvas::paintEngine() const { return nullptr; }
+void WinioWgpuCanvas::paintEvent(QPaintEvent *) {
+    QPainter painter(this);
+    if (m_image.isNull()) {
+        painter.fillRect(rect(), palette().window());
+        return;
+    }
+    painter.drawImage(rect(), m_image);
+}
 
 void WinioWgpuCanvas::mouseMoveEvent(QMouseEvent *event) {
     if (m_move_callback) {
@@ -76,6 +79,23 @@ std::unique_ptr<QWidget> new_wgpu_canvas(QWidget *parent) {
     return std::make_unique<WinioWgpuCanvas>(parent);
 }
 
+double wgpu_canvas_pixel_ratio(QWidget const &w) {
+    return w.devicePixelRatioF();
+}
+
+void wgpu_canvas_set_image(QWidget const &w,
+                           rust::Slice<std::uint8_t const> data,
+                           std::uint32_t width, std::uint32_t height,
+                           std::uint32_t stride) {
+    auto &c =
+        const_cast<WinioWgpuCanvas &>(static_cast<WinioWgpuCanvas const &>(w));
+    // `QImage` does not own the data, so copy it out of the Rust slice.
+    QImage view(data.data(), int(width), int(height), int(stride),
+                QImage::Format_ARGB32);
+    c.m_image = view.copy();
+    c.update();
+}
+
 void wgpu_canvas_register_move_event(QWidget &w,
                                      callback_fn_t<void(int, int)> callback,
                                      std::uint8_t const *data) {
@@ -123,29 +143,4 @@ void wgpu_canvas_register_key_char_event(
     std::uint8_t const *data) {
     static_cast<WinioWgpuCanvas &>(w).m_key_char_callback =
         std::make_tuple(std::move(callback), data);
-}
-
-WaylandDescriptor wgpu_canvas_wayland_descriptor(QWidget const &w) {
-    auto interface = QGuiApplication::platformNativeInterface();
-    auto display = static_cast<wl_display *>(
-        interface->nativeResourceForIntegration("wl_display"));
-    // The native window (and its platform surface) may not have been created
-    // yet when the surface is requested during initialization. `winId()`
-    // forces its creation; the canvas is marked as a native window.
-    auto *widget = const_cast<QWidget *>(&w);
-    widget->winId();
-    auto surface = static_cast<wl_surface *>(
-        interface->nativeResourceForWindow("surface", widget->windowHandle()));
-    return {display, surface};
-}
-
-XcbDescriptor wgpu_canvas_xcb_descriptor(QWidget const &w) {
-    auto interface = QGuiApplication::platformNativeInterface();
-    auto connection = static_cast<xcb_connection_t *>(
-        interface->nativeResourceForIntegration("connection"));
-    auto screen =
-        (std::int32_t)(std::intptr_t)interface->nativeResourceForIntegration(
-            "x11screen");
-    auto window = (std::uint32_t)w.winId();
-    return {connection, screen, window};
 }

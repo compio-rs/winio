@@ -34,6 +34,10 @@ pub(crate) struct CanvasImpl {
 
 #[inherit_methods(from = "self.handle")]
 impl CanvasImpl {
+    pub(crate) fn scale_factor(&self) -> f64 {
+        self.view.contentScaleFactor()
+    }
+
     pub fn new(parent: impl AsContainer, flipped: bool) -> Result<Self> {
         let parent = parent.as_container();
         let view = catch(|| {

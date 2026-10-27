@@ -1,17 +1,10 @@
-use std::{num::NonZero, ptr::NonNull};
-
+use compio_log::error;
 use inherit_methods_macro::inherit_methods;
-use wgpu::{
-    CreateSurfaceError, Instance, Surface, SurfaceTarget,
-    rwh::{
-        DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
-        RawWindowHandle, WaylandDisplayHandle, WaylandWindowHandle, WindowHandle, XcbDisplayHandle,
-        XcbWindowHandle,
-    },
-};
+use wgpu::{Texture, TextureFormat, TextureView};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{KeyCode, MouseButton, Point, Size, Vector};
+use winio_wgpu::MemoryCanvas;
 
 use crate::{
     GlobalRuntime, QtMouseButton, Result, Widget,
@@ -28,6 +21,7 @@ pub struct WgpuCanvas {
     on_key_down: Box<Callback<KeyCode>>,
     on_key_up: Box<Callback<KeyCode>>,
     on_key_char: Box<KeyCharCallback>,
+    frame: MemoryCanvas,
     widget: Widget<ffi::QWidget>,
 }
 
@@ -88,6 +82,7 @@ impl WgpuCanvas {
             on_key_down,
             on_key_up,
             on_key_char,
+            frame: MemoryCanvas::new(),
             widget: Widget::new(widget)?,
         })
     }
@@ -111,6 +106,31 @@ impl WgpuCanvas {
     pub fn tooltip(&self) -> Result<String>;
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
+
+    pub fn acquire(
+        &mut self,
+        device: &wgpu::Device,
+    ) -> Option<(Texture, TextureView, TextureFormat)> {
+        let size = self.widget.size().ok()?;
+        let ratio = ffi::wgpu_canvas_pixel_ratio(self.widget.as_ref());
+        let width = ((size.width * ratio).round() as u32).max(1);
+        let height = ((size.height * ratio).round() as u32).max(1);
+        Some(self.frame.acquire(device, (width, height)))
+    }
+
+    pub fn present(&mut self, queue: &wgpu::Queue) -> Result<()> {
+        let Some(size) = self.frame.size() else {
+            return Ok(());
+        };
+        let Some(pixels) = self.frame.present(queue) else {
+            error!("WGPU canvas: cannot read back the frame");
+            return Ok(());
+        };
+        unsafe {
+            ffi::wgpu_canvas_set_image(self.widget.as_ref(), pixels, size.0, size.1, size.0 * 4);
+        }
+        Ok(())
+    }
 
     fn on_move(c: *const u8, x: i32, y: i32) {
         let c = c as *const Callback<Point>;
@@ -188,85 +208,33 @@ impl WgpuCanvas {
     pub async fn wait_key_char(&self) -> char {
         self.on_key_char.wait().await
     }
+}
 
-    fn wayland(&self) -> Option<WindowHandleWrapper> {
-        let desc = ffi::wgpu_canvas_wayland_descriptor(self.widget.as_ref()).ok()?;
-        let display = NonNull::new(desc.display)?;
-        let surface = NonNull::new(desc.surface)?;
-        let handle = RawWindowHandle::Wayland(WaylandWindowHandle::new(surface.cast()));
-        let display_handle = RawDisplayHandle::Wayland(WaylandDisplayHandle::new(display.cast()));
-        Some(WindowHandleWrapper(handle, display_handle))
-    }
-
-    fn xcb(&self) -> Option<WindowHandleWrapper> {
-        let desc = ffi::wgpu_canvas_xcb_descriptor(self.widget.as_ref()).ok()?;
-        let window = NonZero::new(desc.window)?;
-        let connection = NonNull::new(desc.connection)?;
-        let handle = RawWindowHandle::Xcb(XcbWindowHandle::new(window));
-        let display_handle =
-            RawDisplayHandle::Xcb(XcbDisplayHandle::new(Some(connection.cast()), desc.screen));
-        Some(WindowHandleWrapper(handle, display_handle))
-    }
-
-    pub fn create_surface(
-        &self,
-        instance: &Instance,
-    ) -> std::result::Result<Surface<'static>, CreateSurfaceError> {
-        let handle = self
-            .wayland()
-            .or_else(|| self.xcb())
-            .ok_or_else(|| wgpu::wgc::instance::CreateSurfaceError::MissingDisplayHandle)?;
-
-        let target = SurfaceTarget::from(handle);
-
-        instance.create_surface(target)
-    }
+impl WgpuCanvas {
+    pub fn bind(&mut self, _instance: &wgpu::Instance, _adapter: &wgpu::Adapter) {}
 }
 
 winio_handle::impl_as_widget!(WgpuCanvas, widget);
 
-#[derive(Debug)]
-struct WindowHandleWrapper(RawWindowHandle, RawDisplayHandle);
-
-unsafe impl Send for WindowHandleWrapper {}
-unsafe impl Sync for WindowHandleWrapper {}
-
-impl HasWindowHandle for WindowHandleWrapper {
-    fn window_handle(&self) -> std::result::Result<WindowHandle<'_>, HandleError> {
-        Ok(unsafe { WindowHandle::borrow_raw(self.0) })
-    }
-}
-
-impl HasDisplayHandle for WindowHandleWrapper {
-    fn display_handle(&self) -> std::result::Result<DisplayHandle<'_>, HandleError> {
-        Ok(unsafe { DisplayHandle::borrow_raw(self.1) })
-    }
-}
-
 #[cxx::bridge]
 mod ffi {
-    struct WaylandDescriptor {
-        display: *mut wl_display,
-        surface: *mut wl_surface,
-    }
-
-    struct XcbDescriptor {
-        connection: *mut xcb_connection_t,
-        screen: i32,
-        window: u32,
-    }
-
     unsafe extern "C++-unwind" {
         include!("winio-ui-qt/src/widgets/wgpu.hpp");
 
         type QWidget = crate::QWidget;
         type QtMouseButton = crate::QtMouseButton;
         type QString = crate::common::QString;
-        type wl_display;
-        type wl_surface;
-        type xcb_connection_t;
 
         unsafe fn new_wgpu_canvas(parent: *mut QWidget) -> Result<UniquePtr<QWidget>>;
+        fn wgpu_canvas_pixel_ratio(w: &QWidget) -> f64;
+        unsafe fn wgpu_canvas_set_image(
+            w: &QWidget,
+            data: &[u8],
+            width: u32,
+            height: u32,
+            stride: u32,
+        );
+
         unsafe fn wgpu_canvas_register_move_event(
             w: Pin<&mut QWidget>,
             callback: unsafe fn(*const u8, i32, i32),
@@ -302,8 +270,5 @@ mod ffi {
             callback: unsafe fn(*const u8, &QString),
             data: *const u8,
         ) -> Result<()>;
-
-        fn wgpu_canvas_wayland_descriptor(w: &QWidget) -> Result<WaylandDescriptor>;
-        fn wgpu_canvas_xcb_descriptor(w: &QWidget) -> Result<XcbDescriptor>;
     }
 }

@@ -48,6 +48,8 @@ use crate::{
     platform::keyboard::Keyboard, widgets::Convertible,
 };
 
+type CompositionScale = SendWrapper<Rc<Cell<(f32, f32)>>>;
+
 #[derive(Debug)]
 pub(crate) struct CanvasImpl {
     on_press: SendWrapper<Rc<Callback<MouseButton>>>,
@@ -55,6 +57,7 @@ pub(crate) struct CanvasImpl {
     on_move: SendWrapper<Rc<Callback<Point>>>,
     on_wheel: SendWrapper<Rc<Callback<Vector>>>,
     keyboard: Keyboard,
+    composition_scale: CompositionScale,
     handle: Widget,
     panel: MUXC::SwapChainPanel,
 }
@@ -66,6 +69,24 @@ impl CanvasImpl {
         let control = MUXC::UserControl::new()?;
         control.SetContent(&panel)?;
         let keyboard = Keyboard::new(&control.cast()?)?;
+
+        let composition_scale = SendWrapper::new(Rc::new(Cell::new((
+            panel.CompositionScaleX()?,
+            panel.CompositionScaleY()?,
+        ))));
+        {
+            let composition_scale = composition_scale.clone();
+            panel
+                .CompositionScaleChanged(move |sender, _| {
+                    let panel = sender.ok()?;
+                    let scale = (panel.CompositionScaleX()?, panel.CompositionScaleY()?);
+                    if scale.0 > 0.0 && scale.1 > 0.0 {
+                        composition_scale.set(scale);
+                    }
+                    Ok(())
+                })?
+                .forget();
+        }
 
         let mouse_button_cache = SendWrapper::new(Rc::new(Cell::new(MouseButton::Other)));
         let on_press = SendWrapper::new(Rc::new(Callback::new()));
@@ -128,13 +149,16 @@ impl CanvasImpl {
                 .forget();
         }
 
+        let handle = Widget::new(parent, control.cast()?)?;
+
         Ok(Self {
             on_press,
             on_release,
             on_move,
             on_wheel,
             keyboard,
-            handle: Widget::new(parent, control.cast()?)?,
+            composition_scale,
+            handle,
             panel,
         })
     }
@@ -185,6 +209,10 @@ impl CanvasImpl {
 
     pub async fn wait_key_char(&self) -> char {
         self.keyboard.wait_key_char().await
+    }
+
+    pub fn composition_scale(&self) -> (f32, f32) {
+        self.composition_scale.get()
     }
 }
 
@@ -436,8 +464,7 @@ impl Canvas {
 
     pub fn context(&mut self) -> Result<DrawingContext<'_>> {
         let size = self.size()?;
-        let scalex = self.handle.CompositionScaleX()?;
-        let scaley = self.handle.CompositionScaleY()?;
+        let (scalex, scaley) = self.handle.composition_scale();
         loop {
             match self
                 .swap_chain
