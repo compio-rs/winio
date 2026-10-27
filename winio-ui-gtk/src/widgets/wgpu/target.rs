@@ -17,7 +17,7 @@ use ash::vk;
 use compio_log::warn;
 use gtk4::{Picture, gdk, glib};
 use wgpu::hal::{self, vulkan::TextureMemory};
-use winio_wgpu::MemoryCanvas;
+use winio_wgpu::{FrameSink, FrameView, MemoryCanvas};
 
 use crate::{Error, Result};
 
@@ -77,9 +77,9 @@ impl Target {
         &mut self,
         device: &wgpu::Device,
         size: (u32, u32),
-    ) -> (wgpu::Texture, wgpu::TextureView, wgpu::TextureFormat) {
+    ) -> Option<(wgpu::Texture, wgpu::TextureView, wgpu::TextureFormat)> {
         match self {
-            Self::Dmabuf(t) => (t.texture.clone(), t.view.clone(), FORMAT_SRGB),
+            Self::Dmabuf(t) => Some((t.texture.clone(), t.view.clone(), FORMAT_SRGB)),
             Self::Memory(t) => t.acquire(device, size),
         }
     }
@@ -88,22 +88,7 @@ impl Target {
         match self {
             Self::Dmabuf(t) => t.present(picture, queue),
             Self::Memory(t) => {
-                let Some(size) = t.size() else {
-                    return Ok(());
-                };
-                let Some(pixels) = t.present(queue) else {
-                    return Ok(());
-                };
-                let bytes_per_row = (size.0 * 4) as usize;
-                let bytes = glib::Bytes::from(pixels);
-                let texture = gdk::MemoryTexture::new(
-                    size.0 as i32,
-                    size.1 as i32,
-                    gdk::MemoryFormat::B8g8r8a8,
-                    &bytes,
-                    bytes_per_row,
-                );
-                picture.set_paintable(Some(&texture));
+                t.present(queue, &mut PictureSink { picture });
                 Ok(())
             }
         }
@@ -330,5 +315,26 @@ impl Drop for MemoryGuard {
                 self.device.free_memory(memory, None);
             }
         }
+    }
+}
+
+/// Uploads the frames of a [`MemoryCanvas`] to a [`Picture`].
+struct PictureSink<'a> {
+    picture: &'a Picture,
+}
+
+impl FrameSink for PictureSink<'_> {
+    fn release(&mut self) {}
+
+    fn set(&mut self, view: FrameView<'_>) {
+        let bytes = glib::Bytes::from_owned(view.pixels.to_vec());
+        let texture = gdk::MemoryTexture::new(
+            view.size.0 as i32,
+            view.size.1 as i32,
+            gdk::MemoryFormat::B8g8r8a8,
+            &bytes,
+            view.stride as usize,
+        );
+        self.picture.set_paintable(Some(&texture));
     }
 }

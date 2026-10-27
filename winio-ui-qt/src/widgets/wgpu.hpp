@@ -34,10 +34,10 @@ protected:
 
 std::unique_ptr<QWidget> new_wgpu_canvas(QWidget *parent);
 double wgpu_canvas_pixel_ratio(QWidget const &w);
-void wgpu_canvas_set_image(QWidget const &w,
-                           rust::Slice<std::uint8_t const> data,
+void wgpu_canvas_set_image(QWidget const &w, std::uint8_t const *data,
                            std::uint32_t width, std::uint32_t height,
                            std::uint32_t stride);
+void wgpu_canvas_clear_image(QWidget const &w);
 
 void wgpu_canvas_register_move_event(QWidget &w,
                                      callback_fn_t<void(int, int)> callback,

@@ -1,10 +1,9 @@
-use compio_log::error;
 use inherit_methods_macro::inherit_methods;
 use wgpu::{Texture, TextureFormat, TextureView};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{KeyCode, MouseButton, Point, Size, Vector};
-use winio_wgpu::MemoryCanvas;
+use winio_wgpu::{FrameSink, FrameView, MemoryCanvas};
 
 use crate::{
     GlobalRuntime, QtMouseButton, Result, Widget,
@@ -115,20 +114,16 @@ impl WgpuCanvas {
         let ratio = ffi::wgpu_canvas_pixel_ratio(self.widget.as_ref());
         let width = ((size.width * ratio).round() as u32).max(1);
         let height = ((size.height * ratio).round() as u32).max(1);
-        Some(self.frame.acquire(device, (width, height)))
+        self.frame.acquire(device, (width, height))
     }
 
     pub fn present(&mut self, queue: &wgpu::Queue) -> Result<()> {
-        let Some(size) = self.frame.size() else {
-            return Ok(());
-        };
-        let Some(pixels) = self.frame.present(queue) else {
-            error!("WGPU canvas: cannot read back the frame");
-            return Ok(());
-        };
-        unsafe {
-            ffi::wgpu_canvas_set_image(self.widget.as_ref(), pixels, size.0, size.1, size.0 * 4);
-        }
+        self.frame.present(
+            queue,
+            &mut QtSink {
+                widget: self.widget.as_ref(),
+            },
+        );
         Ok(())
     }
 
@@ -210,6 +205,29 @@ impl WgpuCanvas {
     }
 }
 
+/// Hands the frames to the widget, which paints them without copying.
+struct QtSink<'a> {
+    widget: &'a ffi::QWidget,
+}
+
+impl FrameSink for QtSink<'_> {
+    fn release(&mut self) {
+        ffi::wgpu_canvas_clear_image(self.widget);
+    }
+
+    fn set(&mut self, view: FrameView<'_>) {
+        unsafe {
+            ffi::wgpu_canvas_set_image(
+                self.widget,
+                view.pixels.as_ptr(),
+                view.size.0,
+                view.size.1,
+                view.stride,
+            );
+        }
+    }
+}
+
 impl WgpuCanvas {
     pub fn bind(&mut self, _instance: &wgpu::Instance, _adapter: &wgpu::Adapter) {}
 }
@@ -229,11 +247,12 @@ mod ffi {
         fn wgpu_canvas_pixel_ratio(w: &QWidget) -> f64;
         unsafe fn wgpu_canvas_set_image(
             w: &QWidget,
-            data: &[u8],
+            data: *const u8,
             width: u32,
             height: u32,
             stride: u32,
         );
+        fn wgpu_canvas_clear_image(w: &QWidget);
 
         unsafe fn wgpu_canvas_register_move_event(
             w: Pin<&mut QWidget>,

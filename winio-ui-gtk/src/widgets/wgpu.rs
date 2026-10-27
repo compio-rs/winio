@@ -129,7 +129,7 @@ impl WgpuCanvas {
                 }
             }
         }
-        Some(self.target.as_mut()?.acquire(device, wanted))
+        self.target.as_mut()?.acquire(device, wanted)
     }
 
     pub fn present(&mut self, queue: &wgpu::Queue) -> Result<()> {

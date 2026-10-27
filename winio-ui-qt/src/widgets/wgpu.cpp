@@ -83,17 +83,22 @@ double wgpu_canvas_pixel_ratio(QWidget const &w) {
     return w.devicePixelRatioF();
 }
 
-void wgpu_canvas_set_image(QWidget const &w,
-                           rust::Slice<std::uint8_t const> data,
+void wgpu_canvas_set_image(QWidget const &w, std::uint8_t const *data,
                            std::uint32_t width, std::uint32_t height,
                            std::uint32_t stride) {
     auto &c =
         const_cast<WinioWgpuCanvas &>(static_cast<WinioWgpuCanvas const &>(w));
-    // `QImage` does not own the data, so copy it out of the Rust slice.
-    QImage view(data.data(), int(width), int(height), int(stride),
-                QImage::Format_ARGB32);
-    c.m_image = view.copy();
+    // The pixels stay mapped until the canvas clears the image again, so
+    // `QImage` can wrap them without a copy.
+    c.m_image =
+        QImage(data, int(width), int(height), int(stride), QImage::Format_ARGB32);
     c.update();
+}
+
+void wgpu_canvas_clear_image(QWidget const &w) {
+    auto &c =
+        const_cast<WinioWgpuCanvas &>(static_cast<WinioWgpuCanvas const &>(w));
+    c.m_image = QImage();
 }
 
 void wgpu_canvas_register_move_event(QWidget &w,
