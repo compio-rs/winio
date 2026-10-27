@@ -17,7 +17,7 @@ winio-primitive = { workspace = true, features = ["bytemuck"] }
 winio-handle = { workspace = true, features = ["gtk"] }
 winio-callback = { workspace = true }
 winio-pollable = { workspace = true, features = ["callback"] }
-winio-wgpu = { workspace = true, optional = true, features = ["memory"] }
+winio-wgpu = { workspace = true, optional = true, features = ["dmabuf", "memory"] }
 
 compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
@@ -32,7 +32,6 @@ scoped-tls = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true, features = ["vulkan"] }
-ash = { workspace = true, optional = true }
 
 gtk4 = { workspace = true, features = ["v4_16"] }
 glib-unix = { workspace = true, optional = true }
@@ -42,7 +41,7 @@ webkit6 = { workspace = true, optional = true, features = ["v2_42"] }
 [features]
 media = []
 webview = ["dep:webkit6", "dep:cookie", "dep:time"]
-wgpu = ["dep:wgpu", "dep:ash", "dep:winio-wgpu"]
+wgpu = ["dep:wgpu", "dep:winio-wgpu"]
 compio-compat = [
     "compio/runtime",
     "compio/compat",

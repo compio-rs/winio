@@ -16,7 +16,7 @@ winio-primitive = { workspace = true, features = ["bytemuck"] }
 winio-handle = { workspace = true, features = ["qt"] }
 winio-callback = { workspace = true }
 winio-pollable = { workspace = true, features = ["callback"] }
-winio-wgpu = { workspace = true, optional = true, features = ["memory"] }
+winio-wgpu = { workspace = true, optional = true, features = ["dmabuf", "memory"] }
 
 compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }

@@ -12,8 +12,10 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
+ash = { workspace = true, optional = true }
 wgpu = { workspace = true }
 
 [features]
-surface = []
+dmabuf = ["dep:ash", "wgpu/vulkan"]
 memory = []
+surface = []

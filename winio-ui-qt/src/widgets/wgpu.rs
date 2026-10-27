@@ -1,9 +1,12 @@
+use std::{os::fd::AsRawFd, sync::atomic::AtomicBool};
+
+use compio_log::error;
 use inherit_methods_macro::inherit_methods;
 use wgpu::{Texture, TextureFormat, TextureView};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
 use winio_primitive::{KeyCode, MouseButton, Point, Size, Vector};
-use winio_wgpu::{FrameSink, FrameView, MemoryCanvas};
+use winio_wgpu::{DmabufImage, FrameSink, FrameView, MemoryCanvas};
 
 use crate::{
     GlobalRuntime, QtMouseButton, Result, Widget,
@@ -20,13 +23,24 @@ pub struct WgpuCanvas {
     on_key_down: Box<Callback<KeyCode>>,
     on_key_up: Box<Callback<KeyCode>>,
     on_key_char: Box<KeyCharCallback>,
-    frame: MemoryCanvas,
+    target: Target,
+    dmabuf: bool,
     widget: Widget<ffi::QWidget>,
 }
+
+#[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
+enum Target {
+    Dmabuf(DmabufImage),
+    Memory(MemoryCanvas),
+}
+
+static DMABUF_UNAVAILABLE: AtomicBool = AtomicBool::new(false);
 
 #[inherit_methods(from = "self.widget")]
 impl WgpuCanvas {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
+        let dmabuf = !DMABUF_UNAVAILABLE.load(std::sync::atomic::Ordering::Relaxed);
         let mut widget = unsafe { ffi::new_wgpu_canvas(parent.as_container().as_qt()) }?;
         widget.pin_mut().setVisible(true)?;
         let on_move = Box::new(Callback::new());
@@ -81,7 +95,8 @@ impl WgpuCanvas {
             on_key_down,
             on_key_up,
             on_key_char,
-            frame: MemoryCanvas::new(),
+            target: Target::Memory(MemoryCanvas::new()),
+            dmabuf,
             widget: Widget::new(widget)?,
         })
     }
@@ -114,16 +129,72 @@ impl WgpuCanvas {
         let ratio = ffi::wgpu_canvas_pixel_ratio(self.widget.as_ref());
         let width = ((size.width * ratio).round() as u32).max(1);
         let height = ((size.height * ratio).round() as u32).max(1);
-        self.frame.acquire(device, (width, height))
+        let wanted = (width, height);
+
+        if self.dmabuf {
+            let recreate = match &self.target {
+                Target::Dmabuf(image) => image.size() != wanted,
+                Target::Memory(_) => true,
+            };
+            if recreate {
+                // The previous frame may still be on screen; it refers to a
+                // texture that is about to be dropped.
+                ffi::wgpu_canvas_clear_dmabuf(self.widget.as_ref());
+                match DmabufImage::new(device, wanted) {
+                    Ok(image) => self.target = Target::Dmabuf(image),
+                    Err(e) => {
+                        error!("WGPU canvas: cannot export a DMA-BUF ({e}), falling back");
+                        DMABUF_UNAVAILABLE.store(true, std::sync::atomic::Ordering::Relaxed);
+                        self.dmabuf = false;
+                        self.target = Target::Memory(MemoryCanvas::new());
+                    }
+                }
+            }
+        }
+
+        match &mut self.target {
+            Target::Dmabuf(image) => Some((
+                image.texture().clone(),
+                image.view().clone(),
+                image.format(),
+            )),
+            Target::Memory(frame) => frame.acquire(device, wanted),
+        }
     }
 
     pub fn present(&mut self, queue: &wgpu::Queue) -> Result<()> {
-        self.frame.present(
-            queue,
-            &mut QtSink {
-                widget: self.widget.as_ref(),
-            },
-        );
+        match &mut self.target {
+            Target::Dmabuf(image) => {
+                // The widget reads the memory directly, so the rendering must
+                // be done before the DMA-BUF is imported.
+                image.wait();
+                let fd = image.fd();
+                let imported = unsafe {
+                    ffi::wgpu_canvas_set_dmabuf(
+                        self.widget.as_ref(),
+                        fd.as_raw_fd(),
+                        image.size().0,
+                        image.size().1,
+                        image.stride(),
+                        image.fourcc(),
+                    )
+                };
+                if !imported {
+                    error!("WGPU canvas: cannot import the DMA-BUF, falling back");
+                    DMABUF_UNAVAILABLE.store(true, std::sync::atomic::Ordering::Relaxed);
+                    self.dmabuf = false;
+                    self.target = Target::Memory(MemoryCanvas::new());
+                }
+            }
+            Target::Memory(frame) => {
+                frame.present(
+                    queue,
+                    &mut QtSink {
+                        widget: self.widget.as_ref(),
+                    },
+                );
+            }
+        }
         Ok(())
     }
 
@@ -253,6 +324,15 @@ mod ffi {
             stride: u32,
         );
         fn wgpu_canvas_clear_image(w: &QWidget);
+        fn wgpu_canvas_clear_dmabuf(w: &QWidget);
+        unsafe fn wgpu_canvas_set_dmabuf(
+            w: &QWidget,
+            fd: i32,
+            width: u32,
+            height: u32,
+            stride: u32,
+            fourcc: u32,
+        ) -> bool;
 
         unsafe fn wgpu_canvas_register_move_event(
             w: Pin<&mut QWidget>,

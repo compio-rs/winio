@@ -10,7 +10,7 @@ fn main() {
         && target_os.as_deref() != Ok("android")
         && target_vendor.as_deref() != Ok("apple")
     {
-        let mut modules = vec![
+        let modules = vec![
             "Core".into(),
             "Gui".into(),
             "Widgets".into(),
@@ -22,8 +22,12 @@ fn main() {
             "WebEngineCore".into(),
             #[cfg(feature = "webview")]
             "WebEngineWidgets".into(),
+            #[cfg(feature = "wgpu")]
+            "OpenGL".into(),
+            #[cfg(feature = "wgpu")]
+            "OpenGLWidgets".into(),
         ];
-        let mut qbuild = qt_build_utils::QtBuild::new(modules.clone()).unwrap();
+        let qbuild = qt_build_utils::QtBuild::new(modules.clone()).unwrap();
 
         let major = qbuild.version().major;
         if major != 5 && major != 6 {

@@ -14,11 +14,7 @@ use std::sync::{
 
 use wgpu::{Buffer, Device, Queue, Texture, TextureFormat, TextureView};
 
-/// Format of the offscreen texture.
-pub const FORMAT: TextureFormat = TextureFormat::Bgra8Unorm;
-
-/// Format of the view handed to the user, with sRGB encoding.
-pub const FORMAT_SRGB: TextureFormat = TextureFormat::Bgra8UnormSrgb;
+use crate::{FORMAT, FORMAT_SRGB};
 
 /// Number of frames that are rendered and copied back concurrently.
 const FRAMES: usize = 3;
