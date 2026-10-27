@@ -7,7 +7,10 @@
 use std::{
     fmt,
     os::fd::{AsRawFd, FromRawFd, OwnedFd},
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use ash::vk;
@@ -117,7 +120,7 @@ pub(super) struct DmabufTarget {
     texture: wgpu::Texture,
     view: wgpu::TextureView,
     size: (u32, u32),
-    fd: OwnedFd,
+    fd: Arc<OwnedFd>,
     stride: u32,
     fourcc: u32,
     modifier: u64,
@@ -245,7 +248,7 @@ impl DmabufTarget {
             texture,
             view,
             size,
-            fd,
+            fd: Arc::new(fd),
             stride,
             fourcc: DRM_FORMAT_ARGB8888,
             modifier: DRM_FORMAT_MOD_LINEAR,
@@ -263,7 +266,7 @@ impl DmabufTarget {
         // Every frame needs a fresh texture: `GdkDmabufTexture` does not track
         // content changes.
         let display = gdk::Display::default().ok_or(Error::NullPointer)?;
-        let fd = self.fd.try_clone()?;
+        let fd = self.fd.clone();
         let builder = gdk::DmabufTextureBuilder::new()
             .set_display(&display)
             .set_width(self.size.0)
