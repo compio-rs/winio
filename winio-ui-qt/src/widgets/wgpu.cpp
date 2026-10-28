@@ -313,30 +313,26 @@ double wgpu_canvas_pixel_ratio(QWidget const &w) {
     return w.devicePixelRatioF();
 }
 
-void wgpu_canvas_set_image(QWidget const &w, std::uint8_t const *data,
+void wgpu_canvas_set_image(QWidget &w, std::uint8_t const *data,
                            std::uint32_t width, std::uint32_t height,
                            std::uint32_t stride) {
-    auto &c =
-        const_cast<WinioWgpuCanvas &>(static_cast<WinioWgpuCanvas const &>(w));
+    auto &c = static_cast<WinioWgpuCanvas &>(w);
     c.set_image(data, int(width), int(height), int(stride));
     c.update();
 }
 
-void wgpu_canvas_clear_dmabuf(QWidget const &w) {
-    const_cast<WinioWgpuCanvas &>(static_cast<WinioWgpuCanvas const &>(w))
-        .clear_dmabuf();
+void wgpu_canvas_clear_dmabuf(QWidget &w) {
+    static_cast<WinioWgpuCanvas &>(w).clear_dmabuf();
 }
 
-void wgpu_canvas_clear_image(QWidget const &w) {
-    const_cast<WinioWgpuCanvas &>(static_cast<WinioWgpuCanvas const &>(w))
-        .clear_image();
+void wgpu_canvas_clear_image(QWidget &w) {
+    static_cast<WinioWgpuCanvas &>(w).clear_image();
 }
 
-bool wgpu_canvas_set_dmabuf(QWidget const &w, int fd, std::uint32_t width,
+bool wgpu_canvas_set_dmabuf(QWidget &w, int fd, std::uint32_t width,
                             std::uint32_t height, std::uint32_t stride,
                             std::uint32_t fourcc) {
-    auto &c =
-        const_cast<WinioWgpuCanvas &>(static_cast<WinioWgpuCanvas const &>(w));
+    auto &c = static_cast<WinioWgpuCanvas &>(w);
     if (!c.set_dmabuf(fd, int(width), int(height), int(stride), fourcc)) {
         return false;
     }

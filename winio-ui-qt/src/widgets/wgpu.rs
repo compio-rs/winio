@@ -1,4 +1,4 @@
-use std::{os::fd::AsRawFd, sync::atomic::AtomicBool};
+use std::{os::fd::AsRawFd, pin::Pin, sync::atomic::AtomicBool};
 
 use compio_log::error;
 use inherit_methods_macro::inherit_methods;
@@ -139,7 +139,7 @@ impl WgpuCanvas {
             if recreate {
                 // The previous frame may still be on screen; it refers to a
                 // texture that is about to be dropped.
-                ffi::wgpu_canvas_clear_dmabuf(self.widget.as_ref());
+                ffi::wgpu_canvas_clear_dmabuf(self.widget.pin_mut());
                 match DmabufImage::new(device, wanted) {
                     Ok(image) => self.target = Target::Dmabuf(image),
                     Err(e) => {
@@ -171,7 +171,7 @@ impl WgpuCanvas {
                 let fd = image.fd();
                 let imported = unsafe {
                     ffi::wgpu_canvas_set_dmabuf(
-                        self.widget.as_ref(),
+                        self.widget.pin_mut(),
                         fd.as_raw_fd(),
                         image.size().0,
                         image.size().1,
@@ -190,7 +190,7 @@ impl WgpuCanvas {
                 frame.present(
                     queue,
                     &mut QtSink {
-                        widget: self.widget.as_ref(),
+                        widget: self.widget.pin_mut(),
                     },
                 );
             }
@@ -278,18 +278,18 @@ impl WgpuCanvas {
 
 /// Hands the frames to the widget, which paints them without copying.
 struct QtSink<'a> {
-    widget: &'a ffi::QWidget,
+    widget: Pin<&'a mut ffi::QWidget>,
 }
 
 impl FrameSink for QtSink<'_> {
     fn release(&mut self) {
-        ffi::wgpu_canvas_clear_image(self.widget);
+        ffi::wgpu_canvas_clear_image(self.widget.as_mut());
     }
 
     fn set(&mut self, view: FrameView<'_>) {
         unsafe {
             ffi::wgpu_canvas_set_image(
-                self.widget,
+                self.widget.as_mut(),
                 view.pixels.as_ptr(),
                 view.size.0,
                 view.size.1,
@@ -317,16 +317,16 @@ mod ffi {
         unsafe fn new_wgpu_canvas(parent: *mut QWidget) -> Result<UniquePtr<QWidget>>;
         fn wgpu_canvas_pixel_ratio(w: &QWidget) -> f64;
         unsafe fn wgpu_canvas_set_image(
-            w: &QWidget,
+            w: Pin<&mut QWidget>,
             data: *const u8,
             width: u32,
             height: u32,
             stride: u32,
         );
-        fn wgpu_canvas_clear_image(w: &QWidget);
-        fn wgpu_canvas_clear_dmabuf(w: &QWidget);
+        fn wgpu_canvas_clear_image(w: Pin<&mut QWidget>);
+        fn wgpu_canvas_clear_dmabuf(w: Pin<&mut QWidget>);
         unsafe fn wgpu_canvas_set_dmabuf(
-            w: &QWidget,
+            w: Pin<&mut QWidget>,
             fd: i32,
             width: u32,
             height: u32,

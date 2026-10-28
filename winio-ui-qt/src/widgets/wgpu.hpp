@@ -8,8 +8,6 @@
 #include <QWidget>
 #include <memory>
 
-#include <winio-ui-qt/src/widgets/wgpu.rs.h>
-
 using QtMouseButton = Qt::MouseButton;
 
 struct WinioWgpuCanvas : QOpenGLWidget {
@@ -51,12 +49,12 @@ private:
 
 std::unique_ptr<QWidget> new_wgpu_canvas(QWidget *parent);
 double wgpu_canvas_pixel_ratio(QWidget const &w);
-void wgpu_canvas_set_image(QWidget const &w, std::uint8_t const *data,
+void wgpu_canvas_set_image(QWidget &w, std::uint8_t const *data,
                            std::uint32_t width, std::uint32_t height,
                            std::uint32_t stride);
-void wgpu_canvas_clear_image(QWidget const &w);
-void wgpu_canvas_clear_dmabuf(QWidget const &w);
-bool wgpu_canvas_set_dmabuf(QWidget const &w, int fd, std::uint32_t width,
+void wgpu_canvas_clear_image(QWidget &w);
+void wgpu_canvas_clear_dmabuf(QWidget &w);
+bool wgpu_canvas_set_dmabuf(QWidget &w, int fd, std::uint32_t width,
                             std::uint32_t height, std::uint32_t stride,
                             std::uint32_t fourcc);
 
