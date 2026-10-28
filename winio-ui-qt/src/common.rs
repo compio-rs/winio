@@ -1,3 +1,5 @@
+#![allow(clippy::try_from_instead_of_from_str)]
+
 use std::{fmt::Debug, mem::MaybeUninit, ops::Deref, pin::Pin};
 
 use cxx::{ExternType, type_id};
