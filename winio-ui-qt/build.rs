@@ -25,7 +25,7 @@ fn main() {
             #[cfg(feature = "wgpu")]
             "OpenGL".into(),
         ];
-        let qbuild = qt_build_utils::QtBuild::new(modules.clone()).unwrap();
+        let mut qbuild = qt_build_utils::QtBuild::new(modules.clone()).unwrap();
 
         let major = qbuild.version().major;
         if major != 5 && major != 6 {
@@ -36,6 +36,7 @@ fn main() {
 
         if cfg!(feature = "wgpu") && major == 6 {
             modules.push("OpenGLWidgets".into());
+            qbuild = qt_build_utils::QtBuild::new(modules).unwrap();
         }
 
         let sources = [
