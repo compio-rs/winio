@@ -60,10 +60,10 @@ jobs:
             # stub
             features: 'all'
             no_default_features: true
-          - os: 'macos-14'
-          - os: 'macos-14'
+          - os: 'macos-15'
+          - os: 'macos-15'
             features: 'all'
-          - os: 'macos-14'
+          - os: 'macos-15'
             target: 'aarch64-apple-ios-macabi'
             features: 'all'
     steps:

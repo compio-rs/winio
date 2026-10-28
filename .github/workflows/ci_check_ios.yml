@@ -19,9 +19,9 @@ jobs:
       matrix:
         toolchain: ['nightly']
         setup:
-          - os: 'macos-14'
+          - os: 'macos-15'
             target: 'aarch64-apple-ios'
-          - os: 'macos-14'
+          - os: 'macos-15'
             target: 'aarch64-apple-ios-sim'
     steps:
       - uses: actions/checkout@v6
