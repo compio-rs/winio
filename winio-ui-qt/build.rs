@@ -10,7 +10,7 @@ fn main() {
         && target_os.as_deref() != Ok("android")
         && target_vendor.as_deref() != Ok("apple")
     {
-        let modules = vec![
+        let mut modules = vec![
             "Core".into(),
             "Gui".into(),
             "Widgets".into(),
@@ -24,8 +24,6 @@ fn main() {
             "WebEngineWidgets".into(),
             #[cfg(feature = "wgpu")]
             "OpenGL".into(),
-            #[cfg(feature = "wgpu")]
-            "OpenGLWidgets".into(),
         ];
         let qbuild = qt_build_utils::QtBuild::new(modules.clone()).unwrap();
 
@@ -35,6 +33,10 @@ fn main() {
         }
         println!("cargo::rustc-check-cfg=cfg(qtver, values(\"5\", \"6\"))");
         println!("cargo::rustc-cfg=qtver=\"{major}\"");
+
+        if cfg!(feature = "wgpu") && major == 6 {
+            modules.push("OpenGLWidgets".into());
+        }
 
         let sources = [
             "src/runtime/qt",
