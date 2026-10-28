@@ -22,6 +22,8 @@ fn main() {
             "WebEngineCore".into(),
             #[cfg(feature = "webview")]
             "WebEngineWidgets".into(),
+            #[cfg(feature = "wgpu")]
+            "OpenGL".into(),
         ];
         let mut qbuild = qt_build_utils::QtBuild::new(modules.clone()).unwrap();
 
@@ -31,6 +33,11 @@ fn main() {
         }
         println!("cargo::rustc-check-cfg=cfg(qtver, values(\"5\", \"6\"))");
         println!("cargo::rustc-cfg=qtver=\"{major}\"");
+
+        if cfg!(feature = "wgpu") && major == 6 {
+            modules.push("OpenGLWidgets".into());
+            qbuild = qt_build_utils::QtBuild::new(modules).unwrap();
+        }
 
         let sources = [
             "src/runtime/qt",
