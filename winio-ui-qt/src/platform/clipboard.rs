@@ -40,7 +40,7 @@ impl Clipboard {
             return Ok(None);
         }
         let data = Data::from_owned(inner)?;
-        if data.formats().is_empty() {
+        if data.formats()?.is_empty() {
             Ok(None)
         } else {
             Ok(Some(data))
@@ -50,6 +50,13 @@ impl Clipboard {
     pub fn write(&mut self, data: &Data) -> Result<()> {
         self.with_write(|| {
             ffi::clipboard_write(data.qmime_data())?;
+            Ok(())
+        })
+    }
+
+    pub fn clear(&mut self) -> Result<()> {
+        self.with_write(|| {
+            ffi::clipboard_clear()?;
             Ok(())
         })
     }
@@ -147,6 +154,7 @@ mod ffi {
 
         fn clipboard_read() -> Result<UniquePtr<QMimeData>>;
         fn clipboard_write(data: &QMimeData) -> Result<()>;
+        fn clipboard_clear() -> Result<()>;
         fn clipboard_write_text(text: &QString) -> Result<()>;
         fn clipboard_write_rtf(rtf: &QString) -> Result<()>;
         fn clipboard_write_html(html: &QString) -> Result<()>;

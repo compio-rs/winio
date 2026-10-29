@@ -1,11 +1,9 @@
-use std::ffi::OsStr;
-
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 
 use crate::{
     sys::{self, Error, Result},
-    ui::{Data, Image},
+    ui::Data,
 };
 
 /// An accessor to the system clipboard.
@@ -20,7 +18,7 @@ impl Clipboard {
     ///
     /// Returns `None` if the clipboard is empty.
     pub fn read(&mut self) -> Result<Option<Data>> {
-        self.clipboard.read().map(|data| data.map(Data::new))
+        self.clipboard.read().map(|data| data.map(Data::from_sys))
     }
 
     /// Replace the clipboard content with `data`.
@@ -28,22 +26,8 @@ impl Clipboard {
         self.clipboard.write(data.sys())
     }
 
-    /// Write plain text to the clipboard.
-    pub fn write_text(&mut self, text: impl AsRef<str>) -> Result<()>;
-
-    /// Write Rich Text Format to the clipboard.
-    pub fn write_rtf(&mut self, rtf: impl AsRef<str>) -> Result<()>;
-
-    /// Write HTML to the clipboard.
-    pub fn write_html(&mut self, html: impl AsRef<str>) -> Result<()>;
-
-    /// Write an image to the clipboard.
-    pub fn write_image(&mut self, image: &Image) -> Result<()> {
-        self.clipboard.write_image(&image.0)
-    }
-
-    /// Write a list of local files or URIs to the clipboard.
-    pub fn write_uris(&mut self, uris: impl IntoIterator<Item = impl AsRef<OsStr>>) -> Result<()>;
+    /// Clear the clipboard.
+    pub fn clear(&mut self) -> Result<()>;
 }
 
 /// Events of [`Clipboard`].

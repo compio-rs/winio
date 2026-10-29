@@ -26,6 +26,8 @@ void clipboard_write(const QMimeData &data) {
     QGuiApplication::clipboard()->setMimeData(clone_mime_data(data).release());
 }
 
+void clipboard_clear() { QGuiApplication::clipboard()->clear(); }
+
 void clipboard_write_text(const QString &text) {
     QGuiApplication::clipboard()->setText(text);
 }

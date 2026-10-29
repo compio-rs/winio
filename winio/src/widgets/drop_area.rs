@@ -68,7 +68,7 @@ impl Component for DropArea {
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         loop {
             let data = self.widget.wait_drop().await;
-            sender.output(DropAreaEvent::Drop(Data::new(data)));
+            sender.output(DropAreaEvent::Drop(Data::from_sys(data)));
         }
     }
 

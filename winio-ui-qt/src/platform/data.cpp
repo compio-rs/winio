@@ -21,6 +21,10 @@ rust::String to_string(const QString &s) {
 
 } // namespace
 
+std::unique_ptr<QMimeData> new_mime_data() {
+    return std::make_unique<QMimeData>();
+}
+
 std::unique_ptr<QMimeData> clone_mime_data(const QMimeData &data) {
     auto copy = std::make_unique<QMimeData>();
     for (const QString &format : data.formats()) {
@@ -58,6 +62,26 @@ QString mime_data_text(const QMimeData &data, rust::Str mime) {
         return data.html();
     }
     return QString::fromUtf8(data.data(type));
+}
+
+void mime_data_set(QMimeData &data, rust::Str mime,
+                   rust::Slice<const uint8_t> bytes) {
+    const QString type =
+        QString::fromUtf8(mime.data(), static_cast<qsizetype>(mime.size()));
+    data.setData(type, QByteArray(reinterpret_cast<const char *>(bytes.data()),
+                                  static_cast<qsizetype>(bytes.size())));
+}
+
+void mime_data_set_image(QMimeData &data, const QImage &image) {
+    data.setImageData(image);
+}
+
+void mime_data_set_uris(QMimeData &data, rust::Slice<const QString> uris) {
+    QList<QUrl> urls;
+    for (std::size_t i = 0; i < uris.size(); ++i) {
+        urls.push_back(QUrl::fromLocalFile(uris[i]));
+    }
+    data.setUrls(urls);
 }
 
 bool mime_data_has_image(const QMimeData &data) { return data.hasImage(); }

@@ -17,6 +17,7 @@ clipboard_connect_changed(callback_fn_t<void()> callback,
 
 std::unique_ptr<QMimeData> clipboard_read();
 void clipboard_write(const QMimeData &data);
+void clipboard_clear();
 void clipboard_write_text(const QString &text);
 void clipboard_write_rtf(const QString &rtf);
 void clipboard_write_html(const QString &html);
