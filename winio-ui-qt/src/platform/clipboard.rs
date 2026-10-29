@@ -1,10 +1,10 @@
-use std::{cell::Cell, ffi::OsStr, fmt::Debug};
+use std::{cell::Cell, fmt::Debug};
 
 use cxx::UniquePtr;
 use winio_callback::Callback;
 use winio_pollable::GlobalRuntime;
 
-use crate::{Result, common::QString, platform::Data};
+use crate::{Result, platform::Data};
 
 pub struct Clipboard {
     _context: UniquePtr<ffi::ClipboardContext>,
@@ -61,48 +61,6 @@ impl Clipboard {
         })
     }
 
-    pub fn write_text(&mut self, text: impl AsRef<str>) -> Result<()> {
-        let text = QString::try_from(text.as_ref())?;
-        self.with_write(|| {
-            ffi::clipboard_write_text(&text)?;
-            Ok(())
-        })
-    }
-
-    pub fn write_rtf(&mut self, rtf: impl AsRef<str>) -> Result<()> {
-        let rtf = QString::try_from(rtf.as_ref())?;
-        self.with_write(|| {
-            ffi::clipboard_write_rtf(&rtf)?;
-            Ok(())
-        })
-    }
-
-    pub fn write_html(&mut self, html: impl AsRef<str>) -> Result<()> {
-        let html = QString::try_from(html.as_ref())?;
-        self.with_write(|| {
-            ffi::clipboard_write_html(&html)?;
-            Ok(())
-        })
-    }
-
-    pub fn write_image(&mut self, image: &crate::Image) -> Result<()> {
-        self.with_write(|| {
-            ffi::clipboard_write_image(image.as_qimage())?;
-            Ok(())
-        })
-    }
-
-    pub fn write_uris(&mut self, uris: impl IntoIterator<Item = impl AsRef<OsStr>>) -> Result<()> {
-        let mut uris = uris
-            .into_iter()
-            .map(|uri| QString::try_from(uri.as_ref().to_string_lossy().as_ref()))
-            .collect::<std::result::Result<Vec<_>, _>>()?;
-        self.with_write(|| {
-            ffi::clipboard_write_uris(&mut uris)?;
-            Ok(())
-        })
-    }
-
     pub async fn wait_change(&self) {
         self.inner.on_changed.wait().await
     }
@@ -143,9 +101,7 @@ mod ffi {
         include!("winio-ui-qt/src/platform/clipboard.hpp");
 
         type ClipboardContext;
-        type QImage = crate::platform::QImage;
         type QMimeData = crate::platform::QMimeData;
-        type QString = crate::common::QString;
 
         unsafe fn clipboard_connect_changed(
             callback: unsafe fn(*const u8),
@@ -155,10 +111,5 @@ mod ffi {
         fn clipboard_read() -> Result<UniquePtr<QMimeData>>;
         fn clipboard_write(data: &QMimeData) -> Result<()>;
         fn clipboard_clear() -> Result<()>;
-        fn clipboard_write_text(text: &QString) -> Result<()>;
-        fn clipboard_write_rtf(rtf: &QString) -> Result<()>;
-        fn clipboard_write_html(html: &QString) -> Result<()>;
-        fn clipboard_write_image(image: &QImage) -> Result<()>;
-        fn clipboard_write_uris(uris: &mut [QString]) -> Result<()>;
     }
 }
