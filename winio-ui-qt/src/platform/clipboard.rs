@@ -34,7 +34,7 @@ impl Clipboard {
         })
     }
 
-    pub fn read(&mut self) -> Result<Option<Data>> {
+    pub async fn read(&mut self) -> Result<Option<Data>> {
         let inner = ffi::clipboard_read()?;
         if inner.is_null() {
             return Ok(None);

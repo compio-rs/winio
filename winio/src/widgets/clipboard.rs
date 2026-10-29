@@ -17,8 +17,11 @@ impl Clipboard {
     /// Read the current clipboard content.
     ///
     /// Returns `None` if the clipboard is empty.
-    pub fn read(&mut self) -> Result<Option<Data>> {
-        self.clipboard.read().map(|data| data.map(Data::from_sys))
+    pub async fn read(&mut self) -> Result<Option<Data>> {
+        self.clipboard
+            .read()
+            .await
+            .map(|data| data.map(Data::from_sys))
     }
 
     /// Replace the clipboard content with `data`.

@@ -127,7 +127,7 @@ impl Component for ClipboardPage {
     ) -> Result<bool> {
         match message {
             ClipboardPageMessage::Refresh => {
-                self.clipboard_image = match self.clipboard.read()? {
+                self.clipboard_image = match self.clipboard.read().await? {
                     Some(data) => Self::show_known(
                         data.into_known(),
                         &mut self.clipboard_mime,

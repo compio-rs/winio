@@ -24,6 +24,10 @@ pub struct Image {
 }
 
 impl Image {
+    pub(crate) fn from_texture(texture: gdk::Texture) -> Self {
+        Self { texture }
+    }
+
     pub fn size(&self) -> Result<BitmapSize> {
         Ok(BitmapSize::new(
             self.texture.width() as usize,
