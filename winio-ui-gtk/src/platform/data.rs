@@ -1,6 +1,8 @@
 use std::{
     ffi::OsString,
+    future::Future,
     path::{Path, PathBuf},
+    pin::Pin,
 };
 
 use gtk4::{
@@ -31,63 +33,15 @@ impl Data {
     }
 
     pub(crate) async fn from_clipboard(clipboard: &gdk::Clipboard) -> Result<Option<Self>> {
-        let formats = clipboard.formats();
-        let mut data = Self::new()?;
-
-        let has_image = formats.contains_type(gdk::Texture::static_type())
-            || formats
-                .mime_types()
-                .iter()
-                .any(|mime| mime.starts_with("image/"));
-        if has_image
-            && let Ok(value) = clipboard
-                .read_value_future(gdk::Texture::static_type(), glib::Priority::DEFAULT)
-                .await
-            && let Ok(texture) = value.get::<gdk::Texture>()
-        {
-            data.insert_image(&Image::from_texture(texture))?;
-        }
-
-        if formats.contains_type(gdk::FileList::static_type())
-            && let Ok(value) = clipboard
-                .read_value_future(gdk::FileList::static_type(), glib::Priority::DEFAULT)
-                .await
-            && let Ok(files) = value.get::<gdk::FileList>()
-        {
-            data.insert_files(files.files())?;
-        }
-
-        for mime in formats.mime_types() {
-            let Ok(typed) = mime.as_str().parse::<Mime>() else {
-                continue;
-            };
-            if data.image.is_some() && typed.type_() == mime::IMAGE {
-                data.insert_format(typed);
-                continue;
-            }
-            if data.uris.is_some() && typed.essence_str() == "text/uri-list" {
-                data.insert_format(typed);
-                continue;
-            }
-            if let Ok((stream, actual)) = clipboard
-                .read_future(&[mime.as_str()], glib::Priority::DEFAULT)
-                .await
-                && let Ok(bytes) = read_stream(stream).await
-                && let Ok(actual) = actual.as_str().parse::<Mime>()
-            {
-                data.insert(actual, bytes)?;
-            }
-        }
-
-        if data.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(data))
-        }
+        Self::from_source(clipboard).await
     }
 
     pub(crate) async fn from_drop(drop: &gdk::Drop) -> Result<Option<Self>> {
-        let formats = drop.formats();
+        Self::from_source(drop).await
+    }
+
+    async fn from_source(source: &impl ContentSource) -> Result<Option<Self>> {
+        let formats = source.formats();
         let mut data = Self::new()?;
 
         let has_image = formats.contains_type(gdk::Texture::static_type())
@@ -96,18 +50,14 @@ impl Data {
                 .iter()
                 .any(|mime| mime.starts_with("image/"));
         if has_image
-            && let Ok(value) = drop
-                .read_value_future(gdk::Texture::static_type(), glib::Priority::DEFAULT)
-                .await
+            && let Ok(value) = source.read_value(gdk::Texture::static_type()).await
             && let Ok(texture) = value.get::<gdk::Texture>()
         {
             data.insert_image(&Image::from_texture(texture))?;
         }
 
         if formats.contains_type(gdk::FileList::static_type())
-            && let Ok(value) = drop
-                .read_value_future(gdk::FileList::static_type(), glib::Priority::DEFAULT)
-                .await
+            && let Ok(value) = source.read_value(gdk::FileList::static_type()).await
             && let Ok(files) = value.get::<gdk::FileList>()
         {
             data.insert_files(files.files())?;
@@ -125,9 +75,7 @@ impl Data {
                 data.insert_format(typed);
                 continue;
             }
-            if let Ok((stream, actual)) = drop
-                .read_future(&[mime.as_str()], glib::Priority::DEFAULT)
-                .await
+            if let Ok((stream, actual)) = source.read_mime(mime.as_str()).await
                 && let Ok(bytes) = read_stream(stream).await
                 && let Ok(actual) = actual.as_str().parse::<Mime>()
             {
@@ -281,6 +229,42 @@ impl Data {
         }
     }
 }
+
+type MimeRead = Pin<
+    Box<
+        dyn Future<Output = std::result::Result<(gio::InputStream, glib::GString), glib::Error>>
+            + 'static,
+    >,
+>;
+type ValueRead =
+    Pin<Box<dyn Future<Output = std::result::Result<glib::Value, glib::Error>> + 'static>>;
+
+trait ContentSource {
+    fn formats(&self) -> gdk::ContentFormats;
+    fn read_mime(&self, mime: &str) -> MimeRead;
+    fn read_value(&self, ty: glib::types::Type) -> ValueRead;
+}
+
+macro_rules! impl_content_source {
+    ($ty:ty) => {
+        impl ContentSource for $ty {
+            fn formats(&self) -> gdk::ContentFormats {
+                <$ty>::formats(self)
+            }
+
+            fn read_mime(&self, mime: &str) -> MimeRead {
+                self.read_future(&[mime], glib::Priority::DEFAULT)
+            }
+
+            fn read_value(&self, ty: glib::types::Type) -> ValueRead {
+                self.read_value_future(ty, glib::Priority::DEFAULT)
+            }
+        }
+    };
+}
+
+impl_content_source!(gdk::Clipboard);
+impl_content_source!(gdk::Drop);
 
 async fn read_stream(stream: gio::InputStream) -> Result<Vec<u8>> {
     let mut result = Vec::new();
