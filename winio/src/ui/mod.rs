@@ -2,6 +2,7 @@
 
 mod app;
 mod canvas;
+mod data;
 mod ext;
 mod filebox;
 mod image;
@@ -9,6 +10,7 @@ mod msgbox;
 
 pub use app::*;
 pub use canvas::*;
+pub use data::*;
 pub use ext::*;
 pub use filebox::*;
 pub use image::*;
