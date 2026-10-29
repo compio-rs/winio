@@ -28,6 +28,7 @@ html-escape = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true }
 local-sync = { workspace = true }
+mime = { workspace = true }
 scoped-tls = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true, optional = true }
