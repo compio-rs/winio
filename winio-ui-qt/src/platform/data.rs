@@ -4,7 +4,11 @@ use cxx::UniquePtr;
 pub(crate) use ffi::QMimeData;
 use mime::Mime;
 
-use crate::{Result, common::QString, platform::Image};
+use crate::{
+    Result,
+    common::{QByteArray, QString},
+    platform::Image,
+};
 
 pub struct Data {
     inner: UniquePtr<QMimeData>,
@@ -26,10 +30,9 @@ impl Debug for Data {
     }
 }
 
-#[derive(Debug)]
 struct Entry {
     mime: Mime,
-    bytes: OnceCell<Vec<u8>>,
+    bytes: OnceCell<QByteArray>,
 }
 
 impl Data {
@@ -87,22 +90,17 @@ impl Data {
             return Ok(None);
         };
         if entry.bytes.get().is_none() {
-            let bytes = self.load_bytes(mime)?;
+            let bytes = ffi::mime_data_get(&self.inner, mime.as_ref())?;
+            if bytes.is_empty()
+                && mime.type_() == mime::IMAGE
+                && mime.subtype() == mime::PNG
+                && ffi::mime_data_has_image(&self.inner)
+            {
+                return Ok(None);
+            }
             let _ = entry.bytes.set(bytes);
         }
-        Ok(entry.bytes.get().map(Vec::as_slice))
-    }
-
-    fn load_bytes(&self, mime: &Mime) -> Result<Vec<u8>> {
-        let mut bytes = ffi::mime_data_get(&self.inner, mime.as_ref())?;
-        if bytes.is_empty()
-            && mime.type_() == mime::IMAGE
-            && mime.subtype() == mime::PNG
-            && ffi::mime_data_has_image(&self.inner)
-        {
-            bytes = ffi::mime_data_image_png(&self.inner)?;
-        }
-        Ok(bytes)
+        Ok(entry.bytes.get().map(|bytes| &**bytes))
     }
 
     pub fn into_text(self, mime: &Mime) -> std::result::Result<String, Self> {
@@ -178,6 +176,7 @@ mod ffi {
     unsafe extern "C++-unwind" {
         include!("winio-ui-qt/src/platform/data.hpp");
 
+        type QByteArray = crate::common::QByteArray;
         type QImage = crate::platform::QImage;
         type QString = crate::common::QString;
         type QMimeData;
@@ -185,13 +184,12 @@ mod ffi {
         fn new_mime_data() -> UniquePtr<QMimeData>;
         fn clone_mime_data(data: &QMimeData) -> Result<UniquePtr<QMimeData>>;
         fn mime_data_formats(data: &QMimeData) -> Result<Vec<String>>;
-        fn mime_data_get(data: &QMimeData, mime: &str) -> Result<Vec<u8>>;
+        fn mime_data_get(data: &QMimeData, mime: &str) -> Result<QByteArray>;
         fn mime_data_text(data: &QMimeData, mime: &str) -> Result<QString>;
         fn mime_data_set(data: Pin<&mut QMimeData>, mime: &str, bytes: &[u8]) -> Result<()>;
         fn mime_data_set_image(data: Pin<&mut QMimeData>, image: &QImage) -> Result<()>;
         fn mime_data_set_uris(data: Pin<&mut QMimeData>, uris: &[QString]) -> Result<()>;
         fn mime_data_has_image(data: &QMimeData) -> bool;
-        fn mime_data_image_png(data: &QMimeData) -> Result<Vec<u8>>;
         fn mime_data_image(data: &QMimeData) -> Result<UniquePtr<QImage>>;
         fn mime_data_local_files(data: &QMimeData) -> Result<Vec<String>>;
     }

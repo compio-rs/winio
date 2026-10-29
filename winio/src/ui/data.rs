@@ -34,8 +34,8 @@ impl Data {
 
     /// Get the raw bytes of the format `mime`.
     ///
-    /// Returns `Ok(None)` if the format is not available. For images, the bytes
-    /// may be encoded on demand.
+    /// Returns `Ok(None)` if the format is not available, or could not be
+    /// represented by a byte array.
     pub fn get(&self, mime: &Mime) -> Result<Option<&[u8]>>;
 }
 

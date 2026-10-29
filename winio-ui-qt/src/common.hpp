@@ -68,3 +68,5 @@ inline std::uint8_t const *byte_array_data(const QByteArray &arr) noexcept {
 inline std::size_t byte_array_len(const QByteArray &arr) noexcept {
     return arr.size();
 }
+
+inline void byte_array_drop(QByteArray &arr) noexcept { arr.~QByteArray(); }

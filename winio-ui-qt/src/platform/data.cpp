@@ -1,18 +1,8 @@
 #include "data.hpp"
-#include <QBuffer>
 #include <QByteArray>
 #include <QUrl>
 
 namespace {
-
-rust::Vec<uint8_t> to_bytes(const QByteArray &bytes) {
-    rust::Vec<uint8_t> result;
-    result.reserve(bytes.size());
-    for (char c : bytes) {
-        result.push_back(static_cast<uint8_t>(c));
-    }
-    return result;
-}
 
 rust::String to_string(const QString &s) {
     const QByteArray bytes = s.toUtf8();
@@ -47,9 +37,9 @@ rust::Vec<rust::String> mime_data_formats(const QMimeData &data) {
     return result;
 }
 
-rust::Vec<uint8_t> mime_data_get(const QMimeData &data, rust::Str mime) {
-    return to_bytes(data.data(
-        QString::fromUtf8(mime.data(), static_cast<qsizetype>(mime.size()))));
+QByteArray mime_data_get(const QMimeData &data, rust::Str mime) {
+    return data.data(
+        QString::fromUtf8(mime.data(), static_cast<qsizetype>(mime.size())));
 }
 
 QString mime_data_text(const QMimeData &data, rust::Str mime) {
@@ -85,22 +75,6 @@ void mime_data_set_uris(QMimeData &data, rust::Slice<const QString> uris) {
 }
 
 bool mime_data_has_image(const QMimeData &data) { return data.hasImage(); }
-
-rust::Vec<uint8_t> mime_data_image_png(const QMimeData &data) {
-    if (!data.hasImage()) {
-        return {};
-    }
-    const QImage image = qvariant_cast<QImage>(data.imageData());
-    if (image.isNull()) {
-        return {};
-    }
-    QByteArray bytes;
-    QBuffer buffer(&bytes);
-    if (!buffer.open(QIODevice::WriteOnly) || !image.save(&buffer, "PNG")) {
-        return {};
-    }
-    return to_bytes(bytes);
-}
 
 std::unique_ptr<QImage> mime_data_image(const QMimeData &data) {
     if (data.hasImage()) {
