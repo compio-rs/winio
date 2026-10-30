@@ -18,13 +18,13 @@ use windows_sys::Win32::{
     },
 };
 use winio_primitive::{DataEntry, DataFormat};
-use winio_ui_windows_common::decode_ansi;
+use winio_ui_windows_common::{decode_ansi, parse_dropfiles};
 
 use crate::{
     Image,
     platform::format::{
         build_hdrop, decode_cf_html, decode_dib, encode_cf_html, format_category, format_codec,
-        read_hdrop, register_format,
+        register_format,
     },
 };
 
@@ -190,7 +190,9 @@ impl Entry {
                     decode_cf_html(str).ok_or_else(invalid_data)?,
                 ))
             }
-            DataFormat::Paths => Ok(DataEntry::Paths(read_hdrop(&self.hglobal))),
+            DataFormat::Paths => Ok(DataEntry::Paths(
+                parse_dropfiles(&self.hglobal.lock()?).ok_or_else(invalid_data)?,
+            )),
             DataFormat::Image => {
                 let bytes = self.hglobal.lock()?;
                 let image = match self.codec {

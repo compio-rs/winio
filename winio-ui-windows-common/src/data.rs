@@ -28,33 +28,38 @@ pub fn parse_dropfiles(bytes: &[u8]) -> Option<Vec<OsString>> {
 }
 
 fn parse_wide(bytes: &[u8]) -> Option<Vec<OsString>> {
-    let mut paths = Vec::new();
-    let mut current = Vec::new();
-    let mut ended = false;
-    for chunk in bytes.as_chunks::<2>().0 {
-        let unit = u16::from_ne_bytes(*chunk);
-        if unit == 0 {
-            if current.is_empty() {
-                ended = true;
-                break;
-            } else {
-                paths.push(OsString::from_wide(&current));
-                current.clear();
-            }
-        } else {
-            current.push(unit);
+    let owned;
+    let units = match bytemuck::try_cast_slice::<u8, u16>(bytes) {
+        Ok(units) => units,
+        Err(_) => {
+            owned = bytes
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|chunk| u16::from_ne_bytes([chunk[0], chunk[1]]))
+                .collect::<Vec<_>>();
+            &owned
         }
-    }
-    if ended { Some(paths) } else { None }
+    };
+    parse_null_terminated(units, |unit| Some(OsString::from_wide(unit)))
 }
 
 fn parse_ansi(bytes: &[u8]) -> Option<Vec<OsString>> {
+    parse_null_terminated(bytes, |segment| {
+        Some(OsString::from(decode_ansi(segment, false)?))
+    })
+}
+
+fn parse_null_terminated<T: Copy + Default + PartialEq>(
+    units: &[T],
+    convert: impl Fn(&[T]) -> Option<OsString>,
+) -> Option<Vec<OsString>> {
     let mut paths = Vec::new();
-    for segment in bytes.split(|byte| *byte == 0) {
+    for segment in units.split(|unit| *unit == T::default()) {
         if segment.is_empty() {
             break;
         }
-        paths.push(OsString::from(decode_ansi(segment, false)?));
+        paths.push(convert(segment)?);
     }
     if paths.is_empty() { None } else { Some(paths) }
 }

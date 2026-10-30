@@ -1,6 +1,4 @@
-use std::{
-    collections::HashSet, ffi::OsString, mem::size_of, os::windows::ffi::OsStringExt, ptr::null_mut,
-};
+use std::{collections::HashSet, ffi::OsString, mem::size_of};
 
 use image::{DynamicImage, RgbaImage};
 use widestring::{U16CString, U16Str, U16String, u16str};
@@ -13,7 +11,7 @@ use windows_sys::Win32::{
         },
         Ole::{CF_DIB, CF_DIBV5, CF_HDROP, CF_OEMTEXT, CF_TEXT, CF_UNICODETEXT},
     },
-    UI::Shell::{DROPFILES, DragQueryFileW},
+    UI::Shell::DROPFILES,
 };
 use winio_primitive::DataFormat;
 
@@ -119,27 +117,6 @@ pub(crate) fn build_hdrop(uris: &[OsString]) -> Result<HGlobal> {
         bytes.extend_from_slice(&unit.to_ne_bytes());
     }
     HGlobal::from_bytes(&bytes)
-}
-
-pub(crate) fn read_hdrop(hglobal: &HGlobal) -> Vec<OsString> {
-    let hdrop = hglobal.raw();
-    unsafe {
-        let count = DragQueryFileW(hdrop, u32::MAX, null_mut(), 0);
-        let mut uris = Vec::with_capacity(count as usize);
-        for index in 0..count {
-            let len = DragQueryFileW(hdrop, index, null_mut(), 0);
-            if len == 0 {
-                continue;
-            }
-            let mut buf = Vec::with_capacity(len as usize + 1);
-            let written = DragQueryFileW(hdrop, index, buf.as_mut_ptr(), len + 1) as usize;
-            if written > 0 {
-                buf.set_len(written);
-                uris.push(OsString::from_wide(&buf[..written]));
-            }
-        }
-        uris
-    }
 }
 
 fn format_name(format: u32) -> Option<U16String> {
