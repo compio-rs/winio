@@ -6,6 +6,7 @@ use std::{
     pin::Pin,
 };
 
+use futures_util::Stream;
 use gtk4::{
     gdk, gio,
     glib::{self, Bytes},
@@ -100,7 +101,8 @@ impl Data {
             && let Ok(value) = source.read_value(gdk::Texture::static_type()).await
             && let Ok(texture) = value.get::<gdk::Texture>()
         {
-            data.insert(DataEntry::Image(Image::from_texture(texture)))?;
+            data.insert(DataEntry::Image(Image::from_texture(texture)))
+                .await?;
             image = true;
         }
 
@@ -116,7 +118,7 @@ impl Data {
                 .map(PathBuf::into_os_string)
                 .collect::<Vec<_>>();
             if !uris.is_empty() {
-                data.insert(DataEntry::Paths(uris))?;
+                data.insert(DataEntry::Paths(uris)).await?;
                 paths = true;
             }
         }
@@ -146,7 +148,7 @@ impl Data {
         }
     }
 
-    pub fn insert(&mut self, entry: DataEntry<Image>) -> Result<()> {
+    pub async fn insert(&mut self, entry: DataEntry<Image>) -> Result<()> {
         match entry {
             DataEntry::Text(text) => self.insert_bytes(mime::TEXT_PLAIN, text.into_bytes()),
             DataEntry::Html(html) => self.insert_bytes(mime::TEXT_HTML, html.into_bytes()),
@@ -225,30 +227,14 @@ impl Data {
             _ => Ok(Some(gdk::ContentProvider::new_union(&providers))),
         }
     }
-}
 
-impl IntoIterator for Data {
-    type IntoIter = DataIntoIter;
-    type Item = Result<DataEntry<Image>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        DataIntoIter(
-            self.entries
-                .into_iter()
-                .map(Entry::into_entry)
-                .collect::<Vec<_>>()
-                .into_iter(),
-        )
-    }
-}
-
-pub struct DataIntoIter(std::vec::IntoIter<Result<DataEntry<Image>>>);
-
-impl Iterator for DataIntoIter {
-    type Item = Result<DataEntry<Image>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
+    pub fn into_stream(self) -> impl Stream<Item = Result<DataEntry<Image>>> + Unpin {
+        let entries = self
+            .entries
+            .into_iter()
+            .map(Entry::into_entry)
+            .collect::<Vec<_>>();
+        futures_util::stream::iter(entries)
     }
 }
 

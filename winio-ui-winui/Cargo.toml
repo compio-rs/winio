@@ -23,6 +23,8 @@ winio-wgpu = { workspace = true, optional = true, features = ["surface"] }
 compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
 
+async-stream = "0.3"
+
 cookie = { workspace = true, optional = true }
 futures-util = { workspace = true }
 image = { workspace = true }

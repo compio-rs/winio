@@ -2,6 +2,7 @@ use std::{ffi::OsString, fmt::Debug};
 
 use cxx::UniquePtr;
 pub(crate) use ffi::QMimeData;
+use futures_util::Stream;
 use mime::Mime;
 use winio_primitive::{DataEntry, DataFormat};
 
@@ -40,7 +41,7 @@ impl Data {
         &self.inner
     }
 
-    pub fn insert(&mut self, entry: DataEntry<Image>) -> Result<()> {
+    pub async fn insert(&mut self, entry: DataEntry<Image>) -> Result<()> {
         match entry {
             DataEntry::Text(text) => {
                 ffi::mime_data_set(self.inner.pin_mut(), "text/plain", text.as_bytes())?
@@ -77,56 +78,39 @@ impl Data {
         self.entries = make_entries(&self.inner)?;
         Ok(())
     }
-}
 
-impl IntoIterator for Data {
-    type IntoIter = DataIntoIter;
-    type Item = Result<DataEntry<Image>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        DataIntoIter(
-            self.entries
-                .into_iter()
-                .map(|mime| match format_of(&mime) {
-                    DataFormat::Text | DataFormat::Html => {
-                        let text = ffi::mime_data_text(&self.inner, mime.as_ref())?;
-                        let text =
-                            String::try_from(text).map_err(|_| crate::Error::NotSupported)?;
-                        Ok(if mime.essence_str() == "text/html" {
-                            DataEntry::Html(text)
-                        } else {
-                            DataEntry::Text(text)
-                        })
+    pub fn into_stream(self) -> impl Stream<Item = Result<DataEntry<Image>>> + Unpin {
+        let entries = self
+            .entries
+            .into_iter()
+            .map(|mime| match format_of(&mime) {
+                DataFormat::Text | DataFormat::Html => {
+                    let text = ffi::mime_data_text(&self.inner, mime.as_ref())?;
+                    let text = String::try_from(text).map_err(|_| crate::Error::NotSupported)?;
+                    Ok(if mime.essence_str() == "text/html" {
+                        DataEntry::Html(text)
+                    } else {
+                        DataEntry::Text(text)
+                    })
+                }
+                DataFormat::Image => match ffi::mime_data_image(&self.inner) {
+                    Ok(image) if !image.is_null() => {
+                        Ok(DataEntry::Image(Image::from_qimage(image)))
                     }
-                    DataFormat::Image => match ffi::mime_data_image(&self.inner) {
-                        Ok(image) if !image.is_null() => {
-                            Ok(DataEntry::Image(Image::from_qimage(image)))
-                        }
-                        _ => Err(crate::Error::NotSupported),
-                    },
-                    DataFormat::Paths => Ok(DataEntry::Paths(
-                        ffi::mime_data_local_files(&self.inner)?
-                            .into_iter()
-                            .map(OsString::from)
-                            .collect(),
-                    )),
-                    _ => Ok(DataEntry::Unknown(
-                        ffi::mime_data_get(&self.inner, mime.as_ref())?.to_vec(),
-                    )),
-                })
-                .collect::<Vec<_>>()
-                .into_iter(),
-        )
-    }
-}
-
-pub struct DataIntoIter(std::vec::IntoIter<Result<DataEntry<Image>>>);
-
-impl Iterator for DataIntoIter {
-    type Item = Result<DataEntry<Image>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
+                    _ => Err(crate::Error::NotSupported),
+                },
+                DataFormat::Paths => Ok(DataEntry::Paths(
+                    ffi::mime_data_local_files(&self.inner)?
+                        .into_iter()
+                        .map(OsString::from)
+                        .collect(),
+                )),
+                _ => Ok(DataEntry::Unknown(
+                    ffi::mime_data_get(&self.inner, mime.as_ref())?.to_vec(),
+                )),
+            })
+            .collect::<Vec<_>>();
+        futures_util::stream::iter(entries)
     }
 }
 

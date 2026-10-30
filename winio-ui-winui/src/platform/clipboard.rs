@@ -34,8 +34,7 @@ impl Clipboard {
     }
 
     pub async fn write(&mut self, data: &Data) -> Result<()> {
-        let package = data.package().await?;
-        WinClipboard::SetContent(&package)
+        WinClipboard::SetContent(data.package())
     }
 
     pub fn clear(&mut self) -> Result<()> {

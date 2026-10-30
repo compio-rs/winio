@@ -6,6 +6,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+use futures_util::Stream;
 use image::ImageFormat;
 use widestring::{U16CStr, U16CString};
 use windows_core::{Error, Result, WIN32_ERROR};
@@ -224,7 +225,7 @@ impl Data {
         &self.entries
     }
 
-    pub fn insert(&mut self, entry: DataEntry<Image>) -> Result<()> {
+    pub async fn insert(&mut self, entry: DataEntry<Image>) -> Result<()> {
         match entry {
             DataEntry::Text(text) => self.insert_text(text),
             DataEntry::Html(html) => self.insert_html(html),
@@ -296,30 +297,14 @@ impl Data {
     pub fn formats(&self) -> Result<impl Iterator<Item = DataFormat> + '_> {
         Ok(self.entries.iter().map(Entry::category))
     }
-}
 
-impl IntoIterator for Data {
-    type IntoIter = DataIntoIter;
-    type Item = Result<DataEntry<Image>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        DataIntoIter(
-            self.entries
-                .into_iter()
-                .map(Entry::into_entry)
-                .collect::<Vec<_>>()
-                .into_iter(),
-        )
-    }
-}
-
-pub struct DataIntoIter(std::vec::IntoIter<Result<DataEntry<Image>>>);
-
-impl Iterator for DataIntoIter {
-    type Item = Result<DataEntry<Image>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
+    pub fn into_stream(self) -> impl Stream<Item = Result<DataEntry<Image>>> + Unpin {
+        let entries = self
+            .entries
+            .into_iter()
+            .map(Entry::into_entry)
+            .collect::<Vec<_>>();
+        futures_util::stream::iter(entries)
     }
 }
 

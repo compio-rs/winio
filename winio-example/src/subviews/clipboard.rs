@@ -1,5 +1,6 @@
 use std::ops::Deref;
 
+use futures_util::StreamExt;
 use winio::prelude::*;
 
 use crate::{Error, Result};
@@ -114,11 +115,10 @@ impl Component for ClipboardPage {
         match message {
             ClipboardPageMessage::Refresh => {
                 self.clipboard_image = match self.clipboard.read().await? {
-                    Some(data) => Self::show_data(
-                        data,
-                        &mut self.clipboard_text,
-                        &mut self.clipboard_picture,
-                    )?,
+                    Some(data) => {
+                        Self::show_data(data, &mut self.clipboard_text, &mut self.clipboard_picture)
+                            .await?
+                    }
                     None => {
                         self.clipboard_text.set_text("")?;
                         self.clipboard_picture.set_image(None)?;
@@ -129,7 +129,7 @@ impl Component for ClipboardPage {
             }
             ClipboardPageMessage::Drop(data) => {
                 self.drop_image =
-                    Self::show_data(data, &mut self.drop_text, &mut self.drop_picture)?;
+                    Self::show_data(data, &mut self.drop_text, &mut self.drop_picture).await?;
                 Ok(true)
             }
         }
@@ -216,7 +216,7 @@ impl ClipboardPage {
         Size::new(width, height)
     }
 
-    fn show_data(
+    async fn show_data(
         data: Data,
         text: &mut Child<TextBox>,
         picture: &mut Child<Picture>,
@@ -233,7 +233,17 @@ impl ClipboardPage {
         let Some(format) = formats.into_iter().next() else {
             return Self::show_text(text, picture, String::new());
         };
-        let Some(entry) = data.into_format(format).next() else {
+        let Some(entry) = data
+            .into_stream()
+            .filter(move |e| {
+                futures_util::future::ready(match e {
+                    Ok(e) => e.format() == format,
+                    Err(_) => false,
+                })
+            })
+            .next()
+            .await
+        else {
             return Self::show_text(text, picture, String::new());
         };
         match entry {

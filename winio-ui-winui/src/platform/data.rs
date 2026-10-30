@@ -1,5 +1,6 @@
-use std::{ffi::OsString, fmt::Debug, io::Cursor};
+use std::{ffi::OsString, io::Cursor};
 
+use futures_util::Stream;
 use image::ImageFormat;
 use windows::{
     ApplicationModel::DataTransfer::{DataPackage, DataPackageView},
@@ -12,181 +13,127 @@ use windows::{
     },
 };
 use windows_collections::IIterable;
-use windows_core::{HSTRING, Interface};
+use windows_core::{HSTRING, Interface, WIN32_ERROR};
+use windows_sys::Win32::Foundation::ERROR_INVALID_DATA;
 use winio_primitive::{DataEntry, DataFormat};
 
 use crate::{Image, Result};
 
 const UNKNOWN_FORMAT: &str = "application/vnd.winio.unknown";
 
-struct Entry {
-    format: DataFormat,
-    value: Result<DataEntry<Image>>,
-}
-
-impl Entry {
-    fn new(value: Result<DataEntry<Image>>, format: DataFormat) -> Self {
-        Self { format, value }
-    }
-}
-
+#[derive(Debug)]
 pub struct Data {
-    package: Option<DataPackage>,
-    entries: Vec<Entry>,
-}
-
-impl Debug for Data {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Data")
-            .field(
-                "formats",
-                &self
-                    .entries
-                    .iter()
-                    .map(|entry| entry.format)
-                    .collect::<Vec<_>>(),
-            )
-            .finish_non_exhaustive()
-    }
+    package: DataPackage,
 }
 
 impl Data {
     pub fn new() -> Result<Self> {
         Ok(Self {
-            package: None,
-            entries: Vec::new(),
+            package: DataPackage::new()?,
         })
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.entries.is_empty()
-    }
-
-    pub fn insert(&mut self, entry: DataEntry<Image>) -> Result<()> {
-        let format = entry.format();
-        self.package = None;
-        self.entries.push(Entry::new(Ok(entry), format));
+    pub async fn insert(&mut self, entry: DataEntry<Image>) -> Result<()> {
+        match &entry {
+            DataEntry::Text(text) => self.package.SetText(&HSTRING::from(text))?,
+            DataEntry::Html(html) => self.package.SetHtmlFormat(&HSTRING::from(html))?,
+            DataEntry::Image(image) => {
+                let reference = image_reference(image).await?;
+                self.package.SetBitmap(&reference)?;
+            }
+            DataEntry::Paths(paths) => {
+                let items = storage_items(paths).await?;
+                self.package.SetStorageItems(&items, false)?;
+            }
+            DataEntry::Unknown(bytes) => {
+                let reference = stream_reference(bytes).await?;
+                self.package
+                    .SetData(&HSTRING::from(UNKNOWN_FORMAT), &reference)?;
+            }
+        }
         Ok(())
     }
 
-    pub(crate) async fn package(&self) -> Result<DataPackage> {
-        if let Some(package) = &self.package {
-            return Ok(package.clone());
-        }
-        let package = DataPackage::new()?;
-        for entry in &self.entries {
-            match entry.value.as_ref().map_err(|_| invalid_data())? {
-                DataEntry::Text(text) => package.SetText(&HSTRING::from(text))?,
-                DataEntry::Html(html) => package.SetHtmlFormat(&HSTRING::from(html))?,
-                DataEntry::Image(image) => {
-                    let reference = image_reference(image).await?;
-                    package.SetBitmap(&reference)?;
-                }
-                DataEntry::Paths(paths) => {
-                    let items = storage_items(paths).await?;
-                    package.SetStorageItems(&items, false)?;
-                }
-                DataEntry::Unknown(bytes) => {
-                    let reference = stream_reference(bytes).await?;
-                    package.SetData(&HSTRING::from(UNKNOWN_FORMAT), &reference)?;
-                }
-            }
-        }
-        Ok(package)
+    pub fn formats(&self) -> Result<impl Iterator<Item = DataFormat>> {
+        let formats = self
+            .package
+            .GetView()?
+            .AvailableFormats()?
+            .into_iter()
+            .map(|format| format_of(&format.to_string_lossy()))
+            .collect::<Vec<_>>();
+        Ok(formats.into_iter())
     }
 
-    pub fn formats(&self) -> Result<impl Iterator<Item = DataFormat> + '_> {
-        Ok(self.entries.iter().map(|entry| entry.format))
+    pub fn into_stream(self) -> impl Stream<Item = Result<DataEntry<Image>>> + Unpin {
+        Box::pin(async_stream::stream! {
+            let view = match self.package.GetView() {
+                Ok(view) => view,
+                Err(error) => {
+                    yield Err(error);
+                    return;
+                }
+            };
+            let formats = match view.AvailableFormats() {
+                Ok(formats) => formats,
+                Err(error) => {
+                    yield Err(error);
+                    return;
+                }
+            };
+            for format in formats.into_iter() {
+                yield read_format(&view, &format).await;
+            }
+        })
+    }
+
+    pub(crate) fn package(&self) -> &DataPackage {
+        &self.package
     }
 
     pub(crate) async fn from_data_package_view(view: &DataPackageView) -> Result<Option<Self>> {
-        let package = DataPackage::new()?;
-        let mut entries = Vec::new();
-        for format in view.AvailableFormats()? {
-            let name = format.to_string_lossy();
-            let category = format_of(&name);
-            let entry = match name.as_str() {
+        if let Ok(package) = view.cast::<DataPackage>() {
+            return Ok(Some(Self { package }));
+        }
+        let data = Self::new()?;
+        let formats = view.AvailableFormats()?;
+        for format in formats.into_iter() {
+            match format.to_string_lossy().as_str() {
                 "Text" => {
                     let text = view.GetTextAsync()?.await?.to_string_lossy();
-                    package.SetText(&HSTRING::from(&text))?;
-                    Ok(DataEntry::Text(text))
+                    data.package.SetText(&HSTRING::from(text))?;
                 }
                 "HTML Format" => {
                     let html = view.GetHtmlFormatAsync()?.await?.to_string_lossy();
-                    package.SetHtmlFormat(&HSTRING::from(&html))?;
-                    Ok(DataEntry::Html(html))
+                    data.package.SetHtmlFormat(&HSTRING::from(html))?;
                 }
                 "RTF" => {
                     let rtf = view.GetRtfAsync()?.await?.to_string_lossy();
-                    package.SetRtf(&HSTRING::from(&rtf))?;
-                    Ok(DataEntry::Unknown(rtf.into_bytes()))
+                    data.package.SetRtf(&HSTRING::from(rtf))?;
                 }
-                "Bitmap" => match view.GetBitmapAsync()?.await {
-                    Ok(reference) => {
-                        package.SetBitmap(&reference)?;
-                        read_image(reference).await
-                    }
-                    Err(error) => Err(error),
-                },
-                "StorageItems" => match view.GetStorageItemsAsync()?.await {
-                    Ok(items) => {
-                        let items = items.into_iter().collect::<Vec<_>>();
-                        let paths = items
-                            .iter()
-                            .filter_map(|item| item.Path().ok())
-                            .map(|path| OsString::from(path.to_string_lossy()))
-                            .collect::<Vec<_>>();
-                        package.SetStorageItems(
-                            &IIterable::from(items.into_iter().map(Some).collect::<Vec<_>>()),
-                            false,
-                        )?;
-                        Ok(DataEntry::Paths(paths))
-                    }
-                    Err(error) => Err(error),
-                },
-                _ => match view.GetDataAsync(&format)?.await {
-                    Ok(value) => {
-                        package.SetData(&format, &value)?;
-                        match value.cast::<RandomAccessStreamReference>() {
-                            Ok(reference) => match read_reference(reference).await {
-                                Ok(bytes) => Ok(DataEntry::Unknown(bytes)),
-                                Err(error) => Err(error),
-                            },
-                            Err(_) => Ok(DataEntry::Unknown(Vec::new())),
-                        }
-                    }
-                    Err(error) => Err(error),
-                },
-            };
-            entries.push(Entry::new(entry, category));
+                "Bitmap" => {
+                    let reference = view.GetBitmapAsync()?.await?;
+                    data.package.SetBitmap(&reference)?;
+                }
+                "StorageItems" => {
+                    let items = view.GetStorageItemsAsync()?.await?;
+                    let items = items.into_iter().collect::<Vec<_>>();
+                    data.package.SetStorageItems(
+                        &IIterable::from(items.into_iter().map(Some).collect::<Vec<_>>()),
+                        false,
+                    )?;
+                }
+                _ => {
+                    let value = view.GetDataAsync(&format)?.await?;
+                    data.package.SetData(&format, &value)?;
+                }
+            }
         }
-        if entries.is_empty() {
+        if data.formats()?.next().is_none() {
             Ok(None)
         } else {
-            Ok(Some(Self {
-                package: Some(package),
-                entries,
-            }))
+            Ok(Some(data))
         }
-    }
-}
-
-impl IntoIterator for Data {
-    type IntoIter = DataIntoIter;
-    type Item = Result<DataEntry<Image>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        DataIntoIter(self.entries.into_iter())
-    }
-}
-
-pub struct DataIntoIter(std::vec::IntoIter<Entry>);
-
-impl Iterator for DataIntoIter {
-    type Item = Result<DataEntry<Image>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|entry| entry.value)
     }
 }
 
@@ -197,6 +144,36 @@ fn format_of(name: &str) -> DataFormat {
         "Bitmap" => DataFormat::Image,
         "StorageItems" => DataFormat::Paths,
         _ => DataFormat::Unknown,
+    }
+}
+
+async fn read_format(view: &DataPackageView, format: &HSTRING) -> Result<DataEntry<Image>> {
+    match format.to_string_lossy().as_str() {
+        "Text" => Ok(DataEntry::Text(
+            view.GetTextAsync()?.await?.to_string_lossy(),
+        )),
+        "HTML Format" => Ok(DataEntry::Html(
+            view.GetHtmlFormatAsync()?.await?.to_string_lossy(),
+        )),
+        "RTF" => Ok(DataEntry::Unknown(
+            view.GetRtfAsync()?.await?.to_string_lossy().into_bytes(),
+        )),
+        "Bitmap" => read_image(view.GetBitmapAsync()?.await?).await,
+        "StorageItems" => Ok(DataEntry::Paths(
+            view.GetStorageItemsAsync()?
+                .await?
+                .into_iter()
+                .filter_map(|item| item.Path().ok())
+                .map(|path| OsString::from(path.to_string_lossy()))
+                .collect(),
+        )),
+        _ => match view.GetDataAsync(format)?.await {
+            Ok(value) => match value.cast::<RandomAccessStreamReference>() {
+                Ok(reference) => read_reference(reference).await.map(DataEntry::Unknown),
+                Err(_) => Ok(DataEntry::Unknown(Vec::new())),
+            },
+            Err(error) => Err(error),
+        },
     }
 }
 
@@ -251,5 +228,5 @@ async fn read_reference(reference: RandomAccessStreamReference) -> Result<Vec<u8
 }
 
 fn invalid_data() -> crate::Error {
-    windows_core::Error::from_hresult(windows_core::HRESULT(0x80070057u32 as i32))
+    WIN32_ERROR(ERROR_INVALID_DATA).to_hresult().into()
 }
