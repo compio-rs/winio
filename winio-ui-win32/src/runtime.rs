@@ -28,7 +28,7 @@ use windows_sys::{
         },
         Graphics::{
             Dwm::DwmExtendFrameIntoClientArea,
-            Gdi::{BLACK_BRUSH, GetStockObject, HDC, InvalidateRect, WHITE_BRUSH},
+            Gdi::{BLACK_BRUSH, GetStockObject, HBRUSH, HDC, InvalidateRect, WHITE_BRUSH},
         },
         System::Threading::{GetCurrentThread, INFINITE},
         UI::{
@@ -417,7 +417,7 @@ unsafe fn set_backdrop_impl(handle: HWND, backdrop: Backdrop) -> Result<()> {
     }
 }
 
-pub(crate) unsafe fn refresh_background(handle: HWND) -> Result<()> {
+pub(crate) unsafe fn background_brush(handle: HWND) -> Result<HBRUSH> {
     unsafe {
         let backdrop = get_backdrop(GetAncestor(handle, GA_ROOT))?;
         let black = !matches!(backdrop, Backdrop::None) || is_dark_mode_allowed_for_app();
@@ -426,6 +426,13 @@ pub(crate) unsafe fn refresh_background(handle: HWND) -> Result<()> {
         } else {
             GetStockObject(WHITE_BRUSH)
         };
+        Ok(brush)
+    }
+}
+
+pub(crate) unsafe fn refresh_background(handle: HWND) -> Result<()> {
+    unsafe {
+        let brush = background_brush(handle)?;
         SetLastError(0);
         let res = syscall!(
             BOOL,
