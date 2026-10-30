@@ -20,7 +20,7 @@ mod tool_bar;
 pub use tool_bar::*;
 
 mod platform;
-pub use platform::image::Image;
+pub use platform::{Clipboard, Data, DataIntoIter, image::Image};
 
 #[cfg(feature = "compio-compat")]
 mod compat;

@@ -133,3 +133,6 @@ pub(crate) unsafe fn get_u16c(
         Ok(U16CString::from_vec_unchecked(buf))
     }
 }
+
+mod drop_area;
+pub use drop_area::*;

@@ -8,13 +8,11 @@ pub struct ClipboardPage {
     window: Child<TabViewItem>,
     clipboard: Child<Clipboard>,
     clipboard_group: Child<GroupBox>,
-    clipboard_mime: Child<Label>,
     clipboard_text: Child<TextBox>,
     clipboard_picture: Child<Picture>,
     clipboard_image: Option<BitmapSize>,
     drop_group: Child<GroupBox>,
     drop_area: Child<DropArea>,
-    drop_mime: Child<Label>,
     drop_text: Child<TextBox>,
     drop_picture: Child<Picture>,
     drop_image: Option<BitmapSize>,
@@ -44,9 +42,6 @@ impl Component for ClipboardPage {
             clipboard_group: GroupBox = (&window) => {
                 text: "Clipboard",
             },
-            clipboard_mime: Label = (&clipboard_group) => {
-                text: "(empty)",
-            },
             clipboard_text: TextBox = (&clipboard_group) => {
                 readonly: true,
             },
@@ -55,9 +50,6 @@ impl Component for ClipboardPage {
                 text: "Drop",
             },
             drop_area: DropArea = (&drop_group),
-            drop_mime: Label = (&drop_area) => {
-                text: "(no drop yet)",
-            },
             drop_text: TextBox = (&drop_area) => {
                 readonly: true,
             },
@@ -70,13 +62,11 @@ impl Component for ClipboardPage {
             window,
             clipboard,
             clipboard_group,
-            clipboard_mime,
             clipboard_text,
             clipboard_picture,
             clipboard_image: None,
             drop_group,
             drop_area,
-            drop_mime,
             drop_text,
             drop_picture,
             drop_image: None,
@@ -91,14 +81,12 @@ impl Component for ClipboardPage {
                 ClipboardEvent::Changed => ClipboardPageMessage::Refresh,
             },
             self.clipboard_group => {},
-            self.clipboard_mime => {},
             self.clipboard_text => {},
             self.clipboard_picture => {},
             self.drop_group => {},
             self.drop_area => {
                 DropAreaEvent::Drop(data) => ClipboardPageMessage::Drop(data),
             },
-            self.drop_mime => {},
             self.drop_text => {},
             self.drop_picture => {},
         }
@@ -109,12 +97,10 @@ impl Component for ClipboardPage {
             self.window,
             self.clipboard,
             self.clipboard_group,
-            self.clipboard_mime,
             self.clipboard_text,
             self.clipboard_picture,
             self.drop_group,
             self.drop_area,
-            self.drop_mime,
             self.drop_text,
             self.drop_picture,
         )
@@ -128,14 +114,12 @@ impl Component for ClipboardPage {
         match message {
             ClipboardPageMessage::Refresh => {
                 self.clipboard_image = match self.clipboard.read().await? {
-                    Some(data) => Self::show_known(
-                        data.into_known(),
-                        &mut self.clipboard_mime,
+                    Some(data) => Self::show_data(
+                        data,
                         &mut self.clipboard_text,
                         &mut self.clipboard_picture,
                     )?,
                     None => {
-                        self.clipboard_mime.set_text("(empty)")?;
                         self.clipboard_text.set_text("")?;
                         self.clipboard_picture.set_image(None)?;
                         None
@@ -144,12 +128,8 @@ impl Component for ClipboardPage {
                 Ok(true)
             }
             ClipboardPageMessage::Drop(data) => {
-                self.drop_image = Self::show_known(
-                    data.into_known(),
-                    &mut self.drop_mime,
-                    &mut self.drop_text,
-                    &mut self.drop_picture,
-                )?;
+                self.drop_image =
+                    Self::show_data(data, &mut self.drop_text, &mut self.drop_picture)?;
                 Ok(true)
             }
         }
@@ -172,7 +152,6 @@ impl Component for ClipboardPage {
 
         let clipboard_size = self.clipboard_group.client_size()?;
         let mut clipboard_panel = Self::value_panel(
-            &mut self.clipboard_mime,
             &mut self.clipboard_text,
             &mut self.clipboard_picture,
             self.clipboard_image,
@@ -183,7 +162,6 @@ impl Component for ClipboardPage {
         let drop_size = self.drop_group.client_size()?;
         self.drop_area.set_rect(drop_size.into())?;
         let mut drop_panel = Self::value_panel(
-            &mut self.drop_mime,
             &mut self.drop_text,
             &mut self.drop_picture,
             self.drop_image,
@@ -197,7 +175,6 @@ impl Component for ClipboardPage {
 
 impl ClipboardPage {
     fn value_panel<'a>(
-        mime: &'a mut Child<Label>,
         text: &'a mut Child<TextBox>,
         picture: &'a mut Child<Picture>,
         image: Option<BitmapSize>,
@@ -207,20 +184,15 @@ impl ClipboardPage {
             .map(|image| Self::fit_picture(image, size))
             .unwrap_or_else(Size::zero);
         layout! {
-            Grid::from_str("1*,1*", "auto,1*").unwrap(),
-            *mime => {
+            Grid::from_str("1*,1*", "1*").unwrap(),
+            *text => {
                 margin: Margin::new_all_same(4.0),
                 column: 0,
                 row: 0,
             },
-            *text => {
-                margin: Margin::new_all_same(4.0),
-                column: 0,
-                row: 1,
-            },
             *picture => {
                 column: 1,
-                row: 1,
+                row: 0,
                 width: picture_size.width,
                 height: picture_size.height,
                 min_width: 0.0,
@@ -244,64 +216,65 @@ impl ClipboardPage {
         Size::new(width, height)
     }
 
-    fn show_known(
-        known: std::result::Result<KnownData, Data>,
-        mime: &mut Child<Label>,
+    fn show_data(
+        data: Data,
         text: &mut Child<TextBox>,
         picture: &mut Child<Picture>,
     ) -> Result<Option<BitmapSize>> {
-        match known {
-            Ok(KnownData::Text(body)) => Self::show_text(mime, text, picture, "text/plain", body),
-            Ok(KnownData::Html(body)) => Self::show_text(mime, text, picture, "text/html", body),
-            Ok(KnownData::Rtf(body)) => Self::show_text(mime, text, picture, "text/rtf", body),
-            Ok(KnownData::Uris(uris)) => {
-                let body = uris
-                    .iter()
-                    .map(|uri| uri.to_string_lossy().into_owned())
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                Self::show_text(mime, text, picture, "text/uri-list", body)
-            }
-            Ok(KnownData::Image(image)) => {
+        let mut formats = data.formats()?.collect::<Vec<_>>();
+        formats.sort_unstable_by_key(|format| match format {
+            DataFormat::Image => 0,
+            DataFormat::Paths => 1,
+            DataFormat::Html => 2,
+            DataFormat::Text => 3,
+            _ => 4,
+        });
+
+        let Some(format) = formats.into_iter().next() else {
+            return Self::show_text(text, picture, String::new());
+        };
+        let Some(entry) = data.into_format(format).next() else {
+            return Self::show_text(text, picture, String::new());
+        };
+        match entry {
+            Ok(entry) => Self::show_entry(entry, text, picture),
+            Err(_) => Self::show_text(text, picture, String::new()),
+        }
+    }
+
+    fn show_entry(
+        entry: DataEntry<Image>,
+        text: &mut Child<TextBox>,
+        picture: &mut Child<Picture>,
+    ) -> Result<Option<BitmapSize>> {
+        match entry {
+            DataEntry::Image(image) => {
                 let size = image.size()?;
-                mime.set_text("image/png")?;
                 text.set_text(format!("{:?}", size))?;
                 picture.set_image(Some(&image))?;
                 Ok(Some(size))
             }
-            Ok(_) => {
-                mime.set_text("(unknown)")?;
-                text.set_text("")?;
-                picture.set_image(None)?;
-                Ok(None)
-            }
-            Err(data) => {
-                let formats = data
-                    .formats()?
+            DataEntry::Paths(paths) => {
+                let body = paths
                     .iter()
-                    .map(|mime| mime.essence_str().to_string())
+                    .map(|path| path.to_string_lossy().into_owned())
                     .collect::<Vec<_>>()
-                    .join(", ");
-                mime.set_text(if formats.is_empty() {
-                    "(unknown)"
-                } else {
-                    formats.as_str()
-                })?;
-                text.set_text("")?;
-                picture.set_image(None)?;
-                Ok(None)
+                    .join("\n");
+                Self::show_text(text, picture, body)
+            }
+            DataEntry::Html(html) => Self::show_text(text, picture, html),
+            DataEntry::Text(body) => Self::show_text(text, picture, body),
+            DataEntry::Unknown(bytes) => {
+                Self::show_text(text, picture, format!("{} bytes", bytes.len()))
             }
         }
     }
 
     fn show_text(
-        mime: &mut Child<Label>,
         text: &mut Child<TextBox>,
         picture: &mut Child<Picture>,
-        mime_text: &str,
         body: String,
     ) -> Result<Option<BitmapSize>> {
-        mime.set_text(mime_text)?;
         text.set_text(body)?;
         picture.set_image(None)?;
         Ok(None)

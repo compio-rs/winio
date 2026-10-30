@@ -40,7 +40,7 @@ impl Clipboard {
             return Ok(None);
         }
         let data = Data::from_owned(inner)?;
-        if data.formats()?.is_empty() {
+        if data.is_empty() {
             Ok(None)
         } else {
             Ok(Some(data))

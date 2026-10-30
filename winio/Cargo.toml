@@ -36,7 +36,6 @@ cookie = { workspace = true, optional = true }
 futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true }
-mime = { workspace = true }
 plotters-backend = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true }
 

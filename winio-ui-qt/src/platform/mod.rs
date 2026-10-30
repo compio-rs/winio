@@ -1,6 +1,6 @@
 mod data;
-pub use data::Data;
 pub(crate) use data::QMimeData;
+pub use data::{Data, DataIntoIter};
 
 mod image;
 pub use image::*;

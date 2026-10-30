@@ -1,38 +1,25 @@
-use std::{cell::OnceCell, ffi::OsString, fmt::Debug};
+use std::{ffi::OsString, fmt::Debug};
 
 use cxx::UniquePtr;
 pub(crate) use ffi::QMimeData;
 use mime::Mime;
+use winio_primitive::{DataEntry, DataFormat};
 
-use crate::{
-    Result,
-    common::{QByteArray, QString},
-    platform::Image,
-};
+use crate::{Result, common::QString, platform::Image};
+
+const UNKNOWN_FORMAT: &str = "application/vnd.winio.unknown";
 
 pub struct Data {
     inner: UniquePtr<QMimeData>,
-    entries: Vec<Entry>,
+    entries: Vec<Mime>,
 }
 
 impl Debug for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Data")
-            .field(
-                "formats",
-                &self
-                    .entries
-                    .iter()
-                    .map(|entry| &entry.mime)
-                    .collect::<Vec<_>>(),
-            )
+            .field("formats", &self.entries)
             .finish_non_exhaustive()
     }
-}
-
-struct Entry {
-    mime: Mime,
-    bytes: OnceCell<QByteArray>,
 }
 
 impl Data {
@@ -53,14 +40,14 @@ impl Data {
         &self.inner
     }
 
-    pub fn insert(&mut self, mime: Mime, bytes: impl AsRef<[u8]>) -> Result<()> {
-        ffi::mime_data_set(self.inner.pin_mut(), mime.as_ref(), bytes.as_ref())?;
-        let index = self.entries.iter().position(|entry| entry.mime == mime);
-        match index {
-            Some(index) => self.entries[index] = new_entry(mime),
-            None => self.entries.push(new_entry(mime)),
-        }
-        Ok(())
+    pub fn insert_text(&mut self, text: String) -> Result<()> {
+        ffi::mime_data_set(self.inner.pin_mut(), "text/plain", text.as_bytes())?;
+        self.rebuild_entries()
+    }
+
+    pub fn insert_html(&mut self, html: String) -> Result<()> {
+        ffi::mime_data_set(self.inner.pin_mut(), "text/html", html.as_bytes())?;
+        self.rebuild_entries()
     }
 
     pub fn insert_image(&mut self, image: &Image) -> Result<()> {
@@ -68,63 +55,26 @@ impl Data {
         self.rebuild_entries()
     }
 
-    pub fn insert_uris(&mut self, uris: &[OsString]) -> Result<()> {
-        let uris = uris
+    pub fn insert_paths(&mut self, paths: &[OsString]) -> Result<()> {
+        let paths = paths
             .iter()
-            .map(|uri| QString::try_from(uri.to_string_lossy().as_ref()))
+            .map(|path| QString::try_from(path.to_string_lossy().as_ref()))
             .collect::<std::result::Result<Vec<_>, _>>()?;
-        ffi::mime_data_set_uris(self.inner.pin_mut(), &uris)?;
+        ffi::mime_data_set_uris(self.inner.pin_mut(), &paths)?;
         self.rebuild_entries()
     }
 
-    pub fn formats(&self) -> Result<Vec<Mime>> {
-        Ok(self
-            .entries
-            .iter()
-            .map(|entry| entry.mime.clone())
-            .collect())
+    pub fn insert_unknown(&mut self, bytes: Vec<u8>) -> Result<()> {
+        ffi::mime_data_set(self.inner.pin_mut(), UNKNOWN_FORMAT, &bytes)?;
+        self.rebuild_entries()
     }
 
-    pub fn get(&self, mime: &Mime) -> Result<Option<&[u8]>> {
-        let Some(entry) = self.entries.iter().find(|entry| &entry.mime == mime) else {
-            return Ok(None);
-        };
-        if entry.bytes.get().is_none() {
-            let bytes = ffi::mime_data_get(&self.inner, mime.as_ref())?;
-            if bytes.is_empty()
-                && mime.type_() == mime::IMAGE
-                && mime.subtype() == mime::PNG
-                && ffi::mime_data_has_image(&self.inner)
-            {
-                return Ok(None);
-            }
-            let _ = entry.bytes.set(bytes);
-        }
-        Ok(entry.bytes.get().map(|bytes| &**bytes))
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
     }
 
-    pub fn into_text(self, mime: &Mime) -> std::result::Result<String, Self> {
-        let text = ffi::mime_data_text(&self.inner, mime.as_ref())
-            .ok()
-            .and_then(|text| String::try_from(text).ok());
-        match text {
-            Some(text) => Ok(text),
-            None => Err(self),
-        }
-    }
-
-    pub fn into_uris(self) -> std::result::Result<Vec<OsString>, Self> {
-        match ffi::mime_data_local_files(&self.inner) {
-            Ok(files) if !files.is_empty() => Ok(files.into_iter().map(OsString::from).collect()),
-            _ => Err(self),
-        }
-    }
-
-    pub fn into_image(self) -> std::result::Result<Image, Self> {
-        match ffi::mime_data_image(&self.inner) {
-            Ok(image) if !image.is_null() => Ok(Image::from_qimage(image)),
-            _ => Err(self),
-        }
+    pub fn formats(&self) -> Result<impl Iterator<Item = DataFormat> + '_> {
+        Ok(self.entries.iter().map(format_of))
     }
 
     fn rebuild_entries(&mut self) -> Result<()> {
@@ -133,7 +83,72 @@ impl Data {
     }
 }
 
-fn make_entries(inner: &QMimeData) -> Result<Vec<Entry>> {
+impl IntoIterator for Data {
+    type IntoIter = DataIntoIter;
+    type Item = Result<DataEntry<Image>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        DataIntoIter(
+            self.entries
+                .into_iter()
+                .map(|mime| match format_of(&mime) {
+                    DataFormat::Text | DataFormat::Html => {
+                        let text = ffi::mime_data_text(&self.inner, mime.as_ref())?;
+                        let text =
+                            String::try_from(text).map_err(|_| crate::Error::NotSupported)?;
+                        Ok(if mime.essence_str() == "text/html" {
+                            DataEntry::Html(text)
+                        } else {
+                            DataEntry::Text(text)
+                        })
+                    }
+                    DataFormat::Image => match ffi::mime_data_image(&self.inner) {
+                        Ok(image) if !image.is_null() => {
+                            Ok(DataEntry::Image(Image::from_qimage(image)))
+                        }
+                        _ => Err(crate::Error::NotSupported),
+                    },
+                    DataFormat::Paths => Ok(DataEntry::Paths(
+                        ffi::mime_data_local_files(&self.inner)?
+                            .into_iter()
+                            .map(OsString::from)
+                            .collect(),
+                    )),
+                    _ => Ok(DataEntry::Unknown(
+                        ffi::mime_data_get(&self.inner, mime.as_ref())?.to_vec(),
+                    )),
+                })
+                .collect::<Vec<_>>()
+                .into_iter(),
+        )
+    }
+}
+
+pub struct DataIntoIter(std::vec::IntoIter<Result<DataEntry<Image>>>);
+
+impl Iterator for DataIntoIter {
+    type Item = Result<DataEntry<Image>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+fn format_of(mime: &Mime) -> DataFormat {
+    if mime.essence_str() == "text/plain" {
+        DataFormat::Text
+    } else if mime.essence_str() == "text/html" {
+        DataFormat::Html
+    } else if mime.essence_str() == "text/uri-list" {
+        DataFormat::Paths
+    } else if mime.type_() == mime::IMAGE {
+        DataFormat::Image
+    } else {
+        DataFormat::Unknown
+    }
+}
+
+fn make_entries(inner: &QMimeData) -> Result<Vec<Mime>> {
     let has_image = ffi::mime_data_has_image(inner);
     let mut entries = Vec::new();
     for format in ffi::mime_data_formats(inner)? {
@@ -148,26 +163,15 @@ fn make_entries(inner: &QMimeData) -> Result<Vec<Entry>> {
         }
         push_unique(&mut entries, mime);
     }
-    if has_image
-        && !entries
-            .iter()
-            .any(|entry| entry.mime.type_() == mime::IMAGE)
-    {
-        entries.insert(0, new_entry(mime::IMAGE_PNG.clone()));
+    if has_image && !entries.iter().any(|mime| mime.type_() == mime::IMAGE) {
+        entries.insert(0, mime::IMAGE_PNG.clone());
     }
     Ok(entries)
 }
 
-fn new_entry(mime: Mime) -> Entry {
-    Entry {
-        mime,
-        bytes: OnceCell::new(),
-    }
-}
-
-fn push_unique(entries: &mut Vec<Entry>, mime: Mime) {
-    if !entries.iter().any(|entry| entry.mime == mime) {
-        entries.push(new_entry(mime));
+fn push_unique(entries: &mut Vec<Mime>, mime: Mime) {
+    if !entries.iter().any(|entry| entry == &mime) {
+        entries.push(mime);
     }
 }
 

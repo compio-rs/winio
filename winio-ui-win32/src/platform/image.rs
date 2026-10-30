@@ -87,6 +87,14 @@ impl Drop for WinDC {
 pub struct Image(Rc<DynamicImage>);
 
 impl Image {
+    pub(crate) fn to_dynamic_image(&self) -> DynamicImage {
+        (*self.0).clone()
+    }
+
+    pub(crate) fn from_dynamic_image(image: DynamicImage) -> Result<Self> {
+        Self::try_from(image)
+    }
+
     pub fn size(&self) -> Result<BitmapSize> {
         Ok(BitmapSize::new(
             self.0.width() as usize,

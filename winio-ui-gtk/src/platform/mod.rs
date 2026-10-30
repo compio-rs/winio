@@ -1,5 +1,5 @@
 mod data;
-pub use data::Data;
+pub use data::{Data, DataIntoIter};
 
 mod clipboard;
 pub use clipboard::Clipboard;

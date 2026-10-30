@@ -1,5 +1,6 @@
 use std::{
     ffi::OsString,
+    fmt::Debug,
     future::Future,
     path::{Path, PathBuf},
     pin::Pin,
@@ -11,24 +12,69 @@ use gtk4::{
     prelude::*,
 };
 use mime::Mime;
+use winio_primitive::{DataEntry, DataFormat};
 
-use crate::{Result, platform::Image};
+use crate::{Error, Result, platform::Image};
 
-#[derive(Debug)]
 pub struct Data {
-    formats: Vec<Mime>,
-    entries: Vec<(Mime, Vec<u8>)>,
-    image: Option<Image>,
-    uris: Option<Vec<OsString>>,
+    entries: Vec<Entry>,
+}
+
+impl Debug for Data {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Data")
+            .field(
+                "formats",
+                &self.entries.iter().map(Entry::format).collect::<Vec<_>>(),
+            )
+            .finish_non_exhaustive()
+    }
+}
+
+struct Entry {
+    mime: Mime,
+    value: Value,
+}
+
+enum Value {
+    Bytes(Vec<u8>),
+    Image(Image),
+    Paths(Vec<OsString>),
+}
+
+impl Entry {
+    fn format(&self) -> DataFormat {
+        format_of(&self.mime)
+    }
+
+    fn into_entry(self) -> Result<DataEntry<Image>> {
+        let format = self.format();
+        match self.value {
+            Value::Image(image) => Ok(DataEntry::Image(image)),
+            Value::Paths(paths) => Ok(DataEntry::Paths(paths)),
+            Value::Bytes(bytes) => match format {
+                DataFormat::Text => String::from_utf8(bytes)
+                    .map(DataEntry::Text)
+                    .map_err(|_| Error::NotSupported),
+                DataFormat::Html => String::from_utf8(bytes)
+                    .map(DataEntry::Html)
+                    .map_err(|_| Error::NotSupported),
+                DataFormat::Paths => decode_uri_list(&bytes)
+                    .map(DataEntry::Paths)
+                    .ok_or(Error::NotSupported),
+                DataFormat::Image => gdk::Texture::from_bytes(&Bytes::from_owned(bytes))
+                    .map(|texture| DataEntry::Image(Image::from_texture(texture)))
+                    .map_err(|_| Error::NotSupported),
+                DataFormat::Unknown => Ok(DataEntry::Unknown(bytes)),
+            },
+        }
+    }
 }
 
 impl Data {
     pub fn new() -> Result<Self> {
         Ok(Self {
-            formats: Vec::new(),
             entries: Vec::new(),
-            image: None,
-            uris: None,
         })
     }
 
@@ -49,37 +95,47 @@ impl Data {
                 .mime_types()
                 .iter()
                 .any(|mime| mime.starts_with("image/"));
+        let mut image = false;
         if has_image
             && let Ok(value) = source.read_value(gdk::Texture::static_type()).await
             && let Ok(texture) = value.get::<gdk::Texture>()
         {
             data.insert_image(&Image::from_texture(texture))?;
+            image = true;
         }
 
+        let mut paths = false;
         if formats.contains_type(gdk::FileList::static_type())
             && let Ok(value) = source.read_value(gdk::FileList::static_type()).await
             && let Ok(files) = value.get::<gdk::FileList>()
         {
-            data.insert_files(files.files())?;
+            let uris = files
+                .files()
+                .into_iter()
+                .filter_map(|file| file.path())
+                .map(PathBuf::into_os_string)
+                .collect::<Vec<_>>();
+            if !uris.is_empty() {
+                data.insert_paths(&uris)?;
+                paths = true;
+            }
         }
 
         for mime in formats.mime_types() {
             let Ok(typed) = mime.as_str().parse::<Mime>() else {
                 continue;
             };
-            if data.image.is_some() && typed.type_() == mime::IMAGE {
-                data.insert_format(typed);
+            if image && typed.type_() == mime::IMAGE {
                 continue;
             }
-            if data.uris.is_some() && typed.essence_str() == "text/uri-list" {
-                data.insert_format(typed);
+            if paths && typed.essence_str() == "text/uri-list" {
                 continue;
             }
             if let Ok((stream, actual)) = source.read_mime(mime.as_str()).await
                 && let Ok(bytes) = read_stream(stream).await
                 && let Ok(actual) = actual.as_str().parse::<Mime>()
             {
-                data.insert(actual, bytes)?;
+                data.insert_bytes(actual, bytes)?;
             }
         }
 
@@ -90,136 +146,81 @@ impl Data {
         }
     }
 
-    fn insert_format(&mut self, mime: Mime) {
-        if !self.formats.iter().any(|entry| entry == &mime) {
-            self.formats.push(mime);
-        }
+    pub fn insert_text(&mut self, text: String) -> Result<()> {
+        self.insert_bytes(mime::TEXT_PLAIN, text.into_bytes())
     }
 
-    pub fn insert(&mut self, mime: Mime, bytes: impl AsRef<[u8]>) -> Result<()> {
-        let bytes = bytes.as_ref().to_vec();
-        if let Some((_, value)) = self.entries.iter_mut().find(|(entry, _)| entry == &mime) {
-            *value = bytes;
-        } else {
-            self.formats.push(mime.clone());
-            self.entries.push((mime, bytes));
-        }
-        Ok(())
+    pub fn insert_html(&mut self, html: String) -> Result<()> {
+        self.insert_bytes(mime::TEXT_HTML, html.into_bytes())
     }
 
     pub fn insert_image(&mut self, image: &Image) -> Result<()> {
-        self.image = Some(image.clone());
-        if !self.formats.iter().any(|mime| mime.type_() == mime::IMAGE) {
-            self.formats.push(mime::IMAGE_PNG.clone());
-        }
+        self.insert_entry(Entry {
+            mime: mime::IMAGE_PNG.clone(),
+            value: Value::Image(image.clone()),
+        });
         Ok(())
     }
 
-    pub fn insert_uris(&mut self, uris: &[OsString]) -> Result<()> {
-        let bytes = encode_uris(uris)?;
-        self.uris = Some(uris.to_vec());
-        self.insert(parse_mime("text/uri-list"), bytes)?;
+    pub fn insert_paths(&mut self, paths: &[OsString]) -> Result<()> {
+        self.insert_entry(Entry {
+            mime: parse_mime("text/uri-list"),
+            value: Value::Paths(paths.to_vec()),
+        });
         Ok(())
     }
 
-    fn insert_files(&mut self, files: Vec<gio::File>) -> Result<()> {
-        let uris = files
-            .into_iter()
-            .filter_map(|file| file.path())
-            .map(PathBuf::into_os_string)
-            .collect::<Vec<_>>();
-        if uris.is_empty() {
-            Ok(())
+    pub fn insert_unknown(&mut self, bytes: Vec<u8>) -> Result<()> {
+        self.insert_bytes(parse_mime("application/vnd.winio.unknown"), bytes)
+    }
+
+    fn insert_bytes(&mut self, mime: Mime, bytes: Vec<u8>) -> Result<()> {
+        self.insert_entry(Entry {
+            mime,
+            value: Value::Bytes(bytes),
+        });
+        Ok(())
+    }
+
+    fn insert_entry(&mut self, entry: Entry) {
+        let format = entry.format();
+        if format == DataFormat::Unknown {
+            self.entries.retain(|existing| existing.mime != entry.mime);
         } else {
-            self.insert_uris(&uris)
+            self.entries.retain(|existing| existing.format() != format);
         }
+        self.entries.push(entry);
     }
 
-    fn is_empty(&self) -> bool {
-        self.entries.is_empty() && self.image.is_none() && self.uris.is_none()
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
     }
 
-    pub fn formats(&self) -> Result<Vec<Mime>> {
-        Ok(self.formats.clone())
-    }
-
-    pub fn get(&self, mime: &Mime) -> Result<Option<&[u8]>> {
-        Ok(self
-            .entries
-            .iter()
-            .find(|(entry, _)| entry == mime)
-            .map(|(_, bytes)| bytes.as_slice()))
-    }
-
-    pub fn into_text(self, mime: &Mime) -> std::result::Result<String, Self> {
-        let text = self
-            .entries
-            .iter()
-            .find(|(entry, _)| entry == mime)
-            .and_then(|(_, bytes)| String::from_utf8(bytes.clone()).ok());
-        match text {
-            Some(text) => Ok(text),
-            None => Err(self),
-        }
-    }
-
-    pub fn into_uris(self) -> std::result::Result<Vec<OsString>, Self> {
-        if let Some(uris) = self.uris {
-            return Ok(uris);
-        }
-        let Some((_, bytes)) = self
-            .entries
-            .iter()
-            .find(|(entry, _)| entry.essence_str() == "text/uri-list")
-        else {
-            return Err(self);
-        };
-        let Ok(text) = std::str::from_utf8(bytes) else {
-            return Err(self);
-        };
-        let uris = text
-            .lines()
-            .map(str::trim)
-            .filter(|line| !line.is_empty() && !line.starts_with('#'))
-            .filter_map(|uri| gio::File::for_uri(uri).path())
-            .map(PathBuf::into_os_string)
-            .collect::<Vec<_>>();
-        if uris.is_empty() { Err(self) } else { Ok(uris) }
-    }
-
-    pub fn into_image(self) -> std::result::Result<Image, Self> {
-        if let Some(image) = self.image {
-            return Ok(image);
-        }
-        for (mime, bytes) in &self.entries {
-            if mime.type_() == mime::IMAGE
-                && let Ok(texture) = gdk::Texture::from_bytes(&Bytes::from_owned(bytes.clone()))
-            {
-                return Ok(Image::from_texture(texture));
-            }
-        }
-        Err(self)
+    pub fn formats(&self) -> Result<impl Iterator<Item = DataFormat> + '_> {
+        Ok(self.entries.iter().map(Entry::format))
     }
 
     pub(crate) fn content_provider(&self) -> Result<Option<gdk::ContentProvider>> {
         let mut providers = Vec::new();
-        for (mime, bytes) in &self.entries {
-            providers.push(gdk::ContentProvider::for_bytes(
-                mime.as_ref(),
-                &Bytes::from_owned(bytes.clone()),
-            ));
-        }
-        if let Some(image) = &self.image {
-            providers.push(gdk::ContentProvider::for_value(&image.texture().to_value()));
-        }
-        if let Some(uris) = &self.uris {
-            let files = uris
-                .iter()
-                .map(|uri| gio::File::for_path(Path::new(uri)))
-                .collect::<Vec<_>>();
-            if !files.is_empty() {
-                let list = gdk::FileList::from_array(&files);
-                providers.push(gdk::ContentProvider::for_value(&list.to_value()));
+        for entry in &self.entries {
+            match &entry.value {
+                Value::Bytes(bytes) => providers.push(gdk::ContentProvider::for_bytes(
+                    entry.mime.as_ref(),
+                    &Bytes::from_owned(bytes.clone()),
+                )),
+                Value::Image(image) => {
+                    providers.push(gdk::ContentProvider::for_value(&image.texture().to_value()))
+                }
+                Value::Paths(paths) => {
+                    let files = paths
+                        .iter()
+                        .map(|path| gio::File::for_path(Path::new(path)))
+                        .collect::<Vec<_>>();
+                    if !files.is_empty() {
+                        let list = gdk::FileList::from_array(&files);
+                        providers.push(gdk::ContentProvider::for_value(&list.to_value()));
+                    }
+                }
             }
         }
         match providers.len() {
@@ -228,6 +229,57 @@ impl Data {
             _ => Ok(Some(gdk::ContentProvider::new_union(&providers))),
         }
     }
+}
+
+impl IntoIterator for Data {
+    type IntoIter = DataIntoIter;
+    type Item = Result<DataEntry<Image>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        DataIntoIter(
+            self.entries
+                .into_iter()
+                .map(Entry::into_entry)
+                .collect::<Vec<_>>()
+                .into_iter(),
+        )
+    }
+}
+
+pub struct DataIntoIter(std::vec::IntoIter<Result<DataEntry<Image>>>);
+
+impl Iterator for DataIntoIter {
+    type Item = Result<DataEntry<Image>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+fn format_of(mime: &Mime) -> DataFormat {
+    if mime.essence_str() == "text/plain" {
+        DataFormat::Text
+    } else if mime.essence_str() == "text/html" {
+        DataFormat::Html
+    } else if mime.essence_str() == "text/uri-list" {
+        DataFormat::Paths
+    } else if mime.type_() == mime::IMAGE {
+        DataFormat::Image
+    } else {
+        DataFormat::Unknown
+    }
+}
+
+fn decode_uri_list(bytes: &[u8]) -> Option<Vec<OsString>> {
+    let text = std::str::from_utf8(bytes).ok()?;
+    let uris = text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .filter_map(|uri| gio::File::for_uri(uri).path())
+        .map(PathBuf::into_os_string)
+        .collect::<Vec<_>>();
+    if uris.is_empty() { None } else { Some(uris) }
 }
 
 type MimeRead = Pin<
@@ -282,13 +334,4 @@ async fn read_stream(stream: gio::InputStream) -> Result<Vec<u8>> {
 
 fn parse_mime(value: &str) -> Mime {
     value.parse().expect("valid MIME")
-}
-
-fn encode_uris(uris: &[OsString]) -> Result<Vec<u8>> {
-    let mut text = String::new();
-    for uri in uris {
-        text.push_str(gio::File::for_path(Path::new(uri)).uri().as_str());
-        text.push_str("\r\n");
-    }
-    Ok(text.into_bytes())
 }

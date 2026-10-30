@@ -6,6 +6,9 @@
 mod traits;
 pub use traits::*;
 
+mod data;
+pub use data::*;
+
 mod drawing;
 pub use drawing::*;
 
