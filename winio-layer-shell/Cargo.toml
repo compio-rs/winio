@@ -1,0 +1,42 @@
+[package]
+name = "winio-layer-shell"
+version = "0.1.0"
+description = "Wayland layer shell support for winio."
+categories = ["gui"]
+keywords = ["gui", "wayland", "layer-shell"]
+edition = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+links = "LayerShellQtInterface"
+
+[package.metadata.docs.rs]
+no-default-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+winio = { workspace = true, default-features = false }
+
+bitflags = { workspace = true }
+cfg-if = { workspace = true }
+thiserror = { workspace = true }
+
+cxx = { version = "1.0.160", features = ["c++17"], optional = true }
+
+gtk4 = { workspace = true, optional = true }
+gtk4-layer-shell = { workspace = true, optional = true }
+
+[dev-dependencies]
+anyhow = "1"
+
+[build-dependencies]
+cxx-build = "1.0.160"
+qt-build-utils = "0.10"
+
+[features]
+default = []
+gtk = ["dep:gtk4", "dep:gtk4-layer-shell", "winio/gtk"]
+qt = ["dep:cxx", "winio/qt"]
+
+[[example]]
+name = "bar"
