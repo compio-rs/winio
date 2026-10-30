@@ -1,5 +1,6 @@
 use std::{fmt::Debug, rc::Rc};
 
+use inherit_methods_macro::inherit_methods;
 use windows::Win32::{
     Foundation::POINTL,
     System::{
@@ -12,13 +13,6 @@ use windows::Win32::{
     },
 };
 use windows_core::{Ref, implement};
-use windows_sys::{
-    Win32::{
-        Foundation::{HWND, LPARAM},
-        UI::WindowsAndMessaging::EnumChildWindows,
-    },
-    core::BOOL,
-};
 use winio_callback::Callback;
 use winio_handle::{AsContainer, AsWidget};
 use winio_pollable::GlobalRuntime;
@@ -96,6 +90,7 @@ impl IDropTarget_Impl for DropTarget_Impl {
     }
 }
 
+#[inherit_methods(from = "self.view")]
 impl DropArea {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let ole = OleGuard::new()?;
@@ -108,7 +103,6 @@ impl DropArea {
         let hwnd = view.as_widget().as_win32();
         unsafe {
             RegisterDragDrop(hwnd, &target)?;
-            register_children(hwnd, &target);
         }
         Ok(Self {
             view,
@@ -118,38 +112,17 @@ impl DropArea {
         })
     }
 
-    pub fn is_visible(&self) -> Result<bool> {
-        self.view.is_visible()
-    }
+    pub fn is_visible(&self) -> Result<bool>;
 
-    pub fn set_visible(&mut self, visible: bool) -> Result<()> {
-        self.view.set_visible(visible)
-    }
+    pub fn set_visible(&mut self, visible: bool) -> Result<()>;
 
-    pub fn loc(&self) -> Result<Point> {
-        self.view.loc()
-    }
+    pub fn loc(&self) -> Result<Point>;
 
-    pub fn set_loc(&mut self, point: Point) -> Result<()> {
-        self.view.set_loc(point)?;
-        self.refresh_targets();
-        Ok(())
-    }
+    pub fn set_loc(&mut self, point: Point) -> Result<()>;
 
-    pub fn size(&self) -> Result<Size> {
-        self.view.size()
-    }
+    pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, size: Size) -> Result<()> {
-        self.view.set_size(size)?;
-        self.refresh_targets();
-        Ok(())
-    }
-
-    fn refresh_targets(&self) {
-        let hwnd = self.view.as_widget().as_win32();
-        register_children(hwnd, &self._target);
-    }
+    pub fn set_size(&mut self, size: Size) -> Result<()>;
 
     pub async fn wait_drop(&self) -> Data {
         self.on_drop.wait().await
@@ -161,35 +134,9 @@ impl Drop for DropArea {
         let hwnd = self.view.as_widget().as_win32();
         unsafe {
             let _ = RevokeDragDrop(hwnd);
-            EnumChildWindows(hwnd, Some(revoke_child), 0);
         }
     }
 }
 
 winio_handle::impl_as_widget!(DropArea, view);
 winio_handle::impl_as_container!(DropArea, view);
-
-unsafe extern "system" fn register_child(hwnd: HWND, lparam: LPARAM) -> BOOL {
-    let target = unsafe { &*(lparam as *const IDropTarget) };
-    unsafe {
-        let _ = RegisterDragDrop(hwnd, target);
-    }
-    1
-}
-
-fn register_children(hwnd: HWND, target: &IDropTarget) {
-    unsafe {
-        EnumChildWindows(
-            hwnd,
-            Some(register_child),
-            target as *const IDropTarget as LPARAM,
-        );
-    }
-}
-
-unsafe extern "system" fn revoke_child(hwnd: HWND, _lparam: LPARAM) -> BOOL {
-    unsafe {
-        let _ = RevokeDragDrop(hwnd);
-    }
-    1
-}
