@@ -1,5 +1,6 @@
 use std::{ffi::OsString, io::Cursor};
 
+use compio_log::error;
 use futures_util::Stream;
 use image::ImageFormat;
 use windows::{
@@ -96,37 +97,13 @@ impl Data {
             return Ok(Some(Self { package }));
         }
         let data = Self::new()?;
-        let formats = view.AvailableFormats()?;
-        for format in formats.into_iter() {
-            match format.to_string_lossy().as_str() {
-                "Text" => {
-                    let text = view.GetTextAsync()?.await?.to_string_lossy();
-                    data.package.SetText(&HSTRING::from(text))?;
-                }
-                "HTML Format" => {
-                    let html = view.GetHtmlFormatAsync()?.await?.to_string_lossy();
-                    data.package.SetHtmlFormat(&HSTRING::from(html))?;
-                }
-                "RTF" => {
-                    let rtf = view.GetRtfAsync()?.await?.to_string_lossy();
-                    data.package.SetRtf(&HSTRING::from(rtf))?;
-                }
-                "Bitmap" => {
-                    let reference = view.GetBitmapAsync()?.await?;
-                    data.package.SetBitmap(&reference)?;
-                }
-                "StorageItems" => {
-                    let items = view.GetStorageItemsAsync()?.await?;
-                    let items = items.into_iter().collect::<Vec<_>>();
-                    data.package.SetStorageItems(
-                        &IIterable::from(items.into_iter().map(Some).collect::<Vec<_>>()),
-                        false,
-                    )?;
-                }
-                _ => {
-                    let value = view.GetDataAsync(&format)?.await?;
-                    data.package.SetData(&format, &value)?;
-                }
+        for format in view.AvailableFormats()?.into_iter() {
+            if let Err(e) = copy_format(view, &data.package, &format).await {
+                error!(
+                    "Failed to copy format {}: {:?}",
+                    format.to_string_lossy(),
+                    e
+                );
             }
         }
         if data.formats()?.next().is_none() {
@@ -135,6 +112,16 @@ impl Data {
             Ok(Some(data))
         }
     }
+}
+
+async fn copy_format(
+    view: &DataPackageView,
+    package: &DataPackage,
+    format: &HSTRING,
+) -> Result<()> {
+    let value = view.GetDataAsync(format)?.await?;
+    package.SetData(format, &value)?;
+    Ok(())
 }
 
 fn format_of(name: &str) -> DataFormat {
