@@ -14,7 +14,7 @@ use windows::{
     },
 };
 use windows_collections::IIterable;
-use windows_core::{HSTRING, Interface};
+use windows_core::{HSTRING, IInspectable, Interface};
 use winio_primitive::{DataEntry, DataFormat};
 use winio_ui_windows_common::parse_dropfiles;
 
@@ -142,9 +142,6 @@ async fn read_format(view: &DataPackageView, format: &HSTRING) -> Result<DataEnt
         "HTML Format" => Ok(DataEntry::Html(
             view.GetHtmlFormatAsync()?.await?.to_string_lossy(),
         )),
-        "RTF" => Ok(DataEntry::Unknown(
-            view.GetRtfAsync()?.await?.to_string_lossy().into_bytes(),
-        )),
         "Bitmap" => read_image(view.GetBitmapAsync()?.await?).await,
         "StorageItems" => Ok(DataEntry::Paths(
             view.GetStorageItemsAsync()?
@@ -159,25 +156,28 @@ async fn read_format(view: &DataPackageView, format: &HSTRING) -> Result<DataEnt
             read_file_drop(value).await
         }
         _ => match view.GetDataAsync(format)?.await {
-            Ok(value) => match value.cast::<RandomAccessStreamReference>() {
-                Ok(reference) => read_reference(reference).await.map(DataEntry::Unknown),
-                Err(_) => Ok(DataEntry::Unknown(Vec::new())),
-            },
+            Ok(value) => Ok(DataEntry::Unknown(
+                read_value(value).await.unwrap_or_default(),
+            )),
             Err(error) => Err(error),
         },
     }
 }
 
-async fn read_file_drop(value: windows_core::IInspectable) -> Result<DataEntry<Image>> {
-    let bytes = if let Ok(stream) = value.cast::<IRandomAccessStream>() {
-        read_random_access(stream).await?
+async fn read_value(value: IInspectable) -> Result<Vec<u8>> {
+    if let Ok(stream) = value.cast::<IRandomAccessStream>() {
+        read_random_access(stream).await
     } else if let Ok(input) = value.cast::<IInputStream>() {
-        read_stream(input).await?
+        read_stream(input).await
     } else if let Ok(reference) = value.cast::<RandomAccessStreamReference>() {
-        read_reference(reference).await?
+        read_reference(reference).await
     } else {
-        return Err(invalid_data());
-    };
+        Err(invalid_data())
+    }
+}
+
+async fn read_file_drop(value: IInspectable) -> Result<DataEntry<Image>> {
+    let bytes = read_value(value).await?;
     let paths = parse_dropfiles(&bytes).ok_or_else(invalid_data)?;
     Ok(DataEntry::Paths(paths))
 }
