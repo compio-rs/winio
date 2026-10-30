@@ -27,13 +27,7 @@ impl Data {
 
     /// Add an entry.
     pub fn insert(&mut self, entry: DataEntry<Image>) -> Result<()> {
-        match entry {
-            DataEntry::Text(text) => self.inner.insert_text(text),
-            DataEntry::Html(html) => self.inner.insert_html(html),
-            DataEntry::Image(image) => self.inner.insert_image(&image.0),
-            DataEntry::Paths(paths) => self.inner.insert_paths(&paths),
-            DataEntry::Unknown(bytes) => self.inner.insert_unknown(bytes),
-        }
+        self.inner.insert(entry.map_image(|image| image.0))
     }
 
     /// The available formats, in backend order.

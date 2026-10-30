@@ -100,7 +100,7 @@ impl Data {
             && let Ok(value) = source.read_value(gdk::Texture::static_type()).await
             && let Ok(texture) = value.get::<gdk::Texture>()
         {
-            data.insert_image(&Image::from_texture(texture))?;
+            data.insert(DataEntry::Image(Image::from_texture(texture)))?;
             image = true;
         }
 
@@ -116,7 +116,7 @@ impl Data {
                 .map(PathBuf::into_os_string)
                 .collect::<Vec<_>>();
             if !uris.is_empty() {
-                data.insert_paths(&uris)?;
+                data.insert(DataEntry::Paths(uris))?;
                 paths = true;
             }
         }
@@ -146,32 +146,28 @@ impl Data {
         }
     }
 
-    pub fn insert_text(&mut self, text: String) -> Result<()> {
-        self.insert_bytes(mime::TEXT_PLAIN, text.into_bytes())
-    }
-
-    pub fn insert_html(&mut self, html: String) -> Result<()> {
-        self.insert_bytes(mime::TEXT_HTML, html.into_bytes())
-    }
-
-    pub fn insert_image(&mut self, image: &Image) -> Result<()> {
-        self.insert_entry(Entry {
-            mime: mime::IMAGE_PNG.clone(),
-            value: Value::Image(image.clone()),
-        });
-        Ok(())
-    }
-
-    pub fn insert_paths(&mut self, paths: &[OsString]) -> Result<()> {
-        self.insert_entry(Entry {
-            mime: parse_mime("text/uri-list"),
-            value: Value::Paths(paths.to_vec()),
-        });
-        Ok(())
-    }
-
-    pub fn insert_unknown(&mut self, bytes: Vec<u8>) -> Result<()> {
-        self.insert_bytes(parse_mime("application/vnd.winio.unknown"), bytes)
+    pub fn insert(&mut self, entry: DataEntry<Image>) -> Result<()> {
+        match entry {
+            DataEntry::Text(text) => self.insert_bytes(mime::TEXT_PLAIN, text.into_bytes()),
+            DataEntry::Html(html) => self.insert_bytes(mime::TEXT_HTML, html.into_bytes()),
+            DataEntry::Image(image) => {
+                self.insert_entry(Entry {
+                    mime: mime::IMAGE_PNG.clone(),
+                    value: Value::Image(image),
+                });
+                Ok(())
+            }
+            DataEntry::Paths(paths) => {
+                self.insert_entry(Entry {
+                    mime: parse_mime("text/uri-list"),
+                    value: Value::Paths(paths),
+                });
+                Ok(())
+            }
+            DataEntry::Unknown(bytes) => {
+                self.insert_bytes(parse_mime("application/vnd.winio.unknown"), bytes)
+            }
+        }
     }
 
     fn insert_bytes(&mut self, mime: Mime, bytes: Vec<u8>) -> Result<()> {

@@ -224,7 +224,17 @@ impl Data {
         &self.entries
     }
 
-    pub fn insert_text(&mut self, text: String) -> Result<()> {
+    pub fn insert(&mut self, entry: DataEntry<Image>) -> Result<()> {
+        match entry {
+            DataEntry::Text(text) => self.insert_text(text),
+            DataEntry::Html(html) => self.insert_html(html),
+            DataEntry::Image(image) => self.insert_image(&image),
+            DataEntry::Paths(paths) => self.insert_paths(&paths),
+            DataEntry::Unknown(bytes) => self.insert_unknown(bytes),
+        }
+    }
+
+    fn insert_text(&mut self, text: String) -> Result<()> {
         let text = U16CString::from_str_truncate(&text);
         let data = text.into_vec_with_nul();
         let (ptr, len, capacity) = data.into_parts();
@@ -232,7 +242,7 @@ impl Data {
         self.insert_bytes(CF_UNICODETEXT as u32, data, Codec::Utf16)
     }
 
-    pub fn insert_html(&mut self, html: String) -> Result<()> {
+    fn insert_html(&mut self, html: String) -> Result<()> {
         self.insert_bytes(
             register_format("HTML Format")?,
             encode_cf_html(&html),
@@ -240,22 +250,22 @@ impl Data {
         )
     }
 
-    pub fn insert_image(&mut self, image: &Image) -> Result<()> {
-        let image = image.to_dynamic_image();
+    fn insert_image(&mut self, image: &Image) -> Result<()> {
         let mut bytes = Vec::new();
         image
+            .as_dynamic_image()
             .write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)
             .map_err(|_| invalid_data())?;
         self.insert_bytes(register_format("PNG")?, bytes, Codec::Raw)
     }
 
-    pub fn insert_paths(&mut self, paths: &[OsString]) -> Result<()> {
+    fn insert_paths(&mut self, paths: &[OsString]) -> Result<()> {
         let hglobal = build_hdrop(paths)?;
         self.insert_unique(Entry::new(CF_HDROP as u32, hglobal, Codec::HDrop));
         Ok(())
     }
 
-    pub fn insert_unknown(&mut self, bytes: Vec<u8>) -> Result<()> {
+    fn insert_unknown(&mut self, bytes: Vec<u8>) -> Result<()> {
         self.insert_bytes(register_format(UNKNOWN_FORMAT)?, bytes, Codec::Raw)
     }
 

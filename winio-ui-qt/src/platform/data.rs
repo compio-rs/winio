@@ -40,32 +40,28 @@ impl Data {
         &self.inner
     }
 
-    pub fn insert_text(&mut self, text: String) -> Result<()> {
-        ffi::mime_data_set(self.inner.pin_mut(), "text/plain", text.as_bytes())?;
-        self.rebuild_entries()
-    }
-
-    pub fn insert_html(&mut self, html: String) -> Result<()> {
-        ffi::mime_data_set(self.inner.pin_mut(), "text/html", html.as_bytes())?;
-        self.rebuild_entries()
-    }
-
-    pub fn insert_image(&mut self, image: &Image) -> Result<()> {
-        ffi::mime_data_set_image(self.inner.pin_mut(), image.as_qimage())?;
-        self.rebuild_entries()
-    }
-
-    pub fn insert_paths(&mut self, paths: &[OsString]) -> Result<()> {
-        let paths = paths
-            .iter()
-            .map(|path| QString::try_from(path.to_string_lossy().as_ref()))
-            .collect::<std::result::Result<Vec<_>, _>>()?;
-        ffi::mime_data_set_uris(self.inner.pin_mut(), &paths)?;
-        self.rebuild_entries()
-    }
-
-    pub fn insert_unknown(&mut self, bytes: Vec<u8>) -> Result<()> {
-        ffi::mime_data_set(self.inner.pin_mut(), UNKNOWN_FORMAT, &bytes)?;
+    pub fn insert(&mut self, entry: DataEntry<Image>) -> Result<()> {
+        match entry {
+            DataEntry::Text(text) => {
+                ffi::mime_data_set(self.inner.pin_mut(), "text/plain", text.as_bytes())?
+            }
+            DataEntry::Html(html) => {
+                ffi::mime_data_set(self.inner.pin_mut(), "text/html", html.as_bytes())?
+            }
+            DataEntry::Image(image) => {
+                ffi::mime_data_set_image(self.inner.pin_mut(), image.as_qimage())?
+            }
+            DataEntry::Paths(paths) => {
+                let paths = paths
+                    .iter()
+                    .map(|path| QString::try_from(path.to_string_lossy().as_ref()))
+                    .collect::<std::result::Result<Vec<_>, _>>()?;
+                ffi::mime_data_set_uris(self.inner.pin_mut(), &paths)?
+            }
+            DataEntry::Unknown(bytes) => {
+                ffi::mime_data_set(self.inner.pin_mut(), UNKNOWN_FORMAT, &bytes)?
+            }
+        }
         self.rebuild_entries()
     }
 

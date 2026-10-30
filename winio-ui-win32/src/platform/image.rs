@@ -87,8 +87,8 @@ impl Drop for WinDC {
 pub struct Image(Rc<DynamicImage>);
 
 impl Image {
-    pub(crate) fn to_dynamic_image(&self) -> DynamicImage {
-        (*self.0).clone()
+    pub(crate) fn as_dynamic_image(&self) -> &DynamicImage {
+        &self.0
     }
 
     pub(crate) fn from_dynamic_image(image: DynamicImage) -> Result<Self> {
