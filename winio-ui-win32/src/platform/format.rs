@@ -193,6 +193,15 @@ fn header_offset(text: &str, key: &str) -> Option<usize> {
     line[key.len()..].trim().parse().ok()
 }
 
+const fn channel(value: u32, mask: u32) -> u8 {
+    if mask == 0 {
+        return 0;
+    }
+    let shift = mask.trailing_zeros();
+    let max = (mask >> shift) as u64;
+    ((((value & mask) >> shift) as u64 * 255) / max) as u8
+}
+
 pub(crate) fn decode_dib(bytes: &[u8]) -> Option<DynamicImage> {
     const BI_BITFIELDS: u32 = 3;
     const BI_ALPHABITFIELDS: u32 = 6;
@@ -200,7 +209,7 @@ pub(crate) fn decode_dib(bytes: &[u8]) -> Option<DynamicImage> {
     if bytes.len() < size_of::<BITMAPINFOHEADER>() {
         return None;
     }
-    let header = unsafe { std::ptr::read_unaligned(bytes.as_ptr() as *const BITMAPINFOHEADER) };
+    let header = unsafe { std::ptr::read_unaligned(bytes.as_ptr().cast::<BITMAPINFOHEADER>()) };
     if header.biSize < size_of::<BITMAPINFOHEADER>() as u32
         || (header.biBitCount != 24 && header.biBitCount != 32)
         || header.biWidth <= 0
@@ -215,13 +224,6 @@ pub(crate) fn decode_dib(bytes: &[u8]) -> Option<DynamicImage> {
     let bpp = (header.biBitCount / 8) as usize;
     let stride = ((width as usize * bpp + 3) & !3) as usize;
 
-    let read_mask = |offset: usize| {
-        bytes
-            .get(offset..offset + 4)
-            .map(|bytes| u32::from_ne_bytes(bytes.try_into().unwrap()))
-            .unwrap_or(0)
-    };
-
     let (offset, red_mask, green_mask, blue_mask, alpha_mask) = match (bpp, header.biCompression) {
         (3, BI_RGB) => (header.biSize as usize, 0, 0, 0, 0),
         (4, BI_RGB) => (
@@ -232,34 +234,30 @@ pub(crate) fn decode_dib(bytes: &[u8]) -> Option<DynamicImage> {
             0xff000000,
         ),
         (4, BI_BITFIELDS) | (4, BI_ALPHABITFIELDS) => {
-            let masks = if header.biCompression == BI_ALPHABITFIELDS {
+            let mask_count = if header.biCompression == BI_ALPHABITFIELDS {
                 4
             } else {
                 3
             };
-            if header.biSize >= 108 {
-                (
-                    header.biSize as usize,
-                    read_mask(40),
-                    read_mask(44),
-                    read_mask(48),
-                    read_mask(52),
-                )
-            } else {
-                let offset = header.biSize as usize;
-                let alpha = if masks == 4 {
-                    read_mask(offset + 12)
-                } else {
-                    0
-                };
-                (
-                    offset + masks * 4,
-                    read_mask(offset),
-                    read_mask(offset + 4),
-                    read_mask(offset + 8),
-                    alpha,
-                )
+            let offset = size_of::<BITMAPINFOHEADER>();
+            if bytes.len() < offset + mask_count * size_of::<u32>() {
+                return None;
             }
+            let red_mask = u32::from_ne_bytes(bytes[offset..offset + 4].try_into().unwrap());
+            let green_mask = u32::from_ne_bytes(bytes[offset + 4..offset + 8].try_into().unwrap());
+            let blue_mask = u32::from_ne_bytes(bytes[offset + 8..offset + 12].try_into().unwrap());
+            let alpha_mask = if mask_count == 4 {
+                u32::from_ne_bytes(bytes[offset + 12..offset + 16].try_into().unwrap())
+            } else {
+                0
+            };
+            (
+                offset + mask_count * 4,
+                red_mask,
+                green_mask,
+                blue_mask,
+                alpha_mask,
+            )
         }
         _ => return None,
     };
@@ -267,15 +265,6 @@ pub(crate) fn decode_dib(bytes: &[u8]) -> Option<DynamicImage> {
     if bytes.len() < offset + stride * height as usize {
         return None;
     }
-
-    let channel = |value: u32, mask: u32| -> u8 {
-        if mask == 0 {
-            return 0;
-        }
-        let shift = mask.trailing_zeros();
-        let max = mask >> shift;
-        ((((value & mask) >> shift) * 255) / max) as u8
-    };
 
     let mut image = RgbaImage::new(width, height);
     for y in 0..height {
