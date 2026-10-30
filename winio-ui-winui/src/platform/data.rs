@@ -16,7 +16,7 @@ use windows::{
 use windows_collections::IIterable;
 use windows_core::{HSTRING, IInspectable, Interface};
 use winio_primitive::{DataEntry, DataFormat};
-use winio_ui_windows_common::parse_dropfiles;
+use winio_ui_windows_common::{decode_cf_html, encode_cf_html, parse_dropfiles};
 
 use crate::{Image, Result};
 
@@ -37,7 +37,9 @@ impl Data {
     pub async fn insert(&mut self, entry: DataEntry<Image>) -> Result<()> {
         match &entry {
             DataEntry::Text(text) => self.package.SetText(&HSTRING::from(text))?,
-            DataEntry::Html(html) => self.package.SetHtmlFormat(&HSTRING::from(html))?,
+            DataEntry::Html(html) => self.package.SetHtmlFormat(&HSTRING::from(
+                encode_cf_html(html).ok_or_else(invalid_data)?,
+            ))?,
             DataEntry::Image(image) => {
                 let reference = image_reference(image).await?;
                 self.package.SetBitmap(&reference)?;
@@ -139,9 +141,12 @@ async fn read_format(view: &DataPackageView, format: &HSTRING) -> Result<DataEnt
         "Text" => Ok(DataEntry::Text(
             view.GetTextAsync()?.await?.to_string_lossy(),
         )),
-        "HTML Format" => Ok(DataEntry::Html(
-            view.GetHtmlFormatAsync()?.await?.to_string_lossy(),
-        )),
+        "HTML Format" => {
+            let html = view.GetHtmlFormatAsync()?.await?.to_string_lossy();
+            Ok(DataEntry::Html(
+                decode_cf_html(html.as_bytes()).ok_or_else(invalid_data)?,
+            ))
+        }
         "Bitmap" => read_image(view.GetBitmapAsync()?.await?).await,
         "StorageItems" => Ok(DataEntry::Paths(
             view.GetStorageItemsAsync()?

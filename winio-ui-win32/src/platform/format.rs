@@ -140,42 +140,6 @@ pub(crate) fn register_format(name: &str) -> Result<u32> {
     }
 }
 
-pub(crate) fn encode_cf_html(html: &str) -> Vec<u8> {
-    let body =
-        format!("<html><body>\r\n<!--StartFragment-->{html}<!--EndFragment-->\r\n</body></html>");
-    let prefix = "<html><body>\r\n<!--StartFragment-->";
-    let header_len = 105;
-    let start_html = header_len;
-    let start_fragment = start_html + prefix.len();
-    let end_fragment = start_fragment + html.len();
-    let end_html = start_html + body.len();
-    let header = format!(
-        "Version:0.9\r\nStartHTML:{start_html:010}\r\nEndHTML:{end_html:010}\r\nStartFragment:\
-         {start_fragment:010}\r\nEndFragment:{end_fragment:010}\r\n"
-    );
-    let mut bytes = header.into_bytes();
-    bytes.extend_from_slice(body.as_bytes());
-    bytes
-}
-
-pub(crate) fn decode_cf_html(text: &str) -> Option<String> {
-    let start = header_offset(text, "StartFragment:");
-    let end = header_offset(text, "EndFragment:");
-    if let (Some(start), Some(end)) = (start, end)
-        && start <= end
-        && end <= text.len()
-    {
-        return Some(text[start..end].to_string());
-    }
-    let body = text.split_once("\r\n\r\n").map(|(_, body)| body)?;
-    Some(body.to_string())
-}
-
-fn header_offset(text: &str, key: &str) -> Option<usize> {
-    let line = text.lines().find(|line| line.starts_with(key))?;
-    line[key.len()..].trim().parse().ok()
-}
-
 const fn channel(value: u32, mask: u32) -> u8 {
     if mask == 0 {
         return 0;

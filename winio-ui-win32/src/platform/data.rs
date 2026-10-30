@@ -18,14 +18,11 @@ use windows_sys::Win32::{
     },
 };
 use winio_primitive::{DataEntry, DataFormat};
-use winio_ui_windows_common::{decode_ansi, parse_dropfiles};
+use winio_ui_windows_common::{decode_ansi, decode_cf_html, encode_cf_html, parse_dropfiles};
 
 use crate::{
     Image,
-    platform::format::{
-        build_hdrop, decode_cf_html, decode_dib, encode_cf_html, format_category, format_codec,
-        register_format,
-    },
+    platform::format::{build_hdrop, decode_dib, format_category, format_codec, register_format},
 };
 
 const UNKNOWN_FORMAT: &str = "application/vnd.winio.unknown";
@@ -183,13 +180,9 @@ impl Entry {
                 )),
                 _ => Err(invalid_data()),
             },
-            DataFormat::Html => {
-                let guard = self.hglobal.lock()?;
-                let str = str::from_utf8(&guard).map_err(|_| invalid_data())?;
-                Ok(DataEntry::Html(
-                    decode_cf_html(str).ok_or_else(invalid_data)?,
-                ))
-            }
+            DataFormat::Html => Ok(DataEntry::Html(
+                decode_cf_html(&self.hglobal.lock()?).ok_or_else(invalid_data)?,
+            )),
             DataFormat::Paths => Ok(DataEntry::Paths(
                 parse_dropfiles(&self.hglobal.lock()?).ok_or_else(invalid_data)?,
             )),
@@ -258,7 +251,7 @@ impl Data {
     fn insert_html(&mut self, html: String) -> Result<()> {
         self.insert_bytes(
             register_format("HTML Format")?,
-            encode_cf_html(&html),
+            encode_cf_html(&html).ok_or_else(invalid_data)?.into_bytes(),
             Codec::CfHtml,
         )
     }

@@ -23,6 +23,7 @@ compio-log = { workspace = true }
 cfg-if = { workspace = true }
 futures-util = { workspace = true }
 bytemuck = { workspace = true }
+rclip-cf-html = { version = "0.1.0", features = ["std"] }
 image = { workspace = true }
 once_cell = { workspace = true }
 oneshot = { workspace = true, default-features = false, features = ["async"] }

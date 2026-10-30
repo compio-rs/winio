@@ -4,6 +4,7 @@ use std::{
     ptr::{null_mut, read_unaligned},
 };
 
+use rclip_cf_html::CfHtmlBuilder;
 use windows_sys::Win32::{
     Globalization::{CP_ACP, CP_OEMCP, MultiByteToWideChar},
     UI::Shell::DROPFILES,
@@ -100,4 +101,17 @@ pub fn decode_ansi(bytes: &[u8], oem: bool) -> Option<String> {
     }
     unsafe { wide.set_len(written as usize) };
     String::from_utf16(&wide).ok()
+}
+
+/// Encode HTML as a `CF_HTML` payload.
+pub fn encode_cf_html(html: &str) -> Option<String> {
+    let bytes = CfHtmlBuilder::new(html).build().ok()?;
+    String::from_utf8(bytes).ok()
+}
+
+/// Decode a `CF_HTML` payload and return its fragment.
+pub fn decode_cf_html(bytes: &[u8]) -> Option<String> {
+    rclip_cf_html::parse(bytes)
+        .ok()
+        .map(|html| html.fragment.to_string())
 }
