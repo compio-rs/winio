@@ -27,6 +27,7 @@ This is a Cargo workspace with these crates:
 | `winio-callback`          | Callback helpers                                                                                                  |
 | `winio-pollable`          | Runtime-polling helpers                                                                                           |
 | `winio-example`           | The example application, exercising all widgets                                                                   |
+| `winio-layer-shell`       | Wayland layer shell support as a `Window` extension trait (GTK/Qt)                                                |
 | `winio-ui-qt`             | Qt backend                                                                                                        |
 | `winio-ui-gtk`            | GTK 4 backend                                                                                                     |
 | `winio-ui-app-kit`        | macOS (AppKit) backend                                                                                            |

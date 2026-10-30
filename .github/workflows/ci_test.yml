@@ -28,13 +28,15 @@ jobs:
             deps: 'qt6-base-dev libgtk-4-dev'
           - os: 'ubuntu-26.04'
             # all + qt6
-            features: 'all'
-            deps: 'qt6-base-dev qt6-multimedia-dev qt6-webengine-dev libgtk-4-dev libwebkitgtk-6.0-dev'
+            features: 'all,qt'
+            deps: 'qt6-base-dev qt6-multimedia-dev qt6-webengine-dev libgtk-4-dev libwebkitgtk-6.0-dev liblayershellqtinterface-dev'
+            layershell: 'qt'
           - os: 'ubuntu-26.04'
             # gtk4
-            deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev libqt5opengl5-dev libgtk-4-dev libwebkitgtk-6.0-dev'
+            deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev libqt5opengl5-dev libgtk-4-dev libwebkitgtk-6.0-dev libgtk4-layer-shell-dev'
             features: 'all,gtk'
             no_default_features: true
+            layershell: 'gtk'
           - os: 'ubuntu-26.04'
             # stub
             deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev libqt5opengl5-dev libgtk-4-dev libwebkitgtk-6.0-dev'
@@ -111,3 +113,9 @@ jobs:
           fi
 
           cargo +${{ matrix.toolchain }} test --workspace "${ARGS[@]}"
+
+          # LayerShellQt is Qt6-only, so the layer-shell crate is built
+          # separately with the backend that matches each Linux job.
+          if [[ -n "${{ matrix.setup.layershell }}" ]]; then
+            cargo +${{ matrix.toolchain }} build -p winio-layer-shell --features "${{ matrix.setup.layershell }}"
+          fi

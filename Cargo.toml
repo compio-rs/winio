@@ -18,6 +18,7 @@ members = [
     "winio-ui-apple-common",
     "winio-ui-stub",
     "winio-wgpu",
+    "winio-layer-shell",
     "winio-example",
 ]
 
@@ -103,6 +104,7 @@ objc2-uniform-type-identifiers = "0.3"
 objc2-web-kit = "0.3"
 
 gtk4 = "0.11"
+gtk4-layer-shell = "0.8.1"
 glib-unix = "0.22"
 pangocairo = "0.22"
 webkit6 = "0.6"
