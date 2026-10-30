@@ -127,12 +127,12 @@ pub(crate) fn read_hdrop(hglobal: &HGlobal) -> Vec<OsString> {
         let count = DragQueryFileW(hdrop, u32::MAX, null_mut(), 0);
         let mut uris = Vec::with_capacity(count as usize);
         for index in 0..count {
-            let len = DragQueryFileW(hdrop, index, null_mut(), 0) as usize;
+            let len = DragQueryFileW(hdrop, index, null_mut(), 0);
             if len == 0 {
                 continue;
             }
-            let mut buf = Vec::with_capacity(len + 1);
-            let written = DragQueryFileW(hdrop, index, buf.as_mut_ptr(), buf.len() as u32) as usize;
+            let mut buf = Vec::with_capacity(len as usize + 1);
+            let written = DragQueryFileW(hdrop, index, buf.as_mut_ptr(), len + 1) as usize;
             if written > 0 {
                 buf.set_len(written);
                 uris.push(OsString::from_wide(&buf[..written]));
