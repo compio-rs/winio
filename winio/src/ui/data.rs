@@ -1,6 +1,5 @@
 use futures_util::{Stream, StreamExt};
-use winio_primitive::DataEntry;
-pub use winio_primitive::DataFormat;
+use winio_primitive::{DataEntry, DataFormat};
 
 use crate::{Result, sys, ui::Image};
 
