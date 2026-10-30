@@ -11,7 +11,7 @@ use windows_sys::Win32::{
         DataExchange::{
             GetClipboardData, GetClipboardFormatNameW, RegisterClipboardFormatW, SetClipboardData,
         },
-        Ole::{CF_DIB, CF_DIBV5, CF_HDROP, CF_UNICODETEXT},
+        Ole::{CF_DIB, CF_DIBV5, CF_HDROP, CF_OEMTEXT, CF_TEXT, CF_UNICODETEXT},
     },
     UI::Shell::{DROPFILES, DragQueryFileW},
 };
@@ -25,6 +25,10 @@ const PNG_FORMAT_NAME: &U16Str = u16str!("PNG");
 pub(crate) fn format_codec(format: u32) -> Codec {
     if format == CF_UNICODETEXT as u32 {
         Codec::Utf16
+    } else if format == CF_TEXT as u32 {
+        Codec::Ansi
+    } else if format == CF_OEMTEXT as u32 {
+        Codec::Oem
     } else if format == CF_HDROP as u32 {
         Codec::HDrop
     } else if format == CF_DIB as u32 || format == CF_DIBV5 as u32 {
@@ -37,7 +41,7 @@ pub(crate) fn format_codec(format: u32) -> Codec {
 }
 
 pub(crate) fn format_category(format: u32) -> DataFormat {
-    if format == CF_UNICODETEXT as u32 {
+    if format == CF_UNICODETEXT as u32 || format == CF_TEXT as u32 || format == CF_OEMTEXT as u32 {
         DataFormat::Text
     } else if format == CF_HDROP as u32 {
         DataFormat::Paths
@@ -57,6 +61,8 @@ pub(crate) fn format_category(format: u32) -> DataFormat {
 
 pub(crate) fn copy_clipboard_hglobal(format: u32) -> Result<Option<HGlobal>> {
     let is_hglobal = format == CF_UNICODETEXT as u32
+        || format == CF_TEXT as u32
+        || format == CF_OEMTEXT as u32
         || format == CF_HDROP as u32
         || format == CF_DIB as u32
         || format == CF_DIBV5 as u32

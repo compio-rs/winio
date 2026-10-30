@@ -7,15 +7,15 @@ use windows::{
     Storage::{
         IStorageItem, StorageFile,
         Streams::{
-            DataReader, DataWriter, IRandomAccessStream, InMemoryRandomAccessStream,
+            DataReader, DataWriter, IInputStream, IRandomAccessStream, InMemoryRandomAccessStream,
             RandomAccessStreamReference,
         },
     },
 };
 use windows_collections::IIterable;
-use windows_core::{HSTRING, Interface, WIN32_ERROR};
-use windows_sys::Win32::Foundation::ERROR_INVALID_DATA;
+use windows_core::{HSTRING, Interface};
 use winio_primitive::{DataEntry, DataFormat};
+use winio_ui_windows_common::parse_dropfiles;
 
 use crate::{Image, Result};
 
@@ -142,7 +142,7 @@ fn format_of(name: &str) -> DataFormat {
         "Text" => DataFormat::Text,
         "HTML Format" => DataFormat::Html,
         "Bitmap" => DataFormat::Image,
-        "StorageItems" => DataFormat::Paths,
+        "StorageItems" | "FileDrop" => DataFormat::Paths,
         _ => DataFormat::Unknown,
     }
 }
@@ -167,6 +167,10 @@ async fn read_format(view: &DataPackageView, format: &HSTRING) -> Result<DataEnt
                 .map(|path| OsString::from(path.to_string_lossy()))
                 .collect(),
         )),
+        "FileDrop" => {
+            let value = view.GetDataAsync(format)?.await?;
+            read_file_drop(value).await
+        }
         _ => match view.GetDataAsync(format)?.await {
             Ok(value) => match value.cast::<RandomAccessStreamReference>() {
                 Ok(reference) => read_reference(reference).await.map(DataEntry::Unknown),
@@ -175,6 +179,40 @@ async fn read_format(view: &DataPackageView, format: &HSTRING) -> Result<DataEnt
             Err(error) => Err(error),
         },
     }
+}
+
+async fn read_file_drop(value: windows_core::IInspectable) -> Result<DataEntry<Image>> {
+    let bytes = if let Ok(stream) = value.cast::<IRandomAccessStream>() {
+        read_random_access(stream).await?
+    } else if let Ok(input) = value.cast::<IInputStream>() {
+        read_stream(input).await?
+    } else if let Ok(reference) = value.cast::<RandomAccessStreamReference>() {
+        read_reference(reference).await?
+    } else {
+        return Err(invalid_data());
+    };
+    let paths = parse_dropfiles(&bytes).ok_or_else(invalid_data)?;
+    Ok(DataEntry::Paths(paths))
+}
+
+async fn read_random_access(stream: IRandomAccessStream) -> Result<Vec<u8>> {
+    read_stream(stream.GetInputStreamAt(0)?).await
+}
+
+async fn read_stream(stream: IInputStream) -> Result<Vec<u8>> {
+    let reader = DataReader::CreateDataReader(&stream)?;
+    let mut bytes = Vec::new();
+    loop {
+        let loaded = reader.LoadAsync(8192)?.await?;
+        if loaded == 0 {
+            break;
+        }
+        let n = bytes.len();
+        bytes.resize(n + loaded as usize, 0);
+        reader.ReadBytes(&mut bytes[n..])?;
+    }
+    reader.Close()?;
+    Ok(bytes)
 }
 
 async fn stream_reference(bytes: &[u8]) -> Result<RandomAccessStreamReference> {
@@ -228,5 +266,5 @@ async fn read_reference(reference: RandomAccessStreamReference) -> Result<Vec<u8
 }
 
 fn invalid_data() -> crate::Error {
-    WIN32_ERROR(ERROR_INVALID_DATA).to_hresult().into()
+    windows_core::Error::from_hresult(windows_core::HRESULT(0x80070057u32 as i32))
 }

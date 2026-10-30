@@ -18,6 +18,7 @@ use windows_sys::Win32::{
     },
 };
 use winio_primitive::{DataEntry, DataFormat};
+use winio_ui_windows_common::decode_ansi;
 
 use crate::{
     Image,
@@ -33,6 +34,8 @@ const UNKNOWN_FORMAT: &str = "application/vnd.winio.unknown";
 pub(crate) enum Codec {
     Raw,
     Utf16,
+    Ansi,
+    Oem,
     CfHtml,
     Dib,
     HDrop,
@@ -168,11 +171,18 @@ impl Entry {
 
     fn into_entry(self) -> Result<DataEntry<Image>> {
         match self.category() {
-            DataFormat::Text => {
-                let guard = self.hglobal.lock()?;
-                let str = unsafe { U16CStr::from_ptr_str(guard.as_ptr().cast()) };
-                Ok(DataEntry::Text(str.to_string_lossy()))
-            }
+            DataFormat::Text => match self.codec {
+                Codec::Utf16 => {
+                    let guard = self.hglobal.lock()?;
+                    let str = unsafe { U16CStr::from_ptr_str(guard.as_ptr().cast()) };
+                    Ok(DataEntry::Text(str.to_string_lossy()))
+                }
+                Codec::Ansi | Codec::Oem => Ok(DataEntry::Text(
+                    decode_ansi(&self.hglobal.lock()?, self.codec == Codec::Oem)
+                        .ok_or_else(invalid_data)?,
+                )),
+                _ => Err(invalid_data()),
+            },
             DataFormat::Html => {
                 let guard = self.hglobal.lock()?;
                 let str = str::from_utf8(&guard).map_err(|_| invalid_data())?;
