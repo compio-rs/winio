@@ -22,7 +22,7 @@ mod dialogs;
 pub use dialogs::*;
 
 mod platform;
-pub use platform::image::Image;
+pub use platform::{Clipboard, Data, DataIntoIter, image::Image};
 
 mod hook;
 

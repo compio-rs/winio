@@ -211,3 +211,6 @@ pub use tab_view::*;
 mod wgpu;
 #[cfg(feature = "wgpu")]
 pub use wgpu::*;
+
+mod drop_area;
+pub use drop_area::*;

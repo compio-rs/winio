@@ -25,8 +25,8 @@ impl Clipboard {
     }
 
     /// Replace the clipboard content with `data`.
-    pub fn write(&mut self, data: &Data) -> Result<()> {
-        self.clipboard.write(data.sys())
+    pub async fn write(&mut self, data: &Data) -> Result<()> {
+        self.clipboard.write(data.sys()).await
     }
 
     /// Clear the clipboard.

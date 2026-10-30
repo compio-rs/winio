@@ -44,7 +44,7 @@ impl Clipboard {
         Data::from_clipboard(&self.clipboard).await
     }
 
-    pub fn write(&mut self, data: &Data) -> Result<()> {
+    pub async fn write(&mut self, data: &Data) -> Result<()> {
         let clipboard = self.clipboard.clone();
         let provider = data.content_provider()?;
         self.with_write(|| {

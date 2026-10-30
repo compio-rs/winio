@@ -55,8 +55,10 @@ windows-sys = { workspace = true, features = [
     "Win32_UI_WindowsAndMessaging",
 ] }
 windows = { workspace = true, features = [
+    "ApplicationModel_DataTransfer",
     "Foundation",
     "Graphics",
+    "Storage",
     "Storage_Streams",
     "Win32_Graphics_Direct2D",
     "Win32_Graphics_Direct3D",
@@ -65,6 +67,7 @@ windows = { workspace = true, features = [
     "Win32_System_WinRT",
 ] }
 windows-core = { workspace = true }
+windows-collections = "0.100"
 windows-reference = "0.100"
 
 slim-detours-sys = { workspace = true }

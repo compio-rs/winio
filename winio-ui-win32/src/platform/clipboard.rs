@@ -97,7 +97,7 @@ impl Clipboard {
         }
     }
 
-    pub fn write(&mut self, data: &Data) -> Result<()> {
+    pub async fn write(&mut self, data: &Data) -> Result<()> {
         let hwnd = self.hwnd;
         self.with_write(|| {
             let _guard = ClipboardGuard::open(hwnd)?;

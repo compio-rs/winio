@@ -47,7 +47,7 @@ impl Clipboard {
         }
     }
 
-    pub fn write(&mut self, data: &Data) -> Result<()> {
+    pub async fn write(&mut self, data: &Data) -> Result<()> {
         self.with_write(|| {
             ffi::clipboard_write(data.qmime_data())?;
             Ok(())
