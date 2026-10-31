@@ -189,6 +189,8 @@ impl ClipboardPage {
                 margin: Margin::new_all_same(4.0),
                 column: 0,
                 row: 0,
+                min_width: 0.0,
+                min_height: 0.0,
             },
             *picture => {
                 column: 1,
