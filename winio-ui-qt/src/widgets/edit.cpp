@@ -11,7 +11,9 @@ void line_edit_connect_changed(QLineEdit &w, callback_fn_t<void()> callback,
 }
 
 std::unique_ptr<QTextEdit> new_text_edit(QWidget *parent) {
-    return std::make_unique<QTextEdit>(parent);
+    auto w = std::make_unique<QTextEdit>(parent);
+    w->setAcceptRichText(false);
+    return w;
 }
 
 void text_edit_connect_changed(QTextEdit &w, callback_fn_t<void()> callback,

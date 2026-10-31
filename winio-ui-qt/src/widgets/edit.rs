@@ -198,7 +198,9 @@ impl TextBox {
     }
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
-        self.widget.pin_mut().setText(&s.as_ref().try_into()?)?;
+        self.widget
+            .pin_mut()
+            .setPlainText(&s.as_ref().try_into()?)?;
         Ok(())
     }
 
@@ -328,7 +330,7 @@ mod ffi {
         fn alignment(self: &QTextEdit) -> Result<QtAlignmentFlag>;
         fn setAlignment(self: Pin<&mut QTextEdit>, flag: QtAlignmentFlag) -> Result<()>;
         fn toPlainText(self: &QTextEdit) -> Result<QString>;
-        fn setText(self: Pin<&mut QTextEdit>, s: &QString) -> Result<()>;
+        fn setPlainText(self: Pin<&mut QTextEdit>, s: &QString) -> Result<()>;
         fn isReadOnly(self: &QTextEdit) -> Result<bool>;
         fn setReadOnly(self: Pin<&mut QTextEdit>, r: bool) -> Result<()>;
     }
