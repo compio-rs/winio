@@ -100,7 +100,7 @@ pub(crate) fn build_hdrop(uris: &[OsString]) -> Result<HGlobal> {
 
 fn format_name(format: u32) -> Option<U16String> {
     let mut buf = Vec::with_capacity(256);
-    let len = unsafe { GetClipboardFormatNameW(format, buf.as_mut_ptr(), buf.len() as i32) };
+    let len = unsafe { GetClipboardFormatNameW(format, buf.as_mut_ptr(), buf.capacity() as i32) };
     if len <= 0 {
         None
     } else {
