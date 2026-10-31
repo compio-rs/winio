@@ -8,6 +8,7 @@ use std::{
 
 use futures_util::Stream;
 use image::ImageFormat;
+use itertools::Itertools;
 use widestring::{U16CStr, U16CString};
 use windows_core::{Error, Result, WIN32_ERROR};
 use windows_sys::Win32::{
@@ -183,9 +184,6 @@ impl Entry {
             DataFormat::Html => Ok(DataEntry::Html(
                 decode_cf_html(&self.hglobal.lock()?).ok_or_else(invalid_data)?,
             )),
-            DataFormat::Paths => Ok(DataEntry::Paths(
-                parse_dropfiles(&self.hglobal.lock()?).ok_or_else(invalid_data)?,
-            )),
             DataFormat::Image => {
                 let bytes = self.hglobal.lock()?;
                 let image = match self.codec {
@@ -195,6 +193,9 @@ impl Entry {
                 Ok(DataEntry::Image(Image::from_dynamic_image(image)?))
             }
             DataFormat::Unknown => Ok(DataEntry::Unknown(self.hglobal.lock()?.to_vec())),
+            DataFormat::Path => Ok(DataEntry::Paths(
+                parse_dropfiles(&self.hglobal.lock()?).ok_or_else(invalid_data)?,
+            )),
         }
     }
 }
@@ -235,7 +236,8 @@ impl Data {
             DataEntry::Text(text) => self.insert_text(text),
             DataEntry::Html(html) => self.insert_html(html),
             DataEntry::Image(image) => self.insert_image(&image),
-            DataEntry::Paths(paths) => self.insert_paths(&paths),
+            DataEntry::Path(path) => self.insert_paths([path]),
+            DataEntry::Paths(paths) => self.insert_paths(paths),
             DataEntry::Unknown(bytes) => self.insert_unknown(bytes),
         }
     }
@@ -265,9 +267,23 @@ impl Data {
         self.insert_bytes(register_format("PNG")?, bytes, Codec::Raw)
     }
 
-    fn insert_paths(&mut self, paths: &[OsString]) -> Result<()> {
-        let hglobal = build_hdrop(paths)?;
-        self.insert_unique(Entry::new(CF_HDROP as u32, hglobal, Codec::HDrop));
+    fn insert_paths(&mut self, paths: impl IntoIterator<Item = OsString>) -> Result<()> {
+        let mut all = Vec::new();
+        if let Some(entry) = self
+            .entries
+            .iter()
+            .find(|entry| entry.format() == CF_HDROP as u32)
+            && let Ok(data) = entry.hglobal.lock()
+            && let Some(paths) = parse_dropfiles(&data)
+        {
+            all = paths;
+        }
+        all.extend(paths);
+        self.entries
+            .retain(|entry| entry.format() != CF_HDROP as u32);
+        let hglobal = build_hdrop(&all)?;
+        self.entries
+            .push(Entry::new(CF_HDROP as u32, hglobal, Codec::HDrop));
         Ok(())
     }
 
@@ -300,16 +316,11 @@ impl Data {
     }
 
     pub fn formats(&self) -> Result<impl Iterator<Item = DataFormat> + '_> {
-        Ok(self.entries.iter().map(Entry::category))
+        Ok(self.entries.iter().map(Entry::category).unique())
     }
 
     pub fn into_stream(self) -> impl Stream<Item = Result<DataEntry<Image>>> + Unpin {
-        let entries = self
-            .entries
-            .into_iter()
-            .map(Entry::into_entry)
-            .collect::<Vec<_>>();
-        futures_util::stream::iter(entries)
+        futures_util::stream::iter(self.entries.into_iter().map(Entry::into_entry))
     }
 }
 

@@ -9,8 +9,8 @@ pub enum DataFormat {
     Html,
     /// A bitmap image.
     Image,
-    /// A list of local filesystem paths.
-    Paths,
+    /// A local filesystem path.
+    Path,
     /// An opaque byte payload.
     Unknown,
 }
@@ -24,7 +24,9 @@ pub enum DataEntry<I> {
     Html(String),
     /// A bitmap image.
     Image(I),
-    /// A list of local filesystem paths.
+    /// A local filesystem path.
+    Path(OsString),
+    /// Multiple local filesystem paths.
     Paths(Vec<OsString>),
     /// An opaque byte payload.
     Unknown(Vec<u8>),
@@ -37,7 +39,7 @@ impl<I> DataEntry<I> {
             Self::Text(_) => DataFormat::Text,
             Self::Html(_) => DataFormat::Html,
             Self::Image(_) => DataFormat::Image,
-            Self::Paths(_) => DataFormat::Paths,
+            Self::Path(_) | Self::Paths(_) => DataFormat::Path,
             Self::Unknown(_) => DataFormat::Unknown,
         }
     }
@@ -51,6 +53,7 @@ impl<I> DataEntry<I> {
             Self::Text(text) => Ok(DataEntry::Text(text)),
             Self::Html(html) => Ok(DataEntry::Html(html)),
             Self::Image(image) => f(image).map(DataEntry::Image),
+            Self::Path(path) => Ok(DataEntry::Path(path)),
             Self::Paths(paths) => Ok(DataEntry::Paths(paths)),
             Self::Unknown(bytes) => Ok(DataEntry::Unknown(bytes)),
         }
@@ -62,6 +65,7 @@ impl<I> DataEntry<I> {
             Self::Text(text) => DataEntry::Text(text),
             Self::Html(html) => DataEntry::Html(html),
             Self::Image(image) => DataEntry::Image(f(image)),
+            Self::Path(path) => DataEntry::Path(path),
             Self::Paths(paths) => DataEntry::Paths(paths),
             Self::Unknown(bytes) => DataEntry::Unknown(bytes),
         }

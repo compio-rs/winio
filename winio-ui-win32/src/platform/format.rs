@@ -11,9 +11,9 @@ use windows_sys::Win32::{
         },
         Ole::{CF_DIB, CF_DIBV5, CF_HDROP, CF_OEMTEXT, CF_TEXT, CF_UNICODETEXT},
     },
-    UI::Shell::DROPFILES,
 };
 use winio_primitive::DataFormat;
+use winio_ui_windows_common::build_dropfiles;
 
 use crate::platform::data::{Codec, Data, HGlobal, invalid_data};
 
@@ -42,7 +42,7 @@ pub(crate) fn format_category(format: u32) -> DataFormat {
     if format == CF_UNICODETEXT as u32 || format == CF_TEXT as u32 || format == CF_OEMTEXT as u32 {
         DataFormat::Text
     } else if format == CF_HDROP as u32 {
-        DataFormat::Paths
+        DataFormat::Path
     } else if format == CF_DIB as u32 || format == CF_DIBV5 as u32 {
         DataFormat::Image
     } else {
@@ -95,28 +95,7 @@ pub(crate) fn write_clipboard(data: &Data) -> Result<()> {
 }
 
 pub(crate) fn build_hdrop(uris: &[OsString]) -> Result<HGlobal> {
-    let mut paths = U16String::new();
-    for uri in uris {
-        paths.push_os_str(uri);
-        paths.push_char(0u8 as _);
-    }
-    paths.push_char(0u8 as _);
-    let paths = paths.into_vec();
-
-    let drop = DROPFILES {
-        pFiles: size_of::<DROPFILES>() as u32,
-        pt: windows_sys::Win32::Foundation::POINT { x: 0, y: 0 },
-        fNC: 0,
-        fWide: 1,
-    };
-    let mut bytes = Vec::with_capacity(size_of::<DROPFILES>() + paths.len() * 2);
-    let header =
-        unsafe { std::slice::from_raw_parts(&raw const drop as _, size_of::<DROPFILES>()) };
-    bytes.extend_from_slice(header);
-    for unit in paths {
-        bytes.extend_from_slice(&unit.to_ne_bytes());
-    }
-    HGlobal::from_bytes(&bytes)
+    HGlobal::from_bytes(&build_dropfiles(uris))
 }
 
 fn format_name(format: u32) -> Option<U16String> {

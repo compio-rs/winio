@@ -32,12 +32,15 @@ impl Data {
 
     /// The available formats, in backend order.
     ///
-    /// The iterator corresponds one-to-one with [`Data::into_stream`].
+    /// Each format is returned at most once. A format may produce multiple
+    /// entries from [`Data::into_stream`].
     pub fn formats(&self) -> Result<impl Iterator<Item = DataFormat> + '_> {
         self.inner.formats()
     }
 
     /// Consume the data as a stream of entries.
+    ///
+    /// A single format may yield multiple entries, such as one entry per path.
     pub fn into_stream(self) -> impl Stream<Item = Result<DataEntry<Image>>> + Unpin {
         self.inner
             .into_stream()

@@ -12,6 +12,7 @@ use gtk4::{
     glib::{self, Bytes},
     prelude::*,
 };
+use itertools::Itertools;
 use mime::Mime;
 use winio_primitive::{DataEntry, DataFormat};
 
@@ -54,15 +55,15 @@ impl Entry {
             Value::Image(image) => Ok(DataEntry::Image(image)),
             Value::Paths(paths) => Ok(DataEntry::Paths(paths)),
             Value::Bytes(bytes) => match format {
+                DataFormat::Path => decode_uri_list(&bytes)
+                    .map(DataEntry::Paths)
+                    .ok_or(Error::NotSupported),
                 DataFormat::Text => String::from_utf8(bytes)
                     .map(DataEntry::Text)
                     .map_err(|_| Error::NotSupported),
                 DataFormat::Html => String::from_utf8(bytes)
                     .map(DataEntry::Html)
                     .map_err(|_| Error::NotSupported),
-                DataFormat::Paths => decode_uri_list(&bytes)
-                    .map(DataEntry::Paths)
-                    .ok_or(Error::NotSupported),
                 DataFormat::Image => gdk::Texture::from_bytes(&Bytes::from_owned(bytes))
                     .map(|texture| DataEntry::Image(Image::from_texture(texture)))
                     .map_err(|_| Error::NotSupported),
@@ -111,14 +112,14 @@ impl Data {
             && let Ok(value) = source.read_value(gdk::FileList::static_type()).await
             && let Ok(files) = value.get::<gdk::FileList>()
         {
-            let uris = files
+            let paths_data = files
                 .files()
                 .into_iter()
                 .filter_map(|file| file.path())
                 .map(PathBuf::into_os_string)
                 .collect::<Vec<_>>();
-            if !uris.is_empty() {
-                data.insert(DataEntry::Paths(uris)).await?;
+            if !paths_data.is_empty() {
+                data.insert(DataEntry::Paths(paths_data)).await?;
                 paths = true;
             }
         }
@@ -159,6 +160,13 @@ impl Data {
                 });
                 Ok(())
             }
+            DataEntry::Path(path) => {
+                self.insert_entry(Entry {
+                    mime: parse_mime("text/uri-list"),
+                    value: Value::Paths(vec![path]),
+                });
+                Ok(())
+            }
             DataEntry::Paths(paths) => {
                 self.insert_entry(Entry {
                     mime: parse_mime("text/uri-list"),
@@ -181,12 +189,6 @@ impl Data {
     }
 
     fn insert_entry(&mut self, entry: Entry) {
-        let format = entry.format();
-        if format == DataFormat::Unknown {
-            self.entries.retain(|existing| existing.mime != entry.mime);
-        } else {
-            self.entries.retain(|existing| existing.format() != format);
-        }
         self.entries.push(entry);
     }
 
@@ -195,11 +197,12 @@ impl Data {
     }
 
     pub fn formats(&self) -> Result<impl Iterator<Item = DataFormat> + '_> {
-        Ok(self.entries.iter().map(Entry::format))
+        Ok(self.entries.iter().map(Entry::format).unique())
     }
 
     pub(crate) fn content_provider(&self) -> Result<Option<gdk::ContentProvider>> {
         let mut providers = Vec::new();
+        let mut paths = Vec::new();
         for entry in &self.entries {
             match &entry.value {
                 Value::Bytes(bytes) => providers.push(gdk::ContentProvider::for_bytes(
@@ -209,17 +212,16 @@ impl Data {
                 Value::Image(image) => {
                     providers.push(gdk::ContentProvider::for_value(&image.texture().to_value()))
                 }
-                Value::Paths(paths) => {
-                    let files = paths
-                        .iter()
-                        .map(|path| gio::File::for_path(Path::new(path)))
-                        .collect::<Vec<_>>();
-                    if !files.is_empty() {
-                        let list = gdk::FileList::from_array(&files);
-                        providers.push(gdk::ContentProvider::for_value(&list.to_value()));
-                    }
-                }
+                Value::Paths(entry_paths) => paths.extend(entry_paths.iter().cloned()),
             }
+        }
+        if !paths.is_empty() {
+            let files = paths
+                .iter()
+                .map(|path| gio::File::for_path(Path::new(path)))
+                .collect::<Vec<_>>();
+            let list = gdk::FileList::from_array(&files);
+            providers.push(gdk::ContentProvider::for_value(&list.to_value()));
         }
         match providers.len() {
             0 => Ok(None),
@@ -229,12 +231,7 @@ impl Data {
     }
 
     pub fn into_stream(self) -> impl Stream<Item = Result<DataEntry<Image>>> + Unpin {
-        let entries = self
-            .entries
-            .into_iter()
-            .map(Entry::into_entry)
-            .collect::<Vec<_>>();
-        futures_util::stream::iter(entries)
+        futures_util::stream::iter(self.entries.into_iter().map(Entry::into_entry))
     }
 }
 
@@ -244,7 +241,7 @@ fn format_of(mime: &Mime) -> DataFormat {
     } else if mime.essence_str() == "text/html" {
         DataFormat::Html
     } else if mime.essence_str() == "text/uri-list" {
-        DataFormat::Paths
+        DataFormat::Path
     } else if mime.type_() == mime::IMAGE {
         DataFormat::Image
     } else {

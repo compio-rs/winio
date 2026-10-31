@@ -1,11 +1,12 @@
 use std::{
     ffi::OsString,
-    os::windows::ffi::OsStringExt,
+    os::windows::ffi::{OsStrExt, OsStringExt},
     ptr::{null_mut, read_unaligned},
 };
 
 use rclip_cf_html::CfHtmlBuilder;
 use windows_sys::Win32::{
+    Foundation::POINT,
     Globalization::{CP_ACP, CP_OEMCP, MultiByteToWideChar},
     UI::Shell::DROPFILES,
 };
@@ -114,4 +115,29 @@ pub fn decode_cf_html(bytes: &[u8]) -> Option<String> {
     rclip_cf_html::parse(bytes)
         .ok()
         .map(|html| html.fragment.to_string())
+}
+
+/// Build a wide-character `CF_HDROP` / `FileDrop` payload.
+pub fn build_dropfiles(paths: &[OsString]) -> Vec<u8> {
+    let mut units = Vec::new();
+    for path in paths {
+        units.extend(path.encode_wide());
+        units.push(0);
+    }
+    units.push(0);
+
+    let header = DROPFILES {
+        pFiles: size_of::<DROPFILES>() as u32,
+        pt: POINT { x: 0, y: 0 },
+        fNC: 0,
+        fWide: 1,
+    };
+    let mut bytes = Vec::with_capacity(size_of::<DROPFILES>() + units.len() * 2);
+    let header =
+        unsafe { std::slice::from_raw_parts(&raw const header as _, size_of::<DROPFILES>()) };
+    bytes.extend_from_slice(header);
+    for unit in units {
+        bytes.extend_from_slice(&unit.to_ne_bytes());
+    }
+    bytes
 }

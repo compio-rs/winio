@@ -3,10 +3,11 @@ use std::{ffi::OsString, io::Cursor};
 use compio_log::error;
 use futures_util::Stream;
 use image::ImageFormat;
+use itertools::Itertools;
 use windows::{
     ApplicationModel::DataTransfer::{DataPackage, DataPackageView},
     Storage::{
-        IStorageItem, StorageFile,
+        IStorageItem,
         Streams::{
             DataReader, DataWriter, IInputStream, IRandomAccessStream, InMemoryRandomAccessStream,
             RandomAccessStreamReference,
@@ -14,13 +15,13 @@ use windows::{
     },
 };
 use windows_collections::IIterable;
-use windows_core::{HSTRING, IInspectable, Interface};
+use windows_core::{HSTRING, IInspectable, Interface, h};
 use winio_primitive::{DataEntry, DataFormat};
-use winio_ui_windows_common::{decode_cf_html, encode_cf_html, parse_dropfiles};
+use winio_ui_windows_common::{build_dropfiles, decode_cf_html, encode_cf_html, parse_dropfiles};
 
 use crate::{Image, Result};
 
-const UNKNOWN_FORMAT: &str = "application/vnd.winio.unknown";
+const UNKNOWN_FORMAT: &HSTRING = h!("application/vnd.winio.unknown");
 
 #[derive(Debug)]
 pub struct Data {
@@ -44,17 +45,42 @@ impl Data {
                 let reference = image_reference(image).await?;
                 self.package.SetBitmap(&reference)?;
             }
-            DataEntry::Paths(paths) => {
-                let items = storage_items(paths).await?;
-                self.package.SetStorageItems(&items, false)?;
-            }
+            DataEntry::Path(path) => self.insert_paths([path.clone()]).await?,
+            DataEntry::Paths(paths) => self.insert_paths(paths.clone()).await?,
             DataEntry::Unknown(bytes) => {
                 let reference = stream_reference(bytes).await?;
-                self.package
-                    .SetData(&HSTRING::from(UNKNOWN_FORMAT), &reference)?;
+                self.package.SetData(UNKNOWN_FORMAT, &reference)?;
             }
         }
         Ok(())
+    }
+
+    async fn insert_paths(&mut self, paths: impl IntoIterator<Item = OsString>) -> Result<()> {
+        let view = self.package.GetView()?;
+        let mut all = Vec::new();
+        if view.Contains(h!("StorageItems"))? {
+            let items = view.GetStorageItemsAsync()?.await?;
+            all.extend(
+                items
+                    .into_iter()
+                    .filter_map(|item| item.Path().ok())
+                    .map(|path| OsString::from(path.to_string_lossy())),
+            );
+            self.package
+                .SetStorageItems(&IIterable::from(Vec::<Option<IStorageItem>>::new()), false)?;
+        }
+        if view.Contains(h!("FileDrop"))? {
+            let value = view.GetDataAsync(h!("FileDrop"))?.await?;
+            if let Ok(bytes) = read_value(value).await
+                && let Some(existing) = parse_dropfiles(&bytes)
+            {
+                all.extend(existing);
+            }
+        }
+        all.extend(paths);
+        let bytes = build_dropfiles(&all);
+        let reference = stream_reference(&bytes).await?;
+        self.package.SetData(h!("FileDrop"), &reference)
     }
 
     pub fn formats(&self) -> Result<impl Iterator<Item = DataFormat>> {
@@ -65,7 +91,7 @@ impl Data {
             .into_iter()
             .map(|format| format_of(&format.to_string_lossy()))
             .collect::<Vec<_>>();
-        Ok(formats.into_iter())
+        Ok(formats.into_iter().unique())
     }
 
     pub fn into_stream(self) -> impl Stream<Item = Result<DataEntry<Image>>> + Unpin {
@@ -85,7 +111,9 @@ impl Data {
                 }
             };
             for format in formats.into_iter() {
-                yield read_format(&view, &format).await;
+                for entry in read_entries(&view, &format).await {
+                    yield entry;
+                }
             }
         })
     }
@@ -131,12 +159,58 @@ fn format_of(name: &str) -> DataFormat {
         "Text" => DataFormat::Text,
         "HTML Format" => DataFormat::Html,
         "Bitmap" => DataFormat::Image,
-        "StorageItems" | "FileDrop" => DataFormat::Paths,
+        "StorageItems" | "FileDrop" => DataFormat::Path,
         _ => DataFormat::Unknown,
     }
 }
 
-async fn read_format(view: &DataPackageView, format: &HSTRING) -> Result<DataEntry<Image>> {
+async fn read_entries(view: &DataPackageView, format: &HSTRING) -> Vec<Result<DataEntry<Image>>> {
+    match format.to_string_lossy().as_str() {
+        "StorageItems" => {
+            let items = match view.GetStorageItemsAsync() {
+                Ok(operation) => operation.await,
+                Err(error) => return vec![Err(error)],
+            };
+            match items {
+                Ok(items) => {
+                    let paths = items
+                        .into_iter()
+                        .filter_map(|item| item.Path().ok())
+                        .map(|path| OsString::from(path.to_string_lossy()))
+                        .collect::<Vec<_>>();
+                    if paths.is_empty() {
+                        Vec::new()
+                    } else {
+                        vec![Ok(DataEntry::Paths(paths))]
+                    }
+                }
+                Err(error) => vec![Err(error)],
+            }
+        }
+        "FileDrop" => {
+            let value = match view.GetDataAsync(format) {
+                Ok(operation) => operation.await,
+                Err(error) => return vec![Err(error)],
+            };
+            match value {
+                Ok(value) => match read_value(value).await {
+                    Ok(bytes) => match parse_dropfiles(&bytes) {
+                        Some(paths) if !paths.is_empty() => {
+                            vec![Ok(DataEntry::Paths(paths))]
+                        }
+                        Some(_) => Vec::new(),
+                        None => vec![Err(invalid_data())],
+                    },
+                    Err(error) => vec![Err(error)],
+                },
+                Err(error) => vec![Err(error)],
+            }
+        }
+        _ => vec![read_single(view, format).await],
+    }
+}
+
+async fn read_single(view: &DataPackageView, format: &HSTRING) -> Result<DataEntry<Image>> {
     match format.to_string_lossy().as_str() {
         "Text" => Ok(DataEntry::Text(
             view.GetTextAsync()?.await?.to_string_lossy(),
@@ -148,18 +222,6 @@ async fn read_format(view: &DataPackageView, format: &HSTRING) -> Result<DataEnt
             ))
         }
         "Bitmap" => read_image(view.GetBitmapAsync()?.await?).await,
-        "StorageItems" => Ok(DataEntry::Paths(
-            view.GetStorageItemsAsync()?
-                .await?
-                .into_iter()
-                .filter_map(|item| item.Path().ok())
-                .map(|path| OsString::from(path.to_string_lossy()))
-                .collect(),
-        )),
-        "FileDrop" => {
-            let value = view.GetDataAsync(format)?.await?;
-            read_file_drop(value).await
-        }
         _ => match view.GetDataAsync(format)?.await {
             Ok(value) => Ok(DataEntry::Unknown(
                 read_value(value).await.unwrap_or_default(),
@@ -179,12 +241,6 @@ async fn read_value(value: IInspectable) -> Result<Vec<u8>> {
     } else {
         Err(invalid_data())
     }
-}
-
-async fn read_file_drop(value: IInspectable) -> Result<DataEntry<Image>> {
-    let bytes = read_value(value).await?;
-    let paths = parse_dropfiles(&bytes).ok_or_else(invalid_data)?;
-    Ok(DataEntry::Paths(paths))
 }
 
 async fn read_random_access(stream: IRandomAccessStream) -> Result<Vec<u8>> {
@@ -226,18 +282,6 @@ async fn image_reference(image: &Image) -> Result<RandomAccessStreamReference> {
         .write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)
         .map_err(|_| invalid_data())?;
     stream_reference(&bytes).await
-}
-
-async fn storage_items(paths: &[OsString]) -> Result<IIterable<IStorageItem>> {
-    let mut items = Vec::with_capacity(paths.len());
-    for path in paths {
-        let path = HSTRING::from(path.to_string_lossy().as_ref());
-        let file = StorageFile::GetFileFromPathAsync(&path)?.await?;
-        items.push(file.cast::<IStorageItem>()?);
-    }
-    Ok(IIterable::from(
-        items.into_iter().map(Some).collect::<Vec<_>>(),
-    ))
 }
 
 async fn read_image(reference: RandomAccessStreamReference) -> Result<DataEntry<Image>> {

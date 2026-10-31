@@ -224,7 +224,7 @@ impl ClipboardPage {
         let mut formats = data.formats()?.collect::<Vec<_>>();
         formats.sort_unstable_by_key(|format| match format {
             DataFormat::Image => 0,
-            DataFormat::Paths => 1,
+            DataFormat::Path => 1,
             DataFormat::Html => 2,
             DataFormat::Text => 3,
             _ => 4,
@@ -233,12 +233,36 @@ impl ClipboardPage {
         let Some(format) = formats.into_iter().next() else {
             return Self::show_text(text, picture, String::new());
         };
+
+        if format == DataFormat::Path {
+            let mut paths = Vec::new();
+            let mut stream = data.into_stream().filter(move |entry| {
+                futures_util::future::ready(match entry {
+                    Ok(entry) => entry.format() == format,
+                    Err(_) => true,
+                })
+            });
+            while let Some(entry) = stream.next().await {
+                match entry {
+                    Ok(DataEntry::Path(path)) => {
+                        paths.push(path.to_string_lossy().into_owned());
+                    }
+                    Ok(DataEntry::Paths(more)) => paths.extend(
+                        more.into_iter()
+                            .map(|path| path.to_string_lossy().into_owned()),
+                    ),
+                    _ => {}
+                }
+            }
+            return Self::show_text(text, picture, paths.join("\n"));
+        }
+
         let Some(entry) = data
             .into_stream()
-            .filter(move |e| {
-                futures_util::future::ready(match e {
-                    Ok(e) => e.format() == format,
-                    Err(_) => false,
+            .filter(move |entry| {
+                futures_util::future::ready(match entry {
+                    Ok(entry) => entry.format() == format,
+                    Err(_) => true,
                 })
             })
             .next()
@@ -264,14 +288,18 @@ impl ClipboardPage {
                 picture.set_image(Some(&image))?;
                 Ok(Some(size))
             }
-            DataEntry::Paths(paths) => {
-                let body = paths
-                    .iter()
+            DataEntry::Path(path) => {
+                Self::show_text(text, picture, path.to_string_lossy().into_owned())
+            }
+            DataEntry::Paths(paths) => Self::show_text(
+                text,
+                picture,
+                paths
+                    .into_iter()
                     .map(|path| path.to_string_lossy().into_owned())
                     .collect::<Vec<_>>()
-                    .join("\n");
-                Self::show_text(text, picture, body)
-            }
+                    .join("\n"),
+            ),
             DataEntry::Html(html) => Self::show_text(text, picture, html),
             DataEntry::Text(body) => Self::show_text(text, picture, body),
             DataEntry::Unknown(bytes) => {

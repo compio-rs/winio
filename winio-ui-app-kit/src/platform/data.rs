@@ -2,6 +2,7 @@ use std::{ffi::OsString, fmt::Debug, io::Cursor};
 
 use futures_util::Stream;
 use image::ImageFormat;
+use itertools::Itertools;
 use objc2::{rc::Retained, runtime::ProtocolObject};
 use objc2_app_kit::{NSPasteboard, NSPasteboardItem, NSPasteboardWriting};
 use objc2_foundation::{NSData, NSMutableArray, NSString, NSURL, ns_string};
@@ -87,18 +88,10 @@ impl Data {
                     }
                     self.items.addObject(&item);
                 }
+                DataEntry::Path(path) => self.push_path(&path)?,
                 DataEntry::Paths(paths) => {
-                    for path in paths {
-                        let url =
-                            NSURL::fileURLWithPath(&NSString::from_str(&path.to_string_lossy()));
-                        let Some(url) = url.absoluteString() else {
-                            continue;
-                        };
-                        let item = NSPasteboardItem::new();
-                        if !item.setString_forType(&url, file_url_uti()) {
-                            return Err(Error::NotSupported);
-                        }
-                        self.items.addObject(&item);
+                    for path in &paths {
+                        self.push_path(path)?;
                     }
                 }
                 DataEntry::Unknown(bytes) => {
@@ -120,6 +113,7 @@ impl Data {
                 .iter()
                 .flat_map(|item| item.types())
                 .map(|uti| format_of(&uti))
+                .unique()
         })
     }
 
@@ -130,6 +124,19 @@ impl Data {
                 .map(move |uti| catch(|| read_type(&item, &uti)).flatten())
         });
         futures_util::stream::iter(entries)
+    }
+
+    fn push_path(&mut self, path: &OsString) -> Result<()> {
+        let url = NSURL::fileURLWithPath(&NSString::from_str(&path.to_string_lossy()));
+        let Some(url) = url.absoluteString() else {
+            return Err(Error::NotSupported);
+        };
+        let item = NSPasteboardItem::new();
+        if !item.setString_forType(&url, file_url_uti()) {
+            return Err(Error::NotSupported);
+        }
+        self.items.addObject(&item);
+        Ok(())
     }
 
     pub(crate) fn from_pasteboard(pasteboard: &NSPasteboard) -> Result<Option<Self>> {
@@ -205,7 +212,7 @@ fn format_of(uti: &NSString) -> DataFormat {
     } else if uti.isEqualToString(html_uti()) {
         DataFormat::Html
     } else if uti.isEqualToString(file_url_uti()) {
-        DataFormat::Paths
+        DataFormat::Path
     } else if uti.isEqualToString(png_uti()) || uti.isEqualToString(tiff_uti()) {
         DataFormat::Image
     } else {
@@ -221,7 +228,7 @@ fn read_type(item: &NSPasteboardItem, uti: &NSString) -> Result<DataEntry<Image>
             let data = item.dataForType(uti).ok_or(Error::NotSupported)?;
             Ok(DataEntry::Image(decode_image(&data.to_vec())?))
         }
-        DataFormat::Paths => Ok(DataEntry::Paths(vec![read_file_url(item, uti)?])),
+        DataFormat::Path => Ok(DataEntry::Path(read_file_url(item, uti)?)),
         DataFormat::Unknown => {
             let data = item.dataForType(uti).ok_or(Error::NotSupported)?;
             Ok(DataEntry::Unknown(data.to_vec()))

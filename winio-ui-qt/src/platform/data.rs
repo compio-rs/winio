@@ -3,6 +3,7 @@ use std::{ffi::OsString, fmt::Debug};
 use cxx::UniquePtr;
 pub(crate) use ffi::QMimeData;
 use futures_util::Stream;
+use itertools::{Either, Itertools};
 use mime::Mime;
 use winio_primitive::{DataEntry, DataFormat};
 
@@ -12,13 +13,12 @@ const UNKNOWN_FORMAT: &str = "application/vnd.winio.unknown";
 
 pub struct Data {
     inner: UniquePtr<QMimeData>,
-    entries: Vec<Mime>,
 }
 
 impl Debug for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Data")
-            .field("formats", &self.entries)
+            .field("formats", &self.formats().map(|f| f.collect::<Vec<_>>()))
             .finish_non_exhaustive()
     }
 }
@@ -33,8 +33,7 @@ impl Data {
     }
 
     pub(crate) fn from_owned(inner: UniquePtr<QMimeData>) -> Result<Self> {
-        let entries = make_entries(&inner)?;
-        Ok(Self { inner, entries })
+        Ok(Self { inner })
     }
 
     pub(crate) fn qmime_data(&self) -> &QMimeData {
@@ -52,64 +51,83 @@ impl Data {
             DataEntry::Image(image) => {
                 ffi::mime_data_set_image(self.inner.pin_mut(), image.as_qimage())?
             }
-            DataEntry::Paths(paths) => {
-                let paths = paths
-                    .iter()
-                    .map(|path| QString::try_from(path.to_string_lossy().as_ref()))
-                    .collect::<std::result::Result<Vec<_>, _>>()?;
-                ffi::mime_data_set_uris(self.inner.pin_mut(), &paths)?
-            }
+            DataEntry::Path(path) => self.append_paths([path])?,
+            DataEntry::Paths(paths) => self.append_paths(paths)?,
             DataEntry::Unknown(bytes) => {
                 ffi::mime_data_set(self.inner.pin_mut(), UNKNOWN_FORMAT, &bytes)?
             }
         }
-        self.rebuild_entries()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.entries.is_empty()
-    }
-
-    pub fn formats(&self) -> Result<impl Iterator<Item = DataFormat> + '_> {
-        Ok(self.entries.iter().map(format_of))
-    }
-
-    fn rebuild_entries(&mut self) -> Result<()> {
-        self.entries = make_entries(&self.inner)?;
         Ok(())
     }
 
-    pub fn into_stream(self) -> impl Stream<Item = Result<DataEntry<Image>>> + Unpin {
-        let entries = self
-            .entries
+    pub fn is_empty(&self) -> bool {
+        make_entries(&self.inner)
+            .map(|entries| entries.is_empty())
+            .unwrap_or(true)
+    }
+
+    pub fn formats(&self) -> Result<impl Iterator<Item = DataFormat>> {
+        let formats = make_entries(&self.inner)?
             .into_iter()
-            .map(|mime| match format_of(&mime) {
-                DataFormat::Text | DataFormat::Html => {
-                    let text = ffi::mime_data_text(&self.inner, mime.as_ref())?;
-                    let text = String::try_from(text).map_err(|_| crate::Error::NotSupported)?;
-                    Ok(if mime.essence_str() == "text/html" {
-                        DataEntry::Html(text)
-                    } else {
-                        DataEntry::Text(text)
-                    })
-                }
-                DataFormat::Image => match ffi::mime_data_image(&self.inner) {
-                    Ok(image) if !image.is_null() => {
-                        Ok(DataEntry::Image(Image::from_qimage(image)))
+            .map(|mime| format_of(&mime))
+            .unique();
+        Ok(formats)
+    }
+
+    fn append_paths(&mut self, additional: impl IntoIterator<Item = OsString>) -> Result<()> {
+        let mut paths = ffi::mime_data_local_files(&self.inner).unwrap_or_default();
+        paths.extend(
+            additional
+                .into_iter()
+                .map(|path| path.to_string_lossy().into_owned()),
+        );
+        let paths = paths
+            .iter()
+            .map(|path| QString::try_from(path.as_str()))
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        ffi::mime_data_set_uris(self.inner.pin_mut(), &paths).map_err(crate::Error::from)
+    }
+
+    pub fn into_stream(self) -> impl Stream<Item = Result<DataEntry<Image>>> + Unpin {
+        let Self { inner } = self;
+        let entries = match make_entries(&inner) {
+            Ok(entries) => Either::Left(entries.into_iter().map(move |mime| {
+                match format_of(&mime) {
+                    DataFormat::Text | DataFormat::Html => {
+                        ffi::mime_data_text(&inner, mime.as_ref())
+                            .map_err(crate::Error::from)
+                            .and_then(|text| {
+                                String::try_from(text).map_err(|_| crate::Error::NotSupported)
+                            })
+                            .map(|text| {
+                                if mime.essence_str() == "text/html" {
+                                    DataEntry::Html(text)
+                                } else {
+                                    DataEntry::Text(text)
+                                }
+                            })
                     }
-                    _ => Err(crate::Error::NotSupported),
-                },
-                DataFormat::Paths => Ok(DataEntry::Paths(
-                    ffi::mime_data_local_files(&self.inner)?
-                        .into_iter()
-                        .map(OsString::from)
-                        .collect(),
-                )),
-                _ => Ok(DataEntry::Unknown(
-                    ffi::mime_data_get(&self.inner, mime.as_ref())?.to_vec(),
-                )),
-            })
-            .collect::<Vec<_>>();
+                    DataFormat::Image => ffi::mime_data_image(&inner)
+                        .map_err(crate::Error::from)
+                        .and_then(|image| {
+                            if image.is_null() {
+                                Err(crate::Error::NotSupported)
+                            } else {
+                                Ok(DataEntry::Image(Image::from_qimage(image)))
+                            }
+                        }),
+                    DataFormat::Path => ffi::mime_data_local_files(&inner)
+                        .map_err(crate::Error::from)
+                        .map(|files| {
+                            DataEntry::Paths(files.into_iter().map(OsString::from).collect())
+                        }),
+                    DataFormat::Unknown => ffi::mime_data_get(&inner, mime.as_ref())
+                        .map_err(crate::Error::from)
+                        .map(|bytes| DataEntry::Unknown(bytes.to_vec())),
+                }
+            })),
+            Err(error) => Either::Right(std::iter::once(Err(error))),
+        };
         futures_util::stream::iter(entries)
     }
 }
@@ -120,7 +138,7 @@ fn format_of(mime: &Mime) -> DataFormat {
     } else if mime.essence_str() == "text/html" {
         DataFormat::Html
     } else if mime.essence_str() == "text/uri-list" {
-        DataFormat::Paths
+        DataFormat::Path
     } else if mime.type_() == mime::IMAGE {
         DataFormat::Image
     } else {
