@@ -18,6 +18,7 @@ members = [
     "winio-ui-apple-common",
     "winio-ui-stub",
     "winio-wgpu",
+    "winio-layer-shell",
     "winio-example",
 ]
 
@@ -47,6 +48,7 @@ winio-ui-ui-kit = { path = "winio-ui-ui-kit", version = "0.2.0-beta.2" }
 winio-ui-apple-common = { path = "winio-ui-apple-common", version = "0.2.0-beta.2" }
 winio-ui-stub = { path = "winio-ui-stub", version = "0.2.0-beta.2" }
 winio-wgpu = { path = "winio-wgpu", version = "0.1.0" }
+winio-layer-shell = { path = "winio-layer-shell", version = "0.1.0" }
 winio = { path = "winio", version = "0.13.0-beta.2", default-features = false }
 
 compio = { version = "0.20.0-beta.1", default-features = false }
@@ -101,6 +103,7 @@ objc2-uniform-type-identifiers = "0.3"
 objc2-web-kit = "0.3"
 
 gtk4 = "0.11"
+gtk4-layer-shell = "0.8.1"
 glib-unix = "0.22"
 pangocairo = "0.22"
 webkit6 = "0.6"

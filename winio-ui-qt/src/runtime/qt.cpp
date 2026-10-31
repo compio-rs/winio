@@ -76,3 +76,4 @@ void event_loop_process() {
 #endif
         QEventLoop::WaitForMoreEvents | QEventLoop::EventLoopExec);
 }
+
