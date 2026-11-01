@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use image::DynamicImage;
+use image::{DynamicImage, Rgba, RgbaImage};
 use windows::Win32::System::WinRT::IBufferByteAccess;
 use windows_core::Interface;
 use winio_primitive::BitmapSize;
@@ -13,6 +13,26 @@ use crate::{DrawingContext, DrawingImage, Error, Result};
 pub struct Image(WriteableBitmap);
 
 impl Image {
+    pub(crate) fn to_dynamic_image(&self) -> Result<DynamicImage> {
+        let width = self.0.PixelWidth()? as u32;
+        let height = self.0.PixelHeight()? as u32;
+        let buffer = self.0.PixelBuffer()?;
+        let access = buffer.cast::<IBufferByteAccess>()?;
+        let data =
+            unsafe { std::slice::from_raw_parts(access.Buffer()?, buffer.Length()? as usize) };
+        let mut image = RgbaImage::new(width, height);
+        for (index, pixel) in data.as_chunks::<4>().0.iter().enumerate() {
+            let x = index as u32 % width;
+            let y = index as u32 / width;
+            image.put_pixel(x, y, Rgba([pixel[2], pixel[1], pixel[0], pixel[3]]));
+        }
+        Ok(DynamicImage::ImageRgba8(image))
+    }
+
+    pub(crate) fn from_dynamic_image(image: DynamicImage) -> Result<Self> {
+        Self::new(Cow::Owned(image))
+    }
+
     pub fn size(&self) -> Result<BitmapSize> {
         Ok(BitmapSize::new(
             self.0.PixelWidth()? as usize,

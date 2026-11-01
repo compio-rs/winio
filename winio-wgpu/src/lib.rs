@@ -25,9 +25,9 @@ mod memory;
 #[cfg(feature = "memory")]
 pub use memory::*;
 
-#[cfg(feature = "dmabuf")]
+#[cfg(all(feature = "dmabuf", not(target_vendor = "apple")))]
 mod dmabuf;
-#[cfg(feature = "dmabuf")]
+#[cfg(all(feature = "dmabuf", not(target_vendor = "apple")))]
 pub use dmabuf::*;
 
 #[cfg(feature = "surface")]

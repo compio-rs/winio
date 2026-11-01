@@ -20,6 +20,7 @@ impl Picture {
         catch(|| unsafe {
             let view = NSImageView::new(parent.as_app_kit().mtm());
             view.setImageScaling(NSImageScaling::ScaleProportionallyUpOrDown);
+            view.unregisterDraggedTypes();
             let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()))?;
 
             Ok(Self { handle, view })

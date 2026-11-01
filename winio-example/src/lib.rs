@@ -28,6 +28,7 @@ pub struct MainModel {
     media: Child<MediaPage>,
     webview: Child<WebViewPage>,
     markdown: Child<MarkdownPage>,
+    clipboard: Child<ClipboardPage>,
 }
 
 #[derive(Debug)]
@@ -125,6 +126,7 @@ impl Component for MainModel {
             markdown: MarkdownPage = (&*tabview),
             #[cfg(not(all(feature = "webview", feature = "compio-compat")))]
             markdown: DummyPage = ((&*tabview, "Markdown", "webview,compio-compat")),
+            clipboard: ClipboardPage = (&*tabview),
         }
 
         misc.show_password_prop()?
@@ -168,6 +170,7 @@ impl Component for MainModel {
             media,
             webview,
             markdown,
+            clipboard,
         })
     }
 
@@ -214,6 +217,7 @@ impl Component for MainModel {
                 #[cfg(all(feature = "webview", feature = "compio-compat"))]
                 MarkdownPageEvent::ChooseFile => MainMessage::ChooseMarkdown,
             },
+            self.clipboard => {},
             self.menu_bar => {
                 ExampleMenuBarEvent::Push => MainMessage::PushToCombo,
                 ExampleMenuBarEvent::Pop => MainMessage::PopFromCombo,
@@ -247,6 +251,7 @@ impl Component for MainModel {
             Box::pin(self.media.update()),
             Box::pin(self.webview.update()),
             Box::pin(self.markdown.update()),
+            Box::pin(self.clipboard.update()),
         ];
 
         if let Some(index) = self.tabview.selection()? {
@@ -430,6 +435,7 @@ impl Component for MainModel {
                 7 => self.media.render()?,
                 8 => self.webview.render()?,
                 9 => self.markdown.render()?,
+                10 => self.clipboard.render()?,
                 _ => {}
             }
         }

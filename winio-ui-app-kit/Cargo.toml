@@ -26,6 +26,7 @@ compio-log = { workspace = true }
 arrayvec = { workspace = true }
 cookie = { workspace = true, optional = true }
 futures-util = { workspace = true }
+itertools = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true }
 local-sync = { workspace = true }

@@ -53,6 +53,9 @@ pub use up_down_edit::*;
 mod view;
 pub use view::*;
 
+mod drop_area;
+pub use drop_area::*;
+
 #[cfg(feature = "webview")]
 mod webview;
 #[cfg(feature = "webview")]

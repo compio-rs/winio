@@ -9,6 +9,9 @@ pub use canvas::*;
 mod window;
 pub use window::*;
 
+mod drop_area;
+pub use drop_area::*;
+
 mod button;
 pub use button::*;
 

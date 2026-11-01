@@ -25,9 +25,11 @@ compio-log = { workspace = true }
 bytemuck = { workspace = true }
 cookie = { workspace = true, optional = true }
 futures-util = { workspace = true }
+itertools = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true }
 local-sync = { workspace = true, optional = true }
+mime = { workspace = true }
 scoped-tls = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true, optional = true }

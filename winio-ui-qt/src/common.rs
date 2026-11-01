@@ -149,6 +149,14 @@ unsafe impl ExternType for QByteArray {
     type Kind = cxx::kind::Trivial;
 }
 
+impl Drop for QByteArray {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::byte_array_drop(Pin::new_unchecked(self));
+        }
+    }
+}
+
 impl Deref for QByteArray {
     type Target = [u8];
 
@@ -207,5 +215,6 @@ mod ffi {
 
         fn byte_array_data(a: &QByteArray) -> *const u8;
         fn byte_array_len(a: &QByteArray) -> usize;
+        fn byte_array_drop(a: Pin<&mut QByteArray>);
     }
 }

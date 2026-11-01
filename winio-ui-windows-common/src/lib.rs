@@ -10,6 +10,9 @@ pub use windows_core::{Error, Result};
 mod version;
 pub(crate) use version::*;
 
+mod data;
+pub use data::*;
+
 mod accent;
 pub use accent::*;
 

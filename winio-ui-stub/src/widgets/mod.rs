@@ -25,6 +25,9 @@ pub use label::*;
 mod picture;
 pub use picture::*;
 
+mod drop_area;
+pub use drop_area::*;
+
 mod link_label;
 pub use link_label::*;
 

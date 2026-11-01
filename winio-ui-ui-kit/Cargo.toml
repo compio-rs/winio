@@ -27,6 +27,7 @@ cookie = { workspace = true, optional = true }
 futures-util = { workspace = true }
 image = { workspace = true }
 inherit-methods-macro = { workspace = true }
+itertools = { workspace = true }
 local-sync = { workspace = true }
 slab = { workspace = true }
 thiserror = { workspace = true }

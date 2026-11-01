@@ -25,6 +25,10 @@ impl Image {
         Ok(self.0.clone())
     }
 
+    pub(crate) fn drawing_image(&self) -> &DrawingImage {
+        &self.0
+    }
+
     pub(crate) fn nsimage(&self, height: Option<f64>) -> Result<Retained<NSImage>> {
         let size = self.0.size()?;
         let size = NSSize::new(size.width as f64, size.height as f64);

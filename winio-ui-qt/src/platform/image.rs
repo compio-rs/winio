@@ -143,6 +143,13 @@ impl Image {
         Ok(Self(Rc::new(ImageData::new(image)?)))
     }
 
+    pub(crate) fn from_qimage(image: UniquePtr<ffi::QImage>) -> Self {
+        Self(Rc::new(ImageData {
+            buffer: Vec::new(),
+            image,
+        }))
+    }
+
     pub fn size(&self) -> Result<BitmapSize> {
         self.0.size()
     }

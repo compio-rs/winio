@@ -14,3 +14,9 @@ pub use timer::*;
 
 mod image;
 pub use image::*;
+
+mod clipboard;
+pub use clipboard::*;
+
+mod data;
+pub use data::*;
