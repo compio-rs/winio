@@ -1,38 +1,16 @@
-use std::{ffi::OsString, fmt::Debug, io::Cursor};
+use std::{ffi::OsString, fmt::Debug};
 
 use futures_util::Stream;
-use image::ImageFormat;
 use itertools::Itertools;
 use objc2::{rc::Retained, runtime::ProtocolObject};
 use objc2_app_kit::{NSPasteboard, NSPasteboardItem, NSPasteboardWriting};
 use objc2_foundation::{NSData, NSMutableArray, NSString, NSURL, ns_string};
 use winio_primitive::{DataEntry, DataFormat};
 
-use crate::{Error, Image, Result, catch, from_nsstring};
-
-pub(crate) fn text_uti() -> &'static NSString {
-    ns_string!("public.utf8-plain-text")
-}
-
-pub(crate) fn html_uti() -> &'static NSString {
-    ns_string!("public.html")
-}
-
-pub(crate) fn file_url_uti() -> &'static NSString {
-    ns_string!("public.file-url")
-}
-
-pub(crate) fn png_uti() -> &'static NSString {
-    ns_string!("public.png")
-}
-
-pub(crate) fn tiff_uti() -> &'static NSString {
-    ns_string!("public.tiff")
-}
-
-pub(crate) fn unknown_uti() -> &'static NSString {
-    ns_string!("com.winio.unknown")
-}
+use crate::{
+    Error, Image, Result, catch, decode_image, encode_png, file_url_uti, format_of, from_nsstring,
+    html_uti, path_from_file_url, png_uti, text_uti, tiff_uti, unknown_uti,
+};
 
 pub(crate) fn drag_types() -> [&'static NSString; 14] {
     [
@@ -53,6 +31,7 @@ pub(crate) fn drag_types() -> [&'static NSString; 14] {
     ]
 }
 
+#[derive(Debug)]
 pub struct Data {
     items: Retained<NSMutableArray<NSPasteboardItem>>,
 }
@@ -81,7 +60,7 @@ impl Data {
                     self.items.addObject(&item);
                 }
                 DataEntry::Image(image) => {
-                    let bytes = encode_image(&image)?;
+                    let bytes = encode_png(image.drawing_image())?;
                     let item = NSPasteboardItem::new();
                     if !item.setData_forType(&NSData::with_bytes(&bytes), png_uti()) {
                         return Err(Error::NotSupported);
@@ -194,41 +173,20 @@ impl Data {
     }
 }
 
-impl Debug for Data {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let formats = self
-            .formats()
-            .map(|formats| formats.collect::<Vec<_>>())
-            .unwrap_or_default();
-        f.debug_struct("Data")
-            .field("formats", &formats)
-            .finish_non_exhaustive()
-    }
-}
-
-fn format_of(uti: &NSString) -> DataFormat {
-    if uti.isEqualToString(text_uti()) {
-        DataFormat::Text
-    } else if uti.isEqualToString(html_uti()) {
-        DataFormat::Html
-    } else if uti.isEqualToString(file_url_uti()) {
-        DataFormat::Path
-    } else if uti.isEqualToString(png_uti()) || uti.isEqualToString(tiff_uti()) {
-        DataFormat::Image
-    } else {
-        DataFormat::Unknown
-    }
-}
-
 fn read_type(item: &NSPasteboardItem, uti: &NSString) -> Result<DataEntry<Image>> {
     match format_of(uti) {
         DataFormat::Text => Ok(DataEntry::Text(read_string(item, uti)?)),
         DataFormat::Html => Ok(DataEntry::Html(read_string(item, uti)?)),
         DataFormat::Image => {
             let data = item.dataForType(uti).ok_or(Error::NotSupported)?;
-            Ok(DataEntry::Image(decode_image(&data.to_vec())?))
+            Ok(DataEntry::Image(Image::try_from(decode_image(
+                &data.to_vec(),
+            )?)?))
         }
-        DataFormat::Path => Ok(DataEntry::Path(read_file_url(item, uti)?)),
+        DataFormat::Path => {
+            let string = item.stringForType(uti).ok_or(Error::NotSupported)?;
+            Ok(DataEntry::Path(path_from_file_url(&string)?))
+        }
         DataFormat::Unknown => {
             let data = item.dataForType(uti).ok_or(Error::NotSupported)?;
             Ok(DataEntry::Unknown(data.to_vec()))
@@ -242,16 +200,6 @@ fn read_string(item: &NSPasteboardItem, uti: &NSString) -> Result<String> {
         .ok_or(Error::NotSupported)
 }
 
-fn read_file_url(item: &NSPasteboardItem, uti: &NSString) -> Result<OsString> {
-    let string = item.stringForType(uti).ok_or(Error::NotSupported)?;
-    let url = NSURL::URLWithString(&string).ok_or(Error::NotSupported)?;
-    if !url.isFileURL() {
-        return Err(Error::NotSupported);
-    }
-    let path = url.path().ok_or(Error::NotSupported)?;
-    Ok(OsString::from(from_nsstring(&path)))
-}
-
 fn copy_item(item: &NSPasteboardItem) -> Retained<NSPasteboardItem> {
     let new_item = NSPasteboardItem::new();
     for uti in item.types().iter() {
@@ -260,18 +208,4 @@ fn copy_item(item: &NSPasteboardItem) -> Retained<NSPasteboardItem> {
         }
     }
     new_item
-}
-
-fn decode_image(bytes: &[u8]) -> Result<Image> {
-    let image = image::load_from_memory(bytes).map_err(|_| Error::NotSupported)?;
-    Image::try_from(image)
-}
-
-fn encode_image(image: &Image) -> Result<Vec<u8>> {
-    let image = image.to_dynamic_image()?;
-    let mut bytes = Vec::new();
-    image
-        .write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)
-        .map_err(|_| Error::NotSupported)?;
-    Ok(bytes)
 }

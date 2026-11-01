@@ -24,6 +24,10 @@ impl Image {
         Ok(self.0.clone())
     }
 
+    pub(crate) fn drawing_image(&self) -> &DrawingImage {
+        &self.0
+    }
+
     pub(crate) fn uiimage(&self, height: Option<f64>) -> Result<Retained<UIImage>> {
         let image_height = self.0.size()?.height as f64;
         catch(|| {

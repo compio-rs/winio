@@ -1,21 +1,13 @@
-use std::{cell::Cell, fmt::Debug, time::Duration};
+use std::fmt::Debug;
 
 use objc2::rc::Retained;
 use objc2_app_kit::NSPasteboard;
-use objc2_foundation::NSInteger;
 
-use crate::{Result, Timer, catch, platform::Data};
-
-/// The interval to poll the pasteboard change count.
-///
-/// `NSPasteboard` has no change notification, so the only way to observe
-/// changes made by other applications is to poll it.
-const CHANGE_INTERVAL: Duration = Duration::from_millis(200);
+use crate::{ChangeWatcher, Result, catch, platform::Data};
 
 pub struct Clipboard {
     pasteboard: Retained<NSPasteboard>,
-    timer: Timer,
-    change_count: Cell<NSInteger>,
+    watcher: ChangeWatcher,
 }
 
 impl Clipboard {
@@ -25,12 +17,9 @@ impl Clipboard {
             let change_count = pasteboard.changeCount();
             (pasteboard, change_count)
         })?;
-        let mut timer = Timer::new(CHANGE_INTERVAL)?;
-        timer.start()?;
         Ok(Self {
             pasteboard,
-            timer,
-            change_count: Cell::new(change_count),
+            watcher: ChangeWatcher::new(change_count)?,
         })
     }
 
@@ -49,26 +38,15 @@ impl Clipboard {
     }
 
     pub async fn wait_change(&self) {
-        loop {
-            self.timer.wait().await;
-            let change_count = self.pasteboard.changeCount();
-            if change_count != self.change_count.get() {
-                self.change_count.set(change_count);
-                break;
-            }
-        }
+        self.watcher
+            .wait_change(|| catch(|| self.pasteboard.changeCount()))
+            .await
     }
 
     fn sync(&self) -> Result<()> {
         let change_count = catch(|| self.pasteboard.changeCount())?;
-        self.change_count.set(change_count);
+        self.watcher.sync(change_count);
         Ok(())
-    }
-}
-
-impl Drop for Clipboard {
-    fn drop(&mut self) {
-        let _ = self.timer.stop();
     }
 }
 
