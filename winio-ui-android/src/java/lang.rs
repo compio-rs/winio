@@ -8,6 +8,24 @@ jni::bind_java_type! {
 }
 
 jni::bind_java_type! {
+    pub File => java.io.File,
+    constructors {
+        fn new(path: JString),
+    },
+    methods {
+        fn get_absolute_path() -> JString,
+    },
+}
+
+jni::bind_java_type! {
+    pub InputStream => java.io.InputStream,
+    methods {
+        fn read(buffer: jbyte[]) -> jint,
+        fn close(),
+    },
+}
+
+jni::bind_java_type! {
     pub JRunnable => java.lang.Runnable,
     methods {
         fn run(),

@@ -34,7 +34,7 @@ jni = { workspace = true }
 jni-min-helper = "0.4"
 ndk-sys = "0.6"
 
-base64 = { version = "0.23", optional = true }
+base64 = "0.23"
 cookie = { workspace = true, optional = true }
 futures-channel = { workspace = true }
 futures-util = { workspace = true }
@@ -48,6 +48,6 @@ wgpu = { workspace = true, optional = true, features = ["vulkan"] }
 
 [features]
 media = []
-webview = ["dep:cookie", "dep:time", "dep:base64"]
+webview = ["dep:cookie", "dep:time"]
 wgpu = ["dep:wgpu", "dep:winio-wgpu"]
 compio-compat = ["compio/compat", "compio/fs"]

@@ -1,5 +1,5 @@
 use super::{
-    content::{Context, res::Resources},
+    content::{ClipData, ClipDescription, Context, res::Resources},
     graphics::{Insets, Rect, drawable::Drawable},
 };
 use crate::impl_listener;
@@ -25,6 +25,29 @@ jni::bind_java_type! {
     },
 }
 
+pub mod drag_action {
+    pub const ACTION_DROP: i32 = 3;
+}
+
+jni::bind_java_type! {
+    pub DragEvent => android.view.DragEvent,
+    type_map {
+        ClipData => android.content.ClipData,
+        ClipDescription => android.content.ClipDescription,
+    },
+    methods {
+        fn get_action() -> jint,
+        fn get_clip_data() -> ClipData,
+        fn get_clip_description() -> ClipDescription,
+    },
+}
+
+jni::bind_java_type! {
+    pub ViewOnDragListener => "android.view.View$OnDragListener",
+}
+
+impl_listener!(ViewOnDragListener);
+
 jni::bind_java_type! {
     pub View => "android.view.View",
     type_map {
@@ -35,6 +58,7 @@ jni::bind_java_type! {
         ViewOnLayoutChangeListener => "android.view.View$OnLayoutChangeListener",
         ViewOnTouchListener => "android.view.View$OnTouchListener",
         ViewOnKeyListener => "android.view.View$OnKeyListener",
+        ViewOnDragListener => "android.view.View$OnDragListener",
         WindowInsets => android.view.WindowInsets,
     },
     constructors {
@@ -64,6 +88,7 @@ jni::bind_java_type! {
         fn add_on_layout_change_listener(listener: &ViewOnLayoutChangeListener),
         fn set_on_touch_listener(listener: &ViewOnTouchListener),
         fn set_on_key_listener(listener: &ViewOnKeyListener),
+        fn set_on_drag_listener(listener: &ViewOnDragListener),
         fn set_focusable_in_touch_mode(focusable: jboolean),
         fn request_focus() -> jboolean,
         fn get_root_window_insets() -> WindowInsets,
