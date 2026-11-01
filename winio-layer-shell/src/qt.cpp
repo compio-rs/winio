@@ -16,6 +16,17 @@
 
 namespace {
 
+class ConfigureFilter : public QObject {
+public:
+    bool eventFilter(QObject *watched, QEvent *event) override {
+        QWindow *w = qobject_cast<QWindow *>(watched);
+        if (w && event->type() == QEvent::PlatformSurface) {
+            w->setProperty("winio-layer-shell-initialized", true);
+        }
+        return QObject::eventFilter(watched, event);
+    }
+};
+
 constexpr const char *kInitializedProperty = "winio-layer-shell-initialized";
 constexpr const char *kLayerShellInterface = "zwlr_layer_shell_v1";
 
@@ -136,11 +147,19 @@ WinioLayerShellInit winio_layer_shell_init(QWidget &widget) {
     // Unify close-on-dismiss behavior with the GTK backend.
     shell->setCloseOnDismissed(true);
 
-    // Submit an initial buffer to ensure the surface is mapped by the compositor.
+    // Submit an initial buffer to ensure the surface is mapped by the
+    // compositor.
     widget.update();
 
-    // Note: We no longer set kInitializedProperty here. 
-    // It should be set by the event filter when the Configure event is received.
+    // Install an event filter so we can set the configured property once the
+    // compositor sends the Configure event (processed by LayerShellQt).
+    QWindow *win_handle = native_window(widget);
+    if (win_handle) {
+        ConfigureFilter *filter = new ConfigureFilter();
+        filter->setParent(win_handle);
+        win_handle->installEventFilter(filter);
+    }
+
     g_supported = true;
     g_supported_known = true;
     return WinioLayerShellInit::Ok;
@@ -164,7 +183,11 @@ void winio_layer_shell_set_scope(WinioLayerShellWindow &window,
 
 bool winio_layer_shell_is_configured(QWidget const &widget) {
     QWindow *window = widget.windowHandle();
-    return window && window->property(kInitializedProperty).toBool();
+    if (!window) {
+        return false;
+    }
+    // Only true after the compositor Configure event (set by event filter).
+    return window->property(kInitializedProperty).toBool();
 }
 
 void winio_layer_shell_request_refresh(QWidget &widget) { widget.update(); }
