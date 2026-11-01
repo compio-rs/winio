@@ -68,7 +68,7 @@ impl Clipboard {
             own_sequence: Cell::new(0),
         });
         unsafe {
-            SetWindowLongPtrW(hwnd, GWLP_USERDATA, &*inner as *const _ as isize);
+            SetWindowLongPtrW(hwnd, GWLP_USERDATA, inner.as_ref() as *const _ as _);
         }
         if unsafe { AddClipboardFormatListener(hwnd) } == 0 {
             unsafe { DestroyWindow(hwnd) };
