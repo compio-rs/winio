@@ -273,6 +273,12 @@ pub trait LayerShellExt: sealed::Sealed + AsWindow {
     ///
     /// The namespace identifies the surface to the compositor. The default is
     /// backend specific.
+    ///
+    /// ## Platform specific
+    ///
+    /// On the Qt backend, calling this after `Window::show()` fails with
+    /// [`Error::AlreadyShown`] because the layer surface role is fixed at
+    /// creation time.
     fn set_namespace(&mut self, namespace: &str) -> Result<()>;
 
     /// Request a refresh/repaint of the surface.
