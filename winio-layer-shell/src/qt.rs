@@ -244,18 +244,6 @@ pub(crate) fn is_configured(handle: BorrowedWindow<'_>) -> bool {
     ffi::winio_layer_shell_is_configured(&widget)
 }
 
-pub(crate) fn output_info(handle: BorrowedWindow<'_>) -> Option<crate::OutputInfo> {
-    if !is_layer_window(handle) {
-        return None;
-    }
-    let widget = widget(handle).ok()?;
-    let name = ffi::winio_layer_shell_output_name(&widget);
-    (!name.is_empty()).then_some(crate::OutputInfo {
-        name: Some(name),
-        is_primary: true,
-    })
-}
-
 fn widget(handle: BorrowedWindow<'_>) -> Result<Pin<&mut ffi::QWidget>> {
     let widget = unsafe { handle.as_qt::<ffi::QWidget>().as_mut() }.ok_or(Error::NoWindow)?;
     Ok(unsafe { Pin::new_unchecked(widget) })
@@ -328,7 +316,6 @@ mod ffi {
         fn winio_layer_shell_scope(window: &WinioLayerShellWindow) -> String;
         fn winio_layer_shell_set_scope(window: Pin<&mut WinioLayerShellWindow>, scope: &str);
 
-        fn winio_layer_shell_output_name(widget: &QWidget) -> String;
         fn winio_layer_shell_is_configured(widget: &QWidget) -> bool;
     }
 }

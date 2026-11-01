@@ -178,6 +178,21 @@ impl From<Edge> for Anchors {
 /// Result type for layer shell operations.
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Errors returned by layer shell operations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
+pub enum Error {
+    /// Layer shell is not available on this platform, backend, or compositor.
+    #[error("layer shell is not supported")]
+    NotSupported,
+    /// The native window is not available yet.
+    #[error("the native window is not available")]
+    NoWindow,
+    /// The window is already visible and cannot become a layer surface.
+    #[error("layer shell must be configured before the window is shown")]
+    AlreadyShown,
+}
+
 mod sealed {
     use winio::handle::AsWindow;
 

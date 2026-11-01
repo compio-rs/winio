@@ -114,8 +114,3 @@ jobs:
 
           cargo +${{ matrix.toolchain }} test --workspace "${ARGS[@]}"
 
-          # LayerShellQt is Qt6-only, so the layer-shell crate is built
-          # separately with the backend that matches each Linux job.
-          if [[ -n "${{ matrix.setup.layershell }}" ]]; then
-            cargo +${{ matrix.toolchain }} build -p winio-layer-shell --features "${{ matrix.setup.layershell }}"
-          fi
