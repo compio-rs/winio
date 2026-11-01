@@ -153,11 +153,7 @@ fn find_lib_dir(include_dir: &Path) -> PathBuf {
 }
 
 fn has_library(dir: &Path) -> bool {
-    fs::read_dir(dir).is_ok_and(|entries| {
-        entries
-            .filter_map(|entry| entry.ok())
-            .any(|entry| entry.path().extension().is_some_and(|ext| ext == "so"))
-    })
+    dir.join("libLayerShellQtInterface.so").is_file()
 }
 
 fn has_wayland_library(dir: &Path) -> bool {
