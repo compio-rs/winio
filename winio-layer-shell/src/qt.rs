@@ -23,9 +23,9 @@ unsafe impl ExternType for QMargins {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(dead_code)]
 pub(crate) enum WinioLayerShellInit {
-    Ok = 0,
+    Ok           = 0,
     NotSupported = 1,
-    NoWindow = 2,
+    NoWindow     = 2,
     AlreadyShown = 3,
 }
 
@@ -38,9 +38,9 @@ unsafe impl ExternType for WinioLayerShellInit {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum WinioLayerShellLayer {
     Background = 0,
-    Bottom = 1,
-    Top = 2,
-    Overlay = 3,
+    Bottom     = 1,
+    Top        = 2,
+    Overlay    = 3,
 }
 
 unsafe impl ExternType for WinioLayerShellLayer {
@@ -73,9 +73,9 @@ impl From<WinioLayerShellLayer> for Layer {
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum WinioLayerShellKeyboardInteractivity {
-    None = 0,
+    None      = 0,
     Exclusive = 1,
-    OnDemand = 2,
+    OnDemand  = 2,
 }
 
 unsafe impl ExternType for WinioLayerShellKeyboardInteractivity {

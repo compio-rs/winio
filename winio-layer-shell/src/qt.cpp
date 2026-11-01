@@ -11,7 +11,7 @@
 
 #include <wayland-client.h>
 
-#include <QtGui/qpa/qplatformnativeinterface.h>
+#include <QtGui/qguiapplication_platform.h>
 
 namespace {
 
@@ -38,12 +38,12 @@ bool probe_layer_shell_support() {
     if (!QGuiApplication::instance()) {
         return false;
     }
-    auto *ni = QGuiApplication::platformNativeInterface();
-    if (!ni) {
+    auto *app = QGuiApplication::instance();
+    auto *wayland_app = app->nativeInterface<QWaylandApplication>();
+    if (!wayland_app) {
         return false;
     }
-    auto *display = static_cast<wl_display *>(
-        ni->nativeResourceForIntegration("wl_display"));
+    wl_display *display = wayland_app->display();
     if (!display) {
         return false;
     }
@@ -62,6 +62,7 @@ bool probe_layer_shell_support() {
     const wl_registry_listener listener = {registry_global,
                                            registry_global_remove};
     wl_registry_add_listener(registry, &listener, &found);
+    wl_proxy_set_queue(registry, queue);
     wl_display_roundtrip_queue(display, queue);
 
     wl_registry_destroy(registry);

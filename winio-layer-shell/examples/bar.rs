@@ -63,12 +63,15 @@ impl Component for Bar {
 
     async fn update(
         &mut self,
-        _msg: Self::Message,
-        _sender: &ComponentSender<Self>,
+        msg: Self::Message,
+        sender: &ComponentSender<Self>,
     ) -> Result<bool> {
-        // `Close` is the only message; exiting the component tears down the
-        // app.
-        Ok(false)
+        match msg {
+            Message::Close => {
+                sender.output(());
+                Ok(false)
+            }
+        }
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
