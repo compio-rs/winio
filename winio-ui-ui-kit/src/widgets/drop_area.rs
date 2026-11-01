@@ -5,10 +5,10 @@ use inherit_methods_macro::inherit_methods;
 use objc2::{
     DeclaredClass, MainThreadOnly, Message, define_class, msg_send,
     rc::{Allocated, Retained},
-    runtime::ProtocolObject,
+    runtime::{Bool, ProtocolObject},
 };
 use objc2_foundation::{
-    MainThreadMarker, NSArray, NSData, NSError, NSObjectProtocol, NSRect, NSString,
+    MainThreadMarker, NSArray, NSData, NSError, NSObjectProtocol, NSRect, NSString, NSURL,
 };
 use objc2_ui_kit::{
     UIDragDropSession, UIDropInteraction, UIDropInteractionDelegate, UIDropOperation,
@@ -19,8 +19,8 @@ use winio_handle::AsContainer;
 use winio_primitive::{Point, Size};
 
 use crate::{
-    GlobalRuntime, Result, catch, file_url_uti, html_uti, platform::Data, png_uti, text_uti,
-    tiff_uti, widgets::Widget,
+    GlobalRuntime, Result, catch, file_url_uti, finder_node_uti, from_nsstring, html_uti,
+    platform::Data, png_uti, text_uti, tiff_uti, widgets::Widget,
 };
 
 /// A container that receives dragged data.
@@ -150,38 +150,76 @@ define_class! {
             for item in session.items().iter() {
                 let provider = item.itemProvider();
                 let types = provider.registeredTypeIdentifiers();
-                let Some(uti) = provider_type(&types) else {
-                    continue;
-                };
 
-                pending.borrow_mut().remaining += 1;
-                let load_uti = uti.clone();
-                let pending = pending.clone();
-                let on_drop = self.ivars().on_drop.clone();
-                let block = RcBlock::new(move |data: *mut NSData, _error: *mut NSError| {
-                    if let Some(data) = unsafe { data.as_ref() } {
-                        pending
-                            .borrow_mut()
-                            .entries
-                            .push((uti.clone(), data.retain()));
+                let data_uti = provider_type(&types);
+                let finder_uti = finder_file_type(&types);
+                let loads = data_uti.is_some() as usize + finder_uti.is_some() as usize;
+                if loads == 0 {
+                    continue;
+                }
+                pending.borrow_mut().remaining += loads;
+
+                if let Some(uti) = data_uti {
+                    let load_uti = uti.clone();
+                    let call_uti = load_uti.clone();
+                    let pending = pending.clone();
+                    let on_drop = self.ivars().on_drop.clone();
+                    let block = RcBlock::new(move |data: *mut NSData, _error: *mut NSError| {
+                        let data = unsafe { data.as_ref() }.map(|data| data.retain());
+                        finish_drop(&pending, &on_drop, load_uti.clone(), data);
+                    });
+                    unsafe {
+                        provider.loadDataRepresentationForTypeIdentifier_completionHandler(
+                            &call_uti, &block,
+                        );
                     }
-                    let done = {
-                        let mut pending = pending.borrow_mut();
-                        pending.remaining -= 1;
-                        pending.remaining == 0
-                    };
-                    if done {
-                        let entries = std::mem::take(&mut pending.borrow_mut().entries);
-                        if !entries.is_empty() {
-                            on_drop.signal::<GlobalRuntime>(Data::from_loaded(entries));
-                        }
+                }
+
+                // Finder's file drags on Catalyst expose only the private node UTI
+                // and the content UTI. Ask for an in-place file representation to obtain the path.
+                if let Some(uti) = finder_uti {
+                    let load_uti = uti.clone();
+                    let pending = pending.clone();
+                    let on_drop = self.ivars().on_drop.clone();
+                    let block =
+                        RcBlock::new(move |url: *mut NSURL, _open: Bool, _error: *mut NSError| {
+                            let data = unsafe { url.as_ref() }
+                                .and_then(|url| url.absoluteString())
+                                .map(|string| {
+                                    NSData::with_bytes(from_nsstring(&string).as_bytes())
+                                });
+                            finish_drop(&pending, &on_drop, file_url_uti().retain(), data);
+                        });
+                    unsafe {
+                        provider
+                            .loadInPlaceFileRepresentationForTypeIdentifier_completionHandler(
+                                &load_uti, &block,
+                            );
                     }
-                });
-                unsafe {
-                    provider
-                        .loadDataRepresentationForTypeIdentifier_completionHandler(&load_uti, &block);
                 }
             }
+        }
+    }
+}
+
+fn finish_drop(
+    pending: &Rc<RefCell<PendingDrop>>,
+    on_drop: &Rc<Callback<Data>>,
+    uti: Retained<NSString>,
+    data: Option<Retained<NSData>>,
+) {
+    if let Some(data) = data {
+        pending.borrow_mut().entries.push((uti, data));
+    }
+    let done = {
+        let mut pending = pending.borrow_mut();
+        pending.remaining -= 1;
+        pending.remaining == 0
+    };
+    if done {
+        let entries = std::mem::take(&mut pending.borrow_mut().entries);
+        if !entries.is_empty() {
+            on_drop.signal::<GlobalRuntime>(Data::from_loaded(entries));
         }
     }
 }
@@ -198,7 +236,24 @@ fn provider_type(types: &NSArray<NSString>) -> Option<Retained<NSString>> {
             return Some(preferred.retain());
         }
     }
-    types.iter().next()
+    types
+        .iter()
+        .find(|uti| !uti.isEqualToString(finder_node_uti()))
+}
+
+fn finder_file_type(types: &NSArray<NSString>) -> Option<Retained<NSString>> {
+    if !types
+        .iter()
+        .any(|uti| uti.isEqualToString(finder_node_uti()))
+    {
+        return None;
+    }
+    if types.iter().any(|uti| uti.isEqualToString(file_url_uti())) {
+        return None;
+    }
+    types
+        .iter()
+        .find(|uti| !uti.isEqualToString(finder_node_uti()))
 }
 
 impl DropView {

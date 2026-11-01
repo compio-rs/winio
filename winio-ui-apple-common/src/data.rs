@@ -43,6 +43,11 @@ pub fn unknown_uti() -> &'static NSString {
     ns_string!("com.winio.unknown")
 }
 
+/// The private Finder node UTI used when dragging files to Catalyst apps.
+pub fn finder_node_uti() -> &'static NSString {
+    ns_string!("com.apple.finder.node")
+}
+
 /// Map a pasteboard UTI to a [`DataFormat`].
 pub fn format_of(uti: &NSString) -> DataFormat {
     if uti.isEqualToString(text_uti()) {
