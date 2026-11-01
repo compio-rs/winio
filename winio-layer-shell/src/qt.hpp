@@ -33,7 +33,6 @@ rust::String winio_layer_shell_scope(WinioLayerShellWindow const &window);
 void winio_layer_shell_set_scope(WinioLayerShellWindow &window,
                                  rust::Str scope);
 
-rust::String winio_layer_shell_output_name(QWidget const &widget);
 bool winio_layer_shell_is_configured(QWidget const &widget);
 
 void winio_layer_shell_request_refresh(QWidget &widget);

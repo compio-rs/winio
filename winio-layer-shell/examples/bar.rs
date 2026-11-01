@@ -61,11 +61,7 @@ impl Component for Bar {
         }
     }
 
-    async fn update(
-        &mut self,
-        msg: Self::Message,
-        sender: &ComponentSender<Self>,
-    ) -> Result<bool> {
+    async fn update(&mut self, msg: Self::Message, sender: &ComponentSender<Self>) -> Result<bool> {
         match msg {
             Message::Close => {
                 sender.output(());

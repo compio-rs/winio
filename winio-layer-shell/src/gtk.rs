@@ -25,6 +25,11 @@ pub(crate) fn ensure(handle: BorrowedWindow<'_>) -> Result<()> {
     // which would otherwise swallow the `.closed` event and keep the window
     // alive.
     window.set_respect_close(true);
+
+    // Submit an initial buffer to ensure the surface is mapped by the
+    // compositor.
+    window.queue_draw();
+
     if window.is_layer_window() {
         Ok(())
     } else {
@@ -166,27 +171,8 @@ pub(crate) fn request_refresh(handle: BorrowedWindow<'_>) -> Result<()> {
 }
 
 pub(crate) fn is_configured(handle: BorrowedWindow<'_>) -> bool {
-    handle.to_gtk().is_layer_window() && handle.to_gtk().is_realized()
-}
-
-pub(crate) fn output_info(handle: BorrowedWindow<'_>) -> Option<crate::OutputInfo> {
     let window = handle.to_gtk();
-    if !window.is_layer_window() {
-        return None;
-    }
-    let surface = window.surface()?;
-    let display = surface.display();
-    let monitor = display.monitor_at_surface(&surface)?;
-    // Prefer the connector (e.g. "eDP-1"); fall back to the model string.
-    let name = monitor
-        .connector()
-        .map(|s| s.to_string())
-        .or_else(|| monitor.model().map(|s| s.to_string()));
-    // gdk4 0.11 has no primary-monitor query, so this stays false.
-    Some(crate::OutputInfo {
-        name,
-        is_primary: false,
-    })
+    window.is_layer_window() && window.is_realized() && window.surface().is_some()
 }
 
 fn gtk_edge(edge: Edge) -> GtkEdge {

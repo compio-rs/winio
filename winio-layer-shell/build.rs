@@ -126,19 +126,8 @@ fn find_lib_dir(include_dir: &Path) -> PathBuf {
     if let Some(prefix) = include_dir.parent() {
         candidates.push(prefix.join("lib"));
         candidates.push(prefix.join("lib64"));
-        candidates.push(prefix.join("lib/x86_64-linux-gnu"));
-        candidates.push(prefix.join("lib/aarch64-linux-gnu"));
     }
-    candidates.extend(
-        [
-            "/usr/lib",
-            "/usr/lib64",
-            "/usr/local/lib",
-            "/usr/lib/x86_64-linux-gnu",
-            "/usr/lib/aarch64-linux-gnu",
-        ]
-        .map(PathBuf::from),
-    );
+    candidates.extend(["/usr/lib", "/usr/lib64", "/usr/local/lib"].map(PathBuf::from));
 
     for dir in candidates {
         if has_library(&dir) {
@@ -204,14 +193,7 @@ fn find_wayland_client() -> (PathBuf, PathBuf) {
     for inc in ["/usr/include", "/usr/local/include"] {
         let inc = Path::new(inc);
         if inc.join("wayland-client-core.h").is_file() {
-            for lib in [
-                "/usr/lib",
-                "/usr/lib64",
-                "/usr/local/lib",
-                "/usr/lib/x86_64-linux-gnu",
-            ]
-            .map(PathBuf::from)
-            {
+            for lib in ["/usr/lib", "/usr/lib64", "/usr/local/lib"].map(PathBuf::from) {
                 if has_wayland_library(&lib) {
                     return (inc.to_owned(), lib);
                 }

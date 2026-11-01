@@ -175,30 +175,6 @@ impl From<Edge> for Anchors {
     }
 }
 
-/// Multi-output information for a layer surface.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct OutputInfo {
-    /// The output name or identifier.
-    pub name: Option<String>,
-    /// Whether this is the primary output.
-    pub is_primary: bool,
-}
-
-/// Errors returned by layer shell operations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
-#[non_exhaustive]
-pub enum Error {
-    /// Layer shell is not available on this platform, backend, or compositor.
-    #[error("layer shell is not supported")]
-    NotSupported,
-    /// The native window is not available yet.
-    #[error("the native window is not available")]
-    NoWindow,
-    /// The window is already visible and cannot become a layer surface.
-    #[error("layer shell must be configured before the window is shown")]
-    AlreadyShown,
-}
-
 /// Result type for layer shell operations.
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -290,12 +266,6 @@ pub trait LayerShellExt: sealed::Sealed + AsWindow {
     /// content changed. The native backend submits a new buffer.
     fn request_refresh(&self) -> Result<()>;
 
-    /// Get basic multi-output info for the surface.
-    ///
-    /// On Qt this reads the native `QWindow`'s screen; on GTK it reads the
-    /// `GdkMonitor`.
-    fn output_info(&self) -> Option<OutputInfo>;
-
     /// Whether the native surface has been configured by the compositor.
     ///
     /// This is set to `true` once the layer-shell surface receives its
@@ -365,10 +335,6 @@ impl<T: AsWindow + ?Sized> LayerShellExt for T {
 
     fn request_refresh(&self) -> Result<()> {
         imp::request_refresh(self.as_window())
-    }
-
-    fn output_info(&self) -> Option<OutputInfo> {
-        imp::output_info(self.as_window())
     }
 
     fn is_configured(&self) -> bool {

@@ -134,7 +134,12 @@ WinioLayerShellInit winio_layer_shell_init(QWidget &widget) {
         LayerShellQt::Window::KeyboardInteractivityNone);
     // Unify close-on-dismiss behavior with the GTK backend.
     shell->setCloseOnDismissed(true);
-    window->setProperty(kInitializedProperty, true);
+
+    // Submit an initial buffer to ensure the surface is mapped by the compositor.
+    widget.update();
+
+    // Note: We no longer set kInitializedProperty here. 
+    // It should be set by the event filter when the Configure event is received.
     g_supported = true;
     g_supported_known = true;
     return WinioLayerShellInit::Ok;
@@ -154,15 +159,6 @@ void winio_layer_shell_set_scope(WinioLayerShellWindow &window,
                                  rust::Str scope) {
     window.setScope(
         QString::fromUtf8(scope.data(), static_cast<qsizetype>(scope.size())));
-}
-
-rust::String winio_layer_shell_output_name(QWidget const &widget) {
-    QWindow *window = widget.windowHandle();
-    if (!window || !window->screen()) {
-        return {};
-    }
-    const QByteArray bytes = window->screen()->name().toUtf8();
-    return rust::String(bytes.constData(), static_cast<size_t>(bytes.size()));
 }
 
 bool winio_layer_shell_is_configured(QWidget const &widget) {

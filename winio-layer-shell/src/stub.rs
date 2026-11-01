@@ -61,10 +61,6 @@ pub(crate) fn is_configured(_window: BorrowedWindow<'_>) -> bool {
     not_impl()
 }
 
-pub(crate) fn output_info(_window: BorrowedWindow<'_>) -> Option<crate::OutputInfo> {
-    not_impl()
-}
-
 pub(crate) fn namespace(_window: BorrowedWindow<'_>) -> Result<String> {
     not_impl()
 }
