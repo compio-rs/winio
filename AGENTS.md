@@ -26,8 +26,8 @@ This is a Cargo workspace with these crates:
 | `winio-handle`            | Native handle abstractions (`AsWindow`, `AsWidget`, `AsContainer`)                                                |
 | `winio-callback`          | Callback helpers                                                                                                  |
 | `winio-pollable`          | Runtime-polling helpers                                                                                           |
+| `winio-wgpu`              | Common helpers for `wgpu`                                                                                         |
 | `winio-example`           | The example application, exercising all widgets                                                                   |
-| `winio-layer-shell`       | Wayland layer shell support as a `Window` extension trait (GTK/Qt)                                                |
 | `winio-ui-qt`             | Qt backend                                                                                                        |
 | `winio-ui-gtk`            | GTK 4 backend                                                                                                     |
 | `winio-ui-app-kit`        | macOS (AppKit) backend                                                                                            |
@@ -38,6 +38,7 @@ This is a Cargo workspace with these crates:
 | `winio-ui-stub`           | No-op stub backend (fallback)                                                                                     |
 | `winio-ui-apple-common`   | Shared code for the Apple backends                                                                                |
 | `winio-ui-windows-common` | Shared code for the Windows backends                                                                              |
+| `winio-layer-shell`       | Wayland layer shell support as a `Window` extension trait (GTK/Qt)                                                |
 
 The active backend is selected in `winio/src/lib.rs` with features and `cfg` attributes (e.g. `win32` feature *on Windows* prefers `winio-ui-win32` over `winio-ui-winui`, and `qt` feature *on Linux* prefers `winio-ui-qt` over `winio-ui-gtk`). `sys` is the platform backend alias used throughout the `winio` crate. On Windows or Linux, if a backend is not selected by the feature, `winio-ui-stub` will be the fallback.
 
