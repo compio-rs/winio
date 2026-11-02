@@ -13,8 +13,6 @@
 
 #include <wayland-client.h>
 
-#include <QtGui/qguiapplication_platform.h>
-
 namespace {
 
 constexpr const char *kLayerWindowProperty = "winio-layer-shell-layer-window";
