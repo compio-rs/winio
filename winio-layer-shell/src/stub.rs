@@ -1,4 +1,5 @@
-use winio::{handle::BorrowedWindow, primitive::Margin};
+use winio_handle::BorrowedWindow;
+use winio_primitive::Margin;
 
 use crate::{Anchors, Error, KeyboardInteractivity, Layer, Result};
 

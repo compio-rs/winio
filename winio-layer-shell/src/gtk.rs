@@ -2,7 +2,8 @@ use gtk4::prelude::*;
 use gtk4_layer_shell::{
     Edge as GtkEdge, KeyboardMode as GtkKeyboardMode, Layer as GtkLayer, LayerShell as _,
 };
-use winio::{handle::BorrowedWindow, primitive::Margin};
+use winio_handle::BorrowedWindow;
+use winio_primitive::Margin;
 
 use crate::{Anchors, Edge, Error, KeyboardInteractivity, Layer, Result};
 
@@ -80,7 +81,7 @@ pub(crate) fn set_anchors(handle: BorrowedWindow<'_>, anchors: Anchors) -> Resul
     ensure(handle)?;
     let window = handle.to_gtk();
     for edge in [Edge::Top, Edge::Bottom, Edge::Left, Edge::Right] {
-        window.set_anchor(gtk_edge(edge), anchors.contains_edge(edge));
+        window.set_anchor(gtk_edge(edge), anchors.contains(edge.into()));
     }
     Ok(())
 }

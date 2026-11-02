@@ -103,6 +103,10 @@ objc2-ui-kit = "0.3"
 objc2-uniform-type-identifiers = "0.3"
 objc2-web-kit = "0.3"
 
+cxx = "1.0.160"
+cxx-build = "1.0.160"
+qt-build-utils = "0.10"
+
 gtk4 = "0.11"
 gtk4-layer-shell = "0.8.1"
 glib-unix = "0.22"

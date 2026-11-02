@@ -43,7 +43,6 @@
 //!
 //! // `window` is a `Child<Window>` or any other type implementing
 //! // `winio::handle::AsWindow`.
-//! window.init_layer_shell()?;
 //! window.set_layer(Layer::Top)?;
 //! window.set_anchors(Anchors::TOP | Anchors::LEFT | Anchors::RIGHT)?;
 //! window.set_exclusive_zone(Some(30.0))?;
@@ -61,7 +60,8 @@
 compile_error!("You must choose only one of these features: [\"gtk\", \"qt\"]");
 
 use bitflags::bitflags;
-use winio::{handle::AsWindow, primitive::Margin};
+use winio_handle::AsWindow;
+use winio_primitive::Margin;
 
 cfg_if::cfg_if! {
     if #[cfg(all(
@@ -154,18 +154,6 @@ bitflags! {
     }
 }
 
-impl Anchors {
-    /// Whether the given edge is anchored.
-    pub fn contains_edge(self, edge: Edge) -> bool {
-        self.contains(match edge {
-            Edge::Top => Self::TOP,
-            Edge::Bottom => Self::BOTTOM,
-            Edge::Left => Self::LEFT,
-            Edge::Right => Self::RIGHT,
-        })
-    }
-}
-
 impl From<Edge> for Anchors {
     fn from(edge: Edge) -> Self {
         match edge {
@@ -196,7 +184,7 @@ pub enum Error {
 }
 
 mod sealed {
-    use winio::handle::AsWindow;
+    use winio_handle::AsWindow;
 
     pub trait Sealed {}
 
@@ -206,8 +194,7 @@ mod sealed {
 /// Extension trait for configuring a window as a Wayland layer surface.
 ///
 /// The trait is implemented for every type that implements
-/// [`winio::handle::AsWindow`], including [`winio::widgets::Window`] and
-/// [`winio::handle::BorrowedWindow`].
+/// [`AsWindow`][winio_handle::AsWindow].
 ///
 /// Call any of the setters, or [`init_layer_shell`](Self::init_layer_shell),
 /// before showing the window. Calling a setter initializes the window
