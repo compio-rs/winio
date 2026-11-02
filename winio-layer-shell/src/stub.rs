@@ -1,66 +1,63 @@
-use winio::handle::BorrowedWindow;
+use winio_handle::BorrowedWindow;
+use winio_primitive::Margin;
 
-use crate::{Anchors, Edge, KeyboardInteractivity, Layer, Result};
-
-pub(crate) fn is_supported() -> bool {
-    false
-}
+use crate::{Anchors, Error, KeyboardInteractivity, Layer, Result};
 
 pub(crate) fn ensure(_window: BorrowedWindow<'_>) -> Result<()> {
-    not_impl()
+    not_supported()
 }
 
 pub(crate) fn layer(_window: BorrowedWindow<'_>) -> Result<Layer> {
-    not_impl()
+    not_supported()
 }
 
 pub(crate) fn set_layer(_window: BorrowedWindow<'_>, _layer: Layer) -> Result<()> {
-    not_impl()
+    not_supported()
 }
 
 pub(crate) fn anchors(_window: BorrowedWindow<'_>) -> Result<Anchors> {
-    not_impl()
+    not_supported()
 }
 
 pub(crate) fn set_anchors(_window: BorrowedWindow<'_>, _anchors: Anchors) -> Result<()> {
-    not_impl()
+    not_supported()
 }
 
-pub(crate) fn margin(_window: BorrowedWindow<'_>, _edge: Edge) -> Result<i32> {
-    not_impl()
+pub(crate) fn margin(_window: BorrowedWindow<'_>) -> Result<Margin> {
+    not_supported()
 }
 
-pub(crate) fn set_margin(_window: BorrowedWindow<'_>, _edge: Edge, _margin: i32) -> Result<()> {
-    not_impl()
+pub(crate) fn set_margin(_window: BorrowedWindow<'_>, _margin: Margin) -> Result<()> {
+    not_supported()
 }
 
-pub(crate) fn exclusive_zone(_window: BorrowedWindow<'_>) -> Result<i32> {
-    not_impl()
+pub(crate) fn exclusive_zone(_window: BorrowedWindow<'_>) -> Result<Option<f64>> {
+    not_supported()
 }
 
-pub(crate) fn set_exclusive_zone(_window: BorrowedWindow<'_>, _zone: i32) -> Result<()> {
-    not_impl()
+pub(crate) fn set_exclusive_zone(_window: BorrowedWindow<'_>, _zone: Option<f64>) -> Result<()> {
+    not_supported()
 }
 
 pub(crate) fn keyboard_interactivity(_window: BorrowedWindow<'_>) -> Result<KeyboardInteractivity> {
-    not_impl()
+    not_supported()
 }
 
 pub(crate) fn set_keyboard_interactivity(
     _window: BorrowedWindow<'_>,
     _mode: KeyboardInteractivity,
 ) -> Result<()> {
-    not_impl()
+    not_supported()
 }
 
 pub(crate) fn namespace(_window: BorrowedWindow<'_>) -> Result<String> {
-    not_impl()
+    not_supported()
 }
 
 pub(crate) fn set_namespace(_window: BorrowedWindow<'_>, _namespace: &str) -> Result<()> {
-    not_impl()
+    not_supported()
 }
 
-fn not_impl() -> ! {
-    unimplemented!("stub implementation")
+fn not_supported<T>() -> Result<T> {
+    Err(Error::NotSupported)
 }

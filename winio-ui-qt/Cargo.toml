@@ -16,7 +16,10 @@ winio-primitive = { workspace = true, features = ["bytemuck"] }
 winio-handle = { workspace = true, features = ["qt"] }
 winio-callback = { workspace = true }
 winio-pollable = { workspace = true, features = ["callback"] }
-winio-wgpu = { workspace = true, optional = true, features = ["dmabuf", "memory"] }
+winio-wgpu = { workspace = true, optional = true, features = [
+    "dmabuf",
+    "memory",
+] }
 
 compio = { workspace = true, default-features = false, optional = true }
 compio-log = { workspace = true }
@@ -35,11 +38,11 @@ thiserror = { workspace = true }
 time = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true, features = ["vulkan"] }
 
-cxx = { version = "1.0.160", features = ["c++17"] }
+cxx = { workspace = true, features = ["c++17"] }
 
 [build-dependencies]
-cxx-build = "1.0.160"
-qt-build-utils = "0.10.0"
+cxx-build = { workspace = true }
+qt-build-utils = { workspace = true }
 
 [features]
 media = []

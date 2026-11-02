@@ -1,9 +1,9 @@
 use gtk4::prelude::*;
-pub(crate) use gtk4_layer_shell::is_supported;
 use gtk4_layer_shell::{
     Edge as GtkEdge, KeyboardMode as GtkKeyboardMode, Layer as GtkLayer, LayerShell as _,
 };
-use winio::handle::BorrowedWindow;
+use winio_handle::BorrowedWindow;
+use winio_primitive::Margin;
 
 use crate::{Anchors, Edge, Error, KeyboardInteractivity, Layer, Result};
 
@@ -12,7 +12,7 @@ pub(crate) fn ensure(handle: BorrowedWindow<'_>) -> Result<()> {
     if window.is_layer_window() {
         return Ok(());
     }
-    if !is_supported() {
+    if !gtk4_layer_shell::is_supported() {
         return Err(Error::NotSupported);
     }
     if window.is_realized() {
@@ -81,36 +81,48 @@ pub(crate) fn set_anchors(handle: BorrowedWindow<'_>, anchors: Anchors) -> Resul
     ensure(handle)?;
     let window = handle.to_gtk();
     for edge in [Edge::Top, Edge::Bottom, Edge::Left, Edge::Right] {
-        window.set_anchor(gtk_edge(edge), anchors.contains_edge(edge));
+        window.set_anchor(gtk_edge(edge), anchors.contains(edge.into()));
     }
     Ok(())
 }
 
-pub(crate) fn margin(handle: BorrowedWindow<'_>, edge: Edge) -> Result<i32> {
+pub(crate) fn margin(handle: BorrowedWindow<'_>) -> Result<Margin> {
     let window = handle.to_gtk();
     if !window.is_layer_window() {
         return Err(Error::NotSupported);
     }
-    Ok(window.margin(gtk_edge(edge)))
+    Ok(Margin::new(
+        window.margin(GtkEdge::Top) as f64,
+        window.margin(GtkEdge::Right) as f64,
+        window.margin(GtkEdge::Bottom) as f64,
+        window.margin(GtkEdge::Left) as f64,
+    ))
 }
 
-pub(crate) fn set_margin(handle: BorrowedWindow<'_>, edge: Edge, margin: i32) -> Result<()> {
+pub(crate) fn set_margin(handle: BorrowedWindow<'_>, margin: Margin) -> Result<()> {
     ensure(handle)?;
-    handle.to_gtk().set_margin(gtk_edge(edge), margin);
+    let window = handle.to_gtk();
+    window.set_margin(GtkEdge::Top, margin.top as i32);
+    window.set_margin(GtkEdge::Right, margin.right as i32);
+    window.set_margin(GtkEdge::Bottom, margin.bottom as i32);
+    window.set_margin(GtkEdge::Left, margin.left as i32);
     Ok(())
 }
 
-pub(crate) fn exclusive_zone(handle: BorrowedWindow<'_>) -> Result<i32> {
+pub(crate) fn exclusive_zone(handle: BorrowedWindow<'_>) -> Result<Option<f64>> {
     let window = handle.to_gtk();
     if !window.is_layer_window() {
         return Err(Error::NotSupported);
     }
-    Ok(window.exclusive_zone())
+    let zone = window.exclusive_zone();
+    Ok((zone >= 0).then_some(zone as f64))
 }
 
-pub(crate) fn set_exclusive_zone(handle: BorrowedWindow<'_>, zone: i32) -> Result<()> {
+pub(crate) fn set_exclusive_zone(handle: BorrowedWindow<'_>, zone: Option<f64>) -> Result<()> {
     ensure(handle)?;
-    handle.to_gtk().set_exclusive_zone(zone);
+    handle
+        .to_gtk()
+        .set_exclusive_zone(zone.map_or(-1, |zone| zone as i32));
     Ok(())
 }
 

@@ -21,7 +21,7 @@ jobs:
         setup:
           - os: 'ubuntu-26.04'
             # all + qt5
-            deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev libqt5opengl5-dev libgtk-4-dev libwebkitgtk-6.0-dev'
+            deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev libqt5opengl5-dev libgtk-4-dev libwebkitgtk-6.0-dev libwayland-dev'
             features: 'all'
           - os: 'ubuntu-26.04'
             # no features + qt6
@@ -32,7 +32,7 @@ jobs:
             deps: 'qt6-base-dev qt6-multimedia-dev qt6-webengine-dev libgtk-4-dev libwebkitgtk-6.0-dev liblayershellqtinterface-dev libwayland-dev'
           - os: 'ubuntu-26.04'
             # gtk4
-            deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev libqt5opengl5-dev libgtk-4-dev libwebkitgtk-6.0-dev libgtk4-layer-shell-dev libwayland-dev'
+            deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev libqt5opengl5-dev libgtk-4-dev libwebkitgtk-6.0-dev libgtk4-layer-shell-dev'
             features: 'all,gtk'
             no_default_features: true
           - os: 'ubuntu-26.04'

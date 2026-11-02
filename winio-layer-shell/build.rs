@@ -62,12 +62,6 @@ fn main() {
     println!("cargo:rustc-link-lib=LayerShellQtInterface");
     qt.cargo_link_libraries(&mut build);
 
-    // Probe the layer-shell protocol via libwayland-client.
-    let (wl_inc, wl_lib) = find_wayland_client();
-    build.include(&wl_inc);
-    println!("cargo:rustc-link-search=native={}", wl_lib.display());
-    println!("cargo:rustc-link-lib=wayland-client");
-
     build.compile("winio-layer-shell-qt");
 }
 
@@ -158,66 +152,4 @@ fn library_dirs() -> Vec<PathBuf> {
 
 fn has_library(dir: &Path) -> bool {
     dir.join("libLayerShellQtInterface.so").is_file()
-}
-
-fn has_wayland_library(dir: &Path) -> bool {
-    fs::read_dir(dir).is_ok_and(|entries| {
-        entries.filter_map(|entry| entry.ok()).any(|entry| {
-            entry
-                .file_name()
-                .to_string_lossy()
-                .starts_with("libwayland-client.so")
-        })
-    })
-}
-
-fn find_wayland_client() -> (PathBuf, PathBuf) {
-    if let (Some(inc), Some(lib)) = (
-        env::var_os("WAYLAND_CLIENT_INCLUDE_DIR").map(PathBuf::from),
-        env::var_os("WAYLAND_CLIENT_LIB_DIR").map(PathBuf::from),
-    ) {
-        if inc.join("wayland-client-core.h").is_file() && has_wayland_library(&lib) {
-            return (inc, lib);
-        }
-        panic!(
-            "WAYLAND_CLIENT_INCLUDE_DIR/LIB_DIR invalid: {} / {}",
-            inc.display(),
-            lib.display()
-        );
-    }
-
-    if let Ok(out) = std::process::Command::new("pkg-config")
-        .args(["--cflags-only-I", "--libs-only-L", "wayland-client"])
-        .output()
-        && out.status.success()
-    {
-        let mut inc = None;
-        let mut lib = None;
-        for token in String::from_utf8_lossy(&out.stdout).split_whitespace() {
-            if let Some(path) = token.strip_prefix("-I") {
-                inc = Some(PathBuf::from(path));
-            } else if let Some(path) = token.strip_prefix("-L") {
-                lib = Some(PathBuf::from(path));
-            }
-        }
-        if let (Some(inc), Some(lib)) = (inc, lib) {
-            return (inc, lib);
-        }
-    }
-
-    for inc in ["/usr/include", "/usr/local/include"] {
-        let inc = Path::new(inc);
-        if inc.join("wayland-client-core.h").is_file() {
-            for lib in library_dirs() {
-                if has_wayland_library(&lib) {
-                    return (inc.to_owned(), lib);
-                }
-            }
-        }
-    }
-
-    panic!(
-        "libwayland-client not found. Install the Wayland development package, or set \
-         WAYLAND_CLIENT_INCLUDE_DIR and WAYLAND_CLIENT_LIB_DIR."
-    );
 }

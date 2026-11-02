@@ -1,10 +1,13 @@
 use core::pin::Pin;
+use std::sync::OnceLock;
 
 use bitflags::bitflags;
 use cxx::{ExternType, type_id};
-use winio::handle::BorrowedWindow;
+use wayland_client::{Connection, Dispatch, QueueHandle, backend::Backend, protocol::wl_registry};
+use winio_handle::BorrowedWindow;
+use winio_primitive::Margin;
 
-use crate::{Anchors, Edge, Error, KeyboardInteractivity, Layer, Result};
+use crate::{Anchors, Error, KeyboardInteractivity, Layer, Result};
 
 #[repr(C)]
 pub(crate) struct QMargins {
@@ -24,9 +27,8 @@ unsafe impl ExternType for QMargins {
 #[allow(dead_code)]
 pub(crate) enum WinioLayerShellInit {
     Ok           = 0,
-    NotSupported = 1,
-    NoWindow     = 2,
-    AlreadyShown = 3,
+    NoWindow     = 1,
+    AlreadyShown = 2,
 }
 
 unsafe impl ExternType for WinioLayerShellInit {
@@ -130,8 +132,51 @@ impl From<WinioLayerShellAnchors> for Anchors {
     }
 }
 
-pub(crate) fn is_supported() -> bool {
-    ffi::winio_layer_shell_is_supported()
+struct Probe {
+    found: bool,
+}
+
+impl Dispatch<wl_registry::WlRegistry, ()> for Probe {
+    fn event(
+        state: &mut Self,
+        _: &wl_registry::WlRegistry,
+        event: wl_registry::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let wl_registry::Event::Global { interface, .. } = event
+            && interface == "zwlr_layer_shell_v1"
+        {
+            state.found = true;
+        }
+    }
+}
+
+fn probe_layer_shell_support() -> bool {
+    let display = ffi::winio_layer_shell_wayland_display();
+    if display.is_null() {
+        return false;
+    }
+
+    // SAFETY: the display belongs to Qt's QGuiApplication and outlives this
+    // probe.
+    let backend = unsafe { Backend::from_foreign_display(display.cast()) };
+    let connection = Connection::from_backend(backend);
+    let mut event_queue = connection.new_event_queue();
+    let queue_handle = event_queue.handle();
+    let _registry = connection.display().get_registry(&queue_handle, ());
+
+    let mut probe = Probe { found: false };
+    if event_queue.roundtrip(&mut probe).is_err() {
+        return false;
+    }
+    probe.found
+}
+
+fn is_supported() -> bool {
+    static SUPPORTED: OnceLock<bool> = OnceLock::new();
+    *SUPPORTED.get_or_init(probe_layer_shell_support)
 }
 
 pub(crate) fn ensure(handle: BorrowedWindow<'_>) -> Result<()> {
@@ -162,41 +207,40 @@ pub(crate) fn set_anchors(handle: BorrowedWindow<'_>, anchors: Anchors) -> Resul
     Ok(())
 }
 
-pub(crate) fn margin(handle: BorrowedWindow<'_>, edge: Edge) -> Result<i32> {
+pub(crate) fn margin(handle: BorrowedWindow<'_>) -> Result<Margin> {
     if !is_layer_window(handle) {
         return Err(Error::NotSupported);
     }
     let margins = window(handle)?.margins();
-    Ok(match edge {
-        Edge::Top => margins.top,
-        Edge::Bottom => margins.bottom,
-        Edge::Left => margins.left,
-        Edge::Right => margins.right,
-    })
+    Ok(Margin::new(
+        margins.top as f64,
+        margins.right as f64,
+        margins.bottom as f64,
+        margins.left as f64,
+    ))
 }
 
-pub(crate) fn set_margin(handle: BorrowedWindow<'_>, edge: Edge, margin: i32) -> Result<()> {
+pub(crate) fn set_margin(handle: BorrowedWindow<'_>, margin: Margin) -> Result<()> {
     let window = window(handle)?;
-    let mut margins = window.margins();
-    match edge {
-        Edge::Top => margins.top = margin,
-        Edge::Bottom => margins.bottom = margin,
-        Edge::Left => margins.left = margin,
-        Edge::Right => margins.right = margin,
-    }
-    window.setMargins(&margins);
+    window.setMargins(&QMargins {
+        left: margin.left as i32,
+        top: margin.top as i32,
+        right: margin.right as i32,
+        bottom: margin.bottom as i32,
+    });
     Ok(())
 }
 
-pub(crate) fn exclusive_zone(handle: BorrowedWindow<'_>) -> Result<i32> {
+pub(crate) fn exclusive_zone(handle: BorrowedWindow<'_>) -> Result<Option<f64>> {
     if !is_layer_window(handle) {
         return Err(Error::NotSupported);
     }
-    Ok(window(handle)?.exclusionZone())
+    let zone = window(handle)?.exclusionZone();
+    Ok((zone >= 0).then_some(zone as f64))
 }
 
-pub(crate) fn set_exclusive_zone(handle: BorrowedWindow<'_>, zone: i32) -> Result<()> {
-    window(handle)?.setExclusiveZone(zone);
+pub(crate) fn set_exclusive_zone(handle: BorrowedWindow<'_>, zone: Option<f64>) -> Result<()> {
+    window(handle)?.setExclusiveZone(zone.map_or(-1, |zone| zone as i32));
     Ok(())
 }
 
@@ -252,10 +296,12 @@ fn is_layer_window(handle: BorrowedWindow<'_>) -> bool {
 }
 
 fn window(handle: BorrowedWindow<'_>) -> Result<Pin<&mut ffi::WinioLayerShellWindow>> {
+    if !is_supported() {
+        return Err(Error::NotSupported);
+    }
     let mut widget = widget(handle)?;
     match ffi::winio_layer_shell_init(widget.as_mut()) {
         WinioLayerShellInit::Ok => {}
-        WinioLayerShellInit::NotSupported => return Err(Error::NotSupported),
         WinioLayerShellInit::NoWindow => return Err(Error::NoWindow),
         WinioLayerShellInit::AlreadyShown => return Err(Error::AlreadyShown),
     }
@@ -270,13 +316,14 @@ mod ffi {
 
         type QWidget;
         type WinioLayerShellWindow;
+        type wl_display;
         type QMargins = super::QMargins;
         type WinioLayerShellInit = super::WinioLayerShellInit;
         type WinioLayerShellLayer = super::WinioLayerShellLayer;
         type WinioLayerShellKeyboardInteractivity = super::WinioLayerShellKeyboardInteractivity;
         type WinioLayerShellAnchors = super::WinioLayerShellAnchors;
 
-        fn winio_layer_shell_is_supported() -> bool;
+        fn winio_layer_shell_wayland_display() -> *mut wl_display;
         fn winio_layer_shell_is_initialized(widget: &QWidget) -> bool;
         fn winio_layer_shell_is_shown(widget: &QWidget) -> bool;
         fn winio_layer_shell_init(widget: Pin<&mut QWidget>) -> WinioLayerShellInit;

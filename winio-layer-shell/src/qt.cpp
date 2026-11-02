@@ -9,18 +9,11 @@
 #include <QWidget>
 #include <QWindow>
 
-#include <cstring>
-
-#include <wayland-client.h>
-
-#include <QtGui/qguiapplication_platform.h>
-
 namespace {
 
 constexpr const char *kLayerWindowProperty = "winio-layer-shell-layer-window";
 constexpr const char *kShownProperty = "winio-layer-shell-shown";
 constexpr const char *kShownFilterProperty = "winio-layer-shell-shown-filter";
-constexpr const char *kLayerShellInterface = "zwlr_layer_shell_v1";
 
 // Latches "this window has been shown" because QWindow only reports current
 // visibility, while the layer surface role is fixed when it is first created.
@@ -34,74 +27,6 @@ public:
     }
 };
 
-// Cached real protocol-support result.
-bool g_supported = false;
-bool g_supported_known = false;
-
-void registry_global(void *data, wl_registry *, uint32_t, char const *interface,
-                     uint32_t) {
-    if (interface && std::strcmp(interface, kLayerShellInterface) == 0) {
-        *static_cast<bool *>(data) = true;
-    }
-}
-
-void registry_global_remove(void *, wl_registry *, uint32_t) {}
-
-// Probe the Wayland registry for zwlr_layer_shell_v1. This reports the real
-// support state instead of assuming every Wayland compositor has it (wslg and
-// GNOME, for example, do not).
-bool probe_layer_shell_support() {
-    auto *app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
-    if (!app) {
-        return false;
-    }
-    auto *wayland_app =
-        app->nativeInterface<QNativeInterface::QWaylandApplication>();
-    if (!wayland_app) {
-        return false;
-    }
-    wl_display *display = wayland_app->display();
-    if (!display) {
-        return false;
-    }
-
-    wl_event_queue *queue = wl_display_create_queue(display);
-    if (!queue) {
-        return false;
-    }
-    wl_registry *registry = wl_display_get_registry(display);
-    if (!registry) {
-        wl_event_queue_destroy(queue);
-        return false;
-    }
-
-    bool found = false;
-    const wl_registry_listener listener = {registry_global,
-                                           registry_global_remove};
-    wl_registry_add_listener(registry, &listener, &found);
-    wl_proxy_set_queue((struct wl_proxy *)registry, queue);
-    wl_display_roundtrip_queue(display, queue);
-
-    wl_registry_destroy(registry);
-    wl_event_queue_destroy(queue);
-    return found;
-}
-
-bool is_supported() {
-    if (g_supported_known) {
-        return g_supported;
-    }
-    // Only probe when a GUI application exists; otherwise there is no display
-    // to query and layer shell cannot be used yet.
-    auto *app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
-    if (!app) {
-        return false;
-    }
-    g_supported = probe_layer_shell_support();
-    g_supported_known = true;
-    return g_supported;
-}
-
 QWindow *native_window(QWidget &widget) {
     QWindow *window = widget.windowHandle();
     if (!window) {
@@ -113,7 +38,18 @@ QWindow *native_window(QWidget &widget) {
 
 } // namespace
 
-bool winio_layer_shell_is_supported() { return is_supported(); }
+wl_display *winio_layer_shell_wayland_display() {
+    auto *app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
+    if (!app) {
+        return nullptr;
+    }
+    auto *wayland_app =
+        app->nativeInterface<QNativeInterface::QWaylandApplication>();
+    if (!wayland_app) {
+        return nullptr;
+    }
+    return wayland_app->display();
+}
 
 bool winio_layer_shell_is_initialized(QWidget const &widget) {
     QWindow *window = widget.windowHandle();
@@ -134,18 +70,11 @@ bool winio_layer_shell_is_shown(QWidget const &widget) {
 }
 
 WinioLayerShellInit winio_layer_shell_init(QWidget &widget) {
-    if (!is_supported()) {
-        g_supported = false;
-        g_supported_known = true;
-        return WinioLayerShellInit::NotSupported;
-    }
     QWindow *window = native_window(widget);
     if (!window) {
         return WinioLayerShellInit::NoWindow;
     }
     if (window->property(kLayerWindowProperty).toBool()) {
-        g_supported = true;
-        g_supported_known = true;
         return WinioLayerShellInit::Ok;
     }
     if (window->isVisible()) {
@@ -157,8 +86,6 @@ WinioLayerShellInit winio_layer_shell_init(QWidget &widget) {
     }
     LayerShellQt::Window *shell = LayerShellQt::Window::get(window);
     if (!shell) {
-        g_supported = false;
-        g_supported_known = true;
         return WinioLayerShellInit::NoWindow;
     }
     // Apply the documented defaults (empty anchors, no keyboard focus).
@@ -181,8 +108,6 @@ WinioLayerShellInit winio_layer_shell_init(QWidget &widget) {
     // the compositor's Configure event.
     window->setProperty(kLayerWindowProperty, true);
 
-    g_supported = true;
-    g_supported_known = true;
     return WinioLayerShellInit::Ok;
 }
 

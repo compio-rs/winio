@@ -43,10 +43,9 @@
 //!
 //! // `window` is a `Child<Window>` or any other type implementing
 //! // `winio::handle::AsWindow`.
-//! window.init_layer_shell()?;
 //! window.set_layer(Layer::Top)?;
 //! window.set_anchors(Anchors::TOP | Anchors::LEFT | Anchors::RIGHT)?;
-//! window.set_exclusive_zone(30)?;
+//! window.set_exclusive_zone(Some(30.0))?;
 //! window.set_namespace("my-panel")?;
 //! window.show()?;
 //! ```
@@ -61,7 +60,8 @@
 compile_error!("You must choose only one of these features: [\"gtk\", \"qt\"]");
 
 use bitflags::bitflags;
-use winio::handle::AsWindow;
+use winio_handle::AsWindow;
+use winio_primitive::Margin;
 
 cfg_if::cfg_if! {
     if #[cfg(all(
@@ -154,18 +154,6 @@ bitflags! {
     }
 }
 
-impl Anchors {
-    /// Whether the given edge is anchored.
-    pub fn contains_edge(self, edge: Edge) -> bool {
-        self.contains(match edge {
-            Edge::Top => Self::TOP,
-            Edge::Bottom => Self::BOTTOM,
-            Edge::Left => Self::LEFT,
-            Edge::Right => Self::RIGHT,
-        })
-    }
-}
-
 impl From<Edge> for Anchors {
     fn from(edge: Edge) -> Self {
         match edge {
@@ -196,7 +184,7 @@ pub enum Error {
 }
 
 mod sealed {
-    use winio::handle::AsWindow;
+    use winio_handle::AsWindow;
 
     pub trait Sealed {}
 
@@ -206,19 +194,12 @@ mod sealed {
 /// Extension trait for configuring a window as a Wayland layer surface.
 ///
 /// The trait is implemented for every type that implements
-/// [`winio::handle::AsWindow`], including [`winio::widgets::Window`] and
-/// [`winio::handle::BorrowedWindow`].
+/// [`AsWindow`][winio_handle::AsWindow].
 ///
 /// Call any of the setters, or [`init_layer_shell`](Self::init_layer_shell),
 /// before showing the window. Calling a setter initializes the window
 /// automatically.
 pub trait LayerShellExt: sealed::Sealed + AsWindow {
-    /// Whether layer shell is supported by the current platform and
-    /// compositor.
-    ///
-    /// This may perform a Wayland roundtrip on the first call.
-    fn is_layer_shell_supported(&self) -> bool;
-
     /// Prepare the window to become a layer surface.
     ///
     /// This must be called before the window is shown. It is idempotent, and
@@ -246,23 +227,27 @@ pub trait LayerShellExt: sealed::Sealed + AsWindow {
     /// The default is [`Anchors::empty`].
     fn set_anchors(&mut self, anchors: Anchors) -> Result<()>;
 
-    /// Get the margin of an edge in logical pixels.
-    fn margin(&self, edge: Edge) -> Result<i32>;
+    /// Get the margins in logical pixels.
+    fn margin(&self) -> Result<Margin>;
 
-    /// Set the margin of an edge in logical pixels.
+    /// Set the margins in logical pixels.
     ///
-    /// The margin only has an effect on an anchored edge. The default is `0`.
-    fn set_margin(&mut self, edge: Edge, margin: i32) -> Result<()>;
+    /// A margin only has an effect on an anchored edge. The default is
+    /// [`Margin::zero`].
+    fn set_margin(&mut self, margin: Margin) -> Result<()>;
 
     /// Get the exclusive zone in logical pixels.
-    fn exclusive_zone(&self) -> Result<i32>;
+    ///
+    /// [`None`] means the compositor calculates the zone automatically (`-1`).
+    fn exclusive_zone(&self) -> Result<Option<f64>>;
 
     /// Set the exclusive zone in logical pixels.
     ///
     /// The exclusive zone is the space reserved for the surface at its
-    /// anchored edge. Use a negative value to let the compositor calculate it
-    /// automatically. The default is `0`.
-    fn set_exclusive_zone(&mut self, zone: i32) -> Result<()>;
+    /// anchored edge. [`None`] lets the compositor calculate it automatically
+    /// (the protocol value `-1`); `Some(0.0)` means no exclusive zone. The
+    /// default is `Some(0.0)`.
+    fn set_exclusive_zone(&mut self, zone: Option<f64>) -> Result<()>;
 
     /// Get the keyboard focus policy.
     fn keyboard_interactivity(&self) -> Result<KeyboardInteractivity>;
@@ -286,10 +271,6 @@ pub trait LayerShellExt: sealed::Sealed + AsWindow {
 }
 
 impl<T: AsWindow + ?Sized> LayerShellExt for T {
-    fn is_layer_shell_supported(&self) -> bool {
-        imp::is_supported()
-    }
-
     fn init_layer_shell(&self) -> Result<()> {
         imp::ensure(self.as_window())
     }
@@ -310,19 +291,19 @@ impl<T: AsWindow + ?Sized> LayerShellExt for T {
         imp::set_anchors(self.as_window(), anchors)
     }
 
-    fn margin(&self, edge: Edge) -> Result<i32> {
-        imp::margin(self.as_window(), edge)
+    fn margin(&self) -> Result<Margin> {
+        imp::margin(self.as_window())
     }
 
-    fn set_margin(&mut self, edge: Edge, margin: i32) -> Result<()> {
-        imp::set_margin(self.as_window(), edge, margin)
+    fn set_margin(&mut self, margin: Margin) -> Result<()> {
+        imp::set_margin(self.as_window(), margin)
     }
 
-    fn exclusive_zone(&self) -> Result<i32> {
+    fn exclusive_zone(&self) -> Result<Option<f64>> {
         imp::exclusive_zone(self.as_window())
     }
 
-    fn set_exclusive_zone(&mut self, zone: i32) -> Result<()> {
+    fn set_exclusive_zone(&mut self, zone: Option<f64>) -> Result<()> {
         imp::set_exclusive_zone(self.as_window(), zone)
     }
 
