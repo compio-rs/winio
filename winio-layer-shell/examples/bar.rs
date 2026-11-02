@@ -2,19 +2,16 @@ use anyhow::Result;
 use winio::prelude::*;
 use winio_layer_shell::{Anchors, Layer, LayerShellExt};
 
-// Wayland layer-shell bar: full-width top panel (32px).
-// Configured before show() so the compositor creates the surface.
 struct Bar {
     window: Child<Window>,
     info: Child<Label>,
     btn_exit: Child<Button>,
 }
 
-/// Messages produced by the bar.
 #[derive(Debug, Clone, Copy)]
 enum Message {
-    /// The window was closed (close button or compositor close).
     Close,
+    Refresh,
 }
 
 impl Component for Bar {
@@ -27,22 +24,21 @@ impl Component for Bar {
         init! {
             window: Window = (()) => {
                 text: "winio-layer-bar",
-                size: Size::new(1920.0, 32.0),
+                size: Size::new(1.0, 40.0),
+                layer: Layer::Top,
+                anchors: Anchors::TOP | Anchors::LEFT | Anchors::RIGHT,
+                exclusive_zone: 40,
+                namespace: "winio-layer-shell-example",
             },
             info: Label = (&window) => {
-                text: "layer: top | zone: 32 | ns: winio-layer-shell-example",
+                text: "layer: top | zone: 40 | ns: winio-layer-shell-example",
                 halign: HAlign::Left,
             },
             btn_exit: Button = (&window) => {
                 text: "Exit",
-                size: Size::new(80.0, 24.0),
             },
         }
 
-        window.set_layer(Layer::Top)?;
-        window.set_anchors(Anchors::TOP | Anchors::LEFT | Anchors::RIGHT)?;
-        window.set_exclusive_zone(32)?;
-        window.set_namespace("winio-layer-shell-example")?;
         window.show()?;
 
         Ok(Self {
@@ -55,7 +51,10 @@ impl Component for Bar {
     async fn start(&mut self, sender: &ComponentSender<Self>) -> ! {
         start! {
             sender,
-            self.window => { WindowEvent::Close => Message::Close },
+            self.window => {
+                WindowEvent::Close => Message::Close,
+                WindowEvent::Resize => Message::Refresh,
+            },
             self.info => {},
             self.btn_exit => { ButtonEvent::Click => Message::Close },
         }
@@ -67,19 +66,18 @@ impl Component for Bar {
                 sender.output(());
                 Ok(false)
             }
+            Message::Refresh => Ok(true),
         }
     }
 
     fn render(&mut self, _sender: &ComponentSender<Self>) -> Result<()> {
         let sz = self.window.client_size()?;
-        self.info.set_rect(Rect::new(
-            Point::new(16.0, 4.0),
-            Size::new(sz.width - 120.0, 24.0),
-        ))?;
-        self.btn_exit.set_rect(Rect::new(
-            Point::new(sz.width - 96.0, 4.0),
-            Size::new(80.0, 24.0),
-        ))?;
+        let mut layout = layout! {
+            Grid::from_str("1*, auto", "auto").unwrap(),
+            self.info => { column: 0, row: 0, margin: Margin::new(4.0, 0.0, 4.0, 16.0) },
+            self.btn_exit => { column: 1, row: 0, margin: Margin::new(4.0, 16.0, 4.0, 0.0) },
+        };
+        layout.set_size(sz)?;
         Ok(())
     }
 
