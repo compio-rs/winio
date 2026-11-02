@@ -150,7 +150,9 @@ WinioLayerShellInit winio_layer_shell_init(QWidget &widget) {
     }
     if (window->isVisible()) {
         // A visible window cannot become a layer surface: the wl_surface role
-        // is fixed at creation time.
+        // is fixed at creation time. Qt has no "has ever been shown" state,
+        // so visibility is the only reliable signal; configure the surface
+        // before calling show().
         return WinioLayerShellInit::AlreadyShown;
     }
     LayerShellQt::Window *shell = LayerShellQt::Window::get(window);

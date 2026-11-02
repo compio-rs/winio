@@ -25,7 +25,7 @@ jobs:
             features: 'all'
           - os: 'ubuntu-26.04'
             # no features + qt6
-            deps: 'qt6-base-dev libgtk-4-dev'
+            deps: 'qt6-base-dev libgtk-4-dev liblayershellqtinterface-dev libwayland-dev'
           - os: 'ubuntu-26.04'
             # all + qt6
             features: 'all,qt'

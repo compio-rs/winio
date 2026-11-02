@@ -76,6 +76,7 @@ cfg_if::cfg_if! {
         use gtk as imp;
     } else if #[cfg(all(
         feature = "qt",
+        qt6,
         not(any(
             target_os = "windows",
             target_vendor = "apple",
@@ -223,6 +224,10 @@ pub trait LayerShellExt: sealed::Sealed + AsWindow {
     /// This must be called before the window is shown. It is idempotent, and
     /// the setters call it automatically, so calling it explicitly is
     /// optional.
+    ///
+    /// A window that is already visible fails with [`Error::AlreadyShown`]:
+    /// its native surface exists, so it can no longer gain the layer surface
+    /// role.
     fn init_layer_shell(&self) -> Result<()>;
 
     /// Get the layer of the surface.

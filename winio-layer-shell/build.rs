@@ -11,6 +11,10 @@ fn main() {
     println!("cargo:rerun-if-env-changed=LAYERSHELLQT_INCLUDE_DIR");
     println!("cargo:rerun-if-env-changed=LAYERSHELLQT_LIB_DIR");
 
+    // Only emitted when the Qt backend is actually built; without it the crate
+    // falls back to the stub backend.
+    println!("cargo::rustc-check-cfg=cfg(qt6)");
+
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     let target_vendor = env::var("CARGO_CFG_TARGET_VENDOR").unwrap_or_default();
     // Layer shell is Wayland-only (not Windows/Apple/Android).
@@ -24,6 +28,18 @@ fn main() {
 
     let qt = qt_build_utils::QtBuild::new(vec!["Core".into(), "Gui".into(), "Widgets".into()])
         .expect("failed to find Qt; install the Qt development packages");
+
+    // LayerShellQt requires Qt 6.5 or newer; Qt 5 has no layer-shell support.
+    // Fall back to the stub backend instead of failing to build.
+    let version = qt.version();
+    if version.major < 6 || (version.major == 6 && version.minor < 5) {
+        println!(
+            "cargo:warning=Qt {version} does not support layer shell (Qt 6.5+ is required); using \
+             the stub backend"
+        );
+        return;
+    }
+    println!("cargo::rustc-cfg=qt6");
 
     let include_dir = find_include_dir(&qt);
     let lib_dir = find_lib_dir(&include_dir);
