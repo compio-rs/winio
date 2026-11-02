@@ -40,26 +40,6 @@ fn main() {
         .include(&include_dir);
     for include in qt.include_paths() {
         build.include(&include);
-        // The platform-native-interface header (qpa/qplatformnativeinterface.h)
-        // is reachable as <QtGui/qpa/...> only from a specific parent:
-        //   Ubuntu:  .../qt6                (contains QtGui/qpa/...)
-        //   Nix:     .../QtGui/<version>    (contains QtGui/qpa/...)
-        if include.ends_with("QtGui") {
-            if let Some(parent) = include.parent() {
-                build.include(parent);
-            }
-            if let Ok(entries) = fs::read_dir(&include) {
-                for entry in entries.flatten() {
-                    let versioned = entry.path();
-                    if versioned
-                        .join("QtGui/qpa/qplatformnativeinterface.h")
-                        .is_file()
-                    {
-                        build.include(&versioned);
-                    }
-                }
-            }
-        }
     }
 
     println!("cargo:rustc-link-search=native={}", lib_dir.display());
@@ -127,7 +107,7 @@ fn find_lib_dir(include_dir: &Path) -> PathBuf {
         candidates.push(prefix.join("lib"));
         candidates.push(prefix.join("lib64"));
     }
-    candidates.extend(["/usr/lib", "/usr/lib64", "/usr/local/lib"].map(PathBuf::from));
+    candidates.extend(library_dirs());
 
     for dir in candidates {
         if has_library(&dir) {
@@ -139,6 +119,25 @@ fn find_lib_dir(include_dir: &Path) -> PathBuf {
         "libLayerShellQtInterface not found. Install the layer-shell-qt development package, or \
          set LAYERSHELLQT_INCLUDE_DIR and LAYERSHELLQT_LIB_DIR."
     );
+}
+
+/// Library directories, including the architecture-named subdirectories used
+/// by multiarch layouts (e.g. Debian's `/usr/lib/x86_64-linux-gnu`).
+fn library_dirs() -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    for root in ["/usr/lib", "/usr/lib64", "/usr/local/lib"] {
+        let root = Path::new(root);
+        dirs.push(root.to_owned());
+        if let Ok(entries) = fs::read_dir(root) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    dirs.push(path);
+                }
+            }
+        }
+    }
+    dirs
 }
 
 fn has_library(dir: &Path) -> bool {
@@ -193,7 +192,7 @@ fn find_wayland_client() -> (PathBuf, PathBuf) {
     for inc in ["/usr/include", "/usr/local/include"] {
         let inc = Path::new(inc);
         if inc.join("wayland-client-core.h").is_file() {
-            for lib in ["/usr/lib", "/usr/lib64", "/usr/local/lib"].map(PathBuf::from) {
+            for lib in library_dirs() {
                 if has_wayland_library(&lib) {
                     return (inc.to_owned(), lib);
                 }

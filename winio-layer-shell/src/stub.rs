@@ -53,14 +53,6 @@ pub(crate) fn set_keyboard_interactivity(
     not_impl()
 }
 
-pub(crate) fn request_refresh(_window: BorrowedWindow<'_>) -> Result<()> {
-    not_impl()
-}
-
-pub(crate) fn is_configured(_window: BorrowedWindow<'_>) -> bool {
-    not_impl()
-}
-
 pub(crate) fn namespace(_window: BorrowedWindow<'_>) -> Result<String> {
     not_impl()
 }

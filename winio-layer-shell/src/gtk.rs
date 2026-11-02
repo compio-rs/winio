@@ -26,10 +26,6 @@ pub(crate) fn ensure(handle: BorrowedWindow<'_>) -> Result<()> {
     // alive.
     window.set_respect_close(true);
 
-    // Submit an initial buffer to ensure the surface is mapped by the
-    // compositor.
-    window.queue_draw();
-
     if window.is_layer_window() {
         Ok(())
     } else {
@@ -156,23 +152,15 @@ pub(crate) fn namespace(handle: BorrowedWindow<'_>) -> Result<String> {
 }
 
 pub(crate) fn set_namespace(handle: BorrowedWindow<'_>, namespace: &str) -> Result<()> {
+    let window = handle.to_gtk();
+    // The namespace is passed when the layer surface is created, so it cannot
+    // be changed after the window has been realized.
+    if window.is_realized() {
+        return Err(Error::AlreadyShown);
+    }
     ensure(handle)?;
     handle.to_gtk().set_namespace(Some(namespace));
     Ok(())
-}
-
-pub(crate) fn request_refresh(handle: BorrowedWindow<'_>) -> Result<()> {
-    let window = handle.to_gtk();
-    if !window.is_layer_window() {
-        return Err(Error::NotSupported);
-    }
-    window.queue_draw();
-    Ok(())
-}
-
-pub(crate) fn is_configured(handle: BorrowedWindow<'_>) -> bool {
-    let window = handle.to_gtk();
-    window.is_layer_window() && window.is_realized() && window.surface().is_some()
 }
 
 fn gtk_edge(edge: Edge) -> GtkEdge {

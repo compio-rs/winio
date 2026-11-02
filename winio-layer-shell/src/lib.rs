@@ -274,27 +274,9 @@ pub trait LayerShellExt: sealed::Sealed + AsWindow {
     /// The namespace identifies the surface to the compositor. The default is
     /// backend specific.
     ///
-    /// ## Platform specific
-    ///
-    /// On the Qt backend, calling this after `Window::show()` fails with
-    /// [`Error::AlreadyShown`] because the layer surface role is fixed at
-    /// creation time.
+    /// The namespace is fixed when the layer surface is created, so this
+    /// returns [`Error::AlreadyShown`] once the window has been shown.
     fn set_namespace(&mut self, namespace: &str) -> Result<()>;
-
-    /// Request a refresh/repaint of the surface.
-    ///
-    /// Call after responding to a compositor `Configure` event or when
-    /// content changed. The native backend submits a new buffer.
-    fn request_refresh(&self) -> Result<()>;
-
-    /// Whether the native surface has been configured by the compositor.
-    ///
-    /// This is set to `true` once the layer-shell surface receives its
-    /// initial `Configure` event (on Qt: when
-    /// `LayerShellQt::Window::eventFilter`
-    /// processes `PlatformSurface::SurfaceCreated`; on GTK: when the
-    /// `gtk4-layer-shell` configure signal fires).
-    fn is_configured(&self) -> bool;
 }
 
 impl<T: AsWindow + ?Sized> LayerShellExt for T {
@@ -352,13 +334,5 @@ impl<T: AsWindow + ?Sized> LayerShellExt for T {
 
     fn set_namespace(&mut self, namespace: &str) -> Result<()> {
         imp::set_namespace(self.as_window(), namespace)
-    }
-
-    fn request_refresh(&self) -> Result<()> {
-        imp::request_refresh(self.as_window())
-    }
-
-    fn is_configured(&self) -> bool {
-        imp::is_configured(self.as_window())
     }
 }

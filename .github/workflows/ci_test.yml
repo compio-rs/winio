@@ -29,14 +29,12 @@ jobs:
           - os: 'ubuntu-26.04'
             # all + qt6
             features: 'all,qt'
-            deps: 'qt6-base-dev qt6-multimedia-dev qt6-webengine-dev libgtk-4-dev libwebkitgtk-6.0-dev liblayershellqtinterface-dev'
-            layershell: 'qt'
+            deps: 'qt6-base-dev qt6-multimedia-dev qt6-webengine-dev libgtk-4-dev libwebkitgtk-6.0-dev liblayershellqtinterface-dev libwayland-dev'
           - os: 'ubuntu-26.04'
             # gtk4
-            deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev libqt5opengl5-dev libgtk-4-dev libwebkitgtk-6.0-dev libgtk4-layer-shell-dev'
+            deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev libqt5opengl5-dev libgtk-4-dev libwebkitgtk-6.0-dev libgtk4-layer-shell-dev libwayland-dev'
             features: 'all,gtk'
             no_default_features: true
-            layershell: 'gtk'
           - os: 'ubuntu-26.04'
             # stub
             deps: 'qtbase5-dev qtmultimedia5-dev qtwebengine5-dev libqt5opengl5-dev libgtk-4-dev libwebkitgtk-6.0-dev'

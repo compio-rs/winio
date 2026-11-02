@@ -224,24 +224,15 @@ pub(crate) fn namespace(handle: BorrowedWindow<'_>) -> Result<String> {
 }
 
 pub(crate) fn set_namespace(handle: BorrowedWindow<'_>, namespace: &str) -> Result<()> {
+    // The scope is passed when the layer surface is created, so it cannot be
+    // changed after the window has been shown.
+    let widget = widget(handle)?;
+    if ffi::winio_layer_shell_is_shown(&widget) {
+        return Err(Error::AlreadyShown);
+    }
     let window = window(handle)?;
     ffi::winio_layer_shell_set_scope(window, namespace);
     Ok(())
-}
-
-pub(crate) fn request_refresh(handle: BorrowedWindow<'_>) -> Result<()> {
-    if !is_layer_window(handle) {
-        return Err(Error::NotSupported);
-    }
-    ffi::winio_layer_shell_request_refresh(widget(handle)?);
-    Ok(())
-}
-
-pub(crate) fn is_configured(handle: BorrowedWindow<'_>) -> bool {
-    let Ok(widget) = widget(handle) else {
-        return false;
-    };
-    ffi::winio_layer_shell_is_configured(&widget)
 }
 
 fn widget(handle: BorrowedWindow<'_>) -> Result<Pin<&mut ffi::QWidget>> {
@@ -287,6 +278,7 @@ mod ffi {
 
         fn winio_layer_shell_is_supported() -> bool;
         fn winio_layer_shell_is_initialized(widget: &QWidget) -> bool;
+        fn winio_layer_shell_is_shown(widget: &QWidget) -> bool;
         fn winio_layer_shell_init(widget: Pin<&mut QWidget>) -> WinioLayerShellInit;
 
         unsafe fn winio_layer_shell(widget: Pin<&mut QWidget>) -> *mut WinioLayerShellWindow;
@@ -311,11 +303,7 @@ mod ffi {
             interactivity: WinioLayerShellKeyboardInteractivity,
         );
 
-        fn winio_layer_shell_request_refresh(widget: Pin<&mut QWidget>);
-
         fn winio_layer_shell_scope(window: &WinioLayerShellWindow) -> String;
         fn winio_layer_shell_set_scope(window: Pin<&mut WinioLayerShellWindow>, scope: &str);
-
-        fn winio_layer_shell_is_configured(widget: &QWidget) -> bool;
     }
 }
