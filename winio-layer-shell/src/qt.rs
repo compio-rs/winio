@@ -1,7 +1,9 @@
 use core::pin::Pin;
+use std::sync::OnceLock;
 
 use bitflags::bitflags;
 use cxx::{ExternType, type_id};
+use wayland_client::{Connection, Dispatch, QueueHandle, backend::Backend, protocol::wl_registry};
 use winio_handle::BorrowedWindow;
 use winio_primitive::Margin;
 
@@ -25,9 +27,8 @@ unsafe impl ExternType for QMargins {
 #[allow(dead_code)]
 pub(crate) enum WinioLayerShellInit {
     Ok           = 0,
-    NotSupported = 1,
-    NoWindow     = 2,
-    AlreadyShown = 3,
+    NoWindow     = 1,
+    AlreadyShown = 2,
 }
 
 unsafe impl ExternType for WinioLayerShellInit {
@@ -129,6 +130,53 @@ impl From<WinioLayerShellAnchors> for Anchors {
     fn from(anchors: WinioLayerShellAnchors) -> Self {
         Self::from_bits_truncate(anchors.bits() as u8)
     }
+}
+
+struct Probe {
+    found: bool,
+}
+
+impl Dispatch<wl_registry::WlRegistry, ()> for Probe {
+    fn event(
+        state: &mut Self,
+        _: &wl_registry::WlRegistry,
+        event: wl_registry::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let wl_registry::Event::Global { interface, .. } = event
+            && interface == "zwlr_layer_shell_v1"
+        {
+            state.found = true;
+        }
+    }
+}
+
+fn probe_layer_shell_support() -> bool {
+    let display = ffi::winio_layer_shell_wayland_display();
+    if display.is_null() {
+        return false;
+    }
+
+    // SAFETY: the display belongs to Qt's QGuiApplication and outlives this
+    // probe.
+    let backend = unsafe { Backend::from_foreign_display(display.cast()) };
+    let connection = Connection::from_backend(backend);
+    let mut event_queue = connection.new_event_queue();
+    let queue_handle = event_queue.handle();
+    let _registry = connection.display().get_registry(&queue_handle, ());
+
+    let mut probe = Probe { found: false };
+    if event_queue.roundtrip(&mut probe).is_err() {
+        return false;
+    }
+    probe.found
+}
+
+fn is_supported() -> bool {
+    static SUPPORTED: OnceLock<bool> = OnceLock::new();
+    *SUPPORTED.get_or_init(probe_layer_shell_support)
 }
 
 pub(crate) fn ensure(handle: BorrowedWindow<'_>) -> Result<()> {
@@ -248,10 +296,12 @@ fn is_layer_window(handle: BorrowedWindow<'_>) -> bool {
 }
 
 fn window(handle: BorrowedWindow<'_>) -> Result<Pin<&mut ffi::WinioLayerShellWindow>> {
+    if !is_supported() {
+        return Err(Error::NotSupported);
+    }
     let mut widget = widget(handle)?;
     match ffi::winio_layer_shell_init(widget.as_mut()) {
         WinioLayerShellInit::Ok => {}
-        WinioLayerShellInit::NotSupported => return Err(Error::NotSupported),
         WinioLayerShellInit::NoWindow => return Err(Error::NoWindow),
         WinioLayerShellInit::AlreadyShown => return Err(Error::AlreadyShown),
     }
@@ -266,12 +316,14 @@ mod ffi {
 
         type QWidget;
         type WinioLayerShellWindow;
+        type wl_display;
         type QMargins = super::QMargins;
         type WinioLayerShellInit = super::WinioLayerShellInit;
         type WinioLayerShellLayer = super::WinioLayerShellLayer;
         type WinioLayerShellKeyboardInteractivity = super::WinioLayerShellKeyboardInteractivity;
         type WinioLayerShellAnchors = super::WinioLayerShellAnchors;
 
+        fn winio_layer_shell_wayland_display() -> *mut wl_display;
         fn winio_layer_shell_is_initialized(widget: &QWidget) -> bool;
         fn winio_layer_shell_is_shown(widget: &QWidget) -> bool;
         fn winio_layer_shell_init(widget: Pin<&mut QWidget>) -> WinioLayerShellInit;

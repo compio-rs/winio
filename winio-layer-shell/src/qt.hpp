@@ -13,12 +13,15 @@ using WinioLayerShellKeyboardInteractivity =
     LayerShellQt::Window::KeyboardInteractivity;
 using WinioLayerShellAnchors = LayerShellQt::Window::Anchors;
 
-enum class WinioLayerShellInit : int32_t {
+struct wl_display;
+
+enum class WinioLayerShellInit : std::int32_t {
     Ok,
-    NotSupported,
     NoWindow,
     AlreadyShown,
 };
+
+wl_display *winio_layer_shell_wayland_display();
 
 bool winio_layer_shell_is_initialized(QWidget const &widget);
 
