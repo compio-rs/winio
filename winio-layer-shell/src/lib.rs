@@ -18,7 +18,8 @@
 //!   package. Set `LAYERSHELLQT_INCLUDE_DIR` and `LAYERSHELLQT_LIB_DIR` when
 //!   the headers and libraries are not in the Qt installation prefix.
 //!
-//! The features are mutually exclusive, just like the winio backends.
+//! The `qt` feature is enabled by default. The features are mutually
+//! exclusive, just like the winio backends.
 //!
 //! # Usage
 //!
