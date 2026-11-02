@@ -213,12 +213,6 @@ mod sealed {
 /// before showing the window. Calling a setter initializes the window
 /// automatically.
 pub trait LayerShellExt: sealed::Sealed + AsWindow {
-    /// Whether layer shell is supported by the current platform and
-    /// compositor.
-    ///
-    /// This may perform a Wayland roundtrip on the first call.
-    fn is_layer_shell_supported(&self) -> bool;
-
     /// Prepare the window to become a layer surface.
     ///
     /// This must be called before the window is shown. It is idempotent, and
@@ -286,10 +280,6 @@ pub trait LayerShellExt: sealed::Sealed + AsWindow {
 }
 
 impl<T: AsWindow + ?Sized> LayerShellExt for T {
-    fn is_layer_shell_supported(&self) -> bool {
-        imp::is_supported()
-    }
-
     fn init_layer_shell(&self) -> Result<()> {
         imp::ensure(self.as_window())
     }

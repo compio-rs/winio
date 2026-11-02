@@ -1,5 +1,4 @@
 use gtk4::prelude::*;
-pub(crate) use gtk4_layer_shell::is_supported;
 use gtk4_layer_shell::{
     Edge as GtkEdge, KeyboardMode as GtkKeyboardMode, Layer as GtkLayer, LayerShell as _,
 };
@@ -12,7 +11,7 @@ pub(crate) fn ensure(handle: BorrowedWindow<'_>) -> Result<()> {
     if window.is_layer_window() {
         return Ok(());
     }
-    if !is_supported() {
+    if !gtk4_layer_shell::is_supported() {
         return Err(Error::NotSupported);
     }
     if window.is_realized() {

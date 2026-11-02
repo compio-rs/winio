@@ -130,10 +130,6 @@ impl From<WinioLayerShellAnchors> for Anchors {
     }
 }
 
-pub(crate) fn is_supported() -> bool {
-    ffi::winio_layer_shell_is_supported()
-}
-
 pub(crate) fn ensure(handle: BorrowedWindow<'_>) -> Result<()> {
     window(handle).map(drop)
 }
@@ -276,7 +272,6 @@ mod ffi {
         type WinioLayerShellKeyboardInteractivity = super::WinioLayerShellKeyboardInteractivity;
         type WinioLayerShellAnchors = super::WinioLayerShellAnchors;
 
-        fn winio_layer_shell_is_supported() -> bool;
         fn winio_layer_shell_is_initialized(widget: &QWidget) -> bool;
         fn winio_layer_shell_is_shown(widget: &QWidget) -> bool;
         fn winio_layer_shell_init(widget: Pin<&mut QWidget>) -> WinioLayerShellInit;

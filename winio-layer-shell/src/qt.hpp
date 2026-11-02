@@ -20,8 +20,6 @@ enum class WinioLayerShellInit : int32_t {
     AlreadyShown,
 };
 
-bool winio_layer_shell_is_supported();
-
 bool winio_layer_shell_is_initialized(QWidget const &widget);
 
 bool winio_layer_shell_is_shown(QWidget const &widget);

@@ -97,8 +97,6 @@ QWindow *native_window(QWidget &widget) {
 
 } // namespace
 
-bool winio_layer_shell_is_supported() { return is_supported(); }
-
 bool winio_layer_shell_is_initialized(QWidget const &widget) {
     QWindow *window = widget.windowHandle();
     return window && window->property(kLayerWindowProperty).toBool();
