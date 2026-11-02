@@ -2,9 +2,9 @@ use core::pin::Pin;
 
 use bitflags::bitflags;
 use cxx::{ExternType, type_id};
-use winio::handle::BorrowedWindow;
+use winio::{handle::BorrowedWindow, primitive::Margin};
 
-use crate::{Anchors, Edge, Error, KeyboardInteractivity, Layer, Result};
+use crate::{Anchors, Error, KeyboardInteractivity, Layer, Result};
 
 #[repr(C)]
 pub(crate) struct QMargins {
@@ -158,41 +158,40 @@ pub(crate) fn set_anchors(handle: BorrowedWindow<'_>, anchors: Anchors) -> Resul
     Ok(())
 }
 
-pub(crate) fn margin(handle: BorrowedWindow<'_>, edge: Edge) -> Result<i32> {
+pub(crate) fn margin(handle: BorrowedWindow<'_>) -> Result<Margin> {
     if !is_layer_window(handle) {
         return Err(Error::NotSupported);
     }
     let margins = window(handle)?.margins();
-    Ok(match edge {
-        Edge::Top => margins.top,
-        Edge::Bottom => margins.bottom,
-        Edge::Left => margins.left,
-        Edge::Right => margins.right,
-    })
+    Ok(Margin::new(
+        margins.top as f64,
+        margins.right as f64,
+        margins.bottom as f64,
+        margins.left as f64,
+    ))
 }
 
-pub(crate) fn set_margin(handle: BorrowedWindow<'_>, edge: Edge, margin: i32) -> Result<()> {
+pub(crate) fn set_margin(handle: BorrowedWindow<'_>, margin: Margin) -> Result<()> {
     let window = window(handle)?;
-    let mut margins = window.margins();
-    match edge {
-        Edge::Top => margins.top = margin,
-        Edge::Bottom => margins.bottom = margin,
-        Edge::Left => margins.left = margin,
-        Edge::Right => margins.right = margin,
-    }
-    window.setMargins(&margins);
+    window.setMargins(&QMargins {
+        left: margin.left as i32,
+        top: margin.top as i32,
+        right: margin.right as i32,
+        bottom: margin.bottom as i32,
+    });
     Ok(())
 }
 
-pub(crate) fn exclusive_zone(handle: BorrowedWindow<'_>) -> Result<i32> {
+pub(crate) fn exclusive_zone(handle: BorrowedWindow<'_>) -> Result<Option<f64>> {
     if !is_layer_window(handle) {
         return Err(Error::NotSupported);
     }
-    Ok(window(handle)?.exclusionZone())
+    let zone = window(handle)?.exclusionZone();
+    Ok((zone >= 0).then_some(zone as f64))
 }
 
-pub(crate) fn set_exclusive_zone(handle: BorrowedWindow<'_>, zone: i32) -> Result<()> {
-    window(handle)?.setExclusiveZone(zone);
+pub(crate) fn set_exclusive_zone(handle: BorrowedWindow<'_>, zone: Option<f64>) -> Result<()> {
+    window(handle)?.setExclusiveZone(zone.map_or(-1, |zone| zone as i32));
     Ok(())
 }
 

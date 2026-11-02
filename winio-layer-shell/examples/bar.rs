@@ -27,11 +27,11 @@ impl Component for Bar {
                 size: Size::new(1.0, 40.0),
                 layer: Layer::Top,
                 anchors: Anchors::TOP | Anchors::LEFT | Anchors::RIGHT,
-                exclusive_zone: 40,
+                exclusive_zone: Some(40.0),
                 namespace: "winio-layer-shell-example",
             },
             info: Label = (&window) => {
-                text: "layer: top | zone: 40 | ns: winio-layer-shell-example",
+                text: format!("Layer: {:?} | zone: {:?} | ns: {}", window.layer()?, window.exclusive_zone()?, window.namespace()?),
                 halign: HAlign::Left,
             },
             btn_exit: Button = (&window) => {
@@ -74,8 +74,8 @@ impl Component for Bar {
         let sz = self.window.client_size()?;
         let mut layout = layout! {
             Grid::from_str("1*, auto", "auto").unwrap(),
-            self.info => { column: 0, row: 0, margin: Margin::new(4.0, 0.0, 4.0, 16.0) },
-            self.btn_exit => { column: 1, row: 0, margin: Margin::new(4.0, 16.0, 4.0, 0.0) },
+            self.info => { column: 0, row: 0, margin: Margin::new_all_same(4.0) },
+            self.btn_exit => { column: 1, row: 0, margin: Margin::new_all_same(4.0) },
         };
         layout.set_size(sz)?;
         Ok(())

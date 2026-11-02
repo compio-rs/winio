@@ -1,6 +1,6 @@
-use winio::handle::BorrowedWindow;
+use winio::{handle::BorrowedWindow, primitive::Margin};
 
-use crate::{Anchors, Edge, Error, KeyboardInteractivity, Layer, Result};
+use crate::{Anchors, Error, KeyboardInteractivity, Layer, Result};
 
 pub(crate) fn ensure(_window: BorrowedWindow<'_>) -> Result<()> {
     not_supported()
@@ -22,19 +22,19 @@ pub(crate) fn set_anchors(_window: BorrowedWindow<'_>, _anchors: Anchors) -> Res
     not_supported()
 }
 
-pub(crate) fn margin(_window: BorrowedWindow<'_>, _edge: Edge) -> Result<i32> {
+pub(crate) fn margin(_window: BorrowedWindow<'_>) -> Result<Margin> {
     not_supported()
 }
 
-pub(crate) fn set_margin(_window: BorrowedWindow<'_>, _edge: Edge, _margin: i32) -> Result<()> {
+pub(crate) fn set_margin(_window: BorrowedWindow<'_>, _margin: Margin) -> Result<()> {
     not_supported()
 }
 
-pub(crate) fn exclusive_zone(_window: BorrowedWindow<'_>) -> Result<i32> {
+pub(crate) fn exclusive_zone(_window: BorrowedWindow<'_>) -> Result<Option<f64>> {
     not_supported()
 }
 
-pub(crate) fn set_exclusive_zone(_window: BorrowedWindow<'_>, _zone: i32) -> Result<()> {
+pub(crate) fn set_exclusive_zone(_window: BorrowedWindow<'_>, _zone: Option<f64>) -> Result<()> {
     not_supported()
 }
 
