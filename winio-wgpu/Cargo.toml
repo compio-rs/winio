@@ -1,6 +1,6 @@
 [package]
 name = "winio-wgpu"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 description = "Shared wgpu helpers for winio backends."
 edition = { workspace = true }
 readme = { workspace = true }

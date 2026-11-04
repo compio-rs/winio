@@ -1,6 +1,6 @@
 [package]
 name = "winio-layer-shell"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 description = "Wayland layer shell support for winio."
 categories = ["gui"]
 keywords = ["gui", "wayland", "layer-shell"]
