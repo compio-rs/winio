@@ -79,7 +79,7 @@ def abiList = localProperties.getProperty('ndk.abis', 'arm64-v8a,armeabi-v7a,x86
         environment 'CARGO_TERM_COLOR', 'always'
 
         def cmdArgs = [
-                'cargo', 'ndk',
+                'cargo', 'ndk', '--link-builtins',
                 '-o', 'android/app/src/main/jniLibs',
         ]
         abiList.each { abi ->
