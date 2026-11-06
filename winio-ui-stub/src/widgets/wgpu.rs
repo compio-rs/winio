@@ -71,6 +71,14 @@ impl WgpuCanvas {
         not_impl()
     }
 
+    pub fn present_mode(&self) -> Option<wgpu::PresentMode> {
+        not_impl()
+    }
+
+    pub fn set_present_mode(&mut self, _mode: wgpu::PresentMode) {
+        not_impl()
+    }
+
     pub fn acquire(
         &self,
         _device: &wgpu::Device,

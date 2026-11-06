@@ -1,5 +1,5 @@
 use inherit_methods_macro::inherit_methods;
-use wgpu::{Adapter, Device, Instance, Queue, Texture, TextureFormat, TextureView};
+use wgpu::{Adapter, Device, Instance, PresentMode, Queue, Texture, TextureFormat, TextureView};
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
@@ -45,6 +45,25 @@ impl WgpuCanvas {
     /// [`WgpuCanvas::acquire`].
     pub fn bind(&mut self, instance: &Instance, adapter: &Adapter) {
         self.widget.bind(instance, adapter)
+    }
+
+    /// The presentation mode of the canvas.
+    ///
+    /// Returns `Some` when the canvas owns the native surface, and `None` when
+    /// the windowing toolkit composites the frames itself, so the presentation
+    /// timing is outside the control of winio.
+    pub fn present_mode(&self) -> Option<PresentMode> {
+        self.widget.present_mode()
+    }
+
+    /// Set the presentation mode of the canvas.
+    ///
+    /// The new mode is applied at the next [`acquire`](Self::acquire). A frame
+    /// that has already been acquired and is presented before then still uses
+    /// the old mode. Unsupported modes fall back to
+    /// [`PresentMode::AutoVsync`].
+    pub fn set_present_mode(&mut self, mode: PresentMode) {
+        self.widget.set_present_mode(mode)
     }
 
     /// Acquire a frame to render into.

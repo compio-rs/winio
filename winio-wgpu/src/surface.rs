@@ -1,8 +1,9 @@
 //! Canvas-owned swapchain for backends that have a native surface per widget.
 
+use compio_log::warn;
 use wgpu::{
-    Adapter, CurrentSurfaceTexture, Device, Instance, Queue, Surface, SurfaceConfiguration,
-    SurfaceTarget, SurfaceTexture, Texture, TextureFormat, TextureView,
+    Adapter, CurrentSurfaceTexture, Device, Instance, PresentMode, Queue, Surface,
+    SurfaceConfiguration, SurfaceTarget, SurfaceTexture, Texture, TextureFormat, TextureView,
     rwh::{
         DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
         RawWindowHandle, WindowHandle,
@@ -13,9 +14,19 @@ use wgpu::{
 ///
 /// The surface is created lazily on the first [`acquire`](Self::acquire), so
 /// the widget only has to be able to provide its native handles by then.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct SurfaceCanvas {
     state: Option<State>,
+    present_mode: PresentMode,
+}
+
+impl Default for SurfaceCanvas {
+    fn default() -> Self {
+        Self {
+            state: None,
+            present_mode: PresentMode::AutoVsync,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -25,7 +36,14 @@ struct State {
     frame: Option<SurfaceTexture>,
     surface: Option<Surface<'static>>,
     format: TextureFormat,
-    configured: (u32, u32),
+    configured: Option<ConfigKey>,
+}
+
+/// The parameters that require a new call to [`Surface::configure`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ConfigKey {
+    size: (u32, u32),
+    present_mode: PresentMode,
 }
 
 impl SurfaceCanvas {
@@ -39,6 +57,24 @@ impl SurfaceCanvas {
         self.state.is_some()
     }
 
+    /// The presentation mode of the surface.
+    ///
+    /// It defaults to [`PresentMode::AutoVsync`]. Modes that the adapter does
+    /// not support are replaced by `AutoVsync` when the surface is configured.
+    pub fn present_mode(&self) -> PresentMode {
+        self.present_mode
+    }
+
+    /// Set the presentation mode of the surface.
+    ///
+    /// The new mode is used the next time the surface is configured, which
+    /// happens at the first [`acquire`](Self::acquire) after the change. Modes
+    /// that the adapter does not support fall back to
+    /// [`PresentMode::AutoVsync`].
+    pub fn set_present_mode(&mut self, mode: PresentMode) {
+        self.present_mode = mode;
+    }
+
     /// Remember the GPU stack of the application.
     ///
     /// It is needed to create and configure the surface, which happens on the
@@ -50,7 +86,7 @@ impl SurfaceCanvas {
             frame: None,
             surface: None,
             format: TextureFormat::Bgra8Unorm,
-            configured: (0, 0),
+            configured: None,
         });
     }
 
@@ -100,6 +136,7 @@ impl SurfaceCanvas {
         size: (u32, u32),
         create: impl FnOnce(&Instance) -> Option<Surface<'static>>,
     ) -> Option<(Texture, TextureView, TextureFormat)> {
+        let mut present_mode = self.present_mode;
         let state = self.state.as_mut()?;
 
         if state.surface.is_none() {
@@ -111,7 +148,7 @@ impl SurfaceCanvas {
                 .copied()
                 .find(TextureFormat::is_srgb)
                 .or_else(|| caps.formats.first().copied())?;
-            state.configured = (0, 0);
+            state.configured = None;
             state.surface = Some(surface);
         }
 
@@ -119,7 +156,17 @@ impl SurfaceCanvas {
         let mut lost = false;
         let acquired = {
             let surface = state.surface.as_ref()?;
-            if state.configured != size {
+            present_mode = resolve_present_mode(
+                &surface.get_capabilities(&state.adapter).present_modes,
+                present_mode,
+            );
+
+            let key = ConfigKey { size, present_mode };
+            if state.configured != Some(key) {
+                // `configure` panics if a `SurfaceTexture` of the surface is
+                // still alive. This can happen when the size or the present
+                // mode changed after a frame was acquired but not presented.
+                state.frame = None;
                 surface.configure(
                     device,
                     &SurfaceConfiguration {
@@ -131,22 +178,30 @@ impl SurfaceCanvas {
                         width: size.0,
                         height: size.1,
                         desired_maximum_frame_latency: 2,
-                        present_mode: wgpu::PresentMode::AutoVsync,
+                        present_mode,
                     },
                 );
+                state.configured = Some(key);
             }
+
             match surface.get_current_texture() {
                 CurrentSurfaceTexture::Success(frame) => Some(frame),
                 CurrentSurfaceTexture::Lost => {
                     lost = true;
                     None
                 }
+                CurrentSurfaceTexture::Outdated => {
+                    state.configured = None;
+                    None
+                }
                 _ => None,
             }
         };
-        state.configured = size;
+        self.present_mode = present_mode;
         if lost {
+            state.frame = None;
             state.surface = None;
+            state.configured = None;
             return None;
         }
 
@@ -170,6 +225,21 @@ impl SurfaceCanvas {
                 true
             }
             None => false,
+        }
+    }
+}
+
+/// Select a present mode that the surface can be configured with.
+fn resolve_present_mode(supported: &[PresentMode], requested: PresentMode) -> PresentMode {
+    match requested {
+        PresentMode::AutoVsync | PresentMode::AutoNoVsync => requested,
+        _ if supported.contains(&requested) => requested,
+        _ => {
+            warn!(
+                "WGPU canvas: present mode {requested:?} is not supported by the surface, falling \
+                 back to AutoVsync"
+            );
+            PresentMode::AutoVsync
         }
     }
 }

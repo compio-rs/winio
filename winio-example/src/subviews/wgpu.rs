@@ -131,6 +131,7 @@ pub struct WgpuPageInner {
     canvas: Child<WgpuCanvas>,
     angle: f32,
     clockwise: bool,
+    vsync: bool,
     device: wgpu::Device,
     queue: wgpu::Queue,
     data: Option<SurfaceData>,
@@ -180,6 +181,8 @@ pub enum WgpuPageInnerEvent {}
 pub enum WgpuPageInnerMessage {
     Tick,
     Clockwise(bool),
+    /// Toggle vsync when `V` is pressed on the canvas.
+    ToggleVsync,
 }
 
 impl Component for WgpuPageInner {
@@ -215,6 +218,7 @@ impl Component for WgpuPageInner {
             timer,
             angle: 0.0,
             clockwise: true,
+            vsync: true,
             device,
             queue,
             data: None,
@@ -225,7 +229,9 @@ impl Component for WgpuPageInner {
         start! {
             sender,
             self.window => {},
-            self.canvas => {},
+            self.canvas => {
+                WgpuCanvasEvent::KeyDown(KeyCode::Char('V')) => WgpuPageInnerMessage::ToggleVsync,
+            },
             self.timer => {
                 TimerEvent::Tick => WgpuPageInnerMessage::Tick,
             }
@@ -249,6 +255,15 @@ impl Component for WgpuPageInner {
             }
             WgpuPageInnerMessage::Clockwise(v) => {
                 self.clockwise = v;
+                Ok(false)
+            }
+            WgpuPageInnerMessage::ToggleVsync => {
+                self.vsync = !self.vsync;
+                self.canvas.set_present_mode(if self.vsync {
+                    wgpu::PresentMode::AutoVsync
+                } else {
+                    wgpu::PresentMode::AutoNoVsync
+                });
                 Ok(false)
             }
         }

@@ -1,6 +1,6 @@
 use std::{os::fd::AsRawFd, pin::Pin, sync::atomic::AtomicBool};
 
-use compio_log::error;
+use compio_log::{error, warn};
 use inherit_methods_macro::inherit_methods;
 use wgpu::{Texture, TextureFormat, TextureView};
 use winio_callback::Callback;
@@ -301,6 +301,16 @@ impl FrameSink for QtSink<'_> {
 
 impl WgpuCanvas {
     pub fn bind(&mut self, _instance: &wgpu::Instance, _adapter: &wgpu::Adapter) {}
+
+    pub fn present_mode(&self) -> Option<wgpu::PresentMode> {
+        None
+    }
+
+    pub fn set_present_mode(&mut self, mode: wgpu::PresentMode) {
+        if mode != wgpu::PresentMode::AutoVsync {
+            warn!("WGPU canvas: present mode is controlled by the toolkit, ignoring {mode:?}");
+        }
+    }
 }
 
 winio_handle::impl_as_widget!(WgpuCanvas, widget);
