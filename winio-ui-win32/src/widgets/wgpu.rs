@@ -82,6 +82,14 @@ impl WgpuCanvas {
         self.surface.bind(instance, adapter);
     }
 
+    pub fn present_mode(&self) -> Option<wgpu::PresentMode> {
+        Some(self.surface.present_mode())
+    }
+
+    pub fn set_present_mode(&mut self, mode: wgpu::PresentMode) {
+        self.surface.set_present_mode(mode);
+    }
+
     pub fn acquire(
         &mut self,
         device: &wgpu::Device,

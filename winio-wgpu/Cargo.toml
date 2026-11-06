@@ -13,9 +13,10 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 ash = { workspace = true, optional = true }
+compio-log = { workspace = true, optional = true }
 wgpu = { workspace = true }
 
 [features]
 dmabuf = ["dep:ash", "wgpu/vulkan"]
 memory = []
-surface = []
+surface = ["dep:compio-log"]
