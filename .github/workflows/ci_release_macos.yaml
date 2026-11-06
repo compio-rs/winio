@@ -28,7 +28,7 @@ jobs:
 
       - name: Install cargo-bundle
         shell: bash
-        run: cargo install cargo-bundle --git https://github.com/burtonageo/cargo-bundle.git
+        run: cargo install cargo-bundle
 
       - name: Build
         shell: bash
