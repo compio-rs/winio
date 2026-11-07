@@ -57,7 +57,14 @@ impl UpDownEdit {
 
     pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) -> Result<()>;
+    pub fn set_size(&mut self, s: Size) -> Result<()> {
+        let measured =
+            self.number_box.ActualWidth()? > 0.0 || self.number_box.ActualHeight()? > 0.0;
+        if !measured && (s.width <= 0.0 || s.height <= 0.0) {
+            return Ok(());
+        }
+        self.handle.set_size(s)
+    }
 
     pub fn tooltip(&self) -> Result<String>;
 
