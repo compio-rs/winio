@@ -19,6 +19,9 @@ impl Progress {
             let widget = AProgressBar::new(env, act)?;
             let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
             inner.set_indeterminate(env, false)?;
+            inner.set_max(env, 10)?;
+            inner.set_min(env, 0)?;
+            inner.set_progress(env, 0)?;
             Ok(Self { inner })
         })
     }
@@ -51,7 +54,11 @@ impl Progress {
 
     pub fn set_minimum(&mut self, minimum: usize) -> Result<()> {
         vm_exec(|env| {
+            let max = self.inner.get_max(env)?.max(minimum as i32);
+            self.inner.set_max(env, max)?;
             self.inner.set_min(env, minimum as i32)?;
+            let pos = self.inner.get_progress(env)?;
+            self.inner.set_progress(env, pos)?;
             Ok(())
         })
     }
@@ -62,7 +69,11 @@ impl Progress {
 
     pub fn set_maximum(&mut self, maximum: usize) -> Result<()> {
         vm_exec(|env| {
+            let min = self.inner.get_min(env)?.min(maximum as i32);
+            self.inner.set_min(env, min)?;
             self.inner.set_max(env, maximum as i32)?;
+            let pos = self.inner.get_progress(env)?;
+            self.inner.set_progress(env, pos)?;
             Ok(())
         })
     }

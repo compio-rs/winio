@@ -33,13 +33,14 @@ impl Progress {
                 ControlFlow::Continue
             }
         });
+        widget.set_fraction(0.0);
         Ok(Self {
             widget,
             handle,
             timer: Some(timer),
             indeterminate,
             min: 0,
-            max: 1,
+            max: 10,
         })
     }
 
@@ -79,22 +80,32 @@ impl Progress {
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
         let pos = self.pos()?;
         self.min = v;
+        self.max = self.max.max(v);
         self.set_pos(pos)
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
         let pos = self.pos()?;
-        self.max = v;
+        self.min = self.min.min(v);
+        self.max = v.max(self.min);
         self.set_pos(pos)
     }
 
     pub fn pos(&self) -> Result<usize> {
+        if self.max == self.min {
+            return Ok(self.min);
+        }
         Ok((self.widget.fraction() * ((self.max - self.min) as f64) + self.min as f64) as usize)
     }
 
     pub fn set_pos(&mut self, pos: usize) -> Result<()> {
-        self.widget
-            .set_fraction(((pos - self.min) as f64) / ((self.max - self.min) as f64));
+        let pos = pos.clamp(self.min, self.max);
+        let fraction = if self.max == self.min {
+            0.0
+        } else {
+            (pos - self.min) as f64 / (self.max - self.min) as f64
+        };
+        self.widget.set_fraction(fraction);
         Ok(())
     }
 

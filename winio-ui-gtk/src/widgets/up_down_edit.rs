@@ -18,7 +18,7 @@ pub struct UpDownEdit {
 #[inherit_methods(from = "self.handle")]
 impl UpDownEdit {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
-        let widget = gtk4::SpinButton::with_range(0.0, 100.0, 1.0);
+        let widget = gtk4::SpinButton::with_range(0.0, 10.0, 1.0);
         widget.set_digits(0);
         widget.set_numeric(true);
         widget.set_wrap(false);
@@ -65,7 +65,10 @@ impl UpDownEdit {
     }
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
-        self.widget.adjustment().set_lower(v as _);
+        if self.minimum()? != v {
+            let max = self.maximum()?.max(v.saturating_add(1));
+            self.set_range(v, max)?;
+        }
         Ok(())
     }
 
@@ -74,7 +77,16 @@ impl UpDownEdit {
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        self.widget.adjustment().set_upper(v as _);
+        if self.maximum()? != v {
+            let min = self.minimum()?;
+            let min = if v < min.saturating_add(1) {
+                v.saturating_sub(1)
+            } else {
+                min
+            };
+            let max = v.max(min.saturating_add(1));
+            self.set_range(min, max)?;
+        }
         Ok(())
     }
 
@@ -83,7 +95,7 @@ impl UpDownEdit {
     }
 
     pub fn set_step(&mut self, v: usize) -> Result<()> {
-        self.widget.set_increments(v as _, 0.0);
+        self.widget.set_increments(v.max(1) as _, 0.0);
         Ok(())
     }
 
@@ -93,6 +105,15 @@ impl UpDownEdit {
 
     pub fn set_value(&mut self, v: usize) -> Result<()> {
         self.widget.set_value(v as _);
+        Ok(())
+    }
+
+    fn set_range(&mut self, min: usize, max: usize) -> Result<()> {
+        let step = self.step()?.max(1);
+        let value = self.value()?;
+        self.widget
+            .adjustment()
+            .configure(value as _, min as _, max as _, step as _, 0.0, 0.0);
         Ok(())
     }
 

@@ -12,6 +12,20 @@ use crate::{
 /// A single-line integer input for the user to type and edit the value.
 /// A pair of up and down buttons are provided to increase or decrease the
 /// value.
+///
+/// # Range semantics
+///
+/// The control starts with `minimum = 0`, `maximum = 10`, `value = 0` and
+/// `step = 1`.
+///
+/// The setters keep the range valid regardless of the call order:
+///
+/// * setting a minimum that is not below the current maximum raises the maximum
+///   to `minimum + 1`;
+/// * setting a maximum that is not above the current minimum lowers the minimum
+///   to `maximum - 1` (or raises the maximum at zero);
+/// * `value` is clamped into `[minimum, maximum]`;
+/// * `step` is at least 1.
 #[derive(Debug)]
 pub struct UpDownEdit {
     widget: sys::UpDownEdit,

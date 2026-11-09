@@ -24,7 +24,7 @@ pub struct Slider {
 #[inherit_methods(from = "self.handle")]
 impl Slider {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
-        let adjustment = gtk4::Adjustment::new(0.0, 0.0, 0.0, 1.0, 0.0, 0.0);
+        let adjustment = gtk4::Adjustment::new(0.0, 0.0, 10.0, 1.0, 0.0, 0.0);
         let widget = gtk4::Scale::new(gtk4::Orientation::Horizontal, Some(&adjustment));
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() })?;
         let on_scroll = Rc::new(Callback::new());
@@ -34,14 +34,16 @@ impl Slider {
                 on_scroll.signal::<GlobalRuntime>(());
             }
         });
-        Ok(Self {
+        let mut this = Self {
             on_scroll,
             adjustment,
             widget,
             handle,
             freq: 1,
             tick_pos: TickPosition::Both,
-        })
+        };
+        this.reset_marks()?;
+        Ok(this)
     }
 
     fn reset_marks(&mut self) -> Result<()> {
@@ -137,7 +139,8 @@ impl Slider {
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
         if self.minimum()? != v {
-            self.adjustment.set_lower(v as _);
+            let max = self.maximum()?.max(v.saturating_add(1));
+            self.set_range(v, max)?;
             self.reset_marks()?;
         }
         Ok(())
@@ -149,7 +152,14 @@ impl Slider {
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
         if self.maximum()? != v {
-            self.adjustment.set_upper(v as _);
+            let min = self.minimum()?;
+            let min = if v < min.saturating_add(1) {
+                v.saturating_sub(1)
+            } else {
+                min
+            };
+            let max = v.max(min.saturating_add(1));
+            self.set_range(min, max)?;
             self.reset_marks()?;
         }
         Ok(())
@@ -160,6 +170,7 @@ impl Slider {
     }
 
     pub fn set_freq(&mut self, v: usize) -> Result<()> {
+        let v = v.max(1);
         if self.freq != v {
             self.freq = v;
             self.reset_marks()?;
@@ -173,6 +184,13 @@ impl Slider {
 
     pub fn set_pos(&mut self, v: usize) -> Result<()> {
         self.adjustment.set_value(v as _);
+        Ok(())
+    }
+
+    fn set_range(&mut self, min: usize, max: usize) -> Result<()> {
+        let value = self.pos()?;
+        self.adjustment
+            .configure(value as _, min as _, max as _, 1.0, 0.0, 0.0);
         Ok(())
     }
 

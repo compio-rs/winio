@@ -16,6 +16,10 @@ pub struct Progress {
 impl Progress {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let progress_bar = MUXC::ProgressBar::new()?;
+        progress_bar.SetMaximum(10.0)?;
+        progress_bar.SetMinimum(0.0)?;
+        progress_bar.SetValue(0.0)?;
+        progress_bar.SetIsIndeterminate(false)?;
         Ok(Self {
             handle: Widget::new(parent, progress_bar.cast()?)?,
             progress_bar,
@@ -52,6 +56,8 @@ impl Progress {
     }
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
+        let max = self.maximum()?.max(v);
+        self.progress_bar.SetMaximum(max as _)?;
         self.progress_bar.SetMinimum(v as _)?;
         Ok(())
     }
@@ -61,6 +67,8 @@ impl Progress {
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
+        let min = self.minimum()?.min(v);
+        self.progress_bar.SetMinimum(min as _)?;
         self.progress_bar.SetMaximum(v as _)?;
         Ok(())
     }

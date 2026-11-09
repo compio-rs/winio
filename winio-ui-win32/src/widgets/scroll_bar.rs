@@ -1,13 +1,14 @@
 use inherit_methods_macro::inherit_methods;
 use windows_sys::Win32::UI::{
     Controls::{SetScrollInfo, WC_SCROLLBARW},
+    Input::KeyboardAndMouse::GetCapture,
     WindowsAndMessaging::{
         GetParent, GetScrollInfo, SB_CTL, SBS_HORZ, SBS_VERT, SCROLLINFO, SIF_PAGE, SIF_POS,
         SIF_RANGE, SIF_TRACKPOS, WM_HSCROLL, WM_VSCROLL, WS_CHILD, WS_VISIBLE,
     },
 };
 use winio_handle::{AsContainer, AsWidget, BorrowedContainer};
-use winio_primitive::{Orient, Point, Size};
+use winio_primitive::{Orient, Point, Size, fit_page};
 use winio_ui_windows_common::syscall;
 
 use crate::{Result, Widget};
@@ -26,7 +27,19 @@ impl ScrollBarImpl {
             0,
             parent.as_container().as_win32(),
         )?;
-        Ok(Self { handle })
+        let mut this = Self { handle };
+        this.set_range(0, 10, 1)?;
+        Ok(this)
+    }
+
+    fn set_range(&mut self, min: usize, max: usize, page: usize) -> Result<()> {
+        let n_max = max.saturating_sub(1);
+        self.set_info(SIF_RANGE | SIF_PAGE, |info| {
+            info.nMin = min as _;
+            info.nMax = n_max as _;
+            info.nPage = page as _;
+        });
+        Ok(())
     }
 
     pub fn is_visible(&self) -> Result<bool>;
@@ -77,25 +90,27 @@ impl ScrollBarImpl {
 
     pub fn maximum(&self) -> Result<usize> {
         let info = self.info(SIF_RANGE)?;
-        Ok(info.nMax as _)
+        Ok(info.nMax.saturating_add(1) as _)
     }
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
-        let max = self.maximum()?;
-        self.set_info(SIF_RANGE, |info| {
-            info.nMin = v as _;
-            info.nMax = max as _;
-        });
-        Ok(())
+        let page = self.page()?.max(1);
+        let max = self.maximum()?.max(v.saturating_add(page));
+        let (min, max) = fit_page(v, max, page);
+        self.set_range(min, max, page)
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        let min = self.minimum()?;
-        self.set_info(SIF_RANGE, |info| {
-            info.nMin = min as _;
-            info.nMax = v as _;
-        });
-        Ok(())
+        let page = self.page()?.max(1);
+        let old_min = self.minimum()?;
+        let min = if v < old_min.saturating_add(page) {
+            v.saturating_sub(page)
+        } else {
+            old_min
+        };
+        let max = v.max(min.saturating_add(page));
+        let (min, max) = fit_page(min, max, page);
+        self.set_range(min, max, page)
     }
 
     pub fn page(&self) -> Result<usize> {
@@ -104,15 +119,24 @@ impl ScrollBarImpl {
     }
 
     pub fn set_page(&mut self, v: usize) -> Result<()> {
-        self.set_info(SIF_PAGE, |info| {
-            info.nPage = v as _;
-        });
-        Ok(())
+        let page = v.max(1);
+        let (min, max) = fit_page(self.minimum()?, self.maximum()?, page);
+        self.set_range(min, max, page)?;
+        self.set_pos(self.pos()?)
     }
 
     pub fn pos(&self) -> Result<usize> {
-        let info = self.info(SIF_TRACKPOS)?;
-        Ok(info.nTrackPos as _)
+        // `nPos` is not updated while the user drags the thumb; use
+        // `nTrackPos` only while this control has the mouse capture.
+        let handle = self.handle.as_widget().as_win32();
+        let tracking = unsafe { GetCapture() } == handle;
+        if tracking {
+            let info = self.info(SIF_TRACKPOS)?;
+            Ok(info.nTrackPos as _)
+        } else {
+            let info = self.info(SIF_POS)?;
+            Ok(info.nPos as _)
+        }
     }
 
     pub fn set_pos(&mut self, v: usize) -> Result<()> {
@@ -156,9 +180,11 @@ impl ScrollBar {
         new_handle.set_loc(self.handle.loc()?)?;
         new_handle.set_size(self.handle.size()?)?;
         new_handle.set_tooltip(self.handle.tooltip()?)?;
-        new_handle.set_minimum(self.handle.minimum()?)?;
-        new_handle.set_maximum(self.handle.maximum()?)?;
-        new_handle.set_page(self.handle.page()?)?;
+        new_handle.set_range(
+            self.handle.minimum()?,
+            self.handle.maximum()?,
+            self.handle.page()?,
+        )?;
         new_handle.set_pos(self.handle.pos()?)?;
         self.handle = new_handle;
         Ok(())

@@ -23,6 +23,10 @@ impl Slider {
         let bar = MUXC::Slider::new()?;
         bar.SetTickPlacement(TickPlacement::Outside)?;
         bar.SetIsThumbToolTipEnabled(false)?;
+        bar.SetMaximum(10.0)?;
+        bar.SetMinimum(0.0)?;
+        bar.SetValue(0.0)?;
+        bar.SetTickFrequency(1.0)?;
         let on_scroll = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_scroll = on_scroll.clone();
@@ -104,8 +108,8 @@ impl Slider {
     }
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
-        self.bar.SetMinimum(v as _)?;
-        Ok(())
+        let max = self.maximum()?.max(v.saturating_add(1));
+        self.apply_range(v, max)
     }
 
     pub fn maximum(&self) -> Result<usize> {
@@ -113,8 +117,14 @@ impl Slider {
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        self.bar.SetMaximum(v as _)?;
-        Ok(())
+        let old_min = self.minimum()?;
+        let min = if v < old_min.saturating_add(1) {
+            v.saturating_sub(1)
+        } else {
+            old_min
+        };
+        let max = v.max(min.saturating_add(1));
+        self.apply_range(min, max)
     }
 
     pub fn freq(&self) -> Result<usize> {
@@ -122,7 +132,7 @@ impl Slider {
     }
 
     pub fn set_freq(&mut self, v: usize) -> Result<()> {
-        self.bar.SetTickFrequency(v as _)?;
+        self.bar.SetTickFrequency(v.max(1) as _)?;
         Ok(())
     }
 
@@ -132,6 +142,18 @@ impl Slider {
 
     pub fn set_pos(&mut self, v: usize) -> Result<()> {
         self.bar.SetValue(v as _)?;
+        Ok(())
+    }
+
+    fn apply_range(&mut self, min: usize, max: usize) -> Result<()> {
+        let old_max = self.maximum()?;
+        if min > old_max {
+            self.bar.SetMaximum(max as _)?;
+            self.bar.SetMinimum(min as _)?;
+        } else {
+            self.bar.SetMinimum(min as _)?;
+            self.bar.SetMaximum(max as _)?;
+        }
         Ok(())
     }
 

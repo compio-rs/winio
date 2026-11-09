@@ -5,7 +5,7 @@ use send_wrapper::SendWrapper;
 use windows_core::Interface;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Orient, Point, Size};
+use winio_primitive::{Orient, Point, Size, fit_page};
 use winui3::Microsoft::UI::Xaml::Controls::{self as MUXC, Primitives::ScrollingIndicatorMode};
 
 use crate::{GlobalRuntime, Result, Widget, widgets::Convertible};
@@ -22,6 +22,10 @@ impl ScrollBar {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let bar = MUXC::Primitives::ScrollBar::new()?;
         bar.SetIndicatorMode(ScrollingIndicatorMode::MouseIndicator)?;
+        bar.SetViewportSize(1.0)?;
+        bar.SetMaximum(9.0)?;
+        bar.SetMinimum(0.0)?;
+        bar.SetValue(0.0)?;
         let on_scroll = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_scroll = on_scroll.clone();
@@ -82,8 +86,10 @@ impl ScrollBar {
     }
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
-        self.bar.SetMinimum(v as _)?;
-        Ok(())
+        let page = self.page()?.max(1);
+        let max = self.maximum()?.max(v.saturating_add(page));
+        let (min, max) = fit_page(v, max, page);
+        self.apply_range(min, max, page)
     }
 
     pub fn maximum(&self) -> Result<usize> {
@@ -91,9 +97,16 @@ impl ScrollBar {
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        let page = self.page()?;
-        self.bar.SetMaximum(v.saturating_sub(page) as _)?;
-        Ok(())
+        let page = self.page()?.max(1);
+        let old_min = self.minimum()?;
+        let min = if v < old_min.saturating_add(page) {
+            v.saturating_sub(page)
+        } else {
+            old_min
+        };
+        let max = v.max(min.saturating_add(page));
+        let (min, max) = fit_page(min, max, page);
+        self.apply_range(min, max, page)
     }
 
     pub fn page(&self) -> Result<usize> {
@@ -101,16 +114,31 @@ impl ScrollBar {
     }
 
     pub fn set_page(&mut self, v: usize) -> Result<()> {
-        self.bar.SetViewportSize(v as _)?;
-        Ok(())
+        let page = v.max(1);
+        let (min, max) = fit_page(self.minimum()?, self.maximum()?, page);
+        self.bar.SetViewportSize(page as _)?;
+        self.apply_range(min, max, page)
     }
 
     pub fn pos(&self) -> Result<usize> {
-        Ok(self.bar.Value()? as _)
+        Ok(self.bar.Value()? as usize)
     }
 
     pub fn set_pos(&mut self, v: usize) -> Result<()> {
         self.bar.SetValue(v as _)?;
+        Ok(())
+    }
+
+    fn apply_range(&mut self, min: usize, max: usize, page: usize) -> Result<()> {
+        let native_max = max.saturating_sub(page).max(min);
+        let old_max = self.bar.Maximum()? as usize;
+        if min > old_max {
+            self.bar.SetMaximum(native_max as _)?;
+            self.bar.SetMinimum(min as _)?;
+        } else {
+            self.bar.SetMinimum(min as _)?;
+            self.bar.SetMaximum(native_max as _)?;
+        }
         Ok(())
     }
 

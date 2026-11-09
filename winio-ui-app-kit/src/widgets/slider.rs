@@ -17,6 +17,7 @@ pub struct Slider {
     handle: Widget,
     view: Retained<NSSlider>,
     delegate: Retained<SliderDelegate>,
+    freq: usize,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -34,12 +35,18 @@ impl Slider {
             view.setAction(Some(sel!(onAction)));
 
             view.setEnabled(true);
+            view.setMinValue(0.0);
+            view.setMaxValue(10.0);
+            view.setDoubleValue(0.0);
 
-            Ok(Self {
+            let mut this = Self {
                 handle,
                 view,
                 delegate,
-            })
+                freq: 1,
+            };
+            this.reset_marks()?;
+            Ok(this)
         })
         .flatten()
     }
@@ -104,7 +111,8 @@ impl Slider {
     }
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
-        catch(|| self.view.setMinValue(v as _))
+        let max = self.maximum()?.max(v.saturating_add(1));
+        self.apply_range(v, max)
     }
 
     pub fn maximum(&self) -> Result<usize> {
@@ -112,18 +120,23 @@ impl Slider {
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        catch(|| self.view.setMaxValue(v as _))
+        let old_min = self.minimum()?;
+        let min = if v < old_min.saturating_add(1) {
+            v.saturating_sub(1)
+        } else {
+            old_min
+        };
+        let max = v.max(min.saturating_add(1));
+        self.apply_range(min, max)
     }
 
     pub fn freq(&self) -> Result<usize> {
-        let nmarks = catch(|| self.view.numberOfTickMarks() as usize)?.max(1);
-        let range = self.maximum()? - self.minimum()?;
-        Ok(range / nmarks)
+        Ok(self.freq)
     }
 
     pub fn set_freq(&mut self, v: usize) -> Result<()> {
-        let range = self.maximum()? - self.minimum()?;
-        catch(|| self.view.setNumberOfTickMarks((range / v) as _))
+        self.freq = v.max(1);
+        self.reset_marks()
     }
 
     pub fn pos(&self) -> Result<usize> {
@@ -131,7 +144,30 @@ impl Slider {
     }
 
     pub fn set_pos(&mut self, pos: usize) -> Result<()> {
+        let pos = pos.clamp(self.minimum()?, self.maximum()?);
         catch(|| self.view.setDoubleValue(pos as _))
+    }
+
+    fn apply_range(&mut self, min: usize, max: usize) -> Result<()> {
+        let value = self.pos()?.clamp(min, max);
+        let old_max = self.maximum()?;
+        catch(|| {
+            if min > old_max {
+                self.view.setMaxValue(max as _);
+                self.view.setMinValue(min as _);
+            } else {
+                self.view.setMinValue(min as _);
+                self.view.setMaxValue(max as _);
+            }
+            self.view.setDoubleValue(value as _);
+        })?;
+        self.reset_marks()
+    }
+
+    fn reset_marks(&mut self) -> Result<()> {
+        let range = self.maximum()?.saturating_sub(self.minimum()?);
+        let marks = range / self.freq.max(1);
+        catch(|| self.view.setNumberOfTickMarks(marks as _))
     }
 
     pub async fn wait_change(&self) {

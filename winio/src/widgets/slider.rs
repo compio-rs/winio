@@ -11,6 +11,20 @@ use crate::{
 };
 
 /// Selects a value from a range by dragging a handle along a track.
+///
+/// # Range semantics
+///
+/// The slider starts with `minimum = 0`, `maximum = 10`, `pos = 0` and
+/// `freq = 1`.
+///
+/// The setters keep the range valid regardless of the call order:
+///
+/// * setting a minimum that is not below the current maximum raises the maximum
+///   to `minimum + 1`;
+/// * setting a maximum that is not above the current minimum lowers the minimum
+///   to `maximum - 1` (or raises the maximum at zero);
+/// * `pos` is clamped into `[minimum, maximum]`;
+/// * `freq` is at least 1.
 #[derive(Debug)]
 pub struct Slider {
     widget: sys::Slider,

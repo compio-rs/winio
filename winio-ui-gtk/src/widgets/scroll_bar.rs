@@ -7,7 +7,7 @@ use gtk4::{
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Orient, Point, Size};
+use winio_primitive::{Orient, Point, Size, fit_page};
 
 use crate::{GlobalRuntime, Result, Widget};
 
@@ -22,7 +22,7 @@ pub struct ScrollBar {
 #[inherit_methods(from = "self.handle")]
 impl ScrollBar {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
-        let adjustment = gtk4::Adjustment::new(0.0, 0.0, 0.0, 1.0, 0.0, 0.0);
+        let adjustment = gtk4::Adjustment::new(0.0, 0.0, 10.0, 1.0, 0.0, 1.0);
         let widget = gtk4::Scrollbar::new(gtk4::Orientation::Horizontal, Some(&adjustment));
         let handle = Widget::new(parent, unsafe { widget.clone().unsafe_cast() })?;
         let on_scroll = Rc::new(Callback::new());
@@ -84,8 +84,10 @@ impl ScrollBar {
     }
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
-        self.adjustment.set_lower(v as _);
-        Ok(())
+        let page = self.page()?.max(1);
+        let max = self.maximum()?.max(v.saturating_add(page));
+        let (min, max) = fit_page(v, max, page);
+        self.set_range(min, max, page)
     }
 
     pub fn maximum(&self) -> Result<usize> {
@@ -93,8 +95,16 @@ impl ScrollBar {
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        self.adjustment.set_upper(v as _);
-        Ok(())
+        let page = self.page()?.max(1);
+        let old_min = self.minimum()?;
+        let min = if v < old_min.saturating_add(page) {
+            v.saturating_sub(page)
+        } else {
+            old_min
+        };
+        let max = v.max(min.saturating_add(page));
+        let (min, max) = fit_page(min, max, page);
+        self.set_range(min, max, page)
     }
 
     pub fn page(&self) -> Result<usize> {
@@ -102,8 +112,9 @@ impl ScrollBar {
     }
 
     pub fn set_page(&mut self, v: usize) -> Result<()> {
-        self.adjustment.set_page_size(v as _);
-        Ok(())
+        let page = v.max(1);
+        let (min, max) = fit_page(self.minimum()?, self.maximum()?, page);
+        self.set_range(min, max, page)
     }
 
     pub fn pos(&self) -> Result<usize> {
@@ -112,6 +123,13 @@ impl ScrollBar {
 
     pub fn set_pos(&mut self, v: usize) -> Result<()> {
         self.adjustment.set_value(v as _);
+        Ok(())
+    }
+
+    fn set_range(&mut self, min: usize, max: usize, page: usize) -> Result<()> {
+        let value = self.pos()?;
+        self.adjustment
+            .configure(value as _, min as _, max as _, 1.0, 0.0, page as _);
         Ok(())
     }
 

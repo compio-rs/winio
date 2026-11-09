@@ -41,6 +41,10 @@ impl UpDownEdit {
             let stepper = NSStepper::new(mtm);
             stepper.setValueWraps(false);
             stepper.setAutorepeat(true);
+            stepper.setMinValue(0.0);
+            stepper.setMaxValue(10.0);
+            stepper.setIncrement(1.0);
+            stepper.setDoubleValue(0.0);
 
             let delegate = UpDownEditDelegate::new(mtm, text.clone(), stepper.clone());
             let del_obj = ProtocolObject::from_ref(&*delegate);
@@ -124,7 +128,8 @@ impl UpDownEdit {
     }
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
-        catch(|| self.stepper.setMinValue(v as _))
+        let max = self.maximum()?.max(v.saturating_add(1));
+        self.apply_range(v, max)
     }
 
     pub fn maximum(&self) -> Result<usize> {
@@ -132,7 +137,14 @@ impl UpDownEdit {
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        catch(|| self.stepper.setMaxValue(v as _))
+        let old_min = self.minimum()?;
+        let min = if v < old_min.saturating_add(1) {
+            v.saturating_sub(1)
+        } else {
+            old_min
+        };
+        let max = v.max(min.saturating_add(1));
+        self.apply_range(min, max)
     }
 
     pub fn step(&self) -> Result<usize> {
@@ -140,7 +152,7 @@ impl UpDownEdit {
     }
 
     pub fn set_step(&mut self, v: usize) -> Result<()> {
-        catch(|| self.stepper.setIncrement(v as _))
+        catch(|| self.stepper.setIncrement(v.max(1) as _))
     }
 
     pub fn value(&self) -> Result<usize> {
@@ -148,11 +160,29 @@ impl UpDownEdit {
     }
 
     pub fn set_value(&mut self, v: usize) -> Result<()> {
+        let v = v.clamp(self.minimum()?, self.maximum()?);
         catch(|| {
             self.stepper.setDoubleValue(v as _);
             self.text
                 .setStringValue(&NSString::from_str(&v.to_string()));
         })
+    }
+
+    fn apply_range(&mut self, min: usize, max: usize) -> Result<()> {
+        let value = self.value()?.clamp(min, max);
+        let old_max = self.maximum()?;
+        if min > old_max {
+            catch(|| {
+                self.stepper.setMaxValue(max as _);
+                self.stepper.setMinValue(min as _);
+            })?;
+        } else {
+            catch(|| {
+                self.stepper.setMinValue(min as _);
+                self.stepper.setMaxValue(max as _);
+            })?;
+        }
+        self.set_value(value)
     }
 
     pub async fn wait_change(&self) {
