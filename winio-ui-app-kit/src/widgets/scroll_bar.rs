@@ -2,12 +2,13 @@ use inherit_methods_macro::inherit_methods;
 use objc2::{
     DefinedClass, MainThreadMarker, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
+    sel,
 };
-use objc2_app_kit::{NSControlSize, NSEvent, NSScroller, NSScrollerStyle};
+use objc2_app_kit::{NSControlSize, NSScroller, NSScrollerStyle};
 use objc2_foundation::{NSPoint, NSRect, NSSize};
 use winio_callback::Callback;
 use winio_handle::{AsContainer, BorrowedContainer};
-use winio_primitive::{Orient, Point, Size};
+use winio_primitive::{Orient, Point, Size, fit_page};
 
 use crate::{GlobalRuntime, Result, catch, widgets::Widget};
 
@@ -17,6 +18,7 @@ struct ScrollBarImpl {
     view: Retained<CustomScroller>,
     min: usize,
     max: usize,
+    page: usize,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -37,12 +39,19 @@ impl ScrollBarImpl {
             let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()))?;
 
             view.setEnabled(true);
+            view.setKnobProportion(0.1);
+            view.setDoubleValue(0.0);
+
+            view.setContinuous(true);
+            view.setTarget(Some(&view));
+            view.setAction(Some(sel!(onChange)));
 
             Ok(Self {
                 handle,
                 view,
                 min: 0,
-                max: 0,
+                max: 10,
+                page: 1,
             })
         })
         .flatten()
@@ -73,9 +82,13 @@ impl ScrollBarImpl {
     }
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
-        let pos = self.pos()?;
-        self.min = v;
-        self.set_pos(pos)
+        let page = self.page.max(1);
+        let max = self.max.max(v.saturating_add(page));
+        let (min, max) = fit_page(v, max, page);
+        self.min = min;
+        self.max = max;
+        self.sync_page()?;
+        self.set_pos(self.pos()?)
     }
 
     pub fn maximum(&self) -> Result<usize> {
@@ -83,33 +96,63 @@ impl ScrollBarImpl {
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        let pos = self.pos()?;
-        self.max = v;
-        self.set_pos(pos)
+        let page = self.page.max(1);
+        let min = if v < self.min.saturating_add(page) {
+            v.saturating_sub(page)
+        } else {
+            self.min
+        };
+        let max = v.max(min.saturating_add(page));
+        let (min, max) = fit_page(min, max, page);
+        self.min = min;
+        self.max = max;
+        self.sync_page()?;
+        self.set_pos(self.pos()?)
     }
 
     pub fn page(&self) -> Result<usize> {
-        catch(|| (self.view.knobProportion() * (self.max - self.min) as f64) as usize)
+        Ok(self.page)
     }
 
     pub fn set_page(&mut self, v: usize) -> Result<()> {
-        catch(|| {
-            self.view
-                .setKnobProportion(v as f64 / ((self.max - self.min) as f64))
-        })
+        let page = v.max(1);
+        let (min, max) = fit_page(self.min, self.max, page);
+        self.min = min;
+        self.max = max;
+        self.page = page;
+        self.sync_page()?;
+        self.set_pos(self.pos()?)
     }
 
     pub fn pos(&self) -> Result<usize> {
-        let page = self.page()?;
-        catch(|| (self.view.doubleValue() * (self.max - page - self.min) as f64) as usize)
+        let max = self.max.saturating_sub(self.page).max(self.min);
+        if max == self.min {
+            return Ok(self.min);
+        }
+        let pos = catch(|| self.view.doubleValue())?;
+        Ok((pos * (max - self.min) as f64) as usize + self.min)
     }
 
     pub fn set_pos(&mut self, v: usize) -> Result<()> {
-        let page = self.page()?;
+        let max = self.max.saturating_sub(self.page).max(self.min);
+        let v = v.clamp(self.min, max);
+        if max == self.min {
+            return catch(|| self.view.setDoubleValue(0.0));
+        }
         catch(|| {
             self.view
-                .setDoubleValue(v as f64 / ((self.max - page - self.min) as f64))
+                .setDoubleValue((v - self.min) as f64 / (max - self.min) as f64)
         })
+    }
+
+    fn sync_page(&mut self) -> Result<()> {
+        let range = self.max.saturating_sub(self.min);
+        let proportion = if range == 0 {
+            1.0
+        } else {
+            (self.page as f64 / range as f64).min(1.0)
+        };
+        catch(|| self.view.setKnobProportion(proportion))
     }
 
     pub async fn wait_change(&self) {
@@ -140,9 +183,8 @@ define_class! {
             unsafe { msg_send![super(this), initWithFrame: frame] }
         }
 
-        #[unsafe(method(trackKnob:))]
-        unsafe fn trackKnob(&self, event: &NSEvent) {
-            let () = unsafe { msg_send![super(self), trackKnob:event] };
+        #[unsafe(method(onChange))]
+        unsafe fn onChange(&self) {
             self.ivars().on_move.signal::<GlobalRuntime>(());
         }
     }

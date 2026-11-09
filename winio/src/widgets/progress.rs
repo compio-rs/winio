@@ -9,6 +9,23 @@ use crate::{
 };
 
 /// Shows the progress of a long-running operation as a filling bar.
+///
+/// # Range semantics
+///
+/// The progress bar starts with `minimum = 0`, `maximum = 10` and `pos = 0`.
+///
+/// `minimum == maximum` is allowed. The setters keep the range valid
+/// regardless of the call order:
+///
+/// * setting a minimum greater than the current maximum raises the maximum to
+///   the new minimum;
+/// * setting a maximum lower than the current minimum lowers the minimum to the
+///   new maximum;
+/// * `pos` is clamped into `[minimum, maximum]`.
+///
+/// The indeterminate state is controlled by
+/// [`Progress::set_indeterminate`] and is independent of the range; when it is
+/// `true`, `minimum` is not guaranteed to be equal to `maximum`.
 #[derive(Debug)]
 pub struct Progress {
     widget: sys::Progress,

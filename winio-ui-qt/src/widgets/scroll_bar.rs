@@ -4,7 +4,7 @@ use cxx::{ExternType, UniquePtr, memory::UniquePtrTarget, type_id};
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Orient, Point, Size, TickPosition};
+use winio_primitive::{Orient, Point, Size, TickPosition, fit_page};
 
 use crate::{
     GlobalRuntime, Result, StaticCastTo, Widget, impl_static_cast, impl_static_cast_propogate,
@@ -16,6 +16,7 @@ where
 {
     on_moved: Box<Callback>,
     widget: Widget<T>,
+    page_aware: bool,
 }
 
 #[allow(private_bounds)]
@@ -24,7 +25,7 @@ impl<T> ScrollBarImpl<T>
 where
     T: StaticCastTo<ffi::QAbstractSlider> + StaticCastTo<ffi::QWidget> + UniquePtrTarget,
 {
-    fn new_impl(mut widget: UniquePtr<T>) -> Result<Self> {
+    fn new_impl(mut widget: UniquePtr<T>, page_aware: bool) -> Result<Self> {
         let on_moved = Box::new(Callback::new());
         unsafe {
             ffi::scroll_bar_connect_moved(
@@ -35,7 +36,19 @@ where
         }
         let mut widget = Widget::new(widget)?;
         widget.set_visible(true)?;
-        Ok(Self { on_moved, widget })
+        let mut this = Self {
+            on_moved,
+            widget,
+            page_aware,
+        };
+        if page_aware {
+            this.pin_abstract_mut().setPageStep(1)?;
+            this.set_range_raw(0, 9)?;
+        } else {
+            this.set_range_raw(0, 10)?;
+        }
+        this.set_pos(0)?;
+        Ok(this)
     }
 
     fn as_abstract_ref(&self) -> &ffi::QAbstractSlider {
@@ -89,18 +102,47 @@ where
     }
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
-        self.pin_abstract_mut().setMinimum(v as _)?;
+        if self.page_aware {
+            let page = self.page()?.max(1);
+            let max = self.maximum()?.max(v.saturating_add(page));
+            let (min, max) = fit_page(v, max, page);
+            self.set_range_raw(min, max - page)?;
+        } else {
+            let max = self.maximum()?.max(v.saturating_add(1));
+            let (min, max) = fit_page(v, max, 1);
+            self.set_range_raw(min, max)?;
+        }
         Ok(())
     }
 
     pub fn maximum(&self) -> Result<usize> {
-        Ok(self.as_abstract_ref().maximum()? as usize + self.page()?)
+        let page = if self.page_aware { self.page()? } else { 0 };
+        Ok(self.as_abstract_ref().maximum()? as usize + page)
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        let page = self.page()?;
-        self.pin_abstract_mut()
-            .setMaximum(v.saturating_sub(page) as _)?;
+        if self.page_aware {
+            let page = self.page()?.max(1);
+            let old_min = self.minimum()?;
+            let min = if v < old_min.saturating_add(page) {
+                v.saturating_sub(page)
+            } else {
+                old_min
+            };
+            let max = v.max(min.saturating_add(page));
+            let (min, max) = fit_page(min, max, page);
+            self.set_range_raw(min, max - page)?;
+        } else {
+            let old_min = self.minimum()?;
+            let min = if v < old_min.saturating_add(1) {
+                v.saturating_sub(1)
+            } else {
+                old_min
+            };
+            let max = v.max(min.saturating_add(1));
+            let (min, max) = fit_page(min, max, 1);
+            self.set_range_raw(min, max)?;
+        }
         Ok(())
     }
 
@@ -109,7 +151,14 @@ where
     }
 
     pub fn set_page(&mut self, v: usize) -> Result<()> {
-        self.pin_abstract_mut().setPageStep(v as _)?;
+        let page = v.max(1);
+        if self.page_aware {
+            let (min, max) = fit_page(self.minimum()?, self.maximum()?, page);
+            self.pin_abstract_mut().setPageStep(page as _)?;
+            self.set_range_raw(min, max - page)?;
+        } else {
+            self.pin_abstract_mut().setPageStep(page as _)?;
+        }
         Ok(())
     }
 
@@ -119,6 +168,11 @@ where
 
     pub fn set_pos(&mut self, v: usize) -> Result<()> {
         self.pin_abstract_mut().setValue(v as _)?;
+        Ok(())
+    }
+
+    fn set_range_raw(&mut self, min: usize, max: usize) -> Result<()> {
+        self.pin_abstract_mut().setRange(min as _, max as _)?;
         Ok(())
     }
 
@@ -152,14 +206,16 @@ winio_handle::impl_as_widget!(Slider, widget);
 impl ScrollBar {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let widget = unsafe { ffi::new_scroll_bar(parent.as_container().as_qt()) }?;
-        Self::new_impl(widget)
+        Self::new_impl(widget, true)
     }
 }
 
 impl Slider {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let widget = unsafe { ffi::new_slider(parent.as_container().as_qt()) }?;
-        Self::new_impl(widget)
+        let mut this = Self::new_impl(widget, false)?;
+        this.set_freq(1)?;
+        Ok(this)
     }
 
     pub fn freq(&self) -> Result<usize> {
@@ -167,7 +223,7 @@ impl Slider {
     }
 
     pub fn set_freq(&mut self, v: usize) -> Result<()> {
-        self.widget.pin_mut().setTickInterval(v as _)?;
+        self.widget.pin_mut().setTickInterval(v.max(1) as _)?;
         Ok(())
     }
 
@@ -265,10 +321,10 @@ mod ffi {
         ) -> Result<()>;
 
         fn maximum(self: &QAbstractSlider) -> Result<i32>;
-        fn setMaximum(self: Pin<&mut QAbstractSlider>, v: i32) -> Result<()>;
 
         fn minimum(self: &QAbstractSlider) -> Result<i32>;
-        fn setMinimum(self: Pin<&mut QAbstractSlider>, v: i32) -> Result<()>;
+
+        fn setRange(self: Pin<&mut QAbstractSlider>, min: i32, max: i32) -> Result<()>;
 
         fn value(self: &QAbstractSlider) -> Result<i32>;
         fn setValue(self: Pin<&mut QAbstractSlider>, v: i32) -> Result<()>;

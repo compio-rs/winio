@@ -23,6 +23,10 @@ impl UpDownEdit {
         let number_box = MUXC::NumberBox::new()?;
         number_box.SetAcceptsExpression(false)?;
         number_box.SetSpinButtonPlacementMode(MUXC::NumberBoxSpinButtonPlacementMode::Inline)?;
+        number_box.SetMaximum(10.0)?;
+        number_box.SetMinimum(0.0)?;
+        number_box.SetValue(0.0)?;
+        number_box.SetSmallChange(1.0)?;
         let on_change = SendWrapper::new(Rc::new(Callback::new()));
         {
             let on_change = on_change.clone();
@@ -75,8 +79,8 @@ impl UpDownEdit {
     }
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
-        self.number_box.SetMinimum(v as _)?;
-        Ok(())
+        let max = self.maximum()?.max(v.saturating_add(1));
+        self.apply_range(v, max)
     }
 
     pub fn maximum(&self) -> Result<usize> {
@@ -84,8 +88,14 @@ impl UpDownEdit {
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        self.number_box.SetMaximum(v as _)?;
-        Ok(())
+        let old_min = self.minimum()?;
+        let min = if v < old_min.saturating_add(1) {
+            v.saturating_sub(1)
+        } else {
+            old_min
+        };
+        let max = v.max(min.saturating_add(1));
+        self.apply_range(min, max)
     }
 
     pub fn step(&self) -> Result<usize> {
@@ -93,7 +103,7 @@ impl UpDownEdit {
     }
 
     pub fn set_step(&mut self, v: usize) -> Result<()> {
-        self.number_box.SetSmallChange(v as _)?;
+        self.number_box.SetSmallChange(v.max(1) as _)?;
         Ok(())
     }
 
@@ -103,6 +113,18 @@ impl UpDownEdit {
 
     pub fn set_value(&mut self, v: usize) -> Result<()> {
         self.number_box.SetValue(v as _)?;
+        Ok(())
+    }
+
+    fn apply_range(&mut self, min: usize, max: usize) -> Result<()> {
+        let old_max = self.maximum()?;
+        if min > old_max {
+            self.number_box.SetMaximum(max as _)?;
+            self.number_box.SetMinimum(min as _)?;
+        } else {
+            self.number_box.SetMinimum(min as _)?;
+            self.number_box.SetMaximum(max as _)?;
+        }
         Ok(())
     }
 

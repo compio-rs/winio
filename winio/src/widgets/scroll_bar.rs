@@ -9,6 +9,25 @@ use crate::{
 };
 
 /// A bar that allows the user to scroll through a range of values.
+///
+/// # Range semantics
+///
+/// The scroll bar starts with `minimum = 0`, `maximum = 10`, `page = 1` and
+/// `pos = 0`.
+///
+/// `maximum` is the total content extent; the last valid position is
+/// `maximum.saturating_sub(page)`.
+///
+/// The setters keep the range valid regardless of the call order:
+///
+/// * setting a minimum that would leave less than `page` between the bounds
+///   raises the maximum to `minimum + page`;
+/// * setting a maximum that would leave less than `page` between the bounds
+///   lowers the minimum to `maximum.saturating_sub(page)` (or raises the
+///   maximum at zero);
+/// * `pos` is clamped into `[minimum, maximum.saturating_sub(page)]`;
+/// * `page` is at least 1; setting a page that does not fit raises the maximum
+///   to `minimum + page` (or lowers the minimum if that would overflow).
 #[derive(Debug)]
 pub struct ScrollBar {
     widget: sys::ScrollBar,
@@ -40,22 +59,27 @@ impl ScrollBar {
     /// Set value minimum.
     pub fn set_minimum(&mut self, v: usize) -> Result<()>;
 
-    /// Value maximum.
+    /// The total content extent.
+    ///
+    /// The last valid position is `maximum.saturating_sub(page)`.
     pub fn maximum(&self) -> Result<usize>;
 
-    /// Set value maximum.
+    /// Set the total content extent.
     pub fn set_maximum(&mut self, v: usize) -> Result<()>;
 
     /// The page size.
     pub fn page(&self) -> Result<usize>;
 
     /// Set the page size.
+    ///
+    /// If the page does not fit into the current range, the maximum is raised
+    /// to `minimum + page`; if that would overflow, the minimum is lowered.
     pub fn set_page(&mut self, v: usize) -> Result<()>;
 
-    /// The position.
+    /// The position, clamped to `[minimum, maximum - page]`.
     pub fn pos(&self) -> Result<usize>;
 
-    /// Set the position.
+    /// Set the position, clamped to `[minimum, maximum - page]`.
     pub fn set_pos(&mut self, v: usize) -> Result<()> {
         if v != self.pos()? {
             self.widget.set_pos(v)?;

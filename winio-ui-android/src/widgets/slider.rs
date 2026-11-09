@@ -8,7 +8,7 @@ use jni::{
 use jni_min_helper::DynamicProxy;
 use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
-use winio_primitive::{Orient, Point, Size, TickPosition};
+use winio_primitive::{Orient, Point, Size, TickPosition, fit_page};
 
 use crate::{
     BaseWidget, Result, current_activity,
@@ -49,6 +49,10 @@ impl Slider {
                 },
             )?;
             inner.add_on_change_listener(env, &change_proxy)?;
+            // Initial range: 0..=10, value 0.
+            inner.set_value_to(env, 10.0)?;
+            inner.set_value_from(env, 0.0)?;
+            inner.set_value(env, 0.0)?;
             Ok(Self {
                 inner,
                 on_change,
@@ -118,7 +122,9 @@ impl Slider {
     }
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
-        vm_exec(|env| self.inner.set_value_from(env, v as _))?;
+        let max = self.maximum()?.max(v.saturating_add(1));
+        self.set_range(v, max)?;
+        self.set_pos(self.pos()?)?;
         Ok(())
     }
 
@@ -127,19 +133,24 @@ impl Slider {
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        vm_exec(|env| {
-            let min = self.inner.get_value_from(env)? as usize;
-            let v = if v <= min { min + 1 } else { v };
-            self.inner.set_value_to(env, v as _)
-        })?;
+        let old_min = self.minimum()?;
+        let min = if v < old_min.saturating_add(1) {
+            v.saturating_sub(1)
+        } else {
+            old_min
+        };
+        let max = v.max(min.saturating_add(1));
+        self.set_range(min, max)?;
+        self.set_pos(self.pos()?)?;
         Ok(())
     }
 
     pub fn freq(&self) -> Result<usize> {
-        Ok(0)
+        Ok(1)
     }
 
     pub fn set_freq(&mut self, _v: usize) -> Result<()> {
+        compio_log::error!("Tick frequency is not supported on Android");
         Ok(())
     }
 
@@ -148,13 +159,25 @@ impl Slider {
     }
 
     pub fn set_pos(&mut self, v: usize) -> Result<()> {
-        vm_exec(|env| {
-            let value_from = self.inner.get_value_from(env)?;
-            let value_to = self.inner.get_value_to(env)?;
-            let v = (v as f32).clamp(value_from, value_to);
-            self.inner.set_value(env, v)
-        })?;
+        let min = self.minimum()?;
+        let max = self.maximum()?;
+        vm_exec(|env| self.inner.set_value(env, v.clamp(min, max) as _))?;
         Ok(())
+    }
+
+    /// Set both ends of the range, keeping it valid at every step.
+    fn set_range(&mut self, min: usize, max: usize) -> Result<()> {
+        vm_exec(|env| {
+            let old_max = self.inner.get_value_to(env)? as usize;
+            if min > old_max {
+                self.inner.set_value_to(env, max as _)?;
+                self.inner.set_value_from(env, min as _)?;
+            } else {
+                self.inner.set_value_from(env, min as _)?;
+                self.inner.set_value_to(env, max as _)?;
+            }
+            Ok(())
+        })
     }
 
     pub async fn wait_change(&self) {
@@ -168,15 +191,25 @@ impl_as_widget!(Slider, inner);
 pub struct ScrollBar {
     handle: Slider,
     page: usize,
+    /// The public content extent. The inner Material slider only stores the
+    /// scrollable part (`max - page`), and when the page fills the range it
+    /// needs one hidden extra value (`min + 1`) because Material requires
+    /// `valueFrom < valueTo`. The public maximum therefore cannot be derived
+    /// from the inner slider.
+    max: usize,
 }
 
 #[inherit_methods(from = "self.handle")]
 impl ScrollBar {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
-        let slider = Slider::new(parent)?;
+        let mut slider = Slider::new(parent)?;
+        // Initial range: min 0, content extent 10, page 1, pos 0.
+        // The inner slider only needs the scrollable part.
+        slider.set_maximum(9)?;
         Ok(Self {
             handle: slider,
-            page: 0,
+            page: 1,
+            max: 10,
         })
     }
 
@@ -206,16 +239,38 @@ impl ScrollBar {
 
     pub fn set_orient(&mut self, v: Orient) -> Result<()>;
 
-    pub fn minimum(&self) -> Result<usize>;
+    pub fn minimum(&self) -> Result<usize> {
+        self.handle.minimum()
+    }
 
-    pub fn set_minimum(&mut self, v: usize) -> Result<()>;
+    pub fn set_minimum(&mut self, v: usize) -> Result<()> {
+        let page = self.page()?.max(1);
+        let max = self.max.max(v.saturating_add(page));
+        let (min, max) = fit_page(v, max, page);
+        self.max = max;
+        self.apply_range(min, page)?;
+        self.set_pos(self.pos()?)?;
+        Ok(())
+    }
 
     pub fn maximum(&self) -> Result<usize> {
-        Ok(self.handle.maximum()? + self.page()?)
+        Ok(self.max)
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        self.handle.set_maximum(v.saturating_sub(self.page()?))
+        let page = self.page()?.max(1);
+        let old_min = self.minimum()?;
+        let min = if v < old_min.saturating_add(page) {
+            v.saturating_sub(page)
+        } else {
+            old_min
+        };
+        let max = v.max(min.saturating_add(page));
+        let (min, max) = fit_page(min, max, page);
+        self.max = max;
+        self.apply_range(min, page)?;
+        self.set_pos(self.pos()?)?;
+        Ok(())
     }
 
     pub fn page(&self) -> Result<usize> {
@@ -223,14 +278,39 @@ impl ScrollBar {
     }
 
     pub fn set_page(&mut self, v: usize) -> Result<()> {
-        let max = self.maximum()?;
-        self.page = v;
-        self.set_maximum(max)
+        let page = v.max(1);
+        let (min, max) = fit_page(self.minimum()?, self.max, page);
+        self.max = max;
+        self.page = page;
+        self.apply_range(min, page)?;
+        self.set_pos(self.pos()?)?;
+        Ok(())
     }
 
-    pub fn pos(&self) -> Result<usize>;
+    pub fn pos(&self) -> Result<usize> {
+        let min = self.minimum()?;
+        let max = self.max.saturating_sub(self.page).max(min);
+        Ok(self.handle.pos()?.clamp(min, max))
+    }
 
-    pub fn set_pos(&mut self, v: usize) -> Result<()>;
+    pub fn set_pos(&mut self, v: usize) -> Result<()> {
+        let min = self.minimum()?;
+        let max = self.max.saturating_sub(self.page).max(min);
+        self.handle.set_pos(v.clamp(min, max))
+    }
+
+    /// Apply the scrollable part of the range to the inner slider. The slider
+    /// needs a strictly non-empty range, so it may get one extra hidden value
+    /// when the page is as large as the content.
+    fn apply_range(&mut self, min: usize, page: usize) -> Result<()> {
+        let inner_max = self
+            .max
+            .saturating_sub(page)
+            .max(min)
+            .max(min.saturating_add(1));
+        self.handle.set_minimum(min)?;
+        self.handle.set_maximum(inner_max)
+    }
 
     pub async fn wait_change(&self) {
         self.handle.wait_change().await

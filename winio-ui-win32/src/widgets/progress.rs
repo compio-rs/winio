@@ -26,6 +26,8 @@ impl Progress {
             0,
             parent.as_container().as_win32(),
         )?;
+        handle.send_message(PBM_SETRANGE32, 0, 10);
+        handle.send_message(PBM_SETPOS, 0, 0);
         Ok(Self { handle })
     }
 
@@ -63,14 +65,14 @@ impl Progress {
     }
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
-        self.handle
-            .send_message(PBM_SETRANGE32, v as _, self.maximum()? as _);
+        let max = self.maximum()?.max(v);
+        self.handle.send_message(PBM_SETRANGE32, v as _, max as _);
         Ok(())
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        self.handle
-            .send_message(PBM_SETRANGE32, self.minimum()? as _, v as _);
+        let min = self.minimum()?.min(v);
+        self.handle.send_message(PBM_SETRANGE32, min as _, v as _);
         Ok(())
     }
 

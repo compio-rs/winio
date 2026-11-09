@@ -28,7 +28,11 @@ impl UpDownEdit {
         }
         let mut widget = Widget::new(widget)?;
         widget.set_visible(true)?;
-        Ok(Self { on_change, widget })
+        let mut this = Self { on_change, widget };
+        this.set_range(0, 10)?;
+        this.set_step(1)?;
+        this.set_value(0)?;
+        Ok(this)
     }
 
     pub fn is_visible(&self) -> Result<bool>;
@@ -58,7 +62,10 @@ impl UpDownEdit {
     }
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
-        self.widget.pin_mut().setMinimum(v as _)?;
+        if self.minimum()? != v {
+            let max = self.maximum()?.max(v.saturating_add(1));
+            self.set_range(v, max)?;
+        }
         Ok(())
     }
 
@@ -67,7 +74,16 @@ impl UpDownEdit {
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        self.widget.pin_mut().setMaximum(v as _)?;
+        if self.maximum()? != v {
+            let old_min = self.minimum()?;
+            let min = if v < old_min.saturating_add(1) {
+                v.saturating_sub(1)
+            } else {
+                old_min
+            };
+            let max = v.max(min.saturating_add(1));
+            self.set_range(min, max)?;
+        }
         Ok(())
     }
 
@@ -76,7 +92,7 @@ impl UpDownEdit {
     }
 
     pub fn set_step(&mut self, v: usize) -> Result<()> {
-        self.widget.pin_mut().setSingleStep(v as _)?;
+        self.widget.pin_mut().setSingleStep(v.max(1) as _)?;
         Ok(())
     }
 
@@ -86,6 +102,11 @@ impl UpDownEdit {
 
     pub fn set_value(&mut self, v: usize) -> Result<()> {
         self.widget.pin_mut().setValue(v as _)?;
+        Ok(())
+    }
+
+    fn set_range(&mut self, min: usize, max: usize) -> Result<()> {
+        self.widget.pin_mut().setRange(min as _, max as _)?;
         Ok(())
     }
 
@@ -122,10 +143,10 @@ mod ffi {
         ) -> Result<()>;
 
         fn minimum(self: &QSpinBox) -> Result<i32>;
-        fn setMinimum(self: Pin<&mut QSpinBox>, v: i32) -> Result<()>;
 
         fn maximum(self: &QSpinBox) -> Result<i32>;
-        fn setMaximum(self: Pin<&mut QSpinBox>, v: i32) -> Result<()>;
+
+        fn setRange(self: Pin<&mut QSpinBox>, min: i32, max: i32) -> Result<()>;
 
         fn singleStep(self: &QSpinBox) -> Result<i32>;
         fn setSingleStep(self: Pin<&mut QSpinBox>, v: i32) -> Result<()>;

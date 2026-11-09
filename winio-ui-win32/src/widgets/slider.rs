@@ -1,9 +1,9 @@
 use inherit_methods_macro::inherit_methods;
 use windows_sys::Win32::UI::{
     Controls::{
-        TBM_GETRANGEMAX, TBM_GETRANGEMIN, TBM_SETPOSNOTIFY, TBM_SETRANGEMAX, TBM_SETRANGEMIN,
-        TBM_SETTICFREQ, TBS_AUTOTICKS, TBS_BOTH, TBS_BOTTOM, TBS_HORZ, TBS_TOP, TBS_VERT,
-        TRACKBAR_CLASSW,
+        TBM_GETRANGEMAX, TBM_GETRANGEMIN, TBM_SETPOS, TBM_SETPOSNOTIFY, TBM_SETRANGE,
+        TBM_SETRANGEMAX, TBM_SETRANGEMIN, TBM_SETTICFREQ, TBS_AUTOTICKS, TBS_BOTH, TBS_BOTTOM,
+        TBS_HORZ, TBS_TOP, TBS_VERT, TRACKBAR_CLASSW,
     },
     WindowsAndMessaging::{
         GetParent, WM_HSCROLL, WM_USER, WM_VSCROLL, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
@@ -29,7 +29,22 @@ impl SliderImpl {
             0,
             parent.as_container().as_win32(),
         )?;
+        // Set the range to 0..10, frequency to 1, and position to 0.
+        handle.send_message(TBM_SETRANGE, 0, 0x000a0000);
+        handle.send_message(TBM_SETTICFREQ, 1, 0);
+        handle.send_message(TBM_SETPOS, 1, 0);
         Ok(Self { handle, freq: 1 })
+    }
+
+    fn set_range(&mut self, min: usize, max: usize) {
+        let old_max = self.maximum().unwrap_or(0);
+        if min > old_max {
+            self.handle.send_message(TBM_SETRANGEMAX, 1, max as _);
+            self.handle.send_message(TBM_SETRANGEMIN, 1, min as _);
+        } else {
+            self.handle.send_message(TBM_SETRANGEMIN, 1, min as _);
+            self.handle.send_message(TBM_SETRANGEMAX, 1, max as _);
+        }
     }
 
     pub fn is_visible(&self) -> Result<bool>;
@@ -57,7 +72,8 @@ impl SliderImpl {
     }
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
-        self.handle.send_message(TBM_SETRANGEMIN, 1, v as _);
+        let max = self.maximum()?.max(v.saturating_add(1));
+        self.set_range(v, max);
         Ok(())
     }
 
@@ -66,7 +82,14 @@ impl SliderImpl {
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        self.handle.send_message(TBM_SETRANGEMAX, 1, v as _);
+        let min = self.minimum()?;
+        let min = if v < min.saturating_add(1) {
+            v.saturating_sub(1)
+        } else {
+            min
+        };
+        let max = v.max(min.saturating_add(1));
+        self.set_range(min, max);
         Ok(())
     }
 
@@ -75,6 +98,7 @@ impl SliderImpl {
     }
 
     pub fn set_freq(&mut self, v: usize) -> Result<()> {
+        let v = v.max(1);
         self.freq = v;
         self.handle.send_message(TBM_SETTICFREQ, v, 0);
         Ok(())

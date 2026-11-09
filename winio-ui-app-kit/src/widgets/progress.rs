@@ -22,6 +22,9 @@ impl Progress {
             let view = NSProgressIndicator::new(mtm);
             view.setIndeterminate(false);
             view.setUsesThreadedAnimation(false);
+            view.setMinValue(0.0);
+            view.setMaxValue(10.0);
+            view.setDoubleValue(0.0);
             let handle = Widget::from_nsview(parent, Retained::cast_unchecked(view.clone()))?;
 
             Ok(Self { handle, view })
@@ -58,7 +61,13 @@ impl Progress {
     }
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
-        catch(|| self.view.setMinValue(v as _))
+        let max = self.maximum()?.max(v);
+        catch(|| {
+            self.view.setMaxValue(max as _);
+            self.view.setMinValue(v as _);
+        })?;
+        let pos = self.pos()?.clamp(v, max);
+        catch(|| self.view.setDoubleValue(pos as _))
     }
 
     pub fn maximum(&self) -> Result<usize> {
@@ -66,7 +75,13 @@ impl Progress {
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        catch(|| self.view.setMaxValue(v as _))
+        let min = self.minimum()?.min(v);
+        catch(|| {
+            self.view.setMinValue(min as _);
+            self.view.setMaxValue(v as _);
+        })?;
+        let pos = self.pos()?.clamp(min, v);
+        catch(|| self.view.setDoubleValue(pos as _))
     }
 
     pub fn pos(&self) -> Result<usize> {
@@ -74,6 +89,7 @@ impl Progress {
     }
 
     pub fn set_pos(&mut self, pos: usize) -> Result<()> {
+        let pos = pos.clamp(self.minimum()?, self.maximum()?);
         catch(|| self.view.setDoubleValue(pos as _))
     }
 

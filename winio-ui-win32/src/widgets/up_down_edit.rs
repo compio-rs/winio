@@ -58,7 +58,11 @@ impl UpDownEdit {
         let height = unsafe { GetSystemMetricsForDpi(SM_CYVSCROLL, 96) };
         updown.set_size(Size::new(width as _, height as _))?;
 
-        Ok(Self { updown, handle })
+        updown.send_message(UDM_SETRANGE32, 0, 10);
+        let mut this = Self { updown, handle };
+        this.set_step(1)?;
+        this.set_value(0)?;
+        Ok(this)
     }
 
     pub fn is_visible(&self) -> Result<bool>;
@@ -106,8 +110,11 @@ impl UpDownEdit {
     }
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
-        let max = self.maximum()?.max(v + 1);
+        let max = self.maximum()?.max(v.saturating_add(1));
         self.updown.send_message(UDM_SETRANGE32, v as _, max as _);
+        // `UDM_SETRANGE32` does not clamp the current position
+        let value = self.value().unwrap_or(v);
+        self.set_value(value)?;
         Ok(())
     }
 
@@ -119,9 +126,16 @@ impl UpDownEdit {
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        let min = self.minimum()?;
-        let v = v.max(min + 1);
-        self.updown.send_message(UDM_SETRANGE32, min as _, v as _);
+        let old_min = self.minimum()?;
+        let min = if v < old_min.saturating_add(1) {
+            v.saturating_sub(1)
+        } else {
+            old_min
+        };
+        let max = v.max(min.saturating_add(1));
+        self.updown.send_message(UDM_SETRANGE32, min as _, max as _);
+        let value = self.value().unwrap_or(min);
+        self.set_value(value)?;
         Ok(())
     }
 
@@ -140,7 +154,7 @@ impl UpDownEdit {
     pub fn set_step(&mut self, v: usize) -> Result<()> {
         let accel = UDACCEL {
             nSec: 0,
-            nInc: v as u32,
+            nInc: v.max(1) as u32,
         };
         self.updown
             .send_message(UDM_SETACCEL, 1, &raw const accel as _);

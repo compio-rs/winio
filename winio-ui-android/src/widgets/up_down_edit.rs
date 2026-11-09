@@ -48,6 +48,10 @@ impl UpDownEdit {
             )?;
             widget.set_on_value_changed_listener(env, &change_proxy)?;
             let inner = BaseWidget::new_with_env(env, parent.as_container(), widget)?;
+            inner.set_real_max_value(env, 10)?;
+            inner.set_real_min_value(env, 0)?;
+            inner.set_step(env, 1)?;
+            inner.set_real_value(env, 0)?;
             Ok(Self {
                 inner,
                 on_change,
@@ -83,10 +87,10 @@ impl UpDownEdit {
     }
 
     pub fn set_minimum(&mut self, v: usize) -> Result<()> {
-        vm_exec(|env| {
-            self.inner.set_real_min_value(env, v as _)?;
-            Ok(())
-        })
+        let max = self.maximum()?.max(v.saturating_add(1));
+        self.set_range(v, max)?;
+        let value = self.value()?;
+        self.set_value(value)
     }
 
     pub fn maximum(&self) -> Result<usize> {
@@ -94,10 +98,16 @@ impl UpDownEdit {
     }
 
     pub fn set_maximum(&mut self, v: usize) -> Result<()> {
-        vm_exec(|env| {
-            self.inner.set_real_max_value(env, v as _)?;
-            Ok(())
-        })
+        let old_min = self.minimum()?;
+        let min = if v < old_min.saturating_add(1) {
+            v.saturating_sub(1)
+        } else {
+            old_min
+        };
+        let max = v.max(min.saturating_add(1));
+        self.set_range(min, max)?;
+        let value = self.value()?;
+        self.set_value(value)
     }
 
     pub fn step(&self) -> Result<usize> {
@@ -106,7 +116,7 @@ impl UpDownEdit {
 
     pub fn set_step(&mut self, v: usize) -> Result<()> {
         vm_exec(|env| {
-            self.inner.set_step(env, v as _)?;
+            self.inner.set_step(env, v.max(1) as _)?;
             Ok(())
         })
     }
@@ -118,6 +128,20 @@ impl UpDownEdit {
     pub fn set_value(&mut self, v: usize) -> Result<()> {
         vm_exec(|env| {
             self.inner.set_real_value(env, v as _)?;
+            Ok(())
+        })
+    }
+
+    fn set_range(&mut self, min: usize, max: usize) -> Result<()> {
+        vm_exec(|env| {
+            let old_max = self.inner.get_real_max_value(env)? as usize;
+            if min > old_max {
+                self.inner.set_real_max_value(env, max as _)?;
+                self.inner.set_real_min_value(env, min as _)?;
+            } else {
+                self.inner.set_real_min_value(env, min as _)?;
+                self.inner.set_real_max_value(env, max as _)?;
+            }
             Ok(())
         })
     }
