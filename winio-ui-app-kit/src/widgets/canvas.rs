@@ -5,6 +5,7 @@ use objc2::{
     rc::{Allocated, Retained},
 };
 use objc2_app_kit::{NSEvent, NSEventType, NSGraphicsContext, NSView};
+use objc2_core_graphics::CGContext;
 use objc2_foundation::{MainThreadMarker, NSRect};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
@@ -233,7 +234,9 @@ define_class! {
                 error!("Cannot get current NSGraphicsContext");
                 return;
             };
-            self.ivars().canvas.draw_rect(&ns_context.CGContext());
+            let context = ns_context.CGContext();
+            CGContext::clip_to_rect(Some(&context), self.bounds());
+            self.ivars().canvas.draw_rect(&context);
         }
 
         #[unsafe(method(mouseDown:))]
