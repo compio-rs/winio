@@ -2,8 +2,9 @@ use inherit_methods_macro::inherit_methods;
 use objc2::{
     DefinedClass, MainThreadMarker, MainThreadOnly, define_class, msg_send,
     rc::{Allocated, Retained},
+    sel,
 };
-use objc2_app_kit::{NSControlSize, NSEvent, NSScroller, NSScrollerStyle};
+use objc2_app_kit::{NSControlSize, NSScroller, NSScrollerStyle};
 use objc2_foundation::{NSPoint, NSRect, NSSize};
 use winio_callback::Callback;
 use winio_handle::{AsContainer, BorrowedContainer};
@@ -40,6 +41,10 @@ impl ScrollBarImpl {
             view.setEnabled(true);
             view.setKnobProportion(0.1);
             view.setDoubleValue(0.0);
+
+            view.setContinuous(true);
+            view.setTarget(Some(&view));
+            view.setAction(Some(sel!(onChange)));
 
             Ok(Self {
                 handle,
@@ -178,9 +183,8 @@ define_class! {
             unsafe { msg_send![super(this), initWithFrame: frame] }
         }
 
-        #[unsafe(method(trackKnob:))]
-        unsafe fn trackKnob(&self, event: &NSEvent) {
-            let () = unsafe { msg_send![super(self), trackKnob:event] };
+        #[unsafe(method(onChange))]
+        unsafe fn onChange(&self) {
             self.ivars().on_move.signal::<GlobalRuntime>(());
         }
     }
