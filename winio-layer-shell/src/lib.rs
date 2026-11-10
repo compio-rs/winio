@@ -56,7 +56,11 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(missing_docs)]
 
-#[cfg(all(feature = "gtk", feature = "qt"))]
+#[cfg(all(
+    feature = "gtk",
+    feature = "qt",
+    not(any(target_os = "windows", target_vendor = "apple", target_os = "android"))
+))]
 compile_error!("You must choose only one of these features: [\"gtk\", \"qt\"]");
 
 use bitflags::bitflags;
