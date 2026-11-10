@@ -13,6 +13,9 @@ jni::bind_java_type! {
     constructors {
         fn new(bitmap: &Bitmap),
     },
+    methods {
+        fn set_target_density(density: jint),
+    },
     is_instance_of = {
         base = Drawable,
     }

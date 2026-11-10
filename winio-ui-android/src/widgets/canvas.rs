@@ -290,6 +290,25 @@ impl DrawingImage {
     pub(crate) fn drawable<'local>(&self, env: &mut Env<'local>) -> Result<BitmapDrawable<'local>> {
         Ok(BitmapDrawable::new(env, &*self.bitmap)?)
     }
+
+    pub(crate) fn scaled_drawable<'local>(
+        &self,
+        env: &mut Env<'local>,
+        size: i32,
+    ) -> Result<BitmapDrawable<'local>> {
+        let width = self.bitmap.get_width(env)?;
+        let height = self.bitmap.get_height(env)?;
+        let longest = width.max(height).max(1);
+        let size = size.max(1);
+        let scale = size as f32 / longest as f32;
+        let scaled_width = ((width as f32 * scale).round() as i32).max(1);
+        let scaled_height = ((height as f32 * scale).round() as i32).max(1);
+        let bitmap =
+            Bitmap::create_scaled_bitmap(env, &*self.bitmap, scaled_width, scaled_height, true)?;
+        let drawable = BitmapDrawable::new(env, &bitmap)?;
+        drawable.set_target_density(env, bitmap.get_density(env)?)?;
+        Ok(drawable)
+    }
 }
 
 impl TryFrom<DynamicImage> for DrawingImage {

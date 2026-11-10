@@ -15,9 +15,9 @@ use winio_callback::SyncCallback;
 use winio_handle::{AsMenuContainer, AsMenuItem, BorrowedMenuContainer, BorrowedMenuItem};
 
 use crate::{
-    Image, JCharSequenceExt, Result,
+    Image, JCharSequenceExt, Result, current_activity,
     java::android::{
-        graphics::drawable::Drawable,
+        graphics::drawable::{BitmapDrawable, Drawable},
         view::{
             Menu as JMenu, MenuItem as JMenuItem, MenuItemOnMenuItemClickListener,
             SubMenu as JSubMenu, menu, menu_item,
@@ -74,6 +74,19 @@ fn click_listener(env: &mut Env<'_>, on_click: &Arc<SyncCallback>) -> Result<Dyn
             Ok(JBoolean::new(env, true)?.into())
         },
     )?)
+}
+
+/// Size of the icons of menu items and tool bar items, in dp.
+const ICON_SIZE: f32 = 24.0;
+
+fn icon_drawable<'local>(env: &mut Env<'local>, icon: &Image) -> Result<BitmapDrawable<'local>> {
+    let act = current_activity(env)?;
+    let metrics = act
+        .as_context()
+        .get_resources(env)?
+        .get_display_metrics(env)?;
+    let size = (ICON_SIZE * metrics.density(env)?).round() as i32;
+    icon.scaled_drawable(env, size)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -145,7 +158,7 @@ impl LeafItem {
     pub fn set_icon(&self, env: &mut Env<'_>, icon: Option<&Image>) -> Result<()> {
         match icon {
             Some(icon) => {
-                let drawable = icon.drawable(env)?;
+                let drawable = icon_drawable(env, icon)?;
                 self.item.set_icon(env, drawable)?;
             }
             None => {
@@ -270,7 +283,7 @@ impl SubMenuItem {
     pub fn set_icon(&self, env: &mut Env<'_>, icon: Option<&Image>) -> Result<()> {
         match icon {
             Some(icon) => {
-                let drawable = icon.drawable(env)?;
+                let drawable = icon_drawable(env, icon)?;
                 self.item.set_icon(env, drawable)?;
             }
             None => {

@@ -119,12 +119,14 @@ jni::bind_java_type! {
     methods {
         fn get_width() -> jint,
         fn get_height() -> jint,
+        fn get_density() -> jint,
         #[allow(clippy::too_many_arguments)]
         fn get_pixels(pixels: jint[], offset: jint, stride: jint, x: jint, y: jint, width: jint, height: jint),
         #[allow(clippy::too_many_arguments)]
         fn set_pixels(pixels: jint[], offset: jint, stride: jint, x: jint, y: jint, width: jint, height: jint),
         fn copy(config: &BitmapConfig, is_mutable: bool) -> Bitmap,
         static fn create_bitmap(width: jint, height: jint, config: &BitmapConfig) -> Bitmap,
+        static fn create_scaled_bitmap(src: &Bitmap, width: jint, height: jint, filter: bool) -> Bitmap,
     },
 }
 
