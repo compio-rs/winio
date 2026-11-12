@@ -283,11 +283,11 @@ impl Component for WgpuPageInner {
         let Some(frame) = self.canvas.acquire(&self.device) else {
             return Ok(());
         };
-        if self.data.as_ref().map(|d| d.format) != Some(frame.format) {
-            self.data = Some(SurfaceData::new(&self.device, frame.format));
+        if self.data.as_ref().map(|d| d.format) != Some(frame.format()) {
+            self.data = Some(SurfaceData::new(&self.device, frame.format()));
         }
         let data = self.data.as_ref().expect("just created");
-        self.draw(data, &frame.view);
+        self.draw(data, frame.view());
         self.canvas.present(&self.queue)?;
 
         Ok(())
