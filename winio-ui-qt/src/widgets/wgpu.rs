@@ -165,6 +165,12 @@ impl WgpuCanvas {
     pub fn present(&mut self, queue: &wgpu::Queue) -> Result<()> {
         match &mut self.target {
             Target::Dmabuf(image) => {
+                // The OpenGL context is created when the widget is first
+                // shown, so the frames presented before that cannot be
+                // imported yet.
+                if !ffi::wgpu_canvas_gl_ready(self.widget.as_ref()) {
+                    return Ok(());
+                }
                 // The widget reads the memory directly, so the rendering must
                 // be done before the DMA-BUF is imported.
                 image.wait();
@@ -335,6 +341,7 @@ mod ffi {
         );
         fn wgpu_canvas_clear_image(w: Pin<&mut QWidget>);
         fn wgpu_canvas_clear_dmabuf(w: Pin<&mut QWidget>);
+        fn wgpu_canvas_gl_ready(w: &QWidget) -> bool;
         unsafe fn wgpu_canvas_set_dmabuf(
             w: Pin<&mut QWidget>,
             fd: i32,

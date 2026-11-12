@@ -229,6 +229,8 @@ bool WinioWgpuCanvas::set_dmabuf(int fd, int width, int height, int stride,
     return true;
 }
 
+bool WinioWgpuCanvas::gl_ready() const { return m_gl->initialized; }
+
 void WinioWgpuCanvas::clear_dmabuf() {
     m_gl->dmabuf_ready = false;
     if (m_gl->egl_image) {
@@ -327,6 +329,10 @@ void wgpu_canvas_clear_dmabuf(QWidget &w) {
 
 void wgpu_canvas_clear_image(QWidget &w) {
     static_cast<WinioWgpuCanvas &>(w).clear_image();
+}
+
+bool wgpu_canvas_gl_ready(QWidget const &w) {
+    return static_cast<WinioWgpuCanvas const &>(w).gl_ready();
 }
 
 bool wgpu_canvas_set_dmabuf(QWidget &w, int fd, std::uint32_t width,
