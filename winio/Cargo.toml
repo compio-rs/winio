@@ -36,6 +36,7 @@ cookie = { workspace = true, optional = true }
 futures-util = { workspace = true }
 inherit-methods-macro = { workspace = true }
 image = { workspace = true }
+oneshot = { workspace = true, optional = true, features = ["std"] }
 plotters-backend = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true }
 
@@ -112,6 +113,7 @@ compio-compat = [
 ]
 wgpu = [
     "dep:wgpu",
+    "dep:oneshot",
     "winio-ui-stub/wgpu",
     "winio-ui-app-kit/wgpu",
     "winio-ui-ui-kit/wgpu",

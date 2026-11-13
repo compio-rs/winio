@@ -32,6 +32,8 @@ struct WinioWgpuCanvas : QOpenGLWidget {
                     std::uint32_t fourcc);
     void clear_dmabuf();
 
+    bool gl_ready() const;
+
 protected:
     void paintEvent(QPaintEvent *event) override;
     void initializeGL() override;
@@ -54,6 +56,7 @@ void wgpu_canvas_set_image(QWidget &w, std::uint8_t const *data,
                            std::uint32_t stride);
 void wgpu_canvas_clear_image(QWidget &w);
 void wgpu_canvas_clear_dmabuf(QWidget &w);
+bool wgpu_canvas_gl_ready(QWidget const &w);
 bool wgpu_canvas_set_dmabuf(QWidget &w, int fd, std::uint32_t width,
                             std::uint32_t height, std::uint32_t stride,
                             std::uint32_t fourcc);

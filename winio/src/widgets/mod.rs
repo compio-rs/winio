@@ -72,6 +72,11 @@ mod wgpu;
 #[cfg(feature = "wgpu")]
 pub use wgpu::*;
 
+#[cfg(feature = "wgpu")]
+mod wgpu_sync;
+#[cfg(feature = "wgpu")]
+pub use wgpu_sync::*;
+
 mod timer;
 pub use timer::*;
 
