@@ -19,7 +19,7 @@ use windows_sys::{
 };
 use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{Font, HAlign, Point, Size};
-use winio_ui_windows_common::syscall;
+use winio_ui_windows_common::{CoInit, syscall};
 
 use crate::{
     Error, Result, WindowMessageCommand,
@@ -140,6 +140,7 @@ impl Drop for Label {
 pub struct LinkLabel {
     handle: Label,
     uri: String,
+    _init: CoInit,
 }
 
 #[inherit_methods(from = "self.handle")]
@@ -160,6 +161,7 @@ impl LinkLabel {
         Ok(Self {
             handle,
             uri: String::new(),
+            _init: CoInit::new()?,
         })
     }
 
