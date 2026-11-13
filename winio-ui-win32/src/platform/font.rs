@@ -1,19 +1,18 @@
 #[cfg(feature = "once_cell_try")]
 use std::sync::OnceLock;
-use std::{cell::RefCell, collections::BTreeMap, mem::MaybeUninit, sync::Mutex};
+use std::{cell::RefCell, collections::BTreeMap, mem::MaybeUninit, ptr::null_mut, sync::Mutex};
 
 #[cfg(not(feature = "once_cell_try"))]
 use once_cell::sync::OnceCell as OnceLock;
 use widestring::{U16CStr, U16Str};
-use windows::Win32::Graphics::DirectWrite::{
-    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STYLE_NORMAL,
-};
-use windows_core::w;
 use windows_sys::Win32::{
-    Foundation::HWND,
-    Graphics::Gdi::{CreateFontIndirectW, DeleteObject, GetObjectW, HFONT, LOGFONTW},
+    Foundation::{HWND, SIZE},
+    Graphics::Gdi::{
+        CreateCompatibleDC, CreateFontIndirectW, DeleteDC, DeleteObject, GetObjectW,
+        GetTextExtentPoint32W, GetTextMetricsW, HDC, HFONT, LOGFONTW, SelectObject, TEXTMETRICW,
+    },
     UI::{
-        HiDpi::{GetDpiForWindow, SystemParametersInfoForDpi},
+        HiDpi::SystemParametersInfoForDpi,
         WindowsAndMessaging::{
             NONCLIENTMETRICSW, SPI_GETNONCLIENTMETRICS, SendMessageW, USER_DEFAULT_SCREEN_DPI,
             WM_GETFONT,
@@ -21,7 +20,7 @@ use windows_sys::Win32::{
     },
 };
 use winio_primitive::{Font, Size};
-use winio_ui_windows_common::{dwrite_factory, syscall};
+use winio_ui_windows_common::syscall;
 
 use super::dpi::{DpiAware, get_dpi_for_window};
 use crate::{Error, Result};
@@ -106,40 +105,59 @@ pub fn default_underline_font(dpi: u32) -> Result<HFONT> {
     }
 }
 
+struct MeasureDc(HDC);
+
+impl Drop for MeasureDc {
+    fn drop(&mut self) {
+        unsafe {
+            DeleteDC(self.0);
+        }
+    }
+}
+
+thread_local! {
+    static MEASURE_DC: MeasureDc = MeasureDc(unsafe { CreateCompatibleDC(null_mut()) });
+}
+
 pub fn measure_string(hwnd: HWND, s: &U16Str) -> Result<Size> {
     unsafe {
+        let dpi = get_dpi_for_window(hwnd);
         let hfont = SendMessageW(hwnd, WM_GETFONT, 0, 0) as HFONT;
-        let mut font = MaybeUninit::<LOGFONTW>::uninit();
-        if GetObjectW(hfont, size_of::<LOGFONTW>() as _, font.as_mut_ptr().cast()) == 0 {
-            return Ok(Size::zero());
-        }
-        let font = font.assume_init();
-        let dpi = GetDpiForWindow(hwnd);
-        let height = font.lfHeight.abs().to_logical(dpi);
-        if s.is_empty() {
-            return Ok(Size::new(0.0, height as _));
-        }
-
-        let factory = dwrite_factory()?;
-        let format = factory.CreateTextFormat(
-            windows_core::PCWSTR::from_raw(font.lfFaceName.as_ptr()),
-            None,
-            font.lfWeight,
-            if font.lfItalic != 0 {
-                DWRITE_FONT_STYLE_ITALIC
-            } else {
-                DWRITE_FONT_STYLE_NORMAL
-            },
-            DWRITE_FONT_STRETCH_NORMAL,
-            height as f32,
-            w!(""),
-        )?;
-        let layout = factory.CreateTextLayout(s.as_slice(), &format, f32::MAX, f32::MAX)?;
-        let mut metrics = MaybeUninit::uninit();
-        layout.GetMetrics(metrics.as_mut_ptr())?;
-        let metrics = metrics.assume_init();
-        Ok(Size::new(metrics.width as _, metrics.height as _))
+        let hfont = if hfont.is_null() {
+            default_font(dpi)?
+        } else {
+            hfont
+        };
+        MEASURE_DC.with(|dc| {
+            let hdc = dc.0;
+            if hdc.is_null() {
+                return Err(Error::from_thread());
+            }
+            let old = SelectObject(hdc, hfont);
+            let measured = measure_with_dc(hdc, s);
+            SelectObject(hdc, old);
+            Ok(measured?.to_logical(dpi))
+        })
     }
+}
+
+unsafe fn measure_with_dc(hdc: HDC, s: &U16Str) -> Result<Size> {
+    let mut metrics = MaybeUninit::<TEXTMETRICW>::uninit();
+    if unsafe { GetTextMetricsW(hdc, metrics.as_mut_ptr()) } == 0 {
+        return Err(Error::from_thread());
+    }
+    let metrics = unsafe { metrics.assume_init() };
+    let line_height = metrics.tmHeight + metrics.tmExternalLeading;
+    let mut width = 0;
+    let mut lines = 0;
+    for line in s.as_slice().split(|&c| c == b'\n' as u16) {
+        let line = line.strip_suffix(&[b'\r' as u16]).unwrap_or(line);
+        let mut size: SIZE = unsafe { std::mem::zeroed() };
+        unsafe { GetTextExtentPoint32W(hdc, line.as_ptr(), line.len() as _, &mut size) };
+        width = width.max(size.cx);
+        lines += 1;
+    }
+    Ok(Size::new(width as _, (line_height * lines) as _))
 }
 
 thread_local! {

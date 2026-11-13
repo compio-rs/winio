@@ -1,6 +1,10 @@
 use std::mem::MaybeUninit;
 
 use widestring::{U16CStr, U16CString};
+use windows_sys::Win32::UI::{
+    HiDpi::GetSystemMetricsForDpi,
+    WindowsAndMessaging::{SM_CXEDGE, SM_CXMENUCHECK, SM_CXVSCROLL, USER_DEFAULT_SCREEN_DPI},
+};
 use winio_primitive::ColorTheme;
 pub use winio_ui_windows_common::{
     Backdrop, CustomButton, FileBox, FileFilter, MessageBox, accent_color, monitor_get_all,
@@ -81,6 +85,23 @@ pub fn color_theme() -> crate::Result<ColorTheme> {
     } else {
         Ok(ColorTheme::Light)
     }
+}
+
+pub(crate) fn scroll_bar_width() -> f64 {
+    unsafe { GetSystemMetricsForDpi(SM_CXVSCROLL, USER_DEFAULT_SCREEN_DPI) as _ }
+}
+
+pub(crate) fn check_glyph() -> f64 {
+    unsafe { GetSystemMetricsForDpi(SM_CXMENUCHECK, USER_DEFAULT_SCREEN_DPI) as _ }
+}
+
+/// Distance between the check box glyph cell and its label.
+///
+/// FIXME: the offset is only correct for the system font.
+pub(crate) const CHECK_GLYPH_GAP: f64 = 2.0;
+
+pub(crate) fn edge() -> f64 {
+    unsafe { GetSystemMetricsForDpi(SM_CXEDGE, USER_DEFAULT_SCREEN_DPI) as _ }
 }
 
 pub(crate) fn fix_crlf(s: &str) -> String {

@@ -1,16 +1,18 @@
+use std::sync::OnceLock;
+
 use inherit_methods_macro::inherit_methods;
 use windows_sys::Win32::UI::{
     Controls::{
-        PBM_GETPOS, PBM_GETRANGE, PBM_SETMARQUEE, PBM_SETPOS, PBM_SETRANGE32, PBS_MARQUEE,
-        PBS_SMOOTHREVERSE, PROGRESS_CLASSW,
+        PBBS_NORMAL, PBM_GETPOS, PBM_GETRANGE, PBM_SETMARQUEE, PBM_SETPOS, PBM_SETRANGE32,
+        PBS_MARQUEE, PBS_SMOOTHREVERSE, PP_BAR, PROGRESS_CLASSW, VSCLASS_PROGRESS,
     },
     HiDpi::GetSystemMetricsForDpi,
     WindowsAndMessaging::{SM_CYVSCROLL, USER_DEFAULT_SCREEN_DPI, WS_CHILD, WS_VISIBLE},
 };
-use winio_handle::AsContainer;
+use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{Point, Size};
 
-use crate::{Result, widgets::Widget};
+use crate::{Result, platform::theme::Theme, widgets::Widget};
 
 #[derive(Debug)]
 pub struct Progress {
@@ -40,8 +42,20 @@ impl Progress {
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
     pub fn preferred_size(&self) -> Result<Size> {
-        let height = unsafe { GetSystemMetricsForDpi(SM_CYVSCROLL, USER_DEFAULT_SCREEN_DPI) };
-        Ok(Size::new(0.0, height as _))
+        Ok(Size::new(0.0, self.height()))
+    }
+
+    fn height(&self) -> f64 {
+        static HEIGHT: OnceLock<f64> = OnceLock::new();
+        *HEIGHT.get_or_init(|| {
+            let hwnd = self.handle.as_widget().as_win32();
+            Theme::open(hwnd, VSCLASS_PROGRESS)
+                .and_then(|theme| theme.part_size(PP_BAR, PBBS_NORMAL))
+                .map(|s| s.height)
+                .unwrap_or_else(|| unsafe {
+                    GetSystemMetricsForDpi(SM_CYVSCROLL, USER_DEFAULT_SCREEN_DPI) as _
+                })
+        })
     }
 
     pub fn loc(&self) -> Result<Point>;

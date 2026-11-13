@@ -13,10 +13,10 @@ use windows_sys::Win32::{
         Controls::{
             BTNS_AUTOSIZE, BTNS_CHECK, BTNS_DROPDOWN, BTNS_SEP, BTNS_SHOWTEXT, BTNS_WHOLEDROPDOWN,
             HIMAGELIST, I_IMAGENONE, ILC_COLOR32, ImageList_Add, ImageList_Create,
-            ImageList_Destroy, TB_ADDBUTTONS, TB_AUTOSIZE, TB_BUTTONSTRUCTSIZE, TB_DELETEBUTTON,
-            TB_GETBUTTONTEXTW, TB_GETSTATE, TB_SETBITMAPSIZE, TB_SETBUTTONINFOW,
+            ImageList_Destroy, TB_ADDBUTTONS, TB_AUTOSIZE, TB_BUTTONCOUNT, TB_BUTTONSTRUCTSIZE,
+            TB_DELETEBUTTON, TB_GETBUTTONTEXTW, TB_GETSTATE, TB_SETBITMAPSIZE, TB_SETBUTTONINFOW,
             TB_SETEXTENDEDSTYLE, TB_SETIMAGELIST, TB_SETSTATE, TBBUTTON, TBBUTTONINFOW, TBIF_IMAGE,
-            TBIF_SIZE, TBIF_TEXT, TBSTATE_CHECKED, TBSTATE_ENABLED, TBSTYLE_EX_MIXEDBUTTONS,
+            TBIF_TEXT, TBSTATE_CHECKED, TBSTATE_ENABLED, TBSTYLE_EX_MIXEDBUTTONS,
         },
         HiDpi::GetSystemMetricsForDpi,
         Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
@@ -327,36 +327,13 @@ impl ToolBarData {
     }
 
     fn set_icon(&self, id: u32, icon: Option<&Image>) -> Result<()> {
-        let has_text = {
-            let mut items = self.items.borrow_mut();
-            let Some(item) = items.iter_mut().find(|item| item.id == id) else {
-                return Ok(());
-            };
-            item.icon = icon.cloned();
-            item.has_text
+        let mut items = self.items.borrow_mut();
+        let Some(item) = items.iter_mut().find(|item| item.id == id) else {
+            return Ok(());
         };
-        self.rebuild_image_list()?;
-        if icon.is_some() && !has_text {
-            let dpi = self.handle.dpi();
-            let (cx, _) = small_icon_size(dpi);
-            self.set_width(id, cx as u16)?;
-        }
-        Ok(())
-    }
-
-    fn set_width(&self, id: u32, cx: u16) -> Result<()> {
-        let mut info: TBBUTTONINFOW = unsafe { zeroed() };
-        info.cbSize = size_of::<TBBUTTONINFOW>() as _;
-        info.dwMask = TBIF_SIZE;
-        info.cx = cx;
-        let res =
-            self.handle
-                .send_message(TB_SETBUTTONINFOW, id as WPARAM, &raw mut info as LPARAM);
-        if res == 0 {
-            Err(Error::from_thread())
-        } else {
-            Ok(())
-        }
+        item.icon = icon.cloned();
+        drop(items);
+        self.rebuild_image_list()
     }
 
     fn rebuild_image_list(&self) -> Result<()> {
@@ -396,19 +373,39 @@ impl ToolBarData {
             }
             Some(list)
         } else {
-            self.handle.send_message(TB_SETIMAGELIST, 0, 0);
             for item in items.iter() {
                 if item.id != 0 {
                     self.set_image(item.id, I_IMAGENONE)?;
                 }
             }
+            self.handle.send_message(TB_SETIMAGELIST, 0, 0);
             None
         };
 
         *self.image_list.borrow_mut() = list;
         drop(items);
+        self.relayout();
         self.autosize();
         Ok(())
+    }
+
+    /// Make the control lay its buttons out again.
+    fn relayout(&self) {
+        let count = self.handle.send_message(TB_BUTTONCOUNT, 0, 0);
+        let dummy = TBBUTTON {
+            iBitmap: I_IMAGENONE,
+            idCommand: 0,
+            fsState: 0,
+            fsStyle: 0,
+            ..Default::default()
+        };
+        let added = self
+            .handle
+            .send_message(TB_ADDBUTTONS, 1, &dummy as *const TBBUTTON as LPARAM);
+        if added != 0 {
+            self.handle
+                .send_message(TB_DELETEBUTTON, count as WPARAM, 0);
+        }
     }
 
     fn is_visible(&self) -> bool {

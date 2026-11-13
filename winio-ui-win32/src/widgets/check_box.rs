@@ -9,7 +9,11 @@ use windows_sys::Win32::UI::{
 use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{Point, Size};
 
-use crate::{Result, runtime::WindowMessageCommand, widgets::Widget};
+use crate::{
+    Result,
+    runtime::WindowMessageCommand,
+    widgets::{CHECK_GLYPH_GAP, Widget, check_glyph},
+};
 
 #[derive(Debug)]
 pub struct CheckBox {
@@ -38,7 +42,11 @@ impl CheckBox {
 
     pub fn preferred_size(&self) -> Result<Size> {
         let s = self.handle.measure_text()?;
-        Ok(Size::new(s.width + 18.0, s.height + 2.0))
+        let glyph = check_glyph();
+        Ok(Size::new(
+            glyph + CHECK_GLYPH_GAP + s.width,
+            s.height.max(glyph),
+        ))
     }
 
     pub fn loc(&self) -> Result<Point>;

@@ -26,7 +26,7 @@ use winio_ui_windows_common::syscall;
 use crate::{
     Error, Result, get_u16c,
     runtime::WindowMessageCommand,
-    widgets::{Widget, fix_crlf, with_u16c},
+    widgets::{Widget, edge, fix_crlf, with_u16c},
 };
 
 #[derive(Debug)]
@@ -60,7 +60,8 @@ impl EditImpl {
 
     pub fn preferred_size(&self) -> Result<Size> {
         let s = self.handle.measure_text()?;
-        Ok(Size::new(s.width + 8.0, s.height + 4.0))
+        let border = edge() * 2.0;
+        Ok(Size::new(s.width + border, s.height + border))
     }
 
     pub fn loc(&self) -> Result<Point>;
@@ -306,7 +307,8 @@ impl TextBox {
         let index = text.as_slice().iter().position(|c| *c == '\r' as u16);
         if let Some(index) = index {
             let s = self.handle.handle.measure(text.split_at(index).0)?;
-            Ok(Size::new(8.0, s.height + 4.0))
+            let border = edge() * 2.0;
+            Ok(Size::new(border, s.height + border))
         } else {
             self.preferred_size()
         }
