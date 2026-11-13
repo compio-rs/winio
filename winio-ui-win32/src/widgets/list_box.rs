@@ -3,8 +3,8 @@ use widestring::U16CString;
 use windows_sys::Win32::UI::{
     Controls::WC_LISTBOXW,
     WindowsAndMessaging::{
-        GetParent, LB_DELETESTRING, LB_GETCOUNT, LB_GETSEL, LB_GETTEXT, LB_GETTEXTLEN,
-        LB_INSERTSTRING, LB_RESETCONTENT, LB_SETSEL, LBN_SELCANCEL, LBN_SELCHANGE,
+        GetParent, LB_DELETESTRING, LB_GETCOUNT, LB_GETITEMHEIGHT, LB_GETSEL, LB_GETTEXT,
+        LB_GETTEXTLEN, LB_INSERTSTRING, LB_RESETCONTENT, LB_SETSEL, LBN_SELCANCEL, LBN_SELCHANGE,
         LBS_DISABLENOSCROLL, LBS_HASSTRINGS, LBS_MULTIPLESEL, LBS_NOINTEGRALHEIGHT, LBS_NOTIFY,
         LBS_USETABSTOPS, WM_COMMAND, WS_CHILD, WS_TABSTOP, WS_VISIBLE, WS_VSCROLL,
     },
@@ -15,7 +15,7 @@ use winio_primitive::{Point, Size};
 use crate::{
     Result,
     runtime::WindowMessageCommand,
-    widgets::{Widget, get_u16c, with_u16c},
+    widgets::{Widget, get_u16c, scroll_bar_width, with_u16c},
 };
 
 #[derive(Debug)]
@@ -51,27 +51,32 @@ impl ListBoxImpl {
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
     pub fn preferred_size(&self) -> Result<Size> {
+        let count = self.len()?;
         let mut width = 0.0f64;
-        let mut height = 0.0f64;
-        for i in 0..self.len()? {
+        for i in 0..count {
             let data = self.get_u16(i)?;
             let s = self.handle.measure(data.as_ustr())?;
             width = width.max(s.width);
-            height += s.height;
         }
-        Ok(Size::new(width + 20.0, height))
+        Ok(Size::new(
+            width + scroll_bar_width(),
+            self.item_height()? * count as f64,
+        ))
     }
 
     pub fn min_size(&self) -> Result<Size> {
         let mut width = 0.0f64;
-        let mut height = 0.0f64;
         for i in 0..self.len()? {
             let data = self.get_u16(i)?;
             let s = self.handle.measure(data.as_ustr())?;
             width = width.max(s.width);
-            height = height.max(s.height);
         }
-        Ok(Size::new(width + 20.0, height))
+        Ok(Size::new(width + scroll_bar_width(), self.item_height()?))
+    }
+
+    fn item_height(&self) -> Result<f64> {
+        let height = self.handle.send_message(LB_GETITEMHEIGHT, 0, 0);
+        Ok(self.handle.size_d2l((0, height as _)).height)
     }
 
     pub fn loc(&self) -> Result<Point>;

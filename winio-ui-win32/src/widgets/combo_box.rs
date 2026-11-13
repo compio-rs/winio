@@ -1,21 +1,24 @@
+use std::sync::OnceLock;
+
 use inherit_methods_macro::inherit_methods;
 use widestring::U16CString;
 use windows_sys::Win32::UI::{
-    Controls::WC_COMBOBOXW,
+    Controls::{CBXS_NORMAL, CP_READONLY, TMT_SIZINGMARGINS, VSCLASS_COMBOBOX, WC_COMBOBOXW},
     WindowsAndMessaging::{
-        CB_DELETESTRING, CB_GETCOUNT, CB_GETCURSEL, CB_GETLBTEXT, CB_GETLBTEXTLEN, CB_INSERTSTRING,
-        CB_RESETCONTENT, CB_SETCURSEL, CBN_EDITUPDATE, CBN_SELCHANGE, CBS_AUTOHSCROLL,
-        CBS_DROPDOWN, CBS_DROPDOWNLIST, CBS_HASSTRINGS, GetParent, WM_COMMAND, WS_CHILD,
-        WS_TABSTOP, WS_VISIBLE,
+        CB_DELETESTRING, CB_GETCOUNT, CB_GETCURSEL, CB_GETITEMHEIGHT, CB_GETLBTEXT,
+        CB_GETLBTEXTLEN, CB_INSERTSTRING, CB_RESETCONTENT, CB_SETCURSEL, CBN_EDITUPDATE,
+        CBN_SELCHANGE, CBS_AUTOHSCROLL, CBS_DROPDOWN, CBS_DROPDOWNLIST, CBS_HASSTRINGS, GetParent,
+        WM_COMMAND, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
     },
 };
 use winio_handle::{AsContainer, AsWidget, BorrowedContainer};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Margin, Point, Size};
 
 use crate::{
     Result,
+    platform::theme::Theme,
     runtime::WindowMessageCommand,
-    widgets::{Widget, get_u16c, with_u16c},
+    widgets::{Widget, get_u16c, scroll_bar_width, with_u16c},
 };
 
 #[derive(Debug)]
@@ -51,7 +54,26 @@ impl ComboBoxImpl {
             let s = self.handle.measure(data.as_ustr())?;
             width = width.max(s.width);
         }
-        Ok(Size::new(width + 20.0, self.handle.size()?.height))
+        let item_height = self.handle.size_d2l((0, self.item_height() as _)).height;
+        let padding = self.padding();
+        Ok(Size::new(
+            width + scroll_bar_width() + padding.left + padding.right,
+            item_height + padding.top + padding.bottom,
+        ))
+    }
+
+    fn padding(&self) -> Margin {
+        static PADDING: OnceLock<Margin> = OnceLock::new();
+        *PADDING.get_or_init(|| {
+            let hwnd = self.handle.as_widget().as_win32();
+            Theme::open(hwnd, VSCLASS_COMBOBOX)
+                .and_then(|theme| theme.margins(CP_READONLY, CBXS_NORMAL, TMT_SIZINGMARGINS))
+                .unwrap_or_default()
+        })
+    }
+
+    fn item_height(&self) -> i32 {
+        self.handle.send_message(CB_GETITEMHEIGHT, 0, 0) as _
     }
 
     pub fn loc(&self) -> Result<Point>;

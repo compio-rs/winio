@@ -1,11 +1,11 @@
-use std::mem::MaybeUninit;
+use std::{mem::MaybeUninit, sync::OnceLock};
 
 use inherit_methods_macro::inherit_methods;
 use windows_sys::Win32::{
     Foundation::{HWND, LPARAM, LRESULT, WPARAM},
     Graphics::Gdi::{FillRect, HDC},
     UI::{
-        Controls::WC_BUTTONW,
+        Controls::{BP_GROUPBOX, GBS_NORMAL, VSCLASS_BUTTON, WC_BUTTONW},
         Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
         WindowsAndMessaging::{
             BS_GROUPBOX, GetClientRect, WM_ERASEBKGND, WS_CHILD, WS_CLIPCHILDREN,
@@ -14,12 +14,11 @@ use windows_sys::Win32::{
     },
 };
 use winio_handle::{AsContainer, AsWidget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Margin, Point, Rect, Size};
 use winio_ui_windows_common::syscall;
 
-use crate::{Result, View, background_brush, widgets::Widget};
+use crate::{Result, View, background_brush, platform::theme::Theme, widgets::Widget};
 
-const PADDING: f64 = 3.0;
 const GROUP_BOX_SUBCLASS_ID: usize = 0;
 
 #[derive(Debug)]
@@ -67,7 +66,12 @@ impl GroupBox {
     }
 
     pub fn preferred_size(&self) -> Result<Size> {
-        self.handle.measure_text()
+        let title = self.handle.measure_text()?;
+        let padding = self.frame_padding();
+        Ok(Size::new(
+            title.width + padding.left + padding.right,
+            title.height + padding.top + padding.bottom,
+        ))
     }
 
     pub fn client_size(&self) -> Result<Size> {
@@ -78,13 +82,35 @@ impl GroupBox {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()>;
 
+    fn frame_padding(&self) -> Margin {
+        static PADDING: OnceLock<Margin> = OnceLock::new();
+        *PADDING.get_or_init(|| {
+            let hwnd = self.handle.as_widget().as_win32();
+            let bounds = Rect::new(Point::new(0.0, 0.0), Size::new(100.0, 100.0));
+            let content = Theme::open(hwnd, VSCLASS_BUTTON)
+                .and_then(|theme| theme.content_rect(BP_GROUPBOX, GBS_NORMAL, bounds));
+            match content {
+                Some(content) => Margin::new(
+                    content.origin.y,
+                    (bounds.size.width - content.origin.x - content.size.width).max(0.0),
+                    (bounds.size.height - content.origin.y - content.size.height).max(0.0),
+                    content.origin.x,
+                ),
+                None => Margin::zero(),
+            }
+        })
+    }
+
     fn update_view(&mut self) -> Result<()> {
         let size = self.handle.size()?;
-        let title_height = self.handle.measure_text()?.height;
-        let top = title_height + PADDING;
-        let width = (size.width - PADDING * 2.0).max(0.0);
-        let height = (size.height - top - PADDING).max(0.0);
-        self.view.set_loc(Point::new(PADDING, top))?;
+        // The caption is one text line tall, and the frame around it comes from
+        // the visual style.
+        let caption = self.handle.measure_text()?.height;
+        let padding = self.frame_padding();
+        let top = caption + padding.top;
+        let width = (size.width - padding.left - padding.right).max(0.0);
+        let height = (size.height - top - padding.bottom).max(0.0);
+        self.view.set_loc(Point::new(padding.left, top))?;
         self.view.set_size(Size::new(width, height))
     }
 }

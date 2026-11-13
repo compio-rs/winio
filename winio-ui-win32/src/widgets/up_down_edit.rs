@@ -18,7 +18,7 @@ use windows_sys::Win32::{
 use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{Point, Size};
 
-use crate::{Error, Result, Widget};
+use crate::{Error, Result, Widget, widgets::edge};
 
 #[derive(Debug)]
 pub struct UpDownEdit {
@@ -76,9 +76,10 @@ impl UpDownEdit {
     pub fn preferred_size(&self) -> Result<Size> {
         let edit = self.handle.measure_text()?;
         let updown = self.updown.size()?;
+        let border = edge() * 2.0;
         Ok(Size::new(
-            edit.width + updown.width + 8.0,
-            (edit.height + 4.0).max(updown.height),
+            edit.width + border + updown.width,
+            (edit.height + border).max(updown.height),
         ))
     }
 

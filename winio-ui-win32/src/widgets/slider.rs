@@ -1,18 +1,30 @@
+use std::sync::OnceLock;
+
 use inherit_methods_macro::inherit_methods;
 use windows_sys::Win32::UI::{
     Controls::{
         TBM_GETRANGEMAX, TBM_GETRANGEMIN, TBM_SETPOS, TBM_SETPOSNOTIFY, TBM_SETRANGE,
         TBM_SETRANGEMAX, TBM_SETRANGEMIN, TBM_SETTICFREQ, TBS_AUTOTICKS, TBS_BOTH, TBS_BOTTOM,
-        TBS_HORZ, TBS_TOP, TBS_VERT, TRACKBAR_CLASSW,
+        TBS_HORZ, TBS_TOP, TBS_VERT, TKP_THUMB, TKP_THUMBVERT, TKP_TICS, TRACKBAR_CLASSW,
+        TUS_NORMAL, VSCLASS_TRACKBAR,
     },
+    HiDpi::GetSystemMetricsForDpi,
     WindowsAndMessaging::{
-        GetParent, WM_HSCROLL, WM_USER, WM_VSCROLL, WS_CHILD, WS_TABSTOP, WS_VISIBLE,
+        GetParent, SM_CYVSCROLL, USER_DEFAULT_SCREEN_DPI, WM_HSCROLL, WM_USER, WM_VSCROLL,
+        WS_CHILD, WS_TABSTOP, WS_VISIBLE,
     },
 };
 use winio_handle::{AsContainer, AsWidget, BorrowedContainer};
 use winio_primitive::{Orient, Point, Size, TickPosition};
 
-use crate::{Result, Widget};
+use crate::{Result, Widget, platform::theme::Theme};
+
+#[derive(Debug, Clone, Copy)]
+struct Metrics {
+    thumb_width: f64,
+    thumb_height: f64,
+    tick: f64,
+}
 
 #[derive(Debug)]
 struct SliderImpl {
@@ -169,17 +181,50 @@ impl Slider {
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
     pub fn preferred_size(&self) -> Result<Size> {
-        let base_length = match self.tick_pos {
-            TickPosition::None => 20.0,
-            TickPosition::TopLeft | TickPosition::BottomRight => 30.0,
-            TickPosition::Both => 40.0,
+        let m = self.metrics();
+        let thumb = if self.vertical {
+            m.thumb_width
+        } else {
+            m.thumb_height
         };
+        let ticks = match self.tick_pos {
+            TickPosition::None => 0.0,
+            TickPosition::TopLeft | TickPosition::BottomRight => 2.0 * m.tick,
+            TickPosition::Both => 4.0 * m.tick,
+        };
+        let base_length = thumb + ticks;
         let size = if self.vertical {
             Size::new(base_length, 0.0)
         } else {
             Size::new(0.0, base_length)
         };
         Ok(size)
+    }
+
+    /// The sizes of the thumb and the tick marks, read once from the style.
+    fn metrics(&self) -> Metrics {
+        static METRICS: OnceLock<Metrics> = OnceLock::new();
+        *METRICS.get_or_init(|| {
+            let hwnd = self.handle.as_widget().as_win32();
+            let theme = Theme::open(hwnd, VSCLASS_TRACKBAR);
+            let thumb = theme
+                .as_ref()
+                .and_then(|theme| theme.part_size(TKP_THUMB, TUS_NORMAL));
+            let thumb_vert = theme
+                .as_ref()
+                .and_then(|theme| theme.part_size(TKP_THUMBVERT, TUS_NORMAL));
+            let scroll =
+                unsafe { GetSystemMetricsForDpi(SM_CYVSCROLL, USER_DEFAULT_SCREEN_DPI) as f64 };
+            Metrics {
+                thumb_height: thumb.map(|s| s.height).unwrap_or(scroll),
+                thumb_width: thumb_vert.map(|s| s.width).unwrap_or(scroll),
+                tick: theme
+                    .as_ref()
+                    .and_then(|theme| theme.part_size(TKP_TICS, TUS_NORMAL))
+                    .map(|s| s.height)
+                    .unwrap_or_default(),
+            }
+        })
     }
 
     pub fn loc(&self) -> Result<Point>;

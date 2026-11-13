@@ -11,7 +11,7 @@ use winio_handle::{AsContainer, AsWidget, BorrowedContainer};
 use winio_primitive::{Orient, Point, Size, fit_page};
 use winio_ui_windows_common::syscall;
 
-use crate::{Result, Widget};
+use crate::{Result, Widget, widgets::scroll_bar_width};
 
 #[derive(Debug)]
 struct ScrollBarImpl {
@@ -199,10 +199,11 @@ impl ScrollBar {
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
     pub fn preferred_size(&self) -> Result<Size> {
+        let width = scroll_bar_width();
         let size = if self.vertical {
-            Size::new(20.0, 0.0)
+            Size::new(width, 0.0)
         } else {
-            Size::new(0.0, 20.0)
+            Size::new(0.0, width)
         };
         Ok(size)
     }

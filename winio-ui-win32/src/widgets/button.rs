@@ -1,19 +1,30 @@
+use std::sync::OnceLock;
+
 use inherit_methods_macro::inherit_methods;
-use windows_sys::Win32::UI::{
-    Controls::{BS_SPLITBUTTON, WC_BUTTONW},
-    WindowsAndMessaging::{
-        BM_SETIMAGE, BN_CLICKED, BS_ICON, BS_PUSHBUTTON, GetParent, WM_COMMAND, WS_CHILD,
-        WS_TABSTOP, WS_VISIBLE,
+use windows_sys::Win32::{
+    Foundation::SIZE,
+    UI::{
+        Controls::{
+            BCM_GETIDEALSIZE, BP_PUSHBUTTON, BS_SPLITBUTTON, PBS_NORMAL, TMT_CONTENTMARGINS,
+            VSCLASS_BUTTON, WC_BUTTONW,
+        },
+        WindowsAndMessaging::{
+            BM_SETIMAGE, BN_CLICKED, BS_ICON, BS_PUSHBUTTON, GetParent, WM_COMMAND, WS_CHILD,
+            WS_TABSTOP, WS_VISIBLE,
+        },
     },
 };
 use winio_handle::{AsContainer, AsWidget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Margin, Point, Size};
 
 use crate::{
     Image, Result,
-    platform::image::{IconSize, clear_hwnd_icon, hwnd_icon_image, hwnd_icon_size, set_hwnd_icon},
+    platform::{
+        image::{IconSize, clear_hwnd_icon, hwnd_icon_image, hwnd_icon_size, set_hwnd_icon},
+        theme::Theme,
+    },
     runtime::{WindowMessage, WindowMessageCommand},
-    widgets::Widget,
+    widgets::{Widget, edge},
 };
 
 #[derive(Debug)]
@@ -68,14 +79,42 @@ impl Button {
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
     pub fn preferred_size(&self) -> Result<Size> {
+        let hwnd = self.handle.as_widget().as_win32();
+        // The button itself knows its ideal size: it accounts for the text, the
+        // icon, the drop-down arrow of a split button and the padding of the
+        // current visual style.
+        let mut size = SIZE { cx: 0, cy: 0 };
+        if self
+            .handle
+            .send_message(BCM_GETIDEALSIZE, 0, &raw mut size as _)
+            != 0
+            && size.cx > 0
+            && size.cy > 0
+        {
+            return Ok(self.handle.size_d2l((size.cx, size.cy)));
+        }
+
         let mut s = self.handle.measure_text()?;
-        if let Some(icon) = hwnd_icon_size(self.handle.as_widget().as_win32()) {
+        if let Some(icon) = hwnd_icon_size(hwnd) {
             s.width += icon.width as f64;
             s.height = s.height.max(icon.height as f64);
         }
-        // Reserve extra space for the drop-down arrow of a split button.
-        let extra = if self.split { 16.0 } else { 0.0 };
-        Ok(Size::new(s.width + 4.0 + extra, s.height + 4.0))
+        let padding = self.content_padding();
+        Ok(Size::new(
+            s.width + padding.left + padding.right,
+            s.height + padding.top + padding.bottom,
+        ))
+    }
+
+    fn content_padding(&self) -> Margin {
+        static PADDING: OnceLock<Margin> = OnceLock::new();
+        *PADDING.get_or_init(|| {
+            let hwnd = self.handle.as_widget().as_win32();
+            let edge = edge();
+            Theme::open(hwnd, VSCLASS_BUTTON)
+                .and_then(|theme| theme.margins(BP_PUSHBUTTON, PBS_NORMAL, TMT_CONTENTMARGINS))
+                .unwrap_or_else(|| Margin::new_all_same(edge))
+        })
     }
 
     pub fn loc(&self) -> Result<Point>;
