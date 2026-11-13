@@ -5,7 +5,6 @@ use std::{
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
-        mpsc,
     },
     thread::{self, ThreadId},
 };
@@ -131,7 +130,7 @@ impl WgpuCanvasSyncProxy {
         if thread::current().id() == self.ui {
             return Err(WgpuCanvasSyncError::WrongThread);
         }
-        let (tx, rx) = mpsc::sync_channel(1);
+        let (tx, rx) = oneshot::channel();
         self.sender
             .post(WgpuCanvasSyncMessage::Call(Call(Box::new(move |base| {
                 let _ = tx.send(f(base));
