@@ -1,13 +1,13 @@
 use std::{fmt::Display, num::ParseFloatError, str::FromStr};
 
 use taffy::{
-    GridTemplateComponent, NodeId, Style, TaffyTree, TrackSizingFunction,
+    GridTemplateComponent, NodeId, Style, TrackSizingFunction,
     prelude::{auto, fr, length, line, span},
 };
 use winio_primitive::Failable;
 
-use super::{layout_child, rect_t2e, render};
-use crate::{HAlign, LayoutChild, LayoutError, Point, Rect, Size, VAlign};
+use super::{compute_layout, layout_child, rect_t2e, render};
+use crate::{HAlign, LayoutChild, LayoutError, LayoutTree, Point, Rect, Size, VAlign};
 
 /// Error can be returned when parsing [`GridLength`].
 #[derive(Debug)]
@@ -147,8 +147,8 @@ impl<'a, E> Grid<'a, E> {
         }
     }
 
-    fn tree(&mut self) -> Result<(TaffyTree, NodeId, Vec<NodeId>), LayoutError<E>> {
-        let mut tree: TaffyTree<()> = TaffyTree::new();
+    fn tree(&mut self) -> Result<(LayoutTree, NodeId, Vec<NodeId>), LayoutError<E>> {
+        let mut tree = LayoutTree::new();
         let mut nodes = vec![];
         for child in &mut self.children {
             let preferred_size = child.child_preferred_size()?;
@@ -202,7 +202,13 @@ impl<'a, E> Grid<'a, E> {
                 style.grid_row.end = span(rspan as u16);
             }
 
-            let node = tree.new_leaf(style)?;
+            let node = tree.new_leaf_with_context(
+                style,
+                taffy::Size {
+                    width: preferred_size.width as f32,
+                    height: preferred_size.height as f32,
+                },
+            )?;
             nodes.push(node);
         }
         let root = tree.new_with_children(
@@ -272,13 +278,13 @@ impl<E> LayoutChild for Grid<'_, E> {
 
     fn child_preferred_size(&mut self) -> Result<Size, LayoutError<Self::Error>> {
         let (mut tree, root, _) = self.tree()?;
-        tree.compute_layout(root, taffy::Size::max_content())?;
+        compute_layout(&mut tree, root, taffy::Size::max_content())?;
         Ok(rect_t2e(tree.layout(root)?).size)
     }
 
     fn child_min_size(&mut self) -> Result<Size, LayoutError<Self::Error>> {
         let (mut tree, root, _) = self.tree()?;
-        tree.compute_layout(root, taffy::Size::min_content())?;
+        compute_layout(&mut tree, root, taffy::Size::min_content())?;
         Ok(rect_t2e(tree.layout(root)?).size)
     }
 }

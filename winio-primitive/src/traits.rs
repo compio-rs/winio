@@ -103,7 +103,7 @@ pub trait Layoutable: Failable {
     ///
     /// Measuring may update the widget's internal layout.
     fn min_size(&mut self) -> Result<Size, Self::Error> {
-        self.preferred_size()
+        Ok(Size::zero())
     }
 }
 
