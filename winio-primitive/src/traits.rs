@@ -93,12 +93,16 @@ pub trait Layoutable: Failable {
     }
 
     /// The preferred size.
-    fn preferred_size(&self) -> Result<Size, Self::Error> {
+    ///
+    /// Measuring may update the widget's internal layout.
+    fn preferred_size(&mut self) -> Result<Size, Self::Error> {
         Ok(Size::zero())
     }
 
     /// Min acceptable size.
-    fn min_size(&self) -> Result<Size, Self::Error> {
+    ///
+    /// Measuring may update the widget's internal layout.
+    fn min_size(&mut self) -> Result<Size, Self::Error> {
         self.preferred_size()
     }
 }

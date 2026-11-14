@@ -69,6 +69,10 @@ impl ScrollView {
 
     pub fn set_size(&mut self, v: Size) -> Result<()> {
         self.handle.set_size(v)?;
+        self.preferred_size().map(|_| ())
+    }
+
+    pub fn preferred_size(&mut self) -> Result<Size> {
         let handle = self.handle.as_widget().as_win32();
         let view = self.view.as_widget().as_win32();
 
@@ -110,7 +114,7 @@ impl ScrollView {
         unsafe {
             EnumChildWindows(view, Some(enum_callback), &mut rect as *mut _ as LPARAM);
         }
-        let (vwidth, vheight) = self.handle.size_l2d(v);
+        let (vwidth, vheight) = self.handle.size_l2d(self.size()?);
         let cwidth = (rect.right - rect.left).max(vwidth - 2);
         let cheight = (rect.bottom - rect.top).max(vheight - 2);
         self.view
@@ -145,7 +149,8 @@ impl ScrollView {
             syscall!(BOOL, GetScrollInfo(handle, SB_VERT, &mut si))?;
             y = -si.nPos;
         }
-        self.scroll_view(x, y)
+        self.scroll_view(x, y)?;
+        Ok(Size::zero())
     }
 
     pub fn hscroll(&self) -> Result<bool> {

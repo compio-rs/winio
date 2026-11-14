@@ -30,9 +30,9 @@ fn approx_eq_rect(r1: Rect, r2: Rect) -> bool {
 
 #[doc(hidden)]
 pub trait LayoutChild: Failable {
-    fn child_preferred_size(&self) -> Result<Size, LayoutError<Self::Error>>;
+    fn child_preferred_size(&mut self) -> Result<Size, LayoutError<Self::Error>>;
 
-    fn child_min_size(&self) -> Result<Size, LayoutError<Self::Error>>;
+    fn child_min_size(&mut self) -> Result<Size, LayoutError<Self::Error>>;
 
     fn set_child_loc(&mut self, p: Point) -> Result<(), LayoutError<Self::Error>>;
 
@@ -46,11 +46,11 @@ pub trait LayoutChild: Failable {
 }
 
 impl<T: Layoutable> LayoutChild for T {
-    fn child_preferred_size(&self) -> Result<Size, LayoutError<Self::Error>> {
+    fn child_preferred_size(&mut self) -> Result<Size, LayoutError<Self::Error>> {
         self.preferred_size().map_err(LayoutError::Child)
     }
 
-    fn child_min_size(&self) -> Result<Size, LayoutError<Self::Error>> {
+    fn child_min_size(&mut self) -> Result<Size, LayoutError<Self::Error>> {
         self.min_size().map_err(LayoutError::Child)
     }
 
@@ -164,11 +164,11 @@ macro_rules! __layout_child {
             type Error = E;
         }
         impl<E> $crate::LayoutChild for $name<'_, E> {
-            fn child_preferred_size(&self) -> Result<$crate::Size, LayoutError<Self::Error>> {
+            fn child_preferred_size(&mut self) -> Result<$crate::Size, LayoutError<Self::Error>> {
                 Ok($crate::size_add_margin(self.widget.child_preferred_size()?, self.margin))
             }
 
-            fn child_min_size(&self) -> Result<$crate::Size, LayoutError<Self::Error>> {
+            fn child_min_size(&mut self) -> Result<$crate::Size, LayoutError<Self::Error>> {
                 Ok($crate::size_add_margin(self.widget.child_min_size()?, self.margin))
             }
 

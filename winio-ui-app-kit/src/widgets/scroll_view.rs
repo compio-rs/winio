@@ -54,6 +54,11 @@ impl ScrollView {
 
     pub fn set_size(&mut self, v: Size) -> Result<()> {
         self.handle.set_size(v)?;
+        self.preferred_size().map(|_| ())
+    }
+
+    pub fn preferred_size(&mut self) -> Result<Size> {
+        let v = self.size()?;
         catch(|| {
             let inner_size = from_cgsize(self.inner_view.frame().size);
             let subviews = self.inner_view.subviews();
@@ -92,7 +97,9 @@ impl ScrollView {
             for (c, rect) in subviews.into_iter().zip(frames) {
                 c.setFrame(transform_rect(inner_size, rect));
             }
+            Ok(Size::zero())
         })
+        .flatten()
     }
 
     pub fn hscroll(&self) -> Result<bool> {

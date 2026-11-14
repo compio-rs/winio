@@ -144,7 +144,7 @@ impl Layoutable for BackdropChooser {
 
     fn set_size(&mut self, s: Size) -> SysResult<()>;
 
-    fn preferred_size(&self) -> SysResult<Size> {
+    fn preferred_size(&mut self) -> SysResult<Size> {
         let csize = self.size()?;
         let mut width = 0.0f64;
         let mut height = 0.0f64;
@@ -153,7 +153,7 @@ impl Layoutable for BackdropChooser {
         } else {
             2
         };
-        for rb in &self.radios[..len] {
+        for rb in &mut self.radios[..len] {
             let ps = rb.preferred_size()?;
             width = width.max(ps.width);
             height += ps.height;
@@ -161,7 +161,7 @@ impl Layoutable for BackdropChooser {
         Ok(Size::new(width, height))
     }
 
-    fn min_size(&self) -> SysResult<Size> {
+    fn min_size(&mut self) -> SysResult<Size> {
         self.preferred_size()
     }
 }

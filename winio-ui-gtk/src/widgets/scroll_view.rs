@@ -49,6 +49,10 @@ impl ScrollView {
         Ok(())
     }
 
+    pub fn preferred_size(&mut self) -> Result<Size> {
+        Ok(Size::zero())
+    }
+
     pub fn hscroll(&self) -> Result<bool> {
         Ok(self.swindow.hscrollbar_policy() == gtk4::PolicyType::Automatic)
     }

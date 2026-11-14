@@ -31,6 +31,10 @@ impl ScrollView {
 
     pub fn set_size(&mut self, v: Size) -> Result<()>;
 
+    pub fn preferred_size(&mut self) -> Result<Size> {
+        not_impl()
+    }
+
     pub fn hscroll(&self) -> Result<bool> {
         not_impl()
     }

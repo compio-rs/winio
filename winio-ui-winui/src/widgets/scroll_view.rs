@@ -77,6 +77,11 @@ impl ScrollView {
         Ok(())
     }
 
+    pub fn preferred_size(&mut self) -> Result<Size> {
+        set_canvas_to_fit_children(&self.canvas)?;
+        Ok(Size::zero())
+    }
+
     pub fn hscroll(&self) -> Result<bool> {
         Ok(self.view.HorizontalScrollBarVisibility()? != MUXC::ScrollBarVisibility::Disabled)
     }

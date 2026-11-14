@@ -147,10 +147,10 @@ impl<'a, E> Grid<'a, E> {
         }
     }
 
-    fn tree(&self) -> Result<(TaffyTree, NodeId, Vec<NodeId>), LayoutError<E>> {
+    fn tree(&mut self) -> Result<(TaffyTree, NodeId, Vec<NodeId>), LayoutError<E>> {
         let mut tree: TaffyTree<()> = TaffyTree::new();
         let mut nodes = vec![];
-        for child in &self.children {
+        for child in &mut self.children {
             let preferred_size = child.child_preferred_size()?;
             let mut style = Style::default();
             style.size.width = match child.width {
@@ -270,13 +270,13 @@ impl<E> LayoutChild for Grid<'_, E> {
         self.render()
     }
 
-    fn child_preferred_size(&self) -> Result<Size, LayoutError<Self::Error>> {
+    fn child_preferred_size(&mut self) -> Result<Size, LayoutError<Self::Error>> {
         let (mut tree, root, _) = self.tree()?;
         tree.compute_layout(root, taffy::Size::max_content())?;
         Ok(rect_t2e(tree.layout(root)?).size)
     }
 
-    fn child_min_size(&self) -> Result<Size, LayoutError<Self::Error>> {
+    fn child_min_size(&mut self) -> Result<Size, LayoutError<Self::Error>> {
         let (mut tree, root, _) = self.tree()?;
         tree.compute_layout(root, taffy::Size::min_content())?;
         Ok(rect_t2e(tree.layout(root)?).size)

@@ -308,7 +308,7 @@ impl<T: Component + Layoutable> Layoutable for Child<T> {
 
     fn set_rect(&mut self, r: Rect) -> Result<(), Self::Error>;
 
-    fn preferred_size(&self) -> Result<Size, Self::Error>;
+    fn preferred_size(&mut self) -> Result<Size, Self::Error>;
 
-    fn min_size(&self) -> Result<Size, Self::Error>;
+    fn min_size(&mut self) -> Result<Size, Self::Error>;
 }

@@ -56,6 +56,12 @@ impl Layoutable for ScrollView {
     fn size(&self) -> Result<Size>;
 
     fn set_size(&mut self, s: Size) -> Result<()>;
+
+    fn preferred_size(&mut self) -> Result<Size>;
+
+    fn min_size(&mut self) -> Result<Size> {
+        Ok(Size::zero())
+    }
 }
 
 /// Events of [`ScrollView`].

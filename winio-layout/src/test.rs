@@ -54,11 +54,11 @@ impl Layoutable for MockChild {
         Ok(())
     }
 
-    fn preferred_size(&self) -> Result<Size, ()> {
+    fn preferred_size(&mut self) -> Result<Size, ()> {
         Ok(self.preferred_size)
     }
 
-    fn min_size(&self) -> Result<Size, ()> {
+    fn min_size(&mut self) -> Result<Size, ()> {
         Ok(self.min_size)
     }
 }
