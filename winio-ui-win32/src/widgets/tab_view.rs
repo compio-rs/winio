@@ -8,7 +8,7 @@ use inherit_methods_macro::inherit_methods;
 use windows_core::WIN32_ERROR;
 use windows_sys::{
     Win32::{
-        Foundation::ERROR_ALREADY_EXISTS,
+        Foundation::{ERROR_ALREADY_EXISTS, RECT},
         UI::{
             Controls::{
                 TCIF_TEXT, TCITEMW, TCM_ADJUSTRECT, TCM_DELETEALLITEMS, TCM_DELETEITEM,
@@ -96,28 +96,7 @@ impl TabView {
     pub fn set_size(&mut self, v: Size) -> Result<()> {
         let data = &self.data;
         data.handle.set_size(v)?;
-        let mut rect = MaybeUninit::uninit();
-        syscall!(
-            BOOL,
-            GetClientRect(data.handle.as_widget().as_win32(), rect.as_mut_ptr())
-        )?;
-        data.handle
-            .send_message(TCM_ADJUSTRECT, 0, rect.as_mut_ptr() as _);
-        let rect = unsafe { rect.assume_init() };
-        for item in data.views.borrow().iter() {
-            syscall!(
-                BOOL,
-                MoveWindow(
-                    item.as_container().as_win32(),
-                    rect.left,
-                    rect.top,
-                    rect.right - rect.left,
-                    rect.bottom - rect.top,
-                    1,
-                )
-            )?;
-        }
-        Ok(())
+        data.resize_current_view()
     }
 
     pub fn selection(&self) -> Result<Option<usize>> {
@@ -150,6 +129,44 @@ impl TabView {
 }
 
 impl TabViewData {
+    fn view_rect(&self) -> Result<RECT> {
+        let mut rect = MaybeUninit::uninit();
+        syscall!(
+            BOOL,
+            GetClientRect(self.handle.as_widget().as_win32(), rect.as_mut_ptr())
+        )?;
+        self.handle
+            .send_message(TCM_ADJUSTRECT, 0, rect.as_mut_ptr() as _);
+        Ok(unsafe { rect.assume_init() })
+    }
+
+    fn move_view(&self, index: usize, rect: RECT) -> Result<()> {
+        let views = self.views.borrow();
+        let Some(item) = views.get(index) else {
+            return Ok(());
+        };
+        syscall!(
+            BOOL,
+            MoveWindow(
+                item.as_container().as_win32(),
+                rect.left,
+                rect.top,
+                rect.right - rect.left,
+                rect.bottom - rect.top,
+                1,
+            )
+        )?;
+        Ok(())
+    }
+
+    fn resize_current_view(&self) -> Result<()> {
+        if let Some(sel) = self.selection() {
+            let rect = self.view_rect()?;
+            self.move_view(sel, rect)?;
+        }
+        Ok(())
+    }
+
     fn selection(&self) -> Option<usize> {
         let i = self.handle.send_message(TCM_GETCURSEL, 0, 0);
         if i < 0 { None } else { Some(i as _) }
@@ -160,8 +177,13 @@ impl TabViewData {
         let views = self.views.borrow();
         for (i, item) in views.iter().enumerate() {
             let hwnd = item.inner.borrow().view.as_widget().as_win32();
-            unsafe {
-                ShowWindow(hwnd, if Some(i) == sel { SW_SHOW } else { SW_HIDE });
+            if Some(i) == sel {
+                if let Ok(rect) = self.view_rect() {
+                    let _ = self.move_view(i, rect);
+                }
+                unsafe { ShowWindow(hwnd, SW_SHOW) };
+            } else {
+                unsafe { ShowWindow(hwnd, SW_HIDE) };
             }
         }
     }
