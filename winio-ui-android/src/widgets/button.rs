@@ -113,6 +113,8 @@ where
 
     pub fn preferred_size(&self) -> Result<Size>;
 
+    pub fn min_size(&self) -> Result<Size>;
+
     pub fn tooltip(&self) -> Result<String>;
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
@@ -229,6 +231,8 @@ impl Button {
 
     pub fn preferred_size(&self) -> Result<Size>;
 
+    pub fn min_size(&self) -> Result<Size>;
+
     pub fn tooltip(&self) -> Result<String>;
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
@@ -292,6 +296,8 @@ impl CheckBox {
 
     pub fn preferred_size(&self) -> Result<Size>;
 
+    pub fn min_size(&self) -> Result<Size>;
+
     pub fn tooltip(&self) -> Result<String>;
 
     pub fn set_tooltip(&mut self, s: impl AsRef<str>) -> Result<()>;
@@ -340,6 +346,8 @@ impl RadioButton {
     pub fn set_size(&mut self, v: Size) -> Result<()>;
 
     pub fn preferred_size(&self) -> Result<Size>;
+
+    pub fn min_size(&self) -> Result<Size>;
 
     pub fn tooltip(&self) -> Result<String>;
 

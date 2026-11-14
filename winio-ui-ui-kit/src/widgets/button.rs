@@ -61,6 +61,8 @@ impl Button {
 
     pub fn preferred_size(&self) -> Result<Size>;
 
+    pub fn min_size(&self) -> Result<Size>;
+
     pub fn loc(&self) -> Result<Point>;
 
     pub fn set_loc(&mut self, p: Point) -> Result<()>;
@@ -139,6 +141,8 @@ impl CheckBox {
         Ok(s)
     }
 
+    pub fn min_size(&self) -> Result<Size>;
+
     pub fn loc(&self) -> Result<Point>;
 
     pub fn set_loc(&mut self, p: Point) -> Result<()>;
@@ -191,6 +195,8 @@ impl RadioButton {
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
     pub fn preferred_size(&self) -> Result<Size>;
+
+    pub fn min_size(&self) -> Result<Size>;
 
     pub fn loc(&self) -> Result<Point>;
 
@@ -248,6 +254,8 @@ impl LinkLabel {
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
     pub fn preferred_size(&self) -> Result<Size>;
+
+    pub fn min_size(&self) -> Result<Size>;
 
     pub fn loc(&self) -> Result<Point>;
 

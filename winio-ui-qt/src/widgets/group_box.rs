@@ -43,6 +43,10 @@ impl GroupBox {
         Ok(Size::new(size.width as _, size.height as _))
     }
 
+    pub fn min_size(&self) -> Result<Size> {
+        self.preferred_size()
+    }
+
     pub fn client_size(&self) -> Result<Size> {
         let size = ffi::group_box_contents_size(self.widget.as_ref())?;
         Ok(Size::new(size.width as _, size.height as _))

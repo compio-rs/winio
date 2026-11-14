@@ -82,6 +82,10 @@ impl GroupBox {
         self.measure_heading()
     }
 
+    pub fn min_size(&self) -> Result<Size> {
+        self.preferred_size()
+    }
+
     pub fn client_size(&self) -> Result<Size> {
         self.view.size()
     }

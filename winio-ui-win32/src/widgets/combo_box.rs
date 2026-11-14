@@ -62,6 +62,15 @@ impl ComboBoxImpl {
         ))
     }
 
+    pub fn min_size(&self) -> Result<Size> {
+        let item_height = self.handle.size_d2l((0, self.item_height() as _)).height;
+        let padding = self.padding();
+        Ok(Size::new(
+            scroll_bar_width() + padding.left + padding.right,
+            item_height + padding.top + padding.bottom,
+        ))
+    }
+
     fn padding(&self) -> Margin {
         static PADDING: OnceLock<Margin> = OnceLock::new();
         *PADDING.get_or_init(|| {
@@ -233,6 +242,8 @@ impl ComboBox {
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
     pub fn preferred_size(&self) -> Result<Size>;
+
+    pub fn min_size(&self) -> Result<Size>;
 
     pub fn loc(&self) -> Result<Point>;
 

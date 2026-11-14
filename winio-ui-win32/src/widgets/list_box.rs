@@ -65,13 +65,7 @@ impl ListBoxImpl {
     }
 
     pub fn min_size(&self) -> Result<Size> {
-        let mut width = 0.0f64;
-        for i in 0..self.len()? {
-            let data = self.get_u16(i)?;
-            let s = self.handle.measure(data.as_ustr())?;
-            width = width.max(s.width);
-        }
-        Ok(Size::new(width + scroll_bar_width(), self.item_height()?))
+        Ok(Size::zero())
     }
 
     fn item_height(&self) -> Result<f64> {

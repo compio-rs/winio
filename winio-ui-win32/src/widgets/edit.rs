@@ -64,6 +64,10 @@ impl EditImpl {
         Ok(Size::new(s.width + border, s.height + border))
     }
 
+    pub fn min_size(&self) -> Result<Size> {
+        Ok(Size::zero())
+    }
+
     pub fn loc(&self) -> Result<Point>;
 
     pub fn set_loc(&mut self, p: Point) -> Result<()>;
@@ -192,6 +196,8 @@ impl Edit {
 
     pub fn preferred_size(&self) -> Result<Size>;
 
+    pub fn min_size(&self) -> Result<Size>;
+
     pub fn loc(&self) -> Result<Point>;
 
     pub fn set_loc(&mut self, p: Point) -> Result<()>;
@@ -302,17 +308,7 @@ impl TextBox {
 
     pub fn preferred_size(&self) -> Result<Size>;
 
-    pub fn min_size(&self) -> Result<Size> {
-        let text = self.handle.handle.text_u16()?;
-        let index = text.as_slice().iter().position(|c| *c == '\r' as u16);
-        if let Some(index) = index {
-            let s = self.handle.handle.measure(text.split_at(index).0)?;
-            let border = edge() * 2.0;
-            Ok(Size::new(border, s.height + border))
-        } else {
-            self.preferred_size()
-        }
-    }
+    pub fn min_size(&self) -> Result<Size>;
 
     pub fn loc(&self) -> Result<Point>;
 

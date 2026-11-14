@@ -41,6 +41,10 @@ impl Picture {
         Ok(Size::new(size.width as f64, size.height as f64))
     }
 
+    pub fn min_size(&self) -> Result<Size> {
+        Ok(Size::zero())
+    }
+
     pub fn loc(&self) -> Result<Point>;
 
     pub fn set_loc(&mut self, p: Point) -> Result<()>;

@@ -45,6 +45,10 @@ impl Progress {
         Ok(Size::new(0.0, self.height()))
     }
 
+    pub fn min_size(&self) -> Result<Size> {
+        Ok(Size::zero())
+    }
+
     fn height(&self) -> f64 {
         static HEIGHT: OnceLock<f64> = OnceLock::new();
         *HEIGHT.get_or_init(|| {

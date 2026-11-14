@@ -105,6 +105,7 @@ impl ScrollView {
         } else {
             self.inner_view.set_size(v)?;
         }
+        Ok(())
     }
 
     pub fn preferred_size(&mut self) -> Result<Size> {

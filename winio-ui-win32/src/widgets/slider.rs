@@ -201,6 +201,10 @@ impl Slider {
         Ok(size)
     }
 
+    pub fn min_size(&self) -> Result<Size> {
+        self.preferred_size()
+    }
+
     /// The sizes of the thumb and the tick marks, read once from the style.
     fn metrics(&self) -> Metrics {
         static METRICS: OnceLock<Metrics> = OnceLock::new();

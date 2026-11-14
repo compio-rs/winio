@@ -49,6 +49,11 @@ impl CheckBox {
         ))
     }
 
+    pub fn min_size(&self) -> Result<Size> {
+        let glyph = check_glyph();
+        Ok(Size::new(glyph, glyph))
+    }
+
     pub fn loc(&self) -> Result<Point>;
 
     pub fn set_loc(&mut self, p: Point) -> Result<()>;

@@ -251,6 +251,10 @@ impl ScrollBar {
         })
     }
 
+    pub fn min_size(&self) -> Result<Size> {
+        self.preferred_size()
+    }
+
     pub fn loc(&self) -> Result<Point>;
 
     pub fn set_loc(&mut self, p: Point) -> Result<()>;

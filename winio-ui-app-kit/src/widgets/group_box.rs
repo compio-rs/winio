@@ -60,6 +60,10 @@ impl GroupBox {
 
     pub fn preferred_size(&self) -> Result<Size>;
 
+    pub fn min_size(&self) -> Result<Size> {
+        self.preferred_size()
+    }
+
     pub fn client_size(&self) -> Result<Size> {
         self.sync_inner_view()
     }

@@ -70,10 +70,7 @@ impl ListBox {
 
     pub fn preferred_size(&self) -> Result<Size>;
 
-    pub fn min_size(&self) -> Result<Size> {
-        let size = self.preferred_size()?;
-        Ok(Size::new(size.width, 0.0))
-    }
+    pub fn min_size(&self) -> Result<Size>;
 
     pub fn loc(&self) -> Result<Point>;
 

@@ -105,6 +105,10 @@ impl GroupBox {
         ))
     }
 
+    pub fn min_size(&self) -> Result<Size> {
+        self.preferred_size()
+    }
+
     pub fn client_size(&self) -> Result<Size> {
         let (width, height) = vm_exec(|env| -> Result<(i32, i32)> {
             let params = self.content.as_view().get_layout_params(env)?;

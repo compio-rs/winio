@@ -44,6 +44,10 @@ impl Progress {
         Ok(Size::new(0.0, 5.0))
     }
 
+    pub fn min_size(&self) -> Result<Size> {
+        self.preferred_size()
+    }
+
     pub fn loc(&self) -> Result<Point>;
 
     pub fn set_loc(&mut self, p: Point) -> Result<()>;

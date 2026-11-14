@@ -386,6 +386,15 @@ impl Widget {
         })
     }
 
+    pub fn min_size(&self) -> Result<Size> {
+        catch(|| {
+            self.view
+                .downcast_ref::<NSControl>()
+                .map(|c| from_cgsize(c.sizeThatFits(NSSize::ZERO)))
+                .unwrap_or_default()
+        })
+    }
+
     pub fn loc(&self) -> Result<Point> {
         catch(|| {
             let frame = self.view.frame();

@@ -106,6 +106,10 @@ impl Button {
         ))
     }
 
+    pub fn min_size(&self) -> Result<Size> {
+        Ok(Size::zero())
+    }
+
     fn content_padding(&self) -> Margin {
         static PADDING: OnceLock<Margin> = OnceLock::new();
         *PADDING.get_or_init(|| {

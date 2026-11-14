@@ -29,6 +29,8 @@ impl GroupBox {
 
     pub fn preferred_size(&self) -> Result<Size>;
 
+    pub fn min_size(&self) -> Result<Size>;
+
     pub fn client_size(&self) -> Result<Size> {
         not_impl()
     }

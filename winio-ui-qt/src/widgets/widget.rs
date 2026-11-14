@@ -88,8 +88,8 @@ where
     }
 
     pub fn min_size(&self) -> Result<Size> {
-        let s = self.as_ref_qwidget().minimumSize()?;
-        Ok(Size::new(s.width as _, s.height as _))
+        let s = self.as_ref_qwidget().minimumSizeHint()?;
+        Ok(Size::new(s.width.max(0) as _, s.height.max(0) as _))
     }
 
     pub fn loc(&self) -> Result<Point> {
@@ -262,7 +262,7 @@ mod ffi {
         fn resize(self: Pin<&mut QWidget>, w: i32, h: i32) -> Result<()>;
         fn geometry(self: &QWidget) -> Result<&QRect>;
         fn sizeHint(self: &QWidget) -> Result<QSize>;
-        fn minimumSize(self: &QWidget) -> Result<QSize>;
+        fn minimumSizeHint(self: &QWidget) -> Result<QSize>;
         fn update(self: Pin<&mut QWidget>) -> Result<()>;
         fn isVisible(self: &QWidget) -> Result<bool>;
         fn setVisible(self: Pin<&mut QWidget>, v: bool) -> Result<()>;

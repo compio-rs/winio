@@ -111,6 +111,8 @@ impl Layoutable for UpDownEdit {
     fn set_size(&mut self, s: Size) -> Result<()>;
 
     fn preferred_size(&mut self) -> Result<Size>;
+
+    fn min_size(&mut self) -> Result<Size>;
 }
 
 /// Events of [`UpDownEdit`].

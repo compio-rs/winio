@@ -10,6 +10,7 @@ use crate::{Error, Result};
 pub(crate) struct Widget {
     widget: gtk4::Widget,
     preferred_size: Cell<Size>,
+    min_size: Cell<Size>,
 }
 
 impl Widget {
@@ -19,6 +20,7 @@ impl Widget {
         Ok(Self {
             widget,
             preferred_size: Cell::new(Size::new(f64::MAX, f64::MAX)),
+            min_size: Cell::new(Size::new(f64::MAX, f64::MAX)),
         })
     }
 
@@ -41,16 +43,42 @@ impl Widget {
     }
 
     pub fn preferred_size(&self) -> Result<Size> {
-        let (size, _) = self.widget.preferred_size();
-        let mut preferred_size = self.preferred_size.get();
-        preferred_size.width = preferred_size.width.min(size.width() as _);
-        preferred_size.height = preferred_size.height.min(size.height() as _);
-        self.preferred_size.set(preferred_size);
-        Ok(preferred_size)
+        self.ensure_measured();
+        Ok(self.preferred_size.get())
+    }
+
+    pub fn min_size(&self) -> Result<Size> {
+        self.ensure_measured();
+        Ok(self.min_size.get())
+    }
+
+    fn ensure_measured(&self) {
+        if self.preferred_size.get().width != f64::MAX && self.min_size.get().width != f64::MAX {
+            return;
+        }
+
+        let (request_width, request_height) = self.widget.size_request();
+        let has_request = request_width >= 0 || request_height >= 0;
+        if has_request {
+            self.widget.set_size_request(-1, -1);
+        }
+
+        let (min_width, natural_width, ..) = self.widget.measure(gtk4::Orientation::Horizontal, -1);
+        let (min_height, natural_height, ..) = self.widget.measure(gtk4::Orientation::Vertical, -1);
+
+        if has_request {
+            self.widget.set_size_request(request_width, request_height);
+        }
+
+        self.min_size
+            .set(Size::new(min_width as _, min_height as _));
+        self.preferred_size
+            .set(Size::new(natural_width as _, natural_height as _));
     }
 
     pub fn reset_preferred_size(&mut self) {
         self.preferred_size.set(Size::new(f64::MAX, f64::MAX));
+        self.min_size.set(Size::new(f64::MAX, f64::MAX));
     }
 
     pub fn loc(&self) -> Result<Point> {

@@ -83,6 +83,12 @@ impl UpDownEdit {
         ))
     }
 
+    pub fn min_size(&self) -> Result<Size> {
+        let width = unsafe { GetSystemMetricsForDpi(SM_CXVSCROLL, 96) };
+        let height = unsafe { GetSystemMetricsForDpi(SM_CYVSCROLL, 96) };
+        Ok(Size::new(width as _, height as _))
+    }
+
     pub fn loc(&self) -> Result<Point>;
 
     pub fn set_loc(&mut self, p: Point) -> Result<()>;
