@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use windows_core::Interface;
 use winio_handle::{AsContainer, BorrowedContainer};
-use winio_primitive::{Point, Rect, Size};
+use winio_primitive::{Measurement, Point, Rect, Size};
 use winui3::Microsoft::UI::Xaml::{
     Controls as MUXC, FrameworkElement, HorizontalAlignment, VerticalAlignment,
 };
@@ -71,15 +71,15 @@ impl ScrollView {
 
     pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) -> Result<()> {
-        self.handle.set_size(v)?;
+    pub fn set_size(&mut self, s: Size) -> Result<()> {
+        self.handle.set_size(s)?;
         set_canvas_to_fit_children(&self.canvas)?;
         Ok(())
     }
 
-    pub fn preferred_size(&mut self) -> Result<Size> {
+    pub fn measure(&mut self) -> Result<Measurement> {
         set_canvas_to_fit_children(&self.canvas)?;
-        Ok(Size::zero())
+        Ok(Measurement::default())
     }
 
     pub fn hscroll(&self) -> Result<bool> {

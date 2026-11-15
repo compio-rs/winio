@@ -192,7 +192,7 @@ impl Window {
     pub fn size(&self) -> Result<Size> {
         let size = self.size_update()?;
         if size == Size::zero() {
-            self.inner.preferred_size()
+            Ok(self.inner.measure()?.preferred)
         } else {
             Ok(size)
         }

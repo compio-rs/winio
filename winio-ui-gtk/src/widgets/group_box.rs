@@ -1,7 +1,7 @@
 use gtk4::prelude::*;
 use inherit_methods_macro::inherit_methods;
 use winio_handle::{AsContainer, BorrowedContainer};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{Result, Widget};
 
@@ -38,10 +38,9 @@ impl GroupBox {
 
     pub fn set_size(&mut self, s: Size) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size> {
-        self.preferred_size()
+    pub fn measure(&self) -> Result<Measurement> {
+        let preferred = self.handle.measure()?.preferred;
+        Ok(Measurement::new(preferred, preferred))
     }
 
     pub fn client_size(&self) -> Result<Size> {
@@ -81,7 +80,7 @@ impl GroupBox {
         let s = s.as_ref();
         self.frame
             .set_label(if s.is_empty() { None } else { Some(s) });
-        self.handle.reset_preferred_size();
+        self.handle.reset_measurement();
         Ok(())
     }
 }

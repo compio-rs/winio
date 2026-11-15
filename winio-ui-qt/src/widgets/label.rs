@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Font, HAlign, Point, Size};
+use winio_primitive::{Font, HAlign, Measurement, Point, Size};
 
 use crate::{
     GlobalRuntime, Image, Result,
@@ -30,9 +30,7 @@ impl Label {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 
@@ -124,9 +122,7 @@ impl Picture {
 
     pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 
@@ -190,9 +186,7 @@ impl LinkLabel {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 

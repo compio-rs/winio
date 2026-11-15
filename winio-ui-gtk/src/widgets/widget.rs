@@ -2,7 +2,7 @@ use std::cell::Cell;
 
 use gtk4::prelude::{Cast, FixedExt, WidgetExt};
 use winio_handle::{AsContainer, AsWidget, BorrowedWidget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{Error, Result};
 
@@ -42,14 +42,12 @@ impl Widget {
         Ok(())
     }
 
-    pub fn preferred_size(&self) -> Result<Size> {
+    pub fn measure(&self) -> Result<Measurement> {
         self.ensure_measured();
-        Ok(self.preferred_size.get())
-    }
-
-    pub fn min_size(&self) -> Result<Size> {
-        self.ensure_measured();
-        Ok(self.min_size.get())
+        Ok(Measurement::new(
+            self.preferred_size.get(),
+            self.min_size.get(),
+        ))
     }
 
     fn ensure_measured(&self) {
@@ -76,7 +74,7 @@ impl Widget {
             .set(Size::new(natural_width as _, natural_height as _));
     }
 
-    pub fn reset_preferred_size(&mut self) {
+    pub fn reset_measurement(&mut self) {
         self.preferred_size.set(Size::new(f64::MAX, f64::MAX));
         self.min_size.set(Size::new(f64::MAX, f64::MAX));
     }
@@ -100,7 +98,7 @@ impl Widget {
     }
 
     pub fn size(&self) -> Result<Size> {
-        let preferred_size = self.preferred_size()?;
+        let preferred_size = self.measure()?.preferred;
         Ok(Size::new(
             (self.widget.width() as f64).max(preferred_size.width),
             (self.widget.height() as f64).max(preferred_size.height),

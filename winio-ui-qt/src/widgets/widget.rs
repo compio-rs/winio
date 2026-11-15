@@ -9,7 +9,7 @@ use cxx::{ExternType, UniquePtr, memory::UniquePtrTarget, type_id};
 pub use ffi::{QWidget, is_dark};
 use inherit_methods_macro::inherit_methods;
 use winio_handle::{AsContainer, AsWidget, BorrowedContainer, BorrowedWidget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{Result, widgets::StaticCastTo};
 
@@ -82,14 +82,12 @@ where
         Ok(())
     }
 
-    pub fn preferred_size(&self) -> Result<Size> {
+    pub fn measure(&self) -> Result<Measurement> {
         let s = self.as_ref_qwidget().sizeHint()?;
-        Ok(Size::new(s.width as _, s.height as _))
-    }
-
-    pub fn min_size(&self) -> Result<Size> {
+        let preferred = Size::new(s.width as _, s.height as _);
         let s = self.as_ref_qwidget().minimumSizeHint()?;
-        Ok(Size::new(s.width.max(0) as _, s.height.max(0) as _))
+        let minimum = Size::new(s.width.max(0) as _, s.height.max(0) as _);
+        Ok(Measurement::new(preferred, minimum))
     }
 
     pub fn loc(&self) -> Result<Point> {
@@ -130,10 +128,13 @@ where
     T: UniquePtrTarget + StaticCastTo<ffi::QWidget>,
 {
     fn drop(&mut self) {
-        if !self.weak_ref.isNull()
-            && let Err(_e) = self.pin_mut_qwidget().deleteLater()
-        {
-            error!("Failed to delete widget later: {_e:?}");
+        if !self.weak_ref.isNull() {
+            if let Err(_e) = self.pin_mut_qwidget().setVisible(false) {
+                error!("Failed to hide widget before deletion: {_e:?}");
+            }
+            if let Err(_e) = self.pin_mut_qwidget().deleteLater() {
+                error!("Failed to delete widget later: {_e:?}");
+            }
         }
     }
 }

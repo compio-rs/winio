@@ -7,7 +7,7 @@ use gtk4::{
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Orient, Point, Size, fit_page};
+use winio_primitive::{Measurement, Orient, Point, Size, fit_page};
 
 use crate::{GlobalRuntime, Result, Widget};
 
@@ -48,9 +48,7 @@ impl ScrollBar {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 

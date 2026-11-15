@@ -8,7 +8,7 @@ use gtk4::{
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{
     Error, GlobalRuntime, Result,
@@ -68,9 +68,7 @@ impl ListBox {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 
@@ -132,7 +130,7 @@ impl ListBox {
 
     pub fn clear(&mut self) -> Result<()> {
         self.model.clear();
-        self.handle.reset_preferred_size();
+        self.handle.reset_measurement();
         Ok(())
     }
 
@@ -142,19 +140,19 @@ impl ListBox {
 
     pub fn set(&mut self, i: usize, s: impl AsRef<str>) -> Result<()> {
         self.model.set(i, s.as_ref().to_string())?;
-        self.handle.reset_preferred_size();
+        self.handle.reset_measurement();
         Ok(())
     }
 
     pub fn insert(&mut self, i: usize, s: impl AsRef<str>) -> Result<()> {
         self.model.insert(i, s.as_ref().to_string());
-        self.handle.reset_preferred_size();
+        self.handle.reset_measurement();
         Ok(())
     }
 
     pub fn remove(&mut self, i: usize) -> Result<()> {
         self.model.remove(i as _)?;
-        self.handle.reset_preferred_size();
+        self.handle.reset_measurement();
         Ok(())
     }
 }

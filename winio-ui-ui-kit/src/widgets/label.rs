@@ -3,7 +3,7 @@ use objc2::{MainThreadOnly, rc::Retained};
 use objc2_foundation::NSString;
 use objc2_ui_kit::{NSTextAlignment, UIFont, UILabel};
 use winio_handle::AsContainer;
-use winio_primitive::{Font, HAlign, Point, Size};
+use winio_primitive::{Font, HAlign, Measurement, Point, Size};
 
 use crate::{
     Result, catch,
@@ -35,13 +35,12 @@ impl Label {
 
     pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size> {
-        let mut size = self.handle.preferred_size()?;
-        size.width += 8.0;
-        Ok(size)
+    pub fn measure(&self) -> Result<Measurement> {
+        let measurement = self.handle.measure()?;
+        let mut preferred = measurement.preferred;
+        preferred.width += 8.0;
+        Ok(Measurement::new(preferred, measurement.minimum))
     }
-
-    pub fn min_size(&self) -> Result<Size>;
 
     pub fn loc(&self) -> Result<Point>;
 

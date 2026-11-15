@@ -7,7 +7,7 @@ use gtk4::{
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{GlobalRuntime, Result, widgets::Widget};
 
@@ -51,9 +51,7 @@ impl CheckBox {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 
@@ -77,7 +75,7 @@ impl CheckBox {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         self.widget.set_label(Some(s.as_ref()));
-        self.handle.reset_preferred_size();
+        self.handle.reset_measurement();
         Ok(())
     }
 
@@ -121,9 +119,7 @@ impl RadioButton {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 

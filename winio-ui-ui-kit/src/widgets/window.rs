@@ -12,7 +12,7 @@ use winio_callback::Callback;
 use winio_handle::{
     AsContainer, AsWidget, AsWindow, BorrowedContainer, BorrowedWidget, BorrowedWindow,
 };
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 use winio_ui_apple_common::from_nsstring;
 
 use crate::{
@@ -279,15 +279,9 @@ impl Widget {
         catch(|| self.view.setUserInteractionEnabled(v))
     }
 
-    pub fn preferred_size(&self) -> Result<Size> {
-        catch(|| {
-            let s = self.view.sizeThatFits(NSSize::ZERO);
-            from_cgsize(s)
-        })
-    }
-
-    pub fn min_size(&self) -> Result<Size> {
-        catch(|| from_cgsize(self.view.sizeThatFits(NSSize::ZERO)))
+    pub fn measure(&self) -> Result<Measurement> {
+        let preferred = catch(|| from_cgsize(self.view.sizeThatFits(NSSize::ZERO)))?;
+        Ok(Measurement::new(preferred, preferred))
     }
 
     pub fn loc(&self) -> Result<Point> {

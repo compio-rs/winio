@@ -2,7 +2,8 @@ use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
-    Enable, Failable, Font, Fontable, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
+    Enable, Failable, Font, Fontable, Layoutable, Measurement, Point, Rect, Size, TextWidget,
+    ToolTip, Visible,
 };
 
 use crate::{
@@ -87,9 +88,7 @@ impl Layoutable for LinkLabel {
 
     fn set_size(&mut self, s: Size) -> Result<()>;
 
-    fn preferred_size(&mut self) -> Result<Size>;
-
-    fn min_size(&mut self) -> Result<Size>;
+    fn measure(&mut self) -> Result<Measurement>;
 }
 
 /// Events of [`LinkLabel`].

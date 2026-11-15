@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use windows_core::{HSTRING, Interface};
 use winio_handle::{AsContainer, AsMenuContainer, BorrowedMenuContainer};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 use winui3::Microsoft::UI::Xaml::{
     Controls as MUXC, Controls::Orientation, Media::ImageSource, Visibility,
 };
@@ -73,9 +73,7 @@ impl MenuButton {
         self.update_icon_opacity()
     }
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 

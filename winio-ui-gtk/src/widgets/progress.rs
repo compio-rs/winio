@@ -3,7 +3,7 @@ use std::{cell::Cell, rc::Rc, time::Duration};
 use gtk4::glib::{ControlFlow, SourceId, object::Cast};
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{Result, widgets::Widget};
 
@@ -52,9 +52,7 @@ impl Progress {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 
@@ -63,7 +61,7 @@ impl Progress {
     pub fn size(&self) -> Result<Size>;
 
     pub fn set_size(&mut self, mut s: Size) -> Result<()> {
-        s.height = self.preferred_size()?.height;
+        s.height = self.measure()?.preferred.height;
         self.handle.set_size(s)
     }
 

@@ -2,7 +2,7 @@ use inherit_methods_macro::inherit_methods;
 use objc2::{MainThreadOnly, rc::Retained};
 use objc2_app_kit::{NSImageScaling, NSImageView};
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{Image, Result, catch, widgets::Widget};
 
@@ -32,9 +32,7 @@ impl Picture {
 
     pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 

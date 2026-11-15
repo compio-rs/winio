@@ -2,7 +2,7 @@ use inherit_methods_macro::inherit_methods;
 use windows_core::{HSTRING, Interface, h};
 use windows_reference::IReference;
 use winio_handle::{AsContainer, BorrowedContainer};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 use winui3::Microsoft::UI::Xaml::{
     self as MUX, Controls as MUXC, Media as MUXM, Shapes as MUXS, TextWrapping, Visibility,
 };
@@ -78,12 +78,9 @@ impl GroupBox {
         self.update_layout()
     }
 
-    pub fn preferred_size(&self) -> Result<Size> {
-        self.measure_heading()
-    }
-
-    pub fn min_size(&self) -> Result<Size> {
-        self.preferred_size()
+    pub fn measure(&self) -> Result<Measurement> {
+        let preferred = self.measure_heading()?;
+        Ok(Measurement::new(preferred, preferred))
     }
 
     pub fn client_size(&self) -> Result<Size> {

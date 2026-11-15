@@ -10,7 +10,7 @@ use windows_sys::Win32::UI::{
     },
 };
 use winio_handle::{AsContainer, AsWidget, BorrowedContainer};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{
     Result,
@@ -50,7 +50,7 @@ impl ListBoxImpl {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size> {
+    pub fn measure(&self) -> Result<Measurement> {
         let count = self.len()?;
         let mut width = 0.0f64;
         for i in 0..count {
@@ -58,14 +58,11 @@ impl ListBoxImpl {
             let s = self.handle.measure(data.as_ustr())?;
             width = width.max(s.width);
         }
-        Ok(Size::new(
+        let preferred = Size::new(
             width + scroll_bar_width(),
             self.item_height()? * count as f64,
-        ))
-    }
-
-    pub fn min_size(&self) -> Result<Size> {
-        Ok(Size::zero())
+        );
+        Ok(Measurement::new(preferred, Size::zero()))
     }
 
     fn item_height(&self) -> Result<f64> {
@@ -201,9 +198,7 @@ impl ListBox {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 

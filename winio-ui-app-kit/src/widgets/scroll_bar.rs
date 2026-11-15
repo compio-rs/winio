@@ -8,7 +8,7 @@ use objc2_app_kit::{NSControlSize, NSScroller, NSScrollerStyle};
 use objc2_foundation::{NSPoint, NSRect, NSSize};
 use winio_callback::Callback;
 use winio_handle::{AsContainer, BorrowedContainer};
-use winio_primitive::{Orient, Point, Size, fit_page};
+use winio_primitive::{Measurement, Orient, Point, Size, fit_page};
 
 use crate::{GlobalRuntime, Result, catch, widgets::Widget};
 
@@ -236,8 +236,8 @@ impl ScrollBar {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size> {
-        catch(|| {
+    pub fn measure(&self) -> Result<Measurement> {
+        let size = catch(|| {
             let width = NSScroller::scrollerWidthForControlSize_scrollerStyle(
                 NSControlSize::Regular,
                 NSScrollerStyle::Overlay,
@@ -248,11 +248,8 @@ impl ScrollBar {
             } else {
                 Size::new(0.0, width)
             }
-        })
-    }
-
-    pub fn min_size(&self) -> Result<Size> {
-        self.preferred_size()
+        })?;
+        Ok(Measurement::new(size, size))
     }
 
     pub fn loc(&self) -> Result<Point>;

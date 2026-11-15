@@ -18,7 +18,7 @@ use windows_sys::{
     w,
 };
 use winio_handle::{AsContainer, AsWidget};
-use winio_primitive::{Font, HAlign, Point, Size};
+use winio_primitive::{Font, HAlign, Measurement, Point, Size};
 use winio_ui_windows_common::{CoInit, syscall};
 
 use crate::{
@@ -55,15 +55,11 @@ impl Label {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size> {
-        let mut size = self.handle.measure_text()?;
-        size.width += 1.0;
-        size.height += 1.0;
-        Ok(size)
-    }
-
-    pub fn min_size(&self) -> Result<Size> {
-        Ok(Size::zero())
+    pub fn measure(&self) -> Result<Measurement> {
+        let mut preferred = self.handle.measure_text()?;
+        preferred.width += 1.0;
+        preferred.height += 1.0;
+        Ok(Measurement::new(preferred, Size::zero()))
     }
 
     pub fn loc(&self) -> Result<Point>;
@@ -177,11 +173,7 @@ impl LinkLabel {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size> {
-        Ok(Size::zero())
-    }
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 

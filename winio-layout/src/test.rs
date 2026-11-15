@@ -1,4 +1,4 @@
-use winio_primitive::{Failable, HAlign, Orient, Point, Rect, Size, VAlign};
+use winio_primitive::{Failable, HAlign, Measurement, Orient, Point, Rect, Size, VAlign};
 
 use crate::{Grid, Layoutable, StackPanel, layout};
 
@@ -54,12 +54,8 @@ impl Layoutable for MockChild {
         Ok(())
     }
 
-    fn preferred_size(&mut self) -> Result<Size, ()> {
-        Ok(self.preferred_size)
-    }
-
-    fn min_size(&mut self) -> Result<Size, ()> {
-        Ok(self.min_size)
+    fn measure(&mut self) -> Result<Measurement, ()> {
+        Ok(Measurement::new(self.preferred_size, self.min_size))
     }
 }
 

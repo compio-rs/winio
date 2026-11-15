@@ -1,6 +1,6 @@
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{
     Result, View,
@@ -38,13 +38,10 @@ impl GroupBox {
 
     pub fn set_size(&mut self, s: Size) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size> {
+    pub fn measure(&self) -> Result<Measurement> {
         let size = ffi::group_box_title_size(self.widget.as_ref())?;
-        Ok(Size::new(size.width as _, size.height as _))
-    }
-
-    pub fn min_size(&self) -> Result<Size> {
-        self.preferred_size()
+        let preferred = Size::new(size.width as _, size.height as _);
+        Ok(Measurement::new(preferred, preferred))
     }
 
     pub fn client_size(&self) -> Result<Size> {

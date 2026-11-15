@@ -1,6 +1,6 @@
 use inherit_methods_macro::inherit_methods;
 use winio_handle::{AsContainer, impl_as_widget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{
     BaseWidget, Result, current_activity, java::material::ProgressBar as AProgressBar, vm_exec,
@@ -42,9 +42,7 @@ impl Progress {
 
     pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn tooltip(&self) -> Result<String>;
 

@@ -16,7 +16,7 @@ use windows_sys::Win32::{
     },
 };
 use winio_handle::{AsContainer, AsWidget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{Error, Result, Widget, widgets::edge};
 
@@ -73,20 +73,18 @@ impl UpDownEdit {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size> {
+    pub fn measure(&self) -> Result<Measurement> {
         let edit = self.handle.measure_text()?;
         let updown = self.updown.size()?;
         let border = edge() * 2.0;
-        Ok(Size::new(
+        let preferred = Size::new(
             edit.width + border + updown.width,
             (edit.height + border).max(updown.height),
-        ))
-    }
-
-    pub fn min_size(&self) -> Result<Size> {
+        );
         let width = unsafe { GetSystemMetricsForDpi(SM_CXVSCROLL, 96) };
         let height = unsafe { GetSystemMetricsForDpi(SM_CYVSCROLL, 96) };
-        Ok(Size::new(width as _, height as _))
+        let minimum = Size::new(width as _, height as _);
+        Ok(Measurement::new(preferred, minimum))
     }
 
     pub fn loc(&self) -> Result<Point>;

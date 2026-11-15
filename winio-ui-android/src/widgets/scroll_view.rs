@@ -1,6 +1,6 @@
 use jni::refs::Global;
 use winio_handle::{AsContainer, AsWidget, BorrowedWidget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{
     BaseWidget, Result, current_activity,
@@ -108,8 +108,8 @@ impl ScrollView {
         Ok(())
     }
 
-    pub fn preferred_size(&mut self) -> Result<Size> {
-        Ok(Size::zero())
+    pub fn measure(&mut self) -> Result<Measurement> {
+        Ok(Measurement::default())
     }
 
     fn detach(&mut self) -> Result<Option<Global<AViewGroup<'static>>>> {

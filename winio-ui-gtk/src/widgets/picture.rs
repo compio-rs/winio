@@ -1,7 +1,7 @@
 use gtk4::glib::object::Cast;
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{Image, Result, widgets::Widget};
 
@@ -23,9 +23,7 @@ impl Picture {
 
     pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 
@@ -44,7 +42,7 @@ impl Picture {
             Some(image) => self.image.set_paintable(Some(image.texture())),
             None => self.image.set_paintable(gtk4::gdk::Paintable::NONE),
         }
-        self.handle.reset_preferred_size();
+        self.handle.reset_measurement();
         Ok(())
     }
 }

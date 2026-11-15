@@ -22,7 +22,7 @@ use windows_sys::{
     core::BOOL,
 };
 use winio_handle::{AsContainer, AsWidget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 use winio_ui_windows_common::syscall;
 
 use crate::{Result, View, widgets::Widget, window_class_name};
@@ -67,12 +67,12 @@ impl ScrollView {
 
     pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) -> Result<()> {
-        self.handle.set_size(v)?;
-        self.preferred_size().map(|_| ())
+    pub fn set_size(&mut self, s: Size) -> Result<()> {
+        self.handle.set_size(s)?;
+        self.measure().map(|_| ())
     }
 
-    pub fn preferred_size(&mut self) -> Result<Size> {
+    pub fn measure(&mut self) -> Result<Measurement> {
         let handle = self.handle.as_widget().as_win32();
         let view = self.view.as_widget().as_win32();
 
@@ -150,7 +150,7 @@ impl ScrollView {
             y = -si.nPos;
         }
         self.scroll_view(x, y)?;
-        Ok(Size::zero())
+        Ok(Measurement::default())
     }
 
     pub fn hscroll(&self) -> Result<bool> {

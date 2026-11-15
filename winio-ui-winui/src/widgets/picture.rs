@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use windows_core::Interface;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 use winui3::Microsoft::UI::Xaml::{Controls as MUXC, Media::ImageSource};
 
 use crate::{Image, Result, Widget};
@@ -24,9 +24,7 @@ impl Picture {
 
     pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 

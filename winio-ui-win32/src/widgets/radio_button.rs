@@ -7,7 +7,7 @@ use windows_sys::Win32::UI::{
     },
 };
 use winio_handle::{AsContainer, AsWidget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{
     Result,
@@ -40,18 +40,12 @@ impl RadioButton {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size> {
+    pub fn measure(&self) -> Result<Measurement> {
         let s = self.handle.measure_text()?;
         let glyph = check_glyph();
-        Ok(Size::new(
-            glyph + CHECK_GLYPH_GAP + s.width,
-            s.height.max(glyph),
-        ))
-    }
-
-    pub fn min_size(&self) -> Result<Size> {
-        let glyph = check_glyph();
-        Ok(Size::new(glyph, glyph))
+        let preferred = Size::new(glyph + CHECK_GLYPH_GAP + s.width, s.height.max(glyph));
+        let minimum = Size::new(glyph, glyph);
+        Ok(Measurement::new(preferred, minimum))
     }
 
     pub fn loc(&self) -> Result<Point>;

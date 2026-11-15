@@ -1,7 +1,7 @@
 use winio_handle::{
     AsContainer, AsWidget, AsWindow, BorrowedContainer, BorrowedWidget, BorrowedWindow,
 };
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{Result, not_impl};
 
@@ -25,11 +25,7 @@ impl Widget {
         not_impl()
     }
 
-    pub fn preferred_size(&self) -> Result<Size> {
-        not_impl()
-    }
-
-    pub fn min_size(&self) -> Result<Size> {
+    pub fn measure(&self) -> Result<Measurement> {
         not_impl()
     }
 

@@ -12,7 +12,7 @@ use windows_sys::Win32::UI::{
     },
 };
 use winio_handle::{AsContainer, AsWidget, BorrowedContainer};
-use winio_primitive::{Margin, Point, Size};
+use winio_primitive::{Margin, Measurement, Point, Size};
 
 use crate::{
     Result,
@@ -47,7 +47,7 @@ impl ComboBoxImpl {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size> {
+    pub fn measure(&self) -> Result<Measurement> {
         let mut width = 0.0f64;
         for i in 0..self.len()? {
             let data = self.get_u16(i)?;
@@ -56,19 +56,15 @@ impl ComboBoxImpl {
         }
         let item_height = self.handle.size_d2l((0, self.item_height() as _)).height;
         let padding = self.padding();
-        Ok(Size::new(
+        let preferred = Size::new(
             width + scroll_bar_width() + padding.left + padding.right,
             item_height + padding.top + padding.bottom,
-        ))
-    }
-
-    pub fn min_size(&self) -> Result<Size> {
-        let item_height = self.handle.size_d2l((0, self.item_height() as _)).height;
-        let padding = self.padding();
-        Ok(Size::new(
+        );
+        let minimum = Size::new(
             scroll_bar_width() + padding.left + padding.right,
             item_height + padding.top + padding.bottom,
-        ))
+        );
+        Ok(Measurement::new(preferred, minimum))
     }
 
     fn padding(&self) -> Margin {
@@ -241,9 +237,7 @@ impl ComboBox {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 

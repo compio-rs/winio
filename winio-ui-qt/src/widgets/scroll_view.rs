@@ -1,7 +1,7 @@
 use cxx::{ExternType, type_id};
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{
     Result, View,
@@ -45,14 +45,14 @@ impl ScrollView {
 
     pub fn set_size(&mut self, s: Size) -> Result<()> {
         self.widget.set_size(s)?;
-        self.preferred_size().map(|_| ())
+        self.measure().map(|_| ())
     }
 
-    pub fn preferred_size(&mut self) -> Result<Size> {
+    pub fn measure(&mut self) -> Result<Measurement> {
         let rect = self.view.widget.as_ref().childrenRect()?;
         self.view
             .set_size(Size::new((rect.x2 + 1) as f64, (rect.y2 + 1) as f64))?;
-        Ok(Size::zero())
+        Ok(Measurement::default())
     }
 
     pub fn hscroll(&self) -> Result<bool> {

@@ -9,7 +9,7 @@ use jni::{
 use jni_min_helper::DynamicProxy;
 use winio_callback::SyncCallback;
 use winio_handle::AsContainer;
-use winio_primitive::{Font, Point, Size};
+use winio_primitive::{Font, Measurement, Point, Size};
 
 use crate::{
     BaseWidget, Result, current_activity,
@@ -86,9 +86,7 @@ impl LinkLabel {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 

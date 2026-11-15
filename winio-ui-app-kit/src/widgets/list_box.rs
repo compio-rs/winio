@@ -17,7 +17,7 @@ use objc2_foundation::{
 };
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{GlobalRuntime, Result, Widget, catch, from_cgsize};
 
@@ -78,8 +78,8 @@ impl ListBox {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn min_size(&self) -> Result<Size> {
-        catch(|| unsafe {
+    pub fn measure(&self) -> Result<Measurement> {
+        let minimum = catch(|| unsafe {
             let font = NSFont::systemFontOfSize(NSFont::systemFontSize());
             let attrs = NSDictionary::from_slices(&[NSFontAttributeName], &[font.as_ref()]);
             let mut width = 0.0f64;
@@ -91,18 +91,15 @@ impl ListBox {
                 height = height.max(size.height);
             }
             Size::new(width + 40.0, height)
-        })
-    }
-
-    pub fn preferred_size(&self) -> Result<Size> {
-        let mut size = catch(|| unsafe {
+        })?;
+        let mut preferred = catch(|| unsafe {
             from_cgsize(
                 Retained::cast_unchecked::<NSControl>(self.table.clone())
                     .sizeThatFits(NSSize::ZERO),
             )
         })?;
-        size.width = self.min_size()?.width;
-        Ok(size)
+        preferred.width = minimum.width;
+        Ok(Measurement::new(preferred, minimum))
     }
 
     pub fn loc(&self) -> Result<Point>;

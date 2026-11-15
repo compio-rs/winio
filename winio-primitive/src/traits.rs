@@ -1,5 +1,22 @@
 use crate::{Font, Point, Rect, Size};
 
+/// The result of measuring a layoutable widget.
+#[non_exhaustive]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
+pub struct Measurement {
+    /// The preferred (natural) size.
+    pub preferred: Size,
+    /// The minimum acceptable size.
+    pub minimum: Size,
+}
+
+impl Measurement {
+    /// Create a measurement from a preferred and a minimum size.
+    pub fn new(preferred: Size, minimum: Size) -> Self {
+        Self { preferred, minimum }
+    }
+}
+
 /// A trait for types that can fail with an associated error type.
 pub trait Failable {
     /// The error type associated.
@@ -92,18 +109,12 @@ pub trait Layoutable: Failable {
         self.set_size(r.size)
     }
 
-    /// The preferred size.
+    /// Measure the sizes.
     ///
-    /// Measuring may update the widget's internal layout.
-    fn preferred_size(&mut self) -> Result<Size, Self::Error> {
-        Ok(Size::zero())
-    }
-
-    /// Min acceptable size.
-    ///
-    /// Measuring may update the widget's internal layout.
-    fn min_size(&mut self) -> Result<Size, Self::Error> {
-        Ok(Size::zero())
+    /// Measuring may update the widget's internal layout. Backends must
+    /// return non-negative sizes.
+    fn measure(&mut self) -> Result<Measurement, Self::Error> {
+        Ok(Measurement::default())
     }
 }
 

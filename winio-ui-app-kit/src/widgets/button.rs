@@ -12,7 +12,7 @@ use objc2_app_kit::{
 use objc2_foundation::{MainThreadMarker, NSObject, NSString, NSURL, ns_string};
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Font, Point, Size};
+use winio_primitive::{Font, Measurement, Point, Size};
 
 use crate::{
     GlobalRuntime, Image, Result, Widget, catch, from_nsstring,
@@ -59,9 +59,7 @@ impl Button {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 
@@ -129,13 +127,12 @@ impl CheckBox {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size> {
-        let mut s = self.handle.preferred_size()?;
-        s.width += 4.0;
-        Ok(s)
+    pub fn measure(&self) -> Result<Measurement> {
+        let measurement = self.handle.measure()?;
+        let mut preferred = measurement.preferred;
+        preferred.width += 4.0;
+        Ok(Measurement::new(preferred, measurement.minimum))
     }
-
-    pub fn min_size(&self) -> Result<Size>;
 
     pub fn loc(&self) -> Result<Point>;
 
@@ -198,9 +195,7 @@ impl RadioButton {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 
@@ -267,9 +262,7 @@ impl LinkLabel {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 

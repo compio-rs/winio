@@ -9,7 +9,7 @@ use gtk4::{
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Font, Point, Size};
+use winio_primitive::{Font, Measurement, Point, Size};
 
 use crate::{
     GlobalRuntime, Result,
@@ -57,9 +57,7 @@ impl LinkLabel {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 
@@ -83,7 +81,7 @@ impl LinkLabel {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         self.widget.set_label(s.as_ref());
-        self.handle.reset_preferred_size();
+        self.handle.reset_measurement();
         Ok(())
     }
 
@@ -117,7 +115,7 @@ impl LinkLabel {
         {
             label.set_attributes(Some(&attr_list));
         }
-        self.handle.reset_preferred_size();
+        self.handle.reset_measurement();
         Ok(())
     }
 

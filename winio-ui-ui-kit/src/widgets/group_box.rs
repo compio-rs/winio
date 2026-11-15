@@ -12,7 +12,7 @@ use objc2_ui_kit::{
     UIView, UIViewContentMode,
 };
 use winio_handle::{AsContainer, BorrowedContainer};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{Result, catch, from_cgsize, from_nsstring, widgets::Widget};
 
@@ -92,18 +92,15 @@ impl GroupBox {
         Ok(())
     }
 
-    pub fn preferred_size(&self) -> Result<Size> {
-        catch(|| {
+    pub fn measure(&self) -> Result<Measurement> {
+        let preferred = catch(|| {
             let width = self.title.intrinsicContentSize().width.max(0.0);
             Size::new(
                 width + CONTENT_INSET * 2.0,
                 self.title_height + CONTENT_INSET * 2.0,
             )
-        })
-    }
-
-    pub fn min_size(&self) -> Result<Size> {
-        self.preferred_size()
+        })?;
+        Ok(Measurement::new(preferred, preferred))
     }
 
     pub fn client_size(&self) -> Result<Size> {

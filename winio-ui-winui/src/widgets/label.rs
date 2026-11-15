@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use windows_core::{HSTRING, Interface};
 use winio_handle::AsContainer;
-use winio_primitive::{Font, HAlign, Point, Size};
+use winio_primitive::{Font, HAlign, Measurement, Point, Size};
 use winui3::Microsoft::UI::Xaml::{Controls as MUXC, TextWrapping};
 
 use crate::{
@@ -30,14 +30,12 @@ impl Label {
 
     pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size> {
-        let mut size = self.handle.preferred_size()?;
-        size.width += 1.0;
-        size.height += 1.0;
-        Ok(size)
+    pub fn measure(&self) -> Result<Measurement> {
+        let mut measurement = self.handle.measure()?;
+        measurement.preferred.width += 1.0;
+        measurement.preferred.height += 1.0;
+        Ok(measurement)
     }
-
-    pub fn min_size(&self) -> Result<Size>;
 
     pub fn loc(&self) -> Result<Point>;
 

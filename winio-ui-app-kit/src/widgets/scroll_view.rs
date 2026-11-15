@@ -3,7 +3,7 @@ use objc2::{MainThreadOnly, rc::Retained};
 use objc2_app_kit::{NSControl, NSScrollView, NSView};
 use objc2_foundation::NSSize;
 use winio_handle::{AsContainer, BorrowedContainer};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{Result, catch, from_cgsize, transform_cgrect, transform_rect, widgets::Widget};
 
@@ -54,10 +54,10 @@ impl ScrollView {
 
     pub fn set_size(&mut self, v: Size) -> Result<()> {
         self.handle.set_size(v)?;
-        self.preferred_size().map(|_| ())
+        self.measure().map(|_| ())
     }
 
-    pub fn preferred_size(&mut self) -> Result<Size> {
+    pub fn measure(&mut self) -> Result<Measurement> {
         let v = self.size()?;
         catch(|| {
             let inner_size = from_cgsize(self.inner_view.frame().size);
@@ -97,7 +97,7 @@ impl ScrollView {
             for (c, rect) in subviews.into_iter().zip(frames) {
                 c.setFrame(transform_rect(inner_size, rect));
             }
-            Ok(Size::zero())
+            Ok(Measurement::default())
         })
         .flatten()
     }
