@@ -374,23 +374,18 @@ impl Widget {
     }
 
     pub fn measure(&self) -> Result<Measurement> {
-        let preferred = catch(|| {
-            let s = self.view.fittingSize();
-            if s != NSSize::ZERO {
-                return from_cgsize(s);
+        catch(|| {
+            let min = from_cgsize(self.view.fittingSize());
+            if min != Size::zero() {
+                return Measurement::new(min, min);
             }
-            self.view
+            let preferred = self
+                .view
                 .downcast_ref::<NSControl>()
                 .map(|c| from_cgsize(c.sizeThatFits(NSSize::ZERO)))
-                .unwrap_or_default()
-        })?;
-        let minimum = catch(|| {
-            self.view
-                .downcast_ref::<NSControl>()
-                .map(|c| from_cgsize(c.sizeThatFits(NSSize::ZERO)))
-                .unwrap_or_default()
-        })?;
-        Ok(Measurement::new(preferred, minimum))
+                .unwrap_or_default();
+            Measurement::new(preferred, min)
+        })
     }
 
     pub fn loc(&self) -> Result<Point> {
