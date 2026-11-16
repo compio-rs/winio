@@ -61,8 +61,11 @@ impl EditImpl {
     pub fn measure(&self) -> Result<Measurement> {
         let s = self.handle.measure_text()?;
         let border = edge() * 2.0;
-        let preferred = Size::new(s.width + border, s.height + border);
-        Ok(Measurement::new(preferred, Size::zero()))
+        let line = self.handle.line_height()?;
+        Ok(Measurement::new(
+            Size::new(s.width + border, s.height + border),
+            Size::new(border, line + border),
+        ))
     }
 
     pub fn loc(&self) -> Result<Point>;

@@ -18,7 +18,10 @@ use windows_sys::Win32::{
 use winio_handle::{AsContainer, AsWidget};
 use winio_primitive::{Measurement, Point, Size};
 
-use crate::{Error, Result, Widget, widgets::edge};
+use crate::{
+    Error, Result, Widget,
+    widgets::{edge, scroll_bar_width},
+};
 
 #[derive(Debug)]
 pub struct UpDownEdit {
@@ -75,16 +78,15 @@ impl UpDownEdit {
 
     pub fn measure(&self) -> Result<Measurement> {
         let edit = self.handle.measure_text()?;
-        let updown = self.updown.size()?;
         let border = edge() * 2.0;
-        let preferred = Size::new(
-            edit.width + border + updown.width,
-            (edit.height + border).max(updown.height),
-        );
-        let width = unsafe { GetSystemMetricsForDpi(SM_CXVSCROLL, 96) };
-        let height = unsafe { GetSystemMetricsForDpi(SM_CYVSCROLL, 96) };
-        let minimum = Size::new(width as _, height as _);
-        Ok(Measurement::new(preferred, minimum))
+        let line = self.handle.line_height()?;
+        let height = edit.height.max(line) + border;
+        let spin = scroll_bar_width();
+        let preferred = Size::new(edit.width + border + spin, height);
+        Ok(Measurement::new(
+            preferred,
+            Size::new(border + spin, height),
+        ))
     }
 
     pub fn loc(&self) -> Result<Point>;
@@ -95,11 +97,11 @@ impl UpDownEdit {
 
     pub fn set_size(&mut self, s: Size) -> Result<()> {
         self.handle.set_size(s)?;
-        let updown_size = self.updown.size()?;
+        let spin = scroll_bar_width();
+        let edge = edge();
         self.updown
-            .set_loc(Point::new(s.width - self.updown.size()?.width, 0.0))?;
-        self.updown
-            .set_size(Size::new(updown_size.width, s.height))?;
+            .set_loc(Point::new(s.width - spin - edge, 0.0))?;
+        self.updown.set_size(Size::new(spin, s.height - edge))?;
         Ok(())
     }
 

@@ -119,7 +119,7 @@ thread_local! {
     static MEASURE_DC: MeasureDc = MeasureDc(unsafe { CreateCompatibleDC(null_mut()) });
 }
 
-pub fn measure_string(hwnd: HWND, s: &U16Str) -> Result<Size> {
+fn with_measure_font<T>(hwnd: HWND, f: impl FnOnce(HDC, u32) -> Result<T>) -> Result<T> {
     unsafe {
         let dpi = get_dpi_for_window(hwnd);
         let hfont = SendMessageW(hwnd, WM_GETFONT, 0, 0) as HFONT;
@@ -134,20 +134,37 @@ pub fn measure_string(hwnd: HWND, s: &U16Str) -> Result<Size> {
                 return Err(Error::from_thread());
             }
             let old = SelectObject(hdc, hfont);
-            let measured = measure_with_dc(hdc, s);
+            let res = f(hdc, dpi);
             SelectObject(hdc, old);
-            Ok(measured?.to_logical(dpi))
+            res
         })
     }
 }
 
-unsafe fn measure_with_dc(hdc: HDC, s: &U16Str) -> Result<Size> {
+pub fn line_height(hwnd: HWND) -> Result<f64> {
+    with_measure_font(hwnd, |hdc, dpi| {
+        Ok(line_height_px(hdc)?.to_logical(dpi) as f64)
+    })
+}
+
+pub fn measure_string(hwnd: HWND, s: &U16Str) -> Result<Size> {
+    with_measure_font(
+        hwnd,
+        |hdc, dpi| Ok(measure_with_dc(hdc, s)?.to_logical(dpi)),
+    )
+}
+
+fn line_height_px(hdc: HDC) -> Result<i32> {
     let mut metrics = MaybeUninit::<TEXTMETRICW>::uninit();
     if unsafe { GetTextMetricsW(hdc, metrics.as_mut_ptr()) } == 0 {
         return Err(Error::from_thread());
     }
     let metrics = unsafe { metrics.assume_init() };
-    let line_height = metrics.tmHeight + metrics.tmExternalLeading;
+    Ok(metrics.tmHeight + metrics.tmExternalLeading)
+}
+
+fn measure_with_dc(hdc: HDC, s: &U16Str) -> Result<Size> {
+    let line_height = line_height_px(hdc)?;
     let mut width = 0;
     let mut lines = 0;
     for line in s.as_slice().split(|&c| c == b'\n' as u16) {

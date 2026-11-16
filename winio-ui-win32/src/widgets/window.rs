@@ -38,7 +38,7 @@ use crate::{
     Error, Result,
     platform::{
         dpi::{DpiAware, get_dpi_for_window},
-        font::measure_string,
+        font::{line_height, measure_string},
         tooltip::{get_tooltip, remove_tooltip, set_tooltip},
     },
     refresh_background,
@@ -128,6 +128,10 @@ impl Widget {
 
     pub fn measure_text(&self) -> Result<Size> {
         self.measure(self.text_u16()?.as_ustr())
+    }
+
+    pub fn line_height(&self) -> Result<f64> {
+        line_height(self.as_window().as_win32())
     }
 
     pub fn dpi(&self) -> u32 {
