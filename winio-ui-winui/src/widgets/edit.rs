@@ -8,7 +8,7 @@ use winio_handle::{AsContainer, AsWidget, BorrowedContainer};
 use winio_primitive::{HAlign, Measurement, Point, Size};
 use winui3::Microsoft::UI::Xaml::{
     Controls::{self as MUXC, ScrollBarVisibility, ScrollViewer},
-    TextWrapping, Visibility,
+    TextWrapping,
 };
 
 use crate::{GlobalRuntime, Result, Widget, widgets::Convertible};
@@ -25,28 +25,9 @@ pub struct Edit {
 impl Edit {
     pub fn new(parent: impl AsContainer) -> Result<Self> {
         let text_box = MUXC::TextBox::new()?;
-        let password_box = MUXC::PasswordBox::new()?;
-        password_box.SetVisibility(Visibility::Collapsed)?;
 
         let on_change = SendWrapper::new(Rc::new(Callback::new()));
-        {
-            let on_change = on_change.clone();
-            text_box
-                .TextChanged(move |_, _| {
-                    on_change.signal::<GlobalRuntime>(());
-                    Ok(())
-                })?
-                .forget();
-        }
-        {
-            let on_change = on_change.clone();
-            password_box
-                .PasswordChanged(move |_, _| {
-                    on_change.signal::<GlobalRuntime>(());
-                    Ok(())
-                })?
-                .forget();
-        }
+        Self::watch_text_box(&on_change, &text_box)?;
 
         Ok(Self {
             on_change,
@@ -56,6 +37,34 @@ impl Edit {
         })
     }
 
+    fn watch_text_box(
+        on_change: &SendWrapper<Rc<Callback>>,
+        text_box: &MUXC::TextBox,
+    ) -> Result<()> {
+        let on_change = on_change.clone();
+        text_box
+            .TextChanged(move |_, _| {
+                on_change.signal::<GlobalRuntime>(());
+                Ok(())
+            })?
+            .forget();
+        Ok(())
+    }
+
+    fn watch_password_box(
+        on_change: &SendWrapper<Rc<Callback>>,
+        password_box: &MUXC::PasswordBox,
+    ) -> Result<()> {
+        let on_change = on_change.clone();
+        password_box
+            .PasswordChanged(move |_, _| {
+                on_change.signal::<GlobalRuntime>(());
+                Ok(())
+            })?
+            .forget();
+        Ok(())
+    }
+
     fn recreate(&mut self, password: bool) -> Result<()> {
         let parent = self.handle.parent()?;
         let mut widget = if password {
@@ -63,6 +72,7 @@ impl Edit {
             let text_box = self.handle.as_widget().as_winui().cast::<MUXC::TextBox>()?;
             password_box.SetPassword(&text_box.Text()?)?;
             password_box.SetPlaceholderText(&text_box.PlaceholderText()?)?;
+            Self::watch_password_box(&self.on_change, &password_box)?;
             Widget::new(BorrowedContainer::winui(&parent), password_box.cast()?)?
         } else {
             let text_box = MUXC::TextBox::new()?;
@@ -74,6 +84,7 @@ impl Edit {
             text_box.SetText(&password_box.Password()?)?;
             text_box.SetPlaceholderText(&password_box.PlaceholderText()?)?;
             text_box.SetTextAlignment(self.halign.to_native())?;
+            Self::watch_text_box(&self.on_change, &text_box)?;
             Widget::new(BorrowedContainer::winui(&parent), text_box.cast()?)?
         };
         widget.set_visible(self.handle.is_visible()?)?;
