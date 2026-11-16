@@ -7,7 +7,7 @@ use gtk4::{
 use inherit_methods_macro::inherit_methods;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{GlobalRuntime, Image, Result, widgets::Widget};
 
@@ -59,7 +59,7 @@ impl Button {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 
@@ -81,7 +81,7 @@ impl Button {
         let s = s.as_ref();
         self.label.set_text(s);
         self.label.set_visible(!s.is_empty());
-        self.handle.reset_preferred_size();
+        self.handle.reset_measurement();
         Ok(())
     }
 
@@ -96,7 +96,7 @@ impl Button {
                 self.image.set_visible(false);
             }
         }
-        self.handle.reset_preferred_size();
+        self.handle.reset_measurement();
         Ok(())
     }
 

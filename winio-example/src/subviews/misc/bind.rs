@@ -226,7 +226,5 @@ impl Layoutable for BindPage {
 
     fn set_size(&mut self, s: Size) -> SysResult<()>;
 
-    fn preferred_size(&self) -> SysResult<Size>;
-
-    fn min_size(&self) -> SysResult<Size>;
+    fn measure(&mut self) -> SysResult<Measurement>;
 }

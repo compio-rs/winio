@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use jni::{Env, refs::Global};
 use winio_handle::{AsContainer, BorrowedContainer};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{
     BaseWidget, JCharSequenceExt, Result, current_activity,
@@ -94,15 +94,16 @@ impl GroupBox {
         vm_exec(move |env| self.update_layout(env, width, height))
     }
 
-    pub fn preferred_size(&self) -> Result<Size> {
+    pub fn measure(&self) -> Result<Measurement> {
         let width = vm_exec(|env| -> Result<i32> {
             self.title.as_view().measure(env, 0, 0)?;
             Ok(self.title.as_view().get_measured_width(env)?)
         })?;
-        Ok(Size::new(
+        let preferred = Size::new(
             (width + self.padding * 2) as f64 / self.density as f64,
             (self.title_height + self.padding * 2 + self.title_gap) as f64 / self.density as f64,
-        ))
+        );
+        Ok(Measurement::new(preferred, preferred))
     }
 
     pub fn client_size(&self) -> Result<Size> {

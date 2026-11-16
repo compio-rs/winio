@@ -1,6 +1,6 @@
 use inherit_methods_macro::inherit_methods;
 use winio_handle::{AsContainer, impl_as_widget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{
     BaseWidget, Image, Result, current_activity,
@@ -36,7 +36,7 @@ impl Picture {
 
     pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn tooltip(&self) -> Result<String>;
 

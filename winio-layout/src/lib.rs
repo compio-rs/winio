@@ -9,8 +9,10 @@ pub use taffy::TaffyError;
 use taffy::{Layout, NodeId, TaffyTree};
 use thiserror::Error;
 #[doc(hidden)]
-pub use winio_primitive::{Failable, HAlign, Layoutable, VAlign};
+pub use winio_primitive::{Failable, HAlign, Layoutable, Measurement, VAlign};
 use winio_primitive::{Margin, Point, Rect, Size};
+
+pub(crate) type LayoutTree = TaffyTree<taffy::Size<f32>>;
 
 fn approx_eq(f1: f64, f2: f64) -> bool {
     (f1 - f2).abs() < 1.0
@@ -30,9 +32,7 @@ fn approx_eq_rect(r1: Rect, r2: Rect) -> bool {
 
 #[doc(hidden)]
 pub trait LayoutChild: Failable {
-    fn child_preferred_size(&self) -> Result<Size, LayoutError<Self::Error>>;
-
-    fn child_min_size(&self) -> Result<Size, LayoutError<Self::Error>>;
+    fn child_measure(&mut self) -> Result<Measurement, LayoutError<Self::Error>>;
 
     fn set_child_loc(&mut self, p: Point) -> Result<(), LayoutError<Self::Error>>;
 
@@ -46,12 +46,8 @@ pub trait LayoutChild: Failable {
 }
 
 impl<T: Layoutable> LayoutChild for T {
-    fn child_preferred_size(&self) -> Result<Size, LayoutError<Self::Error>> {
-        self.preferred_size().map_err(LayoutError::Child)
-    }
-
-    fn child_min_size(&self) -> Result<Size, LayoutError<Self::Error>> {
-        self.min_size().map_err(LayoutError::Child)
+    fn child_measure(&mut self) -> Result<Measurement, LayoutError<Self::Error>> {
+        self.measure().map_err(LayoutError::Child)
     }
 
     fn set_child_loc(&mut self, p: Point) -> Result<(), LayoutError<Self::Error>> {
@@ -164,12 +160,14 @@ macro_rules! __layout_child {
             type Error = E;
         }
         impl<E> $crate::LayoutChild for $name<'_, E> {
-            fn child_preferred_size(&self) -> Result<$crate::Size, LayoutError<Self::Error>> {
-                Ok($crate::size_add_margin(self.widget.child_preferred_size()?, self.margin))
-            }
-
-            fn child_min_size(&self) -> Result<$crate::Size, LayoutError<Self::Error>> {
-                Ok($crate::size_add_margin(self.widget.child_min_size()?, self.margin))
+            fn child_measure(
+                &mut self,
+            ) -> Result<$crate::Measurement, LayoutError<Self::Error>> {
+                let measurement = self.widget.child_measure()?;
+                Ok($crate::Measurement::new(
+                    $crate::size_add_margin(measurement.preferred, self.margin),
+                    $crate::size_add_margin(measurement.minimum, self.margin),
+                ))
             }
 
             fn set_child_loc(&mut self, p: Point) -> Result<(), LayoutError<Self::Error>> {
@@ -268,15 +266,46 @@ pub enum LayoutError<E> {
     Child(E),
 }
 
+pub(crate) fn compute_layout(
+    tree: &mut LayoutTree,
+    root: NodeId,
+    available_space: taffy::Size<taffy::AvailableSpace>,
+) -> Result<(), TaffyError> {
+    tree.compute_layout_with_measure(root, available_space, |inputs, _node, context, style| {
+        let preferred = context.map(|size| *size).unwrap_or_default();
+        taffy::compute_leaf_layout(
+            inputs,
+            style,
+            |_, _| 0.0,
+            |known, available| {
+                let measure = |known: Option<f32>, available: taffy::AvailableSpace, preferred| {
+                    known.unwrap_or({
+                        if matches!(available, taffy::AvailableSpace::MinContent) {
+                            0.0
+                        } else {
+                            preferred
+                        }
+                    })
+                };
+                taffy::Size {
+                    width: measure(known.width, available.width, preferred.width),
+                    height: measure(known.height, available.height, preferred.height),
+                }
+            },
+        )
+    })
+}
+
 fn render<E>(
-    mut tree: TaffyTree,
+    mut tree: LayoutTree,
     root: NodeId,
     nodes: Vec<NodeId>,
     loc: Point,
     size: Size,
     children: &mut [impl LayoutChild<Error = E>],
 ) -> Result<(), LayoutError<E>> {
-    tree.compute_layout(
+    compute_layout(
+        &mut tree,
         root,
         taffy::Size {
             width: taffy::AvailableSpace::Definite(size.width as _),

@@ -11,7 +11,7 @@ use objc2_foundation::{
 };
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{GlobalRuntime, Result, catch, from_nsstring, widgets::Widget};
 
@@ -82,12 +82,14 @@ impl UpDownEdit {
         })
     }
 
-    pub fn preferred_size(&self) -> Result<Size> {
+    pub fn measure(&self) -> Result<Measurement> {
         let text = catch(|| self.text.fittingSize())?;
         let stepper = catch(|| self.stepper.fittingSize())?;
         let width = text.width + stepper.width;
         let height = text.height.max(stepper.height);
-        Ok(Size::new(width, height))
+        let preferred = Size::new(width, height);
+        let minimum = self.handle.measure()?.minimum;
+        Ok(Measurement::new(preferred, minimum))
     }
 
     pub fn loc(&self) -> Result<Point>;

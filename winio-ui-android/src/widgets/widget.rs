@@ -7,7 +7,7 @@ use jni::{
     refs::{Global, Reference},
 };
 use winio_handle::{AsContainer, AsWidget, BorrowedContainer, BorrowedWidget};
-use winio_primitive::{Font, Point, Size};
+use winio_primitive::{Font, Measurement, Point, Size};
 
 use crate::{
     Result,
@@ -175,7 +175,7 @@ where
         })
     }
 
-    pub fn preferred_size(&self) -> Result<Size> {
+    pub fn measure(&self) -> Result<Measurement> {
         let (width, height) = vm_exec(move |env| {
             self.as_view().measure(env, 0, 0)?;
             let width = self.as_view().get_measured_width(env)?;
@@ -184,16 +184,14 @@ where
         })?;
         // A little hack to make the preferred size a little bigger than the
         // measured size, so that the widget is not too small.
-        logical_size(width + 4.0, height)
-    }
-
-    pub fn min_size(&self) -> Result<Size> {
+        let preferred = logical_size(width + 4.0, height)?;
         let (width, height) = vm_exec(move |env| {
             let width = self.as_view().get_minimum_width(env)?;
             let height = self.as_view().get_minimum_height(env)?;
             Result::Ok((width as _, height as _))
         })?;
-        logical_size(width, height)
+        let minimum = logical_size(width, height)?;
+        Ok(Measurement::new(preferred, minimum))
     }
 
     pub fn is_visible(&self) -> Result<bool> {

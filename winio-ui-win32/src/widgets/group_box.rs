@@ -14,7 +14,7 @@ use windows_sys::Win32::{
     },
 };
 use winio_handle::{AsContainer, AsWidget};
-use winio_primitive::{Margin, Point, Rect, Size};
+use winio_primitive::{Margin, Measurement, Point, Rect, Size};
 use winio_ui_windows_common::syscall;
 
 use crate::{Result, View, background_brush, platform::theme::Theme, widgets::Widget};
@@ -65,13 +65,14 @@ impl GroupBox {
         self.update_view()
     }
 
-    pub fn preferred_size(&self) -> Result<Size> {
+    pub fn measure(&self) -> Result<Measurement> {
         let title = self.handle.measure_text()?;
         let padding = self.frame_padding();
-        Ok(Size::new(
+        let preferred = Size::new(
             title.width + padding.left + padding.right,
             title.height + padding.top + padding.bottom,
-        ))
+        );
+        Ok(Measurement::new(preferred, preferred))
     }
 
     pub fn client_size(&self) -> Result<Size> {

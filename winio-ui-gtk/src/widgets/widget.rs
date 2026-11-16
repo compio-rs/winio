@@ -2,7 +2,7 @@ use std::cell::Cell;
 
 use gtk4::prelude::{Cast, FixedExt, WidgetExt};
 use winio_handle::{AsContainer, AsWidget, BorrowedWidget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{Error, Result};
 
@@ -10,6 +10,7 @@ use crate::{Error, Result};
 pub(crate) struct Widget {
     widget: gtk4::Widget,
     preferred_size: Cell<Size>,
+    min_size: Cell<Size>,
 }
 
 impl Widget {
@@ -19,6 +20,7 @@ impl Widget {
         Ok(Self {
             widget,
             preferred_size: Cell::new(Size::new(f64::MAX, f64::MAX)),
+            min_size: Cell::new(Size::new(f64::MAX, f64::MAX)),
         })
     }
 
@@ -40,17 +42,41 @@ impl Widget {
         Ok(())
     }
 
-    pub fn preferred_size(&self) -> Result<Size> {
-        let (size, _) = self.widget.preferred_size();
-        let mut preferred_size = self.preferred_size.get();
-        preferred_size.width = preferred_size.width.min(size.width() as _);
-        preferred_size.height = preferred_size.height.min(size.height() as _);
-        self.preferred_size.set(preferred_size);
-        Ok(preferred_size)
+    pub fn measure(&self) -> Result<Measurement> {
+        self.ensure_measured();
+        Ok(Measurement::new(
+            self.preferred_size.get(),
+            self.min_size.get(),
+        ))
     }
 
-    pub fn reset_preferred_size(&mut self) {
+    fn ensure_measured(&self) {
+        if self.preferred_size.get().width != f64::MAX && self.min_size.get().width != f64::MAX {
+            return;
+        }
+
+        let (request_width, request_height) = self.widget.size_request();
+        let has_request = request_width >= 0 || request_height >= 0;
+        if has_request {
+            self.widget.set_size_request(-1, -1);
+        }
+
+        let (min_width, natural_width, ..) = self.widget.measure(gtk4::Orientation::Horizontal, -1);
+        let (min_height, natural_height, ..) = self.widget.measure(gtk4::Orientation::Vertical, -1);
+
+        if has_request {
+            self.widget.set_size_request(request_width, request_height);
+        }
+
+        self.min_size
+            .set(Size::new(min_width as _, min_height as _));
+        self.preferred_size
+            .set(Size::new(natural_width as _, natural_height as _));
+    }
+
+    pub fn reset_measurement(&mut self) {
         self.preferred_size.set(Size::new(f64::MAX, f64::MAX));
+        self.min_size.set(Size::new(f64::MAX, f64::MAX));
     }
 
     pub fn loc(&self) -> Result<Point> {
@@ -72,7 +98,7 @@ impl Widget {
     }
 
     pub fn size(&self) -> Result<Size> {
-        let preferred_size = self.preferred_size()?;
+        let preferred_size = self.measure()?.preferred;
         Ok(Size::new(
             (self.widget.width() as f64).max(preferred_size.width),
             (self.widget.height() as f64).max(preferred_size.height),

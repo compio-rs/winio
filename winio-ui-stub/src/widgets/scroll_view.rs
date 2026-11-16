@@ -1,6 +1,6 @@
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{Result, Widget, not_impl};
 
@@ -30,6 +30,10 @@ impl ScrollView {
     pub fn size(&self) -> Result<Size>;
 
     pub fn set_size(&mut self, v: Size) -> Result<()>;
+
+    pub fn measure(&mut self) -> Result<Measurement> {
+        not_impl()
+    }
 
     pub fn hscroll(&self) -> Result<bool> {
         not_impl()

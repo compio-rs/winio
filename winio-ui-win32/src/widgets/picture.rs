@@ -7,7 +7,7 @@ use windows_sys::Win32::{
     },
 };
 use winio_handle::{AsContainer, AsWidget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{
     Image, Result,
@@ -36,9 +36,10 @@ impl Picture {
 
     pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size> {
+    pub fn measure(&self) -> Result<Measurement> {
         let size = hwnd_icon_size(self.handle.as_widget().as_win32()).unwrap_or_default();
-        Ok(Size::new(size.width as f64, size.height as f64))
+        let preferred = Size::new(size.width as f64, size.height as f64);
+        Ok(Measurement::new(preferred, Size::zero()))
     }
 
     pub fn loc(&self) -> Result<Point>;

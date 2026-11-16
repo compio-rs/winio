@@ -3,7 +3,7 @@ use objc2::{MainThreadOnly, rc::Retained};
 use objc2_app_kit::{NSBox, NSBoxType, NSTitlePosition, NSView};
 use objc2_foundation::{NSPoint, NSRect, NSString};
 use winio_handle::{AsContainer, BorrowedContainer};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{Result, catch, from_cgsize, from_nsstring, to_cgsize, widgets::Widget};
 
@@ -58,7 +58,10 @@ impl GroupBox {
         Ok(())
     }
 
-    pub fn preferred_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement> {
+        let preferred = self.handle.measure()?.preferred;
+        Ok(Measurement::new(preferred, preferred))
+    }
 
     pub fn client_size(&self) -> Result<Size> {
         self.sync_inner_view()

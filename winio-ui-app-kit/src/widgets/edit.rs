@@ -11,7 +11,7 @@ use objc2_app_kit::{
 use objc2_foundation::{MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSString};
 use winio_callback::Callback;
 use winio_handle::{AsContainer, BorrowedContainer};
-use winio_primitive::{HAlign, Point, Size};
+use winio_primitive::{HAlign, Measurement, Point, Size};
 
 use crate::{GlobalRuntime, Result, catch, from_nsstring, widgets::Widget};
 
@@ -56,7 +56,7 @@ impl EditImpl {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 
@@ -181,7 +181,7 @@ impl Edit {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 

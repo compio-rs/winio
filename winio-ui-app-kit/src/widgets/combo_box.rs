@@ -12,7 +12,7 @@ use objc2_foundation::{
 };
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{GlobalRuntime, Result, Widget, catch, from_nsstring};
 
@@ -58,7 +58,7 @@ impl ComboBox {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 

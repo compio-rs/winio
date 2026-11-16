@@ -10,7 +10,7 @@ use windows_sys::Win32::UI::{
     WindowsAndMessaging::{SM_CYVSCROLL, USER_DEFAULT_SCREEN_DPI, WS_CHILD, WS_VISIBLE},
 };
 use winio_handle::{AsContainer, AsWidget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{Result, platform::theme::Theme, widgets::Widget};
 
@@ -41,8 +41,9 @@ impl Progress {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size> {
-        Ok(Size::new(0.0, self.height()))
+    pub fn measure(&self) -> Result<Measurement> {
+        let preferred = Size::new(0.0, self.height());
+        Ok(Measurement::new(preferred, Size::zero()))
     }
 
     fn height(&self) -> f64 {

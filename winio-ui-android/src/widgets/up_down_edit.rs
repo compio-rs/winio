@@ -8,7 +8,7 @@ use jni::{
 use jni_min_helper::DynamicProxy;
 use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{
     BaseWidget, Result, current_activity,
@@ -68,7 +68,7 @@ impl UpDownEdit {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 

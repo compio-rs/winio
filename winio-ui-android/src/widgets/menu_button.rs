@@ -7,7 +7,7 @@ use jni::{
 };
 use jni_min_helper::DynamicProxy;
 use winio_handle::{AsContainer, AsMenuContainer, BorrowedMenuContainer, impl_as_widget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{
     BaseWidget, Image, JCharSequenceExt, Result, current_activity,
@@ -82,7 +82,7 @@ impl MenuButton {
 
     pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn tooltip(&self) -> Result<String>;
 

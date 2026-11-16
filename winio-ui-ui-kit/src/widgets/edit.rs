@@ -12,7 +12,7 @@ use objc2_ui_kit::{
 };
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{HAlign, Point, Size};
+use winio_primitive::{HAlign, Measurement, Point, Size};
 
 use crate::{GlobalRuntime, Result, catch, widgets::Widget};
 
@@ -64,7 +64,7 @@ impl Edit {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 

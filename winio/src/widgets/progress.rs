@@ -1,7 +1,9 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Rect, Size, ToolTip, Visible};
+use winio_primitive::{
+    Enable, Failable, Layoutable, Measurement, Point, Rect, Size, ToolTip, Visible,
+};
 
 use crate::{
     sys,
@@ -93,7 +95,7 @@ impl Layoutable for Progress {
 
     fn set_size(&mut self, s: Size) -> Result<()>;
 
-    fn preferred_size(&self) -> Result<Size>;
+    fn measure(&mut self) -> Result<Measurement>;
 }
 
 /// Events of [`Progress`].

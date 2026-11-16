@@ -15,7 +15,7 @@ use windows_sys::Win32::{
     },
 };
 use winio_handle::{AsContainer, AsWidget};
-use winio_primitive::{Margin, Point, Size};
+use winio_primitive::{Margin, Measurement, Point, Size};
 
 use crate::{
     Image, Result,
@@ -78,7 +78,7 @@ impl Button {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size> {
+    fn preferred_size(&self) -> Result<Size> {
         let hwnd = self.handle.as_widget().as_win32();
         // The button itself knows its ideal size: it accounts for the text, the
         // icon, the drop-down arrow of a split button and the padding of the
@@ -104,6 +104,11 @@ impl Button {
             s.width + padding.left + padding.right,
             s.height + padding.top + padding.bottom,
         ))
+    }
+
+    pub fn measure(&self) -> Result<Measurement> {
+        let preferred = self.preferred_size()?;
+        Ok(Measurement::new(preferred, Size::zero()))
     }
 
     fn content_padding(&self) -> Margin {

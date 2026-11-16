@@ -4,8 +4,8 @@ use image::DynamicImage;
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
 use winio_primitive::{
-    BitmapRect, BitmapSize, BrushPen, Font, KeyCode, LinearGradientBrush, MouseButton, Point,
-    RadialGradientBrush, Rect, RelativePoint, Size, SolidColorBrush, Transform, Vector,
+    BitmapRect, BitmapSize, BrushPen, Font, KeyCode, LinearGradientBrush, Measurement, MouseButton,
+    Point, RadialGradientBrush, Rect, RelativePoint, Size, SolidColorBrush, Transform, Vector,
 };
 
 use crate::{Result, Widget, not_impl};
@@ -29,9 +29,7 @@ impl Canvas {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 

@@ -4,7 +4,7 @@ use compio_log::error;
 use windows::Win32::Foundation::E_POINTER;
 use windows_core::{Interface, Weak};
 use winio_handle::{AsContainer, AsWidget, BorrowedWidget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 use winui3::Microsoft::UI::Xaml::{self as MUX, Controls as MUXC};
 
 use crate::{Error, Result, widgets::Convertible};
@@ -62,16 +62,13 @@ impl Widget {
         Ok(())
     }
 
-    pub fn preferred_size(&self) -> Result<Size> {
-        Ok(Size::from_native(self.handle.MeasureOverride(
-            Size::new(f64::INFINITY, f64::INFINITY).to_native(),
-        )?))
-    }
-
-    pub fn min_size(&self) -> Result<Size> {
-        let width = self.handle.MinWidth()?;
-        let height = self.handle.MinHeight()?;
-        Ok(Size::new(width, height))
+    pub fn measure(&self) -> Result<Measurement> {
+        let preferred = Size::from_native(
+            self.handle
+                .MeasureOverride(Size::new(f64::INFINITY, f64::INFINITY).to_native())?,
+        );
+        let minimum = Size::new(self.handle.MinWidth()?, self.handle.MinHeight()?);
+        Ok(Measurement::new(preferred, minimum))
     }
 
     pub fn loc(&self) -> Result<Point> {

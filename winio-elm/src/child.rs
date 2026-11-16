@@ -12,7 +12,7 @@ use winio_handle::{
     BorrowedMenuContainer, BorrowedMenuItem, BorrowedWidget, BorrowedWindow,
 };
 #[cfg(feature = "primitive")]
-use winio_primitive::{Failable, Layoutable, Point, Rect, Size};
+use winio_primitive::{Failable, Layoutable, Measurement, Point, Rect, Size};
 
 use super::ComponentMessage;
 use crate::{BoxComponent, Component, ComponentSender, Root};
@@ -308,7 +308,5 @@ impl<T: Component + Layoutable> Layoutable for Child<T> {
 
     fn set_rect(&mut self, r: Rect) -> Result<(), Self::Error>;
 
-    fn preferred_size(&self) -> Result<Size, Self::Error>;
-
-    fn min_size(&self) -> Result<Size, Self::Error>;
+    fn measure(&mut self) -> Result<Measurement, Self::Error>;
 }

@@ -3,7 +3,7 @@ use objc2::{MainThreadOnly, rc::Retained};
 use objc2_app_kit::{NSFont, NSImageScaling, NSMenu, NSPopUpButton};
 use objc2_foundation::{NSPoint, NSRect, NSSize, NSString, ns_string};
 use winio_handle::{AsContainer, AsMenuContainer, BorrowedMenuContainer};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{
     Image, Result, catch, from_nsstring, tool_bar::refresh_image_position, widgets::Widget,
@@ -52,7 +52,7 @@ impl MenuButton {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 

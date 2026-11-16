@@ -5,7 +5,7 @@ use send_wrapper::SendWrapper;
 use windows_core::Interface;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Orient, Point, Size, fit_page};
+use winio_primitive::{Measurement, Orient, Point, Size, fit_page};
 use winui3::Microsoft::UI::Xaml::Controls::{self as MUXC, Primitives::ScrollingIndicatorMode};
 
 use crate::{GlobalRuntime, Result, Widget, widgets::Convertible};
@@ -51,13 +51,13 @@ impl ScrollBar {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size> {
-        let size = self.handle.preferred_size()?;
-        let size = match self.orient()? {
-            Orient::Horizontal => Size::new(0.0, size.height),
-            Orient::Vertical => Size::new(size.width, 0.0),
+    pub fn measure(&self) -> Result<Measurement> {
+        let measurement = self.handle.measure()?;
+        let preferred = match self.orient()? {
+            Orient::Horizontal => Size::new(0.0, measurement.preferred.height),
+            Orient::Vertical => Size::new(measurement.preferred.width, 0.0),
         };
-        Ok(size)
+        Ok(Measurement::new(preferred, measurement.minimum))
     }
 
     pub fn loc(&self) -> Result<Point>;

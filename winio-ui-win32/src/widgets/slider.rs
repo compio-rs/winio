@@ -15,7 +15,7 @@ use windows_sys::Win32::UI::{
     },
 };
 use winio_handle::{AsContainer, AsWidget, BorrowedContainer};
-use winio_primitive::{Orient, Point, Size, TickPosition};
+use winio_primitive::{Measurement, Orient, Point, Size, TickPosition};
 
 use crate::{Result, Widget, platform::theme::Theme};
 
@@ -180,7 +180,7 @@ impl Slider {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size> {
+    pub fn measure(&self) -> Result<Measurement> {
         let m = self.metrics();
         let thumb = if self.vertical {
             m.thumb_width
@@ -198,7 +198,7 @@ impl Slider {
         } else {
             Size::new(0.0, base_length)
         };
-        Ok(size)
+        Ok(Measurement::new(size, size))
     }
 
     /// The sizes of the thumb and the tick marks, read once from the style.

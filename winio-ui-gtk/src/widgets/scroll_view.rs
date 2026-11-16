@@ -1,7 +1,7 @@
 use gtk4::glib::object::Cast;
 use inherit_methods_macro::inherit_methods;
 use winio_handle::{AsContainer, BorrowedContainer};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{Result, Widget};
 
@@ -47,6 +47,10 @@ impl ScrollView {
         self.swindow.set_max_content_height(s.height as _);
         self.swindow.set_max_content_width(s.width as _);
         Ok(())
+    }
+
+    pub fn measure(&mut self) -> Result<Measurement> {
+        Ok(Measurement::default())
     }
 
     pub fn hscroll(&self) -> Result<bool> {

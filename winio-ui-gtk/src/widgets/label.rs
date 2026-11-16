@@ -5,7 +5,7 @@ use gtk4::{
 };
 use inherit_methods_macro::inherit_methods;
 use winio_handle::AsContainer;
-use winio_primitive::{Font, HAlign, Point, Size};
+use winio_primitive::{Font, HAlign, Measurement, Point, Size};
 
 use crate::{
     Result,
@@ -30,7 +30,7 @@ impl Label {
 
     pub fn set_visible(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 
@@ -50,7 +50,7 @@ impl Label {
 
     pub fn set_text(&mut self, s: impl AsRef<str>) -> Result<()> {
         self.widget.set_text(s.as_ref());
-        self.handle.reset_preferred_size();
+        self.handle.reset_measurement();
         Ok(())
     }
 
@@ -87,7 +87,7 @@ impl Label {
         let attr_list = AttrList::new();
         attr_list.insert(AttrFontDesc::new(&font_to_desc(&font)));
         self.widget.set_attributes(Some(&attr_list));
-        self.handle.reset_preferred_size();
+        self.handle.reset_measurement();
         Ok(())
     }
 }

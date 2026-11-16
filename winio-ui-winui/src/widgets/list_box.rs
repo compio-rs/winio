@@ -6,7 +6,7 @@ use windows_core::{HSTRING, IInspectable, Interface};
 use windows_reference::IReference;
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 use winui3::Microsoft::UI::Xaml::Controls::{self as MUXC, SelectionMode};
 
 use crate::{GlobalRuntime, Result, Widget};
@@ -47,9 +47,7 @@ impl ListBox {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 

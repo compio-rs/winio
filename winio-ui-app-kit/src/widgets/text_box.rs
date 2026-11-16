@@ -14,7 +14,7 @@ use objc2_foundation::{
 };
 use winio_callback::Callback;
 use winio_handle::AsContainer;
-use winio_primitive::{HAlign, Point, Size};
+use winio_primitive::{HAlign, Measurement, Point, Size};
 
 use crate::{Error, GlobalRuntime, Result, Widget, catch, from_cgsize, from_nsstring};
 
@@ -62,9 +62,9 @@ impl TextBox {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn min_size(&self) -> Result<Size> {
+    pub fn measure(&self) -> Result<Measurement> {
         let text = self.text()?;
-        catch(|| unsafe {
+        let minimum = catch(|| unsafe {
             let font = self.text_view.font();
             let text = NSAttributedString::initWithString_attributes(
                 NSAttributedString::alloc(),
@@ -80,11 +80,8 @@ impl TextBox {
                 .as_deref(),
             );
             from_cgsize(text.size())
-        })
-    }
-
-    pub fn preferred_size(&self) -> Result<Size> {
-        catch(|| unsafe {
+        })?;
+        let preferred = catch(|| unsafe {
             let font = self.text_view.font();
             let text = NSAttributedString::initWithString_attributes(
                 NSAttributedString::alloc(),
@@ -100,7 +97,8 @@ impl TextBox {
                 .as_deref(),
             );
             from_cgsize(text.size())
-        })
+        })?;
+        Ok(Measurement::new(preferred, minimum))
     }
 
     pub fn loc(&self) -> Result<Point>;

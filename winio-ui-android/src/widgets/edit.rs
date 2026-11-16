@@ -8,7 +8,7 @@ use jni::{
 use jni_min_helper::DynamicProxy;
 use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, impl_as_widget};
-use winio_primitive::{HAlign, Point, Size};
+use winio_primitive::{HAlign, Measurement, Point, Size};
 
 use crate::{
     BaseWidget, JCharSequenceExt, Result,
@@ -77,9 +77,7 @@ impl Edit {
 
     pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub(crate) fn min_size(&self) -> Result<Size>;
-
-    pub fn preferred_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn tooltip(&self) -> Result<String>;
 
@@ -250,9 +248,7 @@ impl TextBox {
 
     pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn min_size(&self) -> Result<Size>;
-
-    pub fn preferred_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn tooltip(&self) -> Result<String>;
 

@@ -20,7 +20,7 @@ use windows_sys::{
     w,
 };
 use winio_handle::{AsContainer, AsWidget};
-use winio_primitive::{HAlign, Point, Size};
+use winio_primitive::{HAlign, Measurement, Point, Size};
 use winio_ui_windows_common::syscall;
 
 use crate::{
@@ -58,10 +58,11 @@ impl EditImpl {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size> {
+    pub fn measure(&self) -> Result<Measurement> {
         let s = self.handle.measure_text()?;
         let border = edge() * 2.0;
-        Ok(Size::new(s.width + border, s.height + border))
+        let preferred = Size::new(s.width + border, s.height + border);
+        Ok(Measurement::new(preferred, Size::zero()))
     }
 
     pub fn loc(&self) -> Result<Point>;
@@ -190,7 +191,7 @@ impl Edit {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 
@@ -300,19 +301,7 @@ impl TextBox {
 
     pub fn set_enabled(&mut self, v: bool) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
-
-    pub fn min_size(&self) -> Result<Size> {
-        let text = self.handle.handle.text_u16()?;
-        let index = text.as_slice().iter().position(|c| *c == '\r' as u16);
-        if let Some(index) = index {
-            let s = self.handle.handle.measure(text.split_at(index).0)?;
-            let border = edge() * 2.0;
-            Ok(Size::new(border, s.height + border))
-        } else {
-            self.preferred_size()
-        }
-    }
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn loc(&self) -> Result<Point>;
 

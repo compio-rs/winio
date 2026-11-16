@@ -22,7 +22,7 @@ use windows_sys::{
     core::BOOL,
 };
 use winio_handle::{AsContainer, AsWidget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 use winio_ui_windows_common::syscall;
 
 use crate::{Result, View, widgets::Widget, window_class_name};
@@ -67,8 +67,12 @@ impl ScrollView {
 
     pub fn size(&self) -> Result<Size>;
 
-    pub fn set_size(&mut self, v: Size) -> Result<()> {
-        self.handle.set_size(v)?;
+    pub fn set_size(&mut self, s: Size) -> Result<()> {
+        self.handle.set_size(s)?;
+        self.measure().map(|_| ())
+    }
+
+    pub fn measure(&mut self) -> Result<Measurement> {
         let handle = self.handle.as_widget().as_win32();
         let view = self.view.as_widget().as_win32();
 
@@ -110,7 +114,7 @@ impl ScrollView {
         unsafe {
             EnumChildWindows(view, Some(enum_callback), &mut rect as *mut _ as LPARAM);
         }
-        let (vwidth, vheight) = self.handle.size_l2d(v);
+        let (vwidth, vheight) = self.handle.size_l2d(self.size()?);
         let cwidth = (rect.right - rect.left).max(vwidth - 2);
         let cheight = (rect.bottom - rect.top).max(vheight - 2);
         self.view
@@ -145,7 +149,8 @@ impl ScrollView {
             syscall!(BOOL, GetScrollInfo(handle, SB_VERT, &mut si))?;
             y = -si.nPos;
         }
-        self.scroll_view(x, y)
+        self.scroll_view(x, y)?;
+        Ok(Measurement::default())
     }
 
     pub fn hscroll(&self) -> Result<bool> {

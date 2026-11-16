@@ -18,7 +18,7 @@ use winio_callback::Callback;
 use winio_handle::{
     AsContainer, AsWidget, AsWindow, BorrowedContainer, BorrowedWidget, BorrowedWindow,
 };
-use winio_primitive::{Point, Rect, Size};
+use winio_primitive::{Measurement, Point, Rect, Size};
 
 use crate::{
     Error, GlobalRuntime, Result, catch, from_cgsize, from_nsstring, to_cgsize, transform_cgrect,
@@ -373,16 +373,18 @@ impl Widget {
         })
     }
 
-    pub fn preferred_size(&self) -> Result<Size> {
+    pub fn measure(&self) -> Result<Measurement> {
         catch(|| {
-            let s = self.view.fittingSize();
-            if s != NSSize::ZERO {
-                return from_cgsize(s);
+            let min = from_cgsize(self.view.fittingSize());
+            if min != Size::zero() {
+                return Measurement::new(min, min);
             }
-            self.view
+            let preferred = self
+                .view
                 .downcast_ref::<NSControl>()
                 .map(|c| from_cgsize(c.sizeThatFits(NSSize::ZERO)))
-                .unwrap_or_default()
+                .unwrap_or_default();
+            Measurement::new(preferred, min)
         })
     }
 

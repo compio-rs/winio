@@ -2,7 +2,8 @@ use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
 use winio_primitive::{
-    Failable, Font, Fontable, HAlign, Layoutable, Point, Rect, Size, TextWidget, ToolTip, Visible,
+    Failable, Font, Fontable, HAlign, Layoutable, Measurement, Point, Rect, Size, TextWidget,
+    ToolTip, Visible,
 };
 
 use crate::{
@@ -75,7 +76,7 @@ impl Layoutable for Label {
 
     fn set_size(&mut self, s: Size) -> Result<()>;
 
-    fn preferred_size(&self) -> Result<Size>;
+    fn measure(&mut self) -> Result<Measurement>;
 }
 
 /// Events of [`Label`].

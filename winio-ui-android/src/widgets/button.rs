@@ -9,7 +9,7 @@ use jni::{
 use jni_min_helper::DynamicProxy;
 use winio_callback::SyncCallback;
 use winio_handle::{AsContainer, AsWidget, BorrowedWidget, impl_as_widget};
-use winio_primitive::{Point, Size};
+use winio_primitive::{Measurement, Point, Size};
 
 use crate::{
     BaseWidget, Image, JCharSequenceExt, Result, current_activity,
@@ -111,7 +111,7 @@ where
 
     pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn tooltip(&self) -> Result<String>;
 
@@ -227,7 +227,7 @@ impl Button {
 
     pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn tooltip(&self) -> Result<String>;
 
@@ -290,7 +290,7 @@ impl CheckBox {
 
     pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn tooltip(&self) -> Result<String>;
 
@@ -339,7 +339,7 @@ impl RadioButton {
 
     pub fn set_size(&mut self, v: Size) -> Result<()>;
 
-    pub fn preferred_size(&self) -> Result<Size>;
+    pub fn measure(&self) -> Result<Measurement>;
 
     pub fn tooltip(&self) -> Result<String>;
 

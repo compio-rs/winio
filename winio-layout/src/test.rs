@@ -1,4 +1,4 @@
-use winio_primitive::{Failable, HAlign, Orient, Point, Rect, Size, VAlign};
+use winio_primitive::{Failable, HAlign, Measurement, Orient, Point, Rect, Size, VAlign};
 
 use crate::{Grid, Layoutable, StackPanel, layout};
 
@@ -54,12 +54,8 @@ impl Layoutable for MockChild {
         Ok(())
     }
 
-    fn preferred_size(&self) -> Result<Size, ()> {
-        Ok(self.preferred_size)
-    }
-
-    fn min_size(&self) -> Result<Size, ()> {
-        Ok(self.min_size)
+    fn measure(&mut self) -> Result<Measurement, ()> {
+        Ok(Measurement::new(self.preferred_size, self.min_size))
     }
 }
 
@@ -219,6 +215,42 @@ fn stack_panel_vertical() {
     c1.assert_size(200.0, 100.0);
     c2.assert_size(50.0, 50.0);
     c3.assert_size(10.0, 200.0);
+}
+
+#[test]
+fn grid_auto_track_uses_preferred_size() {
+    // `min_size` defaults to zero, so auto tracks need the preferred size as
+    // their content contribution.
+    let mut c1 = MockChild::new(Size::new(100.0, 20.0), Size::zero());
+    let mut c2 = c1.clone();
+    let mut c3 = c1.clone();
+    {
+        let mut grid = layout! {
+            Grid::from_str("auto", "1*,auto,auto,auto,1*").unwrap(),
+            c1 => { row: 1 },
+            c2 => { row: 2 },
+            c3 => { row: 3 },
+        };
+        grid.set_rect(Rect::new(Point::zero(), Size::new(200.0, 200.0)))
+            .unwrap();
+    }
+    c1.assert_size(200.0, 20.0);
+    c2.assert_size(200.0, 20.0);
+    c3.assert_size(200.0, 20.0);
+}
+
+#[test]
+fn grid_star_track_allows_shrink() {
+    let mut c1 = MockChild::new(Size::new(100.0, 20.0), Size::zero());
+    {
+        let mut grid = layout! {
+            Grid::from_str("1*", "1*").unwrap(),
+            c1
+        };
+        grid.set_rect(Rect::new(Point::zero(), Size::new(50.0, 50.0)))
+            .unwrap();
+    }
+    c1.assert_size(50.0, 50.0);
 }
 
 #[test]

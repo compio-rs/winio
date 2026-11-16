@@ -1,10 +1,13 @@
 use taffy::{
-    NodeId, Style, TaffyTree,
+    NodeId, Style,
     prelude::{auto, length, percent},
 };
 use winio_primitive::{Failable, HAlign, Orient, Point, Rect, Size, VAlign};
 
-use crate::{LayoutChild, LayoutError, layout_child, rect_t2e, render};
+use crate::{
+    LayoutChild, LayoutError, LayoutTree, Measurement, compute_layout, layout_child, rect_t2e,
+    render,
+};
 
 layout_child! {
     /// Builder of a child for [`StackPanel`].
@@ -44,11 +47,12 @@ impl<'a, E> StackPanel<'a, E> {
         }
     }
 
-    fn tree(&self) -> Result<(TaffyTree, NodeId, Vec<NodeId>), LayoutError<E>> {
-        let mut tree: TaffyTree<()> = TaffyTree::new();
+    fn tree(&mut self) -> Result<(LayoutTree, NodeId, Vec<NodeId>), LayoutError<E>> {
+        let mut tree = LayoutTree::new();
         let mut nodes = vec![];
-        for child in &self.children {
-            let preferred_size = child.child_preferred_size()?;
+        for child in &mut self.children {
+            let measurement = child.child_measure()?;
+            let preferred_size = measurement.preferred;
             let mut style = Style::default();
             style.size.width = match child.width {
                 Some(w) => length(w as f32),
@@ -66,7 +70,7 @@ impl<'a, E> StackPanel<'a, E> {
                     _ => length(preferred_size.height as f32),
                 },
             };
-            let min_size = child.child_min_size()?;
+            let min_size = measurement.minimum;
             style.min_size.width = match child.min_width {
                 Some(w) => length(w as f32),
                 None => length(min_size.width as f32),
@@ -96,7 +100,13 @@ impl<'a, E> StackPanel<'a, E> {
             if child.grow {
                 style.flex_grow = 1.0f32
             }
-            let node = tree.new_leaf(style)?;
+            let node = tree.new_leaf_with_context(
+                style,
+                taffy::Size {
+                    width: preferred_size.width as f32,
+                    height: preferred_size.height as f32,
+                },
+            )?;
             nodes.push(node);
         }
         let root = tree.new_with_children(
@@ -155,15 +165,12 @@ impl<E> LayoutChild for StackPanel<'_, E> {
         self.render()
     }
 
-    fn child_preferred_size(&self) -> Result<Size, LayoutError<Self::Error>> {
+    fn child_measure(&mut self) -> Result<Measurement, LayoutError<Self::Error>> {
         let (mut tree, root, _) = self.tree()?;
-        tree.compute_layout(root, taffy::Size::max_content())?;
-        Ok(rect_t2e(tree.layout(root)?).size)
-    }
-
-    fn child_min_size(&self) -> Result<Size, LayoutError<Self::Error>> {
-        let (mut tree, root, _) = self.tree()?;
-        tree.compute_layout(root, taffy::Size::min_content())?;
-        Ok(rect_t2e(tree.layout(root)?).size)
+        compute_layout(&mut tree, root, taffy::Size::max_content())?;
+        let preferred = rect_t2e(tree.layout(root)?).size;
+        compute_layout(&mut tree, root, taffy::Size::min_content())?;
+        let minimum = rect_t2e(tree.layout(root)?).size;
+        Ok(Measurement::new(preferred, minimum))
     }
 }

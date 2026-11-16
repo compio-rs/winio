@@ -1,7 +1,7 @@
 use inherit_methods_macro::inherit_methods;
 use winio_elm::{Component, ComponentSender};
 use winio_handle::BorrowedContainer;
-use winio_primitive::{Enable, Failable, Layoutable, Point, Rect, Size, Visible};
+use winio_primitive::{Enable, Failable, Layoutable, Measurement, Point, Rect, Size, Visible};
 
 use crate::{
     sys,
@@ -56,6 +56,8 @@ impl Layoutable for ScrollView {
     fn size(&self) -> Result<Size>;
 
     fn set_size(&mut self, s: Size) -> Result<()>;
+
+    fn measure(&mut self) -> Result<Measurement>;
 }
 
 /// Events of [`ScrollView`].
