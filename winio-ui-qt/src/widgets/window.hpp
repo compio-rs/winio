@@ -2,6 +2,7 @@
 
 #include "../common.hpp"
 #include <QCloseEvent>
+#include <QEvent>
 #include <QMainWindow>
 #include <QMoveEvent>
 #include <QResizeEvent>
@@ -17,6 +18,7 @@ struct WinioMainWindow : public QMainWindow {
     ~WinioMainWindow() override;
 
 protected:
+    bool event(QEvent *event) override;
     void moveEvent(QMoveEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
     void changeEvent(QEvent *event) override;
@@ -27,6 +29,8 @@ struct WinioCentralWidget : public QWidget {
 
     WinioCentralWidget(QWidget *parent);
     ~WinioCentralWidget() override;
+
+    void notify_resize();
 
 protected:
     void resizeEvent(QResizeEvent *event) override;

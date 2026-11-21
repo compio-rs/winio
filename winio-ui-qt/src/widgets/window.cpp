@@ -1,4 +1,5 @@
 #include "window.hpp"
+#include <QTimer>
 
 WinioMainWindow::WinioMainWindow(QWidget *parent)
     : QMainWindow(parent), m_move_callback(std::nullopt),
@@ -7,6 +8,27 @@ WinioMainWindow::WinioMainWindow(QWidget *parent)
 }
 
 WinioMainWindow::~WinioMainWindow() {}
+
+bool WinioMainWindow::event(QEvent *event) {
+    const auto type = event->type();
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+    const bool dpi_changed = type == QEvent::DevicePixelRatioChange;
+#else
+    const bool dpi_changed = type == QEvent::ScreenChangeInternal;
+#endif
+    const bool handled = QMainWindow::event(event);
+    if (dpi_changed) {
+        // The DPI event is delivered recursively. Queue the notification so
+        // every child has seen the new DPI before the component re-renders.
+        QTimer::singleShot(0, this, [this]() {
+            auto *content = static_cast<WinioCentralWidget *>(centralWidget());
+            if (content) {
+                content->notify_resize();
+            }
+        });
+    }
+    return handled;
+}
 
 void WinioMainWindow::moveEvent(QMoveEvent *event) {
     if (m_move_callback) {
@@ -43,12 +65,16 @@ WinioCentralWidget::WinioCentralWidget(QWidget *parent)
 
 WinioCentralWidget::~WinioCentralWidget() {}
 
-void WinioCentralWidget::resizeEvent(QResizeEvent *event) {
+void WinioCentralWidget::notify_resize() {
     if (m_resize_callback) {
         auto &[callback, data] = *m_resize_callback;
-        auto size = event->size();
-        callback(data, size.width(), size.height());
+        callback(data, width(), height());
     }
+}
+
+void WinioCentralWidget::resizeEvent(QResizeEvent *event) {
+    QWidget::resizeEvent(event);
+    notify_resize();
 }
 
 std::unique_ptr<QMainWindow> new_main_window() {

@@ -21,7 +21,7 @@ WinioCanvas::~WinioCanvas() {}
 
 void WinioCanvas::paintEvent(QPaintEvent *) {
     QPainter painter(this);
-    m_buffer.play(&painter);
+    painter.drawImage(QPointF(0, 0), m_buffer);
 }
 
 void WinioCanvas::mouseMoveEvent(QMouseEvent *event) {
@@ -127,7 +127,12 @@ void canvas_register_key_char_event(
 
 std::unique_ptr<QPainter> canvas_new_painter(QWidget &w) {
     auto &c = static_cast<WinioCanvas &>(w);
-    c.m_buffer = QPicture{};
+    const qreal dpr = w.devicePixelRatioF();
+    QImage buffer(QSize(qRound(w.width() * dpr), qRound(w.height() * dpr)),
+                  QImage::Format_ARGB32_Premultiplied);
+    buffer.setDevicePixelRatio(dpr);
+    buffer.fill(Qt::transparent);
+    c.m_buffer = std::move(buffer);
     return std::make_unique<QPainter>(&c.m_buffer);
 }
 

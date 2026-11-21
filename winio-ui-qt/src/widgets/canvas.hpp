@@ -8,7 +8,6 @@
 #include <QPaintEvent>
 #include <QPainter>
 #include <QPainterPath>
-#include <QPicture>
 #include <QWheelEvent>
 #include <QWidget>
 #include <memory>
@@ -28,7 +27,7 @@ struct WinioCanvas : public QWidget {
     callback_t<void(int)> m_key_up_callback;
     callback_t<void(QString const &)> m_key_char_callback;
 
-    QPicture m_buffer;
+    QImage m_buffer;
 
     WinioCanvas(QWidget *parent);
     ~WinioCanvas() override;
