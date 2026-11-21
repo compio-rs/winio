@@ -62,11 +62,11 @@ struct WinioWgpuCanvas::GlState {
 };
 
 WinioWgpuCanvas::WinioWgpuCanvas(QWidget *parent)
-    : QOpenGLWidget(parent), m_gl(std::make_unique<GlState>()),
-      m_move_callback(std::nullopt), m_press_callback(std::nullopt),
-      m_release_callback(std::nullopt), m_wheel_callback(std::nullopt),
-      m_key_down_callback(std::nullopt), m_key_up_callback(std::nullopt),
-      m_key_char_callback(std::nullopt) {
+    : QOpenGLWidget(parent), m_move_callback(std::nullopt),
+      m_press_callback(std::nullopt), m_release_callback(std::nullopt),
+      m_wheel_callback(std::nullopt), m_key_down_callback(std::nullopt),
+      m_key_up_callback(std::nullopt), m_key_char_callback(std::nullopt),
+      m_gl(std::make_unique<GlState>()) {
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
     // The whole area is covered by the frame.
